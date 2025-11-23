@@ -3,12 +3,15 @@ import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/Layout/Header";
 import { Sidebar } from "@/components/Layout/Sidebar";
 import { VideoCard } from "@/components/Video/VideoCard";
+import { TipModal } from "@/components/Tipping/TipModal";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 
 const Index = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [tipModalOpen, setTipModalOpen] = useState(false);
+  const [selectedVideo, setSelectedVideo] = useState<{ id: number; channel: string } | null>(null);
   const { toast } = useToast();
   const { user, loading } = useAuth();
   const navigate = useNavigate();
@@ -23,7 +26,7 @@ const Index = () => {
     timestamp: `${Math.floor(Math.random() * 12 + 1)} days ago`,
   }));
 
-  const handleTip = () => {
+  const handleTip = (videoId: number, channel: string) => {
     if (!user) {
       toast({
         title: "Authentication Required",
@@ -33,10 +36,8 @@ const Index = () => {
       return;
     }
     
-    toast({
-      title: "Tip Creator",
-      description: "Connect your wallet to send tips to creators",
-    });
+    setSelectedVideo({ id: videoId, channel });
+    setTipModalOpen(true);
   };
 
   if (loading) {
@@ -77,12 +78,20 @@ const Index = () => {
                 channel={video.channel}
                 views={video.views}
                 timestamp={video.timestamp}
-                onTip={handleTip}
+                onTip={() => handleTip(video.id, video.channel)}
               />
             ))}
           </div>
         </div>
       </main>
+
+      <TipModal
+        open={tipModalOpen}
+        onOpenChange={setTipModalOpen}
+        creatorAddress="0x742d35Cc6634C0532925a3b844Bc454e4438f44e" // Mock address - will come from DB
+        videoId={selectedVideo?.id.toString()}
+        creatorName={selectedVideo?.channel || "Creator"}
+      />
     </div>
   );
 };
