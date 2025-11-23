@@ -65,15 +65,6 @@ export default function Upload() {
     setUploadProgress(0);
     setUploadStage("Đang chuẩn bị...");
 
-    // Simulated progress updater
-    let simulatedProgress = 0;
-    const progressInterval = setInterval(() => {
-      simulatedProgress += 1;
-      if (simulatedProgress <= 60) {
-        setUploadProgress(10 + simulatedProgress);
-      }
-    }, 100);
-
     try {
       // Step 1: Get or create channel (5% progress)
       setUploadStage("Đang kiểm tra kênh...");
@@ -107,8 +98,8 @@ export default function Upload() {
         channelId = newChannel.id;
       }
 
-      // Step 2: Upload video (10% - 70% progress)
-      setUploadStage("Đang tải video lên...");
+      // Step 2: Upload video (10% - 85% progress)
+      setUploadStage(`Đang tải video lên... (${(videoFile.size / (1024 * 1024 * 1024)).toFixed(2)} GB)`);
       setUploadProgress(10);
       
       const sanitizedVideoName = videoFile.name
@@ -116,31 +107,54 @@ export default function Upload() {
         .substring(0, 100);
       const videoPath = `${user.id}/${Date.now()}-${sanitizedVideoName}`;
       
-      const { error: videoUploadError } = await supabase.storage
-        .from("videos")
-        .upload(videoPath, videoFile, {
-          cacheControl: '3600',
-          upsert: false
-        });
+      // Upload with retry logic for large files
+      let uploadSuccess = false;
+      let retryCount = 0;
+      const maxRetries = 3;
+      
+      while (!uploadSuccess && retryCount < maxRetries) {
+        try {
+          setUploadProgress(10 + (retryCount * 5));
+          
+          const { error: videoUploadError, data } = await supabase.storage
+            .from("videos")
+            .upload(videoPath, videoFile, {
+              cacheControl: '3600',
+              upsert: false
+            });
 
-      clearInterval(progressInterval);
-
-      if (videoUploadError) {
-        console.error("Video upload error:", videoUploadError);
-        throw new Error(`Lỗi tải video: ${videoUploadError.message}`);
+          if (videoUploadError) {
+            throw videoUploadError;
+          }
+          
+          uploadSuccess = true;
+          setUploadProgress(85);
+        } catch (error: any) {
+          retryCount++;
+          console.error(`Upload attempt ${retryCount} failed:`, error);
+          
+          if (retryCount >= maxRetries) {
+            throw new Error(`Lỗi tải video sau ${maxRetries} lần thử: ${error.message}`);
+          }
+          
+          setUploadStage(`Đang thử lại... (Lần ${retryCount}/${maxRetries})`);
+          await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s before retry
+        }
       }
 
-      setUploadProgress(70);
+      if (!uploadSuccess) {
+        throw new Error("Không thể tải video lên sau nhiều lần thử");
+      }
 
       const { data: videoUrl } = supabase.storage
         .from("videos")
         .getPublicUrl(videoPath);
 
-      // Step 3: Upload thumbnail (70% - 85% progress)
+      // Step 3: Upload thumbnail (85% - 90% progress)
       let thumbnailUrl = null;
       if (thumbnailFile) {
         setUploadStage("Đang tải thumbnail...");
-        setUploadProgress(75);
+        setUploadProgress(87);
         
         const sanitizedThumbName = thumbnailFile.name
           .replace(/[^a-zA-Z0-9._-]/g, "_")
@@ -159,11 +173,11 @@ export default function Upload() {
         }
       }
 
-      setUploadProgress(85);
-
-      // Step 4: Create database record (85% - 100% progress)
-      setUploadStage("Đang lưu thông tin...");
       setUploadProgress(90);
+
+      // Step 4: Create database record (90% - 100% progress)
+      setUploadStage("Đang lưu thông tin...");
+      setUploadProgress(93);
       
       const { error: videoError } = await supabase.from("videos").insert({
         user_id: user.id,
@@ -191,13 +205,23 @@ export default function Upload() {
       // Wait a bit to show completion
       setTimeout(() => {
         navigate("/");
-      }, 1000);
+      }, 1500);
     } catch (error: any) {
-      clearInterval(progressInterval);
       console.error("Upload error:", error);
+      
+      // More detailed error message
+      let errorMessage = "Không thể tải video lên. ";
+      if (error.message?.includes("timeout")) {
+        errorMessage += "Video quá lớn hoặc kết nối mạng chậm. Vui lòng thử lại hoặc nén video trước khi tải lên.";
+      } else if (error.message?.includes("network")) {
+        errorMessage += "Lỗi kết nối mạng. Vui lòng kiểm tra internet và thử lại.";
+      } else {
+        errorMessage += error.message || "Vui lòng thử lại.";
+      }
+      
       toast({
         title: "Tải lên thất bại",
-        description: error.message || "Không thể tải video lên. Vui lòng thử lại.",
+        description: errorMessage,
         variant: "destructive",
       });
       setUploadProgress(0);
@@ -225,6 +249,11 @@ export default function Upload() {
                   <p className="text-sm text-foreground font-medium">{videoFile.name}</p>
                   <p className="text-xs text-muted-foreground">
                     Kích thước: {(videoFile.size / (1024 * 1024)).toFixed(2)} MB
+                    {videoFile.size > 1024 * 1024 * 1024 && (
+                      <span className="block mt-1 text-orange-500">
+                        ({(videoFile.size / (1024 * 1024 * 1024)).toFixed(2)} GB - Video lớn, có thể tải lâu)
+                      </span>
+                    )}
                   </p>
                   <Button
                     type="button"
@@ -252,6 +281,9 @@ export default function Upload() {
                   </div>
                   <p className="text-sm text-muted-foreground">
                     MP4, WebM, hoặc AVI (tối đa 10GB)
+                  </p>
+                  <p className="text-xs text-orange-600 mt-2">
+                    💡 Gợi ý: Video trên 2GB có thể tải lâu. Nên nén video trước khi tải lên.
                   </p>
                 </div>
               )}
