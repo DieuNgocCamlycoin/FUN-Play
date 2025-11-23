@@ -59,8 +59,8 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                   variant="ghost"
                   onClick={() => handleNavigation(item.href)}
                   className={cn(
-                    "w-full justify-start gap-6 px-3 py-2.5 h-auto hover:bg-accent",
-                    location.pathname === item.href && "bg-accent"
+                    "w-full justify-start gap-6 px-3 py-2.5 h-auto hover:bg-hover-blue dark:hover:bg-hover-blue-dark transition-colors",
+                    location.pathname === item.href && "bg-hover-blue dark:bg-hover-blue-dark"
                   )}
                 >
                   <item.icon className="h-5 w-5" />
@@ -79,8 +79,8 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                   variant="ghost"
                   onClick={() => handleNavigation(item.href)}
                   className={cn(
-                    "w-full justify-start gap-6 px-3 py-2.5 h-auto hover:bg-accent",
-                    location.pathname === item.href && "bg-accent"
+                    "w-full justify-start gap-6 px-3 py-2.5 h-auto hover:bg-hover-blue dark:hover:bg-hover-blue-dark transition-colors",
+                    location.pathname === item.href && "bg-hover-blue dark:bg-hover-blue-dark"
                   )}
                 >
                   <item.icon className="h-5 w-5" />
@@ -97,8 +97,8 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                 variant="ghost"
                 onClick={() => handleNavigation("/wallet")}
                 className={cn(
-                  "w-full justify-start gap-6 px-3 py-2.5 h-auto hover:bg-accent text-foreground",
-                  location.pathname === "/wallet" && "bg-accent"
+                  "w-full justify-start gap-6 px-3 py-2.5 h-auto hover:bg-hover-blue dark:hover:bg-hover-blue-dark transition-colors text-foreground",
+                  location.pathname === "/wallet" && "bg-hover-blue dark:bg-hover-blue-dark"
                 )}
               >
                 <Wallet className="h-5 w-5 text-fun-yellow" />

@@ -20,7 +20,7 @@ export const VideoCard = ({
   onTip,
 }: VideoCardProps) => {
   return (
-    <Card className="group overflow-hidden bg-card border-0 hover:bg-accent/50 transition-all duration-300">
+    <Card className="group overflow-hidden bg-card border-0 hover:bg-hover-blue dark:hover:bg-hover-blue-dark transition-all duration-300 cursor-pointer">
       {/* Thumbnail */}
       <div className="relative aspect-video overflow-hidden rounded-lg">
         <img

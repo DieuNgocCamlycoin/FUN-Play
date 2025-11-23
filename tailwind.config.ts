@@ -66,6 +66,14 @@ export default {
         logo: {
           bg: "hsl(var(--logo-bg))",
         },
+        hover: {
+          blue: "hsl(var(--hover-blue))",
+          "blue-dark": "hsl(var(--hover-blue-dark))",
+        },
+        text: {
+          blue: "hsl(var(--text-blue))",
+          "blue-dark": "hsl(var(--text-blue-dark))",
+        },
       },
       fontFamily: {
         sans: ["Inter", "sans-serif"],

@@ -34,11 +34,11 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
           <Menu className="h-5 w-5" />
         </Button>
         <div className="flex items-center gap-1 cursor-pointer" onClick={() => navigate("/")}>
-          <div className="bg-[#FF0000] rounded-md px-2 py-1 flex items-center justify-center">
+          <div className="bg-logo-bg rounded-md px-2 py-1 flex items-center justify-center">
             <Play className="h-5 w-5 text-white fill-white" />
           </div>
-          <span className="text-xl font-bold text-foreground tracking-tight">
-            FUN<span className="text-muted-foreground font-normal">PLAY</span>
+          <span className="text-xl font-bold text-text-blue-dark tracking-tight">
+            FUN<span className="text-text-blue font-normal">PLAY</span>
           </span>
         </div>
       </div>
