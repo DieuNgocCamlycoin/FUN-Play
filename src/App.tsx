@@ -14,6 +14,10 @@ import CreatePost from "./pages/CreatePost";
 import YourVideos from "./pages/YourVideos";
 import EditVideo from "./pages/EditVideo";
 import Wallet from "./pages/Wallet";
+import ManagePosts from "./pages/ManagePosts";
+import EditPost from "./pages/EditPost";
+import ManagePlaylists from "./pages/ManagePlaylists";
+import ManageChannel from "./pages/ManageChannel";
 
 const queryClient = new QueryClient();
 
@@ -35,6 +39,10 @@ const App = () => (
           <Route path="/create-post" element={<CreatePost />} />
           <Route path="/your-videos" element={<YourVideos />} />
           <Route path="/edit-video/:id" element={<EditVideo />} />
+          <Route path="/manage-posts" element={<ManagePosts />} />
+          <Route path="/edit-post/:id" element={<EditPost />} />
+          <Route path="/manage-playlists" element={<ManagePlaylists />} />
+          <Route path="/manage-channel" element={<ManageChannel />} />
           <Route path="/wallet" element={<Wallet />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
