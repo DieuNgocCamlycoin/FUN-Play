@@ -57,10 +57,7 @@ export const VideoCard = ({
         >
           <Volume2 className="h-4 w-4" />
         </Button>
-        
-        <div className="absolute bottom-2 right-2 bg-background/90 px-1.5 py-0.5 rounded text-xs font-semibold">
-          10:24
-        </div>
+      
       </div>
 
       {/* Info */}

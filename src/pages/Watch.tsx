@@ -213,11 +213,12 @@ export default function Watch() {
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
       <main className="pt-14 lg:pl-64">
-        <div className="max-w-7xl mx-auto p-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Video Player */}
-            <div className="lg:col-span-2 space-y-4">
-              <div className="aspect-video bg-black rounded-lg overflow-hidden">
+        <div className="max-w-[1920px] mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6 p-6">
+            {/* Main Content */}
+            <div className="space-y-4">
+              {/* Video Player */}
+              <div className="aspect-video bg-black rounded-xl overflow-hidden">
                 <video
                   src={video.video_url}
                   controls
@@ -226,97 +227,98 @@ export default function Watch() {
                 />
               </div>
 
-              {/* Video Info */}
-              <div>
-                <h1 className="text-xl font-bold text-foreground mb-2">
-                  {video.title}
-                </h1>
+              {/* Video Title */}
+              <h1 className="text-xl font-bold text-foreground">
+                {video.title}
+              </h1>
 
-                <div className="flex items-center justify-between flex-wrap gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-semibold">
-                        {video.channels.name[0]}
-                      </div>
-                      <div>
-                        <p className="font-semibold text-foreground">
-                          {video.channels.name}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {video.channels.subscriber_count || 0} subscribers
-                        </p>
-                      </div>
-                    </div>
-                    <Button size="sm" className="rounded-full">
-                      Subscribe
-                    </Button>
+              {/* Channel Info & Actions */}
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-semibold">
+                    {video.channels.name[0]}
                   </div>
+                  <div>
+                    <p className="font-semibold text-foreground">
+                      {video.channels.name}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {video.channels.subscriber_count || 0} người đăng ký
+                    </p>
+                  </div>
+                  <Button className="rounded-full ml-2">
+                    Đăng ký
+                  </Button>
+                </div>
 
-                  <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center bg-muted rounded-full overflow-hidden">
                     <Button
-                      variant="secondary"
+                      variant="ghost"
                       size="sm"
-                      className="rounded-full gap-2"
+                      className="rounded-full rounded-r-none gap-2 hover:bg-muted-foreground/10"
                       onClick={handleLike}
                     >
                       <ThumbsUp className="h-4 w-4" />
-                      {video.like_count || 0}
+                      <span>{video.like_count || 0}</span>
                     </Button>
+                    <div className="w-px h-6 bg-border"></div>
                     <Button
-                      variant="secondary"
+                      variant="ghost"
                       size="sm"
-                      className="rounded-full"
+                      className="rounded-full rounded-l-none hover:bg-muted-foreground/10"
                     >
                       <ThumbsDown className="h-4 w-4" />
                     </Button>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      className="rounded-full gap-2"
-                    >
-                      <Share2 className="h-4 w-4" />
-                      Share
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      size="icon"
-                      className="rounded-full"
-                    >
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
                   </div>
-                </div>
-
-                {/* Description */}
-                <div className="mt-4 bg-muted rounded-lg p-4">
-                  <p className="text-sm text-foreground whitespace-pre-wrap">
-                    {video.view_count || 0} views •{" "}
-                    {new Date(video.created_at).toLocaleDateString()}
-                  </p>
-                  <p className="text-sm text-foreground mt-2">
-                    {video.description}
-                  </p>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="rounded-full gap-2"
+                  >
+                    <Share2 className="h-4 w-4" />
+                    Chia sẻ
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    className="rounded-full"
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
 
-              {/* Comments */}
+              {/* Description */}
+              <div className="bg-muted rounded-xl p-4">
+                <div className="flex items-center gap-2 text-sm font-semibold text-foreground mb-2">
+                  <span>{video.view_count || 0} lượt xem</span>
+                  <span>•</span>
+                  <span>{new Date(video.created_at).toLocaleDateString("vi-VN")}</span>
+                </div>
+                <p className="text-sm text-foreground whitespace-pre-wrap">
+                  {video.description}
+                </p>
+              </div>
+
+              {/* Comments Section */}
               <div className="mt-6">
-                <h2 className="text-lg font-semibold mb-4 text-foreground">
-                  {comments.length} Comments
+                <h2 className="text-xl font-semibold mb-6 text-foreground">
+                  {comments.length} bình luận
                 </h2>
 
                 {/* Add Comment */}
-                {user && (
-                  <div className="flex gap-3 mb-6">
+                {user ? (
+                  <div className="flex gap-3 mb-8">
                     <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-semibold flex-shrink-0">
                       {user.email?.[0].toUpperCase()}
                     </div>
                     <div className="flex-1">
                       <Textarea
-                        placeholder="Add a comment..."
+                        placeholder="Viết bình luận..."
                         value={newComment}
                         onChange={(e) => setNewComment(e.target.value)}
-                        className="min-h-[80px]"
+                        className="border-0 border-b border-border rounded-none px-0 focus-visible:ring-0 focus-visible:border-foreground resize-none"
                       />
                       <div className="flex gap-2 mt-2 justify-end">
                         <Button
@@ -324,18 +326,26 @@ export default function Watch() {
                           size="sm"
                           onClick={() => setNewComment("")}
                         >
-                          Cancel
+                          Hủy
                         </Button>
-                        <Button size="sm" onClick={handleAddComment}>
-                          Comment
+                        <Button 
+                          size="sm" 
+                          onClick={handleAddComment}
+                          disabled={!newComment.trim()}
+                        >
+                          Bình luận
                         </Button>
                       </div>
                     </div>
                   </div>
+                ) : (
+                  <div className="text-center py-4 text-muted-foreground">
+                    <Button onClick={() => navigate("/auth")}>Đăng nhập để bình luận</Button>
+                  </div>
                 )}
 
                 {/* Comments List */}
-                <div className="space-y-4">
+                <div className="space-y-6">
                   {comments.map((comment) => (
                     <div key={comment.id} className="flex gap-3">
                       <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-semibold flex-shrink-0">
@@ -347,22 +357,19 @@ export default function Watch() {
                             {comment.profiles.display_name || "User"}
                           </span>
                           <span className="text-xs text-muted-foreground">
-                            {new Date(comment.created_at).toLocaleDateString()}
+                            {new Date(comment.created_at).toLocaleDateString("vi-VN")}
                           </span>
                         </div>
-                        <p className="text-sm text-foreground">
+                        <p className="text-sm text-foreground mb-2">
                           {comment.content}
                         </p>
-                        <div className="flex items-center gap-4 mt-2">
-                          <Button variant="ghost" size="sm" className="h-8 px-2">
+                        <div className="flex items-center gap-2">
+                          <Button variant="ghost" size="sm" className="h-8 px-2 rounded-full">
                             <ThumbsUp className="h-3 w-3 mr-1" />
                             {comment.like_count || 0}
                           </Button>
-                          <Button variant="ghost" size="sm" className="h-8 px-2">
+                          <Button variant="ghost" size="sm" className="h-8 px-2 rounded-full">
                             <ThumbsDown className="h-3 w-3" />
-                          </Button>
-                          <Button variant="ghost" size="sm" className="h-8 px-2">
-                            Reply
                           </Button>
                         </div>
                       </div>
@@ -372,12 +379,12 @@ export default function Watch() {
               </div>
             </div>
 
-            {/* Recommended Videos */}
+            {/* Recommended Videos Sidebar */}
             <div className="space-y-3">
-              <h2 className="text-lg font-semibold text-foreground">
+              <h2 className="text-lg font-semibold text-foreground px-2">
                 Recommended
               </h2>
-              {/* Add recommended videos here */}
+              {/* Recommended videos will be added here */}
             </div>
           </div>
         </div>
