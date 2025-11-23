@@ -65,8 +65,8 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                   variant="ghost"
                   onClick={() => handleNavigation(item.href)}
                   className={cn(
-                    "w-full justify-start gap-6 px-3 py-2.5 h-auto hover:bg-hover-blue dark:hover:bg-hover-blue-dark hover:text-primary-foreground transition-all",
-                    location.pathname === item.href && "bg-hover-blue dark:bg-hover-blue-dark text-primary-foreground font-semibold"
+                    "w-full justify-start gap-6 px-3 py-2.5 h-auto hover:bg-hover-yellow hover:text-black transition-all duration-300",
+                    location.pathname === item.href && "bg-hover-yellow text-black font-semibold"
                   )}
                 >
                   <item.icon className="h-5 w-5" />
@@ -85,8 +85,8 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                   variant="ghost"
                   onClick={() => handleNavigation(item.href)}
                   className={cn(
-                    "w-full justify-start gap-6 px-3 py-2.5 h-auto hover:bg-hover-blue dark:hover:bg-hover-blue-dark hover:text-primary-foreground transition-all",
-                    location.pathname === item.href && "bg-hover-blue dark:bg-hover-blue-dark text-primary-foreground font-semibold"
+                    "w-full justify-start gap-6 px-3 py-2.5 h-auto hover:bg-hover-yellow hover:text-black transition-all duration-300",
+                    location.pathname === item.href && "bg-hover-yellow text-black font-semibold"
                   )}
                 >
                   <item.icon className="h-5 w-5" />
@@ -105,8 +105,8 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                   variant="ghost"
                   onClick={() => handleNavigation(item.href)}
                   className={cn(
-                    "w-full justify-start gap-6 px-3 py-2.5 h-auto hover:bg-hover-blue dark:hover:bg-hover-blue-dark hover:text-primary-foreground transition-all",
-                    location.pathname === item.href && "bg-hover-blue dark:bg-hover-blue-dark text-primary-foreground font-semibold"
+                    "w-full justify-start gap-6 px-3 py-2.5 h-auto hover:bg-hover-yellow hover:text-black transition-all duration-300",
+                    location.pathname === item.href && "bg-hover-yellow text-black font-semibold"
                   )}
                 >
                   <item.icon className="h-5 w-5" />
@@ -123,8 +123,8 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                 variant="ghost"
                 onClick={() => handleNavigation("/wallet")}
                 className={cn(
-                  "w-full justify-start gap-6 px-3 py-2.5 h-auto hover:bg-hover-blue dark:hover:bg-hover-blue-dark hover:text-primary-foreground transition-all",
-                  location.pathname === "/wallet" && "bg-hover-blue dark:bg-hover-blue-dark text-primary-foreground font-semibold"
+                  "w-full justify-start gap-6 px-3 py-2.5 h-auto hover:bg-hover-yellow hover:text-black transition-all duration-300",
+                  location.pathname === "/wallet" && "bg-hover-yellow text-black font-semibold"
                 )}
               >
                 <Wallet className="h-5 w-5 text-fun-yellow" />

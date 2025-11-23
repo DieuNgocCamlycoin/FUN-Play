@@ -69,6 +69,8 @@ export default {
         hover: {
           blue: "hsl(var(--hover-blue))",
           "blue-dark": "hsl(var(--hover-blue-dark))",
+          yellow: "hsl(var(--hover-yellow))",
+          "yellow-dark": "hsl(var(--hover-yellow-dark))",
         },
         text: {
           blue: "hsl(var(--text-blue))",
