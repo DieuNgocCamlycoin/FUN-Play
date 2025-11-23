@@ -30,6 +30,8 @@ const App = () => (
           <Route path="/upload" element={<Upload />} />
           <Route path="/watch/:id" element={<Watch />} />
           <Route path="/channel/:id" element={<Channel />} />
+          <Route path="/c/:username" element={<Channel />} />
+          <Route path="/@:username" element={<Channel />} />
           <Route path="/create-post" element={<CreatePost />} />
           <Route path="/your-videos" element={<YourVideos />} />
           <Route path="/edit-video/:id" element={<EditVideo />} />

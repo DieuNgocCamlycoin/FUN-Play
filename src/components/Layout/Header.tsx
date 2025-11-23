@@ -54,12 +54,12 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
         >
           <Menu className="h-5 w-5" />
         </Button>
-        <div className="flex items-center gap-1 cursor-pointer" onClick={() => navigate("/")}>
-          <div className="bg-logo-bg rounded-md px-2 py-1 flex items-center justify-center">
-            <Play className="h-5 w-5 text-white fill-white" />
+        <div className="flex items-center gap-2 cursor-pointer hover:bg-hover-blue dark:hover:bg-hover-blue-dark rounded-lg px-2 py-1.5 transition-colors" onClick={() => navigate("/")}>
+          <div className="bg-logo-bg rounded-sm px-1 py-0.5 flex items-center justify-center">
+            <Play className="h-4 w-4 text-white fill-white" />
           </div>
-          <span className="text-xl font-bold text-primary tracking-tight">
-            FUNPLAY
+          <span className="text-lg font-semibold tracking-tight" style={{ fontFamily: "'Roboto', sans-serif", letterSpacing: '-0.5px' }}>
+            FUN<span className="font-normal">PLAY</span>
           </span>
         </div>
       </div>

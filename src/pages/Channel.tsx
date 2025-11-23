@@ -33,7 +33,7 @@ interface Video {
 }
 
 export default function Channel() {
-  const { id } = useParams();
+  const { id, username } = useParams();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [channel, setChannel] = useState<Channel | null>(null);
   const [videos, setVideos] = useState<Video[]>([]);
@@ -45,22 +45,41 @@ export default function Channel() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (id) {
+    if (id || username) {
       fetchChannel();
+    }
+  }, [id, username, user]);
+
+  useEffect(() => {
+    if (channel) {
       fetchVideos();
       if (user) {
         checkSubscription();
       }
     }
-  }, [id, user]);
+  }, [channel, user]);
 
   const fetchChannel = async () => {
     try {
-      const { data, error } = await supabase
-        .from("channels")
-        .select("*")
-        .eq("id", id)
-        .single();
+      let query = supabase.from("channels").select("*");
+      
+      if (username) {
+        // First get profile by username
+        const { data: profileData, error: profileError } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("username", username)
+          .single();
+          
+        if (profileError) throw profileError;
+        
+        // Then get channel by user_id
+        query = query.eq("user_id", profileData.id);
+      } else {
+        query = query.eq("id", id);
+      }
+      
+      const { data, error } = await query.single();
 
       if (error) throw error;
       setChannel(data);
@@ -87,11 +106,13 @@ export default function Channel() {
   };
 
   const fetchVideos = async () => {
+    if (!channel) return;
+    
     try {
       const { data, error } = await supabase
         .from("videos")
         .select("id, title, thumbnail_url, view_count, created_at")
-        .eq("channel_id", id)
+        .eq("channel_id", channel.id)
         .eq("is_public", true)
         .order("created_at", { ascending: false });
 
@@ -103,13 +124,13 @@ export default function Channel() {
   };
 
   const checkSubscription = async () => {
-    if (!user) return;
+    if (!user || !channel) return;
 
     try {
       const { data } = await supabase
         .from("subscriptions")
         .select("id")
-        .eq("channel_id", id)
+        .eq("channel_id", channel.id)
         .eq("subscriber_id", user.id)
         .maybeSingle();
 
@@ -125,30 +146,32 @@ export default function Channel() {
       return;
     }
 
+    if (!channel) return;
+
     try {
       if (isSubscribed) {
         await supabase
           .from("subscriptions")
           .delete()
-          .eq("channel_id", id)
+          .eq("channel_id", channel.id)
           .eq("subscriber_id", user.id);
 
         await supabase
           .from("channels")
           .update({ subscriber_count: (channel?.subscriber_count || 1) - 1 })
-          .eq("id", id);
+          .eq("id", channel.id);
 
         setIsSubscribed(false);
       } else {
         await supabase.from("subscriptions").insert({
-          channel_id: id,
+          channel_id: channel.id,
           subscriber_id: user.id,
         });
 
         await supabase
           .from("channels")
           .update({ subscriber_count: (channel?.subscriber_count || 0) + 1 })
-          .eq("id", id);
+          .eq("id", channel.id);
 
         setIsSubscribed(true);
       }
