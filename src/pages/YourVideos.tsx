@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Pencil, Trash2, Eye } from "lucide-react";
+import { Edit, Trash2, EyeOff } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -142,30 +142,32 @@ const YourVideos = () => {
                       {video.view_count || 0} lượt xem • {new Date(video.created_at).toLocaleDateString("vi-VN")}
                     </p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-col gap-2">
                     <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => navigate(`/watch/${video.id}`)}
-                      title="Xem video"
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
+                      variant="outline"
+                      size="sm"
                       onClick={() => navigate(`/edit-video/${video.id}`)}
-                      title="Chỉnh sửa"
+                      className="gap-2 bg-green-500/10 border-green-500/20 hover:bg-green-500/20 text-green-600"
                     >
-                      <Pencil className="h-4 w-4" />
+                      <Edit className="h-4 w-4" />
+                      Sửa
                     </Button>
                     <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setDeleteVideoId(video.id)}
-                      title="Xóa"
+                      variant="outline"
+                      size="sm"
+                      className="gap-2 bg-yellow-500/10 border-yellow-500/20 hover:bg-yellow-500/20 text-yellow-600"
                     >
-                      <Trash2 className="h-4 w-4 text-destructive" />
+                      <EyeOff className="h-4 w-4" />
+                      Ẩn
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDeleteVideoId(video.id)}
+                      className="gap-2 bg-red-500/10 border-red-500/20 hover:bg-red-500/20 text-red-600"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Xóa
                     </Button>
                   </div>
                 </div>

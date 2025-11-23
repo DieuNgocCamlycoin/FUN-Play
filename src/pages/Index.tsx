@@ -4,7 +4,7 @@ import { Header } from "@/components/Layout/Header";
 import { Sidebar } from "@/components/Layout/Sidebar";
 import { CategoryChips } from "@/components/Layout/CategoryChips";
 import { VideoCard } from "@/components/Video/VideoCard";
-import { TipModal } from "@/components/Tipping/TipModal";
+import { BackgroundMusicPlayer } from "@/components/BackgroundMusicPlayer";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -28,10 +28,9 @@ interface Video {
 
 const Index = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [tipModalOpen, setTipModalOpen] = useState(false);
-  const [selectedVideo, setSelectedVideo] = useState<{ id: string; channel: string; walletAddress: string | null } | null>(null);
   const [videos, setVideos] = useState<Video[]>([]);
   const [loadingVideos, setLoadingVideos] = useState(true);
+  const [currentMusicUrl, setCurrentMusicUrl] = useState<string | null>(null);
   const { toast } = useToast();
   const { user, loading } = useAuth();
   const navigate = useNavigate();
@@ -100,38 +99,8 @@ const Index = () => {
     fetchVideos();
   }, [toast]);
 
-  const handleTip = async (videoId: string, channel: string, walletAddress: string | null) => {
-    if (!user) {
-      toast({
-        title: "Authentication Required",
-        description: "Please sign in to tip creators",
-      });
-      navigate("/auth");
-      return;
-    }
-
-    // Check if user has set their wallet address
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("wallet_address")
-      .eq("id", user.id)
-      .maybeSingle();
-
-    if (!profile?.wallet_address) {
-      toast({
-        title: "Wallet Not Set",
-        description: "Please set your wallet address in settings first",
-        action: (
-          <Button variant="outline" size="sm" onClick={() => navigate("/settings")}>
-            Go to Settings
-          </Button>
-        ),
-      });
-      return;
-    }
-
-    setSelectedVideo({ id: videoId, channel, walletAddress });
-    setTipModalOpen(true);
+  const handlePlayVideo = (videoId: string) => {
+    navigate(`/watch/${videoId}`);
   };
 
   const formatViews = (views: number | null) => {
@@ -194,12 +163,13 @@ const Index = () => {
               {videos.map((video) => (
                 <VideoCard
                   key={video.id}
+                  videoId={video.id}
                   thumbnail={video.thumbnail_url || "https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=400&h=225&fit=crop"}
                   title={video.title}
                   channel={video.channels?.name || "Unknown Channel"}
                   views={formatViews(video.view_count)}
                   timestamp={formatTimestamp(video.created_at)}
-                  onTip={() => handleTip(video.id, video.channels?.name || "Unknown", video.profiles?.wallet_address || null)}
+                  onPlay={handlePlayVideo}
                 />
               ))}
             </div>
@@ -207,13 +177,13 @@ const Index = () => {
         </div>
       </main>
 
-      <TipModal
-        open={tipModalOpen}
-        onOpenChange={setTipModalOpen}
-        creatorAddress={selectedVideo?.walletAddress || "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"}
-        videoId={selectedVideo?.id}
-        creatorName={selectedVideo?.channel || "Creator"}
-      />
+      {/* Background Music Player */}
+      {user && (
+        <BackgroundMusicPlayer 
+          musicUrl={currentMusicUrl} 
+          autoPlay={true}
+        />
+      )}
     </div>
   );
 };

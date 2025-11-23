@@ -245,12 +245,13 @@ export default function Channel() {
                 {videos.map((video) => (
                   <VideoCard
                     key={video.id}
+                    videoId={video.id}
                     thumbnail={video.thumbnail_url || "https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=400&h=225&fit=crop"}
                     title={video.title}
                     channel={channel.name}
                     views={`${video.view_count || 0} views`}
                     timestamp={new Date(video.created_at).toLocaleDateString()}
-                    onTip={() => {}}
+                    onPlay={(id) => navigate(`/watch/${id}`)}
                   />
                 ))}
               </div>

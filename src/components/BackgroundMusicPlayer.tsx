@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Volume2, VolumeX, Music } from "lucide-react";
+import { Volume2, VolumeX, Music, X } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 
 interface BackgroundMusicPlayerProps {
   musicUrl: string | null;
   autoPlay?: boolean;
+  onClose?: () => void;
 }
 
-export const BackgroundMusicPlayer = ({ musicUrl, autoPlay = true }: BackgroundMusicPlayerProps) => {
+export const BackgroundMusicPlayer = ({ musicUrl, autoPlay = true, onClose }: BackgroundMusicPlayerProps) => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(autoPlay);
   const [volume, setVolume] = useState(50);
@@ -43,41 +44,54 @@ export const BackgroundMusicPlayer = ({ musicUrl, autoPlay = true }: BackgroundM
   if (!musicUrl) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 z-50">
+    <div className="fixed bottom-4 right-4 z-50 max-w-sm">
       <div className="bg-card border border-border rounded-lg shadow-lg p-3">
         <div className="flex items-center gap-3">
-          <Music className="h-5 w-5 text-primary" />
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={togglePlay}
-              className="h-8 w-8"
-            >
-              {isPlaying ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
-            </Button>
-            
-            {showControls && (
-              <div className="w-24">
-                <Slider
-                  value={[volume]}
-                  onValueChange={(value) => setVolume(value[0])}
-                  max={100}
-                  step={1}
-                  className="cursor-pointer"
-                />
-              </div>
-            )}
-            
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setShowControls(!showControls)}
-              className="h-8 w-8"
-            >
-              <Music className="h-4 w-4" />
-            </Button>
+          <Music className="h-5 w-5 text-primary animate-pulse" />
+          <div className="flex-1">
+            <p className="text-xs font-medium text-foreground mb-1">Nhạc nền</p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={togglePlay}
+                className="h-8 w-8"
+              >
+                {isPlaying ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+              </Button>
+              
+              {showControls && (
+                <div className="w-24">
+                  <Slider
+                    value={[volume]}
+                    onValueChange={(value) => setVolume(value[0])}
+                    max={100}
+                    step={1}
+                    className="cursor-pointer"
+                  />
+                </div>
+              )}
+              
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowControls(!showControls)}
+                className="h-8 w-8"
+              >
+                <Music className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
+          {onClose && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onClose}
+              className="h-8 w-8"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </div>
 
