@@ -1,7 +1,9 @@
 import { Search, Video, Bell, Menu, Play, User as UserIcon, LogOut, Settings, Radio, SquarePen, Plus, FileVideo, List } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MultiTokenWallet } from "@/components/Web3/MultiTokenWallet";
+import { UploadVideoModal } from "@/components/Video/UploadVideoModal";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import {
@@ -20,6 +22,25 @@ interface HeaderProps {
 export const Header = ({ onMenuClick }: HeaderProps) => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      // Check if it's a YouTube URL
+      const youtubeRegex = /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]+)/;
+      const match = searchQuery.match(youtubeRegex);
+
+      if (match && match[1]) {
+        // Open YouTube video in new tab
+        window.open(`https://www.youtube.com/watch?v=${match[1]}`, "_blank");
+        setSearchQuery("");
+      } else {
+        navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
+      }
+    }
+  };
 
   return (
     <header className="fixed top-0 left-0 right-0 h-14 bg-background border-b border-border z-50 flex items-center justify-between px-4 gap-4">
@@ -45,20 +66,23 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
 
       {/* Center - Search */}
       <div className="flex-1 max-w-2xl">
-        <div className="relative">
+        <form onSubmit={handleSearch} className="relative">
           <Input
             type="text"
-            placeholder="Search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Tìm kiếm hoặc dán link YouTube..."
             className="w-full pl-4 pr-12 h-10 bg-muted border-border focus:border-primary rounded-full"
           />
           <Button
+            type="submit"
             size="icon"
             variant="ghost"
             className="absolute right-0 top-0 h-10 w-12 rounded-r-full hover:bg-accent"
           >
             <Search className="h-5 w-5" />
           </Button>
-        </div>
+        </form>
       </div>
 
       {/* Right section */}
@@ -74,8 +98,8 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuItem onClick={() => navigate("/upload")}>
-                <Video className="mr-2 h-4 w-4" />
+              <DropdownMenuItem onClick={() => setUploadModalOpen(true)}>
+                <FileVideo className="mr-2 h-4 w-4" />
                 Tải video lên
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate("/channel/" + user.id)}>
@@ -83,7 +107,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
                 Quản lý kênh
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate("/your-videos")}>
-                <FileVideo className="mr-2 h-4 w-4" />
+                <List className="mr-2 h-4 w-4" />
                 Video của tôi
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate("/create-post")}>
@@ -131,6 +155,8 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
           </Button>
         )}
       </div>
+      
+      <UploadVideoModal open={uploadModalOpen} onOpenChange={setUploadModalOpen} />
     </header>
   );
 };
