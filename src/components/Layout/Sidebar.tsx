@@ -79,20 +79,28 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
 
             {/* Library section */}
             <div className="px-3 py-2">
-              {libraryItems.map((item) => (
-                <Button
-                  key={item.label}
-                  variant="ghost"
-                  onClick={() => handleNavigation(item.href)}
-                  className={cn(
-                    "w-full justify-start gap-6 px-3 py-2.5 h-auto hover:bg-hover-yellow hover:text-primary transition-all duration-300",
-                    location.pathname === item.href && "bg-hover-yellow text-primary font-semibold"
-                  )}
-                >
-                  <item.icon className="h-5 w-5" />
-                  <span>{item.label}</span>
-                </Button>
-              ))}
+              {libraryItems.map((item) => {
+                const isYourVideos = item.href === "/your-videos";
+                return (
+                  <Button
+                    key={item.label}
+                    variant="ghost"
+                    onClick={() => handleNavigation(item.href)}
+                    className={cn(
+                      "w-full justify-start gap-6 px-3 py-2.5 h-auto transition-all duration-300",
+                      isYourVideos 
+                        ? "bg-green-100 dark:bg-green-950 hover:bg-hover-yellow text-green-700 dark:text-green-300 font-bold border-2 border-green-500 shadow-md" 
+                        : "hover:bg-hover-yellow hover:text-primary",
+                      location.pathname === item.href && !isYourVideos && "bg-hover-yellow text-primary font-semibold",
+                      location.pathname === item.href && isYourVideos && "bg-hover-yellow text-primary"
+                    )}
+                  >
+                    <item.icon className={cn("h-5 w-5", isYourVideos && "text-green-600 dark:text-green-400")} />
+                    <span className={cn(isYourVideos && "text-lg")}>{item.label}</span>
+                    {isYourVideos && <span className="ml-auto text-xl">📹</span>}
+                  </Button>
+                );
+              })}
             </div>
 
             <div className="h-px bg-border my-2" />
