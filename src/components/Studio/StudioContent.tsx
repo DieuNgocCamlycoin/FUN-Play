@@ -65,7 +65,9 @@ export const StudioContent = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   useEffect(() => {
-    fetchVideos();
+    if (user?.id) {
+      fetchVideos();
+    }
   }, [user]);
 
   // Handle edit query parameter from video card
@@ -84,12 +86,17 @@ export const StudioContent = () => {
   }, [searchParams, videos, setSearchParams]);
 
   const fetchVideos = async () => {
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       const { data, error } = await supabase
         .from("videos")
         .select("id, title, description, thumbnail_url, view_count, created_at, is_public, like_count, comment_count")
-        .eq("user_id", user?.id)
+        .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
