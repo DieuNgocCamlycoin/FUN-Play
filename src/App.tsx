@@ -44,6 +44,13 @@ const App = () => (
           <Route path="/manage-playlists" element={<ManagePlaylists />} />
           <Route path="/manage-channel" element={<ManageChannel />} />
           <Route path="/wallet" element={<Wallet />} />
+          {/* Temporary redirect routes for missing pages */}
+          <Route path="/shorts" element={<Index />} />
+          <Route path="/subscriptions" element={<Index />} />
+          <Route path="/library" element={<Index />} />
+          <Route path="/history" element={<Index />} />
+          <Route path="/watch-later" element={<Index />} />
+          <Route path="/liked" element={<Index />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
