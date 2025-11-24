@@ -161,7 +161,8 @@ export default function Upload() {
       }
 
       // Step 2: Upload video (10% - 85% progress)
-      setUploadStage(`Đang tải video lên... (${(videoFile.size / (1024 * 1024 * 1024)).toFixed(2)} GB)`);
+      const fileSizeGB = (videoFile.size / (1024 * 1024 * 1024)).toFixed(2);
+      setUploadStage(`Đang tải video lên... (${fileSizeGB} GB)`);
       setUploadProgress(10);
       
       const sanitizedVideoName = videoFile.name
@@ -169,43 +170,54 @@ export default function Upload() {
         .substring(0, 100);
       const videoPath = `${user.id}/${Date.now()}-${sanitizedVideoName}`;
       
-      // Upload with retry logic for large files
+      // Upload with enhanced retry logic for large files
       let uploadSuccess = false;
       let retryCount = 0;
-      const maxRetries = 3;
+      const maxRetries = 5; // Increased retries
       
       while (!uploadSuccess && retryCount < maxRetries) {
         try {
-          setUploadProgress(10 + (retryCount * 5));
+          setUploadProgress(10 + (retryCount * 3));
+          setUploadStage(`Đang tải video lên... (${fileSizeGB} GB) - Lần thử ${retryCount + 1}/${maxRetries}`);
+          
+          // Create an AbortController for timeout
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minutes per attempt
           
           const { error: videoUploadError, data } = await supabase.storage
             .from("videos")
             .upload(videoPath, videoFile, {
               cacheControl: '3600',
-              upsert: false
+              upsert: false,
             });
 
+          clearTimeout(timeoutId);
+
           if (videoUploadError) {
+            console.error('Upload error:', videoUploadError);
             throw videoUploadError;
           }
           
           uploadSuccess = true;
           setUploadProgress(85);
+          setUploadStage(`Upload hoàn tất! Đang xử lý...`);
         } catch (error: any) {
           retryCount++;
           console.error(`Upload attempt ${retryCount} failed:`, error);
           
           if (retryCount >= maxRetries) {
-            throw new Error(`Lỗi tải video sau ${maxRetries} lần thử: ${error.message}`);
+            throw new Error(`Không thể tải video lên sau ${maxRetries} lần thử. ${error.message || 'Vui lòng kiểm tra kết nối mạng và thử lại.'}`);
           }
           
-          setUploadStage(`Đang thử lại... (Lần ${retryCount}/${maxRetries})`);
-          await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s before retry
+          // Exponential backoff: wait longer between each retry
+          const waitTime = Math.min(1000 * Math.pow(2, retryCount), 10000); // Max 10s
+          setUploadStage(`Đang thử lại sau ${(waitTime/1000).toFixed(0)}s... (Lần ${retryCount}/${maxRetries})`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
         }
       }
 
       if (!uploadSuccess) {
-        throw new Error("Không thể tải video lên sau nhiều lần thử");
+        throw new Error("Không thể tải video lên sau nhiều lần thử. Vui lòng kiểm tra kết nối internet và thử lại sau.");
       }
 
       const { data: videoUrl } = supabase.storage
@@ -271,20 +283,26 @@ export default function Upload() {
     } catch (error: any) {
       console.error("Upload error:", error);
       
-      // More detailed error message
+      // More detailed and helpful error messages
       let errorMessage = "Không thể tải video lên. ";
-      if (error.message?.includes("timeout")) {
-        errorMessage += "Video quá lớn hoặc kết nối mạng chậm. Vui lòng thử lại hoặc nén video trước khi tải lên.";
-      } else if (error.message?.includes("network")) {
-        errorMessage += "Lỗi kết nối mạng. Vui lòng kiểm tra internet và thử lại.";
+      
+      if (error.message?.includes("timeout") || error.message?.includes("aborted")) {
+        errorMessage += "Quá trình tải lên mất quá nhiều thời gian. Video có thể quá lớn hoặc kết nối mạng không ổn định. Đề xuất: Nén video trước khi tải lên hoặc thử lại với kết nối internet tốt hơn.";
+      } else if (error.message?.includes("network") || error.message?.includes("Failed to fetch")) {
+        errorMessage += "Mất kết nối với server. Vui lòng kiểm tra:\n• Kết nối internet của bạn\n• Tường lửa hoặc VPN có thể đang chặn kết nối\n• Thử tải lại trang và thử lại";
+      } else if (error.message?.includes("401") || error.message?.includes("unauthorized")) {
+        errorMessage += "Phiên đăng nhập đã hết hạn. Vui lòng đăng xuất và đăng nhập lại.";
+      } else if (error.message?.includes("413") || error.message?.includes("too large")) {
+        errorMessage += "Video quá lớn để tải lên. Vui lòng nén video xuống dưới 10GB.";
       } else {
-        errorMessage += error.message || "Vui lòng thử lại.";
+        errorMessage += error.message || "Vui lòng thử lại sau vài phút.";
       }
       
       toast({
         title: "Tải lên thất bại",
         description: errorMessage,
         variant: "destructive",
+        duration: 8000, // Show longer for detailed messages
       });
       setUploadProgress(0);
       setUploadStage("");
