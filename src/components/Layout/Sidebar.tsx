@@ -24,6 +24,7 @@ const libraryItems = [
 ];
 
 const manageItems = [
+  { icon: Tv, label: "Studio", href: "/studio", highlight: true },
   { icon: Tv, label: "Quản lý kênh", href: "/manage-channel" },
   { icon: ListVideo, label: "Danh sách phát", href: "/manage-playlists" },
   { icon: FileText, label: "Bài viết của bạn", href: "/manage-posts" },
@@ -107,20 +108,28 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
 
             {/* Management section */}
             <div className="px-3 py-2">
-              {manageItems.map((item) => (
-                <Button
-                  key={item.label}
-                  variant="ghost"
-                  onClick={() => handleNavigation(item.href)}
-                  className={cn(
-                    "w-full justify-start gap-6 px-3 py-2.5 h-auto hover:bg-hover-yellow hover:text-primary transition-all duration-300",
-                    location.pathname === item.href && "bg-hover-yellow text-primary font-semibold"
-                  )}
-                >
-                  <item.icon className="h-5 w-5" />
-                  <span>{item.label}</span>
-                </Button>
-              ))}
+              {manageItems.map((item) => {
+                const isStudio = item.href === "/studio";
+                return (
+                  <Button
+                    key={item.label}
+                    variant="ghost"
+                    onClick={() => handleNavigation(item.href)}
+                    className={cn(
+                      "w-full justify-start gap-6 px-3 py-2.5 h-auto transition-all duration-300",
+                      isStudio 
+                        ? "bg-gradient-to-r from-primary/10 to-fun-yellow/10 hover:from-primary/20 hover:to-fun-yellow/20 text-primary font-bold border-2 border-primary/30 shadow-lg" 
+                        : "hover:bg-hover-yellow hover:text-primary",
+                      location.pathname === item.href && !isStudio && "bg-hover-yellow text-primary font-semibold",
+                      location.pathname.startsWith(item.href) && isStudio && "from-primary/20 to-fun-yellow/20"
+                    )}
+                  >
+                    <item.icon className={cn("h-5 w-5", isStudio && "text-primary")} />
+                    <span className={cn(isStudio && "text-base font-bold")}>{item.label}</span>
+                    {isStudio && <span className="ml-auto text-xl">🎬</span>}
+                  </Button>
+                );
+              })}
             </div>
 
             <div className="h-px bg-border my-2" />
