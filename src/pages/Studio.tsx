@@ -11,11 +11,13 @@ import { useEffect } from "react";
 const Studio = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("content");
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
+    if (loading) return;
+    
     if (!user) {
       navigate("/auth");
       return;
@@ -27,7 +29,22 @@ const Studio = () => {
     if (tab) {
       setActiveTab(tab);
     }
-  }, [user, navigate, location]);
+  }, [user, loading, navigate, location]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Đang tải...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
