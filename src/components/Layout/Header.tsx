@@ -1,4 +1,4 @@
-import { Search, Video, Bell, Menu, Play, User as UserIcon, LogOut, Settings, Radio, SquarePen, Plus, FileVideo, List } from "lucide-react";
+import { Search, Video, Bell, Menu, Play, User as UserIcon, LogOut, Settings, Radio, SquarePen, Plus, FileVideo, List, Upload, ListVideo } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -92,27 +92,50 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
         {user && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="hidden md:flex gap-2 px-3">
+              <Button 
+                size="lg" 
+                className="gap-2 bg-green-600 hover:bg-hover-yellow hover:text-primary text-white font-bold transition-all duration-300 shadow-lg border-2 border-green-700 px-6 py-2"
+              >
                 <Plus className="h-5 w-5" />
-                <span className="text-sm font-medium">Tạo</span>
+                TẠO
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuItem onClick={() => setUploadModalOpen(true)}>
-                <FileVideo className="mr-2 h-4 w-4" />
-                Tải video lên
+            <DropdownMenuContent align="end" className="w-64">
+              <DropdownMenuItem onClick={() => navigate("/your-videos")} className="cursor-pointer py-3 gap-3 hover:bg-hover-yellow hover:text-primary">
+                <Video className="h-5 w-5 text-green-600" />
+                <div className="flex-1">
+                  <div className="font-bold">Video Của Tôi</div>
+                  <div className="text-xs text-muted-foreground">Xem, sửa, xóa video</div>
+                </div>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate("/channel/" + user.id)}>
-                <Settings className="mr-2 h-4 w-4" />
-                Quản lý kênh
+              <DropdownMenuItem onClick={() => setUploadModalOpen(true)} className="cursor-pointer py-3 gap-3 hover:bg-hover-yellow hover:text-primary">
+                <Upload className="h-5 w-5 text-blue-600" />
+                <div className="flex-1">
+                  <div className="font-bold">Tải Video Lên</div>
+                  <div className="text-xs text-muted-foreground">Đăng video mới (10GB)</div>
+                </div>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate("/your-videos")}>
-                <List className="mr-2 h-4 w-4" />
-                Video của tôi
+              <DropdownMenuItem onClick={() => navigate("/manage-playlists")} className="cursor-pointer py-3 gap-3 hover:bg-hover-yellow hover:text-primary">
+                <ListVideo className="h-5 w-5 text-purple-600" />
+                <div className="flex-1">
+                  <div className="font-bold">Danh Sách Phát</div>
+                  <div className="text-xs text-muted-foreground">Quản lý playlist</div>
+                </div>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate("/create-post")}>
-                <SquarePen className="mr-2 h-4 w-4" />
-                Tạo bài đăng
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => navigate("/manage-channel")} className="cursor-pointer py-3 gap-3 hover:bg-hover-yellow hover:text-primary">
+                <Settings className="h-5 w-5 text-orange-600" />
+                <div className="flex-1">
+                  <div className="font-bold">Quản Lý Kênh</div>
+                  <div className="text-xs text-muted-foreground">Tên, avatar, banner</div>
+                </div>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate("/create-post")} className="cursor-pointer py-3 gap-3 hover:bg-hover-yellow hover:text-primary">
+                <SquarePen className="h-5 w-5 text-cyan-600" />
+                <div className="flex-1">
+                  <div className="font-bold">Tạo Bài Viết</div>
+                  <div className="text-xs text-muted-foreground">Đăng bài mới</div>
+                </div>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
