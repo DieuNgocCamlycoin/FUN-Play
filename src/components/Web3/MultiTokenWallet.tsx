@@ -35,7 +35,7 @@ const SUPPORTED_TOKENS = [
     symbol: "CAMLY", 
     address: "0x0910320181889fefde0bb1ca63962b0a8882e413", 
     decimals: 18,
-    icon: "https://cryptologos.cc/logos/ethereum-eth-logo.svg?v=035"
+    icon: "/images/camly-coin.png"
   },
   { 
     symbol: "BTC", 

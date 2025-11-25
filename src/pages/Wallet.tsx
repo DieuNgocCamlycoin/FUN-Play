@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { sendTip, getTransactionHistory } from "@/lib/tipping";
 import { supabase } from "@/integrations/supabase/client";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ethers } from "ethers";
 
 interface TokenBalance {
   symbol: string;
@@ -36,7 +37,7 @@ const SUPPORTED_TOKENS = [
     symbol: "CAMLY", 
     address: "0x0910320181889fefde0bb1ca63962b0a8882e413", 
     decimals: 18,
-    icon: "https://cryptologos.cc/logos/ethereum-eth-logo.svg?v=035"
+    icon: "/images/camly-coin.png"
   },
   { 
     symbol: "BTC", 
@@ -162,23 +163,37 @@ const Wallet = () => {
     setLoading(true);
     const newBalances: TokenBalance[] = [];
 
-    for (const token of SUPPORTED_TOKENS) {
-      try {
-        if (token.address === "native") {
-          const balance = await window.ethereum.request({
-            method: "eth_getBalance",
-            params: [userAddress, "latest"],
-          });
-          const bnbBalance = (parseInt(balance, 16) / 1e18).toFixed(6);
-          newBalances.push({ ...token, balance: bnbBalance });
-        } else {
-          // For ERC-20 tokens, show 0 balance (requires ethers.js for real balances)
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      
+      for (const token of SUPPORTED_TOKENS) {
+        try {
+          if (token.address === "native") {
+            const balance = await provider.getBalance(userAddress);
+            const bnbBalance = ethers.formatEther(balance);
+            newBalances.push({ ...token, balance: parseFloat(bnbBalance).toFixed(6) });
+          } else {
+            // ERC-20 token balance
+            const tokenContract = new ethers.Contract(
+              token.address,
+              ["function balanceOf(address) view returns (uint256)"],
+              provider
+            );
+            const balance = await tokenContract.balanceOf(userAddress);
+            const formattedBalance = ethers.formatUnits(balance, token.decimals);
+            newBalances.push({ ...token, balance: parseFloat(formattedBalance).toFixed(6) });
+          }
+        } catch (error) {
+          console.error(`Error fetching ${token.symbol} balance:`, error);
           newBalances.push({ ...token, balance: "0.000000" });
         }
-      } catch (error) {
-        console.error(`Error fetching ${token.symbol} balance:`, error);
-        newBalances.push({ ...token, balance: "0.000000" });
       }
+    } catch (error) {
+      console.error("Error initializing provider:", error);
+      // Fallback to all zeros if provider fails
+      SUPPORTED_TOKENS.forEach(token => {
+        newBalances.push({ ...token, balance: "0.000000" });
+      });
     }
 
     setBalances(newBalances);
@@ -232,8 +247,11 @@ const Wallet = () => {
         description: `Đã chuyển ${amount} ${selectedToken}`,
       });
 
+      // Clear form
       setRecipientAddress("");
       setAmount("");
+      
+      // Refresh balances and transaction history
       await fetchBalances(address);
       await loadTransactionHistory();
     } catch (error: any) {
