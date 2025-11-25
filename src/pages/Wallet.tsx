@@ -295,17 +295,23 @@ const Wallet = () => {
       return;
     }
 
-    const token = SUPPORTED_TOKENS.find(t => t.symbol === selectedToken);
-    if (!token) return;
+    const tokenConfig = SUPPORTED_TOKENS.find(t => t.symbol === selectedToken);
+    if (!tokenConfig) return;
+
+    // Get actual decimals from balances (fetched from contract)
+    const tokenBalance = balances.find(b => b.symbol === selectedToken);
+    const actualDecimals = tokenBalance?.decimals || tokenConfig.decimals;
+
+    console.log(`Sending ${amount} ${selectedToken} using ${actualDecimals} decimals`);
 
     setSending(true);
     try {
       await sendTip({
         toAddress: recipientAddress,
         amount: parseFloat(amount),
-        tokenSymbol: token.symbol,
-        tokenAddress: token.address,
-        decimals: token.decimals,
+        tokenSymbol: tokenConfig.symbol,
+        tokenAddress: tokenConfig.address,
+        decimals: actualDecimals,
       });
 
       toast({
