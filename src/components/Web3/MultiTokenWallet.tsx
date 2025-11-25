@@ -176,7 +176,7 @@ export const MultiTokenWallet = () => {
               icon: token.icon
             });
           } else {
-            // ERC-20 token balance with full ABI
+            // ERC-20 token balance - fetch decimals from contract
             const tokenContract = new ethers.Contract(
               token.address,
               [
@@ -185,14 +185,23 @@ export const MultiTokenWallet = () => {
               ],
               provider
             );
-            const balance = await tokenContract.balanceOf(userAddress);
+            
+            // Fetch both balance and decimals from contract
+            const [balance, decimals] = await Promise.all([
+              tokenContract.balanceOf(userAddress),
+              tokenContract.decimals()
+            ]);
+            
             console.log(`${token.symbol} balance (raw):`, balance.toString());
-            const formattedBalance = ethers.formatUnits(balance, token.decimals);
+            console.log(`${token.symbol} decimals:`, decimals.toString());
+            
+            const formattedBalance = ethers.formatUnits(balance, decimals);
             console.log(`${token.symbol} balance (formatted):`, formattedBalance);
+            
             newBalances.push({ 
               symbol: token.symbol, 
               balance: parseFloat(formattedBalance).toFixed(4), 
-              decimals: token.decimals,
+              decimals: decimals,
               icon: token.icon
             });
           }

@@ -221,7 +221,7 @@ const Wallet = () => {
             console.log(`BNB balance: ${bnbBalance}`);
             newBalances.push({ ...token, balance: parseFloat(bnbBalance).toFixed(6) });
           } else {
-            // ERC-20 token balance with full ABI
+            // ERC-20 token balance - fetch decimals from contract
             const tokenContract = new ethers.Contract(
               token.address,
               [
@@ -230,11 +230,24 @@ const Wallet = () => {
               ],
               provider
             );
-            const balance = await tokenContract.balanceOf(userAddress);
+            
+            // Fetch both balance and decimals from contract
+            const [balance, contractDecimals] = await Promise.all([
+              tokenContract.balanceOf(userAddress),
+              tokenContract.decimals()
+            ]);
+            
             console.log(`${token.symbol} balance (raw):`, balance.toString());
-            const formattedBalance = ethers.formatUnits(balance, token.decimals);
+            console.log(`${token.symbol} decimals from contract:`, contractDecimals.toString());
+            
+            const formattedBalance = ethers.formatUnits(balance, contractDecimals);
             console.log(`${token.symbol} balance (formatted):`, formattedBalance);
-            newBalances.push({ ...token, balance: parseFloat(formattedBalance).toFixed(6) });
+            
+            newBalances.push({ 
+              ...token, 
+              decimals: Number(contractDecimals), // Use actual decimals from contract
+              balance: parseFloat(formattedBalance).toFixed(6) 
+            });
           }
         } catch (error) {
           console.error(`Error fetching ${token.symbol} balance:`, error);
