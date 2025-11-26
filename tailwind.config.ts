@@ -102,10 +102,48 @@ export default {
             height: "0",
           },
         },
+        sparkle: {
+          "0%, 100%": { opacity: "0", transform: "scale(0) rotate(0deg)" },
+          "50%": { opacity: "1", transform: "scale(1) rotate(180deg)" },
+        },
+        float: {
+          "0%, 100%": { transform: "translateY(0px) translateX(0px)" },
+          "50%": { transform: "translateY(-20px) translateX(10px)" },
+        },
+        "pulse-glow": {
+          "0%, 100%": { filter: "brightness(1) drop-shadow(0 0 10px currentColor)" },
+          "50%": { filter: "brightness(1.3) drop-shadow(0 0 20px currentColor)" },
+        },
+        shimmer: {
+          "0%": { backgroundPosition: "-1000px 0" },
+          "100%": { backgroundPosition: "1000px 0" },
+        },
+        "rainbow-border": {
+          "0%": { borderColor: "hsl(216 100% 50%)", boxShadow: "0 0 40px hsl(216 100% 50% / 1)" },
+          "25%": { borderColor: "hsl(180 100% 50%)", boxShadow: "0 0 40px hsl(180 100% 50% / 1)" },
+          "50%": { borderColor: "hsl(291 100% 50%)", boxShadow: "0 0 40px hsl(291 100% 50% / 1)" },
+          "75%": { borderColor: "hsl(51 100% 50%)", boxShadow: "0 0 40px hsl(51 100% 50% / 1)" },
+          "100%": { borderColor: "hsl(216 100% 50%)", boxShadow: "0 0 40px hsl(216 100% 50% / 1)" },
+        },
+        "sparkle-sweep": {
+          "0%": { transform: "translateX(-100%) translateY(-100%) rotate(45deg)" },
+          "100%": { transform: "translateX(100%) translateY(100%) rotate(45deg)" },
+        },
+        "pulse-halo": {
+          "0%, 100%": { opacity: "0.5", transform: "scale(1)" },
+          "50%": { opacity: "1", transform: "scale(1.1)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        sparkle: "sparkle 2s ease-in-out infinite",
+        float: "float 6s ease-in-out infinite",
+        "pulse-glow": "pulse-glow 3s ease-in-out infinite",
+        shimmer: "shimmer 6s ease-in-out infinite",
+        "rainbow-border": "rainbow-border 3s linear infinite",
+        "sparkle-sweep": "sparkle-sweep 3s linear infinite",
+        "pulse-halo": "pulse-halo 2s ease-in-out infinite",
       },
     },
   },
