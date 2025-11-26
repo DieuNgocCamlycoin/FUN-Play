@@ -246,9 +246,17 @@ export default function Channel() {
               <h1 className="text-3xl font-bold text-foreground mb-1">
                 {channel.name}
               </h1>
-              <p className="text-muted-foreground mb-2 font-semibold">
-                {(channel.subscriber_count || 0).toLocaleString()} người đăng ký
-              </p>
+              <div className="flex items-center gap-4 mb-2">
+                <p className="text-muted-foreground font-semibold">
+                  {(channel.subscriber_count || 0).toLocaleString()} người đăng ký
+                </p>
+                <p className="text-muted-foreground font-semibold">
+                  {videos.length} video{videos.length !== 1 ? 's' : ''}
+                </p>
+                <p className="text-muted-foreground font-semibold">
+                  {videos.reduce((sum, v) => sum + (v.view_count || 0), 0).toLocaleString()} lượt xem
+                </p>
+              </div>
               {channel.description && (
                 <p className="text-sm text-foreground">{channel.description}</p>
               )}
