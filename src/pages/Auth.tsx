@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Play } from "lucide-react";
+import { Play, ArrowLeft } from "lucide-react";
 import { User, Session } from "@supabase/supabase-js";
 
 export default function Auth() {
@@ -108,22 +108,36 @@ export default function Auth() {
     }
   };
 
+  const handleContinueWithoutLogin = () => {
+    navigate("/");
+  };
+
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4 relative">
+      {/* Back Button */}
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => navigate("/")}
+        className="absolute top-4 left-4"
+      >
+        <ArrowLeft className="h-6 w-6" />
+      </Button>
+
       <div className="w-full max-w-md space-y-8">
         {/* Logo */}
         <div className="flex justify-center">
-          <div className="flex items-center gap-2 bg-logo-bg px-4 py-2 rounded-lg shadow-lg">
+          <div className="flex items-center gap-2 bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] via-[#FF00E5] to-[#FFD700] px-4 py-2 rounded-lg shadow-lg">
             <Play className="h-8 w-8 text-white fill-white" />
-            <div className="text-2xl font-bold text-fun-yellow">
+            <div className="text-2xl font-bold text-white">
               FUN PLAY
             </div>
           </div>
         </div>
 
         {/* Auth Form */}
-        <div className="bg-card border border-border rounded-lg p-8 shadow-lg">
-          <h2 className="text-2xl font-bold text-center mb-6 text-foreground">
+        <div className="bg-card border-2 border-[#7A2BFF] rounded-lg p-8 shadow-xl">
+          <h2 className="text-2xl font-bold text-center mb-6 bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] via-[#FF00E5] to-[#FFD700] bg-clip-text text-transparent">
             {isLogin ? "Sign In" : "Create Account"}
           </h2>
 
@@ -170,17 +184,29 @@ export default function Auth() {
 
             <Button
               type="submit"
-              className="w-full"
+              className="w-full bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] via-[#FF00E5] to-[#FFD700] hover:opacity-90 text-white"
               disabled={loading}
             >
               {loading ? "Loading..." : isLogin ? "Sign In" : "Sign Up"}
             </Button>
           </form>
 
+          {isLogin && (
+            <div className="mt-4">
+              <Button
+                variant="outline"
+                className="w-full border-2 border-[#7A2BFF] bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] via-[#FF00E5] to-[#FFD700] bg-clip-text text-transparent hover:bg-gradient-to-r hover:from-[#00E7FF] hover:via-[#7A2BFF] hover:via-[#FF00E5] hover:to-[#FFD700] hover:text-white"
+                onClick={handleContinueWithoutLogin}
+              >
+                Continue without login
+              </Button>
+            </div>
+          )}
+
           <div className="mt-4 text-center">
             <button
               onClick={() => setIsLogin(!isLogin)}
-              className="text-primary hover:underline text-sm"
+              className="bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] via-[#FF00E5] to-[#FFD700] bg-clip-text text-transparent hover:underline text-sm font-semibold"
             >
               {isLogin
                 ? "Don't have an account? Sign up"

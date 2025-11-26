@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Wallet as WalletIcon, Send, History, Loader2, Copy, QrCode, ExternalLink, Search, Filter } from "lucide-react";
+import { Wallet as WalletIcon, Send, History, Loader2, Copy, QrCode, ExternalLink, Search, Filter, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 import { sendTip, getTransactionHistory } from "@/lib/tipping";
 import { supabase } from "@/integrations/supabase/client";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -68,6 +69,7 @@ const Wallet = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const { prices, loading: pricesLoading } = useCryptoPrices();
+  const navigate = useNavigate();
 
   // Transfer form state
   const [recipientAddress, setRecipientAddress] = useState("");
@@ -504,7 +506,17 @@ const Wallet = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8 relative">
+      {/* Back Button */}
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => navigate("/")}
+        className="absolute top-4 left-4 z-50"
+      >
+        <ArrowLeft className="h-6 w-6" />
+      </Button>
+
       <RichNotification
         show={showRichNotification}
         amount={receivedAmount}

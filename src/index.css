@@ -8,45 +8,45 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Galaxy Cosmic Theme - Spiritual Music Social Network */
-    --background: 228 63% 11%;
-    --foreground: 0 0% 100%;
+    /* Heavenly Aurora Bliss Theme - White Background */
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
 
-    --card: 253 81% 20%;
-    --card-foreground: 0 0% 100%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
 
-    --popover: 253 81% 20%;
-    --popover-foreground: 0 0% 100%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
 
-    --primary: 216 100% 50%;
+    --primary: 186 100% 50%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 291 100% 50%;
-    --secondary-foreground: 0 0% 100%;
+    --secondary: 270 100% 95%;
+    --secondary-foreground: 222 47% 11%;
 
-    --muted: 253 60% 25%;
-    --muted-foreground: 308 100% 86%;
+    --muted: 270 100% 98%;
+    --muted-foreground: 215 20% 40%;
 
-    --accent: 180 100% 50%;
-    --accent-foreground: 253 81% 20%;
+    --accent: 270 100% 95%;
+    --accent-foreground: 222 47% 11%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 291 100% 50%;
-    --input: 253 60% 30%;
-    --ring: 180 100% 50%;
+    --border: 270 100% 90%;
+    --input: 270 100% 98%;
+    --ring: 186 100% 50%;
 
     --radius: 1rem;
 
-    --sidebar-background: 228 63% 9%;
-    --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 216 100% 50%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 186 100% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 253 60% 25%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 291 100% 50%;
-    --sidebar-ring: 180 100% 50%;
+    --sidebar-accent: 270 100% 95%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 270 100% 90%;
+    --sidebar-ring: 186 100% 50%;
 
     /* Galaxy Cosmic Palette */
     --cosmic-cyan: 180 100% 50%;
@@ -67,9 +67,9 @@ All colors MUST be HSL.
     --glow-sapphire: 216 100% 50%;
     --glow-white: 0 0% 100%;
     
-    /* Gradients */
-    --gradient-aurora: linear-gradient(135deg, hsl(216 100% 50%), hsl(180 100% 50%), hsl(291 100% 50%), hsl(51 100% 50%));
-    --gradient-cosmic-bg: radial-gradient(ellipse at center, hsl(216 100% 30% / 0.3), transparent 50%), radial-gradient(ellipse at top right, hsl(291 100% 30% / 0.2), transparent 50%), radial-gradient(ellipse at bottom left, hsl(180 100% 30% / 0.2), transparent 50%);
+    /* Heavenly Aurora Bliss Gradient */
+    --gradient-aurora: linear-gradient(135deg, #00E7FF 0%, #7A2BFF 33%, #FF00E5 66%, #FFD700 100%);
+    --gradient-cosmic-bg: linear-gradient(135deg, #FFFFFF 0%, #F8F4FF 50%, #FFFFFF 100%);
     
     /* Shadows & Glows */
     --shadow-divine: 0 0 60px hsl(216 100% 50% / 0.8), 0 0 100px hsl(291 100% 50% / 0.6), 0 0 140px hsl(180 100% 50% / 0.4), 0 8px 32px hsl(0 0% 0% / 0.5);
@@ -155,7 +155,7 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
-    background-image: var(--gradient-cosmic-bg);
+    background: linear-gradient(135deg, #FFFFFF 0%, #F8F4FF 50%, #FFFFFF 100%);
     background-attachment: fixed;
   }
 }
