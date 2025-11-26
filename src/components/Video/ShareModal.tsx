@@ -65,6 +65,13 @@ export const ShareModal = ({
       case "zalo":
         shareLink = `https://zalo.me/share?url=${encodedUrl}`;
         break;
+      case "youtube":
+        // YouTube doesn't have direct sharing, but users can copy link and share
+        toast({
+          title: "Copy link",
+          description: "Copy link video và chia sẻ lên YouTube của bạn",
+        });
+        return;
     }
 
     if (shareLink) {

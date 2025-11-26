@@ -33,6 +33,7 @@ interface Comment {
   content: string;
   created_at: string;
   like_count: number;
+  user_id: string;
   profiles: {
     display_name: string;
     avatar_url: string;
@@ -597,7 +598,20 @@ export default function Watch() {
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="font-semibold text-sm text-foreground">
+                          <span 
+                            className="font-semibold text-sm text-foreground cursor-pointer hover:text-cosmic-cyan transition-colors"
+                            onClick={() => {
+                              // Navigate to user's channel - we need to fetch channel ID from user_id
+                              supabase
+                                .from("channels")
+                                .select("id")
+                                .eq("user_id", comment.user_id)
+                                .maybeSingle()
+                                .then(({ data }) => {
+                                  if (data) navigate(`/channel/${data.id}`);
+                                });
+                            }}
+                          >
                             {comment.profiles.display_name || "User"}
                           </span>
                           <span className="text-xs text-muted-foreground">
@@ -628,10 +642,12 @@ export default function Watch() {
               {recommendedVideos.map((recVideo) => (
                 <div
                   key={recVideo.id}
-                  onClick={() => navigate(`/watch/${recVideo.id}`)}
-                  className="flex gap-2 cursor-pointer group"
+                  className="flex gap-2 group"
                 >
-                  <div className="relative flex-shrink-0 w-40 aspect-video rounded-lg overflow-hidden bg-muted">
+                  <div 
+                    className="relative flex-shrink-0 w-40 aspect-video rounded-lg overflow-hidden bg-muted cursor-pointer"
+                    onClick={() => navigate(`/watch/${recVideo.id}`)}
+                  >
                     <img
                       src={recVideo.thumbnail_url || "https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=400&h=225&fit=crop"}
                       alt={recVideo.title}
@@ -639,10 +655,27 @@ export default function Watch() {
                     />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-semibold text-foreground line-clamp-2 mb-1 group-hover:text-primary transition-colors">
+                    <h3 
+                      className="text-sm font-semibold text-foreground line-clamp-2 mb-1 group-hover:text-primary transition-colors cursor-pointer"
+                      onClick={() => navigate(`/watch/${recVideo.id}`)}
+                    >
                       {recVideo.title}
                     </h3>
-                    <p className="text-xs text-muted-foreground mb-1">
+                    <p 
+                      className="text-xs text-muted-foreground mb-1 cursor-pointer hover:text-cosmic-cyan transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // Find channel by name - in a real app you'd want to pass channel_id
+                        supabase
+                          .from("channels")
+                          .select("id")
+                          .eq("name", recVideo.channels?.name)
+                          .maybeSingle()
+                          .then(({ data }) => {
+                            if (data) navigate(`/channel/${data.id}`);
+                          });
+                      }}
+                    >
                       {recVideo.channels?.name || "Unknown Channel"}
                     </p>
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
