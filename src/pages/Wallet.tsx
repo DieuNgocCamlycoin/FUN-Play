@@ -78,7 +78,7 @@ const Wallet = () => {
   const [receivedAmount, setReceivedAmount] = useState("");
   const [receivedToken, setReceivedToken] = useState("");
   const [receivedCount, setReceivedCount] = useState(0);
-  const [receivedHistory, setReceivedHistory] = useState<Array<{amount: string, token: string, timestamp: Date}>>([]);
+  const [receivedTransactions, setReceivedTransactions] = useState<any[]>([]);
 
   useEffect(() => {
     checkWalletConnection();
@@ -102,14 +102,12 @@ const Wallet = () => {
           console.log('New transaction received:', payload);
           const transaction = payload.new;
           
-          // Update count and history
-          const newCount = receivedCount + 1;
-          setReceivedCount(newCount);
-          setReceivedHistory(prev => [{
-            amount: transaction.amount.toString(),
-            token: transaction.token_type,
-            timestamp: new Date()
-          }, ...prev]);
+          // Play Angel voice notification
+          const utterance = new SpeechSynthesisUtterance("Bạn vừa nhận được tiền");
+          utterance.lang = "vi-VN";
+          utterance.pitch = 2; // High pitch for baby voice
+          utterance.rate = 1.2; // Slightly faster
+          window.speechSynthesis.speak(utterance);
           
           // Show Rich notification
           setReceivedAmount(transaction.amount.toString());
@@ -119,6 +117,7 @@ const Wallet = () => {
           // Refresh balances and transaction history
           fetchBalances(address);
           loadTransactionHistory();
+          loadReceivedTransactions();
         }
       )
       .subscribe();
@@ -129,10 +128,11 @@ const Wallet = () => {
   }, [user, address]);
 
   useEffect(() => {
-    if (user) {
+    if (user && address) {
       loadTransactionHistory();
+      loadReceivedTransactions();
     }
-  }, [user]);
+  }, [user, address]);
 
   // Auto-refresh balances every 10 seconds when wallet is connected
   useEffect(() => {
@@ -352,6 +352,23 @@ const Wallet = () => {
     }
   };
 
+  const loadReceivedTransactions = async () => {
+    if (!user || !address) return;
+    try {
+      const { data, error } = await supabase
+        .from("wallet_transactions")
+        .select("*")
+        .eq("to_address", address.toLowerCase())
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setReceivedTransactions(data || []);
+      setReceivedCount(data?.length || 0);
+    } catch (error) {
+      console.error("Error loading received transactions:", error);
+    }
+  };
+
   const handleSendToken = async () => {
     if (!isConnected) {
       toast({
@@ -402,6 +419,7 @@ const Wallet = () => {
       // Refresh balances and transaction history
       await fetchBalances(address);
       await loadTransactionHistory();
+      await loadReceivedTransactions();
     } catch (error: any) {
       toast({
         title: "Chuyển thất bại",
@@ -471,7 +489,7 @@ const Wallet = () => {
       />
       
       {/* Received History Notification Badge */}
-      {receivedHistory.length > 0 && (
+      {receivedCount > 0 && (
         <motion.div
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
@@ -483,7 +501,7 @@ const Wallet = () => {
           <div className="flex items-center gap-2">
             <span className="font-bold">💰 Lịch sử nhận:</span>
             <span className="text-[#00FF00] font-black text-xl" style={{ textShadow: "0 0 10px #00FF00" }}>
-              {receivedHistory.length}
+              {receivedCount}
             </span>
           </div>
         </motion.div>
@@ -559,13 +577,21 @@ const Wallet = () => {
           </div>
 
         <Tabs defaultValue="balance" className="w-full">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="balance">Số dư</TabsTrigger>
             <TabsTrigger value="send">Chuyển tiền</TabsTrigger>
             <TabsTrigger value="swap">Hoán đổi</TabsTrigger>
             <TabsTrigger value="charts">Biểu đồ</TabsTrigger>
             <TabsTrigger value="portfolio">Portfolio</TabsTrigger>
             <TabsTrigger value="history">Lịch sử</TabsTrigger>
+            <TabsTrigger value="received">
+              Lịch sử nhận
+              {receivedCount > 0 && (
+                <Badge variant="default" className="ml-2 bg-[#00FF00] text-background hover:bg-[#00FF00]" style={{ boxShadow: "0 0 10px #00FF00" }}>
+                  {receivedCount}
+                </Badge>
+              )}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="balance">
@@ -763,6 +789,81 @@ const Wallet = () => {
                           </a>
                         )}
                       </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="received">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <span className="text-2xl">💰</span>
+                  Lịch sử nhận tiền
+                </CardTitle>
+                <CardDescription>Tất cả tiền đã nhận vào ví</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {receivedTransactions.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <History className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                    <p>Chưa nhận tiền nào</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {receivedTransactions.map((tx) => (
+                      <motion.div
+                        key={tx.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="flex flex-col gap-2 p-4 border-2 rounded-lg hover:bg-accent/50 transition-all"
+                        style={{
+                          borderColor: "#FFD700",
+                          boxShadow: "0 0 10px rgba(255, 215, 0, 0.3)",
+                        }}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="font-bold text-[#FFD700] text-lg">
+                                Đã nhận {tx.amount} {tx.token_type}
+                              </p>
+                              <Badge 
+                                variant={tx.status === "completed" ? "default" : "destructive"}
+                                className={tx.status === "completed" ? "bg-[#FFD700] text-background hover:bg-[#FFD700]" : ""}
+                              >
+                                {tx.status === "completed" ? "Thành công" : "Thất bại"}
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              Từ: {tx.from_address.slice(0, 8)}...{tx.from_address.slice(-6)}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {new Date(tx.created_at).toLocaleString("vi-VN", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                second: "2-digit",
+                                day: "2-digit",
+                                month: "2-digit",
+                                year: "numeric",
+                              })}
+                            </p>
+                          </div>
+                        </div>
+                        {tx.tx_hash && tx.tx_hash !== "failed" && (
+                          <a
+                            href={`https://bscscan.com/tx/${tx.tx_hash}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 text-xs text-[#FFD700] hover:underline"
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                            Xem trên BscScan
+                          </a>
+                        )}
+                      </motion.div>
                     ))}
                   </div>
                 )}
