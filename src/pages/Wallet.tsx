@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Wallet as WalletIcon, Send, History, Loader2, Copy, QrCode, ExternalLink, Search, Filter, ArrowLeft } from "lucide-react";
+import { Wallet as WalletIcon, Send, History, Loader2, Copy, QrCode, ExternalLink, Search, Filter, ArrowLeft, Download } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { sendTip, getTransactionHistory } from "@/lib/tipping";
@@ -23,6 +23,9 @@ import { PortfolioTracker } from "@/components/Web3/PortfolioTracker";
 import { Badge } from "@/components/ui/badge";
 import { RichNotification } from "@/components/Web3/RichNotification";
 import camlyCoinLogo from "@/assets/camly-coin-logo.png";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
+import { requestNotificationPermission, showLocalNotification } from "@/lib/pushNotifications";
 
 interface TokenBalance {
   symbol: string;
@@ -88,6 +91,8 @@ const Wallet = () => {
 
   useEffect(() => {
     checkWalletConnection();
+    // Request notification permission on load
+    requestNotificationPermission();
   }, []);
 
   // Real-time monitoring for incoming transactions
@@ -119,6 +124,25 @@ const Wallet = () => {
           setReceivedAmount(transaction.amount.toString());
           setReceivedToken(transaction.token_type);
           setShowRichNotification(true);
+
+          // Send push notification (PWA)
+          showLocalNotification(
+            `💰 Nhận được ${transaction.amount} ${transaction.token_type}!`,
+            {
+              body: "Chúc mừng bạn! Bạn vừa nhận được tiền vào ví FUN PLAY 🎉",
+              tag: "crypto-received",
+              requireInteraction: true,
+            }
+          );
+
+          // Send message to service worker for background notification
+          if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+            navigator.serviceWorker.controller.postMessage({
+              type: 'CRYPTO_RECEIVED',
+              amount: transaction.amount,
+              token: transaction.token_type
+            });
+          }
 
           // Refresh balances and transaction history
           fetchBalances(address);
@@ -890,11 +914,74 @@ const Wallet = () => {
           <TabsContent value="received">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <span className="text-2xl">💰</span>
-                  Lịch sử nhận tiền
-                </CardTitle>
-                <CardDescription>Tất cả tiền đã nhận vào ví</CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <span className="text-2xl">💰</span>
+                      Lịch sử nhận tiền
+                    </CardTitle>
+                    <CardDescription>Tất cả tiền đã nhận vào ví</CardDescription>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        // Export as CSV
+                        const csvHeader = "Thời gian,Số tiền,Token,Từ địa chỉ,TxHash,Trạng thái\n";
+                        const csvData = filteredReceivedTxs.map(tx => 
+                          `"${new Date(tx.created_at).toLocaleString("vi-VN")}","${tx.amount}","${tx.token_type}","${tx.from_address}","${tx.tx_hash}","${tx.status}"`
+                        ).join("\n");
+                        const blob = new Blob([csvHeader + csvData], { type: "text/csv;charset=utf-8;" });
+                        const link = document.createElement("a");
+                        link.href = URL.createObjectURL(blob);
+                        link.download = `FunPlay_Received_${new Date().toISOString().split('T')[0]}.csv`;
+                        link.click();
+                        toast({ title: "Đã xuất CSV", description: "File đã được tải xuống" });
+                      }}
+                      className="gap-2"
+                    >
+                      <Download className="h-4 w-4" />
+                      CSV
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        // Export as PDF
+                        const doc = new jsPDF();
+                        doc.setFont("helvetica", "bold");
+                        doc.setFontSize(18);
+                        doc.text("FUN PLAY - Lich su nhan tien", 14, 20);
+                        doc.setFontSize(10);
+                        doc.setFont("helvetica", "normal");
+                        doc.text(`Xuat ngay: ${new Date().toLocaleString("vi-VN")}`, 14, 28);
+                        
+                        autoTable(doc, {
+                          startY: 35,
+                          head: [["Thoi gian", "So tien", "Token", "Tu dia chi", "Trang thai"]],
+                          body: filteredReceivedTxs.map(tx => [
+                            new Date(tx.created_at).toLocaleString("vi-VN"),
+                            tx.amount.toString(),
+                            tx.token_type,
+                            `${tx.from_address.slice(0, 8)}...${tx.from_address.slice(-6)}`,
+                            tx.status === "completed" ? "Thanh cong" : "That bai"
+                          ]),
+                          theme: "grid",
+                          headStyles: { fillColor: [255, 215, 0], textColor: [0, 0, 0] },
+                          styles: { fontSize: 8 }
+                        });
+                        
+                        doc.save(`FunPlay_Received_${new Date().toISOString().split('T')[0]}.pdf`);
+                        toast({ title: "Đã xuất PDF", description: "File đã được tải xuống" });
+                      }}
+                      className="gap-2"
+                    >
+                      <Download className="h-4 w-4" />
+                      PDF
+                    </Button>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
                 {/* Filter and Search Controls */}
