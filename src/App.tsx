@@ -4,7 +4,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { WagmiProvider } from 'wagmi';
-import { wagmiConfig } from '@/lib/web3Config';
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import ProfileSettings from "./pages/ProfileSettings";
@@ -22,12 +21,13 @@ import ManagePlaylists from "./pages/ManagePlaylists";
 import ManageChannel from "./pages/ManageChannel";
 import Studio from "./pages/Studio";
 import InstallPWA from "./pages/InstallPWA";
+import { wagmiConfig } from '@/lib/web3Config';
 
 const queryClient = new QueryClient();
 
 const App = () => (
-  <WagmiProvider config={wagmiConfig}>
-    <QueryClientProvider client={queryClient}>
+  <QueryClientProvider client={queryClient}>
+    <WagmiProvider config={wagmiConfig}>
       <TooltipProvider>
         <Toaster />
         <Sonner />
@@ -64,8 +64,8 @@ const App = () => (
         </Routes>
       </BrowserRouter>
     </TooltipProvider>
+    </WagmiProvider>
   </QueryClientProvider>
-  </WagmiProvider>
 );
 
 export default App;
