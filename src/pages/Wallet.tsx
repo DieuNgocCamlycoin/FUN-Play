@@ -22,7 +22,7 @@ import { PriceChart } from "@/components/Web3/PriceChart";
 import { PortfolioTracker } from "@/components/Web3/PortfolioTracker";
 import { Badge } from "@/components/ui/badge";
 import { RichNotification } from "@/components/Web3/RichNotification";
-import camlyCoinLogo from "@/assets/camly-coin-logo.png";
+import camlyCoinLogo from "@/assets/camly-coin-rainbow.png";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { requestNotificationPermission, showLocalNotification } from "@/lib/pushNotifications";
@@ -935,7 +935,7 @@ const Wallet = () => {
                         const blob = new Blob([csvHeader + csvData], { type: "text/csv;charset=utf-8;" });
                         const link = document.createElement("a");
                         link.href = URL.createObjectURL(blob);
-                        link.download = `FunPlay_Received_${new Date().toISOString().split('T')[0]}.csv`;
+                        link.download = `FUN_Play_Received_${new Date().toISOString().split('T')[0]}.csv`;
                         link.click();
                         toast({ title: "Đã xuất CSV", description: "File đã được tải xuống" });
                       }}
@@ -972,7 +972,7 @@ const Wallet = () => {
                           styles: { fontSize: 8 }
                         });
                         
-                        doc.save(`FunPlay_Received_${new Date().toISOString().split('T')[0]}.pdf`);
+                        doc.save(`FUN_Play_Received_${new Date().toISOString().split('T')[0]}.pdf`);
                         toast({ title: "Đã xuất PDF", description: "File đã được tải xuống" });
                       }}
                       className="gap-2"
