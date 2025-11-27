@@ -22,7 +22,7 @@ import { PriceChart } from "@/components/Web3/PriceChart";
 import { PortfolioTracker } from "@/components/Web3/PortfolioTracker";
 import { Badge } from "@/components/ui/badge";
 import { RichNotification } from "@/components/Web3/RichNotification";
-import camlyCoinLogo from "@/assets/camly-coin-logo.png";
+import camlyCoinLogo from "@/assets/camly-coin-rainbow.png";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { requestNotificationPermission, showLocalNotification } from "@/lib/pushNotifications";
@@ -576,10 +576,11 @@ const Wallet = () => {
               <img 
                 src={camlyCoinLogo} 
                 alt="CAMLY Coin" 
-                className="w-8 h-8 rounded-full animate-pulse"
+                className="w-8 h-8 rounded-full"
                 style={{
-                  boxShadow: "0 0 20px rgba(255, 215, 0, 0.8), 0 0 40px rgba(255, 165, 0, 0.6)",
-                  filter: "drop-shadow(0 0 10px #FFD700)",
+                  boxShadow: "0 0 20px rgba(255, 215, 0, 0.8), 0 0 40px rgba(255, 165, 0, 0.6), 0 0 60px rgba(255, 255, 0, 0.4)",
+                  filter: "drop-shadow(0 0 12px #FFD700) drop-shadow(0 0 24px #FFA500)",
+                  animation: "pulse-glow 2s ease-in-out infinite, rainbow-glow 3s linear infinite"
                 }}
               />
               <span 
@@ -692,7 +693,10 @@ const Wallet = () => {
                       src={camlyCoinLogo} 
                       alt="CAMLY" 
                       className="w-5 h-5 rounded-full"
-                      style={{ filter: "drop-shadow(0 0 5px #FFD700)" }}
+                      style={{ 
+                        filter: "drop-shadow(0 0 8px #FFD700) drop-shadow(0 0 12px #FFA500)",
+                        animation: "pulse-glow 2s ease-in-out infinite, rainbow-glow 3s linear infinite"
+                      }}
                     />
                     <span 
                       className="absolute -top-1 -right-1 text-[#00FF00] font-bold text-[10px] bg-background rounded-full w-4 h-4 flex items-center justify-center" 
