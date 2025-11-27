@@ -91,7 +91,7 @@ export const RichNotification = ({ show, amount, token, count, onClose }: RichNo
             scale: 1,
           }}
           exit={{ opacity: 0, y: -50, scale: 0.5 }}
-          className="fixed top-24 right-4 z-50 p-8 rounded-3xl shadow-2xl overflow-hidden"
+          className="fixed top-24 right-4 z-50 p-8 rounded-3xl shadow-2xl overflow-hidden flex items-center gap-6"
           style={{
             background: "linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(255, 247, 230, 0.95))",
             backdropFilter: "blur(30px)",
@@ -102,6 +102,32 @@ export const RichNotification = ({ show, amount, token, count, onClose }: RichNo
             boxShadow: "0 0 60px rgba(255, 215, 0, 0.8), 0 0 100px rgba(255, 165, 0, 0.6), 0 0 140px rgba(255, 255, 0, 0.4)",
           }}
         >
+          {/* Pulsing Rainbow CAMLY Coin Icon */}
+          <motion.img
+            src="/images/camly-coin.png"
+            alt="CAMLY COIN"
+            className="w-24 h-24 rounded-full relative z-10"
+            animate={{
+              scale: [1, 1.2, 1],
+              rotate: [0, 360],
+              filter: [
+                "drop-shadow(0 0 20px rgba(255, 0, 0, 0.8)) drop-shadow(0 0 40px rgba(255, 127, 0, 0.6))",
+                "drop-shadow(0 0 20px rgba(255, 255, 0, 0.8)) drop-shadow(0 0 40px rgba(0, 255, 0, 0.6))",
+                "drop-shadow(0 0 20px rgba(0, 255, 255, 0.8)) drop-shadow(0 0 40px rgba(0, 0, 255, 0.6))",
+                "drop-shadow(0 0 20px rgba(255, 0, 255, 0.8)) drop-shadow(0 0 40px rgba(255, 0, 0, 0.6))",
+              ],
+            }}
+            transition={{
+              duration: 2,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+            style={{
+              boxShadow: "0 0 40px rgba(255, 215, 0, 1), 0 0 80px rgba(255, 165, 0, 0.8), 0 0 120px rgba(255, 255, 0, 0.6)",
+            }}
+          />
+          
+          <div className="flex flex-col gap-2">
           <div className="flex items-center gap-4 relative z-10">
             <motion.span
               animate={{
@@ -172,6 +198,7 @@ export const RichNotification = ({ show, amount, token, count, onClose }: RichNo
               {count}
             </motion.span>
           </div>
+          
           <motion.p
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -186,6 +213,7 @@ export const RichNotification = ({ show, amount, token, count, onClose }: RichNo
           >
             💰✨ Chúc mừng! Bạn vừa nhận được tiền! 💎🎉
           </motion.p>
+          </div>
           
           {/* Golden Fireworks effects */}
           <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-2xl">
