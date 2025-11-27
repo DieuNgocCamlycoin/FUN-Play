@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { BackgroundMusicPlayer } from "@/components/BackgroundMusicPlayer";
+import { Copy } from "lucide-react";
 
 interface Channel {
   id: string;
@@ -22,6 +23,8 @@ interface Channel {
 interface Profile {
   background_music_url: string | null;
   music_enabled: boolean | null;
+  bio: string | null;
+  wallet_address: string | null;
 }
 
 interface Video {
@@ -94,7 +97,7 @@ export default function Channel() {
       // Fetch profile for background music
       const { data: profileData } = await supabase
         .from("profiles")
-        .select("background_music_url, music_enabled")
+        .select("background_music_url, music_enabled, bio, wallet_address")
         .eq("id", data.user_id)
         .single();
 
@@ -259,6 +262,29 @@ export default function Channel() {
               </div>
               {channel.description && (
                 <p className="text-sm text-foreground">{channel.description}</p>
+              )}
+              {profile?.bio && (
+                <div className="mt-3 p-3 bg-card/50 border border-border rounded-lg">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-sm text-foreground whitespace-pre-wrap break-all flex-1 font-mono">
+                      {profile.bio}
+                    </p>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 flex-shrink-0"
+                      onClick={() => {
+                        navigator.clipboard.writeText(profile.bio || "");
+                        toast({
+                          title: "Đã copy",
+                          description: "Đã sao chép Bio vào clipboard",
+                        });
+                      }}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
               )}
             </div>
             <Button
