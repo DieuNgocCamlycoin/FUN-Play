@@ -174,29 +174,6 @@ export const RichNotification = ({ show, amount, token, count, onClose }: RichNo
             >
               +{parseFloat(amount).toFixed(3)} {token}
             </motion.span>
-            <motion.span
-              animate={{
-                scale: [1, 1.25, 1],
-                textShadow: [
-                  "0 0 15px #00FF00, 0 0 30px #7FFF00",
-                  "0 0 40px #00FF00, 0 0 80px #7FFF00, 0 0 120px #00FF00",
-                  "0 0 15px #00FF00, 0 0 30px #7FFF00",
-                ],
-              }}
-              transition={{
-                duration: 0.7,
-                repeat: Infinity,
-                ease: "easeInOut",
-              }}
-              className="font-black text-3xl ml-2"
-              style={{
-                color: "#00FF00",
-                textShadow: "0 0 30px #00FF00, 0 0 60px #7FFF00",
-                filter: "drop-shadow(0 0 20px rgba(0, 255, 0, 1))",
-              }}
-            >
-              {count}
-            </motion.span>
           </div>
           
           <motion.p
