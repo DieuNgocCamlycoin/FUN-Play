@@ -1,4 +1,4 @@
-import { Home, Zap, Users, Library, History, Video, Clock, ThumbsUp, Wallet, ListVideo, FileText, Tv, Trophy } from "lucide-react";
+import { Home, Zap, Users, Library, History, Video, Clock, ThumbsUp, Wallet, ListVideo, FileText, Tv, Trophy, Coins, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
@@ -119,6 +119,28 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                 <Trophy className="h-5 w-5 text-yellow-400" />
                 <span>Bảng Xếp Hạng</span>
                 <span className="ml-auto text-xl">🏆</span>
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => handleNavigation("/reward-history")}
+                className={cn(
+                  "w-full justify-start gap-6 px-3 py-2.5 h-auto hover:bg-hover-yellow hover:text-primary transition-all duration-300",
+                  location.pathname === "/reward-history" && "bg-hover-yellow text-primary font-semibold"
+                )}
+              >
+                <Coins className="h-5 w-5 text-yellow-400" />
+                <span>Lịch Sử Phần Thưởng</span>
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => handleNavigation("/referral")}
+                className={cn(
+                  "w-full justify-start gap-6 px-3 py-2.5 h-auto hover:bg-hover-yellow hover:text-primary transition-all duration-300",
+                  location.pathname === "/referral" && "bg-hover-yellow text-primary font-semibold"
+                )}
+              >
+                <UserPlus className="h-5 w-5 text-green-400" />
+                <span>Giới Thiệu Bạn Bè</span>
               </Button>
             </div>
 

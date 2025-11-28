@@ -66,8 +66,9 @@ export const awardCAMLY = async (
   userId: string,
   amount: number,
   type: "VIEW" | "LIKE" | "COMMENT" | "SHARE",
-  videoId?: string
-): Promise<{ milestone: number | null; newTotal: number }> => {
+  videoId?: string,
+  showNotification: boolean = true
+): Promise<{ milestone: number | null; newTotal: number; amount: number; type: string }> => {
   try {
     // Get current total rewards
     const { data: profileData } = await supabase
@@ -101,10 +102,10 @@ export const awardCAMLY = async (
     // Check for milestone achievement
     const milestone = checkMilestone(oldTotal, newTotal);
 
-    return { milestone, newTotal };
+    return { milestone, newTotal, amount, type };
   } catch (error) {
     console.error("Error awarding CAMLY:", error);
-    return { milestone: null, newTotal: 0 };
+    return { milestone: null, newTotal: 0, amount: 0, type };
   }
 };
 

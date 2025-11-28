@@ -12,6 +12,7 @@ import { TipModal } from "@/components/Tipping/TipModal";
 import { ShareModal } from "@/components/Video/ShareModal";
 import { MiniProfileCard } from "@/components/Video/MiniProfileCard";
 import { awardViewReward, awardLikeReward, awardCommentReward, awardShareReward } from "@/lib/rewards";
+import { RewardNotification } from "@/components/Rewards/RewardNotification";
 
 interface Video {
   id: string;
@@ -63,6 +64,11 @@ export default function Watch() {
   const [loading, setLoading] = useState(true);
   const [tipModalOpen, setTipModalOpen] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [rewardNotif, setRewardNotif] = useState<{ amount: number; type: "VIEW" | "LIKE" | "COMMENT" | "SHARE"; show: boolean }>({ 
+    amount: 0, 
+    type: "VIEW", 
+    show: false 
+  });
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [hasLiked, setHasLiked] = useState(false);
   const [showMiniProfile, setShowMiniProfile] = useState(false);
@@ -112,12 +118,15 @@ export default function Watch() {
       // Award CAMLY for viewing
       if (user) {
         const result = await awardViewReward(user.id, id);
-        if (result?.milestone) {
-          toast({
-            title: "🎉 Chúc mừng! Milestone đạt được!",
-            description: `Bạn đã đạt ${result.milestone} CAMLY tổng rewards!`,
-            duration: 5000,
-          });
+        if (result) {
+          setRewardNotif({ amount: result.amount, type: result.type as any, show: true });
+          if (result.milestone) {
+            toast({
+              title: "🎉 Chúc mừng! Milestone đạt được!",
+              description: `Bạn đã đạt ${result.milestone} CAMLY tổng rewards!`,
+              duration: 5000,
+            });
+          }
         }
       }
     } catch (error: any) {
@@ -251,17 +260,20 @@ export default function Watch() {
 
       // Award CAMLY for commenting
       const result = await awardCommentReward(user.id, id!);
-      if (result?.milestone) {
-        toast({
-          title: "🎉 Chúc mừng! Milestone đạt được!",
-          description: `Bạn đã đạt ${result.milestone} CAMLY tổng rewards!`,
-          duration: 5000,
-        });
-      } else {
-        toast({
-          title: "Comment posted",
-          description: "Your comment has been added (+1 CAMLY)",
-        });
+      if (result) {
+        setRewardNotif({ amount: result.amount, type: result.type as any, show: true });
+        if (result.milestone) {
+          toast({
+            title: "🎉 Chúc mừng! Milestone đạt được!",
+            description: `Bạn đã đạt ${result.milestone} CAMLY tổng rewards!`,
+            duration: 5000,
+          });
+        } else {
+          toast({
+            title: "Comment posted",
+            description: "Your comment has been added (+1 CAMLY)",
+          });
+        }
       }
     } catch (error: any) {
       toast({
@@ -404,12 +416,15 @@ export default function Watch() {
 
         // Award CAMLY for liking
         const result = await awardLikeReward(user.id, id!);
-        if (result?.milestone) {
-          toast({
-            title: "🎉 Chúc mừng! Milestone đạt được!",
-            description: `Bạn đã đạt ${result.milestone} CAMLY tổng rewards!`,
-            duration: 5000,
-          });
+        if (result) {
+          setRewardNotif({ amount: result.amount, type: result.type as any, show: true });
+          if (result.milestone) {
+            toast({
+              title: "🎉 Chúc mừng! Milestone đạt được!",
+              description: `Bạn đã đạt ${result.milestone} CAMLY tổng rewards!`,
+              duration: 5000,
+            });
+          }
         }
       }
 
@@ -739,6 +754,13 @@ export default function Watch() {
         videoId={id}
         creatorName={video?.channels.name || ""}
         channelUserId={video?.user_id}
+      />
+      
+      <RewardNotification 
+        amount={rewardNotif.amount}
+        type={rewardNotif.type}
+        show={rewardNotif.show}
+        onClose={() => setRewardNotif(prev => ({ ...prev, show: false }))}
       />
     </div>
   );

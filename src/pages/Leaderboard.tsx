@@ -120,10 +120,10 @@ export default function Leaderboard() {
                   className="cursor-pointer group"
                 >
                   <div
-                    className={`relative overflow-hidden rounded-xl bg-gradient-to-br from-black/80 to-black/60 backdrop-blur-sm border-2 p-4 transition-all duration-300 hover:shadow-[0_0_40px_rgba(0,231,255,0.6)] ${
+                    className={`relative overflow-hidden rounded-xl bg-gradient-to-br from-[#3a3a3a] to-[#2a2a2a] backdrop-blur-sm border-2 p-4 transition-all duration-300 hover:shadow-[0_0_30px_rgba(100,200,255,0.5)] ${
                       rank <= 3
-                        ? "border-yellow-400/50 hover:border-yellow-400"
-                        : "border-primary/30 hover:border-primary/60"
+                        ? "border-yellow-500/60 hover:border-yellow-400"
+                        : "border-gray-600/40 hover:border-gray-500/60"
                     }`}
                   >
                     {/* Sparkle effect for top 3 */}

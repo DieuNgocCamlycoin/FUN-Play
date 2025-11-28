@@ -22,6 +22,8 @@ import ManageChannel from "./pages/ManageChannel";
 import Studio from "./pages/Studio";
 import InstallPWA from "./pages/InstallPWA";
 import Leaderboard from "./pages/Leaderboard";
+import RewardHistory from "./pages/RewardHistory";
+import Referral from "./pages/Referral";
 import { wagmiConfig } from '@/lib/web3Config';
 import { useCursorBeam } from './hooks/useCursorBeam';
 import { GlobalPaymentNotifications } from './components/Web3/GlobalPaymentNotifications';
@@ -55,6 +57,8 @@ function AppContent() {
         <Route path="/studio" element={<Studio />} />
         <Route path="/dashboard" element={<Studio />} />
         <Route path="/leaderboard" element={<Leaderboard />} />
+        <Route path="/reward-history" element={<RewardHistory />} />
+        <Route path="/referral" element={<Referral />} />
         <Route path="/install" element={<InstallPWA />} />
         {/* Temporary redirect routes for missing pages */}
         <Route path="/shorts" element={<Index />} />
