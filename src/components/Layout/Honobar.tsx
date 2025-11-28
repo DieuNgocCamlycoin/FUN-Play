@@ -90,17 +90,31 @@ export const Honobar = () => {
             >
               <div className="relative overflow-hidden rounded-lg bg-gradient-to-br from-cyan-500/10 via-blue-500/10 to-purple-500/10 backdrop-blur-sm border border-cyan-400/30 px-2.5 py-2 hover:border-cyan-400/60 transition-all duration-300 hover:shadow-[0_0_15px_rgba(0,231,255,0.5)]">
                 <div className="flex flex-col items-center gap-1">
-                  <Icon className={`w-4 h-4 bg-gradient-to-br ${item.color} bg-clip-text text-transparent`} />
+                  <motion.div
+                    animate={{ 
+                      scale: [1, 1.1, 1],
+                      filter: ["drop-shadow(0 0 2px rgba(0,231,255,0.3))", "drop-shadow(0 0 8px rgba(0,231,255,0.8))", "drop-shadow(0 0 2px rgba(0,231,255,0.3))"]
+                    }}
+                    transition={{ duration: 2, repeat: Infinity, delay: index * 0.2 }}
+                  >
+                    <Icon className={`w-4 h-4 bg-gradient-to-br ${item.color} bg-clip-text text-transparent`} />
+                  </motion.div>
                   <div className="text-[9px] text-muted-foreground/80 font-medium whitespace-nowrap leading-tight text-center">
                     {item.label}
                   </div>
-                  <div className={`text-sm font-bold bg-gradient-to-br ${item.color} bg-clip-text text-transparent tabular-nums leading-tight`}>
+                  <motion.div 
+                    className={`text-sm font-bold bg-gradient-to-br ${item.color} bg-clip-text text-transparent tabular-nums leading-tight`}
+                    animate={{ 
+                      filter: ["drop-shadow(0 0 3px rgba(0,231,255,0.4))", "drop-shadow(0 0 6px rgba(0,231,255,0.8))", "drop-shadow(0 0 3px rgba(0,231,255,0.4))"]
+                    }}
+                    transition={{ duration: 3, repeat: Infinity, delay: index * 0.3 }}
+                  >
                     <CounterAnimation 
                       value={item.value} 
                       decimals={item.decimals || 0}
                     />
                     {item.isCrypto && <span className="text-[8px] ml-0.5">tk</span>}
-                  </div>
+                  </motion.div>
                 </div>
               </div>
             </motion.div>

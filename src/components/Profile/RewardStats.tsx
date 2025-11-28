@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Coins, Wallet, Users } from "lucide-react";
 import { CounterAnimation } from "@/components/Layout/CounterAnimation";
 import { motion } from "framer-motion";
+import { AchievementBadges } from "./AchievementBadges";
 
 interface RewardStatsProps {
   userId: string;
@@ -108,7 +109,9 @@ export const RewardStats = ({ userId, walletAddress }: RewardStatsProps) => {
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+    <>
+      <AchievementBadges totalRewards={totalRewards} />
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
       {stats.map((stat, index) => {
         const Icon = stat.icon;
         return (
@@ -119,7 +122,7 @@ export const RewardStats = ({ userId, walletAddress }: RewardStatsProps) => {
             transition={{ delay: index * 0.1, duration: 0.3 }}
             className="relative group"
           >
-            <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-black/80 to-black/60 backdrop-blur-sm border-2 border-primary/30 p-4 hover:border-primary/60 transition-all duration-300 hover:shadow-[0_0_30px_rgba(0,231,255,0.4)]">
+            <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-cyan-500/20 via-blue-500/20 to-purple-500/20 backdrop-blur-xl border-2 border-cyan-400/50 p-4 hover:border-cyan-400/70 transition-all duration-300 hover:shadow-[0_0_30px_rgba(0,231,255,0.5)]">
               <div className="flex items-center gap-3">
                 <div className={`p-3 rounded-lg bg-gradient-to-br ${stat.color} bg-opacity-10`}>
                   <Icon className={`w-6 h-6 bg-gradient-to-br ${stat.color} bg-clip-text text-transparent`} />
@@ -138,6 +141,7 @@ export const RewardStats = ({ userId, walletAddress }: RewardStatsProps) => {
           </motion.div>
         );
       })}
-    </div>
+      </div>
+    </>
   );
 };
