@@ -48,7 +48,11 @@ export const CounterAnimation = ({ value, duration = 2000, decimals = 0 }: Count
     if (decimals === 0) {
       return Math.floor(num).toLocaleString('en-US');
     }
-    return num.toFixed(decimals).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    // Format with thousand separators and specified decimals
+    return num.toLocaleString('en-US', { 
+      minimumFractionDigits: decimals, 
+      maximumFractionDigits: decimals 
+    });
   };
 
   return (

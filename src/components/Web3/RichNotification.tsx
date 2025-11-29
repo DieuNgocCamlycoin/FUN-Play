@@ -126,7 +126,7 @@ export const RichNotification = ({ show, amount, token, count, onClose }: RichNo
             scale: 1,
           }}
           exit={{ opacity: 0, y: -50, scale: 0.5 }}
-          className="fixed top-24 right-4 z-50 p-8 rounded-3xl shadow-2xl overflow-hidden flex items-center gap-6"
+          className="fixed top-24 right-4 z-50 p-4 rounded-2xl shadow-2xl overflow-hidden flex items-center gap-3"
           style={{
             background: "linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(255, 247, 230, 0.95))",
             backdropFilter: "blur(30px)",
@@ -141,7 +141,7 @@ export const RichNotification = ({ show, amount, token, count, onClose }: RichNo
           <motion.img
             src="/images/camly-coin.png"
             alt="CAMLY COIN"
-            className="w-24 h-24 rounded-full relative z-10"
+            className="w-12 h-12 rounded-full relative z-10"
             animate={{
               scale: [1, 1.2, 1],
               rotate: [0, 360],
@@ -162,15 +162,15 @@ export const RichNotification = ({ show, amount, token, count, onClose }: RichNo
             }}
           />
           
-          <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-4 relative z-10">
+          <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2 relative z-10">
             <motion.span
               animate={{
-                scale: [1, 1.3, 1],
+                scale: [1, 1.2, 1],
                 textShadow: [
-                  "0 0 20px #FFD700, 0 0 40px #FFA500",
-                  "0 0 40px #FFD700, 0 0 80px #FFA500, 0 0 120px #FFFF00",
-                  "0 0 20px #FFD700, 0 0 40px #FFA500",
+                  "0 0 15px #FFD700, 0 0 30px #FFA500",
+                  "0 0 25px #FFD700, 0 0 50px #FFA500",
+                  "0 0 15px #FFD700, 0 0 30px #FFA500",
                 ],
               }}
               transition={{
@@ -178,60 +178,63 @@ export const RichNotification = ({ show, amount, token, count, onClose }: RichNo
                 repeat: Infinity,
                 ease: "easeInOut",
               }}
-              className="font-black text-5xl"
+              className="font-black text-2xl"
               style={{
                 background: "linear-gradient(135deg, #FFD700, #FFA500, #FFFF00)",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
                 backgroundClip: "text",
-                filter: "drop-shadow(0 0 30px rgba(255, 215, 0, 1))",
+                filter: "drop-shadow(0 0 20px rgba(255, 215, 0, 1))",
+                textShadow: "0 2px 4px rgba(0,0,0,0.3)",
               }}
             >
               RICH
             </motion.span>
             <motion.span
               animate={{
-                scale: [1, 1.15, 1],
+                scale: [1, 1.1, 1],
               }}
               transition={{
                 duration: 0.6,
                 repeat: Infinity,
                 ease: "easeInOut",
               }}
-              className="font-black text-4xl"
+              className="font-black text-xl"
               style={{
                 background: "linear-gradient(135deg, #FFD700, #FFFF00, #FFA500)",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
                 backgroundClip: "text",
-                filter: "drop-shadow(0 0 20px rgba(255, 215, 0, 0.9))",
+                filter: "drop-shadow(0 0 15px rgba(255, 215, 0, 0.9))",
+                textShadow: "0 2px 4px rgba(0,0,0,0.4)",
               }}
             >
-              +{parseFloat(amount).toFixed(3)} {token}
+              +{parseFloat(amount).toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} {token}
             </motion.span>
           </div>
           
           <motion.p
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 5 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="text-base font-bold mt-3 relative z-10"
+            className="text-xs font-bold mt-1 relative z-10"
             style={{
               background: "linear-gradient(135deg, #FFD700, #FFA500)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
               backgroundClip: "text",
+              textShadow: "0 1px 2px rgba(0,0,0,0.3)",
             }}
           >
-            💰✨ Chúc mừng! Bạn vừa nhận được tiền! 💎🎉
+            💰 Chúc mừng! Bạn vừa nhận được tiền! 💎
           </motion.p>
           </div>
           
           {/* Golden Fireworks effects */}
           <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-2xl">
-            {[...Array(20)].map((_, i) => {
-              const angle = (i / 20) * Math.PI * 2;
-              const distance = 80 + Math.random() * 40;
+            {[...Array(12)].map((_, i) => {
+              const angle = (i / 12) * Math.PI * 2;
+              const distance = 40 + Math.random() * 20;
               return (
                 <motion.div
                   key={i}
@@ -248,7 +251,7 @@ export const RichNotification = ({ show, amount, token, count, onClose }: RichNo
                     delay: i * 0.05,
                     ease: "easeOut",
                   }}
-                  className="absolute w-3 h-3 rounded-full"
+                  className="absolute w-2 h-2 rounded-full"
                   style={{
                     left: '50%',
                     top: '50%',
@@ -259,15 +262,15 @@ export const RichNotification = ({ show, amount, token, count, onClose }: RichNo
               );
             })}
             {/* Diamond sparkles */}
-            {[...Array(15)].map((_, i) => (
+            {[...Array(8)].map((_, i) => (
               <motion.div
                 key={`diamond-${i}`}
                 initial={{ opacity: 0, scale: 0 }}
                 animate={{
                   opacity: [0, 1, 0],
                   scale: [0, 1.2, 0],
-                  x: [0, Math.random() * 120 - 60],
-                  y: [0, Math.random() * 120 - 60],
+                  x: [0, Math.random() * 60 - 30],
+                  y: [0, Math.random() * 60 - 30],
                   rotate: [0, 360],
                 }}
                 transition={{
@@ -276,7 +279,7 @@ export const RichNotification = ({ show, amount, token, count, onClose }: RichNo
                   delay: i * 0.15,
                   ease: "easeOut",
                 }}
-                className="absolute w-2 h-2"
+                className="absolute w-1.5 h-1.5"
                 style={{
                   left: `${Math.random() * 100}%`,
                   top: `${Math.random() * 100}%`,

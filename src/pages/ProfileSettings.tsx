@@ -20,6 +20,7 @@ export default function ProfileSettings() {
   const [walletAddress, setWalletAddress] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [bio, setBio] = useState("");
+  const [musicUrl, setMusicUrl] = useState("");
   const [voiceGender, setVoiceGender] = useState("female");
   const [voicePitch, setVoicePitch] = useState("high");
   const [saving, setSaving] = useState(false);
@@ -59,6 +60,7 @@ export default function ProfileSettings() {
         setWalletAddress(data.wallet_address || "");
         setAvatarUrl(data.avatar_url || "");
         setBio(data.bio || "");
+        setMusicUrl(data.music_url || "");
       }
     } catch (error: any) {
       toast({
@@ -83,6 +85,7 @@ export default function ProfileSettings() {
           wallet_address: walletAddress,
           avatar_url: avatarUrl,
           bio: bio,
+          music_url: musicUrl,
         })
         .eq("id", user!.id);
 
@@ -204,6 +207,21 @@ export default function ProfileSettings() {
                 </h3>
                 
                 <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="musicUrl">Link nhạc Suno</Label>
+                    <Input
+                      id="musicUrl"
+                      type="url"
+                      placeholder="https://suno.com/..."
+                      value={musicUrl}
+                      onChange={(e) => setMusicUrl(e.target.value)}
+                      className="mt-1"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Link đến nhạc chuông từ Suno để phát khi nhận tiền
+                    </p>
+                  </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="voiceGender">Giọng nói</Label>
                     <Select value={voiceGender} onValueChange={setVoiceGender}>
