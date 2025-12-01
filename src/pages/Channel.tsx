@@ -40,6 +40,8 @@ interface Profile {
   music_enabled: boolean | null;
   bio: string | null;
   wallet_address: string | null;
+  avatar_url: string | null;
+  display_name: string | null;
 }
 
 interface Video {
@@ -111,10 +113,10 @@ export default function Channel() {
       
       setChannel(data);
 
-      // Fetch profile for background music
+      // Fetch profile for background music and avatar
       const { data: profileData } = await supabase
         .from("profiles")
-        .select("background_music_url, music_enabled, bio, wallet_address")
+        .select("background_music_url, music_enabled, bio, wallet_address, avatar_url, display_name")
         .eq("id", data.user_id)
         .single();
 
@@ -332,9 +334,17 @@ export default function Channel() {
           <RewardStats userId={channel.user_id} walletAddress={profile?.wallet_address} />
           
           <div className="flex items-start gap-6 mb-6">
-            <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-2xl flex-shrink-0">
-              {channel.name[0]}
-            </div>
+            {profile?.avatar_url ? (
+              <img
+                src={profile.avatar_url}
+                alt={channel.name}
+                className="w-20 h-20 rounded-full object-cover flex-shrink-0 border-2 border-primary shadow-lg"
+              />
+            ) : (
+              <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-2xl flex-shrink-0">
+                {channel.name[0]}
+              </div>
+            )}
             <div className="flex-1">
               <h1 className="text-3xl font-bold text-foreground mb-1">
                 {channel.name}
@@ -453,6 +463,7 @@ export default function Channel() {
                     thumbnail={video.thumbnail_url || "https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=400&h=225&fit=crop"}
                     title={video.title}
                     channel={channel.name}
+                    avatarUrl={profile?.avatar_url || undefined}
                     views={`${video.view_count || 0} views`}
                     timestamp={new Date(video.created_at).toLocaleDateString()}
                     onPlay={(id) => navigate(`/watch/${id}`)}

@@ -24,6 +24,7 @@ interface Video {
   };
   profiles: {
     wallet_address: string | null;
+    avatar_url: string | null;
   };
 }
 
@@ -69,20 +70,21 @@ const Index = () => {
           return;
         }
 
-        // Fetch wallet addresses for all users
+        // Fetch wallet addresses and avatars for all users
         if (data && data.length > 0) {
           const userIds = [...new Set(data.map(v => v.user_id))];
           const { data: profilesData } = await supabase
             .from("profiles")
-            .select("id, wallet_address")
+            .select("id, wallet_address, avatar_url")
             .in("id", userIds);
 
-          const profilesMap = new Map(profilesData?.map(p => [p.id, p.wallet_address]) || []);
+          const profilesMap = new Map(profilesData?.map(p => [p.id, { wallet_address: p.wallet_address, avatar_url: p.avatar_url }]) || []);
 
           const videosWithProfiles = data.map(video => ({
             ...video,
             profiles: {
-              wallet_address: profilesMap.get(video.user_id) || null,
+              wallet_address: profilesMap.get(video.user_id)?.wallet_address || null,
+              avatar_url: profilesMap.get(video.user_id)?.avatar_url || null,
             },
           }));
 
@@ -186,6 +188,7 @@ const Index = () => {
                   thumbnail={video.thumbnail_url || "https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=400&h=225&fit=crop"}
                   title={video.title}
                   channel={video.channels?.name || "Unknown Channel"}
+                  avatarUrl={video.profiles?.avatar_url || undefined}
                   views={formatViews(video.view_count)}
                   timestamp={formatTimestamp(video.created_at)}
                   onPlay={handlePlayVideo}

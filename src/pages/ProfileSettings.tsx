@@ -23,8 +23,6 @@ export default function ProfileSettings() {
   const [bannerUrl, setBannerUrl] = useState("");
   const [bio, setBio] = useState("");
   const [musicUrl, setMusicUrl] = useState("");
-  const [voiceGender, setVoiceGender] = useState("female");
-  const [voicePitch, setVoicePitch] = useState("high");
   const [saving, setSaving] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [channelId, setChannelId] = useState<string | null>(null);
@@ -33,13 +31,6 @@ export default function ProfileSettings() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const musicFileInputRef = useRef<HTMLInputElement | null>(null);
 
-  useEffect(() => {
-    // Load voice settings from localStorage
-    const savedGender = localStorage.getItem("voiceGender") || "female";
-    const savedPitch = localStorage.getItem("voicePitch") || "high";
-    setVoiceGender(savedGender);
-    setVoicePitch(savedPitch);
-  }, []);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -305,10 +296,6 @@ export default function ProfileSettings() {
         if (channelError) throw channelError;
       }
 
-      // Save voice settings to localStorage
-      localStorage.setItem("voiceGender", voiceGender);
-      localStorage.setItem("voicePitch", voicePitch);
-
       toast({
         title: "Đã cập nhật",
         description: "Cài đặt của bạn đã được lưu thành công!",
@@ -488,39 +475,6 @@ export default function ProfileSettings() {
                     <p className="text-xs text-muted-foreground">
                       Hỗ trợ: Link Suno trực tiếp (suno.com/s/...), file nhạc trực tiếp (.mp3, .wav, .ogg), hoặc tải file lên (tối đa 10MB).
                       <strong className="text-foreground"> KHÔNG</strong> hỗ trợ YouTube/Spotify.
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="voiceGender">Giọng nói</Label>
-                    <Select value={voiceGender} onValueChange={setVoiceGender}>
-                      <SelectTrigger id="voiceGender">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="female">Nữ (Baby Angel)</SelectItem>
-                        <SelectItem value="male">Nam</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground">
-                      Chọn giọng nói cho thông báo nhận tiền
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="voicePitch">Độ cao giọng</Label>
-                    <Select value={voicePitch} onValueChange={setVoicePitch}>
-                      <SelectTrigger id="voicePitch">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="high">Cao (2.0)</SelectItem>
-                        <SelectItem value="medium">Trung bình (1.5)</SelectItem>
-                        <SelectItem value="low">Thấp (1.0)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground">
-                      Điều chỉnh độ cao của giọng nói
                     </p>
                   </div>
                 </div>

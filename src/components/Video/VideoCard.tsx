@@ -16,6 +16,7 @@ interface VideoCardProps {
   videoId: string;
   userId?: string;
   channelId?: string;
+  avatarUrl?: string;
   onPlay?: (videoId: string) => void;
 }
 
@@ -28,6 +29,7 @@ export const VideoCard = ({
   videoId,
   userId,
   channelId,
+  avatarUrl,
   onPlay,
 }: VideoCardProps) => {
   const navigate = useNavigate();
@@ -118,9 +120,17 @@ export const VideoCard = ({
       {/* Info with glassmorphism */}
       <div className="p-4 flex gap-3 bg-gradient-to-b from-transparent to-background/20">
         <div className="flex-shrink-0" onClick={handleChannelClick}>
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta flex items-center justify-center text-foreground font-bold text-sm shadow-[0_0_30px_rgba(0,255,255,0.7)] cursor-pointer hover:scale-110 transition-transform">
-            {channel[0]}
-          </div>
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt={channel}
+              className="w-10 h-10 rounded-full object-cover cursor-pointer hover:scale-110 transition-transform shadow-[0_0_30px_rgba(0,255,255,0.7)]"
+            />
+          ) : (
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta flex items-center justify-center text-foreground font-bold text-sm shadow-[0_0_30px_rgba(0,255,255,0.7)] cursor-pointer hover:scale-110 transition-transform">
+              {channel[0]}
+            </div>
+          )}
         </div>
         <div className="flex-1 min-w-0">
           <h3 className="font-bold text-sm line-clamp-2 mb-1 text-foreground group-hover:text-cosmic-cyan transition-colors duration-300">
