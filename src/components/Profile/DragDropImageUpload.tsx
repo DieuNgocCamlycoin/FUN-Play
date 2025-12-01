@@ -16,7 +16,7 @@ interface DragDropImageUploadProps {
 export function DragDropImageUpload({
   currentImageUrl,
   onImageUploaded,
-  bucketName = "thumbnails",
+  bucketName = "uploads",
   folderPath = "profiles",
   label,
   aspectRatio = "aspect-square",
@@ -30,6 +30,17 @@ export function DragDropImageUpload({
   const uploadFile = async (file: File) => {
     try {
       setIsUploading(true);
+
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({
+          title: "Authentication required",
+          description: "Please log in to upload files",
+          variant: "destructive",
+        });
+        return;
+      }
 
       // Validate file size
       const fileSizeMB = file.size / (1024 * 1024);
@@ -52,10 +63,10 @@ export function DragDropImageUpload({
         return;
       }
 
-      // Generate unique filename
+      // Generate unique filename with user ID prefix for RLS
       const fileExt = file.name.split(".").pop();
       const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
-      const filePath = `${folderPath}/${fileName}`;
+      const filePath = `${user.id}/${folderPath}/${fileName}`;
 
       // Upload to Supabase storage
       const { error: uploadError } = await supabase.storage
