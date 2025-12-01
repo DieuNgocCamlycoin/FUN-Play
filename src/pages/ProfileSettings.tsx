@@ -94,7 +94,30 @@ export default function ProfileSettings() {
     if (!musicUrl) {
       toast({
         title: "Chưa có link nhạc",
-        description: "Vui lòng nhập link nhạc Suno trước",
+        description: "Vui lòng nhập link nhạc trước",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check if it's a valid audio URL format
+    const isDirectAudioUrl = /\.(mp3|wav|ogg|m4a|aac|flac)(\?.*)?$/i.test(musicUrl);
+    const isYouTubeUrl = /youtube\.com|youtu\.be/i.test(musicUrl);
+    const isSunoUrl = /suno\.com/i.test(musicUrl);
+
+    if (isYouTubeUrl) {
+      toast({
+        title: "YouTube không được hỗ trợ",
+        description: "Vui lòng sử dụng link nhạc trực tiếp (.mp3, .wav, .ogg) hoặc tải file nhạc lên",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (isSunoUrl && !isDirectAudioUrl) {
+      toast({
+        title: "Link Suno không hợp lệ",
+        description: "Cần link nhạc trực tiếp từ Suno (kết thúc bằng .mp3). Nhấn chuột phải vào nút play > Copy audio address",
         variant: "destructive",
       });
       return;
@@ -107,14 +130,23 @@ export default function ProfileSettings() {
       if (!audioRef.current) {
         audioRef.current = new Audio(musicUrl);
         audioRef.current.addEventListener('ended', () => setIsPlayingPreview(false));
+        audioRef.current.addEventListener('error', () => {
+          toast({
+            title: "Không thể phát nhạc",
+            description: "Link nhạc không hợp lệ. Vui lòng sử dụng link nhạc trực tiếp (.mp3, .wav, .ogg)",
+            variant: "destructive",
+          });
+          setIsPlayingPreview(false);
+        });
       } else {
         audioRef.current.src = musicUrl;
       }
       
       audioRef.current.play().catch((error) => {
+        console.error("Audio playback error:", error);
         toast({
           title: "Không thể phát nhạc",
-          description: "Link nhạc không hợp lệ hoặc không thể truy cập",
+          description: "Link nhạc không hợp lệ. Vui lòng sử dụng link file nhạc trực tiếp (.mp3, .wav, .ogg) thay vì link trang web",
           variant: "destructive",
         });
         setIsPlayingPreview(false);
@@ -134,6 +166,27 @@ export default function ProfileSettings() {
     }
 
     try {
+      // First check if profile exists, if not create it
+      const { data: existingProfile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("id", user!.id)
+        .maybeSingle();
+
+      if (!existingProfile) {
+        // Create profile first
+        const { error: insertError } = await supabase
+          .from("profiles")
+          .insert({
+            id: user!.id,
+            display_name: displayName,
+            username: `user_${user!.id.substring(0, 8)}`,
+          });
+
+        if (insertError) throw insertError;
+      }
+
+      // Now update the profile
       const { error } = await supabase
         .from("profiles")
         .update({
@@ -277,12 +330,12 @@ export default function ProfileSettings() {
                 
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="musicUrl">Link nhạc Suno</Label>
+                    <Label htmlFor="musicUrl">Link nhạc thông báo</Label>
                     <div className="flex gap-2">
                       <Input
                         id="musicUrl"
                         type="url"
-                        placeholder="https://suno.com/..."
+                        placeholder="https://example.com/music.mp3"
                         value={musicUrl}
                         onChange={(e) => setMusicUrl(e.target.value)}
                         className="mt-1 flex-1"
@@ -293,6 +346,7 @@ export default function ProfileSettings() {
                         size="icon"
                         onClick={handleAudioPreview}
                         className="mt-1"
+                        title="Test nhạc"
                       >
                         {isPlayingPreview ? (
                           <Pause className="h-4 w-4" />
@@ -302,7 +356,8 @@ export default function ProfileSettings() {
                       </Button>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Link đến nhạc chuông từ Suno để phát khi nhận tiền
+                      Nhập link file nhạc trực tiếp (.mp3, .wav, .ogg) để phát khi nhận CAMLY. 
+                      <strong className="text-foreground"> KHÔNG</strong> hỗ trợ YouTube/Spotify.
                     </p>
                   </div>
 
