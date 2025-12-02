@@ -81,6 +81,32 @@ export default function Channel() {
     }
   }, [channel, user]);
 
+  // Real-time subscription for channel updates (subscriber count)
+  useEffect(() => {
+    if (!channel) return;
+
+    const channelSub = supabase
+      .channel(`channel-updates-${channel.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'channels',
+          filter: `id=eq.${channel.id}`,
+        },
+        (payload) => {
+          console.log('Channel updated in real-time:', payload);
+          setChannel(prev => prev ? { ...prev, ...payload.new as any } : null);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channelSub);
+    };
+  }, [channel?.id]);
+
   const fetchChannel = async () => {
     try {
       let query = supabase.from("channels").select("*");

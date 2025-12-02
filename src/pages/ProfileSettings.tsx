@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Save, Play, Pause } from "lucide-react";
 import { Header } from "@/components/Layout/Header";
 import { DragDropImageUpload } from "@/components/Profile/DragDropImageUpload";
+import { ProfileCompletionIndicator } from "@/components/Profile/ProfileCompletionIndicator";
 
 export default function ProfileSettings() {
   const { user, loading } = useAuth();
@@ -338,6 +339,16 @@ export default function ProfileSettings() {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <h1 className="text-2xl font-bold text-foreground">Profile Settings</h1>
+          </div>
+
+          {/* Profile Completion Indicator */}
+          <div className="mb-6">
+            <ProfileCompletionIndicator
+              avatar={!!avatarUrl}
+              banner={!!bannerUrl}
+              bio={!!bio}
+              wallet={!!walletAddress}
+            />
           </div>
 
           {/* Form */}

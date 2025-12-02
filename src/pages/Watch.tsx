@@ -91,6 +91,53 @@ export default function Watch() {
     }
   }, [user, video]);
 
+  // Real-time subscription for view count and subscriber updates
+  useEffect(() => {
+    if (!video) return;
+
+    const videoChannel = supabase
+      .channel(`video-${video.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'videos',
+          filter: `id=eq.${video.id}`,
+        },
+        (payload) => {
+          console.log('Video updated:', payload);
+          setVideo(prev => prev ? { ...prev, ...payload.new as any } : null);
+        }
+      )
+      .subscribe();
+
+    const channelChannel = supabase
+      .channel(`channel-${video.channels.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'channels',
+          filter: `id=eq.${video.channels.id}`,
+        },
+        (payload) => {
+          console.log('Channel updated:', payload);
+          setVideo(prev => prev ? {
+            ...prev,
+            channels: { ...prev.channels, ...payload.new as any }
+          } : null);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(videoChannel);
+      supabase.removeChannel(channelChannel);
+    };
+  }, [video?.id, video?.channels.id]);
+
   const fetchVideo = async () => {
     try {
       const { data, error } = await supabase
@@ -586,7 +633,7 @@ export default function Watch() {
               {/* Description */}
               <div className="bg-muted rounded-xl p-4">
                 <div className="flex items-center gap-2 text-sm font-semibold text-foreground mb-2">
-                  <span>{video.view_count || 0} lượt xem</span>
+                  <span>{(video.view_count || 0).toLocaleString()} lượt xem</span>
                   <span>•</span>
                   <span>{new Date(video.created_at).toLocaleDateString("vi-VN")}</span>
                 </div>

@@ -167,13 +167,13 @@ export const RichNotification = ({ show, amount, token, count, onClose, userId }
           exit={{ opacity: 0, y: -50, scale: 0.5 }}
           className="fixed top-24 right-4 z-50 p-4 rounded-2xl shadow-2xl overflow-hidden flex items-center gap-3"
           style={{
-            background: "linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(255, 247, 230, 0.95))",
+            background: "linear-gradient(135deg, rgba(255, 0, 0, 0.15), rgba(255, 127, 0, 0.15), rgba(255, 255, 0, 0.15), rgba(0, 255, 0, 0.15), rgba(0, 255, 255, 0.15), rgba(0, 0, 255, 0.15), rgba(148, 0, 211, 0.15), rgba(255, 255, 255, 0.95))",
             backdropFilter: "blur(30px)",
             border: "3px solid transparent",
-            backgroundImage: "linear-gradient(white, white), linear-gradient(135deg, #FFD700, #FFA500, #FFFF00, #FFD700)",
+            backgroundImage: "linear-gradient(white, white), linear-gradient(135deg, #FF0000, #FF7F00, #FFFF00, #00FF00, #00FFFF, #0000FF, #9400D3)",
             backgroundOrigin: "border-box",
             backgroundClip: "padding-box, border-box",
-            boxShadow: "0 0 60px rgba(255, 215, 0, 0.8), 0 0 100px rgba(255, 165, 0, 0.6), 0 0 140px rgba(255, 255, 0, 0.4)",
+            boxShadow: "0 0 60px rgba(255, 0, 0, 0.6), 0 0 80px rgba(255, 127, 0, 0.5), 0 0 100px rgba(255, 255, 0, 0.4), 0 0 120px rgba(0, 255, 0, 0.3)",
           }}
         >
           {/* Pulsing Rainbow CAMLY Coin Icon */}
@@ -207,9 +207,9 @@ export const RichNotification = ({ show, amount, token, count, onClose, userId }
               animate={{
                 scale: [1, 1.2, 1],
                 textShadow: [
-                  "0 0 15px #FFD700, 0 0 30px #FFA500",
-                  "0 0 25px #FFD700, 0 0 50px #FFA500",
-                  "0 0 15px #FFD700, 0 0 30px #FFA500",
+                  "0 0 20px #FFD700, 0 0 40px #FFA500, 0 0 60px #FFFF00",
+                  "0 0 30px #FFD700, 0 0 60px #FFA500, 0 0 90px #FFFF00",
+                  "0 0 20px #FFD700, 0 0 40px #FFA500, 0 0 60px #FFFF00",
                 ],
               }}
               transition={{
@@ -217,14 +217,12 @@ export const RichNotification = ({ show, amount, token, count, onClose, userId }
                 repeat: Infinity,
                 ease: "easeInOut",
               }}
-              className="font-black text-2xl"
+              className="font-black text-3xl"
               style={{
-                background: "linear-gradient(135deg, #FFD700, #FFA500, #FFFF00)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
-                filter: "drop-shadow(0 0 20px rgba(255, 215, 0, 1))",
-                textShadow: "0 2px 4px rgba(0,0,0,0.3)",
+                color: "#FFD700",
+                fontWeight: 900,
+                textShadow: "0 0 20px #FFD700, 0 0 40px #FFA500, 0 0 60px #FFFF00, 0 4px 8px rgba(0,0,0,0.5)",
+                filter: "drop-shadow(0 0 30px rgba(255, 215, 0, 1))",
               }}
             >
               RICH
@@ -240,12 +238,10 @@ export const RichNotification = ({ show, amount, token, count, onClose, userId }
               }}
               className="font-black text-xl"
               style={{
-                background: "linear-gradient(135deg, #FFD700, #FFFF00, #FFA500)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
-                filter: "drop-shadow(0 0 15px rgba(255, 215, 0, 0.9))",
-                textShadow: "0 2px 4px rgba(0,0,0,0.4)",
+                color: "#FFD700",
+                fontWeight: 900,
+                textShadow: "0 0 15px #FFD700, 0 0 30px #FFA500, 0 4px 6px rgba(0,0,0,0.5)",
+                filter: "drop-shadow(0 0 20px rgba(255, 215, 0, 0.9))",
               }}
             >
               +{parseFloat(amount).toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} {token}
@@ -258,11 +254,9 @@ export const RichNotification = ({ show, amount, token, count, onClose, userId }
             transition={{ delay: 0.2 }}
             className="text-xs font-bold mt-1 relative z-10"
             style={{
-              background: "linear-gradient(135deg, #FFD700, #FFA500)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              backgroundClip: "text",
-              textShadow: "0 1px 2px rgba(0,0,0,0.3)",
+              color: "#FFD700",
+              fontWeight: 900,
+              textShadow: "0 0 10px #FFD700, 0 0 20px #FFA500, 0 2px 4px rgba(0,0,0,0.4)",
             }}
           >
             💰 Chúc mừng! Bạn vừa nhận được tiền! 💎
@@ -278,25 +272,34 @@ export const RichNotification = ({ show, amount, token, count, onClose, userId }
                 <motion.div
                   key={i}
                   initial={{ opacity: 0, scale: 0, x: 0, y: 0 }}
-                  animate={{
-                    opacity: [0, 1, 1, 0],
-                    scale: [0, 1.5, 1, 0],
-                    x: [0, Math.cos(angle) * distance],
-                    y: [0, Math.sin(angle) * distance],
-                  }}
+              animate={{
+                opacity: [0, 1, 1, 0],
+                scale: [0, 1.5, 1, 0],
+                x: [0, Math.cos(angle) * distance],
+                y: [0, Math.sin(angle) * distance],
+                background: [
+                  "#FF0000", // Red
+                  "#FF7F00", // Orange
+                  "#FFFF00", // Yellow
+                  "#00FF00", // Green
+                  "#00FFFF", // Cyan
+                  "#0000FF", // Blue
+                  "#9400D3", // Violet
+                  "#FF0000", // Back to Red
+                ],
+              }}
                   transition={{
                     duration: 1.5,
                     repeat: Infinity,
                     delay: i * 0.05,
                     ease: "easeOut",
                   }}
-                  className="absolute w-2 h-2 rounded-full"
-                  style={{
-                    left: '50%',
-                    top: '50%',
-                    background: `linear-gradient(135deg, #FFD700, #FFA500, #FFFF00)`,
-                    boxShadow: "0 0 15px #FFD700, 0 0 30px #FFA500",
-                  }}
+              className="absolute w-2 h-2 rounded-full"
+              style={{
+                left: '50%',
+                top: '50%',
+                boxShadow: "0 0 20px currentColor, 0 0 40px currentColor",
+              }}
                 />
               );
             })}
