@@ -301,6 +301,9 @@ export default function ProfileSettings() {
         title: "Đã cập nhật",
         description: "Cài đặt của bạn đã được lưu thành công!",
       });
+
+      // Force refetch profile data to sync across all components
+      window.dispatchEvent(new Event('profile-updated'));
     } catch (error: any) {
       toast({
         title: "Cập nhật thất bại",

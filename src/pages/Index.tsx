@@ -40,6 +40,7 @@ const Index = () => {
   // Fetch real videos from database
   useEffect(() => {
     const fetchVideos = async () => {
+      setLoadingVideos(true);
       try {
         const { data, error } = await supabase
           .from("videos")
@@ -100,6 +101,17 @@ const Index = () => {
     };
 
     fetchVideos();
+
+    // Listen for profile updates and refetch videos to get updated avatars
+    const handleProfileUpdate = () => {
+      fetchVideos();
+    };
+
+    window.addEventListener('profile-updated', handleProfileUpdate);
+
+    return () => {
+      window.removeEventListener('profile-updated', handleProfileUpdate);
+    };
   }, [toast]);
 
   const handlePlayVideo = (videoId: string) => {
