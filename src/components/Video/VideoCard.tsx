@@ -2,22 +2,24 @@ import { useState } from "react";
 import { Play, Volume2, Edit, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { ShareModal } from "./ShareModal";
 
 interface VideoCardProps {
-  thumbnail: string;
-  title: string;
-  channel: string;
-  views: string;
-  timestamp: string;
-  videoId: string;
+  thumbnail?: string;
+  title?: string;
+  channel?: string;
+  views?: string;
+  timestamp?: string;
+  videoId?: string;
   userId?: string;
   channelId?: string;
   avatarUrl?: string;
   onPlay?: (videoId: string) => void;
+  isLoading?: boolean;
 }
 
 export const VideoCard = ({
@@ -31,6 +33,7 @@ export const VideoCard = ({
   channelId,
   avatarUrl,
   onPlay,
+  isLoading = false,
 }: VideoCardProps) => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -38,8 +41,25 @@ export const VideoCard = ({
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const isOwner = user?.id === userId;
 
+  // Loading skeleton
+  if (isLoading) {
+    return (
+      <Card className="overflow-hidden glass-card border-2 border-white/10">
+        <Skeleton className="aspect-video w-full" />
+        <div className="p-4 flex gap-3">
+          <Skeleton className="w-10 h-10 rounded-full flex-shrink-0" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-3 w-3/4" />
+            <Skeleton className="h-3 w-1/2" />
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
   const handlePlay = () => {
-    if (onPlay) {
+    if (onPlay && videoId) {
       onPlay(videoId);
     }
   };
