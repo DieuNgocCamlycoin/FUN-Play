@@ -107,6 +107,47 @@ export default function Channel() {
     };
   }, [channel?.id]);
 
+  // Real-time subscription for profile updates (avatar, bio, etc.)
+  useEffect(() => {
+    if (!channel) return;
+
+    const profileSub = supabase
+      .channel(`profile-updates-${channel.user_id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${channel.user_id}`,
+        },
+        (payload) => {
+          console.log('Profile updated in real-time:', payload);
+          setProfile(payload.new as Profile);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(profileSub);
+    };
+  }, [channel?.user_id]);
+
+  // Listen for profile-updated event to refetch profile data
+  useEffect(() => {
+    const handleProfileUpdate = () => {
+      if (channel) {
+        fetchChannel();
+      }
+    };
+
+    window.addEventListener('profile-updated', handleProfileUpdate);
+
+    return () => {
+      window.removeEventListener('profile-updated', handleProfileUpdate);
+    };
+  }, [channel]);
+
   const fetchChannel = async () => {
     try {
       let query = supabase.from("channels").select("*");
