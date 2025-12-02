@@ -206,9 +206,9 @@ export const RichNotification = ({ show, amount, token, count, onClose, userId }
               animate={{
                 scale: [1, 1.2, 1],
                 textShadow: [
-                  "0 0 20px #00E7FF, 0 0 40px #00CED1, 0 0 60px #008B8B",
-                  "0 0 30px #00E7FF, 0 0 60px #00CED1, 0 0 90px #008B8B",
-                  "0 0 20px #00E7FF, 0 0 40px #00CED1, 0 0 60px #008B8B",
+                  "0 0 20px #00FF7F, 0 0 40px #00E676, 0 0 60px #00C853",
+                  "0 0 30px #00FF7F, 0 0 60px #00E676, 0 0 90px #00C853",
+                  "0 0 20px #00FF7F, 0 0 40px #00E676, 0 0 60px #00C853",
                 ],
               }}
               transition={{
@@ -218,13 +218,13 @@ export const RichNotification = ({ show, amount, token, count, onClose, userId }
               }}
               className="font-black text-3xl"
               style={{
-                background: "linear-gradient(135deg, #00E7FF 0%, #00CED1 50%, #008B8B 100%)",
+                background: "linear-gradient(135deg, #00FF7F 0%, #00E676 50%, #00C853 100%)",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
                 backgroundClip: "text",
                 fontWeight: 900,
-                textShadow: "0 0 20px #00E7FF, 0 0 40px #00CED1, 0 4px 8px rgba(0,0,0,0.3)",
-                filter: "drop-shadow(0 0 30px rgba(0, 231, 255, 0.8))",
+                textShadow: "0 0 20px #00FF7F, 0 0 40px #00E676, 0 4px 8px rgba(0,0,0,0.3)",
+                filter: "drop-shadow(0 0 30px rgba(0, 255, 127, 0.8))",
               }}
             >
               RICH
@@ -240,13 +240,13 @@ export const RichNotification = ({ show, amount, token, count, onClose, userId }
               }}
               className="font-black text-xl"
               style={{
-                background: "linear-gradient(135deg, #00E7FF 0%, #00CED1 50%, #008B8B 100%)",
+                background: "linear-gradient(135deg, #00FF7F 0%, #00E676 50%, #00C853 100%)",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
                 backgroundClip: "text",
                 fontWeight: 900,
-                textShadow: "0 0 15px #00E7FF, 0 0 30px #00CED1, 0 4px 6px rgba(0,0,0,0.3)",
-                filter: "drop-shadow(0 0 20px rgba(0, 231, 255, 0.7))",
+                textShadow: "0 0 15px #00FF7F, 0 0 30px #00E676, 0 4px 6px rgba(0,0,0,0.3)",
+                filter: "drop-shadow(0 0 20px rgba(0, 255, 127, 0.7))",
               }}
             >
               +{parseFloat(amount).toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} {token}
@@ -259,12 +259,12 @@ export const RichNotification = ({ show, amount, token, count, onClose, userId }
             transition={{ delay: 0.2 }}
             className="text-xs font-bold mt-1 relative z-10"
             style={{
-              background: "linear-gradient(135deg, #00E7FF 0%, #00CED1 50%, #008B8B 100%)",
+              background: "linear-gradient(135deg, #00FF7F 0%, #00E676 50%, #00C853 100%)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
               backgroundClip: "text",
               fontWeight: 900,
-              textShadow: "0 0 10px #00E7FF, 0 0 20px #00CED1, 0 2px 4px rgba(0,0,0,0.3)",
+              textShadow: "0 0 10px #00FF7F, 0 0 20px #00E676, 0 2px 4px rgba(0,0,0,0.3)",
             }}
           >
             💰 Chúc mừng! Bạn vừa nhận được tiền! 💎
