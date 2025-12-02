@@ -102,7 +102,37 @@ const Index = () => {
 
     fetchVideos();
 
-    // Listen for profile updates and refetch videos to get updated avatars
+    // Real-time subscription for profile updates (avatars, etc.)
+    const profileChannel = supabase
+      .channel('profile-updates-homepage')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+        },
+        (payload) => {
+          console.log('Profile updated in real-time:', payload);
+          // Update the specific user's profile in videos
+          setVideos(prevVideos => 
+            prevVideos.map(video => 
+              video.user_id === payload.new.id
+                ? {
+                    ...video,
+                    profiles: {
+                      wallet_address: payload.new.wallet_address,
+                      avatar_url: payload.new.avatar_url,
+                    }
+                  }
+                : video
+            )
+          );
+        }
+      )
+      .subscribe();
+
+    // Listen for profile-updated event to refetch videos to get updated avatars
     const handleProfileUpdate = () => {
       fetchVideos();
     };
@@ -110,6 +140,7 @@ const Index = () => {
     window.addEventListener('profile-updated', handleProfileUpdate);
 
     return () => {
+      supabase.removeChannel(profileChannel);
       window.removeEventListener('profile-updated', handleProfileUpdate);
     };
   }, [toast]);
@@ -138,7 +169,7 @@ const Index = () => {
     return `${Math.floor(diffDays / 365)} năm trước`;
   };
 
-  if (loading || loadingVideos) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-foreground">Loading...</div>
@@ -184,7 +215,13 @@ const Index = () => {
         )}
         
         <div className="p-6">
-          {videos.length === 0 ? (
+          {loadingVideos ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {[...Array(8)].map((_, i) => (
+                <VideoCard key={`skeleton-${i}`} isLoading={true} />
+              ))}
+            </div>
+          ) : videos.length === 0 ? (
             <div className="text-center py-20 glass-card rounded-2xl mx-auto max-w-2xl shadow-[0_0_60px_rgba(0,102,255,0.5)]">
               <p className="text-foreground text-2xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta">Chưa có video nào</p>
               <p className="text-sm text-muted-foreground mt-2">Hãy tải video đầu tiên lên và khám phá vũ trụ âm nhạc đầy năng lượng tình yêu!</p>

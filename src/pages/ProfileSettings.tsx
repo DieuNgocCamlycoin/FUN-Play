@@ -236,23 +236,26 @@ export default function ProfileSettings() {
     e.preventDefault();
     setSaving(true);
 
-      // Stop preview if playing
-      if (audioRef.current) {
-        audioRef.current.pause();
-        setIsPlayingPreview(false);
-      }
+    // Stop preview if playing
+    if (audioRef.current) {
+      audioRef.current.pause();
+      setIsPlayingPreview(false);
+    }
 
-      // Convert Suno page URL to direct audio URL before saving
-      let finalMusicUrl = musicUrl;
-      const isSunoPageUrl = /suno\.com\/(song|s)\//i.test(musicUrl);
-      if (isSunoPageUrl) {
-        const extractedUrl = await extractSunoAudioUrl(musicUrl);
-        if (extractedUrl) {
-          finalMusicUrl = extractedUrl;
-        }
-      }
+    // Optimistic update - dispatch event immediately to show changes in UI
+    window.dispatchEvent(new Event('profile-updated'));
 
-      try {
+    // Convert Suno page URL to direct audio URL before saving
+    let finalMusicUrl = musicUrl;
+    const isSunoPageUrl = /suno\.com\/(song|s)\//i.test(musicUrl);
+    if (isSunoPageUrl) {
+      const extractedUrl = await extractSunoAudioUrl(musicUrl);
+      if (extractedUrl) {
+        finalMusicUrl = extractedUrl;
+      }
+    }
+
+    try {
       // First check if profile exists, if not create it
       const { data: existingProfile } = await supabase
         .from("profiles")
@@ -301,10 +304,11 @@ export default function ProfileSettings() {
         title: "Đã cập nhật",
         description: "Cài đặt của bạn đã được lưu thành công!",
       });
-
-      // Force refetch profile data to sync across all components
-      window.dispatchEvent(new Event('profile-updated'));
     } catch (error: any) {
+      // On error, refetch to revert optimistic update
+      await fetchProfile();
+      window.dispatchEvent(new Event('profile-updated'));
+      
       toast({
         title: "Cập nhật thất bại",
         description: error.message || "Không thể cập nhật thông tin",
