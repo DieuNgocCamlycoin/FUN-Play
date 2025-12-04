@@ -255,12 +255,12 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0a0a1a] via-[#1a0a2e] to-[#0a1a2e] flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-white flex items-center justify-center p-4 relative overflow-hidden">
       {/* Animated background effects */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute w-[500px] h-[500px] bg-[#7A2BFF]/20 rounded-full blur-3xl -top-48 -left-48 animate-pulse" />
-        <div className="absolute w-[400px] h-[400px] bg-[#FF00E5]/20 rounded-full blur-3xl -bottom-32 -right-32 animate-pulse" style={{ animationDelay: '1s' }} />
-        <div className="absolute w-[300px] h-[300px] bg-[#00E7FF]/20 rounded-full blur-3xl top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-pulse" style={{ animationDelay: '2s' }} />
+        <div className="absolute w-[500px] h-[500px] bg-[#7A2BFF]/10 rounded-full blur-3xl -top-48 -left-48 animate-pulse" />
+        <div className="absolute w-[400px] h-[400px] bg-[#FF00E5]/10 rounded-full blur-3xl -bottom-32 -right-32 animate-pulse" style={{ animationDelay: '1s' }} />
+        <div className="absolute w-[300px] h-[300px] bg-[#00E7FF]/10 rounded-full blur-3xl top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-pulse" style={{ animationDelay: '2s' }} />
       </div>
 
       {/* Back Button */}
@@ -268,7 +268,7 @@ export default function Auth() {
         variant="ghost"
         size="icon"
         onClick={() => navigate("/")}
-        className="absolute top-4 left-4 text-white hover:bg-white/10"
+        className="absolute top-4 left-4 text-gray-800 hover:bg-gray-100"
       >
         <ArrowLeft className="h-6 w-6" />
       </Button>
@@ -285,7 +285,7 @@ export default function Auth() {
         </div>
 
         {/* Auth Form */}
-        <div className="bg-black/40 backdrop-blur-xl border border-[#7A2BFF]/50 rounded-2xl p-8 shadow-2xl shadow-[#7A2BFF]/20">
+        <div className="bg-white/80 backdrop-blur-xl border border-gray-200 rounded-2xl p-8 shadow-2xl shadow-[#7A2BFF]/10">
           <h2 className="text-2xl font-bold text-center mb-6 bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] via-[#FF00E5] to-[#FFD700] bg-clip-text text-transparent">
             {isLogin ? "Welcome Back" : "Create Account"}
           </h2>
@@ -306,7 +306,7 @@ export default function Auth() {
               type="button"
               onClick={handleGoogleLogin}
               disabled={loading}
-              className="w-full bg-white hover:bg-gray-100 text-gray-800 font-semibold py-6 rounded-xl flex items-center justify-center gap-3 transition-all duration-300"
+              className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold py-6 rounded-xl flex items-center justify-center gap-3 transition-all duration-300 border border-gray-200"
             >
               <svg className="h-5 w-5" viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -321,32 +321,32 @@ export default function Auth() {
           {/* Divider */}
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-white/20"></div>
+              <div className="w-full border-t border-gray-300"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-transparent text-white/60">or continue with email</span>
+              <span className="px-4 bg-white text-gray-500">or continue with email</span>
             </div>
           </div>
 
           <form onSubmit={isLogin ? handleLogin : handleSignUp} className="space-y-4">
             {!isLogin && (
               <div>
-                <Label htmlFor="displayName" className="text-white/80">Display Name</Label>
+                <Label htmlFor="displayName" className="text-gray-700">Display Name</Label>
                 <Input
                   id="displayName"
                   type="text"
                   placeholder="Your Name"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  className="mt-1 bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-[#7A2BFF] focus:ring-[#7A2BFF]"
+                  className="mt-1 bg-white border-gray-300 text-gray-900 placeholder:text-gray-400 focus:border-[#7A2BFF] focus:ring-[#7A2BFF]"
                 />
               </div>
             )}
 
             <div>
-              <Label htmlFor="email" className="text-white/80">Email</Label>
+              <Label htmlFor="email" className="text-gray-700">Email</Label>
               <div className="relative mt-1">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
                   id="email"
                   type="email"
@@ -354,13 +354,13 @@ export default function Auth() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-[#7A2BFF] focus:ring-[#7A2BFF]"
+                  className="pl-10 bg-white border-gray-300 text-gray-900 placeholder:text-gray-400 focus:border-[#7A2BFF] focus:ring-[#7A2BFF]"
                 />
               </div>
             </div>
 
             <div>
-              <Label htmlFor="password" className="text-white/80">Password</Label>
+              <Label htmlFor="password" className="text-gray-700">Password</Label>
               <div className="relative mt-1">
                 <Input
                   id="password"
@@ -369,12 +369,12 @@ export default function Auth() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="pr-10 bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-[#7A2BFF] focus:ring-[#7A2BFF]"
+                  className="pr-10 bg-white border-gray-300 text-gray-900 placeholder:text-gray-400 focus:border-[#7A2BFF] focus:ring-[#7A2BFF]"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/80 transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -394,7 +394,7 @@ export default function Auth() {
             <div className="mt-4">
               <Button
                 variant="outline"
-                className="w-full border border-white/20 bg-white/5 text-white hover:bg-white/10 py-6 rounded-xl transition-all duration-300"
+                className="w-full border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 py-6 rounded-xl transition-all duration-300"
                 onClick={handleContinueWithoutLogin}
               >
                 Continue without login
@@ -415,7 +415,7 @@ export default function Auth() {
         </div>
 
         {/* Info text */}
-        <p className="text-center text-white/40 text-xs">
+        <p className="text-center text-gray-500 text-xs">
           Web3 features require wallet connection. Basic features work without login.
         </p>
       </div>
