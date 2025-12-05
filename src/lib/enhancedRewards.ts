@@ -1,19 +1,21 @@
 import { supabase } from "@/integrations/supabase/client";
 import confetti from "canvas-confetti";
 
-// Reward amounts
+// Updated Reward amounts (2025 Web3 standards)
 export const REWARD_AMOUNTS = {
-  VIEW: 500, // 5,000 CAMLY per 10 valid views = 500 per view
-  LIKE: 500,
-  COMMENT: 5000,
+  VIEW: 5000, // 50,000 CAMLY per 10 valid views = 5,000 per view
+  LIKE: 1000,
+  COMMENT: 5000, // +5,000 CAMLY per comment received
   SHARE: 2000,
-  UPLOAD: 50000,
+  UPLOAD: 100000, // +100,000 CAMLY when video reaches 3+ views
+  REFERRAL_SIGNUP: 100000, // Both referrer and referee get 100,000 CAMLY
+  REFERRAL_PERCENTAGE: 0.05, // 5% lifetime earnings from referrals
 };
 
 // Daily limits
 export const DAILY_LIMITS = {
-  VIEW_REWARDS: 50000,
-  COMMENT_REWARDS: 25000,
+  VIEW_REWARDS: 500000,
+  COMMENT_REWARDS: 250000,
   UPLOAD_COUNT: 10,
 };
 
@@ -21,9 +23,11 @@ export const DAILY_LIMITS = {
 export const VIEW_REQUIREMENTS = {
   MIN_WATCH_SECONDS: 30,
   MIN_WATCH_PERCENTAGE: 30,
+  MIN_VIEWS_FOR_UPLOAD_REWARD: 3, // Upload reward requires 3+ views
 };
 
-export const MILESTONES = [10, 100, 1000, 10000, 100000];
+// New tier milestones (2025)
+export const MILESTONES = [1_000_000, 3_000_000, 5_000_000, 10_000_000];
 
 const playCelebrationSound = () => {
   const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2018/2018-preview.mp3");

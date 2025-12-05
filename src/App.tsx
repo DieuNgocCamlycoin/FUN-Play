@@ -10,6 +10,7 @@ import ProfileSettings from "./pages/ProfileSettings";
 import Upload from "./pages/Upload";
 import Watch from "./pages/Watch";
 import Channel from "./pages/Channel";
+import UserProfile from "./pages/UserProfile";
 import NotFound from "./pages/NotFound";
 import CreatePost from "./pages/CreatePost";
 import YourVideos from "./pages/YourVideos";
@@ -48,6 +49,8 @@ function AppContent() {
         <Route path="/channel/:id" element={<Channel />} />
         <Route path="/c/:username" element={<Channel />} />
         <Route path="/@:username" element={<Channel />} />
+        <Route path="/profile/:username" element={<UserProfile />} />
+        <Route path="/u/:username" element={<UserProfile />} />
         <Route path="/create-post" element={<CreatePost />} />
         <Route path="/your-videos" element={<YourVideos />} />
         <Route path="/edit-video/:id" element={<EditVideo />} />

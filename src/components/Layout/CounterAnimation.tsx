@@ -5,9 +5,11 @@ interface CounterAnimationProps {
   value: number;
   duration?: number;
   decimals?: number;
+  suffix?: string;
+  prefix?: string;
 }
 
-export const CounterAnimation = ({ value, duration = 2000, decimals = 0 }: CounterAnimationProps) => {
+export const CounterAnimation = ({ value, duration = 2000, decimals = 0, suffix = '', prefix = '' }: CounterAnimationProps) => {
   const [displayValue, setDisplayValue] = useState(0);
   const frameRef = useRef<number>();
   const startTimeRef = useRef<number>();
@@ -63,7 +65,7 @@ export const CounterAnimation = ({ value, duration = 2000, decimals = 0 }: Count
       key={value}
       className="font-bold tabular-nums"
     >
-      {formatNumber(displayValue)}
+      {prefix}{formatNumber(displayValue)}{suffix}
     </motion.span>
   );
 };
