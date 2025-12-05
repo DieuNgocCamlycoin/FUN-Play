@@ -1,12 +1,32 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Play, ArrowLeft, Eye, EyeOff, Wallet, Mail } from "lucide-react";
+import { Play, ArrowLeft, Eye, EyeOff, Mail, Heart, ChevronDown } from "lucide-react";
 import { User, Session } from "@supabase/supabase-js";
+import { motion, AnimatePresence } from "framer-motion";
+
+// Heart particle component for hover effect
+const HeartParticle = ({ x, y }: { x: number; y: number }) => (
+  <motion.div
+    initial={{ opacity: 1, scale: 0.5, x: 0, y: 0 }}
+    animate={{ 
+      opacity: 0, 
+      scale: 1.5, 
+      x: (Math.random() - 0.5) * 100, 
+      y: -80 - Math.random() * 40 
+    }}
+    exit={{ opacity: 0 }}
+    transition={{ duration: 1, ease: "easeOut" }}
+    className="absolute pointer-events-none text-pink-400"
+    style={{ left: x, top: y }}
+  >
+    <Heart className="h-4 w-4 fill-current" />
+  </motion.div>
+);
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
@@ -14,29 +34,34 @@ export default function Auth() {
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
-  const [walletLoading, setWalletLoading] = useState(false);
+  const [walletLoading, setWalletLoading] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [showEmailForm, setShowEmailForm] = useState(false);
+  const [hearts, setHearts] = useState<{ id: number; x: number; y: number }[]>([]);
+  const heartIdRef = useRef(0);
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         
         if (session?.user) {
+          toast({
+            title: "Welcome back, Philanthropist ♡",
+            description: "You're now in the FUN PLAY universe!",
+          });
           setTimeout(() => {
             navigate("/");
-          }, 0);
+          }, 800);
         }
       }
     );
 
-    // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
@@ -46,7 +71,18 @@ export default function Auth() {
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, toast]);
+
+  const addHeart = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const id = heartIdRef.current++;
+    setHearts(prev => [...prev, { id, x, y }]);
+    setTimeout(() => {
+      setHearts(prev => prev.filter(h => h.id !== id));
+    }, 1000);
+  };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,8 +105,8 @@ export default function Auth() {
       if (error) throw error;
 
       toast({
-        title: "Account Created",
-        description: "Your account has been created successfully!",
+        title: "Account Created ♡",
+        description: "Welcome to the FUN PLAY family!",
       });
     } catch (error: any) {
       toast({
@@ -94,11 +130,6 @@ export default function Auth() {
       });
 
       if (error) throw error;
-
-      toast({
-        title: "Welcome Back",
-        description: "You have successfully logged in!",
-      });
     } catch (error: any) {
       toast({
         title: "Login Failed",
@@ -131,38 +162,45 @@ export default function Auth() {
     }
   };
 
-  const handleWalletLogin = async (walletType: 'MetaMask' | 'Bitget' = 'MetaMask') => {
-    setWalletLoading(true);
+  const handleWalletLogin = async (walletType: 'MetaMask' | 'Bitget') => {
+    setWalletLoading(walletType);
     
     try {
-      // Direct wallet connection without WalletConnect modal
       const ethereum = (window as any).ethereum;
       
       if (!ethereum) {
+        // On mobile, try to open wallet app
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        if (isMobile) {
+          const dappUrl = encodeURIComponent(window.location.href);
+          if (walletType === 'MetaMask') {
+            window.location.href = `https://metamask.app.link/dapp/${dappUrl}`;
+          } else {
+            window.location.href = `https://bkcode.vip/dapp/${dappUrl}`;
+          }
+          return;
+        }
+        
         toast({
           title: "Wallet Not Found",
-          description: `Please install ${walletType} browser extension first.`,
+          description: `Please install ${walletType} extension first.`,
           variant: "destructive",
         });
-        setWalletLoading(false);
+        setWalletLoading(null);
         return;
       }
 
-      // Check if the user has the correct wallet
       const isBitget = ethereum.isBitKeep || ethereum.isBitget;
       const isMetaMask = ethereum.isMetaMask && !isBitget;
       
-      if (walletType === 'Bitget' && !isBitget) {
+      if (walletType === 'Bitget' && !isBitget && isMetaMask) {
+        // If user wants Bitget but only MetaMask is available, use MetaMask
         toast({
-          title: "Bitget Wallet Required",
-          description: "Please install Bitget Wallet extension or use MetaMask instead.",
-          variant: "destructive",
+          title: "Using MetaMask",
+          description: "Bitget Wallet not detected, connecting with MetaMask instead.",
         });
-        setWalletLoading(false);
-        return;
       }
 
-      // Request account access
       const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
       
       if (!accounts || accounts.length === 0) {
@@ -171,14 +209,13 @@ export default function Auth() {
 
       const walletAddress = accounts[0];
 
-      // Switch to BSC if not already on it
+      // Switch to BSC
       try {
         await ethereum.request({
           method: 'wallet_switchEthereumChain',
-          params: [{ chainId: '0x38' }], // BSC Mainnet
+          params: [{ chainId: '0x38' }],
         });
       } catch (switchError: any) {
-        // If BSC is not added, add it
         if (switchError.code === 4902) {
           await ethereum.request({
             method: 'wallet_addEthereumChain',
@@ -193,10 +230,8 @@ export default function Auth() {
         }
       }
 
-      // Detect actual wallet type
       const detectedWalletType = isBitget ? 'Bitget' : 'MetaMask';
         
-      // Check if user exists with this wallet address
       const { data: existingProfile } = await supabase
         .from('profiles')
         .select('id, username')
@@ -204,32 +239,22 @@ export default function Auth() {
         .single();
 
       if (existingProfile) {
-        // User exists - sign in with a special wallet-based email
         const walletEmail = `${walletAddress.toLowerCase()}@wallet.funplay.local`;
         
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email: walletEmail,
-          password: walletAddress, // Use wallet address as password
+          password: walletAddress,
         });
 
         if (signInError) {
-          // If sign in fails, the user might have registered differently
-          toast({
-            title: "Wallet Connected",
-            description: "Please link this wallet to your existing account in Profile Settings.",
-          });
-          
-          // Store wallet address temporarily
           localStorage.setItem('pendingWalletAddress', walletAddress);
-          navigate("/");
-        } else {
           toast({
-            title: "Welcome Back",
-            description: `Logged in with wallet ${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`,
+            title: "Welcome back, Philanthropist ♡",
+            description: "You're now in the FUN PLAY universe!",
           });
+          setTimeout(() => navigate("/"), 800);
         }
       } else {
-        // New user - create account with wallet
         const walletEmail = `${walletAddress.toLowerCase()}@wallet.funplay.local`;
         
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
@@ -244,7 +269,6 @@ export default function Auth() {
         });
 
         if (signUpError) {
-          // Try to sign in if already exists
           const { error: retrySignIn } = await supabase.auth.signInWithPassword({
             email: walletEmail,
             password: walletAddress,
@@ -255,7 +279,6 @@ export default function Auth() {
           }
         }
 
-        // Update profile with wallet address
         if (signUpData?.user) {
           await supabase
             .from('profiles')
@@ -265,11 +288,6 @@ export default function Auth() {
             })
             .eq('id', signUpData.user.id);
         }
-
-        toast({
-          title: "Account Created",
-          description: `Welcome! Your wallet ${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)} is now connected.`,
-        });
       }
     } catch (error: any) {
       console.error("Wallet login error:", error);
@@ -279,7 +297,7 @@ export default function Auth() {
         variant: "destructive",
       });
     } finally {
-      setWalletLoading(false);
+      setWalletLoading(null);
     }
   };
 
@@ -303,8 +321,8 @@ export default function Auth() {
         </video>
       </div>
       
-      {/* Gradient Overlay for better contrast */}
-      <div className="fixed inset-0 -z-10 bg-gradient-to-br from-[rgba(138,43,226,0.3)] via-[rgba(255,0,150,0.15)] to-[rgba(0,231,255,0.2)]" />
+      {/* Gradient Overlay */}
+      <div className="fixed inset-0 -z-10 bg-gradient-to-br from-[rgba(138,43,226,0.4)] via-[rgba(255,0,150,0.2)] to-[rgba(0,231,255,0.3)]" />
 
       {/* Back Button */}
       <Button
@@ -318,161 +336,223 @@ export default function Auth() {
 
       <div className="w-full max-w-md space-y-6 relative z-10">
         {/* Logo */}
-        <div className="flex justify-center">
-          <div className="flex items-center gap-3 bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] via-[#FF00E5] to-[#FFD700] px-6 py-3 rounded-2xl shadow-2xl shadow-[#7A2BFF]/30">
+        <motion.div 
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.5 }}
+          className="flex justify-center"
+        >
+          <div className="flex items-center gap-3 bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] via-[#FF00E5] to-[#FFD700] px-6 py-3 rounded-2xl shadow-2xl shadow-[#7A2BFF]/40">
             <Play className="h-10 w-10 text-white fill-white" />
             <div className="text-3xl font-bold text-white tracking-wider">
               FUN PLAY
             </div>
           </div>
-        </div>
+        </motion.div>
 
-        {/* Auth Form - Frosted Glass Effect */}
-        <div className="backdrop-blur-xl bg-white/15 border border-white/25 rounded-3xl p-8 shadow-[0_20px_40px_rgba(0,0,0,0.25)]">
-          <h2 className="text-2xl font-bold text-center mb-6 text-white drop-shadow-lg">
-            {isLogin ? "Welcome Back" : "Create Account"}
+        {/* Main Auth Card */}
+        <motion.div 
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+          className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-3xl p-8 shadow-[0_20px_60px_rgba(0,0,0,0.3)]"
+        >
+          <h2 className="text-2xl font-bold text-center mb-2 text-white drop-shadow-lg">
+            ✨ Super Fast Login ✨
           </h2>
+          <p className="text-center text-white/70 text-sm mb-6">
+            One click to enter the FUN PLAY universe
+          </p>
 
-          {/* Wallet Login Section */}
-          <div className="mb-6 space-y-3">
-            <Button
-              type="button"
-              onClick={() => handleWalletLogin('MetaMask')}
-              disabled={walletLoading}
-              className="w-full bg-gradient-to-r from-[#F6851B] to-[#E2761B] hover:from-[#E2761B] hover:to-[#CD6116] text-white font-semibold py-6 rounded-xl flex items-center justify-center gap-3 transition-all duration-300 shadow-lg shadow-[#F6851B]/30"
-            >
-              <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg" alt="MetaMask" className="h-5 w-5" />
-              {walletLoading ? "Connecting..." : "Connect with MetaMask"}
-            </Button>
-
-            <Button
-              type="button"
-              onClick={() => handleWalletLogin('Bitget')}
-              disabled={walletLoading}
-              className="w-full bg-gradient-to-r from-[#00D4AA] to-[#00B894] hover:from-[#00B894] hover:to-[#00A085] text-white font-semibold py-6 rounded-xl flex items-center justify-center gap-3 transition-all duration-300 shadow-lg shadow-[#00D4AA]/30"
-            >
-              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-              </svg>
-              {walletLoading ? "Connecting..." : "Connect with Bitget Wallet"}
-            </Button>
-
-            <Button
-              type="button"
-              onClick={handleGoogleLogin}
-              disabled={loading}
-              className="w-full bg-white/90 hover:bg-white text-gray-800 font-semibold py-6 rounded-xl flex items-center justify-center gap-3 transition-all duration-300 border border-white/50"
-            >
-              <svg className="h-5 w-5" viewBox="0 0 24 24">
-                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-              </svg>
-              Continue with Google
-            </Button>
-          </div>
-
-          {/* Divider */}
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-white/30"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-transparent text-white/80">or continue with email</span>
-            </div>
-          </div>
-
-          <form onSubmit={isLogin ? handleLogin : handleSignUp} className="space-y-4">
-            {!isLogin && (
-              <div>
-                <Label htmlFor="displayName" className="text-white">Display Name</Label>
-                <Input
-                  id="displayName"
-                  type="text"
-                  placeholder="Your Name"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  className="mt-1 bg-white/20 border-white/30 text-white placeholder:text-white/50 focus:border-white focus:ring-white"
-                />
-              </div>
-            )}
-
-            <div>
-              <Label htmlFor="email" className="text-white">Email</Label>
-              <div className="relative mt-1">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/60" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="pl-10 bg-white/20 border-white/30 text-white placeholder:text-white/50 focus:border-white focus:ring-white"
-                />
-              </div>
-            </div>
-
-            <div>
-              <Label htmlFor="password" className="text-white">Password</Label>
-              <div className="relative mt-1">
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className="pr-10 bg-white/20 border-white/30 text-white placeholder:text-white/50 focus:border-white focus:ring-white"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/60 hover:text-white transition-colors"
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
-
-            <Button
-              type="submit"
-              className="w-full bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] via-[#FF00E5] to-[#FFD700] hover:opacity-90 text-white font-semibold py-6 rounded-xl transition-all duration-300 shadow-lg shadow-[#7A2BFF]/30"
-              disabled={loading}
-            >
-              {loading ? "Loading..." : isLogin ? "Sign In" : "Sign Up"}
-            </Button>
-          </form>
-
-          {isLogin && (
-            <div className="mt-4">
+          {/* Main Login Buttons - Priority Order */}
+          <div className="space-y-4">
+            {/* MetaMask Button */}
+            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
               <Button
-                variant="outline"
-                className="w-full border border-white/30 bg-white/10 text-white hover:bg-white/20 py-6 rounded-xl transition-all duration-300"
-                onClick={handleContinueWithoutLogin}
+                type="button"
+                onClick={(e) => { addHeart(e); handleWalletLogin('MetaMask'); }}
+                onMouseMove={addHeart}
+                disabled={walletLoading !== null}
+                className="relative overflow-hidden w-full h-16 text-lg font-bold rounded-2xl flex items-center justify-center gap-3 transition-all duration-300 bg-gradient-to-r from-[#F6851B] via-[#E2761B] to-[#CD6116] hover:shadow-[0_0_40px_rgba(246,133,27,0.6)] border-2 border-[#FFD700]/50"
               >
-                Continue without login
+                <AnimatePresence>
+                  {hearts.map(heart => (
+                    <HeartParticle key={heart.id} x={heart.x} y={heart.y} />
+                  ))}
+                </AnimatePresence>
+                <img 
+                  src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg" 
+                  alt="MetaMask" 
+                  className="h-8 w-8" 
+                />
+                <span className="text-white drop-shadow-lg">
+                  {walletLoading === 'MetaMask' ? "Connecting..." : "Connect MetaMask"}
+                </span>
               </Button>
-            </div>
-          )}
+            </motion.div>
 
-          <div className="mt-6 text-center">
-            <button
-              onClick={() => setIsLogin(!isLogin)}
-              className="text-white hover:underline text-sm font-semibold drop-shadow-lg"
-            >
-              {isLogin
-                ? "Don't have an account? Sign up"
-                : "Already have an account? Sign in"}
-            </button>
+            {/* Bitget Button */}
+            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+              <Button
+                type="button"
+                onClick={(e) => { addHeart(e); handleWalletLogin('Bitget'); }}
+                onMouseMove={addHeart}
+                disabled={walletLoading !== null}
+                className="relative overflow-hidden w-full h-16 text-lg font-bold rounded-2xl flex items-center justify-center gap-3 transition-all duration-300 bg-gradient-to-r from-[#00D4AA] via-[#00B894] to-[#00A085] hover:shadow-[0_0_40px_rgba(0,212,170,0.6)] border-2 border-[#00FFD1]/50"
+              >
+                <AnimatePresence>
+                  {hearts.map(heart => (
+                    <HeartParticle key={heart.id} x={heart.x} y={heart.y} />
+                  ))}
+                </AnimatePresence>
+                <svg className="h-8 w-8" viewBox="0 0 24 24" fill="white">
+                  <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                </svg>
+                <span className="text-white drop-shadow-lg">
+                  {walletLoading === 'Bitget' ? "Connecting..." : "Connect Bitget Wallet"}
+                </span>
+              </Button>
+            </motion.div>
+
+            {/* Google Button */}
+            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+              <Button
+                type="button"
+                onClick={handleGoogleLogin}
+                disabled={loading}
+                className="relative w-full h-16 text-lg font-bold rounded-2xl flex items-center justify-center gap-3 transition-all duration-300 bg-gradient-to-r from-[#4285F4] via-[#34A853] via-[#FBBC05] to-[#EA4335] hover:shadow-[0_0_40px_rgba(66,133,244,0.6)] border-2 border-white/30"
+              >
+                <svg className="h-7 w-7" viewBox="0 0 24 24">
+                  <path fill="white" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                  <path fill="white" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                  <path fill="white" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                  <path fill="white" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                </svg>
+                <span className="text-white drop-shadow-lg">
+                  {loading ? "Loading..." : "Continue with Google"}
+                </span>
+              </Button>
+            </motion.div>
           </div>
-        </div>
+
+          {/* Expandable Email/Password Section */}
+          <div className="mt-6">
+            <button
+              onClick={() => setShowEmailForm(!showEmailForm)}
+              className="w-full flex items-center justify-center gap-2 text-white/60 hover:text-white/90 text-sm transition-colors py-2"
+            >
+              <span>More options</span>
+              <motion.div
+                animate={{ rotate: showEmailForm ? 180 : 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <ChevronDown className="h-4 w-4" />
+              </motion.div>
+            </button>
+
+            <AnimatePresence>
+              {showEmailForm && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="overflow-hidden"
+                >
+                  <div className="pt-4 border-t border-white/20 mt-4">
+                    <form onSubmit={isLogin ? handleLogin : handleSignUp} className="space-y-3">
+                      {!isLogin && (
+                        <div>
+                          <Label htmlFor="displayName" className="text-white/80 text-xs">Display Name</Label>
+                          <Input
+                            id="displayName"
+                            type="text"
+                            placeholder="Your Name"
+                            value={displayName}
+                            onChange={(e) => setDisplayName(e.target.value)}
+                            className="mt-1 h-10 text-sm bg-white/10 border-white/20 text-white placeholder:text-white/40"
+                          />
+                        </div>
+                      )}
+
+                      <div>
+                        <Label htmlFor="email" className="text-white/80 text-xs">Email</Label>
+                        <div className="relative mt-1">
+                          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
+                          <Input
+                            id="email"
+                            type="email"
+                            placeholder="you@example.com"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            required
+                            className="pl-10 h-10 text-sm bg-white/10 border-white/20 text-white placeholder:text-white/40"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <Label htmlFor="password" className="text-white/80 text-xs">Password</Label>
+                        <div className="relative mt-1">
+                          <Input
+                            id="password"
+                            type={showPassword ? "text" : "password"}
+                            placeholder="••••••••"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                            className="pr-10 h-10 text-sm bg-white/10 border-white/20 text-white placeholder:text-white/40"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white"
+                          >
+                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                      </div>
+
+                      <Button
+                        type="submit"
+                        className="w-full h-10 text-sm bg-white/20 hover:bg-white/30 text-white rounded-xl"
+                        disabled={loading}
+                      >
+                        {loading ? "Loading..." : isLogin ? "Sign In" : "Sign Up"}
+                      </Button>
+                    </form>
+
+                    <div className="mt-3 flex items-center justify-between text-xs">
+                      <button
+                        onClick={() => setIsLogin(!isLogin)}
+                        className="text-white/60 hover:text-white"
+                      >
+                        {isLogin ? "Create account" : "Sign in instead"}
+                      </button>
+                      
+                      <button
+                        onClick={handleContinueWithoutLogin}
+                        className="text-white/60 hover:text-white"
+                      >
+                        Skip login →
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </motion.div>
 
         {/* Info text */}
-        <p className="text-center text-white/70 text-xs drop-shadow">
-          Web3 features require wallet connection. Basic features work without login.
-        </p>
+        <motion.p 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+          className="text-center text-white/50 text-xs drop-shadow"
+        >
+          ♡ One click. Pure love. Instant access. ♡
+        </motion.p>
       </div>
     </div>
   );
