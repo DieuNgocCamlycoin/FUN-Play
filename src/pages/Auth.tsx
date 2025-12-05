@@ -105,8 +105,21 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-white via-purple-50 to-pink-50">
-      <div className="w-full max-w-md space-y-6">
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Video Background */}
+      <video
+        autoPlay
+        loop
+        muted
+        playsInline
+        className="absolute inset-0 w-full h-full object-cover z-0"
+      >
+        <source src="/videos/heartbeat-bg.mp4" type="video/mp4" />
+      </video>
+      
+      {/* Gradient Overlay */}
+      <div className="absolute inset-0 bg-gradient-to-br from-[rgba(138,43,226,0.3)] to-[rgba(255,0,150,0.15)] z-10" />
+      <div className="w-full max-w-md space-y-6 relative z-20">
         {/* Logo */}
         <div className="flex justify-center">
           <div className="flex items-center gap-3 bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] via-[#FF00E5] to-[#FFD700] px-6 py-3 rounded-2xl shadow-lg">
@@ -117,8 +130,8 @@ export default function Auth() {
           </div>
         </div>
 
-        {/* Auth Card */}
-        <div className="bg-white border-2 border-purple-500 rounded-2xl p-8 shadow-lg">
+        {/* Auth Card - Frosted Glass */}
+        <div className="bg-white/80 backdrop-blur-xl border-2 border-purple-500/50 rounded-2xl p-8 shadow-lg">
           <h2 className="text-2xl font-bold text-center mb-6 bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] to-[#FF00E5] bg-clip-text text-transparent">
             {isLogin ? "Sign In" : "Sign Up"}
           </h2>
