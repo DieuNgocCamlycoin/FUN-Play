@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useRewardStatistics, useRewardHistory } from "@/hooks/useRewardStatistics";
 import { DAILY_LIMITS } from "@/lib/enhancedRewards";
@@ -6,8 +7,16 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-import { Coins, Eye, MessageSquare, Share2, Upload, TrendingUp, Calendar, ExternalLink } from "lucide-react";
+import { Coins, Eye, MessageSquare, Share2, Upload, TrendingUp, Calendar, ExternalLink, Wallet, ArrowLeft, Download } from "lucide-react";
 import { format } from "date-fns";
+import { CreatorStatsCard } from "@/components/Dashboard/CreatorStatsCard";
+import { OnChainBalanceCard } from "@/components/Dashboard/OnChainBalanceCard";
+import { WeeklyMonthlyStats } from "@/components/Dashboard/WeeklyMonthlyStats";
+import { CAMLYTokenInfo } from "@/components/Dashboard/CAMLYTokenInfo";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
+import { exportRewardsToPDF } from "@/lib/transactionExport";
 
 const REWARD_TYPE_LABELS: Record<string, string> = {
   VIEW: "Xem video",
@@ -29,6 +38,22 @@ const UserDashboard = () => {
   const { user, loading: authLoading } = useAuth();
   const { statistics, loading: statsLoading } = useRewardStatistics(user?.id);
   const { transactions, loading: historyLoading } = useRewardHistory(user?.id);
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const navigate = useNavigate();
+
+  // Fetch wallet address from profile
+  useEffect(() => {
+    if (user) {
+      supabase
+        .from("profiles")
+        .select("wallet_address")
+        .eq("id", user.id)
+        .single()
+        .then(({ data }) => {
+          setWalletAddress(data?.wallet_address || null);
+        });
+    }
+  }, [user]);
 
   if (authLoading || statsLoading) {
     return (
@@ -63,11 +88,18 @@ const UserDashboard = () => {
     <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-black bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] to-[#FF00E5] bg-clip-text text-transparent">
-            User Dashboard
-          </h1>
-          <p className="text-muted-foreground mt-2">Theo dõi phần thưởng CAMLY của bạn</p>
+        <div className="flex items-center justify-between mb-8">
+          <Button variant="ghost" onClick={() => navigate(-1)}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back
+          </Button>
+          <div className="text-center flex-1">
+            <h1 className="text-4xl font-black bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] to-[#FF00E5] bg-clip-text text-transparent">
+              User Dashboard
+            </h1>
+            <p className="text-muted-foreground mt-2">Theo dõi phần thưởng CAMLY của bạn</p>
+          </div>
+          <div className="w-20" />
         </div>
 
         {/* Total Earned Card */}
@@ -83,6 +115,18 @@ const UserDashboard = () => {
             <p className="text-sm text-muted-foreground mt-2">CAMLY Tokens</p>
           </CardContent>
         </Card>
+
+        {/* On-Chain Wallet Balance */}
+        <OnChainBalanceCard walletAddress={walletAddress} />
+
+        {/* Creator Stats */}
+        {user && <CreatorStatsCard userId={user.id} />}
+
+        {/* Weekly/Monthly Stats */}
+        {user && <WeeklyMonthlyStats userId={user.id} />}
+
+        {/* CAMLY Token Info */}
+        <CAMLYTokenInfo />
 
         {/* Daily Limits */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

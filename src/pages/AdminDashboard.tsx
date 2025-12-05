@@ -4,13 +4,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, AreaChart, Area } from "recharts";
-import { Users, Video, Eye, MessageSquare, Coins, TrendingUp, Crown, Award, Activity } from "lucide-react";
+import { Users, Video, Eye, MessageSquare, Coins, TrendingUp, Crown, Award, Activity, ArrowLeft } from "lucide-react";
 import { format } from "date-fns";
+import { useNavigate } from "react-router-dom";
+import { RewardConfigPanel } from "@/components/Dashboard/RewardConfigPanel";
+import { AntiAbuseStats } from "@/components/Dashboard/AntiAbuseStats";
 
 const AdminDashboard = () => {
   const { user, loading: authLoading } = useAuth();
   const { platformStats, topCreators, topEarners, dailyStats, loading } = useAdminStatistics();
+  const navigate = useNavigate();
 
   if (authLoading || loading) {
     return (
@@ -34,11 +39,18 @@ const AdminDashboard = () => {
     <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-black bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] to-[#FF00E5] bg-clip-text text-transparent">
-            Admin Dashboard
-          </h1>
-          <p className="text-muted-foreground mt-2">Thống kê toàn nền tảng FUN Play</p>
+        <div className="flex items-center justify-between mb-8">
+          <Button variant="ghost" onClick={() => navigate(-1)}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back
+          </Button>
+          <div className="text-center flex-1">
+            <h1 className="text-4xl font-black bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] to-[#FF00E5] bg-clip-text text-transparent">
+              Admin Dashboard
+            </h1>
+            <p className="text-muted-foreground mt-2">Thống kê toàn nền tảng FUN Play</p>
+          </div>
+          <div className="w-20" />
         </div>
 
         {/* Platform Stats Cards */}
@@ -299,6 +311,12 @@ const AdminDashboard = () => {
               </div>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Admin Config & Anti-Abuse */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <RewardConfigPanel />
+          <AntiAbuseStats />
         </div>
 
         {/* Reward Rules Info */}
