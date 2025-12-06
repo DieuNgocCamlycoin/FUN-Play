@@ -36,6 +36,15 @@ export const sendTip = async ({
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
 
+  // Look up recipient user ID from wallet address
+  const { data: recipientProfile } = await supabase
+    .from("profiles")
+    .select("id")
+    .ilike("wallet_address", toAddress)
+    .single();
+
+  const toUserId = recipientProfile?.id || null;
+
   let txHash: string;
 
   try {
@@ -65,11 +74,12 @@ export const sendTip = async ({
       await tx.wait();
     }
 
-    // Record transaction in database
+    // Record transaction in database with to_user_id for notifications
     await supabase.from("wallet_transactions").insert({
       from_address: fromAddress,
       to_address: toAddress,
       from_user_id: user.id,
+      to_user_id: toUserId,
       amount: amount,
       token_type: tokenSymbol,
       tx_hash: txHash,
@@ -85,6 +95,7 @@ export const sendTip = async ({
         from_address: fromAddress,
         to_address: toAddress,
         from_user_id: user.id,
+        to_user_id: toUserId,
         amount: amount,
         token_type: tokenSymbol,
         tx_hash: txHash || "failed",
