@@ -12,125 +12,150 @@ interface Star {
   color: string;
 }
 
-interface AuroraWave {
+interface HeartParticle {
   id: number;
   x: number;
-  width: number;
-  color: string;
+  y: number;
+  size: number;
   duration: number;
   delay: number;
+  color: string;
 }
 
 const starColors = [
-  'rgba(0, 212, 255, 1)',    // Electric sapphire
-  'rgba(139, 0, 255, 0.9)',   // Cosmic purple
-  'rgba(255, 0, 212, 0.9)',   // Hot magenta
-  'rgba(0, 255, 255, 1)',     // Pure turquoise
-  'rgba(255, 255, 255, 1)',   // Pure white
-  'rgba(255, 215, 0, 1)',     // Gold
+  'rgba(0, 255, 255, 1)',      // Electric cyan
+  'rgba(0, 102, 255, 0.9)',    // Sapphire blue
+  'rgba(217, 0, 255, 0.9)',    // Cosmic magenta
+  'rgba(255, 183, 246, 1)',    // Divine rose gold
+  'rgba(255, 215, 0, 1)',      // Golden stardust
+  'rgba(255, 255, 255, 1)',    // Pure white diamond
 ];
 
-const auroraColors = [
-  'rgba(0, 212, 255, 0.3)',
-  'rgba(139, 0, 255, 0.25)',
-  'rgba(255, 0, 212, 0.2)',
-  'rgba(0, 255, 255, 0.25)',
+const heartColors = [
+  'rgba(255, 183, 246, 0.8)',  // Divine rose
+  'rgba(255, 215, 0, 0.7)',    // Golden
+  'rgba(0, 255, 255, 0.6)',    // Cyan
+  'rgba(217, 0, 255, 0.6)',    // Magenta
 ];
 
 export const PremiumStarfieldBackground = () => {
   const [stars, setStars] = useState<Star[]>([]);
-  const [auroraWaves, setAuroraWaves] = useState<AuroraWave[]>([]);
+  const [hearts, setHearts] = useState<HeartParticle[]>([]);
 
   useEffect(() => {
-    // Generate cosmic stardust particles
-    const generatedStars: Star[] = Array.from({ length: 120 }, (_, i) => ({
+    // Generate millions of tiny stars effect
+    const generatedStars: Star[] = Array.from({ length: 150 }, (_, i) => ({
       id: i,
       x: Math.random() * 100,
       y: Math.random() * 100,
-      size: Math.random() * 3 + 1,
-      opacity: Math.random() * 0.6 + 0.4,
+      size: Math.random() * 3 + 0.5,
+      opacity: Math.random() * 0.7 + 0.3,
       duration: Math.random() * 4 + 2,
-      delay: Math.random() * 3,
+      delay: Math.random() * 4,
       color: starColors[Math.floor(Math.random() * starColors.length)],
     }));
     setStars(generatedStars);
 
-    // Generate aurora waves
-    const generatedAurora: AuroraWave[] = Array.from({ length: 5 }, (_, i) => ({
+    // Generate floating sacred heart particles
+    const generatedHearts: HeartParticle[] = Array.from({ length: 12 }, (_, i) => ({
       id: i,
       x: Math.random() * 100,
-      width: Math.random() * 30 + 20,
-      color: auroraColors[Math.floor(Math.random() * auroraColors.length)],
-      duration: Math.random() * 8 + 10,
-      delay: Math.random() * 5,
+      y: Math.random() * 100,
+      size: Math.random() * 12 + 8,
+      duration: Math.random() * 10 + 15,
+      delay: Math.random() * 8,
+      color: heartColors[Math.floor(Math.random() * heartColors.length)],
     }));
-    setAuroraWaves(generatedAurora);
+    setHearts(generatedHearts);
   }, []);
 
   return (
     <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-      {/* Deep space nebula gradient */}
+      {/* Deep cosmic gradient base */}
       <div 
         className="absolute inset-0"
         style={{
           background: `
-            radial-gradient(ellipse 150% 80% at 50% 0%, rgba(139, 0, 255, 0.35) 0%, transparent 50%),
-            radial-gradient(ellipse 100% 60% at 20% 20%, rgba(255, 0, 212, 0.25) 0%, transparent 40%),
-            radial-gradient(ellipse 120% 70% at 80% 30%, rgba(0, 212, 255, 0.3) 0%, transparent 45%),
-            radial-gradient(ellipse 90% 50% at 60% 80%, rgba(0, 255, 255, 0.2) 0%, transparent 40%),
-            radial-gradient(ellipse 200% 100% at 30% 60%, rgba(59, 30, 141, 0.5) 0%, transparent 50%),
-            linear-gradient(
-              180deg,
-              rgb(11, 13, 37) 0%,
-              rgb(30, 20, 80) 30%,
-              rgb(20, 15, 50) 60%,
-              rgb(11, 13, 37) 100%
+            radial-gradient(ellipse 80% 50% at 50% 50%, rgba(255, 215, 0, 0.12) 0%, transparent 50%),
+            radial-gradient(ellipse 60% 40% at 50% 50%, rgba(255, 183, 246, 0.1) 0%, transparent 45%),
+            radial-gradient(ellipse 150% 80% at 50% 0%, rgba(217, 0, 255, 0.3) 0%, transparent 50%),
+            radial-gradient(ellipse 100% 60% at 15% 25%, rgba(0, 102, 255, 0.25) 0%, transparent 40%),
+            radial-gradient(ellipse 120% 70% at 85% 30%, rgba(0, 255, 255, 0.25) 0%, transparent 45%),
+            radial-gradient(ellipse 100% 60% at 20% 75%, rgba(255, 183, 246, 0.2) 0%, transparent 40%),
+            radial-gradient(ellipse 90% 50% at 80% 80%, rgba(255, 215, 0, 0.15) 0%, transparent 40%),
+            radial-gradient(ellipse 200% 100% at 30% 50%, rgba(28, 10, 94, 0.7) 0%, transparent 50%),
+            linear-gradient(180deg, 
+              rgb(10, 14, 44) 0%, 
+              rgb(28, 10, 94) 25%, 
+              rgb(20, 12, 70) 50%, 
+              rgb(28, 10, 94) 75%, 
+              rgb(10, 14, 44) 100%
             )
           `,
         }}
       />
 
-      {/* Aurora wave animations */}
-      {auroraWaves.map((wave) => (
-        <motion.div
-          key={`aurora-${wave.id}`}
-          className="absolute h-40 rounded-full blur-3xl"
-          style={{
-            left: `${wave.x}%`,
-            top: '30%',
-            width: `${wave.width}%`,
-            background: `linear-gradient(90deg, transparent, ${wave.color}, transparent)`,
-          }}
-          animate={{
-            x: ['-20%', '20%', '-20%'],
-            opacity: [0.3, 0.6, 0.3],
-            scaleY: [1, 1.3, 1],
-          }}
-          transition={{
-            duration: wave.duration,
-            delay: wave.delay,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
-        />
-      ))}
+      {/* Heavenly center light rays */}
+      <motion.div
+        className="absolute inset-0"
+        style={{
+          background: `
+            conic-gradient(from 0deg at 50% 50%, 
+              transparent 0deg, 
+              rgba(255, 215, 0, 0.08) 15deg, 
+              transparent 30deg,
+              rgba(255, 183, 246, 0.06) 45deg,
+              transparent 60deg,
+              rgba(0, 255, 255, 0.06) 75deg,
+              transparent 90deg,
+              rgba(217, 0, 255, 0.05) 105deg,
+              transparent 120deg,
+              rgba(255, 215, 0, 0.08) 135deg,
+              transparent 150deg,
+              rgba(0, 102, 255, 0.06) 165deg,
+              transparent 180deg,
+              rgba(255, 183, 246, 0.06) 195deg,
+              transparent 210deg,
+              rgba(0, 255, 255, 0.06) 225deg,
+              transparent 240deg,
+              rgba(217, 0, 255, 0.05) 255deg,
+              transparent 270deg,
+              rgba(255, 215, 0, 0.08) 285deg,
+              transparent 300deg,
+              rgba(255, 183, 246, 0.06) 315deg,
+              transparent 330deg,
+              rgba(0, 255, 255, 0.06) 345deg,
+              transparent 360deg
+            )
+          `,
+        }}
+        animate={{
+          rotate: [0, 360],
+        }}
+        transition={{
+          duration: 120,
+          repeat: Infinity,
+          ease: "linear",
+        }}
+      />
 
-      {/* Holographic prismatic overlay */}
+      {/* Angelic energy waves */}
       <motion.div
         className="absolute inset-0"
         animate={{
           background: [
-            'radial-gradient(ellipse at 30% 30%, rgba(0, 212, 255, 0.1) 0%, transparent 50%)',
-            'radial-gradient(ellipse at 70% 70%, rgba(255, 0, 212, 0.1) 0%, transparent 50%)',
-            'radial-gradient(ellipse at 50% 50%, rgba(139, 0, 255, 0.1) 0%, transparent 50%)',
-            'radial-gradient(ellipse at 30% 70%, rgba(0, 255, 255, 0.1) 0%, transparent 50%)',
-            'radial-gradient(ellipse at 30% 30%, rgba(0, 212, 255, 0.1) 0%, transparent 50%)',
+            'radial-gradient(ellipse at 30% 30%, rgba(0, 255, 255, 0.08) 0%, transparent 50%)',
+            'radial-gradient(ellipse at 70% 70%, rgba(255, 183, 246, 0.08) 0%, transparent 50%)',
+            'radial-gradient(ellipse at 50% 50%, rgba(255, 215, 0, 0.08) 0%, transparent 50%)',
+            'radial-gradient(ellipse at 30% 70%, rgba(217, 0, 255, 0.08) 0%, transparent 50%)',
+            'radial-gradient(ellipse at 70% 30%, rgba(0, 102, 255, 0.08) 0%, transparent 50%)',
+            'radial-gradient(ellipse at 30% 30%, rgba(0, 255, 255, 0.08) 0%, transparent 50%)',
           ],
         }}
         transition={{
-          duration: 15,
+          duration: 20,
           repeat: Infinity,
-          ease: "linear",
+          ease: "easeInOut",
         }}
       />
 
@@ -145,12 +170,11 @@ export const PremiumStarfieldBackground = () => {
             width: star.size,
             height: star.size,
             backgroundColor: star.color,
-            boxShadow: `0 0 ${star.size * 3}px ${star.size}px ${star.color}`,
+            boxShadow: `0 0 ${star.size * 4}px ${star.size}px ${star.color}`,
           }}
           animate={{
-            opacity: [star.opacity * 0.3, star.opacity, star.opacity * 0.3],
-            scale: [0.8, 1.4, 0.8],
-            y: [0, -20, 0],
+            opacity: [star.opacity * 0.2, star.opacity, star.opacity * 0.2],
+            scale: [0.6, 1.3, 0.6],
           }}
           transition={{
             duration: star.duration,
@@ -161,10 +185,41 @@ export const PremiumStarfieldBackground = () => {
         />
       ))}
 
-      {/* Diamond-like sparkle bursts */}
-      {Array.from({ length: 20 }).map((_, i) => (
+      {/* Floating sacred heart-shaped light particles */}
+      {hearts.map((heart) => (
         <motion.div
-          key={`sparkle-${i}`}
+          key={`heart-${heart.id}`}
+          className="absolute"
+          style={{
+            left: `${heart.x}%`,
+            top: `${heart.y}%`,
+            fontSize: heart.size,
+            color: heart.color,
+            textShadow: `0 0 ${heart.size}px ${heart.color}, 0 0 ${heart.size * 2}px ${heart.color}`,
+            filter: 'blur(0.5px)',
+          }}
+          animate={{
+            y: [0, -60, 0],
+            x: [0, Math.random() * 30 - 15, 0],
+            opacity: [0.3, 0.7, 0.3],
+            scale: [0.8, 1.1, 0.8],
+            rotate: [-10, 10, -10],
+          }}
+          transition={{
+            duration: heart.duration,
+            delay: heart.delay,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+        >
+          ♥
+        </motion.div>
+      ))}
+
+      {/* Diamond sparkle bursts */}
+      {Array.from({ length: 25 }).map((_, i) => (
+        <motion.div
+          key={`diamond-${i}`}
           className="absolute"
           style={{
             left: `${Math.random() * 100}%`,
@@ -172,12 +227,12 @@ export const PremiumStarfieldBackground = () => {
           }}
           animate={{
             opacity: [0, 1, 0],
-            scale: [0, 1.5, 0],
+            scale: [0, 1.8, 0],
             rotate: [0, 180, 360],
           }}
           transition={{
-            duration: 2 + Math.random() * 2,
-            delay: Math.random() * 6,
+            duration: 2.5 + Math.random() * 2,
+            delay: Math.random() * 8,
             repeat: Infinity,
           }}
         >
@@ -186,69 +241,75 @@ export const PremiumStarfieldBackground = () => {
             style={{
               background: `linear-gradient(45deg, 
                 rgba(255, 255, 255, 1) 0%, 
-                rgba(0, 212, 255, 1) 25%, 
-                rgba(255, 0, 212, 1) 50%, 
+                rgba(255, 215, 0, 1) 25%, 
+                rgba(255, 183, 246, 1) 50%, 
                 rgba(0, 255, 255, 1) 75%, 
                 rgba(255, 255, 255, 1) 100%)`,
               clipPath: 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)',
-              filter: 'drop-shadow(0 0 6px rgba(255,255,255,0.9))',
+              filter: 'drop-shadow(0 0 8px rgba(255,255,255,0.9))',
             }}
           />
         </motion.div>
       ))}
 
-      {/* Radiant light beams */}
-      {Array.from({ length: 6 }).map((_, i) => (
+      {/* Rainbow prismatic light refraction */}
+      {Array.from({ length: 8 }).map((_, i) => (
         <motion.div
-          key={`beam-${i}`}
+          key={`prism-${i}`}
           className="absolute origin-center"
           style={{
-            left: `${20 + i * 15}%`,
+            left: `${15 + i * 10}%`,
             top: '0',
-            width: '2px',
+            width: '3px',
             height: '100%',
             background: `linear-gradient(180deg, 
               transparent 0%, 
-              rgba(0, 212, 255, 0.3) 30%, 
-              rgba(139, 0, 255, 0.2) 50%, 
-              rgba(255, 0, 212, 0.3) 70%, 
+              rgba(0, 255, 255, 0.2) 20%, 
+              rgba(0, 102, 255, 0.15) 35%, 
+              rgba(217, 0, 255, 0.15) 50%, 
+              rgba(255, 183, 246, 0.2) 65%, 
+              rgba(255, 215, 0, 0.15) 80%, 
               transparent 100%)`,
-            transform: `rotate(${-15 + i * 5}deg)`,
+            transform: `rotate(${-20 + i * 5}deg)`,
+            filter: 'blur(2px)',
           }}
           animate={{
-            opacity: [0.1, 0.4, 0.1],
-            scaleY: [0.8, 1, 0.8],
+            opacity: [0.1, 0.35, 0.1],
           }}
           transition={{
-            duration: 4 + i,
-            delay: i * 0.5,
+            duration: 5 + i * 0.5,
+            delay: i * 0.8,
             repeat: Infinity,
             ease: "easeInOut",
           }}
         />
       ))}
 
-      {/* Ethereal cosmic dust floating */}
-      {Array.from({ length: 30 }).map((_, i) => (
+      {/* Cosmic dust floating gently */}
+      {Array.from({ length: 40 }).map((_, i) => (
         <motion.div
           key={`dust-${i}`}
           className="absolute rounded-full"
           style={{
             left: `${Math.random() * 100}%`,
             top: `${Math.random() * 100}%`,
-            width: Math.random() * 4 + 1,
-            height: Math.random() * 4 + 1,
-            background: `rgba(${Math.random() > 0.5 ? '0, 212, 255' : '255, 215, 0'}, ${Math.random() * 0.4 + 0.2})`,
-            filter: 'blur(1px)',
+            width: Math.random() * 3 + 1,
+            height: Math.random() * 3 + 1,
+            background: `rgba(${
+              Math.random() > 0.6 ? '255, 215, 0' : 
+              Math.random() > 0.3 ? '255, 183, 246' : 
+              '0, 255, 255'
+            }, ${Math.random() * 0.4 + 0.2})`,
+            filter: 'blur(0.5px)',
           }}
           animate={{
-            x: [0, Math.random() * 40 - 20, 0],
-            y: [0, Math.random() * 60 - 30, 0],
-            opacity: [0.2, 0.6, 0.2],
+            x: [0, Math.random() * 50 - 25, 0],
+            y: [0, Math.random() * 80 - 40, 0],
+            opacity: [0.2, 0.5, 0.2],
           }}
           transition={{
-            duration: 8 + Math.random() * 8,
-            delay: Math.random() * 5,
+            duration: 12 + Math.random() * 10,
+            delay: Math.random() * 6,
             repeat: Infinity,
             ease: "easeInOut",
           }}
