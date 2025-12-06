@@ -1,54 +1,18 @@
-import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdminStatistics } from "@/hooks/useAdminStatistics";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, AreaChart, Area } from "recharts";
-import { Users, Video, Eye, MessageSquare, Coins, TrendingUp, Crown, Award, Activity, ArrowLeft, ShieldAlert } from "lucide-react";
+import { Users, Video, Eye, MessageSquare, Coins, TrendingUp, Crown, Award, Activity } from "lucide-react";
 import { format } from "date-fns";
-import { useNavigate } from "react-router-dom";
-import { RewardConfigPanel } from "@/components/Dashboard/RewardConfigPanel";
-import { AntiAbuseStats } from "@/components/Dashboard/AntiAbuseStats";
 
 const AdminDashboard = () => {
   const { user, loading: authLoading } = useAuth();
   const { platformStats, topCreators, topEarners, dailyStats, loading } = useAdminStatistics();
-  const navigate = useNavigate();
-  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
-  const [checkingRole, setCheckingRole] = useState(true);
 
-  // Check if user has admin role
-  useEffect(() => {
-    const checkAdminRole = async () => {
-      if (!user) {
-        setCheckingRole(false);
-        return;
-      }
-      
-      try {
-        const { data, error } = await supabase.rpc('has_role', { 
-          _user_id: user.id, 
-          _role: 'admin' 
-        });
-        
-        if (error) throw error;
-        setIsAdmin(!!data);
-      } catch (error) {
-        console.error('Error checking admin role:', error);
-        setIsAdmin(false);
-      } finally {
-        setCheckingRole(false);
-      }
-    };
-
-    checkAdminRole();
-  }, [user]);
-
-  if (authLoading || loading || checkingRole) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-pulse text-xl">Đang tải...</div>
@@ -66,38 +30,15 @@ const AdminDashboard = () => {
     );
   }
 
-  // Redirect non-admin users
-  if (!isAdmin) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Card className="p-8 text-center max-w-md">
-          <ShieldAlert className="w-16 h-16 mx-auto text-destructive mb-4" />
-          <h2 className="text-xl font-bold mb-2">Không có quyền truy cập</h2>
-          <p className="text-muted-foreground mb-4">
-            Bạn không có quyền admin để xem trang này.
-          </p>
-          <Button onClick={() => navigate('/')}>Về trang chủ</Button>
-        </Card>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <Button variant="ghost" onClick={() => navigate(-1)}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back
-          </Button>
-          <div className="text-center flex-1">
-            <h1 className="text-4xl font-black bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] to-[#FF00E5] bg-clip-text text-transparent">
-              Admin Dashboard
-            </h1>
-            <p className="text-muted-foreground mt-2">Thống kê toàn nền tảng FUN Play</p>
-          </div>
-          <div className="w-20" />
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-black bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] to-[#FF00E5] bg-clip-text text-transparent">
+            Admin Dashboard
+          </h1>
+          <p className="text-muted-foreground mt-2">Thống kê toàn nền tảng FUN Play</p>
         </div>
 
         {/* Platform Stats Cards */}
@@ -358,12 +299,6 @@ const AdminDashboard = () => {
               </div>
             </CardContent>
           </Card>
-        </div>
-
-        {/* Admin Config & Anti-Abuse */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <RewardConfigPanel />
-          <AntiAbuseStats />
         </div>
 
         {/* Reward Rules Info */}

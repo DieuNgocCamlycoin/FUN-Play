@@ -1,146 +1,17 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Play, Pause, Camera, Image, Star, Save } from "lucide-react";
+import { ArrowLeft, Save, Play, Pause } from "lucide-react";
 import { Header } from "@/components/Layout/Header";
 import { DragDropImageUpload } from "@/components/Profile/DragDropImageUpload";
 import { ProfileCompletionIndicator } from "@/components/Profile/ProfileCompletionIndicator";
-import { KYCButton } from "@/components/Profile/KYCButton";
-
-// 7-color rainbow gradient for luxury avatar
-const rainbowColors = [
-  '#FF0000', '#FF7F00', '#FFFF00', '#00FF00', '#00E7FF', '#4B0082', '#9400D3'
-];
-
-// Luxury Avatar Preview Component with rainbow glow + sparkles
-const LuxuryAvatarPreview = ({ 
-  avatarUrl, 
-  displayName, 
-  onImageChange,
-  userId 
-}: { 
-  avatarUrl: string | null; 
-  displayName: string; 
-  onImageChange: (url: string) => void;
-  userId: string;
-}) => {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const { toast } = useToast();
-  const [uploading, setUploading] = useState(false);
-  
-  const sparkles = Array.from({ length: 12 }, (_, i) => ({
-    id: i,
-    delay: i * 0.3,
-    duration: 1.5 + Math.random() * 2,
-    size: 8 + Math.random() * 8,
-    angle: (i * 30) * (Math.PI / 180),
-    distance: 70 + Math.random() * 20,
-  }));
-
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    
-    setUploading(true);
-    try {
-      const fileExt = file.name.split('.').pop();
-      const filePath = `${userId}/avatar_${Date.now()}.${fileExt}`;
-      
-      const { error: uploadError } = await supabase.storage
-        .from('uploads')
-        .upload(filePath, file, { upsert: true });
-      
-      if (uploadError) throw uploadError;
-      
-      const { data: urlData } = supabase.storage
-        .from('uploads')
-        .getPublicUrl(filePath);
-      
-      onImageChange(urlData.publicUrl);
-      toast({ title: "✨ Avatar updated!" });
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  return (
-    <div className="relative">
-      {/* Outer glow */}
-      <motion.div
-        className="absolute inset-[-12px] rounded-full blur-xl opacity-60"
-        style={{ background: `conic-gradient(from 0deg, ${rainbowColors.join(', ')}, ${rainbowColors[0]})` }}
-        animate={{ rotate: [0, 360], opacity: [0.4, 0.7, 0.4] }}
-        transition={{ rotate: { duration: 8, repeat: Infinity, ease: "linear" }, opacity: { duration: 3, repeat: Infinity } }}
-      />
-      
-      {/* Rainbow border */}
-      <motion.div
-        className="absolute inset-[-4px] rounded-full"
-        style={{ background: `conic-gradient(from 0deg, ${rainbowColors.join(', ')}, ${rainbowColors[0]})`, padding: '4px' }}
-        animate={{ rotate: [0, 360], scale: [1, 1.02, 1] }}
-        transition={{ rotate: { duration: 6, repeat: Infinity, ease: "linear" }, scale: { duration: 2, repeat: Infinity } }}
-      >
-        <div className="w-full h-full rounded-full bg-card" />
-      </motion.div>
-      
-      {/* Avatar - 120px */}
-      <motion.div
-        className="relative w-[120px] h-[120px] rounded-full overflow-hidden cursor-pointer z-10 shadow-2xl"
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={() => fileInputRef.current?.click()}
-      >
-        {avatarUrl ? (
-          <img src={avatarUrl} alt={displayName} className="w-full h-full object-cover" />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-br from-[hsl(var(--cosmic-cyan))] via-[hsl(var(--cosmic-magenta))] to-[hsl(var(--cosmic-gold))] flex items-center justify-center text-4xl font-bold text-white">
-            {displayName?.[0]?.toUpperCase() || '?'}
-          </div>
-        )}
-        
-        {/* Edit overlay */}
-        <motion.div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-          {uploading ? (
-            <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity }}>
-              <Star className="w-8 h-8 text-[hsl(var(--cosmic-gold))]" fill="currentColor" />
-            </motion.div>
-          ) : (
-            <Camera className="w-8 h-8 text-white" />
-          )}
-        </motion.div>
-      </motion.div>
-      
-      {/* Sparkle particles */}
-      {sparkles.map((sparkle) => (
-        <motion.div
-          key={sparkle.id}
-          className="absolute pointer-events-none z-20"
-          style={{ width: sparkle.size, height: sparkle.size, left: '50%', top: '50%', marginLeft: -sparkle.size / 2, marginTop: -sparkle.size / 2 }}
-          animate={{
-            opacity: [0, 1, 1, 0],
-            scale: [0, 1.2, 1, 0],
-            x: [0, Math.cos(sparkle.angle) * sparkle.distance],
-            y: [0, Math.sin(sparkle.angle) * sparkle.distance],
-          }}
-          transition={{ duration: sparkle.duration, repeat: Infinity, delay: sparkle.delay }}
-        >
-          <Star className="text-[hsl(var(--cosmic-gold))] drop-shadow-[0_0_6px_rgba(255,215,0,0.8)]" style={{ width: sparkle.size, height: sparkle.size }} fill="currentColor" />
-        </motion.div>
-      ))}
-      
-      <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
-    </div>
-  );
-};
 
 export default function ProfileSettings() {
   const { user, loading } = useAuth();
@@ -520,33 +391,14 @@ export default function ProfileSettings() {
                 </p>
               </div>
 
-              {/* Luxury Avatar Preview with Rainbow Glow + KYC Badge */}
-              <div className="space-y-4">
-                <Label>Ảnh đại diện (Avatar)</Label>
-                <div className="flex items-center gap-6">
-                  {/* Luxury Avatar with Rainbow Border + Sparkles */}
-                  <LuxuryAvatarPreview 
-                    avatarUrl={avatarUrl}
-                    displayName={displayName}
-                    onImageChange={(url) => setAvatarUrl(url)}
-                    userId={user?.id || ''}
-                  />
-                  
-                  {/* KYC Badge */}
-                  <KYCButton
-                    isVerified={false}
-                    onClick={() => {
-                      toast({
-                        title: "KYC Coming Soon",
-                        description: "Tính năng xác minh KYC sẽ sớm được cập nhật!"
-                      });
-                    }}
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Click vào avatar để thay đổi ảnh đại diện
-                </p>
-              </div>
+              <DragDropImageUpload
+                currentImageUrl={avatarUrl}
+                onImageUploaded={(url) => setAvatarUrl(url)}
+                label="Ảnh đại diện (Avatar)"
+                aspectRatio="aspect-square"
+                folderPath="avatars"
+                maxSizeMB={5}
+              />
 
               <DragDropImageUpload
                 currentImageUrl={bannerUrl}
