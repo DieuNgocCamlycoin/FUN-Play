@@ -13,6 +13,7 @@ import { Copy, QrCode, Share2 } from "lucide-react";
 import { Honobar } from "@/components/Layout/Honobar";
 import { GlassmorphismStats } from "@/components/Profile/GlassmorphismStats";
 import { RewardClaimSection } from "@/components/Profile/RewardClaimSection";
+import { ProfileActionButtonsShiny } from "@/components/Profile/ProfileActionButtonsShiny";
 import { PremiumStarfieldBackground } from "@/components/Layout/PremiumStarfieldBackground";
 import { QRCodeSVG } from "qrcode.react";
 import {
@@ -63,6 +64,7 @@ export default function Channel() {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [showQRCode, setShowQRCode] = useState(false);
+  const [showClaimModal, setShowClaimModal] = useState(false);
   const [selectedWalletAddress, setSelectedWalletAddress] = useState<string>("");
   const { user } = useAuth();
   const { toast } = useToast();
@@ -405,7 +407,14 @@ export default function Channel() {
 
           {/* Reward Claim Section */}
           <RewardClaimSection userId={channel.user_id} isOwnProfile={user?.id === channel.user_id} />
-          
+
+          {/* Shiny Action Buttons - only show on own profile */}
+          {user?.id === channel.user_id && (
+            <ProfileActionButtonsShiny 
+              username={profile?.display_name || channel.name}
+              onClaimClick={() => setShowClaimModal(true)}
+            />
+          )}
           <div className="flex items-start gap-6 mb-6">
             {profile?.avatar_url ? (
               <img
