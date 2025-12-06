@@ -8,131 +8,131 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Spiritual Galaxy Music Theme - Divine Love */
-    --background: 240 70% 7%; /* Deep cosmic blue #0A0E2C */
-    --foreground: 200 100% 95%;
+    /* Golden Age 5D Music Universe Theme */
+    --background: 235 75% 9%; /* Deep cosmic galaxy #040E2C */
+    --foreground: 45 100% 95%;
     
-    --card: 260 60% 12%;
-    --card-foreground: 200 100% 95%;
+    --card: 260 65% 12%;
+    --card-foreground: 45 100% 95%;
     
-    --popover: 260 55% 10%;
-    --popover-foreground: 200 100% 95%;
+    --popover: 260 60% 10%;
+    --popover-foreground: 45 100% 95%;
     
-    --primary: 190 100% 50%; /* Electric cyan #00FFFF */
-    --primary-foreground: 240 70% 7%;
+    --primary: 45 100% 50%; /* Liquid Gold #FFD700 */
+    --primary-foreground: 235 75% 9%;
     
-    --secondary: 293 100% 50%; /* Cosmic magenta #D900FF */
-    --secondary-foreground: 200 100% 95%;
+    --secondary: 180 100% 50%; /* Sacred Turquoise #00FFFF */
+    --secondary-foreground: 235 75% 9%;
     
-    --muted: 260 40% 18%;
-    --muted-foreground: 200 50% 75%;
+    --muted: 260 45% 18%;
+    --muted-foreground: 45 80% 80%;
     
-    --accent: 320 100% 85%; /* Divine rose gold #FFB7F6 */
-    --accent-foreground: 240 70% 7%;
+    --accent: 330 100% 85%; /* Divine Rose Gold #FFC0CB → #FFB7F6 */
+    --accent-foreground: 235 75% 9%;
     
     --destructive: 0 85% 60%;
     --destructive-foreground: 0 0% 100%;
     
-    --border: 260 50% 28%;
+    --border: 45 50% 30%;
     --input: 260 50% 20%;
-    --ring: 190 100% 50%;
+    --ring: 45 100% 50%;
     
     --radius: 1rem;
     
-    --sidebar-background: 260 60% 10%;
-    --sidebar-foreground: 200 100% 95%;
-    --sidebar-primary: 190 100% 50%;
-    --sidebar-primary-foreground: 240 70% 7%;
+    --sidebar-background: 260 65% 10%;
+    --sidebar-foreground: 45 100% 95%;
+    --sidebar-primary: 45 100% 50%;
+    --sidebar-primary-foreground: 235 75% 9%;
     --sidebar-accent: 260 50% 18%;
-    --sidebar-accent-foreground: 200 100% 95%;
-    --sidebar-border: 260 50% 22%;
-    --sidebar-ring: 190 100% 50%;
+    --sidebar-accent-foreground: 45 100% 95%;
+    --sidebar-border: 45 40% 25%;
+    --sidebar-ring: 45 100% 50%;
     
-    /* Cosmic Galaxy Colors */
-    --galaxy-deep: 240 70% 11%; /* #0A0E2C */
-    --galaxy-violet: 261 85% 21%; /* #1C0A5E */
-    --galaxy-sapphire: 220 100% 50%; /* #0066FF */
-    --galaxy-cyan: 180 100% 50%; /* #00FFFF */
-    --galaxy-magenta: 293 100% 50%; /* #D900FF */
-    --galaxy-rose: 320 100% 85%; /* #FFB7F6 */
+    /* 5D Golden Age Colors */
+    --galaxy-deep: 235 75% 9%; /* #040E2C */
+    --galaxy-violet: 268 85% 20%; /* #1E0859 */
     --galaxy-gold: 45 100% 50%; /* #FFD700 */
+    --galaxy-gold-light: 42 100% 53%; /* #FDB813 */
+    --galaxy-rose: 330 100% 85%; /* #FFC0CB */
+    --galaxy-rose-glow: 315 100% 86%; /* #FFB7F6 */
+    --galaxy-cyan: 180 100% 50%; /* #00FFFF */
+    --galaxy-diamond: 0 0% 100%; /* #FFFFFF */
     
-    /* Aurora Energy Colors */
-    --aurora-cyan: 180 100% 50%;
-    --aurora-blue: 220 100% 55%;
-    --aurora-purple: 270 100% 60%;
-    --aurora-magenta: 293 100% 55%;
-    --aurora-rose: 320 100% 80%;
+    /* 7-Chakra Rainbow Colors */
+    --chakra-root: 0 100% 50%; /* Red */
+    --chakra-sacral: 30 100% 50%; /* Orange */
+    --chakra-solar: 45 100% 50%; /* Yellow/Gold */
+    --chakra-heart: 140 100% 45%; /* Green */
+    --chakra-throat: 180 100% 50%; /* Cyan/Blue */
+    --chakra-third: 260 100% 55%; /* Indigo */
+    --chakra-crown: 290 100% 60%; /* Violet */
     
-    /* Stardust & Divine Light */
-    --stardust-white: 0 0% 100%;
-    --stardust-gold: 45 100% 55%;
-    --stardust-diamond: 200 100% 90%;
-    --stardust-rose: 320 100% 90%;
+    /* Divine Light Gradients */
+    --gradient-liquid-gold: linear-gradient(135deg, #FFD700 0%, #FDB813 50%, #FFD700 100%);
+    --gradient-rose-gold-halo: linear-gradient(135deg, #FFC0CB 0%, #FFB7F6 100%);
+    --gradient-7-chakra: linear-gradient(90deg, 
+      #FF0000 0%, #FF7F00 14.28%, #FFFF00 28.56%, 
+      #00FF00 42.84%, #00FFFF 57.12%, #4B0082 71.4%, 
+      #9400D3 85.68%, #FF0000 100%);
     
-    /* Gradients */
-    --gradient-aurora: linear-gradient(135deg, #00FFFF 0%, #0066FF 25%, #D900FF 50%, #FFB7F6 75%, #FFD700 100%);
-    
-    --chart-1: 190 100% 50%;
-    --chart-2: 293 100% 55%;
-    --chart-3: 320 100% 80%;
-    --chart-4: 220 100% 55%;
-    --chart-5: 45 100% 55%;
+    --chart-1: 45 100% 50%;
+    --chart-2: 330 100% 85%;
+    --chart-3: 180 100% 50%;
+    --chart-4: 268 85% 55%;
+    --chart-5: 0 0% 100%;
   }
 
   .dark {
-    --background: 240 70% 7%;
-    --foreground: 200 100% 95%;
+    --background: 235 75% 9%;
+    --foreground: 45 100% 95%;
     
-    --card: 260 60% 12%;
-    --card-foreground: 200 100% 95%;
+    --card: 260 65% 12%;
+    --card-foreground: 45 100% 95%;
     
-    --popover: 260 55% 10%;
-    --popover-foreground: 200 100% 95%;
+    --popover: 260 60% 10%;
+    --popover-foreground: 45 100% 95%;
     
-    --primary: 190 100% 50%;
-    --primary-foreground: 240 70% 7%;
+    --primary: 45 100% 50%;
+    --primary-foreground: 235 75% 9%;
     
-    --secondary: 293 100% 50%;
-    --secondary-foreground: 200 100% 95%;
+    --secondary: 180 100% 50%;
+    --secondary-foreground: 235 75% 9%;
     
-    --muted: 260 40% 18%;
-    --muted-foreground: 200 50% 75%;
+    --muted: 260 45% 18%;
+    --muted-foreground: 45 80% 80%;
     
-    --accent: 320 100% 85%;
-    --accent-foreground: 240 70% 7%;
+    --accent: 330 100% 85%;
+    --accent-foreground: 235 75% 9%;
     
     --destructive: 0 85% 60%;
     --destructive-foreground: 0 0% 100%;
     
-    --border: 260 50% 28%;
+    --border: 45 50% 30%;
     --input: 260 50% 20%;
-    --ring: 190 100% 50%;
+    --ring: 45 100% 50%;
     
-    --galaxy-deep: 240 70% 11%;
-    --galaxy-violet: 261 85% 21%;
-    --galaxy-sapphire: 220 100% 50%;
-    --galaxy-cyan: 180 100% 50%;
-    --galaxy-magenta: 293 100% 50%;
-    --galaxy-rose: 320 100% 85%;
+    --galaxy-deep: 235 75% 9%;
+    --galaxy-violet: 268 85% 20%;
     --galaxy-gold: 45 100% 50%;
+    --galaxy-gold-light: 42 100% 53%;
+    --galaxy-rose: 330 100% 85%;
+    --galaxy-rose-glow: 315 100% 86%;
+    --galaxy-cyan: 180 100% 50%;
+    --galaxy-diamond: 0 0% 100%;
     
-    --aurora-cyan: 180 100% 50%;
-    --aurora-blue: 220 100% 55%;
-    --aurora-purple: 270 100% 60%;
-    --aurora-magenta: 293 100% 55%;
-    --aurora-rose: 320 100% 80%;
+    --chakra-root: 0 100% 50%;
+    --chakra-sacral: 30 100% 50%;
+    --chakra-solar: 45 100% 50%;
+    --chakra-heart: 140 100% 45%;
+    --chakra-throat: 180 100% 50%;
+    --chakra-third: 260 100% 55%;
+    --chakra-crown: 290 100% 60%;
     
-    --stardust-white: 0 0% 100%;
-    --stardust-gold: 45 100% 55%;
-    --stardust-diamond: 200 100% 90%;
-    --stardust-rose: 320 100% 90%;
-    
-    --chart-1: 190 100% 50%;
-    --chart-2: 293 100% 55%;
-    --chart-3: 320 100% 80%;
-    --chart-4: 220 100% 55%;
-    --chart-5: 45 100% 55%;
+    --chart-1: 45 100% 50%;
+    --chart-2: 330 100% 85%;
+    --chart-3: 180 100% 50%;
+    --chart-4: 268 85% 55%;
+    --chart-5: 0 0% 100%;
   }
 
   * {
@@ -143,27 +143,38 @@ All colors MUST be HSL.
     @apply text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
     background: 
-      /* Heavenly center light rays */
-      radial-gradient(ellipse 80% 50% at 50% 50%, hsl(45 100% 50% / 0.15) 0%, transparent 50%),
-      radial-gradient(ellipse 60% 40% at 50% 50%, hsl(320 100% 85% / 0.12) 0%, transparent 45%),
-      /* Aurora energy waves */
-      radial-gradient(ellipse 150% 80% at 50% 0%, hsl(293 100% 50% / 0.35) 0%, transparent 50%),
-      radial-gradient(ellipse 100% 60% at 15% 25%, hsl(220 100% 50% / 0.3) 0%, transparent 40%),
-      radial-gradient(ellipse 120% 70% at 85% 30%, hsl(180 100% 50% / 0.3) 0%, transparent 45%),
-      radial-gradient(ellipse 100% 60% at 20% 75%, hsl(320 100% 85% / 0.25) 0%, transparent 40%),
-      radial-gradient(ellipse 90% 50% at 80% 80%, hsl(45 100% 50% / 0.2) 0%, transparent 40%),
+      /* Pure white diamond core center glow */
+      radial-gradient(ellipse 50% 35% at 50% 50%, rgba(255, 255, 255, 0.2) 0%, transparent 40%),
+      radial-gradient(ellipse 40% 28% at 50% 50%, rgba(255, 215, 0, 0.25) 0%, transparent 45%),
+      /* Divine rose-gold halo */
+      radial-gradient(ellipse 70% 45% at 50% 45%, rgba(255, 183, 246, 0.15) 0%, transparent 50%),
+      /* 7-Chakra horizontal aurora wave */
+      linear-gradient(90deg, 
+        rgba(255, 0, 0, 0.08) 0%,
+        rgba(255, 127, 0, 0.08) 14%,
+        rgba(255, 255, 0, 0.1) 28%,
+        rgba(0, 255, 0, 0.08) 42%,
+        rgba(0, 255, 255, 0.1) 57%,
+        rgba(75, 0, 130, 0.08) 71%,
+        rgba(148, 0, 211, 0.08) 85%,
+        rgba(255, 0, 0, 0.08) 100%
+      ),
+      /* Liquid gold 24K veins */
+      radial-gradient(ellipse 180% 80% at 20% 30%, rgba(255, 215, 0, 0.2) 0%, transparent 40%),
+      radial-gradient(ellipse 150% 70% at 80% 70%, rgba(253, 184, 19, 0.18) 0%, transparent 35%),
+      radial-gradient(ellipse 120% 60% at 50% 80%, rgba(255, 215, 0, 0.15) 0%, transparent 40%),
       /* Nebula clouds */
-      radial-gradient(ellipse 200% 100% at 30% 50%, hsl(261 85% 21% / 0.6) 0%, transparent 50%),
-      radial-gradient(ellipse 180% 90% at 70% 40%, hsl(270 100% 40% / 0.4) 0%, transparent 45%),
-      /* Deep cosmic base */
+      radial-gradient(ellipse 200% 100% at 30% 50%, rgba(30, 8, 89, 0.8) 0%, transparent 50%),
+      radial-gradient(ellipse 180% 90% at 70% 40%, rgba(30, 8, 89, 0.6) 0%, transparent 45%),
+      /* Deep cosmic galaxy base */
       linear-gradient(
         180deg,
-        hsl(240 70% 11%) 0%,
-        hsl(261 85% 18%) 20%,
-        hsl(255 70% 15%) 40%,
-        hsl(261 85% 18%) 60%,
-        hsl(240 70% 11%) 80%,
-        hsl(240 70% 7%) 100%
+        hsl(235 75% 9%) 0%,
+        hsl(268 85% 18%) 20%,
+        hsl(268 75% 15%) 40%,
+        hsl(268 85% 18%) 60%,
+        hsl(235 75% 12%) 80%,
+        hsl(235 75% 9%) 100%
       );
     background-attachment: fixed;
     min-height: 100vh;
@@ -176,24 +187,29 @@ All colors MUST be HSL.
     position: fixed;
     inset: 0;
     background-image: 
-      /* Ultra-luminescent diamond sparkles */
-      radial-gradient(2px 2px at 8% 12%, hsl(0 0% 100%) 50%, transparent 100%),
-      radial-gradient(3px 3px at 18% 28%, hsl(45 100% 55%) 50%, transparent 100%),
-      radial-gradient(2px 2px at 28% 8%, hsl(180 100% 50% / 0.9) 50%, transparent 100%),
-      radial-gradient(2px 2px at 38% 42%, hsl(320 100% 90%) 50%, transparent 100%),
-      radial-gradient(3px 3px at 48% 18%, hsl(0 0% 100%) 50%, transparent 100%),
-      radial-gradient(2px 2px at 58% 58%, hsl(293 100% 50% / 0.8) 50%, transparent 100%),
-      radial-gradient(2px 2px at 68% 25%, hsl(45 100% 55%) 50%, transparent 100%),
-      radial-gradient(3px 3px at 78% 48%, hsl(180 100% 50%) 50%, transparent 100%),
-      radial-gradient(2px 2px at 88% 15%, hsl(0 0% 100%) 50%, transparent 100%),
-      radial-gradient(2px 2px at 15% 65%, hsl(220 100% 55% / 0.9) 50%, transparent 100%),
-      radial-gradient(3px 3px at 35% 78%, hsl(320 100% 85%) 50%, transparent 100%),
-      radial-gradient(2px 2px at 55% 85%, hsl(45 100% 55%) 50%, transparent 100%),
-      radial-gradient(2px 2px at 75% 72%, hsl(0 0% 100%) 50%, transparent 100%),
-      radial-gradient(2px 2px at 92% 68%, hsl(293 100% 55% / 0.8) 50%, transparent 100%),
-      radial-gradient(3px 3px at 42% 92%, hsl(180 100% 50%) 50%, transparent 100%),
-      radial-gradient(2px 2px at 65% 38%, hsl(320 100% 90%) 50%, transparent 100%);
-    animation: cosmic-sparkle 6s ease-in-out infinite;
+      /* Millions of diamond sparkles */
+      radial-gradient(2px 2px at 5% 10%, rgba(255, 255, 255, 1) 50%, transparent 100%),
+      radial-gradient(3px 3px at 12% 25%, rgba(255, 215, 0, 1) 50%, transparent 100%),
+      radial-gradient(2px 2px at 20% 5%, rgba(0, 255, 255, 0.9) 50%, transparent 100%),
+      radial-gradient(2.5px 2.5px at 28% 35%, rgba(255, 183, 246, 1) 50%, transparent 100%),
+      radial-gradient(3px 3px at 35% 15%, rgba(255, 215, 0, 1) 50%, transparent 100%),
+      radial-gradient(2px 2px at 42% 45%, rgba(255, 255, 255, 1) 50%, transparent 100%),
+      radial-gradient(2px 2px at 50% 8%, rgba(148, 0, 211, 0.8) 50%, transparent 100%),
+      radial-gradient(3px 3px at 58% 55%, rgba(255, 215, 0, 1) 50%, transparent 100%),
+      radial-gradient(2px 2px at 65% 20%, rgba(0, 255, 255, 1) 50%, transparent 100%),
+      radial-gradient(2.5px 2.5px at 72% 40%, rgba(255, 255, 255, 1) 50%, transparent 100%),
+      radial-gradient(2px 2px at 80% 12%, rgba(255, 183, 246, 1) 50%, transparent 100%),
+      radial-gradient(3px 3px at 88% 32%, rgba(255, 215, 0, 1) 50%, transparent 100%),
+      radial-gradient(2px 2px at 95% 22%, rgba(255, 255, 255, 1) 50%, transparent 100%),
+      radial-gradient(2px 2px at 8% 60%, rgba(255, 215, 0, 0.9) 50%, transparent 100%),
+      radial-gradient(3px 3px at 18% 75%, rgba(0, 255, 255, 1) 50%, transparent 100%),
+      radial-gradient(2px 2px at 30% 68%, rgba(255, 255, 255, 1) 50%, transparent 100%),
+      radial-gradient(2.5px 2.5px at 45% 82%, rgba(255, 183, 246, 1) 50%, transparent 100%),
+      radial-gradient(2px 2px at 55% 72%, rgba(255, 215, 0, 1) 50%, transparent 100%),
+      radial-gradient(3px 3px at 68% 88%, rgba(255, 255, 255, 1) 50%, transparent 100%),
+      radial-gradient(2px 2px at 78% 65%, rgba(0, 255, 255, 0.9) 50%, transparent 100%),
+      radial-gradient(2px 2px at 92% 78%, rgba(255, 215, 0, 1) 50%, transparent 100%);
+    animation: divine-sparkle 5s ease-in-out infinite;
     pointer-events: none;
     z-index: 0;
   }
@@ -203,13 +219,18 @@ All colors MUST be HSL.
     position: fixed;
     inset: 0;
     background: 
-      /* Divine center glow */
-      radial-gradient(ellipse 50% 35% at 50% 50%, hsl(45 100% 50% / 0.1) 0%, transparent 60%),
-      /* Rainbow prismatic refraction */
-      radial-gradient(ellipse 40% 25% at 30% 35%, hsl(180 100% 50% / 0.08) 0%, transparent 50%),
-      radial-gradient(ellipse 35% 20% at 70% 65%, hsl(320 100% 85% / 0.08) 0%, transparent 50%),
-      radial-gradient(ellipse 45% 25% at 50% 80%, hsl(293 100% 50% / 0.06) 0%, transparent 55%);
-    animation: holographic-shift 15s ease-in-out infinite;
+      /* Holographic chrome reflection */
+      linear-gradient(135deg, 
+        rgba(255, 215, 0, 0.05) 0%, 
+        rgba(255, 183, 246, 0.05) 25%,
+        rgba(0, 255, 255, 0.05) 50%, 
+        rgba(148, 0, 211, 0.05) 75%,
+        rgba(255, 215, 0, 0.05) 100%
+      ),
+      /* Golden ratio spiral hint */
+      radial-gradient(ellipse 60% 60% at 38.2% 38.2%, rgba(255, 215, 0, 0.08) 0%, transparent 40%),
+      radial-gradient(ellipse 40% 40% at 61.8% 61.8%, rgba(255, 183, 246, 0.06) 0%, transparent 35%);
+    animation: holographic-chrome 12s ease-in-out infinite;
     pointer-events: none;
     z-index: 0;
   }
@@ -220,49 +241,54 @@ All colors MUST be HSL.
   }
 }
 
-@keyframes cosmic-sparkle {
+@keyframes divine-sparkle {
   0%, 100% {
-    opacity: 0.7;
+    opacity: 0.6;
     transform: scale(1);
   }
   25% {
     opacity: 1;
-    transform: scale(1.02);
+    transform: scale(1.03);
   }
   50% {
-    opacity: 0.8;
-    transform: scale(0.98);
+    opacity: 0.75;
+    transform: scale(0.97);
   }
   75% {
     opacity: 1;
-    transform: scale(1.01);
+    transform: scale(1.02);
   }
 }
 
-@keyframes holographic-shift {
+@keyframes holographic-chrome {
   0%, 100% {
-    opacity: 0.6;
-    transform: translateX(0) translateY(0);
+    opacity: 0.5;
+    transform: translateX(0) translateY(0) rotate(0deg);
   }
   33% {
-    opacity: 0.8;
-    transform: translateX(2%) translateY(-1%);
+    opacity: 0.7;
+    transform: translateX(1%) translateY(-1%) rotate(0.5deg);
   }
   66% {
-    opacity: 0.7;
-    transform: translateX(-1%) translateY(1%);
+    opacity: 0.6;
+    transform: translateX(-1%) translateY(1%) rotate(-0.5deg);
   }
 }
 
-@keyframes golden-stars {
-  0% { transform: translateY(0) translateX(0); }
-  50% { transform: translateY(-30px) translateX(10px); }
-  100% { transform: translateY(0) translateX(0); }
+@keyframes chakra-rainbow-flow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
-@keyframes center-glow {
-  0%, 100% { opacity: 0.4; transform: scale(1); }
-  50% { opacity: 0.7; transform: scale(1.1); }
+@keyframes liquid-gold-pulse {
+  0%, 100% { opacity: 0.5; filter: brightness(1); }
+  50% { opacity: 0.8; filter: brightness(1.3); }
+}
+
+@keyframes angelic-wings-glow {
+  0%, 100% { opacity: 0.1; transform: scaleX(1); }
+  50% { opacity: 0.2; transform: scaleX(1.05); }
 }
 
 /* Cosmic Divine Animations */
