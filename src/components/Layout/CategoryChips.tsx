@@ -10,7 +10,7 @@ const categories = [
   "Podcast",
   "Tin tức",
   "Thiên nhiên",
-  "Thú cộng",
+  "Thủ công",
   "Mới tải lên gần đây",
   "Đã xem",
   "Đề xuất mới",
