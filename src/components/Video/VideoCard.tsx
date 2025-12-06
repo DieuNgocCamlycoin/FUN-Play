@@ -82,35 +82,22 @@ export const VideoCard = ({
   };
 
   return (
-    <Card className="group overflow-hidden glass-card holographic border-2 border-white/10 hover:border-white/30 transition-all duration-500 cursor-pointer relative">
-      {/* Rainbow diamond sparkle effect on hover */}
-      <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-        <div className="absolute top-1/4 left-1/4 w-3 h-3 bg-glow-sapphire rounded-full animate-[sparkle_1s_ease-in-out_infinite] shadow-[0_0_20px_rgba(0,102,255,1)]" />
-        <div className="absolute top-1/3 right-1/3 w-2.5 h-2.5 bg-glow-cyan rounded-full animate-[sparkle_1.2s_ease-in-out_infinite_0.2s] shadow-[0_0_18px_rgba(0,255,255,1)]" />
-        <div className="absolute bottom-1/4 right-1/4 w-3 h-3 bg-glow-magenta rounded-full animate-[sparkle_1.4s_ease-in-out_infinite_0.4s] shadow-[0_0_20px_rgba(217,0,255,1)]" />
-        <div className="absolute top-1/2 left-1/3 w-2 h-2 bg-divine-rose-gold rounded-full animate-[sparkle_1.1s_ease-in-out_infinite_0.3s] shadow-[0_0_15px_rgba(255,183,246,1)]" />
-        <div className="absolute bottom-1/3 left-1/2 w-2.5 h-2.5 bg-glow-gold rounded-full animate-[sparkle_1.3s_ease-in-out_infinite_0.5s] shadow-[0_0_18px_rgba(255,215,0,1)]" />
-        <div className="absolute top-2/3 right-1/2 w-2 h-2 bg-glow-white rounded-full animate-[sparkle_0.9s_ease-in-out_infinite_0.6s] shadow-[0_0_15px_rgba(255,255,255,1)]" />
-      </div>
-
+    <Card className="group overflow-hidden bg-white border border-gray-200 hover:border-purple-300 hover:shadow-lg transition-all duration-300 cursor-pointer relative rounded-xl">
       {/* Thumbnail */}
-      <div className="relative aspect-video overflow-hidden rounded-t-lg" onClick={handlePlay}>
+      <div className="relative aspect-video overflow-hidden rounded-t-xl" onClick={handlePlay}>
         <img
           src={thumbnail}
           alt={title}
-          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
         
-        {/* Rainbow prism halo overlay on hover */}
-        <div className="absolute inset-0 bg-gradient-to-br from-glow-sapphire/30 via-glow-cyan/25 via-glow-magenta/25 to-divine-rose-gold/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-        
-        {/* Play button overlay with cosmic divine glow */}
-        <div className="absolute inset-0 flex items-center justify-center bg-background/40 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+        {/* Play button overlay */}
+        <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
           <Button
             size="icon"
-            className="h-16 w-16 rounded-full bg-gradient-to-br from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta divine-glow border-2 border-glow-cyan shadow-[0_0_60px_rgba(0,255,255,1)]"
+            className="h-14 w-14 rounded-full bg-white/90 hover:bg-white shadow-lg"
           >
-            <Play className="h-8 w-8 fill-current text-foreground" />
+            <Play className="h-7 w-7 fill-current text-gray-800" />
           </Button>
         </div>
 
@@ -118,7 +105,7 @@ export const VideoCard = ({
         {isOwner && (
           <Button
             size="icon"
-            className="absolute top-2 left-2 h-8 w-8 bg-cosmic-magenta/90 hover:bg-cosmic-magenta border border-glow-magenta text-foreground opacity-0 group-hover:opacity-100 transition-all duration-300 shadow-[0_0_35px_rgba(217,0,255,0.9)]"
+            className="absolute top-2 left-2 h-8 w-8 bg-white/90 hover:bg-white text-gray-700 opacity-0 group-hover:opacity-100 transition-all duration-300 shadow-md"
             onClick={handleEdit}
             title="Chỉnh sửa trong Studio"
           >
@@ -126,10 +113,10 @@ export const VideoCard = ({
           </Button>
         )}
 
-        {/* Share button with sapphire glow */}
+        {/* Share button */}
         <Button
           size="icon"
-          className="absolute top-2 right-2 h-8 w-8 bg-cosmic-sapphire/90 hover:bg-cosmic-sapphire border border-glow-sapphire text-foreground opacity-0 group-hover:opacity-100 transition-all duration-300 shadow-[0_0_40px_rgba(0,102,255,0.9)]"
+          className="absolute top-2 right-2 h-8 w-8 bg-cyan-400 hover:bg-cyan-500 text-white opacity-0 group-hover:opacity-100 transition-all duration-300 shadow-md rounded-full"
           onClick={handleShare}
           title="Chia sẻ video"
         >
@@ -137,34 +124,34 @@ export const VideoCard = ({
         </Button>
       </div>
 
-      {/* Info with glassmorphism */}
-      <div className="p-4 flex gap-3 bg-gradient-to-b from-transparent to-background/20">
+      {/* Info */}
+      <div className="p-3 flex gap-3 bg-white">
         <div className="flex-shrink-0" onClick={handleChannelClick}>
           {avatarUrl ? (
             <img
               src={avatarUrl}
               alt={channel}
-              className="w-10 h-10 rounded-full object-cover cursor-pointer hover:scale-110 transition-transform shadow-[0_0_30px_rgba(0,255,255,0.7)]"
+              className="w-9 h-9 rounded-full object-cover cursor-pointer hover:scale-105 transition-transform border border-gray-200"
             />
           ) : (
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta flex items-center justify-center text-foreground font-bold text-sm shadow-[0_0_30px_rgba(0,255,255,0.7)] cursor-pointer hover:scale-110 transition-transform">
-              {channel[0]}
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-400 to-purple-500 flex items-center justify-center text-white font-bold text-sm cursor-pointer hover:scale-105 transition-transform">
+              {channel?.[0]}
             </div>
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="font-bold text-sm line-clamp-2 mb-1 text-foreground group-hover:text-cosmic-cyan transition-colors duration-300">
+          <h3 className="font-semibold text-sm line-clamp-2 mb-1 text-gray-800 group-hover:text-purple-600 transition-colors duration-300">
             {title}
           </h3>
           <p 
-            className="text-xs text-muted-foreground group-hover:text-divine-rose-gold transition-colors duration-300 cursor-pointer hover:underline"
+            className="text-xs text-gray-500 cursor-pointer hover:text-purple-500 transition-colors"
             onClick={handleChannelClick}
           >
             {channel}
           </p>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground group-hover:text-cosmic-magenta mt-1 transition-colors duration-300">
+          <div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5">
             <span>{views}</span>
-            <span className="text-cosmic-sapphire">•</span>
+            <span>•</span>
             <span>{timestamp}</span>
           </div>
         </div>

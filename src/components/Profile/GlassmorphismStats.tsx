@@ -138,114 +138,84 @@ export const GlassmorphismStats = ({ userId, channelId }: GlassmorphismStatsProp
 
   if (loading) {
     return (
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
-        {[...Array(5)].map((_, i) => (
-          <div key={i} className="animate-pulse h-28 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10" />
+      <div className="grid grid-cols-3 gap-3 mb-6">
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="animate-pulse h-20 rounded-xl bg-white/60 border border-gray-200" />
         ))}
       </div>
     );
   }
 
+  // Compact version - only show 3 key stats
+  const compactStats = [
+    statItems[4], // Rewards
+    statItems[4], // Balance (use same for now)
+    { ...statItems[0], label: "Người theo dõi", value: stats.followers }, // Followers
+  ];
+
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
-      {statItems.map((item, index) => {
-        const Icon = item.icon;
-        return (
-          <motion.div
-            key={item.label}
-            initial={{ opacity: 0, y: 20, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ delay: index * 0.08, duration: 0.4, type: "spring" }}
-            whileHover={{ scale: 1.03, y: -4 }}
-            className="relative group"
-          >
-            {/* Rainbow breathing border */}
-            <motion.div
-              className="absolute -inset-[1px] rounded-2xl opacity-50 group-hover:opacity-80"
-              style={{
-                background: `linear-gradient(90deg, 
-                  #ff0080, #ff8c00, #ffd700, #00ff00, #00e7ff, #7a2bff, #ff00e5, #ff0080
-                )`,
-                backgroundSize: '400% 100%',
-              }}
-              animate={{
-                backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
-              }}
-              transition={{
-                duration: 6,
-                repeat: Infinity,
-                ease: "linear",
-              }}
-            />
-            
-            {/* Glassmorphism card */}
-            <div 
-              className="relative overflow-hidden rounded-2xl p-4 h-28 flex flex-col justify-between"
-              style={{
-                background: 'rgba(255,255,255,0.05)',
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
-                boxShadow: `
-                  0 8px 32px rgba(0,0,0,0.2),
-                  inset 0 1px 0 rgba(255,255,255,0.1),
-                  inset 0 -1px 0 rgba(0,0,0,0.1)
-                `,
-              }}
-            >
-              {/* Hover glow effect */}
-              <div 
-                className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-2xl"
-                style={{
-                  background: `radial-gradient(circle at 50% 50%, ${item.glowColor}, transparent 70%)`,
-                }}
-              />
-
-              {/* Floating sparkles on hover */}
-              <motion.div
-                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100"
-                animate={{ rotate: 360 }}
-                transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-              >
-                <Sparkles className="w-4 h-4 text-white/40" />
-              </motion.div>
-
-              {/* Icon with gradient background */}
-              <div className="flex items-center gap-2">
-                <div 
-                  className={`p-2 rounded-xl bg-gradient-to-br ${item.gradient}`}
-                  style={{
-                    boxShadow: `0 4px 15px ${item.glowColor}`,
-                  }}
-                >
-                  <Icon className="w-4 h-4 text-white" />
-                </div>
-                <span className="text-xs text-white/60 font-medium truncate">
-                  {item.label}
-                </span>
-              </div>
-
-              {/* Value with animated gradient */}
-              <motion.div
-                className="text-2xl font-black tracking-tight"
-                style={{
-                  background: `linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.8) 100%)`,
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))',
-                }}
-              >
-                <CounterAnimation value={item.value} decimals={item.decimals || 0} />
-                {item.suffix && <span className="text-sm font-semibold ml-1">{item.suffix}</span>}
-              </motion.div>
-
-              {/* Bottom gradient line */}
-              <div 
-                className={`absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r ${item.gradient} opacity-50 group-hover:opacity-100 transition-opacity`}
-              />
+    <div className="grid grid-cols-3 gap-3 mb-6">
+      {/* Total Reward Card */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className="relative overflow-hidden rounded-xl p-4 bg-gradient-to-r from-cyan-50 to-blue-50 border border-cyan-200 shadow-sm"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-lime-400 to-green-500 flex items-center justify-center shadow-md">
+            <Coins className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <div className="text-xs text-gray-500 font-medium">Tổng Reward</div>
+            <div className="text-xl font-bold text-red-500">
+              <CounterAnimation value={stats.rewardsEarned} decimals={3} />
+              <span className="text-sm ml-1">CAMLY</span>
             </div>
-          </motion.div>
-        );
-      })}
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Balance Card */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.05 }}
+        className="relative overflow-hidden rounded-xl p-4 bg-gradient-to-r from-lime-50 to-green-50 border border-lime-200 shadow-sm"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-lime-400 to-green-500 flex items-center justify-center shadow-md">
+            <Coins className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <div className="text-xs text-gray-500 font-medium">Số dư CAMLY</div>
+            <div className="text-xl font-bold text-green-600">
+              <CounterAnimation value={0} decimals={3} />
+              <span className="text-sm ml-1">CAMLY</span>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Followers Card */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.1 }}
+        className="relative overflow-hidden rounded-xl p-4 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 shadow-sm"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-lime-400 to-green-500 flex items-center justify-center shadow-md">
+            <Users className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <div className="text-xs text-gray-500 font-medium">Người theo dõi</div>
+            <div className="text-xl font-bold text-blue-600">
+              <CounterAnimation value={stats.followers} decimals={3} />
+            </div>
+          </div>
+        </div>
+      </motion.div>
     </div>
   );
 };
