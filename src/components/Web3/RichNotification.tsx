@@ -54,16 +54,29 @@ export const RichNotification = ({ show, amount, token, count, onClose, userId }
 
   useEffect(() => {
     if (show) {
-      // Only play custom music if user has linked one - NO default ringtone or voice
-      let customAudio: HTMLAudioElement | null = null;
-      if (musicUrl) {
-        customAudio = new Audio(musicUrl);
-        customAudio.volume = 0.5;
-        customAudio.loop = true;
-        customAudio.play().catch(err => console.error("Error playing music:", err));
+      // Cancel any ongoing speech synthesis to stop any voice
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
       }
 
-      // NO voice notification - removed as per user request
+      // Play notification sound - custom music if available, otherwise default bell sound
+      let notificationAudio: HTMLAudioElement | null = null;
+      
+      if (musicUrl) {
+        // User has custom music linked
+        notificationAudio = new Audio(musicUrl);
+        notificationAudio.volume = 0.5;
+        notificationAudio.loop = true;
+      } else {
+        // Default notification bell sound (coin/cash register sound)
+        notificationAudio = new Audio('https://assets.mixkit.co/active_storage/sfx/2058/2058-preview.mp3');
+        notificationAudio.volume = 0.6;
+        notificationAudio.loop = true;
+      }
+      
+      notificationAudio.play().catch(err => console.error("Error playing notification sound:", err));
+
+      // NO voice notification - completely removed
 
       // Trigger massive confetti celebration
       const duration = 10000;
@@ -109,9 +122,9 @@ export const RichNotification = ({ show, amount, token, count, onClose, userId }
       // Auto close after 10 seconds
       const timer = setTimeout(() => {
         clearInterval(confettiInterval);
-        if (customAudio) {
-          customAudio.pause();
-          customAudio.currentTime = 0;
+        if (notificationAudio) {
+          notificationAudio.pause();
+          notificationAudio.currentTime = 0;
         }
         onClose();
       }, 10000);
@@ -119,9 +132,13 @@ export const RichNotification = ({ show, amount, token, count, onClose, userId }
       return () => {
         clearTimeout(timer);
         clearInterval(confettiInterval);
-        if (customAudio) {
-          customAudio.pause();
-          customAudio.currentTime = 0;
+        if (notificationAudio) {
+          notificationAudio.pause();
+          notificationAudio.currentTime = 0;
+        }
+        // Also cancel any speech synthesis on cleanup
+        if ('speechSynthesis' in window) {
+          window.speechSynthesis.cancel();
         }
       };
     }
