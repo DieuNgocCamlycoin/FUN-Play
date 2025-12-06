@@ -1,18 +1,39 @@
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdminStatistics } from "@/hooks/useAdminStatistics";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, AreaChart, Area } from "recharts";
-import { Users, Video, Eye, MessageSquare, Coins, TrendingUp, Crown, Award, Activity } from "lucide-react";
+import { Users, Video, Eye, MessageSquare, Coins, TrendingUp, Crown, Award, Activity, ShieldX } from "lucide-react";
 import { format } from "date-fns";
+import { Navigate } from "react-router-dom";
 
 const AdminDashboard = () => {
   const { user, loading: authLoading } = useAuth();
   const { platformStats, topCreators, topEarners, dailyStats, loading } = useAdminStatistics();
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [checkingRole, setCheckingRole] = useState(true);
 
-  if (authLoading || loading) {
+  useEffect(() => {
+    const checkAdminRole = async () => {
+      if (!user) {
+        setCheckingRole(false);
+        return;
+      }
+      const { data } = await supabase.rpc('has_role', {
+        _user_id: user.id,
+        _role: 'admin'
+      });
+      setIsAdmin(data === true);
+      setCheckingRole(false);
+    };
+    checkAdminRole();
+  }, [user]);
+
+  if (authLoading || loading || checkingRole) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-pulse text-xl">Đang tải...</div>
@@ -21,10 +42,16 @@ const AdminDashboard = () => {
   }
 
   if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  if (!isAdmin) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <Card className="p-8">
-          <p className="text-lg">Vui lòng đăng nhập để xem dashboard</p>
+        <Card className="p-8 text-center">
+          <ShieldX className="w-16 h-16 mx-auto text-destructive mb-4" />
+          <p className="text-lg font-semibold">Truy cập bị từ chối</p>
+          <p className="text-muted-foreground mt-2">Bạn không có quyền truy cập trang này</p>
         </Card>
       </div>
     );
