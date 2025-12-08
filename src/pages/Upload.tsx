@@ -322,9 +322,9 @@ export default function Upload() {
 
           <form onSubmit={handleVideoUpload} className="space-y-6">
             {/* Video Upload */}
-            <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
+            <div className="border-2 border-dashed border-border rounded-lg p-6 sm:p-8">
               {videoFile ? (
-                <div className="space-y-4">
+                <div className="space-y-4 text-center">
                   <Video className="h-16 w-16 mx-auto text-primary" />
                   <p className="text-sm text-foreground font-medium">{videoFile.name}</p>
                   <p className="text-xs text-muted-foreground">
@@ -345,24 +345,57 @@ export default function Upload() {
                   </Button>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-6">
                   <UploadIcon className="h-16 w-16 mx-auto text-muted-foreground" />
-                  <div>
-                    <Label htmlFor="video-upload" className="cursor-pointer">
-                      <span className="text-primary hover:underline">Select video file</span>
-                    </Label>
-                    <Input
-                      id="video-upload"
-                      type="file"
-                      accept="video/*"
-                      className="hidden"
-                      onChange={(e) => setVideoFile(e.target.files?.[0] || null)}
-                    />
+                  
+                  {/* iOS-friendly upload options */}
+                  <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                    {/* Record new video (iOS camera) */}
+                    <div>
+                      <Label htmlFor="video-record" className="cursor-pointer block">
+                        <div className="flex items-center justify-center gap-2 px-6 py-4 bg-primary/10 border-2 border-primary rounded-xl hover:bg-primary/20 transition-colors">
+                          <span className="text-2xl">📱</span>
+                          <div className="text-left">
+                            <span className="block text-sm font-semibold text-primary">Quay video mới</span>
+                            <span className="block text-xs text-primary/70">iPhone / iPad Camera</span>
+                          </div>
+                        </div>
+                      </Label>
+                      <input
+                        id="video-record"
+                        type="file"
+                        accept="video/*"
+                        capture="environment"
+                        className="hidden"
+                        onChange={(e) => setVideoFile(e.target.files?.[0] || null)}
+                      />
+                    </div>
+                    
+                    {/* Select from library */}
+                    <div>
+                      <Label htmlFor="video-upload" className="cursor-pointer block">
+                        <div className="flex items-center justify-center gap-2 px-6 py-4 bg-muted border-2 border-border rounded-xl hover:bg-muted/80 transition-colors">
+                          <span className="text-2xl">📁</span>
+                          <div className="text-left">
+                            <span className="block text-sm font-semibold text-foreground">Chọn từ thư viện</span>
+                            <span className="block text-xs text-muted-foreground">Photos / Files app</span>
+                          </div>
+                        </div>
+                      </Label>
+                      <input
+                        id="video-upload"
+                        type="file"
+                        accept="video/mp4,video/mov,video/quicktime,video/x-m4v,video/*"
+                        className="hidden"
+                        onChange={(e) => setVideoFile(e.target.files?.[0] || null)}
+                      />
+                    </div>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    MP4, WebM, hoặc AVI (tối đa 10GB)
+                  
+                  <p className="text-sm text-muted-foreground text-center">
+                    MP4, MOV, WebM, hoặc AVI (tối đa 10GB)
                   </p>
-                  <p className="text-xs text-orange-600 mt-2">
+                  <p className="text-xs text-orange-600 text-center">
                     💡 Gợi ý: Video trên 2GB có thể tải lâu. Nên nén video trước khi tải lên.
                   </p>
                 </div>

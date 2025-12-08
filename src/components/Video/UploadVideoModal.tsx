@@ -290,23 +290,55 @@ export function UploadVideoModal({ open, onOpenChange }: UploadVideoModalProps) 
             <Label className="text-base">
               Video File (Tối đa 10GB - Hỗ trợ video dài)
             </Label>
-            <div className="mt-2">
-              <Input
-                type="file"
-                accept="video/*"
-                onChange={(e) => setVideoFile(e.target.files?.[0] || null)}
-                disabled={uploading || !!youtubeUrl}
-                className="cursor-pointer"
-              />
+            <div className="mt-2 space-y-3">
+              {/* iOS Camera Recording Option */}
+              <div className="flex flex-col sm:flex-row gap-2">
+                <div className="flex-1">
+                  <Label htmlFor="video-record" className="cursor-pointer block">
+                    <div className="flex items-center justify-center gap-2 p-3 border-2 border-dashed border-primary/50 rounded-lg hover:border-primary hover:bg-primary/5 transition-colors">
+                      <UploadIcon className="h-5 w-5 text-primary" />
+                      <span className="text-sm font-medium text-primary">📱 Quay video mới (iPhone/iPad)</span>
+                    </div>
+                  </Label>
+                  <input
+                    id="video-record"
+                    type="file"
+                    accept="video/*"
+                    capture="environment"
+                    onChange={(e) => setVideoFile(e.target.files?.[0] || null)}
+                    disabled={uploading || !!youtubeUrl}
+                    className="hidden"
+                  />
+                </div>
+                <div className="flex-1">
+                  <Label htmlFor="video-select" className="cursor-pointer block">
+                    <div className="flex items-center justify-center gap-2 p-3 border-2 border-dashed border-muted-foreground/50 rounded-lg hover:border-muted-foreground hover:bg-muted/50 transition-colors">
+                      <UploadIcon className="h-5 w-5 text-muted-foreground" />
+                      <span className="text-sm font-medium text-muted-foreground">📁 Chọn từ thư viện</span>
+                    </div>
+                  </Label>
+                  <input
+                    id="video-select"
+                    type="file"
+                    accept="video/mp4,video/mov,video/quicktime,video/x-m4v,video/*"
+                    onChange={(e) => setVideoFile(e.target.files?.[0] || null)}
+                    disabled={uploading || !!youtubeUrl}
+                    className="hidden"
+                  />
+                </div>
+              </div>
               {videoFile && (
-                <p className="text-sm text-muted-foreground mt-2">
-                  {videoFile.name} - {(videoFile.size / (1024 * 1024)).toFixed(2)} MB
-                  {videoFile.size > 1024 * 1024 * 1024 && (
-                    <span className="block text-orange-500">
-                      ({(videoFile.size / (1024 * 1024 * 1024)).toFixed(2)} GB - Video lớn, có thể tải lâu)
-                    </span>
-                  )}
-                </p>
+                <div className="p-3 bg-muted rounded-lg">
+                  <p className="text-sm text-foreground font-medium">{videoFile.name}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {(videoFile.size / (1024 * 1024)).toFixed(2)} MB
+                    {videoFile.size > 1024 * 1024 * 1024 && (
+                      <span className="text-orange-500 ml-2">
+                        ({(videoFile.size / (1024 * 1024 * 1024)).toFixed(2)} GB - Video lớn, có thể tải lâu)
+                      </span>
+                    )}
+                  </p>
+                </div>
               )}
             </div>
           </div>
