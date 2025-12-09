@@ -140,6 +140,9 @@ export const AngelMascot: React.FC<AngelMascotProps> = ({ onTipReceived }) => {
             muted
             playsInline
             className="w-full h-full object-contain"
+            style={{
+              mixBlendMode: 'screen',
+            }}
           >
             <source src="/videos/angel-mascot.mp4" type="video/mp4" />
           </video>
