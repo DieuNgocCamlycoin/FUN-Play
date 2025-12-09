@@ -124,14 +124,14 @@ export const AngelMascot: React.FC<AngelMascotProps> = ({ onTipReceived }) => {
         onMouseLeave={handleMouseLeave}
         whileHover={{ filter: 'brightness(1.2)', scale: 1.1 }}
       >
-        {/* Angel Video - Looping */}
+        {/* Angel Video - Looping - Free flying without frame */}
         <motion.div
-          className="w-full h-full rounded-full overflow-hidden shadow-2xl"
+          className="w-full h-full"
           animate={controls}
           style={{
-            boxShadow: isExcited 
-              ? '0 0 30px rgba(255, 215, 0, 0.8), 0 0 60px rgba(0, 231, 255, 0.5)' 
-              : '0 0 20px rgba(255, 215, 0, 0.4), 0 0 40px rgba(0, 231, 255, 0.3)'
+            filter: isExcited 
+              ? 'drop-shadow(0 0 20px rgba(255, 215, 0, 0.8)) drop-shadow(0 0 40px rgba(0, 231, 255, 0.5))' 
+              : 'drop-shadow(0 0 12px rgba(255, 215, 0, 0.5)) drop-shadow(0 0 25px rgba(0, 231, 255, 0.3))'
           }}
         >
           <video
@@ -139,35 +139,11 @@ export const AngelMascot: React.FC<AngelMascotProps> = ({ onTipReceived }) => {
             loop
             muted
             playsInline
-            className="w-full h-full object-cover"
-            style={{ 
-              borderRadius: '50%',
-              transform: 'scale(1.2)'
-            }}
+            className="w-full h-full object-contain"
           >
             <source src="/videos/angel-mascot.mp4" type="video/mp4" />
           </video>
         </motion.div>
-
-        {/* Glow ring effect */}
-        <motion.div
-          className="absolute inset-0 rounded-full pointer-events-none"
-          style={{
-            border: '2px solid transparent',
-            background: 'linear-gradient(135deg, #00E7FF, #FFD700, #FF69B4, #00E7FF) border-box',
-            WebkitMask: 'linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0)',
-            WebkitMaskComposite: 'xor',
-            maskComposite: 'exclude',
-          }}
-          animate={{
-            rotate: [0, 360],
-            opacity: [0.6, 1, 0.6]
-          }}
-          transition={{ 
-            rotate: { duration: 8, repeat: Infinity, ease: "linear" },
-            opacity: { duration: 2, repeat: Infinity }
-          }}
-        />
 
         {/* Speech Bubble */}
         <AnimatePresence>
