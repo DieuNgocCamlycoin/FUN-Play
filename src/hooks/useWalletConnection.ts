@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getAccount, watchAccount, switchChain, getConnectors, disconnect } from '@wagmi/core';
-import { wagmiConfig, BSC_CHAIN_ID, BSC_CONFIG, getWeb3Modal, isMobileBrowser, isInWalletBrowser, getMobileWalletDeepLink, getAppStoreLink, isMetaMaskAvailable, isBitgetAvailable } from '@/lib/web3Config';
+import { getAccount, watchAccount, switchChain, disconnect, getBalance } from '@wagmi/core';
+import { wagmiConfig, BSC_CHAIN_ID, getWeb3Modal } from '@/lib/web3Config';
 import { bsc } from '@wagmi/core/chains';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { formatEther } from 'viem';
 
 export type WalletType = 'metamask' | 'bitget' | 'unknown';
 
@@ -16,12 +17,11 @@ interface UseWalletConnectionReturn {
   isCorrectChain: boolean;
   isLoading: boolean;
   isInitialized: boolean;
-  isMobile: boolean;
-  isInWallet: boolean;
-  connectWallet: (type?: WalletType) => Promise<void>;
+  bnbBalance: string;
+  connectWallet: () => Promise<void>;
   disconnectWallet: () => Promise<void>;
   switchToBSC: () => Promise<void>;
-  openInWalletApp: (type: WalletType) => void;
+  refreshBalance: () => Promise<void>;
 }
 
 export const useWalletConnection = (): UseWalletConnectionReturn => {
@@ -31,14 +31,13 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
   const [chainId, setChainId] = useState<number | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [bnbBalance, setBnbBalance] = useState('0');
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const isMobile = isMobileBrowser();
-  const isInWallet = isInWalletBrowser();
   const isCorrectChain = chainId === BSC_CHAIN_ID;
 
-  // Detect wallet type from connector
+  // Detect wallet type from connector name
   const detectWalletType = (connectorName: string): WalletType => {
     const name = connectorName.toLowerCase();
     if (name.includes('metamask')) return 'metamask';
@@ -46,12 +45,23 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
     return 'unknown';
   };
 
-  // Get wallet type display name
-  const getWalletDisplayName = (type: WalletType): string => {
-    if (type === 'metamask') return 'MetaMask';
-    if (type === 'bitget') return 'Bitget Wallet';
-    return 'Unknown';
-  };
+  // Fetch BNB balance
+  const fetchBalance = useCallback(async (addr: `0x${string}`) => {
+    try {
+      const balance = await getBalance(wagmiConfig, { address: addr, chainId: BSC_CHAIN_ID });
+      setBnbBalance(formatEther(balance.value));
+    } catch (error) {
+      console.error('Error fetching balance:', error);
+      setBnbBalance('0');
+    }
+  }, []);
+
+  // Refresh balance
+  const refreshBalance = useCallback(async () => {
+    if (address) {
+      await fetchBalance(address as `0x${string}`);
+    }
+  }, [address, fetchBalance]);
 
   // Save wallet info to database
   const saveWalletToDb = useCallback(async (walletAddress: string, type: WalletType) => {
@@ -61,7 +71,7 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
         .from('profiles')
         .update({
           wallet_address: walletAddress,
-          wallet_type: getWalletDisplayName(type),
+          wallet_type: type === 'metamask' ? 'MetaMask' : type === 'bitget' ? 'Bitget Wallet' : 'Unknown',
         })
         .eq('id', user.id);
     } catch (error) {
@@ -89,76 +99,27 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
   const switchToBSC = useCallback(async () => {
     try {
       setIsLoading(true);
-      
-      // Try to switch chain via wagmi
       await switchChain(wagmiConfig, { chainId: bsc.id });
-      
       toast({
         title: '✅ Đã chuyển sang BSC',
         description: 'Bạn đã kết nối với BNB Smart Chain',
       });
     } catch (error: any) {
-      // If chain doesn't exist, try to add it
-      if (error.code === 4902 || error.message?.includes('Unrecognized chain')) {
-        try {
-          const ethereum = (window as any).ethereum;
-          if (ethereum) {
-            await ethereum.request({
-              method: 'wallet_addEthereumChain',
-              params: [BSC_CONFIG],
-            });
-          }
-        } catch (addError) {
-          console.error('Failed to add BSC chain:', addError);
-          toast({
-            title: 'Không thể thêm BSC',
-            description: 'Vui lòng thêm BSC thủ công trong ví của bạn',
-            variant: 'destructive',
-          });
-        }
-      } else {
-        console.error('Failed to switch chain:', error);
-        toast({
-          title: 'Lỗi chuyển mạng',
-          description: 'Vui lòng chuyển sang BSC trong ví của bạn',
-          variant: 'destructive',
-        });
-      }
+      console.error('Failed to switch chain:', error);
+      toast({
+        title: 'Lỗi chuyển mạng',
+        description: 'Vui lòng chuyển sang BSC trong ví của bạn',
+        variant: 'destructive',
+      });
     } finally {
       setIsLoading(false);
     }
   }, [toast]);
 
-  // Open wallet app on mobile
-  const openInWalletApp = useCallback((type: WalletType) => {
-    if (!isMobile) return;
-    if (type === 'unknown') return;
-    
-    const deepLink = getMobileWalletDeepLink(type);
-    
-    // Try to open the deep link
-    window.location.href = deepLink;
-    
-    // If app is not installed, redirect to app store after a delay
-    setTimeout(() => {
-      const appStoreLink = getAppStoreLink(type);
-      window.location.href = appStoreLink;
-    }, 2500);
-  }, [isMobile]);
-
-  // Connect wallet
-  const connectWallet = useCallback(async (type?: WalletType) => {
+  // Connect wallet using Web3Modal
+  const connectWallet = useCallback(async () => {
     try {
       setIsLoading(true);
-
-      // On mobile, if not in wallet browser, open wallet app
-      if (isMobile && !isInWallet && type) {
-        openInWalletApp(type);
-        setIsLoading(false);
-        return;
-      }
-
-      // If in wallet browser or on desktop, use Web3Modal
       const modal = getWeb3Modal();
       if (modal) {
         await modal.open();
@@ -173,7 +134,7 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
     } finally {
       setIsLoading(false);
     }
-  }, [isMobile, isInWallet, openInWalletApp, toast]);
+  }, [toast]);
 
   // Disconnect wallet
   const disconnectWallet = useCallback(async () => {
@@ -186,6 +147,7 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
       setAddress('');
       setWalletType('unknown');
       setChainId(undefined);
+      setBnbBalance('0');
       
       toast({
         title: '✅ Đã ngắt kết nối',
@@ -210,12 +172,11 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
           setIsConnected(true);
           setChainId(account.chainId);
           
-          const connectors = getConnectors(wagmiConfig);
-          const activeConnector = connectors.find(c => c.id === account.connector?.id);
-          const type = detectWalletType(activeConnector?.name || '');
+          const type = detectWalletType(account.connector?.name || '');
           setWalletType(type);
           
           await saveWalletToDb(account.address, type);
+          await fetchBalance(account.address);
           
           // Auto-switch to BSC if on wrong chain
           if (account.chainId !== BSC_CHAIN_ID) {
@@ -240,12 +201,11 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
           setIsConnected(true);
           setChainId(account.chainId);
           
-          const connectors = getConnectors(wagmiConfig);
-          const activeConnector = connectors.find(c => c.id === account.connector?.id);
-          const type = detectWalletType(activeConnector?.name || '');
+          const type = detectWalletType(account.connector?.name || '');
           setWalletType(type);
           
           await saveWalletToDb(account.address, type);
+          await fetchBalance(account.address);
           
           // Auto-switch to BSC if on wrong chain
           if (account.chainId !== BSC_CHAIN_ID) {
@@ -256,13 +216,14 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
           setIsConnected(false);
           setWalletType('unknown');
           setChainId(undefined);
+          setBnbBalance('0');
           await clearWalletFromDb();
         }
       },
     });
 
     return () => unwatch();
-  }, [saveWalletToDb, clearWalletFromDb, switchToBSC]);
+  }, [saveWalletToDb, clearWalletFromDb, switchToBSC, fetchBalance]);
 
   return {
     isConnected,
@@ -272,11 +233,10 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
     isCorrectChain,
     isLoading,
     isInitialized,
-    isMobile,
-    isInWallet,
+    bnbBalance,
     connectWallet,
     disconnectWallet,
     switchToBSC,
-    openInWalletApp,
+    refreshBalance,
   };
 };
