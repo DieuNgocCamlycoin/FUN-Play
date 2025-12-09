@@ -1,1 +1,7 @@
 project_id = "fzgjmvxtgrlwrluxdwjq"
+
+[functions.ai-chat]
+verify_jwt = false
+
+[functions.angel-chat]
+verify_jwt = false

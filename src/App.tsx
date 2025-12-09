@@ -30,7 +30,7 @@ import NFTGallery from "./pages/NFTGallery";
 import { wagmiConfig } from '@/lib/web3Config';
 import { useCursorBeam } from './hooks/useCursorBeam';
 import { GlobalPaymentNotifications } from './components/Web3/GlobalPaymentNotifications';
-import { AIChatbot } from './components/AI/AIChatbot';
+import { AngelMascot } from './components/Mascot/AngelMascot';
 
 const queryClient = new QueryClient();
 
@@ -40,7 +40,7 @@ function AppContent() {
   return (
     <>
       <GlobalPaymentNotifications />
-      <AIChatbot />
+      <AngelMascot />
       <div>
         <Routes>
         <Route path="/" element={<Index />} />
