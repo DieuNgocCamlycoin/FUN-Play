@@ -104,8 +104,8 @@ export const AngelMascot: React.FC<AngelMascotProps> = ({ onTipReceived }) => {
         ref={angelRef}
         className="fixed z-[9999] cursor-pointer select-none pointer-events-auto"
         style={{ 
-          width: 'clamp(60px, 10vw, 90px)', 
-          height: 'clamp(60px, 10vw, 90px)',
+          width: '90px', 
+          height: '120px',
         }}
         initial={{ x: 100, y: 100 }}
         animate={{ 
@@ -144,7 +144,7 @@ export const AngelMascot: React.FC<AngelMascotProps> = ({ onTipReceived }) => {
               mixBlendMode: 'screen',
             }}
           >
-            <source src="/videos/angel-mascot.mp4" type="video/mp4" />
+            <source src="/videos/angel-mascot-new.mp4" type="video/mp4" />
           </video>
         </motion.div>
 
