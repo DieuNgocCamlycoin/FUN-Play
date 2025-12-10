@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import { AngelChat } from './AngelChat';
-
 interface AngelMascotProps {
   onTipReceived?: boolean;
 }
@@ -27,6 +26,7 @@ export const AngelMascot: React.FC<AngelMascotProps> = ({ onTipReceived }) => {
   const [currentAnimation, setCurrentAnimation] = useState<'flying' | 'sitting' | 'dancing' | 'waving'>('flying');
   const controls = useAnimation();
   const angelRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   // Find perch target element position
   const findPerchPosition = useCallback(() => {
@@ -178,9 +178,9 @@ export const AngelMascot: React.FC<AngelMascotProps> = ({ onTipReceived }) => {
         onMouseLeave={handleMouseLeave}
         whileHover={{ filter: 'brightness(1.2)', scale: 1.05 }}
       >
-        {/* Angel Video - Pure transparent character */}
+        {/* Angel Video - CSS Background Removal */}
         <motion.div
-          className="w-full h-full"
+          className="w-full h-full relative overflow-hidden"
           animate={controls}
           style={{
             filter: isExcited 
@@ -189,14 +189,16 @@ export const AngelMascot: React.FC<AngelMascotProps> = ({ onTipReceived }) => {
           }}
         >
           <video
+            ref={videoRef}
             autoPlay
             loop
             muted
             playsInline
-            className="w-full h-full object-cover scale-[2] translate-y-2"
+            className="w-full h-full object-cover scale-[2.2] translate-y-1"
             style={{
               background: 'transparent',
-              borderRadius: '50%',
+              mixBlendMode: 'multiply',
+              filter: 'contrast(1.4) saturate(1.5) brightness(1.0)',
             }}
           >
             <source src="/videos/angel-mascot-new.mp4" type="video/mp4" />
