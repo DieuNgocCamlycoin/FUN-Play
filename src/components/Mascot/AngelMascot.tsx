@@ -1,47 +1,19 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import { AngelChat } from './AngelChat';
+
 interface AngelMascotProps {
   onTipReceived?: boolean;
 }
-
-interface PerchTarget {
-  selector: string;
-  name: string;
-  offsetX: number;
-  offsetY: number;
-}
-
-const PERCH_TARGETS: PerchTarget[] = [
-  { selector: '[data-logo]', name: 'logo', offsetX: 0, offsetY: -60 },
-  { selector: '[data-wallet-button]', name: 'wallet', offsetX: 0, offsetY: -65 },
-  { selector: '[data-notification-bell]', name: 'bell', offsetX: 0, offsetY: -60 },
-];
 
 export const AngelMascot: React.FC<AngelMascotProps> = ({ onTipReceived }) => {
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isExcited, setIsExcited] = useState(false);
-  const [isPerching, setIsPerching] = useState(false);
   const [currentAnimation, setCurrentAnimation] = useState<'flying' | 'sitting' | 'dancing' | 'waving'>('flying');
+  const [targetElement, setTargetElement] = useState<string | null>(null);
   const controls = useAnimation();
   const angelRef = useRef<HTMLDivElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-
-  // Find perch target element position
-  const findPerchPosition = useCallback(() => {
-    const randomTarget = PERCH_TARGETS[Math.floor(Math.random() * PERCH_TARGETS.length)];
-    const element = document.querySelector(randomTarget.selector);
-    if (element) {
-      const rect = element.getBoundingClientRect();
-      return {
-        x: rect.left + rect.width / 2 - 45 + randomTarget.offsetX,
-        y: rect.top + randomTarget.offsetY,
-        found: true
-      };
-    }
-    return { x: 0, y: 0, found: false };
-  }, []);
 
   // Random idle animations
   useEffect(() => {
@@ -56,37 +28,20 @@ export const AngelMascot: React.FC<AngelMascotProps> = ({ onTipReceived }) => {
     return () => clearInterval(idleInterval);
   }, [isExcited, isChatOpen]);
 
-  // Flying and perching movement
+  // Flying movement
   useEffect(() => {
     if (currentAnimation === 'flying' && !isChatOpen) {
       const moveInterval = setInterval(() => {
-        // 30% chance to perch on an element
-        if (Math.random() < 0.3) {
-          const perchPos = findPerchPosition();
-          if (perchPos.found) {
-            setPosition({ x: perchPos.x, y: perchPos.y });
-            setIsPerching(true);
-            setCurrentAnimation('sitting');
-            // Stay perched for 4-6 seconds
-            setTimeout(() => {
-              setIsPerching(false);
-              setCurrentAnimation('flying');
-            }, 4000 + Math.random() * 2000);
-            return;
-          }
-        }
-        
-        // Normal flying
-        const maxX = window.innerWidth - 100;
-        const maxY = window.innerHeight - 130;
-        const newX = Math.max(10, Math.random() * maxX);
-        const newY = Math.max(10, Math.random() * maxY);
+        const maxX = window.innerWidth - 150;
+        const maxY = window.innerHeight - 150;
+        const newX = Math.random() * maxX;
+        const newY = Math.random() * maxY;
         setPosition({ x: newX, y: newY });
       }, 5000);
 
       return () => clearInterval(moveInterval);
     }
-  }, [currentAnimation, isChatOpen, findPerchPosition]);
+  }, [currentAnimation, isChatOpen]);
 
   // Listen for tip received events
   useEffect(() => {
@@ -143,12 +98,6 @@ export const AngelMascot: React.FC<AngelMascotProps> = ({ onTipReceived }) => {
     });
   };
 
-  // Gentle wing flapping animation for perching
-  const perchingAnimation = {
-    y: isPerching ? [0, -3, 0, -2, 0] : 0,
-    rotate: isPerching ? [0, -2, 2, -1, 0] : 0,
-  };
-
   return (
     <>
       <motion.div
@@ -163,42 +112,37 @@ export const AngelMascot: React.FC<AngelMascotProps> = ({ onTipReceived }) => {
           x: isChatOpen ? window.innerWidth / 2 - 45 : position.x, 
           y: isChatOpen ? window.innerHeight / 2 - 150 : position.y,
           rotate: isExcited ? [0, -15, 15, -15, 15, 0] : 0,
-          ...perchingAnimation,
         }}
         transition={{ 
           type: 'spring', 
-          stiffness: isPerching ? 100 : 50, 
-          damping: isPerching ? 20 : 15,
-          duration: isPerching ? 1 : 2,
-          y: { repeat: isPerching ? Infinity : 0, duration: 1.5 },
-          rotate: { repeat: isPerching ? Infinity : 0, duration: 2 },
+          stiffness: 50, 
+          damping: 15,
+          duration: 2
         }}
         onClick={handleClick}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
-        whileHover={{ filter: 'brightness(1.2)', scale: 1.05 }}
+        whileHover={{ filter: 'brightness(1.2)', scale: 1.1 }}
       >
-        {/* Angel Video - CSS Background Removal */}
+        {/* Angel Video - Pure character, no frame, transparent background */}
         <motion.div
-          className="w-full h-full relative overflow-hidden"
+          className="w-full h-full"
           animate={controls}
           style={{
             filter: isExcited 
-              ? 'drop-shadow(0 0 20px rgba(255, 182, 193, 0.8)) drop-shadow(0 0 30px rgba(148, 0, 211, 0.5)) drop-shadow(0 0 40px rgba(255, 215, 0, 0.4))' 
-              : 'drop-shadow(0 0 10px rgba(255, 182, 193, 0.6)) drop-shadow(0 0 20px rgba(148, 0, 211, 0.3))'
+              ? 'drop-shadow(0 0 15px rgba(255, 215, 0, 0.6))' 
+              : 'drop-shadow(0 0 8px rgba(255, 215, 0, 0.4))'
           }}
         >
           <video
-            ref={videoRef}
             autoPlay
             loop
             muted
             playsInline
-            className="w-full h-full object-cover scale-[2.2] translate-y-1"
+            className="w-full h-full object-contain"
             style={{
+              mixBlendMode: 'screen',
               background: 'transparent',
-              mixBlendMode: 'multiply',
-              filter: 'contrast(1.4) saturate(1.5) brightness(1.0)',
             }}
           >
             <source src="/videos/angel-mascot-new.mp4" type="video/mp4" />

@@ -87,7 +87,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
       >
         <Menu className="h-5 w-5" />
       </Button>
-        <div data-logo className="flex items-center gap-3 cursor-pointer hover:bg-accent/50 rounded-xl px-4 py-2 transition-all duration-300 border border-border/50 hover:border-primary/30 shadow-sm hover:shadow-md" onClick={() => navigate("/")}>
+        <div className="flex items-center gap-3 cursor-pointer hover:bg-accent/50 rounded-xl px-4 py-2 transition-all duration-300 border border-border/50 hover:border-primary/30 shadow-sm hover:shadow-md" onClick={() => navigate("/")}>
           <div className="bg-gradient-to-br from-primary to-primary/80 rounded-lg px-3 py-2 flex items-center justify-center shadow-lg">
             <Play className="h-6 w-6 text-white fill-white" />
           </div>
@@ -141,9 +141,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
 
       {/* Right section */}
       <div className="flex items-center gap-2">
-        <div data-wallet-button>
-          <MultiTokenWallet />
-        </div>
+        <MultiTokenWallet />
         
         {user && (
           <DropdownMenu>
@@ -174,7 +172,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
           </DropdownMenu>
         )}
         
-        <Button data-notification-bell variant="ghost" size="icon" className="hidden md:flex">
+        <Button variant="ghost" size="icon" className="hidden md:flex">
           <Bell className="h-5 w-5" />
         </Button>
         
