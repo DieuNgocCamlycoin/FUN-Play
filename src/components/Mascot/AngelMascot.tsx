@@ -193,10 +193,11 @@ export const AngelMascot: React.FC<AngelMascotProps> = ({ onTipReceived }) => {
             loop
             muted
             playsInline
-            className="w-full h-full object-cover rounded-full"
+            className="w-full h-full object-contain"
             style={{
               background: 'transparent',
-              clipPath: 'ellipse(45% 48% at 50% 50%)',
+              mixBlendMode: 'screen',
+              filter: 'contrast(1.1) brightness(1.05)',
             }}
           >
             <source src="/videos/angel-mascot-new.mp4" type="video/mp4" />
