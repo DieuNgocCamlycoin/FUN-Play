@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import { AngelChat } from './AngelChat';
+import angelMascotImage from '@/assets/angel-mascot.png';
 
 interface AngelMascotProps {
   onTipReceived?: boolean;
@@ -124,7 +125,7 @@ export const AngelMascot: React.FC<AngelMascotProps> = ({ onTipReceived }) => {
         onMouseLeave={handleMouseLeave}
         whileHover={{ filter: 'brightness(1.2)', scale: 1.1 }}
       >
-        {/* Angel Video - Looping - Transparent background using advanced blend */}
+        {/* Angel Image with CSS Animations - True transparent background */}
         <motion.div
           className="w-full h-full relative"
           animate={controls}
@@ -134,34 +135,21 @@ export const AngelMascot: React.FC<AngelMascotProps> = ({ onTipReceived }) => {
               : 'drop-shadow(0 0 12px rgba(255, 215, 0, 0.5)) drop-shadow(0 0 25px rgba(0, 231, 255, 0.3))'
           }}
         >
-          {/* Layer 1: Screen blend to remove dark backgrounds */}
-          <video
-            autoPlay
-            loop
-            muted
-            playsInline
-            className="absolute inset-0 w-full h-full object-contain"
-            style={{
-              mixBlendMode: 'screen',
-              filter: 'contrast(1.1) saturate(1.2) brightness(1.05)',
+          <motion.img
+            src={angelMascotImage}
+            alt="Angel Mascot"
+            className="w-full h-full object-contain"
+            animate={{
+              y: [0, -5, 0, -3, 0],
+              rotate: [0, -2, 0, 2, 0],
+              scale: isExcited ? [1, 1.1, 1, 1.15, 1] : [1, 1.02, 1],
             }}
-          >
-            <source src="/videos/angel-mascot-new.mp4" type="video/mp4" />
-          </video>
-          {/* Layer 2: Lighten blend for enhanced transparency effect */}
-          <video
-            autoPlay
-            loop
-            muted
-            playsInline
-            className="absolute inset-0 w-full h-full object-contain opacity-60"
-            style={{
-              mixBlendMode: 'lighten',
-              filter: 'contrast(1.2) brightness(1.1)',
+            transition={{
+              duration: isExcited ? 0.5 : 3,
+              repeat: Infinity,
+              ease: "easeInOut"
             }}
-          >
-            <source src="/videos/angel-mascot-new.mp4" type="video/mp4" />
-          </video>
+          />
         </motion.div>
 
         {/* Speech Bubble */}
