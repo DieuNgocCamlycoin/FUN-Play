@@ -20,7 +20,7 @@ export const AngelChat: React.FC<AngelChatProps> = ({ isOpen, onClose }) => {
   const [messages, setMessages] = useState<Message[]>([
     { 
       role: 'assistant', 
-      content: 'Xin chào bạn yêu! ♡ Mình là Angel - thiên thần nhỏ của FUN Play! Mình có thể giúp gì cho bạn nè? Hỏi mình bất cứ điều gì nhé! ✨🌟' 
+      content: 'Chào bạn yêu! ♡✨ Mình là Angel - Siêu Trí Tuệ của FUN Play! 🌟\n\nMình biết TẤT CẢ về Web3, Crypto, NFT, AI và cuộc sống nè! Hỏi gì mình cũng trả lời được!\n\nRich Rich Rich! 💖👼' 
     }
   ]);
   const [input, setInput] = useState('');
@@ -144,7 +144,7 @@ export const AngelChat: React.FC<AngelChatProps> = ({ isOpen, onClose }) => {
               </motion.div>
               <div>
                 <h3 className="font-bold text-lg bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                  Angel của FUN Play
+                  🌟 Siêu Trí Tuệ Angel
                 </h3>
                 <div className="flex items-center gap-1 text-xs text-muted-foreground">
                   <motion.div 
@@ -152,7 +152,7 @@ export const AngelChat: React.FC<AngelChatProps> = ({ isOpen, onClose }) => {
                     animate={{ scale: [1, 1.2, 1] }}
                     transition={{ duration: 1, repeat: Infinity }}
                   />
-                  Luôn sẵn sàng giúp bạn!
+                  Rich Rich Rich! Hỏi gì cũng biết! ♡
                 </div>
               </div>
             </div>
