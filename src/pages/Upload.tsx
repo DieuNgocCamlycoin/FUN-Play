@@ -10,6 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { useR2Upload } from "@/hooks/useR2Upload";
 import { Upload as UploadIcon, Video, CheckCircle } from "lucide-react";
 
 export default function Upload() {
@@ -80,33 +81,32 @@ export default function Upload() {
     setUploadStage("Đang chuẩn bị...");
 
     try {
-      // Upload avatar first if provided
+      // Upload avatar first if provided - use R2
+      let avatarPublicUrl = null;
       if (avatarFile) {
-        setUploadStage("Đang tải ảnh đại diện...");
+        setUploadStage("Đang tải ảnh đại diện lên R2...");
         setUploadProgress(2);
         
-        const fileExt = avatarFile.name.split(".").pop();
-        const fileName = `avatar-${user.id}-${Date.now()}.${fileExt}`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from("thumbnails")
-          .upload(fileName, avatarFile, {
-            cacheControl: '3600',
-            upsert: true
+        const { data: presignData, error: presignError } = await supabase.functions.invoke('r2-upload', {
+          body: {
+            action: 'getPresignedUrl',
+            fileName: `avatars/${user.id}/${Date.now()}-${avatarFile.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`,
+            contentType: avatarFile.type,
+            fileSize: avatarFile.size,
+          }
+        });
+
+        if (!presignError && presignData?.presignedUrl) {
+          const uploadResponse = await fetch(presignData.presignedUrl, {
+            method: 'PUT',
+            body: avatarFile,
+            headers: { 'Content-Type': avatarFile.type },
           });
 
-        if (!uploadError) {
-          const { data: { publicUrl } } = supabase.storage
-            .from("thumbnails")
-            .getPublicUrl(fileName);
-
-          // Update profile with new avatar
-          await supabase
-            .from("profiles")
-            .update({
-              avatar_url: publicUrl,
-            })
-            .eq('id', user.id);
+          if (uploadResponse.ok) {
+            avatarPublicUrl = presignData.publicUrl;
+            await supabase.from("profiles").update({ avatar_url: avatarPublicUrl }).eq('id', user.id);
+          }
         }
       }
 
@@ -114,7 +114,6 @@ export default function Upload() {
       setUploadStage("Đang kiểm tra kênh...");
       setUploadProgress(5);
       
-      // Retry logic for channel fetch
       let channelId = null;
       let retryChannel = 0;
       const maxChannelRetries = 3;
@@ -160,90 +159,92 @@ export default function Upload() {
         }
       }
 
-      // Step 2: Upload video (10% - 85% progress)
+      // Step 2: Upload video to R2 (10% - 85% progress)
       const fileSizeGB = (videoFile.size / (1024 * 1024 * 1024)).toFixed(2);
-      setUploadStage(`Đang tải video lên... (${fileSizeGB} GB)`);
+      setUploadStage(`Đang tải video lên R2... (${fileSizeGB} GB)`);
       setUploadProgress(10);
       
-      const sanitizedVideoName = videoFile.name
-        .replace(/[^a-zA-Z0-9._-]/g, "_")
-        .substring(0, 100);
-      const videoPath = `${user.id}/${Date.now()}-${sanitizedVideoName}`;
+      const sanitizedVideoName = videoFile.name.replace(/[^a-zA-Z0-9._-]/g, "_").substring(0, 100);
+      const videoFileName = `videos/${user.id}/${Date.now()}-${sanitizedVideoName}`;
       
-      // Upload with enhanced retry logic for large files
-      let uploadSuccess = false;
-      let retryCount = 0;
-      const maxRetries = 5; // Increased retries
-      
-      while (!uploadSuccess && retryCount < maxRetries) {
-        try {
-          setUploadProgress(10 + (retryCount * 3));
-          setUploadStage(`Đang tải video lên... (${fileSizeGB} GB) - Lần thử ${retryCount + 1}/${maxRetries}`);
-          
-          // Create an AbortController for timeout
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minutes per attempt
-          
-          const { error: videoUploadError, data } = await supabase.storage
-            .from("videos")
-            .upload(videoPath, videoFile, {
-              cacheControl: '3600',
-              upsert: false,
-            });
-
-          clearTimeout(timeoutId);
-
-          if (videoUploadError) {
-            console.error('Upload error:', videoUploadError);
-            throw videoUploadError;
-          }
-          
-          uploadSuccess = true;
-          setUploadProgress(85);
-          setUploadStage(`Upload hoàn tất! Đang xử lý...`);
-        } catch (error: any) {
-          retryCount++;
-          console.error(`Upload attempt ${retryCount} failed:`, error);
-          
-          if (retryCount >= maxRetries) {
-            throw new Error(`Không thể tải video lên sau ${maxRetries} lần thử. ${error.message || 'Vui lòng kiểm tra kết nối mạng và thử lại.'}`);
-          }
-          
-          // Exponential backoff: wait longer between each retry
-          const waitTime = Math.min(1000 * Math.pow(2, retryCount), 10000); // Max 10s
-          setUploadStage(`Đang thử lại sau ${(waitTime/1000).toFixed(0)}s... (Lần ${retryCount}/${maxRetries})`);
-          await new Promise(resolve => setTimeout(resolve, waitTime));
+      // Get presigned URL for video
+      const { data: videoPresign, error: videoPresignError } = await supabase.functions.invoke('r2-upload', {
+        body: {
+          action: 'getPresignedUrl',
+          fileName: videoFileName,
+          contentType: videoFile.type,
+          fileSize: videoFile.size,
         }
+      });
+
+      if (videoPresignError || !videoPresign?.presignedUrl) {
+        throw new Error("Không thể lấy URL upload video");
       }
 
-      if (!uploadSuccess) {
-        throw new Error("Không thể tải video lên sau nhiều lần thử. Vui lòng kiểm tra kết nối internet và thử lại sau.");
-      }
+      // Upload video with progress tracking
+      const videoUploadPromise = new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable) {
+            const percentage = Math.round((event.loaded / event.total) * 75) + 10; // 10-85%
+            setUploadProgress(percentage);
+            setUploadStage(`Đang tải video lên R2... ${Math.round((event.loaded / event.total) * 100)}%`);
+          }
+        };
 
-      const { data: videoUrl } = supabase.storage
-        .from("videos")
-        .getPublicUrl(videoPath);
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve();
+          } else {
+            reject(new Error(`Upload failed: ${xhr.status}`));
+          }
+        };
 
-      // Step 3: Upload thumbnail (85% - 90% progress)
+        xhr.onerror = () => reject(new Error("Network error"));
+        xhr.ontimeout = () => reject(new Error("Upload timeout"));
+        
+        xhr.open('PUT', videoPresign.presignedUrl);
+        xhr.setRequestHeader('Content-Type', videoFile.type);
+        xhr.timeout = 600000; // 10 minutes
+        xhr.send(videoFile);
+      });
+
+      await videoUploadPromise;
+      
+      setUploadProgress(85);
+      setUploadStage("Video đã tải lên R2! Đang xử lý...");
+
+      const videoUrl = videoPresign.publicUrl;
+
+      // Step 3: Upload thumbnail to R2 (85% - 90% progress)
       let thumbnailUrl = null;
       if (thumbnailFile) {
-        setUploadStage("Đang tải thumbnail...");
+        setUploadStage("Đang tải thumbnail lên R2...");
         setUploadProgress(87);
         
-        const sanitizedThumbName = thumbnailFile.name
-          .replace(/[^a-zA-Z0-9._-]/g, "_")
-          .substring(0, 100);
-        const thumbnailPath = `${user.id}/${Date.now()}-${sanitizedThumbName}`;
+        const sanitizedThumbName = thumbnailFile.name.replace(/[^a-zA-Z0-9._-]/g, "_").substring(0, 100);
+        const thumbnailFileName = `thumbnails/${user.id}/${Date.now()}-${sanitizedThumbName}`;
         
-        const { error: thumbnailUploadError } = await supabase.storage
-          .from("thumbnails")
-          .upload(thumbnailPath, thumbnailFile);
+        const { data: thumbPresign } = await supabase.functions.invoke('r2-upload', {
+          body: {
+            action: 'getPresignedUrl',
+            fileName: thumbnailFileName,
+            contentType: thumbnailFile.type,
+            fileSize: thumbnailFile.size,
+          }
+        });
 
-        if (!thumbnailUploadError) {
-          const { data: thumbUrl } = supabase.storage
-            .from("thumbnails")
-            .getPublicUrl(thumbnailPath);
-          thumbnailUrl = thumbUrl.publicUrl;
+        if (thumbPresign?.presignedUrl) {
+          const thumbResponse = await fetch(thumbPresign.presignedUrl, {
+            method: 'PUT',
+            body: thumbnailFile,
+            headers: { 'Content-Type': thumbnailFile.type },
+          });
+          
+          if (thumbResponse.ok) {
+            thumbnailUrl = thumbPresign.publicUrl;
+          }
         }
       }
 
@@ -258,7 +259,7 @@ export default function Upload() {
         channel_id: channelId,
         title,
         description,
-        video_url: videoUrl.publicUrl,
+        video_url: videoUrl,
         thumbnail_url: thumbnailUrl,
         is_public: true,
       });

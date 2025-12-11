@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useR2Upload } from "@/hooks/useR2Upload";
 import { Image, Loader2 } from "lucide-react";
 
 const CreatePost = () => {
@@ -20,6 +21,7 @@ const CreatePost = () => {
   const { user, loading } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { uploadToR2 } = useR2Upload({ folder: 'posts' });
 
   if (loading) {
     return <div className="flex items-center justify-center h-screen">Loading...</div>;
@@ -70,21 +72,12 @@ const CreatePost = () => {
 
       let imageUrl = null;
 
-      // Upload image if provided
+      // Upload image to R2 if provided
       if (image) {
-        const fileExt = image.name.split(".").pop();
-        const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-        const { error: uploadError } = await supabase.storage
-          .from("thumbnails")
-          .upload(fileName, image);
-
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from("thumbnails")
-          .getPublicUrl(fileName);
-
-        imageUrl = publicUrl;
+        const result = await uploadToR2(image);
+        if (result) {
+          imageUrl = result.publicUrl;
+        }
       }
 
       // Create post

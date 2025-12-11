@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useR2Upload } from "@/hooks/useR2Upload";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,6 +18,7 @@ export default function ProfileSettings() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { uploadToR2 } = useR2Upload({ folder: 'music' });
   
   const [displayName, setDisplayName] = useState("");
   const [walletAddress, setWalletAddress] = useState("");
@@ -196,28 +198,16 @@ export default function ProfileSettings() {
     setIsUploadingMusic(true);
 
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${user!.id}/music_${Date.now()}.${fileExt}`;
-
-      const { error: uploadError, data } = await supabase.storage
-        .from('uploads')
-        .upload(fileName, file, {
-          cacheControl: '3600',
-          upsert: false
-        });
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('uploads')
-        .getPublicUrl(fileName);
-
-      setMusicUrl(publicUrl);
+      // Upload to R2
+      const result = await uploadToR2(file);
       
-      toast({
-        title: "Tải lên thành công",
-        description: "File nhạc đã được tải lên và sẵn sàng sử dụng",
-      });
+      if (result) {
+        setMusicUrl(result.publicUrl);
+        toast({
+          title: "Tải lên thành công",
+          description: "File nhạc đã được tải lên R2 và sẵn sàng sử dụng",
+        });
+      }
     } catch (error: any) {
       toast({
         title: "Lỗi tải lên",

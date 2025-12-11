@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useR2Upload } from "@/hooks/useR2Upload";
 import { Loader2, Upload } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -32,6 +33,7 @@ export const StudioSettings = () => {
 
   const { user } = useAuth();
   const { toast } = useToast();
+  const { uploadToR2 } = useR2Upload();
 
   useEffect(() => {
     if (user) {
@@ -128,19 +130,11 @@ export const StudioSettings = () => {
       let bannerUrl = currentBannerUrl;
 
       if (banner) {
-        const fileExt = banner.name.split(".").pop();
-        const fileName = `banner-${user?.id}-${Date.now()}.${fileExt}`;
-        const { error: uploadError } = await supabase.storage
-          .from("thumbnails")
-          .upload(fileName, banner);
-
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from("thumbnails")
-          .getPublicUrl(fileName);
-
-        bannerUrl = publicUrl;
+        // Upload to R2
+        const result = await uploadToR2(banner, `banners/${user?.id}/${Date.now()}-${banner.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`);
+        if (result) {
+          bannerUrl = result.publicUrl;
+        }
       }
 
       // Use upsert to handle both insert and update
@@ -183,19 +177,11 @@ export const StudioSettings = () => {
       let avatarUrl = currentAvatarUrl;
 
       if (avatar) {
-        const fileExt = avatar.name.split(".").pop();
-        const fileName = `avatar-${user?.id}-${Date.now()}.${fileExt}`;
-        const { error: uploadError } = await supabase.storage
-          .from("thumbnails")
-          .upload(fileName, avatar);
-
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from("thumbnails")
-          .getPublicUrl(fileName);
-
-        avatarUrl = publicUrl;
+        // Upload to R2
+        const result = await uploadToR2(avatar, `avatars/${user?.id}/${Date.now()}-${avatar.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`);
+        if (result) {
+          avatarUrl = result.publicUrl;
+        }
       }
 
       // Use upsert to handle both insert and update

@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useR2Upload } from "@/hooks/useR2Upload";
 import { Image, Loader2 } from "lucide-react";
 
 const EditPost = () => {
@@ -23,6 +24,7 @@ const EditPost = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { uploadToR2 } = useR2Upload({ folder: 'posts' });
 
   useEffect(() => {
     if (!user) {
@@ -97,21 +99,12 @@ const EditPost = () => {
 
       let imageUrl = currentImageUrl;
 
-      // Upload new image if provided
+      // Upload new image to R2 if provided
       if (image) {
-        const fileExt = image.name.split(".").pop();
-        const fileName = `${user?.id}-${Date.now()}.${fileExt}`;
-        const { error: uploadError } = await supabase.storage
-          .from("thumbnails")
-          .upload(fileName, image);
-
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from("thumbnails")
-          .getPublicUrl(fileName);
-
-        imageUrl = publicUrl;
+        const result = await uploadToR2(image);
+        if (result) {
+          imageUrl = result.publicUrl;
+        }
       }
 
       const { error } = await supabase

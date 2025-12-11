@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useR2Upload } from "@/hooks/useR2Upload";
 import { Loader2, Upload } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -32,6 +33,7 @@ export const EditVideoModal = ({ video, open, onClose, onSaved }: EditVideoModal
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(video.thumbnail_url);
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
+  const { uploadToR2 } = useR2Upload({ folder: 'thumbnails' });
 
   const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -60,21 +62,12 @@ export const EditVideoModal = ({ video, open, onClose, onSaved }: EditVideoModal
 
       let thumbnailUrl = video.thumbnail_url;
 
-      // Upload new thumbnail if provided
+      // Upload new thumbnail to R2 if provided
       if (thumbnail) {
-        const fileExt = thumbnail.name.split(".").pop();
-        const fileName = `${video.id}-${Date.now()}.${fileExt}`;
-        const { error: uploadError } = await supabase.storage
-          .from("thumbnails")
-          .upload(fileName, thumbnail);
-
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from("thumbnails")
-          .getPublicUrl(fileName);
-
-        thumbnailUrl = publicUrl;
+        const result = await uploadToR2(thumbnail);
+        if (result) {
+          thumbnailUrl = result.publicUrl;
+        }
       }
 
       const { error } = await supabase

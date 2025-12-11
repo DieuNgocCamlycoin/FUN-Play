@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { Upload, X, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useR2Upload } from "@/hooks/useR2Upload";
 
 interface DragDropImageUploadProps {
   currentImageUrl?: string;
@@ -23,82 +24,53 @@ export function DragDropImageUpload({
   maxSizeMB = 5,
 }: DragDropImageUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | undefined>(currentImageUrl);
   const { toast } = useToast();
+  const { uploadToR2, uploading: isUploading } = useR2Upload({ folder: folderPath });
 
   const uploadFile = async (file: File) => {
-    try {
-      setIsUploading(true);
-
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast({
-          title: "Authentication required",
-          description: "Please log in to upload files",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Validate file size
-      const fileSizeMB = file.size / (1024 * 1024);
-      if (fileSizeMB > maxSizeMB) {
-        toast({
-          title: "File too large",
-          description: `Please select an image under ${maxSizeMB}MB`,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Validate file type
-      if (!file.type.startsWith("image/")) {
-        toast({
-          title: "Invalid file type",
-          description: "Please select an image file",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Generate unique filename with user ID prefix for RLS
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
-      const filePath = `${user.id}/${folderPath}/${fileName}`;
-
-      // Upload to Supabase storage
-      const { error: uploadError } = await supabase.storage
-        .from(bucketName)
-        .upload(filePath, file, {
-          cacheControl: "3600",
-          upsert: false,
-        });
-
-      if (uploadError) throw uploadError;
-
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from(bucketName)
-        .getPublicUrl(filePath);
-
-      setPreviewUrl(publicUrl);
-      onImageUploaded(publicUrl);
-
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
       toast({
-        title: "Upload successful",
-        description: "Your image has been uploaded",
-      });
-    } catch (error: any) {
-      console.error("Upload error:", error);
-      toast({
-        title: "Upload failed",
-        description: error.message || "Failed to upload image",
+        title: "Authentication required",
+        description: "Please log in to upload files",
         variant: "destructive",
       });
-    } finally {
-      setIsUploading(false);
+      return;
+    }
+
+    // Validate file size
+    const fileSizeMB = file.size / (1024 * 1024);
+    if (fileSizeMB > maxSizeMB) {
+      toast({
+        title: "File too large",
+        description: `Please select an image under ${maxSizeMB}MB`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      toast({
+        title: "Invalid file type",
+        description: "Please select an image file",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Upload to R2
+    const result = await uploadToR2(file);
+    
+    if (result) {
+      setPreviewUrl(result.publicUrl);
+      onImageUploaded(result.publicUrl);
+      toast({
+        title: "Upload successful",
+        description: "Your image has been uploaded to cloud storage",
+      });
     }
   };
 
