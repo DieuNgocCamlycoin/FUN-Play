@@ -1,10 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Send, Sparkles, Heart, Volume2, VolumeX } from 'lucide-react';
+import { X, Send, Sparkles, Heart, Volume2, VolumeX, Baby, Mic } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
+
+type VoiceProvider = 'openai' | 'elevenlabs';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -28,6 +30,7 @@ export const AngelChat: React.FC<AngelChatProps> = ({ isOpen, onClose }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [voiceProvider, setVoiceProvider] = useState<VoiceProvider>('elevenlabs'); // Default to baby voice
   const [isSpeaking, setIsSpeaking] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -48,8 +51,10 @@ export const AngelChat: React.FC<AngelChatProps> = ({ isOpen, onClose }) => {
     };
   }, []);
 
-  const speakText = async (text: string) => {
+  const speakText = async (text: string, provider?: VoiceProvider) => {
     if (!voiceEnabled) return;
+    
+    const useProvider = provider || voiceProvider;
     
     try {
       setIsSpeaking(true);
@@ -62,12 +67,21 @@ export const AngelChat: React.FC<AngelChatProps> = ({ isOpen, onClose }) => {
         return;
       }
 
-      const { data, error } = await supabase.functions.invoke('angel-voice', {
+      // Choose voice function based on provider
+      const functionName = useProvider === 'elevenlabs' ? 'angel-voice-elevenlabs' : 'angel-voice';
+      console.log(`🎤 Using ${useProvider} voice for Angel`);
+
+      const { data, error } = await supabase.functions.invoke(functionName, {
         body: { text: cleanText }
       });
 
       if (error) {
         console.error('Voice error:', error);
+        // Fallback to other provider if one fails
+        if (useProvider === 'elevenlabs') {
+          console.log('🔄 Falling back to OpenAI voice...');
+          return speakText(text, 'openai');
+        }
         setIsSpeaking(false);
         return;
       }
@@ -85,6 +99,11 @@ export const AngelChat: React.FC<AngelChatProps> = ({ isOpen, onClose }) => {
       audio.onerror = () => {
         setIsSpeaking(false);
         URL.revokeObjectURL(audioUrl);
+        // Fallback to other provider if one fails
+        if (useProvider === 'elevenlabs') {
+          console.log('🔄 Falling back to OpenAI voice...');
+          speakText(text, 'openai');
+        }
       };
       
       await audio.play();
@@ -201,6 +220,17 @@ export const AngelChat: React.FC<AngelChatProps> = ({ isOpen, onClose }) => {
                 </div>
               </div>
             </div>
+            
+            {/* Voice provider toggle */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className={`absolute top-3 right-20 hover:bg-primary/20 ${voiceProvider === 'elevenlabs' ? 'text-pink-500' : 'text-blue-500'}`}
+              onClick={() => setVoiceProvider(voiceProvider === 'elevenlabs' ? 'openai' : 'elevenlabs')}
+              title={voiceProvider === 'elevenlabs' ? 'Giọng em bé (ElevenLabs)' : 'Giọng Nova (OpenAI)'}
+            >
+              {voiceProvider === 'elevenlabs' ? <Baby className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+            </Button>
             
             {/* Voice toggle */}
             <Button
