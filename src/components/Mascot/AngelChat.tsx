@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+  provider?: 'grok' | 'chatgpt' | 'lovable-ai';
 }
 
 interface AngelChatProps {
@@ -62,12 +63,15 @@ export const AngelChat: React.FC<AngelChatProps> = ({ isOpen, onClose }) => {
                      responseData.choices?.[0]?.message?.content || 
                      'Ôi! Mình hơi bối rối nè! Thử hỏi lại được không bạn? ♡';
       
+      // Get provider info
+      const provider = responseData.provider as Message['provider'];
+      
       // Log which AI provider responded
-      if (responseData.provider) {
-        console.log(`🌟 Angel powered by: ${responseData.provider}`);
+      if (provider) {
+        console.log(`🌟 Angel powered by: ${provider}`);
       }
 
-      setMessages(prev => [...prev, { role: 'assistant', content }]);
+      setMessages(prev => [...prev, { role: 'assistant', content, provider }]);
       
     } catch (error) {
       console.error('Chat error:', error);
@@ -174,9 +178,22 @@ export const AngelChat: React.FC<AngelChatProps> = ({ isOpen, onClose }) => {
                   >
                     <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
                     {msg.role === 'assistant' && (
-                      <div className="flex gap-1 mt-1 justify-end">
-                        <Heart className="w-3 h-3 text-pink-400" />
-                        <Sparkles className="w-3 h-3 text-primary" />
+                      <div className="flex items-center gap-2 mt-2 justify-between">
+                        {msg.provider && (
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                            msg.provider === 'grok' 
+                              ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white' 
+                              : msg.provider === 'chatgpt'
+                              ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white'
+                              : 'bg-gradient-to-r from-primary to-accent text-white'
+                          }`}>
+                            {msg.provider === 'grok' ? '🚀 Grok' : msg.provider === 'chatgpt' ? '🤖 ChatGPT' : '✨ Gemini'}
+                          </span>
+                        )}
+                        <div className="flex gap-1">
+                          <Heart className="w-3 h-3 text-pink-400" />
+                          <Sparkles className="w-3 h-3 text-primary" />
+                        </div>
                       </div>
                     )}
                   </div>
