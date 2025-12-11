@@ -134,21 +134,19 @@ export const AngelMascot: React.FC<AngelMascotProps> = ({ onTipReceived }) => {
               : 'drop-shadow(0 0 8px rgba(255, 215, 0, 0.4))'
           }}
         >
-          {/* Fallback: Cute Angel Emoji Button when video doesn't work */}
-          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-cyan-400 via-purple-500 to-pink-400 rounded-full shadow-lg border-4 border-white/50">
-            <span className="text-4xl">👼</span>
-          </div>
-          
-          {/* Hidden video - uncomment when angel-mascot-new.mp4 exists */}
-          {/* <video
+          <video
             autoPlay
             loop
             muted
             playsInline
             className="w-full h-full object-contain"
+            style={{
+              mixBlendMode: 'screen',
+              background: 'transparent',
+            }}
           >
             <source src="/videos/angel-mascot-new.mp4" type="video/mp4" />
-          </video> */}
+          </video>
         </motion.div>
 
         {/* Speech Bubble */}
