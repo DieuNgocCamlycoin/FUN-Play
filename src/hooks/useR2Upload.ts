@@ -32,11 +32,10 @@ export function useR2Upload(options: UseR2UploadOptions = {}) {
         throw new Error("Authentication required");
       }
 
-      // Generate file path
-      const fileExt = file.name.split(".").pop();
+      // Generate file path - edge function will prefix with userId for security
       const sanitizedName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").substring(0, 50);
       const fileName = customFileName || 
-        `${options.folder || 'uploads'}/${user.id}/${Date.now()}-${sanitizedName}`;
+        `${options.folder || 'uploads'}/${Date.now()}-${sanitizedName}`;
 
       // Get presigned URL from edge function
       const { data: presignData, error: presignError } = await supabase.functions.invoke('r2-upload', {

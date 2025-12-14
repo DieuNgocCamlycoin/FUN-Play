@@ -163,7 +163,7 @@ export const logView = async (
   return { isValid, shouldReward };
 };
 
-// Award CAMLY with anti-abuse checks
+// Award CAMLY via secure server-side edge function
 export const awardCAMLY = async (
   userId: string,
   amount: number,
@@ -178,89 +178,30 @@ export const awardCAMLY = async (
   reason?: string;
 }> => {
   try {
-    // Get daily limits
-    const limits = await getDailyLimits(userId);
-
-    // Check daily limits based on type
-    if (type === "VIEW" || type === "LIKE" || type === "SHARE") {
-      if (Number(limits.view_rewards_earned) + amount > DAILY_LIMITS.VIEW_REWARDS) {
-        return { 
-          success: false, 
-          milestone: null, 
-          newTotal: 0, 
-          amount: 0, 
-          type,
-          reason: "Daily view reward limit reached (50,000 CAMLY)"
-        };
-      }
-    }
-
-    if (type === "COMMENT") {
-      if (Number(limits.comment_rewards_earned) + amount > DAILY_LIMITS.COMMENT_REWARDS) {
-        return { 
-          success: false, 
-          milestone: null, 
-          newTotal: 0, 
-          amount: 0, 
-          type,
-          reason: "Daily comment reward limit reached (25,000 CAMLY)"
-        };
-      }
-    }
-
-    if (type === "UPLOAD") {
-      if (Number(limits.uploads_count) >= DAILY_LIMITS.UPLOAD_COUNT) {
-        return { 
-          success: false, 
-          milestone: null, 
-          newTotal: 0, 
-          amount: 0, 
-          type,
-          reason: "Daily upload limit reached (10 uploads)"
-        };
-      }
-    }
-
-    // Get current total rewards
-    const { data: profileData } = await supabase
-      .from("profiles")
-      .select("total_camly_rewards")
-      .eq("id", userId)
-      .single();
-
-    const oldTotal = Number(profileData?.total_camly_rewards) || 0;
-    const newTotal = oldTotal + amount;
-
-    // Update total_camly_rewards
-    await supabase
-      .from("profiles")
-      .update({ total_camly_rewards: newTotal })
-      .eq("id", userId);
-
-    // Create reward transaction record
-    await supabase.from("reward_transactions").insert({
-      user_id: userId,
-      video_id: videoId || null,
-      amount: amount,
-      reward_type: type,
-      status: "success",
-      tx_hash: `REWARD_${type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    // Call secure edge function instead of client-side logic
+    const { data, error } = await supabase.functions.invoke('award-camly', {
+      body: { type, videoId }
     });
 
-    // Update daily limits
-    if (type === "VIEW" || type === "LIKE" || type === "SHARE") {
-      await updateDailyLimits(userId, 'view_rewards_earned', amount);
-    } else if (type === "COMMENT") {
-      await updateDailyLimits(userId, 'comment_rewards_earned', amount);
-    } else if (type === "UPLOAD") {
-      await updateDailyLimits(userId, 'upload_rewards_earned', amount);
-      await updateDailyLimits(userId, 'uploads_count', 1);
+    if (error) {
+      console.error("Edge function error:", error);
+      return { success: false, milestone: null, newTotal: 0, amount: 0, type };
     }
 
-    // Check for milestone achievement
-    const milestone = checkMilestone(oldTotal, newTotal);
+    // Trigger celebration effects on client if milestone reached
+    if (data?.milestone) {
+      triggerConfetti();
+      playCelebrationSound();
+    }
 
-    return { success: true, milestone, newTotal, amount, type };
+    return {
+      success: data?.success ?? false,
+      milestone: data?.milestone ?? null,
+      newTotal: data?.newTotal ?? 0,
+      amount: data?.amount ?? 0,
+      type: data?.type ?? type,
+      reason: data?.reason
+    };
   } catch (error) {
     console.error("Error awarding CAMLY:", error);
     return { success: false, milestone: null, newTotal: 0, amount: 0, type };
