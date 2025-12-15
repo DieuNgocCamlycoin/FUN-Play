@@ -18,7 +18,7 @@ import {
   Twitter,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
-import { awardShareReward } from "@/lib/rewards";
+import { awardShareReward } from "@/lib/enhancedRewards";
 
 interface ShareModalProps {
   isOpen: boolean;

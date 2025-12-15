@@ -11,7 +11,7 @@ import { ThumbsUp, ThumbsDown, Share2, MoreHorizontal, Coins } from "lucide-reac
 import { TipModal } from "@/components/Tipping/TipModal";
 import { ShareModal } from "@/components/Video/ShareModal";
 import { MiniProfileCard } from "@/components/Video/MiniProfileCard";
-import { awardViewReward, awardLikeReward, awardCommentReward, awardShareReward } from "@/lib/rewards";
+import { awardViewReward, awardLikeReward, logAndRewardComment, awardShareReward } from "@/lib/enhancedRewards";
 import { RewardNotification } from "@/components/Rewards/RewardNotification";
 
 interface Video {
@@ -294,33 +294,31 @@ export default function Watch() {
     if (!newComment.trim()) return;
 
     try {
-      const { error } = await supabase.from("comments").insert({
+      const { data: commentData, error } = await supabase.from("comments").insert({
         video_id: id,
         user_id: user.id,
         content: newComment,
-      });
+      }).select().single();
 
       if (error) throw error;
 
+      const commentContent = newComment;
       setNewComment("");
       fetchComments();
 
-      // Award CAMLY for commenting
-      const result = await awardCommentReward(user.id, id!);
-      if (result) {
-        setRewardNotif({ amount: result.amount, type: result.type as any, show: true });
-        if (result.milestone) {
-          toast({
-            title: "🎉 Chúc mừng! Milestone đạt được!",
-            description: `Bạn đã đạt ${result.milestone} CAMLY tổng rewards!`,
-            duration: 5000,
-          });
-        } else {
-          toast({
-            title: "Comment posted",
-            description: "Your comment has been added (+1 CAMLY)",
-          });
-        }
+      // Award CAMLY for commenting using secure server-side validation
+      const result = await logAndRewardComment(user.id, id!, commentData.id, commentContent);
+      if (result.rewarded) {
+        setRewardNotif({ amount: result.amount, type: "COMMENT", show: true });
+        toast({
+          title: "Comment posted",
+          description: `Your comment has been added (+${result.amount} CAMLY)`,
+        });
+      } else {
+        toast({
+          title: "Comment posted",
+          description: result.reason || "Your comment has been added",
+        });
       }
     } catch (error: any) {
       toast({
