@@ -82,7 +82,7 @@ export const VideoCard = ({
   };
 
   return (
-    <Card className="group overflow-hidden glass-card holographic border-2 border-white/10 hover:border-white/30 transition-all duration-500 cursor-pointer relative">
+    <Card className="group overflow-hidden bg-white/95 dark:bg-white/90 backdrop-blur-sm holographic border-2 border-white/30 hover:border-white/50 transition-all duration-500 cursor-pointer relative shadow-lg">
       {/* Rainbow diamond sparkle effect on hover */}
       <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500">
         <div className="absolute top-1/4 left-1/4 w-3 h-3 bg-glow-sapphire rounded-full animate-[sparkle_1s_ease-in-out_infinite] shadow-[0_0_20px_rgba(0,102,255,1)]" />
@@ -138,7 +138,7 @@ export const VideoCard = ({
       </div>
 
       {/* Info with glassmorphism */}
-      <div className="p-4 flex gap-3 bg-gradient-to-b from-transparent to-background/20">
+      <div className="p-4 flex gap-3 bg-white/80">
         <div className="flex-shrink-0" onClick={handleChannelClick}>
           {avatarUrl ? (
             <img
@@ -153,16 +153,16 @@ export const VideoCard = ({
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="font-bold text-sm line-clamp-2 mb-1 text-foreground group-hover:text-cosmic-cyan transition-colors duration-300">
+          <h3 className="font-bold text-sm line-clamp-2 mb-1 text-gray-900 group-hover:text-cosmic-cyan transition-colors duration-300">
             {title}
           </h3>
           <p 
-            className="text-xs text-muted-foreground group-hover:text-divine-rose-gold transition-colors duration-300 cursor-pointer hover:underline"
+            className="text-xs text-gray-600 group-hover:text-divine-rose-gold transition-colors duration-300 cursor-pointer hover:underline"
             onClick={handleChannelClick}
           >
             {channel}
           </p>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground group-hover:text-cosmic-magenta mt-1 transition-colors duration-300">
+          <div className="flex items-center gap-2 text-xs text-gray-500 group-hover:text-cosmic-magenta mt-1 transition-colors duration-300">
             <span>{views}</span>
             <span className="text-cosmic-sapphire">•</span>
             <span>{timestamp}</span>
