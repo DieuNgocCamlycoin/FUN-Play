@@ -7,13 +7,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { ThumbsUp, ThumbsDown, Share2, MoreHorizontal, Coins } from "lucide-react";
+import { ThumbsUp, ThumbsDown, Share2, Coins } from "lucide-react";
 import { TipModal } from "@/components/Tipping/TipModal";
 import { ShareModal } from "@/components/Video/ShareModal";
 import { MiniProfileCard } from "@/components/Video/MiniProfileCard";
+import { VideoOptionsMenu } from "@/components/Video/VideoOptionsMenu";
 import { awardViewReward, awardLikeReward, logAndRewardComment, awardShareReward } from "@/lib/enhancedRewards";
 import { RewardNotification } from "@/components/Rewards/RewardNotification";
-
 interface Video {
   id: string;
   title: string;
@@ -608,13 +608,12 @@ export default function Watch() {
                     <Coins className="h-4 w-4 text-glow-gold" />
                     Tip
                   </Button>
-                  <Button
-                    variant="secondary"
-                    size="icon"
-                    className="rounded-full bg-muted/50 hover:bg-muted/70"
-                  >
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
+                  <VideoOptionsMenu
+                    videoId={id || ""}
+                    videoTitle={video.title}
+                    videoUrl={video.video_url}
+                    onShare={() => setShareModalOpen(true)}
+                  />
                 </div>
               </div>
 
