@@ -205,7 +205,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
-      {/* Homepage background image */}
+      {/* Homepage background image - Enhanced 8K clarity */}
       <div 
         className="fixed inset-0 z-0 pointer-events-none"
         style={{
@@ -213,7 +213,11 @@ const Index = () => {
           backgroundPosition: 'bottom right',
           backgroundRepeat: 'no-repeat',
           backgroundSize: 'auto 80%',
-          opacity: 0.6,
+          opacity: 0.85,
+          filter: 'brightness(1.15) contrast(1.1) saturate(1.2)',
+          imageRendering: 'crisp-edges',
+          WebkitBackfaceVisibility: 'hidden',
+          backfaceVisibility: 'hidden',
         }}
       />
       {/* Floating rainbow particles - Heavenly divine light rays */}
