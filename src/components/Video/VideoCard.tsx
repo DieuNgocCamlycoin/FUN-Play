@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Play, Volume2, Edit, Share2 } from "lucide-react";
+import { Play, Volume2, Edit, Share2, ListPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { ShareModal } from "./ShareModal";
+import { AddToPlaylistModal } from "@/components/Playlist/AddToPlaylistModal";
 
 interface VideoCardProps {
   thumbnail?: string;
@@ -39,6 +40,7 @@ export const VideoCard = ({
   const { user } = useAuth();
   const { toast } = useToast();
   const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [playlistModalOpen, setPlaylistModalOpen] = useState(false);
   const isOwner = user?.id === userId;
 
   // Loading skeleton
@@ -72,6 +74,19 @@ export const VideoCard = ({
   const handleShare = (e: React.MouseEvent) => {
     e.stopPropagation();
     setShareModalOpen(true);
+  };
+
+  const handleAddToPlaylist = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!user) {
+      toast({
+        title: "Yêu cầu đăng nhập",
+        description: "Vui lòng đăng nhập để thêm video vào danh sách phát",
+        variant: "destructive",
+      });
+      return;
+    }
+    setPlaylistModalOpen(true);
   };
 
   const handleChannelClick = (e: React.MouseEvent) => {
@@ -126,6 +141,18 @@ export const VideoCard = ({
           </Button>
         )}
 
+        {/* Add to Playlist button */}
+        {user && (
+          <Button
+            size="icon"
+            className="absolute top-2 right-12 h-8 w-8 bg-cosmic-cyan/90 hover:bg-cosmic-cyan border border-glow-cyan text-foreground opacity-0 group-hover:opacity-100 transition-all duration-300 shadow-[0_0_40px_rgba(0,255,255,0.9)]"
+            onClick={handleAddToPlaylist}
+            title="Thêm vào danh sách phát"
+          >
+            <ListPlus className="h-4 w-4" />
+          </Button>
+        )}
+
         {/* Share button with sapphire glow */}
         <Button
           size="icon"
@@ -176,6 +203,15 @@ export const VideoCard = ({
         videoId={videoId}
         videoTitle={title}
       />
+
+      {videoId && (
+        <AddToPlaylistModal
+          open={playlistModalOpen}
+          onOpenChange={setPlaylistModalOpen}
+          videoId={videoId}
+          videoTitle={title}
+        />
+      )}
     </Card>
   );
 };

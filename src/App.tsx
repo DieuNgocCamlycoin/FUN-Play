@@ -29,6 +29,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import NFTGallery from "./pages/NFTGallery";
 import Meditate from "./pages/Meditate";
 import CreateMusic from "./pages/CreateMusic";
+import Playlist from "./pages/Playlist";
 import { wagmiConfig } from '@/lib/web3Config';
 import { useCursorBeam } from './hooks/useCursorBeam';
 import { GlobalPaymentNotifications } from './components/Web3/GlobalPaymentNotifications';
@@ -62,6 +63,7 @@ function AppContent() {
         <Route path="/manage-posts" element={<ManagePosts />} />
         <Route path="/edit-post/:id" element={<EditPost />} />
         <Route path="/manage-playlists" element={<ManagePlaylists />} />
+        <Route path="/playlist/:id" element={<Playlist />} />
         <Route path="/manage-channel" element={<ManageChannel />} />
         <Route path="/wallet" element={<Wallet />} />
         <Route path="/studio" element={<Studio />} />

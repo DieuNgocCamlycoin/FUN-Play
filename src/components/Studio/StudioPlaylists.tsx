@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -6,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Edit, Trash2, Globe, Lock, Plus, ListVideo } from "lucide-react";
+import { Edit, Trash2, Globe, Lock, Plus, ListVideo, ExternalLink } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -34,6 +35,7 @@ interface Playlist {
   description: string | null;
   is_public: boolean | null;
   created_at: string;
+  video_count?: number;
 }
 
 export const StudioPlaylists = () => {
@@ -58,12 +60,26 @@ export const StudioPlaylists = () => {
       setLoading(true);
       const { data, error } = await supabase
         .from("playlists")
-        .select("id, name, description, is_public, created_at")
+        .select(`
+          id, name, description, is_public, created_at,
+          playlist_videos (id)
+        `)
         .eq("user_id", user?.id)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setPlaylists(data || []);
+      
+      // Map to include video count
+      const playlistsWithCount = (data || []).map(p => ({
+        id: p.id,
+        name: p.name,
+        description: p.description,
+        is_public: p.is_public,
+        created_at: p.created_at,
+        video_count: Array.isArray(p.playlist_videos) ? p.playlist_videos.length : 0,
+      }));
+      
+      setPlaylists(playlistsWithCount);
     } catch (error: any) {
       console.error("Error fetching playlists:", error);
       toast({
@@ -243,14 +259,22 @@ export const StudioPlaylists = () => {
               key={playlist.id}
               className="bg-card border border-border rounded-lg p-6 flex items-start gap-6 hover:border-primary/50 transition-colors"
             >
-              <div className="h-24 w-40 bg-muted rounded flex items-center justify-center flex-shrink-0">
+              <Link 
+                to={`/playlist/${playlist.id}`}
+                className="h-24 w-40 bg-muted rounded flex items-center justify-center flex-shrink-0 hover:opacity-80 transition-opacity"
+              >
                 <ListVideo className="h-12 w-12 text-muted-foreground" />
-              </div>
+              </Link>
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <h3 className="font-semibold text-lg mb-2">{playlist.name}</h3>
+                    <Link 
+                      to={`/playlist/${playlist.id}`}
+                      className="font-semibold text-lg mb-2 hover:text-primary transition-colors block"
+                    >
+                      {playlist.name}
+                    </Link>
                     {playlist.description && (
                       <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
                         {playlist.description}
@@ -268,10 +292,19 @@ export const StudioPlaylists = () => {
                           Riêng tư
                         </span>
                       )}
+                      <span className="text-muted-foreground">
+                        • {playlist.video_count || 0} video
+                      </span>
                     </div>
                   </div>
 
                   <div className="flex gap-2 flex-shrink-0">
+                    <Link to={`/playlist/${playlist.id}`}>
+                      <Button variant="outline" size="sm">
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        Xem
+                      </Button>
+                    </Link>
                     <Button
                       variant="outline"
                       size="sm"

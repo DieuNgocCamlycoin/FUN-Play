@@ -9,14 +9,23 @@ import {
   Play,
   X,
   GripVertical,
-  ListMusic
+  ListMusic,
+  ListPlus,
+  ExternalLink
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { motion, AnimatePresence, Reorder } from "framer-motion";
-import { useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface UpNextSidebarProps {
   onVideoSelect?: (video: VideoItem) => void;
+}
+
+interface PlaylistInfo {
+  id: string;
+  name: string;
+  video_count: number;
 }
 
 export function UpNextSidebar({ onVideoSelect }: UpNextSidebarProps) {
@@ -35,6 +44,32 @@ export function UpNextSidebar({ onVideoSelect }: UpNextSidebarProps) {
   } = useVideoPlayback();
 
   const [isReordering, setIsReordering] = useState(false);
+  const [playlistInfo, setPlaylistInfo] = useState<PlaylistInfo | null>(null);
+
+  // Fetch playlist info if context is PLAYLIST
+  useEffect(() => {
+    if (session?.context_type === "PLAYLIST" && session.context_id) {
+      fetchPlaylistInfo(session.context_id);
+    } else {
+      setPlaylistInfo(null);
+    }
+  }, [session?.context_type, session?.context_id]);
+
+  const fetchPlaylistInfo = async (playlistId: string) => {
+    const { data } = await supabase
+      .from("playlists")
+      .select("id, name")
+      .eq("id", playlistId)
+      .single();
+    
+    if (data) {
+      setPlaylistInfo({
+        id: data.id,
+        name: data.name,
+        video_count: session?.queue.length || 0,
+      });
+    }
+  };
 
   if (!session) return null;
 
@@ -60,12 +95,11 @@ export function UpNextSidebar({ onVideoSelect }: UpNextSidebarProps) {
       onVideoSelect(video);
     } else {
       skipToVideo(video.id);
-      navigate(`/watch/${video.id}`);
+      navigate(`/watch/${video.id}${session.context_type === "PLAYLIST" && session.context_id ? `?list=${session.context_id}` : ''}`);
     }
   };
 
   const handleReorder = (newOrder: VideoItem[]) => {
-    // Find indices and reorder
     const fromVideo = session.queue.find(v => 
       !newOrder.find(n => n.id === v.id && session.queue.indexOf(v) === newOrder.indexOf(n))
     );
@@ -96,15 +130,44 @@ export function UpNextSidebar({ onVideoSelect }: UpNextSidebarProps) {
 
   return (
     <div className="space-y-4">
+      {/* Playlist Header (if in playlist context) */}
+      {playlistInfo && (
+        <div className="bg-gradient-to-r from-primary/20 to-primary/10 rounded-xl p-4 border border-primary/30">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ListPlus className="h-5 w-5 text-primary" />
+              <div>
+                <Link 
+                  to={`/playlist/${playlistInfo.id}`}
+                  className="font-semibold text-foreground hover:text-primary transition-colors"
+                >
+                  {playlistInfo.name}
+                </Link>
+                <p className="text-xs text-muted-foreground">
+                  {session.current_index + 1}/{playlistInfo.video_count} videos
+                </p>
+              </div>
+            </div>
+            <Link to={`/playlist/${playlistInfo.id}`}>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <ExternalLink className="h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Header with controls */}
       <div className="bg-card/50 backdrop-blur-sm rounded-xl p-4 border border-border/50">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <ListMusic className="h-5 w-5 text-primary" />
             <span className="font-semibold text-foreground">Up Next</span>
-            <span className="text-sm text-muted-foreground">
-              ({session.current_index + 1}/{queueLength})
-            </span>
+            {!playlistInfo && (
+              <span className="text-sm text-muted-foreground">
+                ({session.current_index + 1}/{queueLength})
+              </span>
+            )}
           </div>
           
           <div className="flex items-center gap-1">
