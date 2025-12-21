@@ -3,6 +3,9 @@ project_id = "fzgjmvxtgrlwrluxdwjq"
 [functions.r2-upload]
 verify_jwt = false
 
+[functions.migrate-to-r2]
+verify_jwt = false
+
 [functions.angel-voice-elevenlabs]
 verify_jwt = false
 

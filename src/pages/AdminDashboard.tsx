@@ -7,9 +7,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, AreaChart, Area } from "recharts";
-import { Users, Video, Eye, MessageSquare, Coins, TrendingUp, Crown, Award, Activity, ShieldX } from "lucide-react";
+import { Users, Video, Eye, MessageSquare, Coins, TrendingUp, Crown, Award, Activity, ShieldX, CloudUpload } from "lucide-react";
 import { format } from "date-fns";
 import { Navigate } from "react-router-dom";
+import VideoMigrationPanel from "@/components/Admin/VideoMigrationPanel";
 
 const AdminDashboard = () => {
   const { user, loading: authLoading } = useAuth();
@@ -121,10 +122,14 @@ const AdminDashboard = () => {
 
         {/* Charts */}
         <Tabs defaultValue="activity" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="activity">Hoạt động</TabsTrigger>
             <TabsTrigger value="rewards">Phần thưởng</TabsTrigger>
             <TabsTrigger value="engagement">Tương tác</TabsTrigger>
+            <TabsTrigger value="migration" className="flex items-center gap-1">
+              <CloudUpload className="w-4 h-4" />
+              Migration
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="activity">
@@ -238,6 +243,10 @@ const AdminDashboard = () => {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="migration">
+            <VideoMigrationPanel />
           </TabsContent>
         </Tabs>
 
