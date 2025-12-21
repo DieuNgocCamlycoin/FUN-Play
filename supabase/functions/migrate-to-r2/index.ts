@@ -509,7 +509,121 @@ Deno.serve(async (req) => {
     // Use service role for admin operations
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
     
-    const { action, videoId, batchSize = 1 } = await req.json();
+    const { action, videoId, batchSize = 1, fileName, contentType, videoUrl, thumbnailUrl } = await req.json();
+    
+    // Generate presigned URL for client-side upload
+    if (action === 'get-presigned-url') {
+      if (!fileName) {
+        return new Response(
+          JSON.stringify({ error: 'fileName required' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      // Generate a presigned PUT URL valid for 1 hour
+      const expiresIn = 3600;
+      const now = new Date();
+      const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, '');
+      const dateStamp = amzDate.slice(0, 8);
+      const expiration = new Date(now.getTime() + expiresIn * 1000);
+      
+      // Create presigned URL using query string authentication
+      const service = 's3';
+      const region = 'auto';
+      const algorithm = 'AWS4-HMAC-SHA256';
+      const credentialScope = `${dateStamp}/${region}/${service}/aws4_request`;
+      const credential = `${R2_ACCESS_KEY_ID}/${credentialScope}`;
+      
+      const endpointUrl = new URL(R2_ENDPOINT);
+      const host = endpointUrl.hostname;
+      
+      // Query parameters for presigned URL
+      const queryParams = new URLSearchParams({
+        'X-Amz-Algorithm': algorithm,
+        'X-Amz-Credential': credential,
+        'X-Amz-Date': amzDate,
+        'X-Amz-Expires': expiresIn.toString(),
+        'X-Amz-SignedHeaders': 'host',
+      });
+      
+      const canonicalRequest = 
+        `PUT\n` +
+        `/${R2_BUCKET_NAME}/${fileName}\n` +
+        `${queryParams.toString()}\n` +
+        `host:${host}\n\n` +
+        `host\n` +
+        `UNSIGNED-PAYLOAD`;
+      
+      const canonicalRequestHash = await sha256(new TextEncoder().encode(canonicalRequest));
+      const stringToSign = 
+        `${algorithm}\n` +
+        `${amzDate}\n` +
+        `${credentialScope}\n` +
+        `${canonicalRequestHash}`;
+      
+      const signingKey = await getSignatureKey(R2_SECRET_ACCESS_KEY, dateStamp, region, service);
+      const signatureBuffer = await hmacSha256(signingKey, stringToSign);
+      const signature = toHex(signatureBuffer);
+      
+      queryParams.set('X-Amz-Signature', signature);
+      
+      const presignedUrl = `${R2_ENDPOINT}/${R2_BUCKET_NAME}/${fileName}?${queryParams.toString()}`;
+      const publicUrl = `${R2_PUBLIC_URL}/${fileName}`;
+      
+      return new Response(
+        JSON.stringify({ presignedUrl, publicUrl }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    // Update video URLs after client-side migration
+    if (action === 'update-video-urls') {
+      if (!videoId) {
+        return new Response(
+          JSON.stringify({ error: 'videoId required' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      // Get original video info
+      const { data: video, error: videoError } = await supabaseAdmin
+        .from('videos')
+        .select('video_url, thumbnail_url')
+        .eq('id', videoId)
+        .single();
+      
+      if (videoError) throw videoError;
+      
+      // Update video record
+      const updateData: any = {};
+      if (videoUrl) updateData.video_url = videoUrl;
+      if (thumbnailUrl) updateData.thumbnail_url = thumbnailUrl;
+      
+      if (Object.keys(updateData).length > 0) {
+        await supabaseAdmin
+          .from('videos')
+          .update(updateData)
+          .eq('id', videoId);
+      }
+      
+      // Create/update migration record
+      await supabaseAdmin
+        .from('video_migrations')
+        .upsert({
+          video_id: videoId,
+          original_video_url: video.video_url,
+          original_thumbnail_url: video.thumbnail_url,
+          new_video_url: videoUrl || null,
+          new_thumbnail_url: thumbnailUrl || null,
+          status: 'completed',
+          completed_at: new Date().toISOString()
+        }, { onConflict: 'video_id' });
+      
+      return new Response(
+        JSON.stringify({ success: true, videoId }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     
     if (action === 'get-pending') {
       // Get videos that need migration
