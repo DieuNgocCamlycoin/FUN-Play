@@ -75,6 +75,7 @@ function AppContent() {
         <Route path="/reward-history" element={<RewardHistory />} />
         <Route path="/referral" element={<Referral />} />
         <Route path="/user-dashboard" element={<UserDashboard />} />
+        <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/admin-dashboard" element={<AdminDashboard />} />
         <Route path="/nft-gallery" element={<NFTGallery />} />
         <Route path="/meditate" element={<Meditate />} />
