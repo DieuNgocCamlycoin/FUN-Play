@@ -656,6 +656,53 @@ export type Database = {
         }
         Relationships: []
       }
+      video_migrations: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          new_thumbnail_url: string | null
+          new_video_url: string | null
+          original_thumbnail_url: string | null
+          original_video_url: string
+          status: string
+          video_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          new_thumbnail_url?: string | null
+          new_video_url?: string | null
+          original_thumbnail_url?: string | null
+          original_video_url: string
+          status?: string
+          video_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          new_thumbnail_url?: string | null
+          new_video_url?: string | null
+          original_thumbnail_url?: string | null
+          original_video_url?: string
+          status?: string
+          video_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_migrations_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: true
+            referencedRelation: "videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       video_watch_progress: {
         Row: {
           created_at: string
