@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,7 @@ import {
   Play, 
   RefreshCw,
   Database,
-  HardDrive
+  StopCircle
 } from "lucide-react";
 
 interface MigrationStats {
@@ -42,6 +42,8 @@ interface MigrationResult {
   error?: string;
 }
 
+const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
+
 const VideoMigrationPanel = () => {
   const [stats, setStats] = useState<MigrationStats | null>(null);
   const [pendingVideos, setPendingVideos] = useState<PendingVideo[]>([]);
@@ -51,6 +53,9 @@ const VideoMigrationPanel = () => {
   const [migrationResults, setMigrationResults] = useState<MigrationResult[]>([]);
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
   const [currentStatus, setCurrentStatus] = useState<string>('');
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const stopRequestedRef = useRef(false);
 
   const fetchStats = async () => {
     try {
@@ -89,53 +94,194 @@ const VideoMigrationPanel = () => {
     refreshData();
   }, []);
 
-  // Client-side migration: download file and upload directly to R2
-  const migrateVideoClientSide = async (video: PendingVideo): Promise<{ success: boolean; newVideoUrl?: string; newThumbnailUrl?: string; error?: string }> => {
+  // Upload video using multipart chunked upload
+  const uploadWithMultipart = async (
+    videoBlob: Blob, 
+    fileName: string, 
+    contentType: string,
+    signal: AbortSignal
+  ): Promise<string> => {
+    const totalSize = videoBlob.size;
+    const totalParts = Math.ceil(totalSize / CHUNK_SIZE);
+    
+    console.log(`Starting multipart upload: ${fileName}, size: ${(totalSize / 1024 / 1024).toFixed(2)}MB, parts: ${totalParts}`);
+    
+    // 1. Initiate multipart upload
+    setCurrentStatus(`Khởi tạo multipart upload...`);
+    const { data: initData, error: initError } = await supabase.functions.invoke('migrate-to-r2', {
+      body: { 
+        action: 'initiate-multipart', 
+        fileName,
+        contentType
+      }
+    });
+    
+    if (initError || !initData?.uploadId) {
+      throw new Error(initError?.message || 'Failed to initiate multipart upload');
+    }
+    
+    const { uploadId, publicUrl } = initData;
+    console.log(`Multipart upload initiated: ${uploadId}`);
+    
+    const parts: { partNumber: number; etag: string }[] = [];
+    
     try {
-      setCurrentStatus('Đang tải video...');
+      // 2. Upload each chunk
+      for (let partNumber = 1; partNumber <= totalParts; partNumber++) {
+        if (signal.aborted || stopRequestedRef.current) {
+          throw new Error('Upload cancelled');
+        }
+        
+        const start = (partNumber - 1) * CHUNK_SIZE;
+        const end = Math.min(start + CHUNK_SIZE, totalSize);
+        const chunk = videoBlob.slice(start, end);
+        
+        setCurrentStatus(`Uploading part ${partNumber}/${totalParts} (${(chunk.size / 1024 / 1024).toFixed(1)}MB)...`);
+        setUploadProgress(Math.round(((partNumber - 1) / totalParts) * 100));
+        
+        // Get presigned URL for this part
+        const { data: partData, error: partError } = await supabase.functions.invoke('migrate-to-r2', {
+          body: { 
+            action: 'get-part-url',
+            fileName,
+            uploadId,
+            partNumber
+          }
+        });
+        
+        if (partError || !partData?.presignedUrl) {
+          throw new Error(partError?.message || `Failed to get URL for part ${partNumber}`);
+        }
+        
+        // Upload chunk directly to R2 with retry
+        let etag: string | null = null;
+        let retries = 3;
+        
+        while (retries > 0 && !etag) {
+          try {
+            const uploadResponse = await fetch(partData.presignedUrl, {
+              method: 'PUT',
+              body: chunk,
+              signal
+            });
+            
+            if (!uploadResponse.ok) {
+              const errorText = await uploadResponse.text();
+              throw new Error(`Part upload failed: ${uploadResponse.status} - ${errorText}`);
+            }
+            
+            etag = uploadResponse.headers.get('ETag');
+            if (!etag) {
+              throw new Error(`No ETag returned for part ${partNumber}`);
+            }
+          } catch (err: any) {
+            retries--;
+            if (retries === 0 || err.name === 'AbortError') throw err;
+            console.warn(`Part ${partNumber} failed, retrying... (${retries} left)`);
+            await new Promise(r => setTimeout(r, 1000));
+          }
+        }
+        
+        parts.push({ partNumber, etag: etag! });
+        console.log(`Part ${partNumber}/${totalParts} uploaded: ${etag}`);
+        setUploadProgress(Math.round((partNumber / totalParts) * 100));
+      }
       
-      // Download the video file
-      const videoResponse = await fetch(video.video_url);
+      // 3. Complete multipart upload
+      setCurrentStatus('Hoàn tất multipart upload...');
+      const { error: completeError } = await supabase.functions.invoke('migrate-to-r2', {
+        body: { 
+          action: 'complete-multipart',
+          fileName,
+          uploadId,
+          parts
+        }
+      });
+      
+      if (completeError) {
+        throw new Error(completeError.message || 'Failed to complete multipart upload');
+      }
+      
+      console.log(`Multipart upload completed: ${publicUrl}`);
+      return publicUrl;
+      
+    } catch (error: any) {
+      // Abort the multipart upload on failure
+      console.error('Multipart upload failed, aborting:', error);
+      await supabase.functions.invoke('migrate-to-r2', {
+        body: { action: 'abort-multipart', fileName, uploadId }
+      }).catch(() => {});
+      throw error;
+    }
+  };
+
+  // Upload small file with simple presigned URL
+  const uploadSimple = async (
+    blob: Blob, 
+    fileName: string, 
+    contentType: string,
+    signal: AbortSignal
+  ): Promise<string> => {
+    const { data: presignedData, error: presignedError } = await supabase.functions.invoke('migrate-to-r2', {
+      body: { 
+        action: 'get-presigned-url', 
+        fileName,
+        contentType
+      }
+    });
+    
+    if (presignedError) throw presignedError;
+    
+    const uploadResponse = await fetch(presignedData.presignedUrl, {
+      method: 'PUT',
+      body: blob,
+      signal
+    });
+    
+    if (!uploadResponse.ok) {
+      const errorText = await uploadResponse.text();
+      throw new Error(`Upload failed: ${uploadResponse.status} - ${errorText}`);
+    }
+    
+    return presignedData.publicUrl;
+  };
+
+  // Migrate a single video using chunked streaming
+  const migrateVideo = async (video: PendingVideo): Promise<{ success: boolean; newVideoUrl?: string; newThumbnailUrl?: string; error?: string }> => {
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    
+    try {
+      setUploadProgress(0);
+      setCurrentStatus('Đang tải video từ Supabase...');
+      
+      // Fetch video as blob using streaming
+      const videoResponse = await fetch(video.video_url, { signal: controller.signal });
       if (!videoResponse.ok) {
         throw new Error(`Failed to download video: ${videoResponse.status}`);
       }
       
+      const contentLength = videoResponse.headers.get('content-length');
+      const videoSize = contentLength ? parseInt(contentLength) : 0;
       const videoBlob = await videoResponse.blob();
-      const videoSize = videoBlob.size;
-      setCurrentStatus(`Video: ${(videoSize / 1024 / 1024).toFixed(1)}MB - Đang lấy presigned URL...`);
       
-      // Get presigned URL from edge function
+      console.log(`Video downloaded: ${video.title}, size: ${(videoBlob.size / 1024 / 1024).toFixed(2)}MB`);
+      
+      // Generate R2 filename
       const timestamp = Date.now();
       const originalFileName = video.video_url.split('/').pop()?.split('?')[0] || 'video.mp4';
       const videoFileName = `${video.user_id}/videos/migrated-${timestamp}-${originalFileName}`;
+      const contentType = videoBlob.type || 'video/mp4';
       
-      const { data: presignedData, error: presignedError } = await supabase.functions.invoke('migrate-to-r2', {
-        body: { 
-          action: 'get-presigned-url', 
-          fileName: videoFileName,
-          contentType: videoBlob.type || 'video/mp4'
-        }
-      });
-      
-      if (presignedError) throw presignedError;
-      
-      setCurrentStatus(`Đang upload lên R2... (${(videoSize / 1024 / 1024).toFixed(1)}MB)`);
-      
-      // Upload directly to R2 using presigned URL
-      const uploadResponse = await fetch(presignedData.presignedUrl, {
-        method: 'PUT',
-        body: videoBlob,
-        headers: {
-          'Content-Type': videoBlob.type || 'video/mp4',
-        }
-      });
-      
-      if (!uploadResponse.ok) {
-        const errorText = await uploadResponse.text();
-        throw new Error(`Upload failed: ${uploadResponse.status} - ${errorText}`);
+      // Upload video - use multipart for files > 10MB, simple for smaller
+      let newVideoUrl: string;
+      if (videoBlob.size > 10 * 1024 * 1024) {
+        newVideoUrl = await uploadWithMultipart(videoBlob, videoFileName, contentType, controller.signal);
+      } else {
+        setCurrentStatus(`Uploading video (${(videoBlob.size / 1024 / 1024).toFixed(1)}MB)...`);
+        newVideoUrl = await uploadSimple(videoBlob, videoFileName, contentType, controller.signal);
       }
       
-      const newVideoUrl = presignedData.publicUrl;
       let newThumbnailUrl: string | undefined;
       
       // Migrate thumbnail if exists
@@ -143,40 +289,25 @@ const VideoMigrationPanel = () => {
         setCurrentStatus('Đang migrate thumbnail...');
         
         try {
-          const thumbResponse = await fetch(video.thumbnail_url);
+          const thumbResponse = await fetch(video.thumbnail_url, { signal: controller.signal });
           if (thumbResponse.ok) {
             const thumbBlob = await thumbResponse.blob();
             const thumbFileName = video.thumbnail_url.split('/').pop()?.split('?')[0] || 'thumb.jpg';
             const newThumbFileName = `${video.user_id}/thumbnails/migrated-${timestamp}-${thumbFileName}`;
             
-            const { data: thumbPresignedData } = await supabase.functions.invoke('migrate-to-r2', {
-              body: { 
-                action: 'get-presigned-url', 
-                fileName: newThumbFileName,
-                contentType: thumbBlob.type || 'image/jpeg'
-              }
-            });
-            
-            if (thumbPresignedData?.presignedUrl) {
-              const thumbUploadResponse = await fetch(thumbPresignedData.presignedUrl, {
-                method: 'PUT',
-                body: thumbBlob,
-                headers: {
-                  'Content-Type': thumbBlob.type || 'image/jpeg',
-                }
-              });
-              
-              if (thumbUploadResponse.ok) {
-                newThumbnailUrl = thumbPresignedData.publicUrl;
-              }
-            }
+            newThumbnailUrl = await uploadSimple(
+              thumbBlob, 
+              newThumbFileName, 
+              thumbBlob.type || 'image/jpeg',
+              controller.signal
+            );
           }
         } catch (thumbError) {
           console.warn('Thumbnail migration failed:', thumbError);
         }
       }
       
-      // Update video URLs in database
+      // Update database
       setCurrentStatus('Đang cập nhật database...');
       const { error: updateError } = await supabase.functions.invoke('migrate-to-r2', {
         body: { 
@@ -192,7 +323,17 @@ const VideoMigrationPanel = () => {
       return { success: true, newVideoUrl, newThumbnailUrl };
       
     } catch (error: any) {
-      console.error('Client-side migration error:', error);
+      console.error('Migration error:', error);
+      
+      // Mark as failed in database
+      await supabase.functions.invoke('migrate-to-r2', {
+        body: { 
+          action: 'mark-failed', 
+          videoId: video.id,
+          errorMessage: error.message
+        }
+      }).catch(() => {});
+      
       return { success: false, error: error.message };
     }
   };
@@ -201,10 +342,12 @@ const VideoMigrationPanel = () => {
     const video = pendingVideos.find(v => v.id === videoId);
     if (!video) return;
     
+    setMigrating(true);
     setCurrentVideoId(videoId);
     setCurrentStatus('Bắt đầu migrate...');
+    stopRequestedRef.current = false;
     
-    const result = await migrateVideoClientSide(video);
+    const result = await migrateVideo(video);
     
     if (result.success) {
       toast.success(`Video migrated successfully`);
@@ -216,6 +359,8 @@ const VideoMigrationPanel = () => {
     
     setCurrentVideoId(null);
     setCurrentStatus('');
+    setUploadProgress(0);
+    setMigrating(false);
     await refreshData();
   };
 
@@ -228,16 +373,22 @@ const VideoMigrationPanel = () => {
     setMigrating(true);
     setBatchProgress({ current: 0, total: pendingVideos.length });
     setMigrationResults([]);
+    stopRequestedRef.current = false;
 
     let migratedCount = 0;
     let failedCount = 0;
 
     for (let i = 0; i < pendingVideos.length; i++) {
+      if (stopRequestedRef.current) {
+        toast.info('Migration đã dừng');
+        break;
+      }
+      
       const video = pendingVideos[i];
       setCurrentVideoId(video.id);
       setBatchProgress({ current: i, total: pendingVideos.length });
       
-      const result = await migrateVideoClientSide(video);
+      const result = await migrateVideo(video);
       
       if (result.success) {
         migratedCount++;
@@ -251,8 +402,8 @@ const VideoMigrationPanel = () => {
       
       setBatchProgress({ current: i + 1, total: pendingVideos.length });
       
-      // Small delay between videos to prevent browser memory issues
-      if (i < pendingVideos.length - 1) {
+      // Small delay between videos
+      if (i < pendingVideos.length - 1 && !stopRequestedRef.current) {
         await new Promise(resolve => setTimeout(resolve, 500));
       }
     }
@@ -260,9 +411,16 @@ const VideoMigrationPanel = () => {
     setMigrating(false);
     setCurrentVideoId(null);
     setCurrentStatus('');
+    setUploadProgress(0);
     
     toast.success(`Migration hoàn tất: ${migratedCount} thành công, ${failedCount} thất bại`);
     await refreshData();
+  };
+
+  const stopMigration = () => {
+    stopRequestedRef.current = true;
+    abortControllerRef.current?.abort();
+    toast.info('Đang dừng migration...');
   };
 
   const getStatusBadge = (videoId: string) => {
@@ -347,33 +505,46 @@ const VideoMigrationPanel = () => {
               <RefreshCw className="w-4 h-4 mr-1" />
               Refresh
             </Button>
-            <Button 
-              onClick={migrateAllVideos}
-              disabled={migrating || pendingVideos.length === 0}
-              className="bg-gradient-to-r from-blue-500 to-purple-500"
-            >
-              {migrating ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Đang migrate...
-                </>
-              ) : (
-                <>
-                  <Play className="w-4 h-4 mr-2" />
-                  Migrate tất cả ({pendingVideos.length})
-                </>
-              )}
-            </Button>
+            {migrating ? (
+              <Button 
+                variant="destructive"
+                size="sm"
+                onClick={stopMigration}
+              >
+                <StopCircle className="w-4 h-4 mr-2" />
+                Dừng lại
+              </Button>
+            ) : (
+              <Button 
+                onClick={migrateAllVideos}
+                disabled={migrating || pendingVideos.length === 0}
+                className="bg-gradient-to-r from-blue-500 to-purple-500"
+              >
+                <Play className="w-4 h-4 mr-2" />
+                Migrate tất cả ({pendingVideos.length})
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent>
           {migrating && (
-            <div className="mb-6 space-y-2">
+            <div className="mb-6 space-y-3">
               <div className="flex justify-between text-sm">
-                <span>Tiến trình: {batchProgress.current}/{batchProgress.total}</span>
+                <span>Video: {batchProgress.current}/{batchProgress.total}</span>
                 <span>{Math.round(progressPercent)}%</span>
               </div>
-              <Progress value={progressPercent} className="h-3" />
+              <Progress value={progressPercent} className="h-2" />
+              
+              {uploadProgress > 0 && (
+                <>
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Upload progress</span>
+                    <span>{uploadProgress}%</span>
+                  </div>
+                  <Progress value={uploadProgress} className="h-1.5 bg-muted" />
+                </>
+              )}
+              
               {currentStatus && (
                 <div className="text-xs text-muted-foreground animate-pulse">
                   {currentStatus}
@@ -415,7 +586,7 @@ const VideoMigrationPanel = () => {
                       size="sm"
                       variant="outline"
                       onClick={() => migrateSingleVideo(video.id)}
-                      disabled={migrating || currentVideoId === video.id}
+                      disabled={migrating}
                     >
                       {currentVideoId === video.id ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -448,7 +619,7 @@ const VideoMigrationPanel = () => {
                     }`}
                   >
                     {result.success ? (
-                      <span>✓ Video {result.videoId.slice(0, 8)}... → {result.newVideoUrl?.slice(0, 50)}...</span>
+                      <span>✓ Video {result.videoId.slice(0, 8)}... → R2</span>
                     ) : (
                       <span>✗ Video {result.videoId.slice(0, 8)}... - {result.error}</span>
                     )}

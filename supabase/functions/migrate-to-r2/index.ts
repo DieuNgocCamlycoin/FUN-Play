@@ -12,10 +12,6 @@ const R2_SECRET_ACCESS_KEY = Deno.env.get('R2_SECRET_ACCESS_KEY') || '';
 const R2_BUCKET_NAME = Deno.env.get('R2_BUCKET_NAME') || '';
 const R2_PUBLIC_URL = Deno.env.get('R2_PUBLIC_URL') || '';
 
-// Size limits - use smaller chunks for memory efficiency
-const MAX_SINGLE_UPLOAD_SIZE = 10 * 1024 * 1024; // 10MB for single upload
-const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks for multipart
-
 // AWS Signature V4 helpers
 async function hmacSha256(key: ArrayBuffer, data: string): Promise<ArrayBuffer> {
   const cryptoKey = await crypto.subtle.importKey(
@@ -56,14 +52,68 @@ async function getSignatureKey(
   return await hmacSha256(kService, 'aws4_request');
 }
 
-async function signRequest(
-  method: string,
-  objectKey: string,
-  queryString: string,
-  payloadHash: string,
-  contentType?: string,
-  additionalHeaders?: Record<string, string>
-): Promise<{ headers: Record<string, string>; url: string }> {
+// Generate presigned URL for client-side upload (either PUT or part upload)
+async function generatePresignedUrl(
+  fileName: string, 
+  method: string = 'PUT',
+  queryParams: Record<string, string> = {},
+  expiresIn: number = 3600
+): Promise<string> {
+  const service = 's3';
+  const region = 'auto';
+  const algorithm = 'AWS4-HMAC-SHA256';
+  
+  const now = new Date();
+  const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, '');
+  const dateStamp = amzDate.slice(0, 8);
+  
+  const credentialScope = `${dateStamp}/${region}/${service}/aws4_request`;
+  const credential = `${R2_ACCESS_KEY_ID}/${credentialScope}`;
+  
+  const endpointUrl = new URL(R2_ENDPOINT);
+  const host = endpointUrl.hostname;
+  
+  // Build query parameters for presigned URL
+  const params = new URLSearchParams({
+    'X-Amz-Algorithm': algorithm,
+    'X-Amz-Credential': credential,
+    'X-Amz-Date': amzDate,
+    'X-Amz-Expires': expiresIn.toString(),
+    'X-Amz-SignedHeaders': 'host',
+    ...queryParams
+  });
+  
+  // Sort params for canonical request
+  const sortedParams = new URLSearchParams([...params.entries()].sort());
+  
+  const canonicalRequest = 
+    `${method}\n` +
+    `/${R2_BUCKET_NAME}/${fileName}\n` +
+    `${sortedParams.toString()}\n` +
+    `host:${host}\n\n` +
+    `host\n` +
+    `UNSIGNED-PAYLOAD`;
+  
+  const canonicalRequestHash = await sha256(new TextEncoder().encode(canonicalRequest));
+  const stringToSign = 
+    `${algorithm}\n` +
+    `${amzDate}\n` +
+    `${credentialScope}\n` +
+    `${canonicalRequestHash}`;
+  
+  const signingKey = await getSignatureKey(R2_SECRET_ACCESS_KEY, dateStamp, region, service);
+  const signatureBuffer = await hmacSha256(signingKey, stringToSign);
+  const signature = toHex(signatureBuffer);
+  
+  sortedParams.set('X-Amz-Signature', signature);
+  
+  return `${R2_ENDPOINT}/${R2_BUCKET_NAME}/${fileName}?${sortedParams.toString()}`;
+}
+
+// Initiate multipart upload and return uploadId
+async function initiateMultipartUpload(fileName: string, contentType: string): Promise<string> {
+  console.log(`Initiating multipart upload for: ${fileName}`);
+  
   const service = 's3';
   const region = 'auto';
   
@@ -74,30 +124,108 @@ async function signRequest(
   const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, '');
   const dateStamp = amzDate.slice(0, 8);
   
-  let canonicalHeaders = `host:${host}\n` +
+  const payloadHash = await sha256(new ArrayBuffer(0));
+  
+  const canonicalHeaders = 
+    `content-type:${contentType}\n` +
+    `host:${host}\n` +
     `x-amz-content-sha256:${payloadHash}\n` +
     `x-amz-date:${amzDate}\n`;
   
-  let signedHeaders = 'host;x-amz-content-sha256;x-amz-date';
-  
-  if (contentType) {
-    canonicalHeaders = `content-type:${contentType}\n` + canonicalHeaders;
-    signedHeaders = 'content-type;' + signedHeaders;
-  }
-  
-  // Add additional headers to canonical headers (sorted)
-  if (additionalHeaders) {
-    const sortedHeaders = Object.entries(additionalHeaders)
-      .sort(([a], [b]) => a.localeCompare(b));
-    for (const [key, value] of sortedHeaders) {
-      canonicalHeaders += `${key.toLowerCase()}:${value}\n`;
-      signedHeaders += `;${key.toLowerCase()}`;
-    }
-  }
+  const signedHeaders = 'content-type;host;x-amz-content-sha256;x-amz-date';
   
   const canonicalRequest = 
-    `${method}\n` +
-    `/${R2_BUCKET_NAME}/${objectKey}\n` +
+    `POST\n` +
+    `/${R2_BUCKET_NAME}/${fileName}\n` +
+    `uploads=\n` +
+    `${canonicalHeaders}\n` +
+    `${signedHeaders}\n` +
+    `${payloadHash}`;
+  
+  const algorithm = 'AWS4-HMAC-SHA256';
+  const credentialScope = `${dateStamp}/${region}/${service}/aws4_request`;
+  const canonicalRequestHash = await sha256(new TextEncoder().encode(canonicalRequest));
+  
+  const stringToSign = 
+    `${algorithm}\n` +
+    `${amzDate}\n` +
+    `${credentialScope}\n` +
+    `${canonicalRequestHash}`;
+  
+  const signingKey = await getSignatureKey(R2_SECRET_ACCESS_KEY, dateStamp, region, service);
+  const signatureBuffer = await hmacSha256(signingKey, stringToSign);
+  const signature = toHex(signatureBuffer);
+  
+  const authorizationHeader = 
+    `${algorithm} ` +
+    `Credential=${R2_ACCESS_KEY_ID}/${credentialScope}, ` +
+    `SignedHeaders=${signedHeaders}, ` +
+    `Signature=${signature}`;
+  
+  const response = await fetch(`${R2_ENDPOINT}/${R2_BUCKET_NAME}/${fileName}?uploads=`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': contentType,
+      'Host': host,
+      'x-amz-content-sha256': payloadHash,
+      'x-amz-date': amzDate,
+      'Authorization': authorizationHeader,
+    },
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to initiate multipart upload: ${response.status} - ${errorText}`);
+  }
+  
+  const responseText = await response.text();
+  const uploadIdMatch = responseText.match(/<UploadId>([^<]+)<\/UploadId>/);
+  if (!uploadIdMatch) {
+    throw new Error('Could not parse UploadId from response');
+  }
+  
+  console.log(`Multipart upload initiated: ${uploadIdMatch[1]}`);
+  return uploadIdMatch[1];
+}
+
+// Complete multipart upload
+async function completeMultipartUpload(
+  fileName: string,
+  uploadId: string,
+  parts: { partNumber: number; etag: string }[]
+): Promise<void> {
+  console.log(`Completing multipart upload with ${parts.length} parts`);
+  
+  const partsXml = parts
+    .sort((a, b) => a.partNumber - b.partNumber)
+    .map(p => `<Part><PartNumber>${p.partNumber}</PartNumber><ETag>${p.etag}</ETag></Part>`)
+    .join('');
+  const body = `<CompleteMultipartUpload>${partsXml}</CompleteMultipartUpload>`;
+  const bodyBuffer = new TextEncoder().encode(body);
+  
+  const service = 's3';
+  const region = 'auto';
+  const endpointUrl = new URL(R2_ENDPOINT);
+  const host = endpointUrl.hostname;
+  
+  const now = new Date();
+  const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, '');
+  const dateStamp = amzDate.slice(0, 8);
+  
+  const payloadHash = await sha256(bodyBuffer);
+  const queryString = `uploadId=${encodeURIComponent(uploadId)}`;
+  
+  const canonicalHeaders = 
+    `content-type:application/xml\n` +
+    `host:${host}\n` +
+    `x-amz-content-sha256:${payloadHash}\n` +
+    `x-amz-date:${amzDate}\n`;
+  
+  const signedHeaders = 'content-type;host;x-amz-content-sha256;x-amz-date';
+  
+  const canonicalRequest = 
+    `POST\n` +
+    `/${R2_BUCKET_NAME}/${fileName}\n` +
     `${queryString}\n` +
     `${canonicalHeaders}\n` +
     `${signedHeaders}\n` +
@@ -123,171 +251,15 @@ async function signRequest(
     `SignedHeaders=${signedHeaders}, ` +
     `Signature=${signature}`;
   
-  const headers: Record<string, string> = {
-    'Host': host,
-    'x-amz-content-sha256': payloadHash,
-    'x-amz-date': amzDate,
-    'Authorization': authorizationHeader,
-  };
-  
-  if (contentType) {
-    headers['Content-Type'] = contentType;
-  }
-  
-  if (additionalHeaders) {
-    Object.assign(headers, additionalHeaders);
-  }
-  
-  const url = queryString 
-    ? `${R2_ENDPOINT}/${R2_BUCKET_NAME}/${objectKey}?${queryString}`
-    : `${R2_ENDPOINT}/${R2_BUCKET_NAME}/${objectKey}`;
-  
-  return { headers, url };
-}
-
-// Simple single-part upload for small files
-async function uploadToR2Simple(
-  fileData: ArrayBuffer,
-  fileName: string,
-  contentType: string
-): Promise<string> {
-  const payloadHash = await sha256(fileData);
-  const { headers, url } = await signRequest('PUT', fileName, '', payloadHash, contentType);
-  
-  const response = await fetch(url, {
-    method: 'PUT',
-    headers,
-    body: fileData,
-  });
-  
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`R2 upload failed: ${response.status} - ${errorText}`);
-  }
-  
-  return `${R2_PUBLIC_URL}/${fileName}`;
-}
-
-// Stream-based download to avoid loading entire file into memory
-async function downloadFileStreaming(url: string): Promise<{ size: number; chunks: Uint8Array[] }> {
-  console.log(`Streaming download from: ${url}`);
-  
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to download: ${response.status}`);
-  }
-  
-  const contentLength = parseInt(response.headers.get('content-length') || '0');
-  console.log(`File size: ${(contentLength / 1024 / 1024).toFixed(2)} MB`);
-  
-  const reader = response.body?.getReader();
-  if (!reader) {
-    throw new Error('No reader available');
-  }
-  
-  const chunks: Uint8Array[] = [];
-  let totalSize = 0;
-  
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunks.push(value);
-    totalSize += value.length;
-    
-    // Log progress every 5MB
-    if (totalSize % (5 * 1024 * 1024) < value.length) {
-      console.log(`Downloaded: ${(totalSize / 1024 / 1024).toFixed(2)} MB`);
-    }
-  }
-  
-  return { size: totalSize, chunks };
-}
-
-// Combine chunks into single buffer (only when needed for small files)
-function combineChunks(chunks: Uint8Array[]): ArrayBuffer {
-  const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
-  const result = new Uint8Array(totalLength);
-  let offset = 0;
-  for (const chunk of chunks) {
-    result.set(chunk, offset);
-    offset += chunk.length;
-  }
-  return result.buffer;
-}
-
-// Initiate multipart upload
-async function initiateMultipartUpload(fileName: string, contentType: string): Promise<string> {
-  const payloadHash = await sha256(new ArrayBuffer(0));
-  const { headers, url } = await signRequest('POST', fileName, 'uploads=', payloadHash, contentType);
-  
-  const response = await fetch(url, {
+  const response = await fetch(`${R2_ENDPOINT}/${R2_BUCKET_NAME}/${fileName}?${queryString}`, {
     method: 'POST',
-    headers,
-  });
-  
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to initiate multipart upload: ${response.status} - ${errorText}`);
-  }
-  
-  const responseText = await response.text();
-  const uploadIdMatch = responseText.match(/<UploadId>([^<]+)<\/UploadId>/);
-  if (!uploadIdMatch) {
-    throw new Error('Could not parse UploadId from response');
-  }
-  
-  return uploadIdMatch[1];
-}
-
-// Upload a single part
-async function uploadPart(
-  fileName: string,
-  uploadId: string,
-  partNumber: number,
-  data: ArrayBuffer
-): Promise<string> {
-  const payloadHash = await sha256(data);
-  const queryString = `partNumber=${partNumber}&uploadId=${encodeURIComponent(uploadId)}`;
-  const { headers, url } = await signRequest('PUT', fileName, queryString, payloadHash);
-  
-  const response = await fetch(url, {
-    method: 'PUT',
-    headers,
-    body: data,
-  });
-  
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to upload part ${partNumber}: ${response.status} - ${errorText}`);
-  }
-  
-  const etag = response.headers.get('ETag');
-  if (!etag) {
-    throw new Error(`No ETag returned for part ${partNumber}`);
-  }
-  
-  return etag;
-}
-
-// Complete multipart upload
-async function completeMultipartUpload(
-  fileName: string,
-  uploadId: string,
-  parts: { partNumber: number; etag: string }[]
-): Promise<void> {
-  const partsXml = parts
-    .map(p => `<Part><PartNumber>${p.partNumber}</PartNumber><ETag>${p.etag}</ETag></Part>`)
-    .join('');
-  const body = `<CompleteMultipartUpload>${partsXml}</CompleteMultipartUpload>`;
-  const bodyBuffer = new TextEncoder().encode(body);
-  
-  const payloadHash = await sha256(bodyBuffer);
-  const queryString = `uploadId=${encodeURIComponent(uploadId)}`;
-  const { headers, url } = await signRequest('POST', fileName, queryString, payloadHash, 'application/xml');
-  
-  const response = await fetch(url, {
-    method: 'POST',
-    headers,
+    headers: {
+      'Content-Type': 'application/xml',
+      'Host': host,
+      'x-amz-content-sha256': payloadHash,
+      'x-amz-date': amzDate,
+      'Authorization': authorizationHeader,
+    },
     body: bodyBuffer,
   });
   
@@ -295,174 +267,78 @@ async function completeMultipartUpload(
     const errorText = await response.text();
     throw new Error(`Failed to complete multipart upload: ${response.status} - ${errorText}`);
   }
+  
+  console.log(`Multipart upload completed: ${fileName}`);
 }
 
-// Abort multipart upload on failure
+// Abort multipart upload
 async function abortMultipartUpload(fileName: string, uploadId: string): Promise<void> {
+  console.log(`Aborting multipart upload: ${uploadId}`);
+  
   try {
+    const service = 's3';
+    const region = 'auto';
+    const endpointUrl = new URL(R2_ENDPOINT);
+    const host = endpointUrl.hostname;
+    
+    const now = new Date();
+    const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, '');
+    const dateStamp = amzDate.slice(0, 8);
+    
     const payloadHash = await sha256(new ArrayBuffer(0));
     const queryString = `uploadId=${encodeURIComponent(uploadId)}`;
-    const { headers, url } = await signRequest('DELETE', fileName, queryString, payloadHash);
     
-    await fetch(url, {
+    const canonicalHeaders = 
+      `host:${host}\n` +
+      `x-amz-content-sha256:${payloadHash}\n` +
+      `x-amz-date:${amzDate}\n`;
+    
+    const signedHeaders = 'host;x-amz-content-sha256;x-amz-date';
+    
+    const canonicalRequest = 
+      `DELETE\n` +
+      `/${R2_BUCKET_NAME}/${fileName}\n` +
+      `${queryString}\n` +
+      `${canonicalHeaders}\n` +
+      `${signedHeaders}\n` +
+      `${payloadHash}`;
+    
+    const algorithm = 'AWS4-HMAC-SHA256';
+    const credentialScope = `${dateStamp}/${region}/${service}/aws4_request`;
+    const canonicalRequestHash = await sha256(new TextEncoder().encode(canonicalRequest));
+    
+    const stringToSign = 
+      `${algorithm}\n` +
+      `${amzDate}\n` +
+      `${credentialScope}\n` +
+      `${canonicalRequestHash}`;
+    
+    const signingKey = await getSignatureKey(R2_SECRET_ACCESS_KEY, dateStamp, region, service);
+    const signatureBuffer = await hmacSha256(signingKey, stringToSign);
+    const signature = toHex(signatureBuffer);
+    
+    const authorizationHeader = 
+      `${algorithm} ` +
+      `Credential=${R2_ACCESS_KEY_ID}/${credentialScope}, ` +
+      `SignedHeaders=${signedHeaders}, ` +
+      `Signature=${signature}`;
+    
+    await fetch(`${R2_ENDPOINT}/${R2_BUCKET_NAME}/${fileName}?${queryString}`, {
       method: 'DELETE',
-      headers,
+      headers: {
+        'Host': host,
+        'x-amz-content-sha256': payloadHash,
+        'x-amz-date': amzDate,
+        'Authorization': authorizationHeader,
+      },
     });
   } catch (e) {
     console.error('Failed to abort multipart upload:', e);
   }
 }
 
-// Upload large file using multipart upload
-async function uploadToR2Multipart(
-  chunks: Uint8Array[],
-  totalSize: number,
-  fileName: string,
-  contentType: string
-): Promise<string> {
-  console.log(`Starting multipart upload for ${fileName} (${(totalSize / 1024 / 1024).toFixed(2)} MB)`);
-  
-  const uploadId = await initiateMultipartUpload(fileName, contentType);
-  console.log(`Multipart upload initiated: ${uploadId}`);
-  
-  const parts: { partNumber: number; etag: string }[] = [];
-  let currentPartData: Uint8Array[] = [];
-  let currentPartSize = 0;
-  let partNumber = 1;
-  
-  try {
-    for (const chunk of chunks) {
-      currentPartData.push(chunk);
-      currentPartSize += chunk.length;
-      
-      // When we have enough data for a part, upload it
-      if (currentPartSize >= CHUNK_SIZE) {
-        // Combine current part data
-        const partBuffer = new Uint8Array(currentPartSize);
-        let offset = 0;
-        for (const c of currentPartData) {
-          partBuffer.set(c, offset);
-          offset += c.length;
-        }
-        
-        console.log(`Uploading part ${partNumber} (${(currentPartSize / 1024 / 1024).toFixed(2)} MB)`);
-        const etag = await uploadPart(fileName, uploadId, partNumber, partBuffer.buffer);
-        parts.push({ partNumber, etag });
-        
-        partNumber++;
-        currentPartData = [];
-        currentPartSize = 0;
-      }
-    }
-    
-    // Upload remaining data as final part
-    if (currentPartSize > 0) {
-      const partBuffer = new Uint8Array(currentPartSize);
-      let offset = 0;
-      for (const c of currentPartData) {
-        partBuffer.set(c, offset);
-        offset += c.length;
-      }
-      
-      console.log(`Uploading final part ${partNumber} (${(currentPartSize / 1024 / 1024).toFixed(2)} MB)`);
-      const etag = await uploadPart(fileName, uploadId, partNumber, partBuffer.buffer);
-      parts.push({ partNumber, etag });
-    }
-    
-    // Complete the multipart upload
-    console.log(`Completing multipart upload with ${parts.length} parts`);
-    await completeMultipartUpload(fileName, uploadId, parts);
-    
-    console.log(`Multipart upload completed: ${fileName}`);
-    return `${R2_PUBLIC_URL}/${fileName}`;
-    
-  } catch (error) {
-    console.error(`Multipart upload failed, aborting: ${error}`);
-    await abortMultipartUpload(fileName, uploadId);
-    throw error;
-  }
-}
-
-// Main upload function - chooses strategy based on size
-async function uploadToR2(
-  chunks: Uint8Array[],
-  totalSize: number,
-  fileName: string,
-  contentType: string
-): Promise<string> {
-  if (totalSize <= MAX_SINGLE_UPLOAD_SIZE) {
-    console.log(`Using simple upload for ${fileName} (${(totalSize / 1024 / 1024).toFixed(2)} MB)`);
-    const buffer = combineChunks(chunks);
-    return await uploadToR2Simple(buffer, fileName, contentType);
-  } else {
-    return await uploadToR2Multipart(chunks, totalSize, fileName, contentType);
-  }
-}
-
-async function migrateVideo(
-  supabaseAdmin: any,
-  videoId: string,
-  originalVideoUrl: string,
-  originalThumbnailUrl: string | null,
-  userId: string
-): Promise<{ newVideoUrl: string | null; newThumbnailUrl: string | null }> {
-  let newVideoUrl: string | null = null;
-  let newThumbnailUrl: string | null = null;
-  
-  // Migrate video file
-  if (originalVideoUrl && !originalVideoUrl.includes('r2.dev') && !originalVideoUrl.includes('youtube.com') && !originalVideoUrl.includes('youtu.be')) {
-    console.log(`Starting migration for video: ${originalVideoUrl}`);
-    
-    // Stream download to avoid memory issues
-    const { size, chunks } = await downloadFileStreaming(originalVideoUrl);
-    
-    // Extract original filename
-    const urlParts = originalVideoUrl.split('/');
-    const originalFileName = urlParts[urlParts.length - 1].split('?')[0];
-    const timestamp = Date.now();
-    const newFileName = `${userId}/videos/migrated-${timestamp}-${originalFileName}`;
-    
-    // Determine content type
-    const ext = originalFileName.split('.').pop()?.toLowerCase() || 'mp4';
-    const contentTypes: Record<string, string> = {
-      'mp4': 'video/mp4',
-      'mov': 'video/quicktime',
-      'avi': 'video/x-msvideo',
-      'mkv': 'video/x-matroska',
-      'webm': 'video/webm',
-    };
-    const contentType = contentTypes[ext] || 'video/mp4';
-    
-    newVideoUrl = await uploadToR2(chunks, size, newFileName, contentType);
-    console.log(`Video migrated successfully: ${newVideoUrl}`);
-    
-    // Clear chunks from memory
-    chunks.length = 0;
-  }
-  
-  // Migrate thumbnail file (these are always small, use simple approach)
-  if (originalThumbnailUrl && !originalThumbnailUrl.includes('r2.dev')) {
-    console.log(`Downloading thumbnail from: ${originalThumbnailUrl}`);
-    
-    const thumbResponse = await fetch(originalThumbnailUrl);
-    if (thumbResponse.ok) {
-      const thumbData = await thumbResponse.arrayBuffer();
-      const contentType = thumbResponse.headers.get('content-type') || 'image/jpeg';
-      
-      const urlParts = originalThumbnailUrl.split('/');
-      const originalFileName = urlParts[urlParts.length - 1].split('?')[0];
-      const timestamp = Date.now();
-      const newFileName = `${userId}/thumbnails/migrated-${timestamp}-${originalFileName}`;
-      
-      newThumbnailUrl = await uploadToR2Simple(thumbData, newFileName, contentType);
-      console.log(`Thumbnail migrated successfully: ${newThumbnailUrl}`);
-    }
-  }
-  
-  return { newVideoUrl, newThumbnailUrl };
-}
-
 Deno.serve(async (req) => {
+  // Always handle CORS first
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -509,10 +385,15 @@ Deno.serve(async (req) => {
     // Use service role for admin operations
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
     
-    const { action, videoId, batchSize = 1, fileName, contentType, videoUrl, thumbnailUrl } = await req.json();
+    const body = await req.json();
+    const { action } = body;
     
-    // Generate presigned URL for client-side upload
+    console.log(`Action: ${action}`);
+    
+    // ============ SIMPLE PRESIGNED URL FOR SMALL FILES ============
     if (action === 'get-presigned-url') {
+      const { fileName, contentType } = body;
+      
       if (!fileName) {
         return new Response(
           JSON.stringify({ error: 'fileName required' }),
@@ -520,55 +401,10 @@ Deno.serve(async (req) => {
         );
       }
       
-      // Generate a presigned PUT URL valid for 1 hour
-      const expiresIn = 3600;
-      const now = new Date();
-      const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, '');
-      const dateStamp = amzDate.slice(0, 8);
-      const expiration = new Date(now.getTime() + expiresIn * 1000);
-      
-      // Create presigned URL using query string authentication
-      const service = 's3';
-      const region = 'auto';
-      const algorithm = 'AWS4-HMAC-SHA256';
-      const credentialScope = `${dateStamp}/${region}/${service}/aws4_request`;
-      const credential = `${R2_ACCESS_KEY_ID}/${credentialScope}`;
-      
-      const endpointUrl = new URL(R2_ENDPOINT);
-      const host = endpointUrl.hostname;
-      
-      // Query parameters for presigned URL
-      const queryParams = new URLSearchParams({
-        'X-Amz-Algorithm': algorithm,
-        'X-Amz-Credential': credential,
-        'X-Amz-Date': amzDate,
-        'X-Amz-Expires': expiresIn.toString(),
-        'X-Amz-SignedHeaders': 'host',
-      });
-      
-      const canonicalRequest = 
-        `PUT\n` +
-        `/${R2_BUCKET_NAME}/${fileName}\n` +
-        `${queryParams.toString()}\n` +
-        `host:${host}\n\n` +
-        `host\n` +
-        `UNSIGNED-PAYLOAD`;
-      
-      const canonicalRequestHash = await sha256(new TextEncoder().encode(canonicalRequest));
-      const stringToSign = 
-        `${algorithm}\n` +
-        `${amzDate}\n` +
-        `${credentialScope}\n` +
-        `${canonicalRequestHash}`;
-      
-      const signingKey = await getSignatureKey(R2_SECRET_ACCESS_KEY, dateStamp, region, service);
-      const signatureBuffer = await hmacSha256(signingKey, stringToSign);
-      const signature = toHex(signatureBuffer);
-      
-      queryParams.set('X-Amz-Signature', signature);
-      
-      const presignedUrl = `${R2_ENDPOINT}/${R2_BUCKET_NAME}/${fileName}?${queryParams.toString()}`;
+      const presignedUrl = await generatePresignedUrl(fileName, 'PUT');
       const publicUrl = `${R2_PUBLIC_URL}/${fileName}`;
+      
+      console.log(`Generated presigned URL for: ${fileName}`);
       
       return new Response(
         JSON.stringify({ presignedUrl, publicUrl }),
@@ -576,8 +412,97 @@ Deno.serve(async (req) => {
       );
     }
     
-    // Update video URLs after client-side migration
+    // ============ MULTIPART UPLOAD: INITIATE ============
+    if (action === 'initiate-multipart') {
+      const { fileName, contentType } = body;
+      
+      if (!fileName) {
+        return new Response(
+          JSON.stringify({ error: 'fileName required' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      const uploadId = await initiateMultipartUpload(fileName, contentType || 'video/mp4');
+      const publicUrl = `${R2_PUBLIC_URL}/${fileName}`;
+      
+      return new Response(
+        JSON.stringify({ uploadId, publicUrl }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    // ============ MULTIPART UPLOAD: GET PART URL ============
+    if (action === 'get-part-url') {
+      const { fileName, uploadId, partNumber } = body;
+      
+      if (!fileName || !uploadId || !partNumber) {
+        return new Response(
+          JSON.stringify({ error: 'fileName, uploadId, partNumber required' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      const presignedUrl = await generatePresignedUrl(
+        fileName, 
+        'PUT', 
+        { 
+          partNumber: partNumber.toString(), 
+          uploadId: uploadId 
+        }
+      );
+      
+      console.log(`Generated part URL: part ${partNumber}`);
+      
+      return new Response(
+        JSON.stringify({ presignedUrl }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    // ============ MULTIPART UPLOAD: COMPLETE ============
+    if (action === 'complete-multipart') {
+      const { fileName, uploadId, parts } = body;
+      
+      if (!fileName || !uploadId || !parts) {
+        return new Response(
+          JSON.stringify({ error: 'fileName, uploadId, parts required' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      await completeMultipartUpload(fileName, uploadId, parts);
+      const publicUrl = `${R2_PUBLIC_URL}/${fileName}`;
+      
+      return new Response(
+        JSON.stringify({ success: true, publicUrl }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    // ============ MULTIPART UPLOAD: ABORT ============
+    if (action === 'abort-multipart') {
+      const { fileName, uploadId } = body;
+      
+      if (!fileName || !uploadId) {
+        return new Response(
+          JSON.stringify({ error: 'fileName, uploadId required' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      await abortMultipartUpload(fileName, uploadId);
+      
+      return new Response(
+        JSON.stringify({ success: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    // ============ UPDATE VIDEO URLS AFTER MIGRATION ============
     if (action === 'update-video-urls') {
+      const { videoId, videoUrl, thumbnailUrl } = body;
+      
       if (!videoId) {
         return new Response(
           JSON.stringify({ error: 'videoId required' }),
@@ -619,14 +544,54 @@ Deno.serve(async (req) => {
           completed_at: new Date().toISOString()
         }, { onConflict: 'video_id' });
       
+      console.log(`Updated video URLs for: ${videoId}`);
+      
       return new Response(
         JSON.stringify({ success: true, videoId }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     
+    // ============ MARK MIGRATION AS FAILED ============
+    if (action === 'mark-failed') {
+      const { videoId, errorMessage } = body;
+      
+      if (!videoId) {
+        return new Response(
+          JSON.stringify({ error: 'videoId required' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      // Get original video info
+      const { data: video } = await supabaseAdmin
+        .from('videos')
+        .select('video_url, thumbnail_url')
+        .eq('id', videoId)
+        .single();
+      
+      // Create/update migration record as failed
+      await supabaseAdmin
+        .from('video_migrations')
+        .upsert({
+          video_id: videoId,
+          original_video_url: video?.video_url || '',
+          original_thumbnail_url: video?.thumbnail_url || null,
+          status: 'failed',
+          error_message: errorMessage
+        }, { onConflict: 'video_id' });
+      
+      console.log(`Marked migration failed for: ${videoId}`);
+      
+      return new Response(
+        JSON.stringify({ success: true, videoId }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    // ============ GET PENDING VIDEOS ============
     if (action === 'get-pending') {
-      // Get videos that need migration
+      // Get videos that need migration (in Supabase Storage, not R2, not YouTube)
       const { data: videos, error } = await supabaseAdmin
         .from('videos')
         .select('id, video_url, thumbnail_url, user_id, title')
@@ -637,7 +602,7 @@ Deno.serve(async (req) => {
       
       if (error) throw error;
       
-      // Also get migration status
+      // Filter out already completed migrations
       const { data: migrations } = await supabaseAdmin
         .from('video_migrations')
         .select('video_id, status');
@@ -649,6 +614,8 @@ Deno.serve(async (req) => {
         return !status || status === 'pending' || status === 'failed';
       }) || [];
       
+      console.log(`Found ${pendingVideos.length} pending videos`);
+      
       return new Response(
         JSON.stringify({ 
           videos: pendingVideos,
@@ -658,8 +625,8 @@ Deno.serve(async (req) => {
       );
     }
     
+    // ============ GET MIGRATION STATS ============
     if (action === 'get-stats') {
-      // Get migration statistics
       const { data: allMigrations } = await supabaseAdmin
         .from('video_migrations')
         .select('status');
@@ -691,206 +658,13 @@ Deno.serve(async (req) => {
         .select('id', { count: 'exact', head: true })
         .like('video_url', '%r2.dev%');
       
+      console.log(`Stats: Supabase=${supabaseCount}, R2=${r2Count}`);
+      
       return new Response(
         JSON.stringify({ 
           ...stats,
           supabaseStorageCount: supabaseCount || 0,
           r2Count: r2Count || 0
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    if (action === 'migrate-single') {
-      if (!videoId) {
-        return new Response(
-          JSON.stringify({ error: 'videoId required' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      
-      // Get video details
-      const { data: video, error: videoError } = await supabaseAdmin
-        .from('videos')
-        .select('id, video_url, thumbnail_url, user_id, title')
-        .eq('id', videoId)
-        .single();
-      
-      if (videoError || !video) {
-        return new Response(
-          JSON.stringify({ error: 'Video not found' }),
-          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      
-      // Create or update migration record
-      await supabaseAdmin
-        .from('video_migrations')
-        .upsert({
-          video_id: video.id,
-          original_video_url: video.video_url,
-          original_thumbnail_url: video.thumbnail_url,
-          status: 'migrating'
-        }, { onConflict: 'video_id' });
-      
-      try {
-        const { newVideoUrl, newThumbnailUrl } = await migrateVideo(
-          supabaseAdmin,
-          video.id,
-          video.video_url,
-          video.thumbnail_url,
-          video.user_id
-        );
-        
-        // Update video record with new URLs
-        const updateData: any = {};
-        if (newVideoUrl) updateData.video_url = newVideoUrl;
-        if (newThumbnailUrl) updateData.thumbnail_url = newThumbnailUrl;
-        
-        if (Object.keys(updateData).length > 0) {
-          await supabaseAdmin
-            .from('videos')
-            .update(updateData)
-            .eq('id', video.id);
-        }
-        
-        // Update migration record
-        await supabaseAdmin
-          .from('video_migrations')
-          .update({
-            new_video_url: newVideoUrl,
-            new_thumbnail_url: newThumbnailUrl,
-            status: 'completed',
-            completed_at: new Date().toISOString()
-          })
-          .eq('video_id', video.id);
-        
-        return new Response(
-          JSON.stringify({ 
-            success: true,
-            videoId: video.id,
-            newVideoUrl,
-            newThumbnailUrl
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      } catch (migrationError: any) {
-        console.error(`Migration failed for video ${video.id}:`, migrationError);
-        
-        await supabaseAdmin
-          .from('video_migrations')
-          .update({
-            status: 'failed',
-            error_message: migrationError.message
-          })
-          .eq('video_id', video.id);
-        
-        return new Response(
-          JSON.stringify({ 
-            success: false,
-            videoId: video.id,
-            error: migrationError.message
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-    }
-    
-    if (action === 'migrate-batch') {
-      // For batch, we only process ONE video at a time to avoid memory issues
-      const actualBatchSize = Math.min(batchSize, 1);
-      
-      // Get pending videos for batch migration
-      const { data: videos, error } = await supabaseAdmin
-        .from('videos')
-        .select('id, video_url, thumbnail_url, user_id, title')
-        .not('video_url', 'like', '%r2.dev%')
-        .not('video_url', 'like', '%youtube.com%')
-        .not('video_url', 'like', '%youtu.be%')
-        .order('created_at', { ascending: true })
-        .limit(10); // Get more to filter
-      
-      if (error) throw error;
-      
-      // Filter out already migrating/completed
-      const { data: existingMigrations } = await supabaseAdmin
-        .from('video_migrations')
-        .select('video_id, status')
-        .in('video_id', videos?.map(v => v.id) || []);
-      
-      const migrationMap = new Map(existingMigrations?.map(m => [m.video_id, m.status]) || []);
-      
-      const toMigrate = videos?.filter(v => {
-        const status = migrationMap.get(v.id);
-        return !status || status === 'pending' || status === 'failed';
-      }).slice(0, actualBatchSize) || [];
-      
-      const results = [];
-      
-      for (const video of toMigrate) {
-        // Create or update migration record
-        await supabaseAdmin
-          .from('video_migrations')
-          .upsert({
-            video_id: video.id,
-            original_video_url: video.video_url,
-            original_thumbnail_url: video.thumbnail_url,
-            status: 'migrating'
-          }, { onConflict: 'video_id' });
-        
-        try {
-          const { newVideoUrl, newThumbnailUrl } = await migrateVideo(
-            supabaseAdmin,
-            video.id,
-            video.video_url,
-            video.thumbnail_url,
-            video.user_id
-          );
-          
-          // Update video record
-          const updateData: any = {};
-          if (newVideoUrl) updateData.video_url = newVideoUrl;
-          if (newThumbnailUrl) updateData.thumbnail_url = newThumbnailUrl;
-          
-          if (Object.keys(updateData).length > 0) {
-            await supabaseAdmin
-              .from('videos')
-              .update(updateData)
-              .eq('id', video.id);
-          }
-          
-          // Update migration record
-          await supabaseAdmin
-            .from('video_migrations')
-            .update({
-              new_video_url: newVideoUrl,
-              new_thumbnail_url: newThumbnailUrl,
-              status: 'completed',
-              completed_at: new Date().toISOString()
-            })
-            .eq('video_id', video.id);
-          
-          results.push({ videoId: video.id, success: true, newVideoUrl, newThumbnailUrl });
-        } catch (migrationError: any) {
-          console.error(`Migration failed for video ${video.id}:`, migrationError);
-          
-          await supabaseAdmin
-            .from('video_migrations')
-            .update({
-              status: 'failed',
-              error_message: migrationError.message
-            })
-            .eq('video_id', video.id);
-          
-          results.push({ videoId: video.id, success: false, error: migrationError.message });
-        }
-      }
-      
-      return new Response(
-        JSON.stringify({ 
-          results,
-          migratedCount: results.filter(r => r.success).length,
-          failedCount: results.filter(r => !r.success).length
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
