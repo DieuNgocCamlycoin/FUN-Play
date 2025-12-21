@@ -12,6 +12,10 @@ const R2_SECRET_ACCESS_KEY = Deno.env.get('R2_SECRET_ACCESS_KEY') || '';
 const R2_BUCKET_NAME = Deno.env.get('R2_BUCKET_NAME') || '';
 const R2_PUBLIC_URL = Deno.env.get('R2_PUBLIC_URL') || '';
 
+// Size limits - use smaller chunks for memory efficiency
+const MAX_SINGLE_UPLOAD_SIZE = 10 * 1024 * 1024; // 10MB for single upload
+const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks for multipart
+
 // AWS Signature V4 helpers
 async function hmacSha256(key: ArrayBuffer, data: string): Promise<ArrayBuffer> {
   const cryptoKey = await crypto.subtle.importKey(
@@ -52,38 +56,49 @@ async function getSignatureKey(
   return await hmacSha256(kService, 'aws4_request');
 }
 
-async function uploadToR2(
-  fileData: ArrayBuffer,
-  fileName: string,
-  contentType: string
-): Promise<string> {
-  const method = 'PUT';
+async function signRequest(
+  method: string,
+  objectKey: string,
+  queryString: string,
+  payloadHash: string,
+  contentType?: string,
+  additionalHeaders?: Record<string, string>
+): Promise<{ headers: Record<string, string>; url: string }> {
   const service = 's3';
   const region = 'auto';
   
-  // Parse endpoint
   const endpointUrl = new URL(R2_ENDPOINT);
   const host = endpointUrl.hostname;
-  const objectKey = fileName;
   
   const now = new Date();
   const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, '');
   const dateStamp = amzDate.slice(0, 8);
   
-  const payloadHash = await sha256(fileData);
-  
-  const canonicalHeaders = 
-    `content-type:${contentType}\n` +
-    `host:${host}\n` +
+  let canonicalHeaders = `host:${host}\n` +
     `x-amz-content-sha256:${payloadHash}\n` +
     `x-amz-date:${amzDate}\n`;
   
-  const signedHeaders = 'content-type;host;x-amz-content-sha256;x-amz-date';
+  let signedHeaders = 'host;x-amz-content-sha256;x-amz-date';
+  
+  if (contentType) {
+    canonicalHeaders = `content-type:${contentType}\n` + canonicalHeaders;
+    signedHeaders = 'content-type;' + signedHeaders;
+  }
+  
+  // Add additional headers to canonical headers (sorted)
+  if (additionalHeaders) {
+    const sortedHeaders = Object.entries(additionalHeaders)
+      .sort(([a], [b]) => a.localeCompare(b));
+    for (const [key, value] of sortedHeaders) {
+      canonicalHeaders += `${key.toLowerCase()}:${value}\n`;
+      signedHeaders += `;${key.toLowerCase()}`;
+    }
+  }
   
   const canonicalRequest = 
     `${method}\n` +
     `/${R2_BUCKET_NAME}/${objectKey}\n` +
-    `\n` +
+    `${queryString}\n` +
     `${canonicalHeaders}\n` +
     `${signedHeaders}\n` +
     `${payloadHash}`;
@@ -108,17 +123,40 @@ async function uploadToR2(
     `SignedHeaders=${signedHeaders}, ` +
     `Signature=${signature}`;
   
-  const url = `${R2_ENDPOINT}/${R2_BUCKET_NAME}/${objectKey}`;
+  const headers: Record<string, string> = {
+    'Host': host,
+    'x-amz-content-sha256': payloadHash,
+    'x-amz-date': amzDate,
+    'Authorization': authorizationHeader,
+  };
+  
+  if (contentType) {
+    headers['Content-Type'] = contentType;
+  }
+  
+  if (additionalHeaders) {
+    Object.assign(headers, additionalHeaders);
+  }
+  
+  const url = queryString 
+    ? `${R2_ENDPOINT}/${R2_BUCKET_NAME}/${objectKey}?${queryString}`
+    : `${R2_ENDPOINT}/${R2_BUCKET_NAME}/${objectKey}`;
+  
+  return { headers, url };
+}
+
+// Simple single-part upload for small files
+async function uploadToR2Simple(
+  fileData: ArrayBuffer,
+  fileName: string,
+  contentType: string
+): Promise<string> {
+  const payloadHash = await sha256(fileData);
+  const { headers, url } = await signRequest('PUT', fileName, '', payloadHash, contentType);
   
   const response = await fetch(url, {
     method: 'PUT',
-    headers: {
-      'Content-Type': contentType,
-      'Host': host,
-      'x-amz-content-sha256': payloadHash,
-      'x-amz-date': amzDate,
-      'Authorization': authorizationHeader,
-    },
+    headers,
     body: fileData,
   });
   
@@ -127,7 +165,238 @@ async function uploadToR2(
     throw new Error(`R2 upload failed: ${response.status} - ${errorText}`);
   }
   
-  return `${R2_PUBLIC_URL}/${objectKey}`;
+  return `${R2_PUBLIC_URL}/${fileName}`;
+}
+
+// Stream-based download to avoid loading entire file into memory
+async function downloadFileStreaming(url: string): Promise<{ size: number; chunks: Uint8Array[] }> {
+  console.log(`Streaming download from: ${url}`);
+  
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to download: ${response.status}`);
+  }
+  
+  const contentLength = parseInt(response.headers.get('content-length') || '0');
+  console.log(`File size: ${(contentLength / 1024 / 1024).toFixed(2)} MB`);
+  
+  const reader = response.body?.getReader();
+  if (!reader) {
+    throw new Error('No reader available');
+  }
+  
+  const chunks: Uint8Array[] = [];
+  let totalSize = 0;
+  
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    totalSize += value.length;
+    
+    // Log progress every 5MB
+    if (totalSize % (5 * 1024 * 1024) < value.length) {
+      console.log(`Downloaded: ${(totalSize / 1024 / 1024).toFixed(2)} MB`);
+    }
+  }
+  
+  return { size: totalSize, chunks };
+}
+
+// Combine chunks into single buffer (only when needed for small files)
+function combineChunks(chunks: Uint8Array[]): ArrayBuffer {
+  const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
+  const result = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const chunk of chunks) {
+    result.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return result.buffer;
+}
+
+// Initiate multipart upload
+async function initiateMultipartUpload(fileName: string, contentType: string): Promise<string> {
+  const payloadHash = await sha256(new ArrayBuffer(0));
+  const { headers, url } = await signRequest('POST', fileName, 'uploads=', payloadHash, contentType);
+  
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to initiate multipart upload: ${response.status} - ${errorText}`);
+  }
+  
+  const responseText = await response.text();
+  const uploadIdMatch = responseText.match(/<UploadId>([^<]+)<\/UploadId>/);
+  if (!uploadIdMatch) {
+    throw new Error('Could not parse UploadId from response');
+  }
+  
+  return uploadIdMatch[1];
+}
+
+// Upload a single part
+async function uploadPart(
+  fileName: string,
+  uploadId: string,
+  partNumber: number,
+  data: ArrayBuffer
+): Promise<string> {
+  const payloadHash = await sha256(data);
+  const queryString = `partNumber=${partNumber}&uploadId=${encodeURIComponent(uploadId)}`;
+  const { headers, url } = await signRequest('PUT', fileName, queryString, payloadHash);
+  
+  const response = await fetch(url, {
+    method: 'PUT',
+    headers,
+    body: data,
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to upload part ${partNumber}: ${response.status} - ${errorText}`);
+  }
+  
+  const etag = response.headers.get('ETag');
+  if (!etag) {
+    throw new Error(`No ETag returned for part ${partNumber}`);
+  }
+  
+  return etag;
+}
+
+// Complete multipart upload
+async function completeMultipartUpload(
+  fileName: string,
+  uploadId: string,
+  parts: { partNumber: number; etag: string }[]
+): Promise<void> {
+  const partsXml = parts
+    .map(p => `<Part><PartNumber>${p.partNumber}</PartNumber><ETag>${p.etag}</ETag></Part>`)
+    .join('');
+  const body = `<CompleteMultipartUpload>${partsXml}</CompleteMultipartUpload>`;
+  const bodyBuffer = new TextEncoder().encode(body);
+  
+  const payloadHash = await sha256(bodyBuffer);
+  const queryString = `uploadId=${encodeURIComponent(uploadId)}`;
+  const { headers, url } = await signRequest('POST', fileName, queryString, payloadHash, 'application/xml');
+  
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: bodyBuffer,
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to complete multipart upload: ${response.status} - ${errorText}`);
+  }
+}
+
+// Abort multipart upload on failure
+async function abortMultipartUpload(fileName: string, uploadId: string): Promise<void> {
+  try {
+    const payloadHash = await sha256(new ArrayBuffer(0));
+    const queryString = `uploadId=${encodeURIComponent(uploadId)}`;
+    const { headers, url } = await signRequest('DELETE', fileName, queryString, payloadHash);
+    
+    await fetch(url, {
+      method: 'DELETE',
+      headers,
+    });
+  } catch (e) {
+    console.error('Failed to abort multipart upload:', e);
+  }
+}
+
+// Upload large file using multipart upload
+async function uploadToR2Multipart(
+  chunks: Uint8Array[],
+  totalSize: number,
+  fileName: string,
+  contentType: string
+): Promise<string> {
+  console.log(`Starting multipart upload for ${fileName} (${(totalSize / 1024 / 1024).toFixed(2)} MB)`);
+  
+  const uploadId = await initiateMultipartUpload(fileName, contentType);
+  console.log(`Multipart upload initiated: ${uploadId}`);
+  
+  const parts: { partNumber: number; etag: string }[] = [];
+  let currentPartData: Uint8Array[] = [];
+  let currentPartSize = 0;
+  let partNumber = 1;
+  
+  try {
+    for (const chunk of chunks) {
+      currentPartData.push(chunk);
+      currentPartSize += chunk.length;
+      
+      // When we have enough data for a part, upload it
+      if (currentPartSize >= CHUNK_SIZE) {
+        // Combine current part data
+        const partBuffer = new Uint8Array(currentPartSize);
+        let offset = 0;
+        for (const c of currentPartData) {
+          partBuffer.set(c, offset);
+          offset += c.length;
+        }
+        
+        console.log(`Uploading part ${partNumber} (${(currentPartSize / 1024 / 1024).toFixed(2)} MB)`);
+        const etag = await uploadPart(fileName, uploadId, partNumber, partBuffer.buffer);
+        parts.push({ partNumber, etag });
+        
+        partNumber++;
+        currentPartData = [];
+        currentPartSize = 0;
+      }
+    }
+    
+    // Upload remaining data as final part
+    if (currentPartSize > 0) {
+      const partBuffer = new Uint8Array(currentPartSize);
+      let offset = 0;
+      for (const c of currentPartData) {
+        partBuffer.set(c, offset);
+        offset += c.length;
+      }
+      
+      console.log(`Uploading final part ${partNumber} (${(currentPartSize / 1024 / 1024).toFixed(2)} MB)`);
+      const etag = await uploadPart(fileName, uploadId, partNumber, partBuffer.buffer);
+      parts.push({ partNumber, etag });
+    }
+    
+    // Complete the multipart upload
+    console.log(`Completing multipart upload with ${parts.length} parts`);
+    await completeMultipartUpload(fileName, uploadId, parts);
+    
+    console.log(`Multipart upload completed: ${fileName}`);
+    return `${R2_PUBLIC_URL}/${fileName}`;
+    
+  } catch (error) {
+    console.error(`Multipart upload failed, aborting: ${error}`);
+    await abortMultipartUpload(fileName, uploadId);
+    throw error;
+  }
+}
+
+// Main upload function - chooses strategy based on size
+async function uploadToR2(
+  chunks: Uint8Array[],
+  totalSize: number,
+  fileName: string,
+  contentType: string
+): Promise<string> {
+  if (totalSize <= MAX_SINGLE_UPLOAD_SIZE) {
+    console.log(`Using simple upload for ${fileName} (${(totalSize / 1024 / 1024).toFixed(2)} MB)`);
+    const buffer = combineChunks(chunks);
+    return await uploadToR2Simple(buffer, fileName, contentType);
+  } else {
+    return await uploadToR2Multipart(chunks, totalSize, fileName, contentType);
+  }
 }
 
 async function migrateVideo(
@@ -142,15 +411,10 @@ async function migrateVideo(
   
   // Migrate video file
   if (originalVideoUrl && !originalVideoUrl.includes('r2.dev') && !originalVideoUrl.includes('youtube.com') && !originalVideoUrl.includes('youtu.be')) {
-    console.log(`Downloading video from: ${originalVideoUrl}`);
+    console.log(`Starting migration for video: ${originalVideoUrl}`);
     
-    const videoResponse = await fetch(originalVideoUrl);
-    if (!videoResponse.ok) {
-      throw new Error(`Failed to download video: ${videoResponse.status}`);
-    }
-    
-    const videoData = await videoResponse.arrayBuffer();
-    const contentType = videoResponse.headers.get('content-type') || 'video/mp4';
+    // Stream download to avoid memory issues
+    const { size, chunks } = await downloadFileStreaming(originalVideoUrl);
     
     // Extract original filename
     const urlParts = originalVideoUrl.split('/');
@@ -158,12 +422,25 @@ async function migrateVideo(
     const timestamp = Date.now();
     const newFileName = `${userId}/videos/migrated-${timestamp}-${originalFileName}`;
     
-    console.log(`Uploading video to R2: ${newFileName}`);
-    newVideoUrl = await uploadToR2(videoData, newFileName, contentType);
+    // Determine content type
+    const ext = originalFileName.split('.').pop()?.toLowerCase() || 'mp4';
+    const contentTypes: Record<string, string> = {
+      'mp4': 'video/mp4',
+      'mov': 'video/quicktime',
+      'avi': 'video/x-msvideo',
+      'mkv': 'video/x-matroska',
+      'webm': 'video/webm',
+    };
+    const contentType = contentTypes[ext] || 'video/mp4';
+    
+    newVideoUrl = await uploadToR2(chunks, size, newFileName, contentType);
     console.log(`Video migrated successfully: ${newVideoUrl}`);
+    
+    // Clear chunks from memory
+    chunks.length = 0;
   }
   
-  // Migrate thumbnail file
+  // Migrate thumbnail file (these are always small, use simple approach)
   if (originalThumbnailUrl && !originalThumbnailUrl.includes('r2.dev')) {
     console.log(`Downloading thumbnail from: ${originalThumbnailUrl}`);
     
@@ -177,8 +454,7 @@ async function migrateVideo(
       const timestamp = Date.now();
       const newFileName = `${userId}/thumbnails/migrated-${timestamp}-${originalFileName}`;
       
-      console.log(`Uploading thumbnail to R2: ${newFileName}`);
-      newThumbnailUrl = await uploadToR2(thumbData, newFileName, contentType);
+      newThumbnailUrl = await uploadToR2Simple(thumbData, newFileName, contentType);
       console.log(`Thumbnail migrated successfully: ${newThumbnailUrl}`);
     }
   }
@@ -233,7 +509,7 @@ Deno.serve(async (req) => {
     // Use service role for admin operations
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
     
-    const { action, videoId, batchSize = 5 } = await req.json();
+    const { action, videoId, batchSize = 1 } = await req.json();
     
     if (action === 'get-pending') {
       // Get videos that need migration
@@ -407,6 +683,9 @@ Deno.serve(async (req) => {
     }
     
     if (action === 'migrate-batch') {
+      // For batch, we only process ONE video at a time to avoid memory issues
+      const actualBatchSize = Math.min(batchSize, 1);
+      
       // Get pending videos for batch migration
       const { data: videos, error } = await supabaseAdmin
         .from('videos')
@@ -415,7 +694,7 @@ Deno.serve(async (req) => {
         .not('video_url', 'like', '%youtube.com%')
         .not('video_url', 'like', '%youtu.be%')
         .order('created_at', { ascending: true })
-        .limit(batchSize);
+        .limit(10); // Get more to filter
       
       if (error) throw error;
       
@@ -430,7 +709,7 @@ Deno.serve(async (req) => {
       const toMigrate = videos?.filter(v => {
         const status = migrationMap.get(v.id);
         return !status || status === 'pending' || status === 'failed';
-      }) || [];
+      }).slice(0, actualBatchSize) || [];
       
       const results = [];
       

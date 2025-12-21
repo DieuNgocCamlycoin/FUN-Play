@@ -125,40 +125,41 @@ const VideoMigrationPanel = () => {
     setBatchProgress({ current: 0, total: pendingVideos.length });
     setMigrationResults([]);
 
-    const BATCH_SIZE = 3;
     let migratedCount = 0;
     let failedCount = 0;
 
-    for (let i = 0; i < pendingVideos.length; i += BATCH_SIZE) {
-      const batch = pendingVideos.slice(i, i + BATCH_SIZE);
+    // Process ONE video at a time to avoid memory issues
+    for (let i = 0; i < pendingVideos.length; i++) {
+      const video = pendingVideos[i];
+      setCurrentVideoId(video.id);
       
-      for (const video of batch) {
-        setCurrentVideoId(video.id);
-        try {
-          const { data, error } = await supabase.functions.invoke('migrate-to-r2', {
-            body: { action: 'migrate-single', videoId: video.id }
-          });
-          
-          if (error) throw error;
-          
-          if (data.success) {
-            migratedCount++;
-            setMigrationResults(prev => [...prev, { videoId: video.id, success: true, newVideoUrl: data.newVideoUrl }]);
-          } else {
-            failedCount++;
-            setMigrationResults(prev => [...prev, { videoId: video.id, success: false, error: data.error }]);
-          }
-        } catch (error: any) {
-          failedCount++;
-          setMigrationResults(prev => [...prev, { videoId: video.id, success: false, error: error.message }]);
-        }
+      try {
+        const { data, error } = await supabase.functions.invoke('migrate-to-r2', {
+          body: { action: 'migrate-single', videoId: video.id }
+        });
         
-        setBatchProgress(prev => ({ ...prev, current: prev.current + 1 }));
+        if (error) throw error;
+        
+        if (data.success) {
+          migratedCount++;
+          setMigrationResults(prev => [...prev, { videoId: video.id, success: true, newVideoUrl: data.newVideoUrl }]);
+          toast.success(`Video ${i + 1}/${pendingVideos.length} migrated`);
+        } else {
+          failedCount++;
+          setMigrationResults(prev => [...prev, { videoId: video.id, success: false, error: data.error }]);
+          toast.error(`Video ${i + 1} failed: ${data.error}`);
+        }
+      } catch (error: any) {
+        failedCount++;
+        setMigrationResults(prev => [...prev, { videoId: video.id, success: false, error: error.message }]);
+        toast.error(`Video ${i + 1} error: ${error.message}`);
       }
       
-      // Delay between batches
-      if (i + BATCH_SIZE < pendingVideos.length) {
-        await new Promise(resolve => setTimeout(resolve, 2000));
+      setBatchProgress(prev => ({ ...prev, current: i + 1 }));
+      
+      // Wait 3 seconds between each video to let Edge Function reset memory
+      if (i < pendingVideos.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 3000));
       }
     }
 
