@@ -365,6 +365,7 @@ export default function Upload() {
         description,
         video_url: videoUrl,
         thumbnail_url: thumbnailUrl,
+        file_size: videoFile.size,
         is_public: true,
       });
 

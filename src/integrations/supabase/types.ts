@@ -753,6 +753,7 @@ export type Database = {
           description: string | null
           dislike_count: number | null
           duration: number | null
+          file_size: number | null
           id: string
           is_public: boolean | null
           like_count: number | null
@@ -771,6 +772,7 @@ export type Database = {
           description?: string | null
           dislike_count?: number | null
           duration?: number | null
+          file_size?: number | null
           id?: string
           is_public?: boolean | null
           like_count?: number | null
@@ -789,6 +791,7 @@ export type Database = {
           description?: string | null
           dislike_count?: number | null
           duration?: number | null
+          file_size?: number | null
           id?: string
           is_public?: boolean | null
           like_count?: number | null
