@@ -76,6 +76,14 @@ export default {
           sapphire: "hsl(var(--glow-sapphire))",
           white: "hsl(var(--glow-white))",
         },
+        fun: {
+          yellow: "hsl(var(--cosmic-gold))",
+          blue: "hsl(var(--cosmic-sapphire))",
+        },
+        hover: {
+          yellow: "hsl(var(--cosmic-cyan) / 0.15)",
+          blue: "hsl(var(--cosmic-sapphire) / 0.15)",
+        },
       },
       fontFamily: {
         sans: ["Inter", "sans-serif"],

@@ -69,8 +69,8 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                   variant="ghost"
                   onClick={() => handleNavigation(item.href)}
                   className={cn(
-                    "w-full justify-start gap-6 px-3 py-2.5 h-auto hover:bg-hover-yellow hover:text-primary transition-all duration-300",
-                    location.pathname === item.href && "bg-hover-yellow text-primary font-semibold",
+                    "w-full justify-start gap-6 px-3 py-2.5 h-auto hover:bg-primary/10 hover:text-primary transition-all duration-300",
+                    location.pathname === item.href && "bg-primary/10 text-primary font-semibold",
                     (item as any).special && "bg-gradient-to-r from-cyan-500/10 via-purple-500/10 to-amber-500/10 hover:from-cyan-500/20 hover:via-purple-500/20 hover:to-amber-500/20"
                   )}
                 >
@@ -93,8 +93,8 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                   variant="ghost"
                   onClick={() => handleNavigation(item.href)}
                   className={cn(
-                    "w-full justify-start gap-6 px-3 py-2.5 h-auto hover:bg-hover-yellow hover:text-primary transition-all duration-300",
-                    location.pathname === item.href && "bg-hover-yellow text-primary font-semibold"
+                    "w-full justify-start gap-6 px-3 py-2.5 h-auto hover:bg-primary/10 hover:text-primary transition-all duration-300",
+                    location.pathname === item.href && "bg-primary/10 text-primary font-semibold"
                   )}
                 >
                   <item.icon className="h-5 w-5" />
@@ -111,11 +111,11 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                 variant="ghost"
                 onClick={() => handleNavigation("/leaderboard")}
                 className={cn(
-                  "w-full justify-start gap-6 px-3 py-2.5 h-auto hover:bg-hover-yellow hover:text-primary transition-all duration-300",
-                  location.pathname === "/leaderboard" && "bg-hover-yellow text-primary font-semibold"
+                  "w-full justify-start gap-6 px-3 py-2.5 h-auto hover:bg-primary/10 hover:text-primary transition-all duration-300",
+                  location.pathname === "/leaderboard" && "bg-primary/10 text-primary font-semibold"
                 )}
               >
-                <Trophy className="h-5 w-5 text-yellow-400" />
+                <Trophy className="h-5 w-5 text-cosmic-gold" />
                 <span>Bảng Xếp Hạng</span>
                 <span className="ml-auto text-xl">🏆</span>
               </Button>
@@ -123,19 +123,19 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                 variant="ghost"
                 onClick={() => handleNavigation("/reward-history")}
                 className={cn(
-                  "w-full justify-start gap-6 px-3 py-2.5 h-auto hover:bg-hover-yellow hover:text-primary transition-all duration-300",
-                  location.pathname === "/reward-history" && "bg-hover-yellow text-primary font-semibold"
+                  "w-full justify-start gap-6 px-3 py-2.5 h-auto hover:bg-primary/10 hover:text-primary transition-all duration-300",
+                  location.pathname === "/reward-history" && "bg-primary/10 text-primary font-semibold"
                 )}
               >
-                <Coins className="h-5 w-5 text-yellow-400" />
+                <Coins className="h-5 w-5 text-cosmic-gold" />
                 <span>Lịch Sử Phần Thưởng</span>
               </Button>
               <Button
                 variant="ghost"
                 onClick={() => handleNavigation("/referral")}
                 className={cn(
-                  "w-full justify-start gap-6 px-3 py-2.5 h-auto hover:bg-hover-yellow hover:text-primary transition-all duration-300",
-                  location.pathname === "/referral" && "bg-hover-yellow text-primary font-semibold"
+                  "w-full justify-start gap-6 px-3 py-2.5 h-auto hover:bg-primary/10 hover:text-primary transition-all duration-300",
+                  location.pathname === "/referral" && "bg-primary/10 text-primary font-semibold"
                 )}
               >
                 <UserPlus className="h-5 w-5 text-green-400" />
@@ -151,8 +151,8 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                   variant="ghost"
                   onClick={() => handleNavigation(item.href)}
                   className={cn(
-                    "w-full justify-start gap-6 px-3 py-2.5 h-auto hover:bg-hover-yellow hover:text-primary transition-all duration-300",
-                    location.pathname === item.href && "bg-hover-yellow text-primary font-semibold"
+                    "w-full justify-start gap-6 px-3 py-2.5 h-auto hover:bg-primary/10 hover:text-primary transition-all duration-300",
+                    location.pathname === item.href && "bg-primary/10 text-primary font-semibold"
                   )}
                 >
                   <item.icon className="h-5 w-5" />
@@ -169,11 +169,11 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                 variant="ghost"
                 onClick={() => handleNavigation("/wallet")}
                 className={cn(
-                  "w-full justify-start gap-6 px-3 py-2.5 h-auto hover:bg-hover-yellow hover:text-primary transition-all duration-300",
-                  location.pathname === "/wallet" && "bg-hover-yellow text-primary font-semibold"
+                  "w-full justify-start gap-6 px-3 py-2.5 h-auto hover:bg-primary/10 hover:text-primary transition-all duration-300",
+                  location.pathname === "/wallet" && "bg-primary/10 text-primary font-semibold"
                 )}
               >
-                <Wallet className="h-5 w-5 text-fun-yellow" />
+                <Wallet className="h-5 w-5 text-cosmic-gold" />
                 <span>Wallet</span>
               </Button>
             </div>

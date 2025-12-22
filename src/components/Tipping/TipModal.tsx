@@ -111,7 +111,7 @@ export const TipModal = ({ open, onOpenChange, creatorAddress, videoId, creatorN
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Coins className="h-5 w-5 text-fun-yellow" />
+            <Coins className="h-5 w-5 text-cosmic-gold" />
             {manualAddress ? "Chuyển tiền thủ công" : `Tip ${creatorName}`}
           </DialogTitle>
           <DialogDescription>
@@ -190,7 +190,7 @@ export const TipModal = ({ open, onOpenChange, creatorAddress, videoId, creatorN
           </Button>
           <Button
             onClick={handleTip}
-            className="flex-1 bg-fun-yellow text-primary-foreground hover:bg-fun-yellow/90"
+            className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
             disabled={loading}
           >
             {loading ? (

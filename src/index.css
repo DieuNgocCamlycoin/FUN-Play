@@ -21,20 +21,20 @@ All colors MUST be HSL.
     --primary: 186 100% 50%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 270 100% 95%;
+    --secondary: 200 100% 95%;
     --secondary-foreground: 222 47% 11%;
 
-    --muted: 270 100% 98%;
+    --muted: 200 100% 98%;
     --muted-foreground: 215 20% 40%;
 
-    --accent: 270 100% 95%;
+    --accent: 200 100% 95%;
     --accent-foreground: 222 47% 11%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 270 100% 90%;
-    --input: 270 100% 98%;
+    --border: 200 100% 90%;
+    --input: 200 100% 98%;
     --ring: 186 100% 50%;
 
     --radius: 1rem;
@@ -43,9 +43,9 @@ All colors MUST be HSL.
     --sidebar-foreground: 222 47% 11%;
     --sidebar-primary: 186 100% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 270 100% 95%;
+    --sidebar-accent: 200 100% 95%;
     --sidebar-accent-foreground: 222 47% 11%;
-    --sidebar-border: 270 100% 90%;
+    --sidebar-border: 200 100% 90%;
     --sidebar-ring: 186 100% 50%;
 
     /* Galaxy Cosmic Palette */
