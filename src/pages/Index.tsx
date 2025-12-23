@@ -2,16 +2,19 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/Layout/Header";
 import { Sidebar } from "@/components/Layout/Sidebar";
+import { MobileHeader } from "@/components/Layout/MobileHeader";
+import { MobileBottomNav } from "@/components/Layout/MobileBottomNav";
+import { MobileDrawer } from "@/components/Layout/MobileDrawer";
 import { CategoryChips } from "@/components/Layout/CategoryChips";
 import { VideoCard } from "@/components/Video/VideoCard";
 import { ContinueWatching } from "@/components/Video/ContinueWatching";
 import { BackgroundMusicPlayer } from "@/components/BackgroundMusicPlayer";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import homepageBackground from "@/assets/homepage-background.png";
-
 
 interface Video {
   id: string;
@@ -33,12 +36,14 @@ interface Video {
 
 const Index = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const [videos, setVideos] = useState<Video[]>([]);
   const [loadingVideos, setLoadingVideos] = useState(true);
   const [currentMusicUrl, setCurrentMusicUrl] = useState<string | null>(null);
   const { toast } = useToast();
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
   // Fetch real videos from database
   useEffect(() => {
@@ -234,11 +239,21 @@ const Index = () => {
         <div className="absolute top-3/5 right-1/5 w-2.5 h-2.5 bg-glow-magenta rounded-full particle opacity-80 blur-sm shadow-[0_0_23px_rgba(217,0,255,0.9)]" style={{ animationDelay: '4s' }} />
       </div>
 
-      <Header onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
-      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      {/* Desktop Header & Sidebar */}
+      <div className="hidden lg:block">
+        <Header onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
+        <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      </div>
+
+      {/* Mobile Header & Drawer */}
+      <div className="lg:hidden">
+        <MobileHeader onMenuClick={() => setIsMobileDrawerOpen(true)} />
+        <MobileDrawer isOpen={isMobileDrawerOpen} onClose={() => setIsMobileDrawerOpen(false)} />
+        <MobileBottomNav />
+      </div>
       
       {/* Main content */}
-      <main className="pt-14 lg:pl-64 relative z-10">
+      <main className="pt-14 pb-20 lg:pb-0 lg:pl-64 relative z-10">
         <CategoryChips />
         {!user && (
           <div className="glass-card mx-4 mt-4 rounded-xl border border-cosmic-magenta/50 p-4 shadow-[0_0_50px_rgba(217,0,255,0.5)]">
@@ -271,7 +286,7 @@ const Index = () => {
               <p className="text-sm text-muted-foreground mt-2">Hãy tải video đầu tiên lên và khám phá vũ trụ âm nhạc đầy năng lượng tình yêu!</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
               {videos.map((video) => (
                 <VideoCard
                   key={video.id}
