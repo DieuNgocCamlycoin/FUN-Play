@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/Layout/Header";
 import { Sidebar } from "@/components/Layout/Sidebar";
@@ -9,9 +9,12 @@ import { CategoryChips } from "@/components/Layout/CategoryChips";
 import { VideoCard } from "@/components/Video/VideoCard";
 import { ContinueWatching } from "@/components/Video/ContinueWatching";
 import { BackgroundMusicPlayer } from "@/components/BackgroundMusicPlayer";
+import { PullToRefreshIndicator } from "@/components/Layout/PullToRefreshIndicator";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { useHapticFeedback } from "@/hooks/useHapticFeedback";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import homepageBackground from "@/assets/homepage-background.png";
@@ -44,70 +47,89 @@ const Index = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const { successFeedback } = useHapticFeedback();
 
-  // Fetch real videos from database
-  useEffect(() => {
-    const fetchVideos = async () => {
-      setLoadingVideos(true);
-      try {
-        const { data, error } = await supabase
-          .from("videos")
-          .select(`
-            id,
-            title,
-            thumbnail_url,
-            video_url,
-            view_count,
-            created_at,
-            user_id,
-            channels (
-              name,
-              id
-            )
-          `)
-          .eq("is_public", true)
-          .order("created_at", { ascending: false })
-          .limit(1000);
+  // Fetch videos function (extracted for pull-to-refresh)
+  const fetchVideos = useCallback(async () => {
+    setLoadingVideos(true);
+    try {
+      const { data, error } = await supabase
+        .from("videos")
+        .select(`
+          id,
+          title,
+          thumbnail_url,
+          video_url,
+          view_count,
+          created_at,
+          user_id,
+          channels (
+            name,
+            id
+          )
+        `)
+        .eq("is_public", true)
+        .order("created_at", { ascending: false })
+        .limit(1000);
 
-        if (error) {
-          console.error("Error fetching videos:", error);
-          toast({
-            title: "Lỗi tải video",
-            description: "Không thể tải danh sách video",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        // Fetch wallet addresses and avatars for all users
-        if (data && data.length > 0) {
-          const userIds = [...new Set(data.map(v => v.user_id))];
-          const { data: profilesData } = await supabase
-            .from("profiles")
-            .select("id, wallet_address, avatar_url")
-            .in("id", userIds);
-
-          const profilesMap = new Map(profilesData?.map(p => [p.id, { wallet_address: p.wallet_address, avatar_url: p.avatar_url }]) || []);
-
-          const videosWithProfiles = data.map(video => ({
-            ...video,
-            profiles: {
-              wallet_address: profilesMap.get(video.user_id)?.wallet_address || null,
-              avatar_url: profilesMap.get(video.user_id)?.avatar_url || null,
-            },
-          }));
-
-          setVideos(videosWithProfiles);
-        } else {
-          setVideos([]);
-        }
-      } catch (error) {
-        console.error("Error:", error);
-      } finally {
-        setLoadingVideos(false);
+      if (error) {
+        console.error("Error fetching videos:", error);
+        toast({
+          title: "Lỗi tải video",
+          description: "Không thể tải danh sách video",
+          variant: "destructive",
+        });
+        return;
       }
-    };
 
+      // Fetch wallet addresses and avatars for all users
+      if (data && data.length > 0) {
+        const userIds = [...new Set(data.map(v => v.user_id))];
+        const { data: profilesData } = await supabase
+          .from("profiles")
+          .select("id, wallet_address, avatar_url")
+          .in("id", userIds);
+
+        const profilesMap = new Map(profilesData?.map(p => [p.id, { wallet_address: p.wallet_address, avatar_url: p.avatar_url }]) || []);
+
+        const videosWithProfiles = data.map(video => ({
+          ...video,
+          profiles: {
+            wallet_address: profilesMap.get(video.user_id)?.wallet_address || null,
+            avatar_url: profilesMap.get(video.user_id)?.avatar_url || null,
+          },
+        }));
+
+        setVideos(videosWithProfiles);
+      } else {
+        setVideos([]);
+      }
+    } catch (error) {
+      console.error("Error:", error);
+    } finally {
+      setLoadingVideos(false);
+    }
+  }, [toast]);
+
+  // Pull-to-refresh handler
+  const handleRefresh = useCallback(async () => {
+    successFeedback();
+    await fetchVideos();
+    toast({
+      title: "Đã làm mới",
+      description: "Danh sách video đã được cập nhật",
+    });
+  }, [fetchVideos, successFeedback, toast]);
+
+  // Pull-to-refresh hook
+  const { isPulling, isRefreshing, pullProgress, pullDistance, handlers: pullHandlers } = usePullToRefresh({
+    onRefresh: handleRefresh,
+    threshold: 80,
+    enabled: isMobile,
+  });
+
+  // Initial fetch and subscriptions
+  useEffect(() => {
     fetchVideos();
 
     // Real-time subscription for profile updates (avatars, etc.)
@@ -210,7 +232,19 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden">
+    <div 
+      className="min-h-screen bg-background relative overflow-hidden"
+      {...(isMobile ? pullHandlers : {})}
+    >
+      {/* Pull-to-refresh indicator */}
+      {isMobile && (
+        <PullToRefreshIndicator
+          isPulling={isPulling}
+          isRefreshing={isRefreshing}
+          pullProgress={pullProgress}
+          pullDistance={pullDistance}
+        />
+      )}
       {/* Homepage background image - Enhanced 8K clarity */}
       <div 
         className="fixed inset-0 z-0 pointer-events-none"
