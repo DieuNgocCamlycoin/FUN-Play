@@ -4,6 +4,7 @@ import { AngelChat } from './AngelChat';
 import { FlyingCoins } from './FlyingCoins';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useHapticFeedback } from '@/hooks/useHapticFeedback';
+import { useSoundEffects } from '@/hooks/useSoundEffects';
 
 interface MobileAngelMascotProps {
   onTipReceived?: boolean;
@@ -20,6 +21,7 @@ export const MobileAngelMascot: React.FC<MobileAngelMascotProps> = ({ onTipRecei
   const controls = useAnimation();
   const angelRef = useRef<HTMLDivElement>(null);
   const { successFeedback, lightTap } = useHapticFeedback();
+  const { playCoinShower, angelFly, celebrate, pop } = useSoundEffects();
 
   // Size based on device
   const size = isMobile ? 70 : 90;
@@ -74,6 +76,10 @@ export const MobileAngelMascot: React.FC<MobileAngelMascotProps> = ({ onTipRecei
       setShowFlyingCoins(true);
       successFeedback(); // Haptic feedback on reward
       
+      // Play celebration sound effects
+      celebrate();
+      setTimeout(() => playCoinShower(8), 200);
+      
       // Reset after celebration
       setTimeout(() => {
         setIsExcited(false);
@@ -91,7 +97,14 @@ export const MobileAngelMascot: React.FC<MobileAngelMascotProps> = ({ onTipRecei
       window.removeEventListener('payment-received', handleTipReceived);
       window.removeEventListener('camly-reward', handleTipReceived);
     };
-  }, [successFeedback]);
+  }, [successFeedback, celebrate, playCoinShower]);
+
+  // Play whoosh sound when angel moves
+  useEffect(() => {
+    if (currentAnimation === 'flying') {
+      angelFly();
+    }
+  }, [position, angelFly]);
 
   const triggerIdleAnimation = (type: string) => {
     controls.start({
