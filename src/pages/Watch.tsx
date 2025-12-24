@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Header } from "@/components/Layout/Header";
 import { Sidebar } from "@/components/Layout/Sidebar";
@@ -16,6 +16,9 @@ import { RewardNotification } from "@/components/Rewards/RewardNotification";
 import { useVideoPlayback } from "@/contexts/VideoPlaybackContext";
 import { UpNextSidebar } from "@/components/Video/UpNextSidebar";
 import { EnhancedVideoPlayer } from "@/components/Video/EnhancedVideoPlayer";
+import MiniPlayer from "@/components/Video/MiniPlayer";
+import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Video {
   id: string;
@@ -75,10 +78,57 @@ export default function Watch() {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [hasLiked, setHasLiked] = useState(false);
   const [showMiniProfile, setShowMiniProfile] = useState(false);
+  const [showMiniPlayer, setShowMiniPlayer] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const videoPlayerRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const { createSession, nextVideo, previousVideo, isAutoplayEnabled, session, getUpNext } = useVideoPlayback();
+
+  // Swipe navigation for mobile
+  const handleSwipeLeft = () => {
+    const next = nextVideo();
+    if (next) {
+      navigate(`/watch/${next.id}`);
+      toast({ title: "Video tiếp theo", description: next.title });
+    }
+  };
+
+  const handleSwipeRight = () => {
+    const prev = previousVideo();
+    if (prev) {
+      navigate(`/watch/${prev.id}`);
+      toast({ title: "Video trước", description: prev.title });
+    }
+  };
+
+  const { handlers: swipeHandlers } = useSwipeNavigation({
+    onSwipeLeft: handleSwipeLeft,
+    onSwipeRight: handleSwipeRight,
+    threshold: 80,
+    enabled: isMobile,
+  });
+
+  // Intersection observer for mini player
+  useEffect(() => {
+    if (!isMobile || !videoPlayerRef.current) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+        setShowMiniPlayer(!entry.isIntersecting && isPlaying);
+      },
+      { threshold: 0.3 }
+    );
+
+    observer.observe(videoPlayerRef.current);
+
+    return () => observer.disconnect();
+  }, [isMobile, isPlaying]);
 
   useEffect(() => {
     if (id) {
@@ -502,7 +552,7 @@ export default function Watch() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background" {...(isMobile ? swipeHandlers : {})}>
       <Header onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
@@ -512,22 +562,29 @@ export default function Watch() {
             {/* Main Content */}
             <div className="space-y-4">
               {/* Video Player */}
-              <EnhancedVideoPlayer
-                videoUrl={video.video_url}
-                videoId={video.id}
-                title={video.title}
-                onEnded={handleVideoEnd}
-                onPrevious={() => {
-                  const prev = previousVideo();
-                  if (prev) navigate(`/watch/${prev.id}`);
-                }}
-                onNext={() => {
-                  const next = nextVideo();
-                  if (next) navigate(`/watch/${next.id}`);
-                }}
-                hasPrevious={session?.history && session.history.length > 1}
-                hasNext={getUpNext(1).length > 0}
-              />
+              <div ref={videoPlayerRef}>
+                <EnhancedVideoPlayer
+                  videoUrl={video.video_url}
+                  videoId={video.id}
+                  title={video.title}
+                  onEnded={handleVideoEnd}
+                  onPrevious={() => {
+                    const prev = previousVideo();
+                    if (prev) navigate(`/watch/${prev.id}`);
+                  }}
+                  onNext={() => {
+                    const next = nextVideo();
+                    if (next) navigate(`/watch/${next.id}`);
+                  }}
+                  hasPrevious={session?.history && session.history.length > 1}
+                  hasNext={getUpNext(1).length > 0}
+                  onPlayStateChange={setIsPlaying}
+                  onTimeUpdate={(time, dur) => {
+                    setCurrentTime(time);
+                    setDuration(dur);
+                  }}
+                />
+              </div>
 
               {/* Video Title */}
               <h1 className="text-xl font-bold text-foreground">
@@ -770,6 +827,28 @@ export default function Watch() {
         show={rewardNotif.show}
         onClose={() => setRewardNotif(prev => ({ ...prev, show: false }))}
       />
+
+      {/* Mobile Mini Player */}
+      {isMobile && showMiniPlayer && video && (
+        <MiniPlayer
+          videoUrl={video.video_url}
+          title={video.title}
+          channelName={video.channels.name}
+          isPlaying={isPlaying}
+          currentTime={currentTime}
+          duration={duration}
+          onClose={() => setShowMiniPlayer(false)}
+          onExpand={() => {
+            setShowMiniPlayer(false);
+            videoPlayerRef.current?.scrollIntoView({ behavior: "smooth" });
+          }}
+          onPlayPause={() => setIsPlaying(!isPlaying)}
+          onNext={() => {
+            const next = nextVideo();
+            if (next) navigate(`/watch/${next.id}`);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -29,6 +29,8 @@ interface EnhancedVideoPlayerProps {
   onNext?: () => void;
   hasPrevious?: boolean;
   hasNext?: boolean;
+  onPlayStateChange?: (isPlaying: boolean) => void;
+  onTimeUpdate?: (currentTime: number, duration: number) => void;
 }
 
 const PLAYBACK_SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
@@ -57,6 +59,8 @@ export function EnhancedVideoPlayer({
   onNext,
   hasPrevious = false,
   hasNext = false,
+  onPlayStateChange,
+  onTimeUpdate,
 }: EnhancedVideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -251,6 +255,7 @@ export function EnhancedVideoPlayer({
     if (video) {
       setCurrentTime(video.currentTime);
       setShowEndScreen(false);
+      onTimeUpdate?.(video.currentTime, video.duration);
     }
   };
 
@@ -424,8 +429,14 @@ export function EnhancedVideoPlayer({
         onLoadedMetadata={handleLoadedMetadata}
         onProgress={handleProgress}
         onEnded={handleEnded}
-        onPlay={() => setIsPlaying(true)}
-        onPause={() => setIsPlaying(false)}
+        onPlay={() => {
+          setIsPlaying(true);
+          onPlayStateChange?.(true);
+        }}
+        onPause={() => {
+          setIsPlaying(false);
+          onPlayStateChange?.(false);
+        }}
         playsInline
       />
 

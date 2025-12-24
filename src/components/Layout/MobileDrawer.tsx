@@ -1,4 +1,4 @@
-import { X, Home, Zap, Users, Library, History, Video, Clock, ThumbsUp, Wallet, ListVideo, FileText, Tv, Trophy, Coins, UserPlus, Image, Sparkles, Music, Settings, LogOut } from "lucide-react";
+import { X, Home, Zap, Users, Library, History, Video, Clock, ThumbsUp, Wallet, ListVideo, FileText, Tv, Trophy, Coins, UserPlus, Image, Sparkles, Music, Settings, LogOut, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
@@ -34,6 +34,7 @@ const rewardItems = [
   { icon: Coins, label: "Lịch Sử Phần Thưởng", href: "/reward-history" },
   { icon: UserPlus, label: "Giới Thiệu Bạn Bè", href: "/referral" },
   { icon: Wallet, label: "Ví của tôi", href: "/wallet" },
+  { icon: Download, label: "Cài đặt App", href: "/install", special: true },
 ];
 
 const manageItems = [
