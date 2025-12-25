@@ -141,11 +141,11 @@ export const AngelMascot: React.FC<AngelMascotProps> = ({ onTipReceived }) => {
             playsInline
             className="w-full h-full object-contain"
             style={{
-              mixBlendMode: 'screen',
+              mixBlendMode: 'lighten',
               background: 'transparent',
-              filter: 'brightness(1.2) contrast(1.35) saturate(1.3)',
-              WebkitMaskImage: 'radial-gradient(ellipse 85% 90% at center 45%, black 40%, transparent 100%)',
-              maskImage: 'radial-gradient(ellipse 85% 90% at center 45%, black 40%, transparent 100%)',
+              filter: 'brightness(1.0) contrast(1.1) saturate(1.1)',
+              WebkitMaskImage: 'radial-gradient(ellipse 65% 75% at center 50%, black 25%, transparent 80%)',
+              maskImage: 'radial-gradient(ellipse 65% 75% at center 50%, black 25%, transparent 80%)',
             }}
           >
             <source src="/videos/angel-mascot-original.mp4" type="video/mp4" />
