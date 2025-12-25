@@ -18,9 +18,10 @@ export interface TokenConfig {
 
 /**
  * Official CAMLY Token Contract Address on BSC Mainnet
- * Verified at: https://bscscan.com/address/0x5A4623F305A8d7904ED68638AF3B4328678edDBf
+ * This address is synchronized with backend claim-camly edge function
+ * Verified at: https://bscscan.com/address/0x0910320181889fefde0bb1ca63962b0a8882e413
  */
-export const CAMLY_TOKEN_ADDRESS = "0x5A4623F305A8d7904ED68638AF3B4328678edDBf";
+export const CAMLY_TOKEN_ADDRESS = "0x0910320181889fefde0bb1ca63962b0a8882e413";
 export const CAMLY_DECIMALS = 9;
 
 /**

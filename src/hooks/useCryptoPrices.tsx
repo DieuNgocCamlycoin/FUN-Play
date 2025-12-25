@@ -5,7 +5,8 @@ import {
   PANCAKESWAP_ROUTER, 
   CAMLY_TOKEN_ADDRESS, 
   CAMLY_DECIMALS,
-  USDT_ADDRESS 
+  USDT_ADDRESS,
+  WBNB_ADDRESS
 } from "@/config/tokens";
 
 interface CryptoPrices {
@@ -43,14 +44,41 @@ export const useCryptoPrices = () => {
           const router = new ethers.Contract(PANCAKESWAP_ROUTER, ROUTER_ABI, provider);
           
           const amountIn = ethers.parseUnits("1", CAMLY_DECIMALS); // 1 CAMLY
-          const path = [CAMLY_TOKEN_ADDRESS, USDT_ADDRESS];
           
-          const amounts = await router.getAmountsOut(amountIn, path);
-          const usdtOut = ethers.formatUnits(amounts[1], 18); // USDT has 18 decimals
-          newPrices["CAMLY"] = parseFloat(usdtOut);
+          console.log("[CAMLY Price] Fetching price for token:", CAMLY_TOKEN_ADDRESS);
+          console.log("[CAMLY Price] Using decimals:", CAMLY_DECIMALS);
+          
+          let camlyPrice = 0;
+          
+          // Try direct path: CAMLY -> USDT
+          try {
+            const directPath = [CAMLY_TOKEN_ADDRESS, USDT_ADDRESS];
+            const amounts = await router.getAmountsOut(amountIn, directPath);
+            const usdtOut = ethers.formatUnits(amounts[1], 18); // USDT has 18 decimals on BSC
+            camlyPrice = parseFloat(usdtOut);
+            console.log("[CAMLY Price] Direct path success, price:", camlyPrice);
+          } catch (directError) {
+            console.log("[CAMLY Price] Direct path failed, trying WBNB path...");
+            
+            // Try path via WBNB: CAMLY -> WBNB -> USDT
+            try {
+              const wbnbPath = [CAMLY_TOKEN_ADDRESS, WBNB_ADDRESS, USDT_ADDRESS];
+              const amounts = await router.getAmountsOut(amountIn, wbnbPath);
+              const usdtOut = ethers.formatUnits(amounts[2], 18);
+              camlyPrice = parseFloat(usdtOut);
+              console.log("[CAMLY Price] WBNB path success, price:", camlyPrice);
+            } catch (wbnbError) {
+              console.log("[CAMLY Price] WBNB path also failed:", wbnbError);
+              // Use a reasonable fallback price
+              camlyPrice = 0.0001;
+              console.log("[CAMLY Price] Using fallback price:", camlyPrice);
+            }
+          }
+          
+          newPrices["CAMLY"] = camlyPrice;
         } catch (error) {
-          console.error("Error fetching CAMLY price from PancakeSwap:", error);
-          // Fallback price if PancakeSwap fails
+          console.error("[CAMLY Price] Error fetching from PancakeSwap:", error);
+          // Fallback price if PancakeSwap fails completely
           newPrices["CAMLY"] = 0.0001;
         }
 
