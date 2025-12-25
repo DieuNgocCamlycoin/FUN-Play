@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, AreaChart, Area } from "recharts";
-import { Users, Video, Eye, MessageSquare, Coins, TrendingUp, Crown, Award, Activity, ShieldX, CloudUpload, BarChart3 } from "lucide-react";
+import { Users, Video, Eye, MessageSquare, Coins, TrendingUp, Crown, Award, Activity, ShieldX, CloudUpload, BarChart3, Settings } from "lucide-react";
 import { format } from "date-fns";
 import { Navigate, useNavigate } from "react-router-dom";
 import VideoMigrationPanel from "@/components/Admin/VideoMigrationPanel";
@@ -71,13 +71,22 @@ const AdminDashboard = () => {
             </h1>
             <p className="text-muted-foreground mt-2">Thống kê toàn nền tảng FUN Play</p>
           </div>
-          <Button 
-            onClick={() => navigate('/admin/video-stats')} 
-            className="gap-2 bg-gradient-to-r from-[#7A2BFF] to-[#FF00E5] hover:opacity-90"
-          >
-            <BarChart3 className="w-4 h-4" />
-            Thống Kê Video Uploads
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              onClick={() => navigate('/admin/reward-config')} 
+              className="gap-2 bg-gradient-to-r from-[#00E7FF] to-[#7A2BFF] hover:opacity-90"
+            >
+              <Settings className="w-4 h-4" />
+              Cấu Hình Rewards
+            </Button>
+            <Button 
+              onClick={() => navigate('/admin/video-stats')} 
+              className="gap-2 bg-gradient-to-r from-[#7A2BFF] to-[#FF00E5] hover:opacity-90"
+            >
+              <BarChart3 className="w-4 h-4" />
+              Thống Kê Video
+            </Button>
+          </div>
         </div>
 
         {/* Platform Stats Cards */}

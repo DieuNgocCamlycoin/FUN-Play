@@ -176,6 +176,38 @@ export type Database = {
           },
         ]
       }
+      content_hashes: {
+        Row: {
+          content_hash: string
+          created_at: string | null
+          file_size: number | null
+          id: string
+          video_id: string | null
+        }
+        Insert: {
+          content_hash: string
+          created_at?: string | null
+          file_size?: number | null
+          id?: string
+          video_id?: string | null
+        }
+        Update: {
+          content_hash?: string
+          created_at?: string | null
+          file_size?: number | null
+          id?: string
+          video_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_hashes_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       daily_reward_limits: {
         Row: {
           comment_rewards_earned: number
@@ -528,6 +560,71 @@ export type Database = {
           wallet_type?: string | null
         }
         Relationships: []
+      }
+      reward_config: {
+        Row: {
+          config_key: string
+          config_value: number
+          description: string | null
+          id: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          config_key: string
+          config_value: number
+          description?: string | null
+          id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          config_key?: string
+          config_value?: number
+          description?: string | null
+          id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      reward_config_history: {
+        Row: {
+          changed_at: string | null
+          changed_by: string | null
+          config_id: string | null
+          config_key: string
+          id: string
+          new_value: number
+          old_value: number | null
+        }
+        Insert: {
+          changed_at?: string | null
+          changed_by?: string | null
+          config_id?: string | null
+          config_key: string
+          id?: string
+          new_value: number
+          old_value?: number | null
+        }
+        Update: {
+          changed_at?: string | null
+          changed_by?: string | null
+          config_id?: string | null
+          config_key?: string
+          id?: string
+          new_value?: number
+          old_value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reward_config_history_config_id_fkey"
+            columns: ["config_id"]
+            isOneToOne: false
+            referencedRelation: "reward_config"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       reward_settings: {
         Row: {

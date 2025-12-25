@@ -26,6 +26,7 @@ import RewardHistory from "./pages/RewardHistory";
 import Referral from "./pages/Referral";
 import UserDashboard from "./pages/UserDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
+import AdminRewardConfig from "./pages/AdminRewardConfig";
 import AdminVideoStats from "./pages/AdminVideoStats";
 import NFTGallery from "./pages/NFTGallery";
 import Meditate from "./pages/Meditate";
@@ -80,6 +81,7 @@ function AppContent() {
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/admin-dashboard" element={<AdminDashboard />} />
         <Route path="/admin/video-stats" element={<AdminVideoStats />} />
+        <Route path="/admin/reward-config" element={<AdminRewardConfig />} />
         <Route path="/nft-gallery" element={<NFTGallery />} />
         <Route path="/meditate" element={<Meditate />} />
         <Route path="/create-music" element={<CreateMusic />} />

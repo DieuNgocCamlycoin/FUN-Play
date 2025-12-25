@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.angel-voice]
 verify_jwt = false
+
+[functions.update-reward-config]
+verify_jwt = false
