@@ -1,4 +1,4 @@
-import { Search, Bell, Menu, Play, X, Plus, Upload, Music, FileText } from "lucide-react";
+import { Search, Bell, Menu, Play, X, Plus, Upload, Music, FileText, Coins, Download } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,8 +13,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ClaimRewardsButton } from "@/components/Rewards/ClaimRewardsButton";
 import { supabase } from "@/integrations/supabase/client";
+import { ClaimRewardsModal } from "@/components/Rewards/ClaimRewardsModal";
 
 interface MobileHeaderProps {
   onMenuClick: () => void;
@@ -27,24 +27,28 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [notificationCount, setNotificationCount] = useState(0);
+  const [unclaimedRewards, setUnclaimedRewards] = useState(0);
+  const [claimModalOpen, setClaimModalOpen] = useState(false);
 
   // Fetch unclaimed rewards count as notification indicator
   useEffect(() => {
     const fetchNotificationCount = async () => {
       if (!user) {
         setNotificationCount(0);
+        setUnclaimedRewards(0);
         return;
       }
 
       try {
-        const { count } = await supabase
+        const { data, count } = await supabase
           .from('reward_transactions')
-          .select('*', { count: 'exact', head: true })
+          .select('amount', { count: 'exact' })
           .eq('user_id', user.id)
           .eq('claimed', false)
           .eq('status', 'success');
 
         setNotificationCount(count || 0);
+        setUnclaimedRewards(data?.length || 0);
       } catch (error) {
         console.error('Error fetching notification count:', error);
       }
@@ -105,19 +109,31 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
         </div>
 
         {/* Right - Actions */}
-        <div className="flex items-center gap-0.5 shrink-0">
+        <div className="flex items-center gap-px shrink-0">
           {/* Search */}
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setIsSearchOpen(true)}
-            className="h-8 w-8"
+            className="h-7 w-7"
           >
-            <Search className="h-4 w-4" />
+            <Search className="h-3.5 w-3.5" />
           </Button>
 
-          {/* Claim Rewards - Compact */}
-          <ClaimRewardsButton compact />
+          {/* Claim Rewards - Always show icon */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => user ? setClaimModalOpen(true) : navigate("/auth")}
+            className="h-7 w-7 relative text-yellow-500 hover:text-yellow-400 hover:bg-yellow-500/10"
+          >
+            <Coins className="h-3.5 w-3.5" />
+            {unclaimedRewards > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 min-w-[12px] h-3 px-0.5 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center">
+                {unclaimedRewards > 9 ? '9+' : unclaimedRewards}
+              </span>
+            )}
+          </Button>
 
           {/* Wallet - Compact */}
           <MultiTokenWallet compact />
@@ -128,9 +144,9 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 text-primary"
+                className="h-7 w-7 text-primary"
               >
-                <Plus className="h-4 w-4" />
+                <Plus className="h-3.5 w-3.5" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44 bg-background border-border">
@@ -149,17 +165,27 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
             </DropdownMenuContent>
           </DropdownMenu>
 
+          {/* Download App */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate("/install")}
+            className="h-7 w-7 text-green-500 hover:text-green-400 hover:bg-green-500/10"
+          >
+            <Download className="h-3.5 w-3.5" />
+          </Button>
+
           {/* Notifications with Badge */}
           <Button 
             variant="ghost" 
             size="icon" 
-            className="h-8 w-8 relative"
+            className="h-7 w-7 relative"
             onClick={() => navigate("/reward-history")}
           >
-            <Bell className="h-4 w-4" />
+            <Bell className="h-3.5 w-3.5" />
             {notificationCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-0.5 bg-destructive text-destructive-foreground text-[9px] font-bold rounded-full flex items-center justify-center">
-                {notificationCount > 99 ? '99+' : notificationCount}
+              <span className="absolute -top-0.5 -right-0.5 min-w-[12px] h-3 px-0.5 bg-destructive text-destructive-foreground text-[8px] font-bold rounded-full flex items-center justify-center">
+                {notificationCount > 9 ? '9+' : notificationCount}
               </span>
             )}
           </Button>
@@ -169,17 +195,17 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 rounded-full p-0"
+              className="h-7 w-7 rounded-full p-0"
               onClick={() => navigate("/settings")}
             >
               {profile?.avatar_url ? (
                 <img
                   src={profile.avatar_url}
                   alt="Profile"
-                  className="w-6 h-6 rounded-full object-cover"
+                  className="w-5 h-5 rounded-full object-cover"
                 />
               ) : (
-                <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-semibold">
+                <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-[10px] font-semibold">
                   {user.email?.[0].toUpperCase()}
                 </div>
               )}
@@ -188,13 +214,16 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
             <Button
               onClick={() => navigate("/auth")}
               size="sm"
-              className="h-7 text-[10px] px-2 font-medium"
+              className="h-6 text-[9px] px-1.5 font-medium"
             >
               Sign In
             </Button>
           )}
         </div>
       </div>
+
+      {/* Claim Rewards Modal */}
+      <ClaimRewardsModal open={claimModalOpen} onOpenChange={setClaimModalOpen} />
 
       {/* Search Mode */}
       <div
