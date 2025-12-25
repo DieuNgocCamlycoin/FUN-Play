@@ -198,13 +198,19 @@ export const AngelChat: React.FC<AngelChatProps> = ({ isOpen, onClose }) => {
           <div className="relative p-4 bg-gradient-to-r from-primary/20 to-accent/20 border-b border-primary/30">
             <div className="flex items-center gap-3">
               <motion.div 
-                className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center"
+                className="w-12 h-12 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center overflow-hidden"
                 animate={{ 
                   boxShadow: ['0 0 20px rgba(0,231,255,0.5)', '0 0 30px rgba(255,215,0,0.5)', '0 0 20px rgba(0,231,255,0.5)']
                 }}
                 transition={{ duration: 2, repeat: Infinity }}
               >
-                <span className="text-2xl">👼</span>
+                <motion.img 
+                  src="/images/angel-transparent.png" 
+                  alt="Angel" 
+                  className="w-14 h-14 object-contain"
+                  animate={{ scale: [1, 1.05, 1] }}
+                  transition={{ duration: 3, repeat: Infinity }}
+                />
               </motion.div>
               <div>
                 <h3 className="font-bold text-lg bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
