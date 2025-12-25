@@ -130,8 +130,8 @@ export const AngelMascot: React.FC<AngelMascotProps> = ({ onTipReceived }) => {
           animate={controls}
           style={{
             filter: isExcited 
-              ? 'drop-shadow(0 0 15px rgba(255, 215, 0, 0.6))' 
-              : 'drop-shadow(0 0 8px rgba(255, 215, 0, 0.4))'
+              ? 'drop-shadow(0 0 20px rgba(255, 215, 0, 0.8)) drop-shadow(0 0 40px rgba(255, 215, 0, 0.4))' 
+              : 'drop-shadow(0 0 12px rgba(255, 215, 0, 0.6)) drop-shadow(0 0 25px rgba(255, 215, 0, 0.3))'
           }}
         >
           <video
@@ -143,8 +143,12 @@ export const AngelMascot: React.FC<AngelMascotProps> = ({ onTipReceived }) => {
             style={{
               mixBlendMode: 'screen',
               background: 'transparent',
+              filter: 'brightness(1.2) contrast(1.35) saturate(1.3)',
+              WebkitMaskImage: 'radial-gradient(ellipse 85% 90% at center 45%, black 40%, transparent 100%)',
+              maskImage: 'radial-gradient(ellipse 85% 90% at center 45%, black 40%, transparent 100%)',
             }}
           >
+            <source src="/videos/angel-mascot-original.mp4" type="video/mp4" />
             <source src="/videos/angel-mascot-new.mp4" type="video/mp4" />
           </video>
         </motion.div>
