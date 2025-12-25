@@ -6,7 +6,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { ClaimRewardsModal } from "./ClaimRewardsModal";
 
-export const ClaimRewardsButton = () => {
+interface ClaimRewardsButtonProps {
+  compact?: boolean;
+}
+
+export const ClaimRewardsButton = ({ compact = false }: ClaimRewardsButtonProps) => {
   const { user } = useAuth();
   const [modalOpen, setModalOpen] = useState(false);
   const [unclaimedCount, setUnclaimedCount] = useState(0);
@@ -42,6 +46,50 @@ export const ClaimRewardsButton = () => {
     return null;
   }
 
+  // Compact version for mobile header
+  if (compact) {
+    return (
+      <>
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="relative"
+        >
+          <Button
+            onClick={() => setModalOpen(true)}
+            variant="ghost"
+            size="icon"
+            className="relative h-8 w-8 text-yellow-500 hover:text-yellow-400 hover:bg-yellow-500/10"
+          >
+            <motion.div
+              animate={{ rotate: [0, 15, -15, 0] }}
+              transition={{ duration: 1, repeat: Infinity }}
+            >
+              <Coins className="h-4 w-4" />
+            </motion.div>
+          </Button>
+
+          {/* Badge count */}
+          <AnimatePresence>
+            {unclaimedCount > 0 && (
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                exit={{ scale: 0 }}
+                className="absolute -top-0.5 -right-0.5 min-w-[14px] h-3.5 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center"
+              >
+                {unclaimedCount > 9 ? "9+" : unclaimedCount}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
+
+        <ClaimRewardsModal open={modalOpen} onOpenChange={setModalOpen} />
+      </>
+    );
+  }
+
+  // Full version
   return (
     <>
       <motion.div

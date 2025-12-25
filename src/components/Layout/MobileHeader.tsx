@@ -1,4 +1,4 @@
-import { Search, Bell, Menu, Play, X } from "lucide-react";
+import { Search, Bell, Menu, Play, X, Plus, Upload, Music, FileText } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ClaimRewardsButton } from "@/components/Rewards/ClaimRewardsButton";
 
 interface MobileHeaderProps {
   onMenuClick: () => void;
@@ -29,69 +36,103 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 h-14 bg-background/95 backdrop-blur-lg border-b border-border z-50 lg:hidden">
+    <header className="fixed top-0 left-0 right-0 h-12 bg-background/95 backdrop-blur-lg border-b border-border z-50 lg:hidden">
       {/* Normal Header */}
       <div
         className={cn(
-          "flex items-center justify-between h-full px-3 transition-opacity duration-200",
+          "flex items-center justify-between h-full px-2 transition-opacity duration-200",
           isSearchOpen && "opacity-0 pointer-events-none"
         )}
       >
         {/* Left - Menu & Logo */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 shrink-0">
           <Button
             variant="ghost"
             size="icon"
             onClick={onMenuClick}
-            className="h-10 w-10"
+            className="h-8 w-8"
           >
-            <Menu className="h-5 w-5" />
+            <Menu className="h-4 w-4" />
           </Button>
           <div
-            className="flex items-center gap-2 cursor-pointer"
+            className="flex items-center gap-1 cursor-pointer"
             onClick={() => navigate("/")}
           >
-            <div className="bg-gradient-to-br from-primary to-primary/80 rounded-lg p-1.5 shadow-lg">
-              <Play className="h-5 w-5 text-primary-foreground fill-primary-foreground" />
+            <div className="bg-gradient-to-br from-primary to-primary/80 rounded-md p-1 shadow-lg">
+              <Play className="h-3.5 w-3.5 text-primary-foreground fill-primary-foreground" />
             </div>
-            <span className="text-lg font-black tracking-tight bg-gradient-to-r from-[#00E7FF] via-[#00FFFF] to-[#00E7FF] bg-clip-text text-transparent">
-              FUN Play
+            <span className="text-sm font-black tracking-tight bg-gradient-to-r from-[#00E7FF] via-[#00FFFF] to-[#00E7FF] bg-clip-text text-transparent hidden xs:inline">
+              FUN
             </span>
           </div>
         </div>
 
         {/* Right - Actions */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5 shrink-0">
+          {/* Search */}
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setIsSearchOpen(true)}
-            className="h-10 w-10"
+            className="h-8 w-8"
           >
-            <Search className="h-5 w-5" />
+            <Search className="h-4 w-4" />
           </Button>
 
+          {/* Claim Rewards - Compact */}
+          <ClaimRewardsButton compact />
+
+          {/* Wallet */}
           <MultiTokenWallet />
 
-          <Button variant="ghost" size="icon" className="h-10 w-10">
-            <Bell className="h-5 w-5" />
+          {/* Create Button */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-primary"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44 bg-background border-border">
+              <DropdownMenuItem onClick={() => navigate("/upload")} className="gap-2">
+                <Upload className="h-4 w-4" />
+                Upload Video
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate("/create-music")} className="gap-2">
+                <Music className="h-4 w-4" />
+                Tạo Nhạc AI
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate("/create-post")} className="gap-2">
+                <FileText className="h-4 w-4" />
+                Tạo Bài Viết
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Notifications */}
+          <Button variant="ghost" size="icon" className="h-8 w-8">
+            <Bell className="h-4 w-4" />
           </Button>
 
+          {/* Profile / Sign In */}
           {user ? (
             <Button
               variant="ghost"
               size="icon"
-              className="h-10 w-10 rounded-full"
+              className="h-8 w-8 rounded-full p-0"
               onClick={() => navigate("/settings")}
             >
               {profile?.avatar_url ? (
                 <img
                   src={profile.avatar_url}
                   alt="Profile"
-                  className="w-8 h-8 rounded-full object-cover"
+                  className="w-6 h-6 rounded-full object-cover"
                 />
               ) : (
-                <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-semibold">
+                <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-semibold">
                   {user.email?.[0].toUpperCase()}
                 </div>
               )}
@@ -100,7 +141,7 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
             <Button
               onClick={() => navigate("/auth")}
               size="sm"
-              className="h-8 text-xs px-3"
+              className="h-7 text-[10px] px-2 font-medium"
             >
               Sign In
             </Button>
@@ -111,7 +152,7 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
       {/* Search Mode */}
       <div
         className={cn(
-          "absolute inset-0 flex items-center gap-2 px-3 bg-background transition-opacity duration-200",
+          "absolute inset-0 flex items-center gap-2 px-2 bg-background transition-opacity duration-200",
           isSearchOpen ? "opacity-100" : "opacity-0 pointer-events-none"
         )}
       >
@@ -119,9 +160,9 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
           variant="ghost"
           size="icon"
           onClick={() => setIsSearchOpen(false)}
-          className="h-10 w-10 shrink-0"
+          className="h-8 w-8 shrink-0"
         >
-          <X className="h-5 w-5" />
+          <X className="h-4 w-4" />
         </Button>
         <form onSubmit={handleSearch} className="flex-1">
           <Input
@@ -130,7 +171,7 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Tìm kiếm video..."
-            className="w-full h-10 bg-muted border-border focus:border-primary rounded-full"
+            className="w-full h-8 text-sm bg-muted border-border focus:border-primary rounded-full"
           />
         </form>
         <Button
@@ -138,9 +179,9 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
           variant="ghost"
           size="icon"
           onClick={handleSearch}
-          className="h-10 w-10 shrink-0"
+          className="h-8 w-8 shrink-0"
         >
-          <Search className="h-5 w-5" />
+          <Search className="h-4 w-4" />
         </Button>
       </div>
     </header>
