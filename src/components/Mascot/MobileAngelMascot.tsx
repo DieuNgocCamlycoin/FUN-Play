@@ -152,27 +152,34 @@ export const MobileAngelMascot: React.FC<MobileAngelMascotProps> = ({ onTipRecei
         onClick={handleClick}
         whileTap={{ scale: 1.2 }}
       >
-        {/* Angel Image - Pure character with flying animation */}
-        <motion.img
-          src="/images/angel-transparent.png"
-          alt="Angel Mascot"
-          className="w-full h-full object-contain"
-          animate={{
-            y: isExcited ? [0, -6, 0, -6, 0] : [0, -4, 0],
-            rotate: isExcited ? [0, -5, 5, -5, 0] : [0, -2, 2, 0],
-            scale: isExcited ? [1, 1.1, 1, 1.1, 1] : [1, 1.02, 1],
-          }}
-          transition={{
-            duration: isExcited ? 0.8 : 2.5,
-            repeat: Infinity,
-            ease: "easeInOut"
-          }}
+        {/* Angel Video - Enhanced background removal */}
+        <motion.div
+          className="w-full h-full"
+          animate={controls}
           style={{
             filter: isExcited 
               ? 'drop-shadow(0 0 15px rgba(255, 215, 0, 0.8)) drop-shadow(0 0 30px rgba(255, 215, 0, 0.4))' 
               : 'drop-shadow(0 0 10px rgba(255, 215, 0, 0.6)) drop-shadow(0 0 20px rgba(255, 215, 0, 0.3))'
           }}
-        />
+        >
+          <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="w-full h-full object-contain"
+            style={{
+              mixBlendMode: 'lighten',
+              background: 'transparent',
+              filter: 'brightness(1.0) contrast(1.1) saturate(1.1)',
+              WebkitMaskImage: 'radial-gradient(ellipse 65% 75% at center 50%, black 25%, transparent 80%)',
+              maskImage: 'radial-gradient(ellipse 65% 75% at center 50%, black 25%, transparent 80%)',
+            }}
+          >
+            <source src="/videos/angel-mascot-original.mp4" type="video/mp4" />
+            <source src="/videos/angel-mascot-new.mp4" type="video/mp4" />
+          </video>
+        </motion.div>
 
         {/* Speech Bubble - Tap hint on mobile */}
         <AnimatePresence>
