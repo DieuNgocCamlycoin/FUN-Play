@@ -13,6 +13,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { ClaimRewardsModal } from "@/components/Rewards/ClaimRewardsModal";
 
@@ -109,117 +115,173 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
         </div>
 
         {/* Right - Actions */}
-        <div className="flex items-center gap-px shrink-0">
-          {/* Search */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsSearchOpen(true)}
-            className="h-7 w-7"
-          >
-            <Search className="h-3.5 w-3.5" />
-          </Button>
+        <TooltipProvider delayDuration={300}>
+          <div className="flex items-center gap-px shrink-0">
+            {/* Search */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsSearchOpen(true)}
+                  className="h-7 w-7"
+                >
+                  <Search className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-xs">
+                Tìm kiếm
+              </TooltipContent>
+            </Tooltip>
 
-          {/* Claim Rewards - Always show icon */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => user ? setClaimModalOpen(true) : navigate("/auth")}
-            className="h-7 w-7 relative text-yellow-500 hover:text-yellow-400 hover:bg-yellow-500/10"
-          >
-            <Coins className="h-3.5 w-3.5" />
-            {unclaimedRewards > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 min-w-[12px] h-3 px-0.5 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center">
-                {unclaimedRewards > 9 ? '9+' : unclaimedRewards}
-              </span>
-            )}
-          </Button>
+            {/* Claim Rewards - Always show icon */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => user ? setClaimModalOpen(true) : navigate("/auth")}
+                  className="h-7 w-7 relative text-yellow-500 hover:text-yellow-400 hover:bg-yellow-500/10"
+                >
+                  <Coins className="h-3.5 w-3.5" />
+                  {unclaimedRewards > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 min-w-[12px] h-3 px-0.5 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center animate-pulse">
+                      {unclaimedRewards > 9 ? '9+' : unclaimedRewards}
+                    </span>
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-xs">
+                Nhận thưởng CAMLY
+              </TooltipContent>
+            </Tooltip>
 
-          {/* Wallet - Compact */}
-          <MultiTokenWallet compact />
-
-          {/* Create Button */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-primary"
-              >
-                <Plus className="h-3.5 w-3.5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44 bg-background border-border">
-              <DropdownMenuItem onClick={() => navigate("/upload")} className="gap-2">
-                <Upload className="h-4 w-4" />
-                Upload Video
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate("/create-music")} className="gap-2">
-                <Music className="h-4 w-4" />
-                Tạo Nhạc AI
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate("/create-post")} className="gap-2">
-                <FileText className="h-4 w-4" />
-                Tạo Bài Viết
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* Download App */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate("/install")}
-            className="h-7 w-7 text-green-500 hover:text-green-400 hover:bg-green-500/10"
-          >
-            <Download className="h-3.5 w-3.5" />
-          </Button>
-
-          {/* Notifications with Badge */}
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="h-7 w-7 relative"
-            onClick={() => navigate("/reward-history")}
-          >
-            <Bell className="h-3.5 w-3.5" />
-            {notificationCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 min-w-[12px] h-3 px-0.5 bg-destructive text-destructive-foreground text-[8px] font-bold rounded-full flex items-center justify-center">
-                {notificationCount > 9 ? '9+' : notificationCount}
-              </span>
-            )}
-          </Button>
-
-          {/* Profile / Sign In */}
-          {user ? (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 rounded-full p-0"
-              onClick={() => navigate("/settings")}
-            >
-              {profile?.avatar_url ? (
-                <img
-                  src={profile.avatar_url}
-                  alt="Profile"
-                  className="w-5 h-5 rounded-full object-cover"
-                />
-              ) : (
-                <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-[10px] font-semibold">
-                  {user.email?.[0].toUpperCase()}
+            {/* Wallet - Compact */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div>
+                  <MultiTokenWallet compact />
                 </div>
-              )}
-            </Button>
-          ) : (
-            <Button
-              onClick={() => navigate("/auth")}
-              size="sm"
-              className="h-6 text-[9px] px-1.5 font-medium"
-            >
-              Sign In
-            </Button>
-          )}
-        </div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-xs">
+                Ví tiền điện tử
+              </TooltipContent>
+            </Tooltip>
+
+            {/* Create Button */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-primary"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-44 bg-background border-border">
+                    <DropdownMenuItem onClick={() => navigate("/upload")} className="gap-2">
+                      <Upload className="h-4 w-4" />
+                      Upload Video
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate("/create-music")} className="gap-2">
+                      <Music className="h-4 w-4" />
+                      Tạo Nhạc AI
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate("/create-post")} className="gap-2">
+                      <FileText className="h-4 w-4" />
+                      Tạo Bài Viết
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-xs">
+                Tạo nội dung
+              </TooltipContent>
+            </Tooltip>
+
+            {/* Download App - with pulse animation */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => navigate("/install")}
+                  className="h-7 w-7 relative text-green-500 hover:text-green-400 hover:bg-green-500/10 group"
+                >
+                  <Download className="h-3.5 w-3.5 relative z-10" />
+                  {/* Pulse ring animation */}
+                  <span className="absolute inset-0 rounded-md bg-green-500/20 animate-ping" />
+                  <span className="absolute inset-0.5 rounded-md bg-green-500/10 animate-pulse" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-xs">
+                Tải App FUN Play
+              </TooltipContent>
+            </Tooltip>
+
+            {/* Notifications with Badge */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-7 w-7 relative"
+                  onClick={() => navigate("/reward-history")}
+                >
+                  <Bell className="h-3.5 w-3.5" />
+                  {notificationCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 min-w-[12px] h-3 px-0.5 bg-destructive text-destructive-foreground text-[8px] font-bold rounded-full flex items-center justify-center animate-pulse">
+                      {notificationCount > 9 ? '9+' : notificationCount}
+                    </span>
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-xs">
+                Thông báo
+              </TooltipContent>
+            </Tooltip>
+
+            {/* Profile / Sign In */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                {user ? (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 rounded-full p-0"
+                    onClick={() => navigate("/settings")}
+                  >
+                    {profile?.avatar_url ? (
+                      <img
+                        src={profile.avatar_url}
+                        alt="Profile"
+                        className="w-5 h-5 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-[10px] font-semibold">
+                        {user.email?.[0].toUpperCase()}
+                      </div>
+                    )}
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => navigate("/auth")}
+                    size="sm"
+                    className="h-6 text-[9px] px-1.5 font-medium"
+                  >
+                    Sign In
+                  </Button>
+                )}
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-xs">
+                {user ? "Cài đặt tài khoản" : "Đăng nhập / Đăng ký"}
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        </TooltipProvider>
       </div>
 
       {/* Claim Rewards Modal */}
