@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MultiTokenWallet } from "@/components/Web3/MultiTokenWallet";
+import { CAMLYMiniWidget } from "@/components/Web3/CAMLYMiniWidget";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { useNavigate } from "react-router-dom";
@@ -117,6 +118,9 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
         {/* Right - Actions */}
         <TooltipProvider delayDuration={300}>
           <div className="flex items-center gap-px shrink-0">
+            {/* CAMLY Price Widget */}
+            <CAMLYMiniWidget compact className="mr-1" />
+            
             {/* Search */}
             <Tooltip>
               <TooltipTrigger asChild>

@@ -34,6 +34,7 @@ import Playlist from "./pages/Playlist";
 import WatchLater from "./pages/WatchLater";
 import WatchHistory from "./pages/WatchHistory";
 import Subscriptions from "./pages/Subscriptions";
+import CAMLYPrice from "./pages/CAMLYPrice";
 import { wagmiConfig } from '@/lib/web3Config';
 import { useCursorBeam } from './hooks/useCursorBeam';
 import { GlobalPaymentNotifications } from './components/Web3/GlobalPaymentNotifications';
@@ -87,6 +88,7 @@ function AppContent() {
         <Route path="/watch-later" element={<WatchLater />} />
         <Route path="/history" element={<WatchHistory />} />
         <Route path="/subscriptions" element={<Subscriptions />} />
+        <Route path="/camly-price" element={<CAMLYPrice />} />
         {/* Temporary redirect routes for missing pages */}
         <Route path="/shorts" element={<Index />} />
         <Route path="/library" element={<Index />} />
