@@ -22,7 +22,7 @@ export interface TokenConfig {
  * Verified at: https://bscscan.com/address/0x0910320181889fefde0bb1ca63962b0a8882e413
  */
 export const CAMLY_TOKEN_ADDRESS = "0x0910320181889fefde0bb1ca63962b0a8882e413";
-export const CAMLY_DECIMALS = 9;
+export const CAMLY_DECIMALS = 3; // Đúng với contract thực tế (đã verify từ console log)
 
 /**
  * Wrapped BNB (WBNB) for swap operations
