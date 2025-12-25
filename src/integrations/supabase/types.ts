@@ -50,8 +50,10 @@ export type Database = {
       claim_requests: {
         Row: {
           amount: number
+          claim_type: string | null
           created_at: string
           error_message: string | null
+          gas_fee: number | null
           id: string
           processed_at: string | null
           status: string
@@ -61,8 +63,10 @@ export type Database = {
         }
         Insert: {
           amount: number
+          claim_type?: string | null
           created_at?: string
           error_message?: string | null
+          gas_fee?: number | null
           id?: string
           processed_at?: string | null
           status?: string
@@ -72,8 +76,10 @@ export type Database = {
         }
         Update: {
           amount?: number
+          claim_type?: string | null
           created_at?: string
           error_message?: string | null
+          gas_fee?: number | null
           id?: string
           processed_at?: string | null
           status?: string
@@ -86,28 +92,34 @@ export type Database = {
       comment_logs: {
         Row: {
           comment_id: string
+          content_hash: string | null
           created_at: string
           id: string
           is_rewarded: boolean
           is_valid: boolean
+          session_id: string | null
           user_id: string
           video_id: string
         }
         Insert: {
           comment_id: string
+          content_hash?: string | null
           created_at?: string
           id?: string
           is_rewarded?: boolean
           is_valid?: boolean
+          session_id?: string | null
           user_id: string
           video_id: string
         }
         Update: {
           comment_id?: string
+          content_hash?: string | null
           created_at?: string
           id?: string
           is_rewarded?: boolean
           is_valid?: boolean
+          session_id?: string | null
           user_id?: string
           video_id?: string
         }
@@ -117,6 +129,13 @@ export type Database = {
             columns: ["comment_id"]
             isOneToOne: false
             referencedRelation: "comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comment_logs_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "user_sessions"
             referencedColumns: ["id"]
           },
           {
@@ -521,8 +540,10 @@ export type Database = {
           created_at: string
           display_name: string | null
           id: string
+          last_claim_at: string | null
           music_enabled: boolean | null
           music_url: string | null
+          pending_rewards: number | null
           total_camly_rewards: number
           updated_at: string
           username: string
@@ -536,8 +557,10 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id: string
+          last_claim_at?: string | null
           music_enabled?: boolean | null
           music_url?: string | null
+          pending_rewards?: number | null
           total_camly_rewards?: number
           updated_at?: string
           username: string
@@ -551,8 +574,10 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          last_claim_at?: string | null
           music_enabled?: boolean | null
           music_url?: string | null
+          pending_rewards?: number | null
           total_camly_rewards?: number
           updated_at?: string
           username?: string
@@ -753,6 +778,39 @@ export type Database = {
         }
         Relationships: []
       }
+      user_sessions: {
+        Row: {
+          id: string
+          ip_hash: string | null
+          is_active: boolean | null
+          last_activity: string | null
+          session_token: string
+          started_at: string | null
+          user_agent_hash: string | null
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          ip_hash?: string | null
+          is_active?: boolean | null
+          last_activity?: string | null
+          session_token: string
+          started_at?: string | null
+          user_agent_hash?: string | null
+          user_id: string
+        }
+        Update: {
+          id?: string
+          ip_hash?: string | null
+          is_active?: boolean | null
+          last_activity?: string | null
+          session_token?: string
+          started_at?: string | null
+          user_agent_hash?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       video_migrations: {
         Row: {
           completed_at: string | null
@@ -915,6 +973,7 @@ export type Database = {
           id: string
           is_valid: boolean
           session_id: string | null
+          session_ref: string | null
           user_id: string
           video_duration_seconds: number | null
           video_id: string
@@ -926,6 +985,7 @@ export type Database = {
           id?: string
           is_valid?: boolean
           session_id?: string | null
+          session_ref?: string | null
           user_id: string
           video_duration_seconds?: number | null
           video_id: string
@@ -937,6 +997,7 @@ export type Database = {
           id?: string
           is_valid?: boolean
           session_id?: string | null
+          session_ref?: string | null
           user_id?: string
           video_duration_seconds?: number | null
           video_id?: string
@@ -944,6 +1005,13 @@ export type Database = {
           watch_time_seconds?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "view_logs_session_ref_fkey"
+            columns: ["session_ref"]
+            isOneToOne: false
+            referencedRelation: "user_sessions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "view_logs_video_id_fkey"
             columns: ["video_id"]

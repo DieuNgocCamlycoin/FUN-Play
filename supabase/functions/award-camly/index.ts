@@ -6,24 +6,107 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Reward amounts - server-side source of truth (as specified by Father Universe)
-const REWARD_AMOUNTS = {
-  VIEW: 10000,           // Watch video: +10,000 CAMLY
-  LIKE: 5000,            // Like: +5,000 CAMLY
-  COMMENT: 5000,         // Comment (min 5 words): +5,000 CAMLY
-  SHARE: 5000,           // Share: +5,000 CAMLY
-  UPLOAD: 100000,        // Quality video upload: +100,000 CAMLY
-  FIRST_UPLOAD: 500000,  // First video upload: +500,000 CAMLY
-  SIGNUP: 50000,         // Sign up: +50,000 CAMLY
-  WALLET_CONNECT: 50000, // Connect wallet: +50,000 CAMLY
+// Default reward amounts (fallback if reward_config not available)
+const DEFAULT_REWARD_AMOUNTS: Record<string, number> = {
+  VIEW: 10000,
+  LIKE: 5000,
+  COMMENT: 5000,
+  SHARE: 5000,
+  UPLOAD: 100000,
+  FIRST_UPLOAD: 500000,
+  SIGNUP: 50000,
+  WALLET_CONNECT: 50000,
 };
 
-// Daily limits - enforced server-side
-const DAILY_LIMITS = {
-  VIEW_REWARDS: 100000,   // 10 videos per day max
-  COMMENT_REWARDS: 50000, // 10 comments per day max
+// Default daily limits (fallback if reward_config not available)
+const DEFAULT_DAILY_LIMITS: Record<string, number> = {
+  VIEW_REWARDS: 100000,
+  COMMENT_REWARDS: 50000,
   UPLOAD_COUNT: 10,
 };
+
+// Helper to get reward config from database
+async function getRewardConfig(adminSupabase: any): Promise<{ amounts: Record<string, number>; limits: Record<string, number> }> {
+  try {
+    const { data: configData, error } = await adminSupabase
+      .from("reward_config")
+      .select("config_key, config_value");
+
+    if (error || !configData || configData.length === 0) {
+      console.log("Using default reward config");
+      return { amounts: DEFAULT_REWARD_AMOUNTS, limits: DEFAULT_DAILY_LIMITS };
+    }
+
+    const amounts: Record<string, number> = { ...DEFAULT_REWARD_AMOUNTS };
+    const limits: Record<string, number> = { ...DEFAULT_DAILY_LIMITS };
+
+    for (const config of configData) {
+      const key = config.config_key;
+      const value = Number(config.config_value);
+
+      // Map config keys to reward amounts
+      if (key === 'VIEW_REWARD') amounts.VIEW = value;
+      else if (key === 'LIKE_REWARD') amounts.LIKE = value;
+      else if (key === 'COMMENT_REWARD') amounts.COMMENT = value;
+      else if (key === 'SHARE_REWARD') amounts.SHARE = value;
+      else if (key === 'UPLOAD_REWARD') amounts.UPLOAD = value;
+      else if (key === 'FIRST_UPLOAD_REWARD') amounts.FIRST_UPLOAD = value;
+      else if (key === 'SIGNUP_REWARD') amounts.SIGNUP = value;
+      else if (key === 'WALLET_CONNECT_REWARD') amounts.WALLET_CONNECT = value;
+      // Map config keys to limits
+      else if (key === 'DAILY_VIEW_LIMIT') limits.VIEW_REWARDS = value;
+      else if (key === 'DAILY_COMMENT_LIMIT') limits.COMMENT_REWARDS = value;
+      else if (key === 'DAILY_UPLOAD_LIMIT') limits.UPLOAD_COUNT = value;
+    }
+
+    console.log("Loaded reward config from database:", { amounts, limits });
+    return { amounts, limits };
+  } catch (err) {
+    console.error("Error loading reward config:", err);
+    return { amounts: DEFAULT_REWARD_AMOUNTS, limits: DEFAULT_DAILY_LIMITS };
+  }
+}
+
+// Check for duplicate views within time window (anti-fraud)
+async function checkViewDedupe(adminSupabase: any, userId: string, videoId: string): Promise<boolean> {
+  const dedupeWindowSeconds = 60; // 60 second window
+  const cutoffTime = new Date(Date.now() - dedupeWindowSeconds * 1000).toISOString();
+
+  const { data: recentViews, error } = await adminSupabase
+    .from("view_logs")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("video_id", videoId)
+    .gte("created_at", cutoffTime)
+    .limit(1);
+
+  if (error) {
+    console.error("Error checking view dedupe:", error);
+    return false; // Allow on error to not block legitimate users
+  }
+
+  return !recentViews || recentViews.length === 0;
+}
+
+// Check for spam comments (same content hash)
+async function checkCommentSpam(adminSupabase: any, userId: string, contentHash: string): Promise<boolean> {
+  const today = new Date().toISOString().split('T')[0];
+
+  const { data: duplicateComments, error } = await adminSupabase
+    .from("comment_logs")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("content_hash", contentHash)
+    .gte("created_at", today)
+    .limit(1);
+
+  if (error) {
+    console.error("Error checking comment spam:", error);
+    return false; // Allow on error
+  }
+
+  return !duplicateComments || duplicateComments.length === 0;
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -60,7 +143,7 @@ serve(async (req) => {
     }
 
     const userId = user.id;
-    const { type, videoId } = await req.json();
+    const { type, videoId, contentHash, sessionId } = await req.json();
 
     // 4. Validate reward type
     const validTypes = ['VIEW', 'LIKE', 'COMMENT', 'SHARE', 'UPLOAD', 'FIRST_UPLOAD', 'SIGNUP', 'WALLET_CONNECT'];
@@ -71,14 +154,60 @@ serve(async (req) => {
       );
     }
 
-    // 5. Get server-controlled reward amount (ignore any client-provided amount)
-    const amount = REWARD_AMOUNTS[type as keyof typeof REWARD_AMOUNTS];
-
-    // 6. Use service role for database operations
+    // 5. Use service role for database operations
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
     const adminSupabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // 7. Get or create daily limits (server-side)
+    // 6. Load reward config from database
+    const { amounts: REWARD_AMOUNTS, limits: DAILY_LIMITS } = await getRewardConfig(adminSupabase);
+
+    // 7. Get server-controlled reward amount
+    const amount = REWARD_AMOUNTS[type] || 0;
+    if (amount === 0) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Reward type not configured' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // 8. Anti-fraud checks
+    if (type === "VIEW" && videoId) {
+      const isUniqueView = await checkViewDedupe(adminSupabase, userId, videoId);
+      if (!isUniqueView) {
+        console.log(`Duplicate view detected for user ${userId} on video ${videoId}`);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            reason: "Duplicate view detected. Please wait before watching again.",
+            milestone: null,
+            newTotal: 0,
+            amount: 0,
+            type
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    if (type === "COMMENT" && contentHash) {
+      const isUniqueComment = await checkCommentSpam(adminSupabase, userId, contentHash);
+      if (!isUniqueComment) {
+        console.log(`Spam comment detected for user ${userId}`);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            reason: "Duplicate comment detected. Please write a unique comment.",
+            milestone: null,
+            newTotal: 0,
+            amount: 0,
+            type
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // 9. Get or create daily limits (server-side)
     const today = new Date().toISOString().split('T')[0];
     
     let { data: limits, error: limitsError } = await adminSupabase
@@ -89,7 +218,6 @@ serve(async (req) => {
       .single();
 
     if (limitsError && limitsError.code === 'PGRST116') {
-      // Create new record
       const { data: newLimits, error: insertError } = await adminSupabase
         .from("daily_reward_limits")
         .insert({ user_id: userId, date: today })
@@ -112,13 +240,13 @@ serve(async (req) => {
       );
     }
 
-    // 8. Check daily limits (server-side enforcement)
+    // 10. Check daily limits (server-side enforcement)
     if (type === "VIEW" || type === "LIKE" || type === "SHARE") {
       if (Number(limits.view_rewards_earned) + amount > DAILY_LIMITS.VIEW_REWARDS) {
         return new Response(
           JSON.stringify({ 
             success: false, 
-            reason: "Daily view reward limit reached (50,000 CAMLY)",
+            reason: `Daily view reward limit reached (${DAILY_LIMITS.VIEW_REWARDS.toLocaleString()} CAMLY)`,
             milestone: null,
             newTotal: 0,
             amount: 0,
@@ -134,7 +262,7 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ 
             success: false, 
-            reason: "Daily comment reward limit reached (25,000 CAMLY)",
+            reason: `Daily comment reward limit reached (${DAILY_LIMITS.COMMENT_REWARDS.toLocaleString()} CAMLY)`,
             milestone: null,
             newTotal: 0,
             amount: 0,
@@ -150,7 +278,7 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ 
             success: false, 
-            reason: "Daily upload limit reached (10 uploads)",
+            reason: `Daily upload limit reached (${DAILY_LIMITS.UPLOAD_COUNT} uploads)`,
             milestone: null,
             newTotal: 0,
             amount: 0,
@@ -161,10 +289,10 @@ serve(async (req) => {
       }
     }
 
-    // 9. Get current total rewards
+    // 11. Get current total rewards
     const { data: profileData, error: profileError } = await adminSupabase
       .from("profiles")
-      .select("total_camly_rewards")
+      .select("total_camly_rewards, pending_rewards")
       .eq("id", userId)
       .single();
 
@@ -178,11 +306,16 @@ serve(async (req) => {
 
     const oldTotal = Number(profileData?.total_camly_rewards) || 0;
     const newTotal = oldTotal + amount;
+    const oldPending = Number(profileData?.pending_rewards) || 0;
+    const newPending = oldPending + amount;
 
-    // 10. Update profile with new total (atomic operation)
+    // 12. Update profile with new total and pending rewards (atomic operation)
     const { error: updateError } = await adminSupabase
       .from("profiles")
-      .update({ total_camly_rewards: newTotal })
+      .update({ 
+        total_camly_rewards: newTotal,
+        pending_rewards: newPending 
+      })
       .eq("id", userId);
 
     if (updateError) {
@@ -193,7 +326,7 @@ serve(async (req) => {
       );
     }
 
-    // 11. Create reward transaction record
+    // 13. Create reward transaction record
     const txHash = `REWARD_${type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     await adminSupabase.from("reward_transactions").insert({
       user_id: userId,
@@ -204,7 +337,7 @@ serve(async (req) => {
       tx_hash: txHash,
     });
 
-    // 12. Update daily limits
+    // 14. Update daily limits
     if (type === "VIEW" || type === "LIKE" || type === "SHARE") {
       await adminSupabase
         .from("daily_reward_limits")
@@ -228,19 +361,20 @@ serve(async (req) => {
         .eq("date", today);
     }
 
-    // 13. Check for milestones
-    const MILESTONES = [10, 100, 1000, 10000, 100000];
+    // 15. Check for milestones
+    const MILESTONES = [10, 100, 1000, 10000, 100000, 500000, 1000000];
     const reachedMilestone = MILESTONES.find(
       milestone => oldTotal < milestone && newTotal >= milestone
     ) || null;
 
-    console.log(`Awarded ${amount} CAMLY to user ${userId} for ${type}. New total: ${newTotal}`);
+    console.log(`Awarded ${amount} CAMLY to user ${userId} for ${type}. New total: ${newTotal}, Pending: ${newPending}`);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         milestone: reachedMilestone, 
         newTotal, 
+        pendingRewards: newPending,
         amount, 
         type 
       }),

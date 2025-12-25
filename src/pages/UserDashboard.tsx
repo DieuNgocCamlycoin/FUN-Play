@@ -1,13 +1,20 @@
+import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useRewardStatistics, useRewardHistory } from "@/hooks/useRewardStatistics";
-import { DAILY_LIMITS } from "@/lib/enhancedRewards";
+import { useRewardConfig } from "@/hooks/useRewardConfig";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-import { Coins, Eye, MessageSquare, Share2, Upload, TrendingUp, Calendar, ExternalLink } from "lucide-react";
+import { Coins, Eye, MessageSquare, Upload, TrendingUp, Calendar, ExternalLink, Shield } from "lucide-react";
 import { format } from "date-fns";
+import { vi } from "date-fns/locale";
+import { PendingRewardsWidget } from "@/components/Dashboard/PendingRewardsWidget";
+import { EstimatedEarningsWidget } from "@/components/Dashboard/EstimatedEarningsWidget";
+import { ClaimHistoryWidget } from "@/components/Dashboard/ClaimHistoryWidget";
+import { LiveRewardCounter } from "@/components/Dashboard/LiveRewardCounter";
+import { ClaimRewardsModal } from "@/components/Rewards/ClaimRewardsModal";
 
 const REWARD_TYPE_LABELS: Record<string, string> = {
   VIEW: "Xem video",
@@ -15,6 +22,9 @@ const REWARD_TYPE_LABELS: Record<string, string> = {
   COMMENT: "Bình luận",
   SHARE: "Chia sẻ",
   UPLOAD: "Tải lên",
+  FIRST_UPLOAD: "Video đầu tiên",
+  SIGNUP: "Đăng ký",
+  WALLET_CONNECT: "Kết nối ví",
 };
 
 const REWARD_TYPE_COLORS: Record<string, string> = {
@@ -23,12 +33,29 @@ const REWARD_TYPE_COLORS: Record<string, string> = {
   COMMENT: "#7A2BFF",
   SHARE: "#FFD700",
   UPLOAD: "#00FF7F",
+  FIRST_UPLOAD: "#FF6B6B",
+  SIGNUP: "#4ECDC4",
+  WALLET_CONNECT: "#45B7D1",
 };
 
 const UserDashboard = () => {
   const { user, loading: authLoading } = useAuth();
   const { statistics, loading: statsLoading } = useRewardStatistics(user?.id);
   const { transactions, loading: historyLoading } = useRewardHistory(user?.id);
+  const { configs } = useRewardConfig();
+  const [showClaimModal, setShowClaimModal] = useState(false);
+
+  // Get limits from config or use defaults
+  const getDailyLimit = (key: string, fallback: number) => {
+    const config = configs.find(c => c.config_key === key);
+    return config ? Number(config.config_value) : fallback;
+  };
+
+  const DAILY_LIMITS = {
+    VIEW_REWARDS: getDailyLimit('DAILY_VIEW_LIMIT', 100000),
+    COMMENT_REWARDS: getDailyLimit('DAILY_COMMENT_LIMIT', 50000),
+    UPLOAD_COUNT: getDailyLimit('DAILY_UPLOAD_LIMIT', 10),
+  };
 
   if (authLoading || statsLoading) {
     return (
@@ -63,26 +90,41 @@ const UserDashboard = () => {
     <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-black bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] to-[#FF00E5] bg-clip-text text-transparent">
-            User Dashboard
-          </h1>
-          <p className="text-muted-foreground mt-2">Theo dõi phần thưởng CAMLY của bạn</p>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+          <div>
+            <h1 className="text-4xl font-black bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] to-[#FF00E5] bg-clip-text text-transparent">
+              User Dashboard
+            </h1>
+            <p className="text-muted-foreground mt-2">Theo dõi phần thưởng CAMLY của bạn</p>
+          </div>
+          <LiveRewardCounter totalRewards={statistics?.totalEarned || 0} />
         </div>
 
-        {/* Total Earned Card */}
-        <Card className="bg-gradient-to-br from-[#00E7FF]/10 via-[#7A2BFF]/10 to-[#FF00E5]/10 border-2 border-[#FFD700]/30">
-          <CardContent className="p-8 text-center">
-            <div className="flex items-center justify-center gap-3 mb-2">
-              <Coins className="w-10 h-10 text-[#FFD700]" />
-              <span className="text-lg text-muted-foreground">Tổng CAMLY đã kiếm được</span>
-            </div>
-            <div className="text-6xl font-black bg-gradient-to-r from-[#FFD700] to-[#FF9500] bg-clip-text text-transparent">
-              {(statistics?.totalEarned || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-            </div>
-            <p className="text-sm text-muted-foreground mt-2">CAMLY Tokens</p>
-          </CardContent>
-        </Card>
+        {/* Main Stats Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Total Earned Card */}
+          <Card className="bg-gradient-to-br from-[#00E7FF]/10 via-[#7A2BFF]/10 to-[#FF00E5]/10 border-2 border-[#FFD700]/30">
+            <CardContent className="p-8 text-center">
+              <div className="flex items-center justify-center gap-3 mb-2">
+                <Coins className="w-10 h-10 text-[#FFD700]" />
+                <span className="text-lg text-muted-foreground">Tổng CAMLY đã kiếm được</span>
+              </div>
+              <div className="text-6xl font-black bg-gradient-to-r from-[#FFD700] to-[#FF9500] bg-clip-text text-transparent">
+                {(statistics?.totalEarned || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+              </div>
+              <p className="text-sm text-muted-foreground mt-2">CAMLY Tokens</p>
+            </CardContent>
+          </Card>
+
+          {/* Pending Rewards Widget */}
+          <PendingRewardsWidget 
+            userId={user.id} 
+            onClaimClick={() => setShowClaimModal(true)} 
+          />
+        </div>
+
+        {/* Estimated Earnings */}
+        <EstimatedEarningsWidget userId={user.id} />
 
         {/* Daily Limits */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -143,6 +185,19 @@ const UserDashboard = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Anti-Fraud Notice */}
+        <Card className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 border-green-500/30">
+          <CardContent className="p-4 flex items-center gap-3">
+            <Shield className="w-6 h-6 text-green-500" />
+            <div>
+              <p className="font-medium text-green-500">Hệ thống bảo vệ chống gian lận</p>
+              <p className="text-sm text-muted-foreground">
+                View deduplication, spam detection, và session tracking đang hoạt động để bảo vệ công bằng cho tất cả users.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Charts */}
         <Tabs defaultValue="breakdown" className="w-full">
@@ -239,6 +294,9 @@ const UserDashboard = () => {
           </TabsContent>
         </Tabs>
 
+        {/* Claim History */}
+        <ClaimHistoryWidget userId={user.id} />
+
         {/* Transaction History */}
         <Card>
           <CardHeader>
@@ -281,7 +339,7 @@ const UserDashboard = () => {
                     </div>
                     <div className="text-right">
                       <div className="text-sm text-muted-foreground">
-                        {format(new Date(tx.created_at), "dd/MM/yyyy HH:mm")}
+                        {format(new Date(tx.created_at), "dd/MM/yyyy HH:mm", { locale: vi })}
                       </div>
                       {tx.tx_hash && (
                         <a 
@@ -302,6 +360,12 @@ const UserDashboard = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Claim Modal */}
+      <ClaimRewardsModal 
+        open={showClaimModal} 
+        onOpenChange={setShowClaimModal} 
+      />
     </div>
   );
 };
