@@ -20,7 +20,11 @@ interface TokenBalance {
   icon: string;
 }
 
-export const MultiTokenWallet = () => {
+interface MultiTokenWalletProps {
+  compact?: boolean;
+}
+
+export const MultiTokenWallet = ({ compact = false }: MultiTokenWalletProps) => {
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [address, setAddress] = useState<string>("");
@@ -223,18 +227,29 @@ export const MultiTokenWallet = () => {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
-              variant="outline"
-              size="sm"
-              className="gap-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+              variant={compact ? "ghost" : "outline"}
+              size={compact ? "icon" : "sm"}
+              className={compact 
+                ? "h-8 w-8 relative" 
+                : "gap-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+              }
             >
-              <Wallet className="h-4 w-4" />
-              {currentBalance && (
+              <Wallet className={compact ? "h-4 w-4" : "h-4 w-4"} />
+              {!compact && currentBalance && (
                 <img src={currentBalance.icon} alt={currentBalance.symbol} className="h-4 w-4 rounded-full" />
               )}
-              <span className="hidden md:inline">
-                {currentBalance?.balance || "0.0000"} {selectedToken}
-              </span>
-              <ChevronDown className="h-3 w-3" />
+              {!compact && (
+                <>
+                  <span className="hidden md:inline">
+                    {currentBalance?.balance || "0.0000"} {selectedToken}
+                  </span>
+                  <ChevronDown className="h-3 w-3" />
+                </>
+              )}
+              {/* Connected indicator for compact mode */}
+              {compact && (
+                <span className="absolute -top-0.5 -right-0.5 h-2 w-2 bg-green-500 rounded-full border border-background" />
+              )}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
@@ -270,13 +285,19 @@ export const MultiTokenWallet = () => {
     <Button
       onClick={connectWallet}
       disabled={isConnecting}
-      size="sm"
-      className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+      variant={compact ? "ghost" : "default"}
+      size={compact ? "icon" : "sm"}
+      className={compact 
+        ? "h-8 w-8" 
+        : "gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+      }
     >
       <Wallet className="h-4 w-4" />
-      <span className="hidden md:inline">
-        {isConnecting ? "Connecting..." : "Connect Wallet"}
-      </span>
+      {!compact && (
+        <span className="hidden md:inline">
+          {isConnecting ? "Connecting..." : "Connect Wallet"}
+        </span>
+      )}
     </Button>
   );
 };

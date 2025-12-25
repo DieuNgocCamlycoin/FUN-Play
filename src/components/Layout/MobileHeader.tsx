@@ -1,5 +1,5 @@
 import { Search, Bell, Menu, Play, X, Plus, Upload, Music, FileText } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MultiTokenWallet } from "@/components/Web3/MultiTokenWallet";
@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ClaimRewardsButton } from "@/components/Rewards/ClaimRewardsButton";
+import { supabase } from "@/integrations/supabase/client";
 
 interface MobileHeaderProps {
   onMenuClick: () => void;
@@ -25,6 +26,42 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
   const navigate = useNavigate();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [notificationCount, setNotificationCount] = useState(0);
+
+  // Fetch unclaimed rewards count as notification indicator
+  useEffect(() => {
+    const fetchNotificationCount = async () => {
+      if (!user) {
+        setNotificationCount(0);
+        return;
+      }
+
+      try {
+        const { count } = await supabase
+          .from('reward_transactions')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('claimed', false)
+          .eq('status', 'success');
+
+        setNotificationCount(count || 0);
+      } catch (error) {
+        console.error('Error fetching notification count:', error);
+      }
+    };
+
+    fetchNotificationCount();
+
+    // Listen for new rewards
+    const handleReward = () => fetchNotificationCount();
+    window.addEventListener('camly-reward', handleReward);
+    window.addEventListener('tip-received', handleReward);
+    
+    return () => {
+      window.removeEventListener('camly-reward', handleReward);
+      window.removeEventListener('tip-received', handleReward);
+    };
+  }, [user]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,8 +119,8 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
           {/* Claim Rewards - Compact */}
           <ClaimRewardsButton compact />
 
-          {/* Wallet */}
-          <MultiTokenWallet />
+          {/* Wallet - Compact */}
+          <MultiTokenWallet compact />
 
           {/* Create Button */}
           <DropdownMenu>
@@ -112,9 +149,19 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Notifications */}
-          <Button variant="ghost" size="icon" className="h-8 w-8">
+          {/* Notifications with Badge */}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-8 w-8 relative"
+            onClick={() => navigate("/reward-history")}
+          >
             <Bell className="h-4 w-4" />
+            {notificationCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-0.5 bg-destructive text-destructive-foreground text-[9px] font-bold rounded-full flex items-center justify-center">
+                {notificationCount > 99 ? '99+' : notificationCount}
+              </span>
+            )}
           </Button>
 
           {/* Profile / Sign In */}
