@@ -3,15 +3,17 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, 
   X, Repeat, Repeat1, Shuffle, ListMusic, Sparkles,
-  ChevronUp, ChevronDown
+  ChevronUp, ChevronDown, Share2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Card } from "@/components/ui/card";
 import { useMusicPlayer } from "@/contexts/MusicPlayerContext";
 import { QueuePanel } from "./QueuePanel";
+import { ShareModal } from "./ShareModal";
 import { cn } from "@/lib/utils";
 import confetti from "canvas-confetti";
+import { useAuth } from "@/hooks/useAuth";
 
 export const EnhancedMusicPlayer = () => {
   const {
@@ -36,6 +38,8 @@ export const EnhancedMusicPlayer = () => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showQueue, setShowQueue] = useState(false);
   const [showVolumeSlider, setShowVolumeSlider] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const { user } = useAuth();
 
   if (!currentTrack) return null;
 
@@ -270,8 +274,18 @@ export const EnhancedMusicPlayer = () => {
                   </Button>
                 </div>
 
-                {/* Right: Volume & Queue */}
+                {/* Right: Share, Volume & Queue */}
                 <div className="flex items-center gap-1">
+                  {/* Share Button */}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setShowShareModal(true)}
+                    className="h-9 w-9 text-white/50 hover:text-cosmic-cyan hover:bg-white/10"
+                  >
+                    <Share2 className="w-4 h-4" />
+                  </Button>
+
                   <div className="relative">
                     <Button
                       variant="ghost"
@@ -355,6 +369,18 @@ export const EnhancedMusicPlayer = () => {
 
       {/* Queue Panel */}
       <QueuePanel isOpen={showQueue} onClose={() => setShowQueue(false)} />
+
+      {/* Share Modal */}
+      <ShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        contentId={currentTrack.id}
+        contentTitle={currentTrack.title}
+        contentType="music"
+        thumbnailUrl={currentTrack.thumbnail_url}
+        channelName={currentTrack.channelName}
+        userId={user?.id}
+      />
 
       {/* Wave animation styles */}
       <style>{`
