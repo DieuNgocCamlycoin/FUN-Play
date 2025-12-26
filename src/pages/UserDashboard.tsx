@@ -15,6 +15,7 @@ import { EstimatedEarningsWidget } from "@/components/Dashboard/EstimatedEarning
 import { ClaimHistoryWidget } from "@/components/Dashboard/ClaimHistoryWidget";
 import { LiveRewardCounter } from "@/components/Dashboard/LiveRewardCounter";
 import { ClaimRewardsModal } from "@/components/Rewards/ClaimRewardsModal";
+import { RewardPolicyCard } from "@/components/Rewards/RewardPolicyCard";
 
 const REWARD_TYPE_LABELS: Record<string, string> = {
   VIEW: "Xem video",
@@ -124,7 +125,10 @@ const UserDashboard = () => {
         </div>
 
         {/* Estimated Earnings */}
-        <EstimatedEarningsWidget userId={user.id} />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <EstimatedEarningsWidget userId={user.id} />
+          <RewardPolicyCard />
+        </div>
 
         {/* Daily Limits */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

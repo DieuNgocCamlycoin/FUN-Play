@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { getAccount, watchAccount, switchChain, disconnect, getBalance } from '@wagmi/core';
 import { wagmiConfig, BSC_CHAIN_ID, getWeb3Modal } from '@/lib/web3Config';
 import { bsc } from '@wagmi/core/chains';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { useAutoReward } from '@/hooks/useAutoReward';
 import { formatEther } from 'viem';
 
 export type WalletType = 'metamask' | 'bitget' | 'unknown';
@@ -34,6 +35,8 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
   const [bnbBalance, setBnbBalance] = useState('0');
   const { user } = useAuth();
   const { toast } = useToast();
+  const { awardWalletConnectReward } = useAutoReward();
+  const walletRewardedRef = useRef(false);
 
   const isCorrectChain = chainId === BSC_CHAIN_ID;
 
@@ -63,7 +66,7 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
     }
   }, [address, fetchBalance]);
 
-  // Save wallet info to database
+  // Save wallet info to database and award reward
   const saveWalletToDb = useCallback(async (walletAddress: string, type: WalletType) => {
     if (!user) return;
     try {
@@ -74,10 +77,18 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
           wallet_type: type === 'metamask' ? 'MetaMask' : type === 'bitget' ? 'Bitget Wallet' : 'Unknown',
         })
         .eq('id', user.id);
+      
+      // Award wallet connect reward (one-time)
+      if (!walletRewardedRef.current) {
+        walletRewardedRef.current = true;
+        setTimeout(() => {
+          awardWalletConnectReward(user.id);
+        }, 500);
+      }
     } catch (error) {
       console.error('Failed to save wallet to DB:', error);
     }
-  }, [user]);
+  }, [user, awardWalletConnectReward]);
 
   // Clear wallet info from database
   const clearWalletFromDb = useCallback(async () => {

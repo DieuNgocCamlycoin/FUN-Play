@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { useAutoReward } from "@/hooks/useAutoReward";
 import { Eye, EyeOff, Mail, Lock, User, AlertCircle, CheckCircle, Loader2 } from "lucide-react";
 import { User as SupabaseUser, Session } from "@supabase/supabase-js";
 
@@ -45,12 +46,23 @@ export default function Auth() {
   const [forgotPassword, setForgotPassword] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { awardSignupReward } = useAutoReward();
+  const signupRewardedRef = useRef(false);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
+        
+        // Award signup reward for new users
+        if (event === 'SIGNED_IN' && session?.user && !signupRewardedRef.current) {
+          signupRewardedRef.current = true;
+          // Defer the reward to avoid blocking auth
+          setTimeout(() => {
+            awardSignupReward(session.user.id);
+          }, 1000);
+        }
         
         if (session?.user) {
           navigate("/");
@@ -67,7 +79,7 @@ export default function Auth() {
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, awardSignupReward]);
 
   const clearMessages = () => {
     setErrorMessage(null);

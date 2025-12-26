@@ -574,16 +574,19 @@ export type Database = {
           bio: string | null
           created_at: string
           display_name: string | null
+          first_upload_rewarded: boolean | null
           id: string
           last_claim_at: string | null
           music_enabled: boolean | null
           music_url: string | null
           pending_rewards: number | null
+          signup_rewarded: boolean | null
           total_camly_rewards: number
           updated_at: string
           username: string
           violation_level: number | null
           wallet_address: string | null
+          wallet_connect_rewarded: boolean | null
           wallet_type: string | null
         }
         Insert: {
@@ -597,16 +600,19 @@ export type Database = {
           bio?: string | null
           created_at?: string
           display_name?: string | null
+          first_upload_rewarded?: boolean | null
           id: string
           last_claim_at?: string | null
           music_enabled?: boolean | null
           music_url?: string | null
           pending_rewards?: number | null
+          signup_rewarded?: boolean | null
           total_camly_rewards?: number
           updated_at?: string
           username: string
           violation_level?: number | null
           wallet_address?: string | null
+          wallet_connect_rewarded?: boolean | null
           wallet_type?: string | null
         }
         Update: {
@@ -620,16 +626,19 @@ export type Database = {
           bio?: string | null
           created_at?: string
           display_name?: string | null
+          first_upload_rewarded?: boolean | null
           id?: string
           last_claim_at?: string | null
           music_enabled?: boolean | null
           music_url?: string | null
           pending_rewards?: number | null
+          signup_rewarded?: boolean | null
           total_camly_rewards?: number
           updated_at?: string
           username?: string
           violation_level?: number | null
           wallet_address?: string | null
+          wallet_connect_rewarded?: boolean | null
           wallet_type?: string | null
         }
         Relationships: []

@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useAutoReward } from "@/hooks/useAutoReward";
 import { supabase } from "@/integrations/supabase/client";
 import { useR2Upload } from "@/hooks/useR2Upload";
 import { Upload as UploadIcon, Video, CheckCircle } from "lucide-react";
@@ -26,6 +27,7 @@ export default function Upload() {
   const [uploadStage, setUploadStage] = useState("");
   const { user, loading } = useAuth();
   const { toast } = useToast();
+  const { awardFirstUploadReward, awardUploadReward } = useAutoReward();
   const navigate = useNavigate();
 
   if (loading) {
@@ -358,7 +360,7 @@ export default function Upload() {
       setUploadStage("Đang lưu thông tin...");
       setUploadProgress(93);
       
-      const { error: videoError } = await supabase.from("videos").insert({
+      const { data: videoData, error: videoError } = await supabase.from("videos").insert({
         user_id: user.id,
         channel_id: channelId,
         title,
@@ -367,25 +369,38 @@ export default function Upload() {
         thumbnail_url: thumbnailUrl,
         file_size: videoFile.size,
         is_public: true,
-      });
+      }).select('id').single();
 
       if (videoError) {
         console.error("Database error:", videoError);
         throw new Error(`Lỗi lưu video: ${videoError.message}`);
       }
 
+      setUploadProgress(98);
+      setUploadStage("Đang trao thưởng CAMLY...");
+
+      // Award upload reward
+      if (videoData?.id) {
+        // Try first upload reward (500K), if already rewarded, give regular upload reward (100K)
+        const firstUploadSuccess = await awardFirstUploadReward(user.id, videoData.id);
+        if (!firstUploadSuccess) {
+          // Already got first upload reward, award regular upload reward
+          await awardUploadReward(videoData.id);
+        }
+      }
+
       setUploadProgress(100);
       setUploadStage("Hoàn thành!");
 
       toast({
-        title: "Tải video thành công!",
-        description: "Video của bạn đã được đăng tải",
+        title: "🎉 Tải video thành công!",
+        description: "Video của bạn đã được đăng tải và bạn đã nhận thưởng CAMLY!",
       });
 
       // Wait a bit to show completion
       setTimeout(() => {
         navigate("/");
-      }, 1500);
+      }, 2000);
     } catch (error: any) {
       console.error("Upload error:", error);
       
