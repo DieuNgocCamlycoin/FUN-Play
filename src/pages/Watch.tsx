@@ -19,6 +19,7 @@ import { EnhancedVideoPlayer } from "@/components/Video/EnhancedVideoPlayer";
 import MiniPlayer from "@/components/Video/MiniPlayer";
 import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { DynamicMeta } from "@/components/SEO/DynamicMeta";
 
 interface Video {
   id: string;
@@ -552,10 +553,22 @@ export default function Watch() {
     );
   }
 
+  const shareUrl = `${window.location.origin}/watch/${video.id}`;
+
   return (
-    <div className="min-h-screen bg-background" {...(isMobile ? swipeHandlers : {})}>
-      <Header onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
-      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+    <>
+      {/* Dynamic Open Graph Meta Tags for Video */}
+      <DynamicMeta
+        title={`${video.title} - ${video.channels?.name || "FUN Play"}`}
+        description={video.description || `Xem video "${video.title}" trên FUN Play - Web3 Video Platform`}
+        image={video.thumbnail_url || "https://lovable.dev/opengraph-image-p98pqg.png"}
+        url={shareUrl}
+        type="video.other"
+      />
+
+      <div className="min-h-screen bg-background" {...(isMobile ? swipeHandlers : {})}>
+        <Header onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
+        <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
       <main className="pt-14 lg:pl-64">
         <div className="max-w-[1920px] mx-auto">
@@ -854,5 +867,6 @@ export default function Watch() {
         />
       )}
     </div>
+    </>
   );
 }
