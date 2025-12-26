@@ -94,8 +94,19 @@ export const ShareModal = ({
         return `${window.location.origin}/watch/${id}`;
     }
   };
+
+  // Generate prerender URL for social media crawlers (with proper OG tags)
+  const getPrerenderUrl = () => {
+    const path = contentType === 'video' ? `/watch/${id}` 
+      : contentType === 'music' ? `/music/${id}` 
+      : contentType === 'channel' ? `/channel/${id}` 
+      : `/watch/${id}`;
+    
+    return `https://fzgjmvxtgrlwrluxdwjq.supabase.co/functions/v1/prerender?path=${encodeURIComponent(path)}`;
+  };
   
   const shareUrl = getShareUrl();
+  const prerenderUrl = getPrerenderUrl();
   
   const getContentTypeLabel = () => {
     switch (contentType) {
@@ -155,7 +166,11 @@ export const ShareModal = ({
 
   const handleShare = (platform: string) => {
     awardShare();
-    const encodedUrl = encodeURIComponent(shareUrl);
+    // Use prerender URL for social media platforms (for proper OG meta tags)
+    // Use regular shareUrl for other platforms
+    const usePrerenderUrl = ['facebook', 'twitter', 'linkedin', 'messenger'].includes(platform);
+    const urlToShare = usePrerenderUrl ? prerenderUrl : shareUrl;
+    const encodedUrl = encodeURIComponent(urlToShare);
     const encodedTitle = encodeURIComponent(title);
     const shareText = encodeURIComponent(`Xem ${getContentTypeLabel()} "${title}" trên FUN Play! ✨`);
     let shareLink = "";
@@ -168,13 +183,13 @@ export const ShareModal = ({
         shareLink = `https://twitter.com/intent/tweet?url=${encodedUrl}&text=${encodedTitle}`;
         break;
       case "telegram":
-        shareLink = `https://t.me/share/url?url=${encodedUrl}&text=${encodedTitle}`;
+        shareLink = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodedTitle}`;
         break;
       case "whatsapp":
-        shareLink = `https://wa.me/?text=${encodedTitle}%20${encodedUrl}`;
+        shareLink = `https://wa.me/?text=${encodedTitle}%20${encodeURIComponent(shareUrl)}`;
         break;
       case "zalo":
-        shareLink = `https://zalo.me/share?url=${encodedUrl}`;
+        shareLink = `https://zalo.me/share?url=${encodeURIComponent(shareUrl)}`;
         break;
       case "tiktok":
         // TikTok doesn't have a direct share URL, copy link instead
@@ -188,14 +203,14 @@ export const ShareModal = ({
         shareLink = `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`;
         break;
       case "messenger":
-        shareLink = `https://www.facebook.com/dialog/send?link=${encodedUrl}&app_id=966242223397117&redirect_uri=${encodedUrl}`;
+        shareLink = `https://www.facebook.com/dialog/send?link=${encodedUrl}&app_id=966242223397117&redirect_uri=${encodeURIComponent(shareUrl)}`;
         break;
       case "email":
-        shareLink = `mailto:?subject=${encodedTitle}&body=${shareText}%20${encodedUrl}`;
+        shareLink = `mailto:?subject=${encodedTitle}&body=${shareText}%20${encodeURIComponent(shareUrl)}`;
         window.location.href = shareLink;
         return;
       case "sms":
-        shareLink = `sms:?body=${shareText}%20${encodedUrl}`;
+        shareLink = `sms:?body=${shareText}%20${encodeURIComponent(shareUrl)}`;
         window.location.href = shareLink;
         return;
     }
