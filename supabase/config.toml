@@ -20,3 +20,9 @@ verify_jwt = false
 
 [functions.update-reward-config]
 verify_jwt = false
+
+[functions.og-meta]
+verify_jwt = false
+
+[functions.prerender]
+verify_jwt = false
