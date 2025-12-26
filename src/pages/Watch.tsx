@@ -25,6 +25,7 @@ interface Video {
   title: string;
   description: string;
   video_url: string;
+  thumbnail_url: string | null;
   view_count: number;
   like_count: number;
   dislike_count: number;
@@ -808,8 +809,11 @@ export default function Watch() {
       <ShareModal
         isOpen={shareModalOpen}
         onClose={() => setShareModalOpen(false)}
-        videoId={id || ""}
-        videoTitle={video?.title || ""}
+        contentId={id || ""}
+        contentTitle={video?.title || ""}
+        contentType="video"
+        thumbnailUrl={video?.thumbnail_url || undefined}
+        channelName={video?.channels?.name}
         userId={user?.id}
       />
 
