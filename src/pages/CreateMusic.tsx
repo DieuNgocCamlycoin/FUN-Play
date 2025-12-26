@@ -27,6 +27,7 @@ import {
   Drum
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { ShareModal } from "@/components/Video/ShareModal";
 
 interface GeneratedSong {
   id: string;
@@ -56,6 +57,8 @@ export default function CreateMusic() {
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
   const [volume, setVolume] = useState(80);
   const [progress, setProgress] = useState(0);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [songToShare, setSongToShare] = useState<GeneratedSong | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const { user } = useAuth();
 
@@ -439,8 +442,8 @@ export default function CreateMusic() {
                               size="icon"
                               variant="ghost"
                               onClick={() => {
-                                navigator.clipboard.writeText(song.audioUrl);
-                                toast.success("Đã sao chép link!");
+                                setSongToShare(song);
+                                setShareModalOpen(true);
                               }}
                               className="h-9 w-9"
                             >
@@ -476,6 +479,16 @@ export default function CreateMusic() {
 
           {/* Hidden Audio Element */}
           <audio ref={audioRef} />
+
+          {/* Share Modal */}
+          <ShareModal
+            isOpen={shareModalOpen}
+            onClose={() => setShareModalOpen(false)}
+            contentId={songToShare?.id || ""}
+            contentTitle={songToShare?.prompt || "Nhạc AI"}
+            contentType="music"
+            userId={user?.id}
+          />
         </div>
       </main>
     </div>
