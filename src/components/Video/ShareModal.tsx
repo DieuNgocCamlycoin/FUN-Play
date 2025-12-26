@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -209,14 +210,17 @@ export const ShareModal = ({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-lg glass-card border-2 border-cosmic-cyan/30 overflow-hidden">
-        {/* Animated background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-cosmic-cyan/5 via-transparent to-cosmic-magenta/5 pointer-events-none" />
+        {/* Animated background - pointer-events-none to not block clicks */}
+        <div className="absolute inset-0 bg-gradient-to-br from-cosmic-cyan/5 via-transparent to-cosmic-magenta/5 pointer-events-none -z-10" />
         
         <DialogHeader>
           <DialogTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
             <Share2 className="w-5 h-5 text-cosmic-cyan" />
             Chia sẻ {getContentTypeLabel()}
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            Chia sẻ {title} lên các mạng xã hội hoặc sao chép liên kết
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 relative">
