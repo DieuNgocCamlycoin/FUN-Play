@@ -216,8 +216,12 @@ export const VideoCard = ({
       <ShareModal
         isOpen={shareModalOpen}
         onClose={() => setShareModalOpen(false)}
-        videoId={videoId}
-        videoTitle={title}
+        contentType="video"
+        contentId={videoId || ""}
+        contentTitle={title || ""}
+        thumbnailUrl={thumbnail}
+        channelName={channel}
+        userId={user?.id}
       />
 
       {videoId && (

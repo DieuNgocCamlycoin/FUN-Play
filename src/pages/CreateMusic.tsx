@@ -484,9 +484,11 @@ export default function CreateMusic() {
           <ShareModal
             isOpen={shareModalOpen}
             onClose={() => setShareModalOpen(false)}
+            contentType="music"
             contentId={songToShare?.id || ""}
             contentTitle={songToShare?.prompt || "Nhạc AI"}
-            contentType="music"
+            thumbnailUrl="/images/camly-coin.png"
+            channelName="AI Music Generator"
             userId={user?.id}
           />
         </div>

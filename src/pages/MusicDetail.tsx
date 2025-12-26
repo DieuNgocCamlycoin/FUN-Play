@@ -509,6 +509,7 @@ export default function MusicDetail() {
           contentTitle={track.title}
           thumbnailUrl={track.thumbnail_url || undefined}
           channelName={track.channels?.name}
+          userId={user?.id}
         />
 
         {/* Add to Playlist Modal */}
