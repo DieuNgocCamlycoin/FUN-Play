@@ -18,15 +18,23 @@ const ERC20_TRANSFER_ABI = [
 ];
 
 serve(async (req) => {
+  console.log("=== CLAIM-CAMLY FUNCTION STARTED ===");
+  console.log("Request method:", req.method);
+  console.log("Timestamp:", new Date().toISOString());
+
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
+    console.log("Handling CORS preflight");
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     // Verify authentication
     const authHeader = req.headers.get('Authorization');
+    console.log("Auth header present:", !!authHeader);
+    
     if (!authHeader) {
+      console.error("ERROR: No authorization header");
       return new Response(
         JSON.stringify({ error: 'Authorization required' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -37,6 +45,9 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    
+    console.log("Supabase URL configured:", !!supabaseUrl);
+    console.log("Service role key configured:", !!supabaseServiceKey);
 
     const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } }
@@ -46,14 +57,25 @@ serve(async (req) => {
 
     // Get authenticated user
     const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
-    if (authError || !user) {
+    
+    if (authError) {
+      console.error("Auth error:", authError.message);
+    }
+    
+    if (!user) {
+      console.error("ERROR: No user found from auth token");
       return new Response(
         JSON.stringify({ error: 'Invalid authentication' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const { walletAddress } = await req.json();
+    console.log("Authenticated user ID:", user.id);
+    console.log("User email:", user.email);
+
+    const body = await req.json();
+    const { walletAddress } = body;
+    console.log("Wallet address from request:", walletAddress);
 
     if (!walletAddress || !walletAddress.match(/^0x[a-fA-F0-9]{40}$/)) {
       return new Response(
@@ -87,8 +109,11 @@ serve(async (req) => {
 
     // Calculate total unclaimed amount
     const totalAmount = unclaimedRewards.reduce((sum, r) => sum + Number(r.amount), 0);
+    console.log("Total unclaimed amount:", totalAmount, "CAMLY");
+    console.log("Number of unclaimed rewards:", unclaimedRewards.length);
 
     if (totalAmount <= 0) {
+      console.error("ERROR: No rewards to claim (amount <= 0)");
       return new Response(
         JSON.stringify({ error: 'No rewards to claim' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -96,6 +121,7 @@ serve(async (req) => {
     }
 
     // Check for pending claims (prevent double claiming)
+    console.log("Checking for pending claims...");
     const { data: pendingClaims } = await supabaseAdmin
       .from('claim_requests')
       .select('id')
@@ -104,11 +130,14 @@ serve(async (req) => {
       .limit(1);
 
     if (pendingClaims && pendingClaims.length > 0) {
+      console.error("ERROR: User has pending claim:", pendingClaims[0].id);
       return new Response(
         JSON.stringify({ error: 'You have a pending claim. Please wait for it to complete.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    console.log("No pending claims, proceeding to create claim request...");
 
     // Create claim request record
     const { data: claimRequest, error: claimError } = await supabaseAdmin
