@@ -415,6 +415,37 @@ const Wallet = () => {
     navigator.userAgent.includes('BitKeep')
   );
 
+  // Auto-redirect to wallet app on mobile when clicking connect
+  const handleMobileConnect = async () => {
+    if (isMobile && !isInWalletBrowser) {
+      // Try to open in MetaMask app first
+      const dappUrl = window.location.href;
+      const deepLink = `metamask://dapp/${window.location.host}${window.location.pathname}`;
+      
+      // Show toast before redirect
+      toast({
+        title: "Đang mở ví...",
+        description: "Vui lòng mở trang này trong app MetaMask hoặc Bitget Wallet",
+      });
+      
+      // Try MetaMask deep link
+      window.location.href = deepLink;
+      
+      // If not redirected after 1.5s, user probably doesn't have MetaMask
+      // Try Web3Modal as fallback
+      setTimeout(async () => {
+        try {
+          await connectWallet();
+        } catch (error) {
+          console.log('Web3Modal fallback failed:', error);
+        }
+      }, 1500);
+    } else {
+      // Desktop or already in wallet browser - use normal connect
+      await connectWallet();
+    }
+  };
+
   if (!isConnected) {
     return (
       <div 
@@ -435,7 +466,7 @@ const Wallet = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <Button 
-              onClick={connectWallet} 
+              onClick={handleMobileConnect} 
               disabled={isConnecting}
               className="w-full" 
               size="lg"
@@ -444,20 +475,77 @@ const Wallet = () => {
               {isConnecting ? "Đang kết nối..." : "Kết nối Ví"}
             </Button>
             
+            {/* QR Code for Desktop - WalletConnect scan */}
+            {!isMobile && (
+              <div className="space-y-3">
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-card px-2 text-muted-foreground">
+                      Hoặc quét QR bằng ví mobile
+                    </span>
+                  </div>
+                </div>
+                
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="w-full" size="lg">
+                      <QrCode className="mr-2 h-5 w-5" />
+                      Hiển thị QR Code
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle className="text-center">Quét QR để kết nối</DialogTitle>
+                      <DialogDescription className="text-center">
+                        Mở MetaMask hoặc Bitget Wallet trên điện thoại và quét mã QR này
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex flex-col items-center gap-4 py-6">
+                      <div className="p-4 bg-white rounded-2xl shadow-lg">
+                        <QRCodeSVG 
+                          value={`https://${window.location.host}${window.location.pathname}`}
+                          size={200}
+                          level="H"
+                          includeMargin
+                        />
+                      </div>
+                      <div className="text-center space-y-2">
+                        <p className="text-sm font-medium">Hướng dẫn:</p>
+                        <ol className="text-xs text-muted-foreground text-left space-y-1">
+                          <li>1. Mở app MetaMask hoặc Bitget Wallet</li>
+                          <li>2. Nhấn vào biểu tượng quét QR (🔍)</li>
+                          <li>3. Quét mã QR trên màn hình này</li>
+                          <li>4. Xác nhận kết nối trong app ví</li>
+                        </ol>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            )}
+            
             {/* Deep Link Buttons for Mobile - Always show on mobile */}
             {isMobile && !isInWalletBrowser && (
               <div className="space-y-3">
-                <p className="text-sm text-center text-muted-foreground">
-                  Hoặc mở app ví trực tiếp:
-                </p>
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-card px-2 text-muted-foreground">
+                      Hoặc mở app ví trực tiếp
+                    </span>
+                  </div>
+                </div>
                 <div className="flex gap-2">
                   <Button 
                     variant="outline" 
                     className="flex-1"
                     onClick={() => {
-                      const dappUrl = encodeURIComponent(window.location.href);
-                      window.location.href = `metamask://dapp/${window.location.host}`;
-                      // Fallback after delay
+                      window.location.href = `metamask://dapp/${window.location.host}${window.location.pathname}`;
                       setTimeout(() => {
                         window.open('https://metamask.io/download/', '_blank');
                       }, 2000);
@@ -470,7 +558,6 @@ const Wallet = () => {
                     className="flex-1"
                     onClick={() => {
                       window.location.href = `bitkeep://bkconnect?action=dapp&url=${encodeURIComponent(window.location.href)}`;
-                      // Fallback after delay
                       setTimeout(() => {
                         window.open('https://web3.bitget.com/en/wallet-download', '_blank');
                       }, 2000);
@@ -499,8 +586,8 @@ const Wallet = () => {
             {/* Info text */}
             <p className="text-xs text-center text-muted-foreground mt-4">
               {isMobile 
-                ? "💡 Trên mobile, bạn cần mở trang này trong app MetaMask hoặc Bitget Wallet"
-                : "💡 Trên desktop, cài extension MetaMask hoặc Bitget Wallet cho trình duyệt"
+                ? "💡 Nhấn 'Kết nối Ví' sẽ tự động mở app MetaMask trên điện thoại"
+                : "💡 Quét QR code bằng app ví trên điện thoại hoặc cài extension cho trình duyệt"
               }
             </p>
           </CardContent>
