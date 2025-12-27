@@ -16,6 +16,7 @@ import { ClaimHistoryWidget } from "@/components/Dashboard/ClaimHistoryWidget";
 import { LiveRewardCounter } from "@/components/Dashboard/LiveRewardCounter";
 import { ClaimRewardsModal } from "@/components/Rewards/ClaimRewardsModal";
 import { RewardPolicyCard } from "@/components/Rewards/RewardPolicyCard";
+import { CounterAnimation } from "@/components/Layout/CounterAnimation";
 
 const REWARD_TYPE_LABELS: Record<string, string> = {
   VIEW: "Xem video",
@@ -111,7 +112,7 @@ const UserDashboard = () => {
                 <span className="text-lg text-muted-foreground">Tổng CAMLY đã kiếm được</span>
               </div>
               <div className="text-6xl font-black bg-gradient-to-r from-[#FFD700] to-[#FF9500] bg-clip-text text-transparent">
-                {(statistics?.totalEarned || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                <CounterAnimation value={statistics?.totalEarned || 0} decimals={0} />
               </div>
               <p className="text-sm text-muted-foreground mt-2">CAMLY Tokens</p>
             </CardContent>
@@ -253,7 +254,7 @@ const UserDashboard = () => {
                           <span className="font-medium">{REWARD_TYPE_LABELS[item.type] || item.type}</span>
                         </div>
                         <div className="text-right">
-                          <div className="font-bold">{item.total.toLocaleString()} CAMLY</div>
+                          <div className="font-bold"><CounterAnimation value={item.total} decimals={0} showTooltip={false} /> CAMLY</div>
                           <div className="text-xs text-muted-foreground">{item.count} lần</div>
                         </div>
                       </div>
@@ -332,7 +333,7 @@ const UserDashboard = () => {
                       </Badge>
                       <div>
                         <div className="font-medium">
-                          +{Number(tx.amount).toLocaleString()} CAMLY
+                          +<CounterAnimation value={Number(tx.amount)} decimals={0} showTooltip={false} /> CAMLY
                         </div>
                         {tx.videos?.title && (
                           <div className="text-xs text-muted-foreground truncate max-w-[200px]">

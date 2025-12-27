@@ -132,7 +132,7 @@ export const RewardStats = ({ userId, walletAddress }: RewardStatsProps) => {
                     {stat.label}
                   </div>
                   <div className={`text-xl font-bold bg-gradient-to-br ${stat.color} bg-clip-text text-transparent tabular-nums`}>
-                    <CounterAnimation value={stat.value} decimals={3} />
+                    <CounterAnimation value={stat.value} decimals={0} />
                     {stat.suffix}
                   </div>
                 </div>

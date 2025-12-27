@@ -31,6 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Navigate } from "react-router-dom";
+import { CounterAnimation } from "@/components/Layout/CounterAnimation";
 
 interface RewardTransaction {
   id: string;
@@ -155,7 +156,7 @@ export default function RewardHistory() {
     setFilteredTransactions(filtered);
   };
 
-  const formatNumber = (num: number) => new Intl.NumberFormat("vi-VN").format(num);
+  const formatNumber = (num: number) => Math.floor(num).toLocaleString('vi-VN');
 
   const getRewardInfo = (type: string) => {
     return REWARD_TYPE_MAP[type] || { icon: Coins, label: type, color: "text-gray-500" };
@@ -201,7 +202,9 @@ export default function RewardHistory() {
               <Card className="bg-gradient-to-br from-yellow-500/10 to-amber-500/10 border-yellow-500/30">
                 <CardContent className="p-4 text-center">
                   <Coins className="w-8 h-8 mx-auto text-yellow-500 mb-2" />
-                  <p className="text-2xl md:text-3xl font-bold text-yellow-500">{formatNumber(totalEarned)}</p>
+                  <p className="text-2xl md:text-3xl font-bold text-yellow-500">
+                    <CounterAnimation value={totalEarned} decimals={0} />
+                  </p>
                   <p className="text-xs text-muted-foreground">Tổng đã kiếm</p>
                 </CardContent>
               </Card>
@@ -211,7 +214,9 @@ export default function RewardHistory() {
               <Card className="bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border-cyan-500/30">
                 <CardContent className="p-4 text-center">
                   <Gift className="w-8 h-8 mx-auto text-cyan-500 mb-2" />
-                  <p className="text-2xl md:text-3xl font-bold text-cyan-500">{formatNumber(totalUnclaimed)}</p>
+                  <p className="text-2xl md:text-3xl font-bold text-cyan-500">
+                    <CounterAnimation value={totalUnclaimed} decimals={0} />
+                  </p>
                   <p className="text-xs text-muted-foreground">Chờ claim</p>
                 </CardContent>
               </Card>
@@ -314,7 +319,7 @@ export default function RewardHistory() {
                           </div>
 
                           <div className="text-right">
-                            <p className="font-bold text-yellow-500">+{formatNumber(tx.amount)}</p>
+                            <p className="font-bold text-yellow-500">+<CounterAnimation value={tx.amount} decimals={0} showTooltip={false} /></p>
                             <Badge 
                               variant="secondary" 
                               className={tx.claimed ? "bg-green-500/20 text-green-500 text-xs" : "bg-yellow-500/20 text-yellow-500 text-xs"}
