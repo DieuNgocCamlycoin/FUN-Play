@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Coins, Sparkles, Gift, CheckCircle, Loader2, ExternalLink, Wallet, Smartphone } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { useWalletConnection } from "@/hooks/useWalletConnection";
+import { useWalletConnectionWithRetry } from "@/hooks/useWalletConnectionWithRetry";
+import { WalletConnectionProgress } from "@/components/Web3/WalletConnectionProgress";
 import { toast } from "@/hooks/use-toast";
 import confetti from "canvas-confetti";
 import { isMobileBrowser, isInWalletBrowser, getWalletDeepLink } from "@/lib/web3Config";
@@ -34,7 +35,18 @@ const REWARD_TYPE_LABELS: Record<string, string> = {
 
 export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps) => {
   const { user } = useAuth();
-  const { isConnected, address, connectWallet, connectWithMobileSupport, isLoading: walletLoading } = useWalletConnection();
+  const { 
+    isConnected, 
+    address, 
+    connectionStep,
+    connectionProgress,
+    connectionError,
+    connectWithRetry,
+    retry,
+    cancel,
+    isConnecting 
+  } = useWalletConnectionWithRetry();
+  
   const [loading, setLoading] = useState(true);
   const [claiming, setClaiming] = useState(false);
   const [claimSuccess, setClaimSuccess] = useState(false);
@@ -155,17 +167,11 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
     }
   };
 
-  // Handle wallet connection - prioritize Web3Modal for best UX
+  // Handle wallet connection with retry
   const handleConnect = useCallback(async () => {
-    console.log('[ClaimModal] Connecting wallet...', { isMobile, inWalletApp });
-    
-    try {
-      // Use centralized mobile support from hook
-      await connectWithMobileSupport();
-    } catch (error) {
-      console.error('[ClaimModal] Connection failed:', error);
-    }
-  }, [connectWithMobileSupport, isMobile, inWalletApp]);
+    console.log('[ClaimModal] Connecting wallet with retry...', { isMobile, inWalletApp });
+    await connectWithRetry();
+  }, [connectWithRetry, isMobile, inWalletApp]);
 
   // Open specific wallet app via deep link
   const openWalletApp = useCallback((wallet: 'metamask' | 'bitget' | 'trust') => {
@@ -317,15 +323,28 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
                 </div>
               )}
 
+              {/* Connection Progress Indicator */}
+              <AnimatePresence>
+                {(isConnecting || connectionStep === 'error' || connectionStep === 'connected') && (
+                  <WalletConnectionProgress
+                    step={connectionStep}
+                    progress={connectionProgress}
+                    error={connectionError}
+                    onRetry={retry}
+                    onCancel={cancel}
+                  />
+                )}
+              </AnimatePresence>
+
               {/* Wallet Connection */}
-              {!isConnected ? (
+              {!isConnected && connectionStep === 'idle' ? (
                 <div className="space-y-3">
                   <Button
                     onClick={handleConnect}
-                    disabled={walletLoading}
+                    disabled={isConnecting}
                     className="w-full bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600"
                   >
-                    {walletLoading ? (
+                    {isConnecting ? (
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     ) : (
                       <Wallet className="h-4 w-4 mr-2" />
@@ -369,7 +388,7 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
                     </div>
                   )}
                 </div>
-              ) : (
+              ) : isConnected ? (
                 <div className="space-y-3">
                   <div className="p-3 rounded-lg bg-muted/50 text-sm">
                     <span className="text-muted-foreground">Ví nhận:</span>
@@ -401,7 +420,7 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
                     )}
                   </Button>
                 </div>
-              )}
+              ) : null}
 
               {/* Angel hint */}
               <motion.p
