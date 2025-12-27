@@ -15,6 +15,7 @@ import CreatePost from "./pages/CreatePost";
 import YourVideos from "./pages/YourVideos";
 import EditVideo from "./pages/EditVideo";
 import Wallet from "./pages/Wallet";
+import LikedVideos from "./pages/LikedVideos";
 import ManagePosts from "./pages/ManagePosts";
 import EditPost from "./pages/EditPost";
 import ManagePlaylists from "./pages/ManagePlaylists";
@@ -100,7 +101,7 @@ function AppContent() {
         {/* Temporary redirect routes for missing pages */}
         <Route path="/shorts" element={<Index />} />
         <Route path="/library" element={<Index />} />
-        <Route path="/liked" element={<Index />} />
+        <Route path="/liked" element={<LikedVideos />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
       </Routes>

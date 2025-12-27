@@ -1,5 +1,7 @@
 import { ethers } from "ethers";
 import { supabase } from "@/integrations/supabase/client";
+import { getWalletClient } from "@wagmi/core";
+import { wagmiConfig } from "@/lib/web3Config";
 
 const ERC20_ABI = [
   "function transfer(address to, uint256 amount) returns (bool)",
@@ -24,11 +26,14 @@ export const sendTip = async ({
   decimals,
   videoId,
 }: SendTipParams) => {
-  if (!window.ethereum) {
-    throw new Error("MetaMask not installed");
+  // Get wallet client from wagmi instead of window.ethereum
+  const walletClient = await getWalletClient(wagmiConfig);
+  if (!walletClient) {
+    throw new Error("Vui lòng kết nối ví để gửi tiền");
   }
 
-  const provider = new ethers.BrowserProvider(window.ethereum);
+  // Create ethers provider - use window.ethereum if available
+  const provider = new ethers.BrowserProvider((window as any).ethereum || walletClient.transport);
   const signer = await provider.getSigner();
   const fromAddress = await signer.getAddress();
 

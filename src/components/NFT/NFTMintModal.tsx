@@ -17,6 +17,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import { useWalletConnection } from "@/hooks/useWalletConnection";
 
 interface NFTMintModalProps {
   open: boolean;
@@ -33,6 +34,7 @@ export const NFTMintModal = ({
   videoThumbnail,
   videoTitle 
 }: NFTMintModalProps) => {
+  const { isConnected, connectWallet, isLoading: isConnecting } = useWalletConnection();
   const [activeTab, setActiveTab] = useState<"video" | "ai">("video");
   const [nftName, setNftName] = useState(videoTitle || "");
   const [nftDescription, setNftDescription] = useState("");
@@ -71,10 +73,8 @@ export const NFTMintModal = ({
       if (!response.ok) throw new Error("AI generation failed");
 
       // Simulate AI image generation with a placeholder
-      // In production, this would call an actual image generation API
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Use a gradient placeholder representing AI-generated art
       setGeneratedImage(`https://picsum.photos/seed/${Date.now()}/400/400`);
       toast.success("Đã tạo artwork thành công!");
     } catch (error) {
@@ -91,18 +91,16 @@ export const NFTMintModal = ({
       return;
     }
 
-    // Check wallet connection
-    if (typeof window.ethereum === "undefined") {
-      toast.error("Vui lòng cài đặt MetaMask để mint NFT");
-      return;
+    // Check wallet connection - use the hook instead of window.ethereum
+    if (!isConnected) {
+      toast.info("Đang mở kết nối ví...");
+      await connectWallet();
+      return; // User will click again after connecting
     }
 
     setIsMinting(true);
 
     try {
-      // Request wallet connection
-      await window.ethereum.request({ method: "eth_requestAccounts" });
-      
       // Simulate minting process
       await new Promise(resolve => setTimeout(resolve, 3000));
       
@@ -262,7 +260,7 @@ export const NFTMintModal = ({
           {/* Mint Button */}
           <Button
             onClick={handleMint}
-            disabled={isMinting || !nftName.trim() || (activeTab === "ai" && !generatedImage)}
+            disabled={isMinting || isConnecting || !nftName.trim() || (activeTab === "ai" && !generatedImage)}
             className="w-full h-12 bg-gradient-to-r from-[#00E7FF] to-[#FFD700] hover:opacity-90 text-white font-bold"
           >
             {isMinting ? (
@@ -270,10 +268,20 @@ export const NFTMintModal = ({
                 <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                 Đang mint NFT...
               </>
+            ) : isConnecting ? (
+              <>
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                Đang kết nối ví...
+              </>
+            ) : !isConnected ? (
+              <>
+                <Wallet className="w-5 h-5 mr-2" />
+                Kết nối ví để Mint
+              </>
             ) : (
               <>
                 <Wallet className="w-5 h-5 mr-2" />
-                Mint NFT (Kết nối MetaMask)
+                Mint NFT
               </>
             )}
           </Button>
