@@ -24,12 +24,12 @@ export default defineConfig(({ mode }) => ({
     mode === "development" && componentTagger(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.ico", "images/camly-coin.png"],
+      includeAssets: ["favicon.png", "images/funplay-icon-192.png", "images/funplay-icon-512.png"],
       manifest: {
-        name: "FUN PLAY - Web3 Video Platform",
-        short_name: "FUN PLAY",
-        description: "Next-generation Web3 video platform with crypto tipping and NFT support on BSC",
-        theme_color: "#000833",
+        name: "FUN Play",
+        short_name: "FUN Play",
+        description: "The place where every soul turns value into digital assets forever – Rich Rich Rich",
+        theme_color: "#00E7FF",
         background_color: "#000833",
         display: "standalone",
         orientation: "portrait",
@@ -37,13 +37,13 @@ export default defineConfig(({ mode }) => ({
         start_url: "/",
         icons: [
           {
-            src: "/images/camly-coin.png",
+            src: "/images/funplay-icon-192.png",
             sizes: "192x192",
             type: "image/png",
             purpose: "any maskable"
           },
           {
-            src: "/images/camly-coin.png",
+            src: "/images/funplay-icon-512.png",
             sizes: "512x512",
             type: "image/png",
             purpose: "any maskable"
