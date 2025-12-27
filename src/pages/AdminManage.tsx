@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Gift, Trash2, AlertTriangle, Search, CheckCircle, Download, Blocks, Users, Ban, ShieldX, ArrowLeft } from "lucide-react";
+import { Gift, Trash2, AlertTriangle, Search, CheckCircle, Download, Blocks, Users, Ban, ShieldX, ArrowLeft, Coins } from "lucide-react";
 import { Navigate, useNavigate } from "react-router-dom";
 
 import RewardApprovalTab from "@/components/Admin/tabs/RewardApprovalTab";
@@ -17,6 +17,7 @@ import ClaimedListTab from "@/components/Admin/tabs/ClaimedListTab";
 import BlockchainTab from "@/components/Admin/tabs/BlockchainTab";
 import AllUsersTab from "@/components/Admin/tabs/AllUsersTab";
 import BannedUsersTab from "@/components/Admin/tabs/BannedUsersTab";
+import RewardPoolTab from "@/components/Admin/tabs/RewardPoolTab";
 
 const AdminManage = () => {
   const { user, loading: authLoading } = useAuth();
@@ -125,8 +126,11 @@ const AdminManage = () => {
         </div>
 
         {/* Main Tabs */}
-        <Tabs defaultValue="quick-delete" className="w-full">
+        <Tabs defaultValue="reward-pool" className="w-full">
           <TabsList className="flex flex-wrap h-auto gap-1 bg-muted/50 p-1">
+            <TabsTrigger value="reward-pool" className="gap-1 text-xs">
+              <Coins className="w-3 h-3" /> Reward Pool
+            </TabsTrigger>
             <TabsTrigger value="quick-delete" className="gap-1 text-xs">
               <Search className="w-3 h-3" /> Xóa nhanh
             </TabsTrigger>
@@ -156,6 +160,9 @@ const AdminManage = () => {
             </TabsTrigger>
           </TabsList>
 
+          <TabsContent value="reward-pool" className="mt-4">
+            <RewardPoolTab />
+          </TabsContent>
           <TabsContent value="quick-delete" className="mt-4">
             <QuickDeleteTab users={users} onBan={banUser} getSuspicionScore={getSuspicionScore} loading={actionLoading} />
           </TabsContent>
