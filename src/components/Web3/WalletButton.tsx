@@ -1,6 +1,6 @@
-import { Wallet, ChevronDown, ExternalLink, LogOut, AlertTriangle } from "lucide-react";
+import { Wallet, ChevronDown, ExternalLink, LogOut, AlertTriangle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useWalletConnection } from "@/hooks/useWalletConnection";
+import { useWalletConnectionWithRetry } from "@/hooks/useWalletConnectionWithRetry";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,10 +23,11 @@ export const WalletButton = () => {
     isCorrectChain,
     isLoading,
     isInitialized,
-    connectWallet,
+    connectWithRetry,
     disconnectWallet,
     switchToBSC,
-  } = useWalletConnection();
+    isConnecting,
+  } = useWalletConnectionWithRetry();
 
   // Get wallet icon based on type
   const getWalletIcon = () => {
@@ -165,14 +166,18 @@ export const WalletButton = () => {
   // Disconnected state - Connect button (uses Web3Modal which works on ALL devices)
   return (
     <Button
-      onClick={connectWallet}
+      onClick={connectWithRetry}
       size="sm"
-      disabled={isLoading}
+      disabled={isLoading || isConnecting}
       className="gap-2 bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-black font-semibold shadow-lg shadow-yellow-500/25 transition-all duration-300 hover:shadow-yellow-500/40 hover:scale-105"
     >
-      <Wallet className="h-4 w-4" />
-      <span className="hidden sm:inline">Kết nối ví</span>
-      <span className="sm:hidden">Ví</span>
+      {isConnecting ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <Wallet className="h-4 w-4" />
+      )}
+      <span className="hidden sm:inline">{isConnecting ? 'Đang kết nối...' : 'Kết nối ví'}</span>
+      <span className="sm:hidden">{isConnecting ? '...' : 'Ví'}</span>
     </Button>
   );
 };

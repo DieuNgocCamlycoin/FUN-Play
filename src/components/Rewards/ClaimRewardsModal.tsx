@@ -116,7 +116,7 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
     if (!user || !isConnected || !address) {
       toast({
         title: "Vui lòng kết nối ví",
-        description: "Bạn cần kết nối ví MetaMask để nhận CAMLY",
+        description: "Bạn cần kết nối ví (MetaMask, Bitget, Trust) để nhận CAMLY",
         variant: "destructive",
       });
       return;

@@ -415,35 +415,18 @@ const Wallet = () => {
     navigator.userAgent.includes('BitKeep')
   );
 
-  // Auto-redirect to wallet app on mobile when clicking connect
+  // Connect wallet - works on both mobile and desktop via Web3Modal
   const handleMobileConnect = async () => {
-    if (isMobile && !isInWalletBrowser) {
-      // Try to open in MetaMask app first
-      const dappUrl = window.location.href;
-      const deepLink = `metamask://dapp/${window.location.host}${window.location.pathname}`;
-      
-      // Show toast before redirect
-      toast({
-        title: "Đang mở ví...",
-        description: "Vui lòng mở trang này trong app MetaMask hoặc Bitget Wallet",
-      });
-      
-      // Try MetaMask deep link
-      window.location.href = deepLink;
-      
-      // If not redirected after 1.5s, user probably doesn't have MetaMask
-      // Try Web3Modal as fallback
-      setTimeout(async () => {
-        try {
-          await connectWallet();
-        } catch (error) {
-          console.log('Web3Modal fallback failed:', error);
-        }
-      }, 1500);
-    } else {
-      // Desktop or already in wallet browser - use normal connect
-      await connectWallet();
-    }
+    console.log('[Wallet] handleMobileConnect called', { isMobile, isInWalletBrowser });
+    
+    // Show toast
+    toast({
+      title: "🔗 Đang kết nối ví...",
+      description: "Vui lòng xác nhận kết nối trong ví của bạn",
+    });
+    
+    // Use Web3Modal for all cases - it handles mobile deep links internally
+    await connectWallet();
   };
 
   if (!isConnected) {

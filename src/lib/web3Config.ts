@@ -41,6 +41,10 @@ export const initWeb3Modal = () => {
   if (!modal && typeof window !== 'undefined') {
     console.log('[Web3] Initializing Web3Modal with projectId:', projectId ? 'configured' : 'MISSING!');
     
+    if (!projectId) {
+      console.error('[Web3] CRITICAL: VITE_WALLETCONNECT_PROJECT_ID is not configured!');
+    }
+    
     try {
       modal = createWeb3Modal({
         wagmiConfig,
@@ -54,6 +58,8 @@ export const initWeb3Modal = () => {
         featuredWalletIds: [METAMASK_WALLET_ID, BITGET_WALLET_ID, TRUST_WALLET_ID],
         includeWalletIds: [METAMASK_WALLET_ID, BITGET_WALLET_ID, TRUST_WALLET_ID],
         enableAnalytics: false,
+        // Enable QR code for mobile devices that don't have wallet installed
+        enableOnramp: false,
       });
       console.log('[Web3] Web3Modal initialized successfully');
     } catch (error) {

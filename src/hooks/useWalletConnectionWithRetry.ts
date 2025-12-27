@@ -90,14 +90,23 @@ export const useWalletConnectionWithRetry = (config: Partial<RetryConfig> = {}) 
 
   // Connect with retry logic
   const connectWithRetry = useCallback(async () => {
+    // If already connected, skip
+    if (walletConnection.isConnected) {
+      console.log('[WalletRetry] Already connected, skipping...');
+      setConnectionStep('connected');
+      setConnectionProgress(100);
+      return true;
+    }
+
     const attemptConnect = async (attempt: number): Promise<boolean> => {
       try {
+        console.log(`[WalletRetry] Attempt ${attempt} starting...`);
         setConnectionStep('initializing');
         setConnectionError(undefined);
         startProgressSimulation();
         
         // Small delay for UX
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 300));
         setConnectionStep('opening-modal');
         
         // Use mobile support for better UX on mobile
@@ -105,31 +114,62 @@ export const useWalletConnectionWithRetry = (config: Partial<RetryConfig> = {}) 
         
         setConnectionStep('waiting-approval');
         
-        // Wait for connection with timeout
-        const connectionTimeout = 30000; // 30 seconds
+        // Wait for connection with timeout - shorter timeout for faster feedback
+        const connectionTimeout = 15000; // 15 seconds
         const startTime = Date.now();
+        const checkInterval = 300;
         
-        while (!walletConnection.isConnected && Date.now() - startTime < connectionTimeout) {
-          await new Promise(resolve => setTimeout(resolve, 500));
+        // Check current state immediately
+        let connected = walletConnection.isConnected;
+        
+        while (!connected && Date.now() - startTime < connectionTimeout) {
+          await new Promise(resolve => setTimeout(resolve, checkInterval));
+          // Re-check connection state
+          connected = walletConnection.isConnected;
+          if (connected) break;
         }
         
-        if (walletConnection.isConnected) {
+        if (connected) {
+          console.log('[WalletRetry] Connection successful!');
           stopProgressSimulation();
           setConnectionProgress(100);
           setConnectionStep('connected');
+          toast({
+            title: '✅ Kết nối thành công!',
+            description: 'Ví đã được kết nối với BSC Network',
+          });
           return true;
         }
         
-        throw new Error('Hết thời gian chờ kết nối');
+        // Don't throw error if modal is still open - user might still be approving
+        console.log('[WalletRetry] Timeout reached, checking modal state...');
+        stopProgressSimulation();
+        setConnectionStep('idle');
+        setConnectionProgress(0);
+        return false;
+        
       } catch (error: any) {
         stopProgressSimulation();
         console.error(`[WalletRetry] Attempt ${attempt} failed:`, error);
         
+        // Don't retry for user-initiated cancellations
+        const errorMsg = error.message?.toLowerCase() || '';
+        const isUserCancel = errorMsg.includes('user rejected') || 
+                             errorMsg.includes('user denied') ||
+                             errorMsg.includes('cancelled');
+        
+        if (isUserCancel) {
+          console.log('[WalletRetry] User cancelled connection');
+          setConnectionStep('idle');
+          setConnectionProgress(0);
+          return false;
+        }
+        
         if (attempt < mergedConfig.maxRetries) {
           setRetryCount(attempt);
           toast({
-            title: `Thử lại (${attempt}/${mergedConfig.maxRetries})`,
-            description: `Kết nối thất bại, đang thử lại...`,
+            title: `⚠️ Thử lại (${attempt}/${mergedConfig.maxRetries})`,
+            description: 'Kết nối thất bại, đang thử lại...',
           });
           
           await new Promise(resolve => setTimeout(resolve, mergedConfig.retryDelayMs));
@@ -137,14 +177,14 @@ export const useWalletConnectionWithRetry = (config: Partial<RetryConfig> = {}) 
         }
         
         setConnectionStep('error');
-        setConnectionError(error.message || 'Không thể kết nối ví');
+        setConnectionError('Không thể kết nối ví. Vui lòng thử mở trang trong ứng dụng ví.');
         setConnectionProgress(0);
         return false;
       }
     };
     
     return attemptConnect(1);
-  }, [walletConnection, mergedConfig, startProgressSimulation, stopProgressSimulation]);
+  }, [walletConnection.isConnected, walletConnection.connectWithMobileSupport, mergedConfig, startProgressSimulation, stopProgressSimulation]);
 
   // Manual retry
   const retry = useCallback(() => {
