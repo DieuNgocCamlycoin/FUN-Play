@@ -26,3 +26,15 @@ verify_jwt = false
 
 [functions.prerender]
 verify_jwt = false
+
+[functions.claim-camly]
+verify_jwt = false
+
+[functions.award-camly]
+verify_jwt = false
+
+[functions.generate-music]
+verify_jwt = false
+
+[functions.admin-wallet-balance]
+verify_jwt = false
