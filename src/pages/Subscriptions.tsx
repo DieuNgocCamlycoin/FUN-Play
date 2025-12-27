@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { Users, ArrowLeft, Play } from 'lucide-react';
 import { Header } from '@/components/Layout/Header';
 import { Sidebar } from '@/components/Layout/Sidebar';
+import { MobileHeader } from '@/components/Layout/MobileHeader';
+import { MobileDrawer } from '@/components/Layout/MobileDrawer';
+import { MobileBottomNav } from '@/components/Layout/MobileBottomNav';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/client';
@@ -33,6 +36,7 @@ interface SubscribedChannel {
 
 const Subscriptions = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const [subscriptions, setSubscriptions] = useState<SubscribedChannel[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
@@ -152,9 +156,20 @@ const Subscriptions = () => {
   if (!user) {
     return (
       <div className="min-h-screen bg-background">
-        <Header onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
-        <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
-        <main className="pt-14 lg:pl-64 flex items-center justify-center min-h-[80vh]">
+        {/* Desktop Header & Sidebar */}
+        <div className="hidden lg:block">
+          <Header onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
+          <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+        </div>
+
+        {/* Mobile Header & Drawer */}
+        <div className="lg:hidden">
+          <MobileHeader onMenuClick={() => setIsMobileDrawerOpen(true)} />
+          <MobileDrawer isOpen={isMobileDrawerOpen} onClose={() => setIsMobileDrawerOpen(false)} />
+          <MobileBottomNav />
+        </div>
+
+        <main className="pt-14 pb-20 lg:pb-0 lg:pl-64 flex items-center justify-center min-h-[80vh]">
           <div className="text-center">
             <Users className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
             <h2 className="text-xl font-semibold mb-2">Đăng nhập để xem đăng ký</h2>
@@ -172,10 +187,20 @@ const Subscriptions = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
-      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      {/* Desktop Header & Sidebar */}
+      <div className="hidden lg:block">
+        <Header onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
+        <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      </div>
 
-      <main className="pt-14 lg:pl-64">
+      {/* Mobile Header & Drawer */}
+      <div className="lg:hidden">
+        <MobileHeader onMenuClick={() => setIsMobileDrawerOpen(true)} />
+        <MobileDrawer isOpen={isMobileDrawerOpen} onClose={() => setIsMobileDrawerOpen(false)} />
+        <MobileBottomNav />
+      </div>
+
+      <main className="pt-14 pb-20 lg:pb-0 lg:pl-64">
         <div className="max-w-7xl mx-auto p-6">
           {/* Header */}
           <div className="flex items-center gap-4 mb-6">
