@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import { Header } from "@/components/Layout/Header";
-import { Sidebar } from "@/components/Layout/Sidebar";
+import { MainLayout } from "@/components/Layout/MainLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   Coins, 
@@ -55,7 +54,6 @@ const REWARD_TYPE_MAP: Record<string, { icon: any; label: string; color: string 
 };
 
 export default function RewardHistory() {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [transactions, setTransactions] = useState<RewardTransaction[]>([]);
   const [filteredTransactions, setFilteredTransactions] = useState<RewardTransaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -173,13 +171,9 @@ export default function RewardHistory() {
   if (!user) return <Navigate to="/auth" replace />;
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
-      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
-
-      <main className="pt-14 lg:pl-64">
-        <div className="max-w-6xl mx-auto p-4 md:p-6">
-          {/* Header */}
+    <MainLayout>
+      <div className="max-w-6xl mx-auto p-4 md:p-6">
+        {/* Header */}
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -339,9 +333,8 @@ export default function RewardHistory() {
                 </div>
               )}
             </CardContent>
-          </Card>
-        </div>
-      </main>
-    </div>
+        </Card>
+      </div>
+    </MainLayout>
   );
 }

@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import { Header } from "@/components/Layout/Header";
-import { Sidebar } from "@/components/Layout/Sidebar";
+import { MainLayout } from "@/components/Layout/MainLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Trophy, Crown, Medal, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
@@ -16,7 +15,6 @@ interface LeaderboardUser {
 }
 
 export default function Leaderboard() {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [topUsers, setTopUsers] = useState<LeaderboardUser[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -82,13 +80,9 @@ export default function Leaderboard() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
-      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
-
-      <main className="pt-14 lg:pl-64">
-        <div className="max-w-4xl mx-auto p-6">
-          {/* Header */}
+    <MainLayout>
+      <div className="max-w-4xl mx-auto p-6">
+        {/* Header */}
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -185,13 +179,12 @@ export default function Leaderboard() {
             })}
           </div>
 
-          {topUsers.length === 0 && (
-            <div className="text-center text-muted-foreground py-12">
-              Chưa có dữ liệu bảng xếp hạng
-            </div>
-          )}
-        </div>
-      </main>
-    </div>
+        {topUsers.length === 0 && (
+          <div className="text-center text-muted-foreground py-12">
+            Chưa có dữ liệu bảng xếp hạng
+          </div>
+        )}
+      </div>
+    </MainLayout>
   );
 }

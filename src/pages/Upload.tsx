@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Header } from "@/components/Layout/Header";
-import { Sidebar } from "@/components/Layout/Sidebar";
+import { MainLayout } from "@/components/Layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,7 +14,6 @@ import { useR2Upload } from "@/hooks/useR2Upload";
 import { Upload as UploadIcon, Video, CheckCircle } from "lucide-react";
 
 export default function Upload() {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [videoFile, setVideoFile] = useState<File | null>(null);
@@ -433,13 +431,9 @@ export default function Upload() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
-      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
-
-      <main className="pt-14 lg:pl-64">
-        <div className="max-w-4xl mx-auto p-6">
-          <h1 className="text-3xl font-bold mb-6 text-foreground">Upload Video</h1>
+    <MainLayout>
+      <div className="max-w-4xl mx-auto p-6">
+        <h1 className="text-3xl font-bold mb-6 text-foreground">Upload Video</h1>
 
           <form onSubmit={handleVideoUpload} className="space-y-6">
             {/* Video Upload */}
@@ -642,10 +636,9 @@ export default function Upload() {
               >
                 Hủy
               </Button>
-            </div>
-          </form>
-        </div>
-      </main>
-    </div>
+          </div>
+        </form>
+      </div>
+    </MainLayout>
   );
 }

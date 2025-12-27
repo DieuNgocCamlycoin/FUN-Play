@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Header } from "@/components/Layout/Header";
-import { Sidebar } from "@/components/Layout/Sidebar";
+import { MainLayout } from "@/components/Layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
@@ -58,7 +57,6 @@ export default function MusicDetail() {
   const { playTrack, currentTrack, isPlaying, togglePlay, queue, addToQueue } = useMusicPlayer();
   const { awardLikeReward } = useAutoReward();
   
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [track, setTrack] = useState<MusicTrack | null>(null);
   const [loading, setLoading] = useState(true);
   const [shareModalOpen, setShareModalOpen] = useState(false);
@@ -289,13 +287,9 @@ export default function MusicDetail() {
         audio={track.video_url}
       />
 
-      <div className="min-h-screen bg-background">
-        <Header onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
-        <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
-        
-        <main className="pt-16 lg:ml-64">
-          <div className="max-w-7xl mx-auto p-4 lg:p-8">
-            {/* Back Button */}
+      <MainLayout className="pt-2">
+        <div className="max-w-7xl mx-auto p-4 lg:p-8">
+          {/* Back Button */}
             <Button 
               variant="ghost" 
               className="mb-6 hover:bg-accent"
@@ -501,8 +495,7 @@ export default function MusicDetail() {
                 </div>
               </div>
             </div>
-          </div>
-        </main>
+        </div>
 
         {/* Share Modal */}
         <ShareModal
@@ -523,7 +516,7 @@ export default function MusicDetail() {
           trackId={track.id}
           trackTitle={track.title}
         />
-      </div>
+      </MainLayout>
     </>
   );
 }

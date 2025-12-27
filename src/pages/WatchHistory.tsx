@@ -1,8 +1,6 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { History, Play, Trash2, ArrowLeft, AlertCircle } from 'lucide-react';
-import { Header } from '@/components/Layout/Header';
-import { Sidebar } from '@/components/Layout/Sidebar';
+import { MainLayout } from '@/components/Layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -18,7 +16,6 @@ import {
 import { useWatchHistory } from '@/hooks/useWatchHistory';
 
 const WatchHistory = () => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { watchHistory, loading, removeFromHistory, clearAllHistory } = useWatchHistory();
   const navigate = useNavigate();
 
@@ -90,13 +87,9 @@ const WatchHistory = () => {
   }, {} as Record<string, typeof watchHistory>);
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
-      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
-
-      <main className="pt-14 lg:pl-64">
-        <div className="max-w-6xl mx-auto p-6">
-          {/* Header */}
+    <MainLayout>
+      <div className="max-w-6xl mx-auto p-6">
+        {/* Header */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-4">
               <Button
@@ -254,8 +247,7 @@ const WatchHistory = () => {
             </div>
           )}
         </div>
-      </main>
-    </div>
+    </MainLayout>
   );
 };
 
