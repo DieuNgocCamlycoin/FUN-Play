@@ -5,9 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowDownUp, Loader2 } from "lucide-react";
+import { ArrowDownUp, Loader2, Wallet } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { SWAP_TOKENS, PANCAKESWAP_ROUTER, TokenConfig } from "@/config/tokens";
+import { useWalletConnection } from "@/hooks/useWalletConnection";
+import { getWalletClient } from "@wagmi/core";
+import { wagmiConfig } from "@/lib/web3Config";
 
 const ROUTER_ABI = [
   "function getAmountsOut(uint amountIn, address[] memory path) public view returns (uint[] memory amounts)",
@@ -20,6 +23,7 @@ const ERC20_ABI = [
 ];
 
 export const TokenSwap = () => {
+  const { isConnected, address, connectWallet, isLoading: isConnecting } = useWalletConnection();
   const [fromToken, setFromToken] = useState<TokenConfig>(SWAP_TOKENS[1]); // USDT
   const [toToken, setToToken] = useState<TokenConfig>(SWAP_TOKENS[2]); // CAMLY
   const [fromAmount, setFromAmount] = useState("");
@@ -58,11 +62,28 @@ export const TokenSwap = () => {
   };
 
   const handleSwap = async () => {
-    if (!window.ethereum || !fromAmount || !toAmount) return;
+    if (!fromAmount || !toAmount) return;
+
+    // Check wallet connection first
+    if (!isConnected) {
+      toast({
+        title: "Chưa kết nối ví",
+        description: "Vui lòng kết nối ví để hoán đổi token",
+      });
+      await connectWallet();
+      return;
+    }
 
     setIsSwapping(true);
     try {
-      const provider = new ethers.BrowserProvider(window.ethereum);
+      // Get wallet client from wagmi
+      const walletClient = await getWalletClient(wagmiConfig);
+      if (!walletClient) {
+        throw new Error("Không tìm thấy ví");
+      }
+
+      // Create ethers provider - use window.ethereum if available, otherwise fallback
+      const provider = new ethers.BrowserProvider((window as any).ethereum || walletClient.transport);
       const signer = await provider.getSigner();
       const userAddress = await signer.getAddress();
 
@@ -74,7 +95,7 @@ export const TokenSwap = () => {
       if (allowance < amountIn) {
         toast({
           title: "Đang chấp thuận token...",
-          description: "Vui lòng xác nhận trong MetaMask",
+          description: "Vui lòng xác nhận trong ví của bạn",
         });
         const approveTx = await tokenContract.approve(PANCAKESWAP_ROUTER, amountIn);
         await approveTx.wait();
@@ -91,7 +112,7 @@ export const TokenSwap = () => {
 
       toast({
         title: "Đang hoán đổi...",
-        description: "Vui lòng xác nhận giao dịch trong MetaMask",
+        description: "Vui lòng xác nhận giao dịch trong ví của bạn",
       });
 
       const swapTx = await router.swapExactTokensForTokens(
@@ -142,6 +163,19 @@ export const TokenSwap = () => {
         <CardTitle>Hoán đổi Token</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Connection status */}
+        {!isConnected && (
+          <Button
+            onClick={connectWallet}
+            disabled={isConnecting}
+            className="w-full mb-4"
+            variant="outline"
+          >
+            <Wallet className="mr-2 h-4 w-4" />
+            {isConnecting ? "Đang kết nối..." : "Kết nối ví để swap"}
+          </Button>
+        )}
+
         <div className="space-y-2">
           <Label>Từ</Label>
           <Select
@@ -216,7 +250,7 @@ export const TokenSwap = () => {
         <Button
           className="w-full"
           onClick={handleSwap}
-          disabled={!fromAmount || !toAmount || isSwapping || isCalculating}
+          disabled={!fromAmount || !toAmount || isSwapping || isCalculating || !isConnected}
         >
           {isSwapping ? (
             <>
@@ -228,6 +262,8 @@ export const TokenSwap = () => {
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Đang tính toán...
             </>
+          ) : !isConnected ? (
+            "Kết nối ví trước"
           ) : (
             "Hoán đổi"
           )}

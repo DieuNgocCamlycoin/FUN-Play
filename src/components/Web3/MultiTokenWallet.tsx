@@ -1,7 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Wallet, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
 import { ethers } from "ethers";
 import {
   DropdownMenu,
@@ -12,6 +11,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { SUPPORTED_TOKENS } from "@/config/tokens";
+import { useWalletConnection } from "@/hooks/useWalletConnection";
+import { getAccount, getPublicClient } from "@wagmi/core";
+import { wagmiConfig, BSC_CHAIN_ID } from "@/lib/web3Config";
 
 interface TokenBalance {
   symbol: string;
@@ -25,128 +27,34 @@ interface MultiTokenWalletProps {
 }
 
 export const MultiTokenWallet = ({ compact = false }: MultiTokenWalletProps) => {
-  const [isConnected, setIsConnected] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [address, setAddress] = useState<string>("");
+  const {
+    isConnected,
+    address,
+    isLoading,
+    isInitialized,
+    connectWallet,
+    disconnectWallet,
+  } = useWalletConnection();
+  
   const [balances, setBalances] = useState<TokenBalance[]>([]);
   const [selectedToken, setSelectedToken] = useState("BNB");
-  const { toast } = useToast();
+  const [isFetchingBalances, setIsFetchingBalances] = useState(false);
 
-  const connectWallet = async () => {
-    if (isConnecting) return; // Prevent duplicate requests
+  const fetchBalances = useCallback(async (userAddress: string) => {
+    if (!userAddress) return;
     
-    if (typeof window.ethereum === "undefined") {
-      toast({
-        title: "MetaMask Not Found",
-        description: "Please install MetaMask to use Web3 features",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsConnecting(true);
-    try {
-      const accounts = await window.ethereum.request({
-        method: "eth_requestAccounts",
-      });
-
-      const chainId = await window.ethereum.request({ method: "eth_chainId" });
-      
-      if (chainId !== "0x38") {
-        try {
-          await window.ethereum.request({
-            method: "wallet_switchEthereumChain",
-            params: [{ chainId: "0x38" }],
-          });
-        } catch (switchError: any) {
-          if (switchError.code === 4902) {
-            try {
-              await window.ethereum.request({
-                method: "wallet_addEthereumChain",
-                params: [
-                  {
-                    chainId: "0x38",
-                    chainName: "Binance Smart Chain",
-                    nativeCurrency: {
-                      name: "BNB",
-                      symbol: "BNB",
-                      decimals: 18,
-                    },
-                    rpcUrls: ["https://bsc-dataseed.binance.org/"],
-                    blockExplorerUrls: ["https://bscscan.com/"],
-                  },
-                ],
-              });
-            } catch (addError) {
-              toast({
-                title: "Network Error",
-                description: "Failed to add BSC network",
-                variant: "destructive",
-              });
-              return;
-            }
-          } else {
-            toast({
-              title: "Network Error",
-              description: "Please switch to BSC Mainnet",
-              variant: "destructive",
-            });
-            return;
-          }
-        }
-      }
-
-      setAddress(accounts[0]);
-      setIsConnected(true);
-      
-      // Fetch balances for all supported tokens
-      await fetchBalances(accounts[0]);
-      
-      toast({
-        title: "Wallet Connected",
-        description: `Connected to ${accounts[0].slice(0, 6)}...${accounts[0].slice(-4)}`,
-      });
-    } catch (error: any) {
-      toast({
-        title: "Connection Failed",
-        description: error.message || "Failed to connect wallet",
-        variant: "destructive",
-      });
-    } finally {
-      setIsConnecting(false);
-    }
-  };
-
-  const fetchBalances = async (userAddress: string) => {
+    setIsFetchingBalances(true);
     const newBalances: TokenBalance[] = [];
 
     try {
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      
-      // Verify we're on BSC mainnet
-      const network = await provider.getNetwork();
-      console.log("MultiTokenWallet - Current network:", network.chainId.toString());
-      
-      if (network.chainId !== BigInt(56)) {
-        console.warn("Not on BSC mainnet, switching...");
-        try {
-          await window.ethereum.request({
-            method: "wallet_switchEthereumChain",
-            params: [{ chainId: "0x38" }],
-          });
-          // Wait a bit for network to switch
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        } catch (error) {
-          console.error("Failed to switch network:", error);
-        }
-      }
+      // Use public RPC provider for balance fetching
+      const provider = new ethers.JsonRpcProvider("https://bsc-dataseed.binance.org/");
       
       for (const token of SUPPORTED_TOKENS) {
         try {
           if (token.address === "native") {
             const balance = await provider.getBalance(userAddress);
             const bnbBalance = ethers.formatEther(balance);
-            console.log(`BNB balance: ${bnbBalance}`);
             newBalances.push({ 
               symbol: token.symbol, 
               balance: parseFloat(bnbBalance).toFixed(4), 
@@ -154,7 +62,7 @@ export const MultiTokenWallet = ({ compact = false }: MultiTokenWalletProps) => 
               icon: token.icon
             });
           } else {
-            // ERC-20 token balance - fetch decimals from contract
+            // ERC-20 token balance
             const tokenContract = new ethers.Contract(
               token.address,
               [
@@ -164,18 +72,12 @@ export const MultiTokenWallet = ({ compact = false }: MultiTokenWalletProps) => 
               provider
             );
             
-            // Fetch both balance and decimals from contract
             const [balance, decimals] = await Promise.all([
               tokenContract.balanceOf(userAddress),
               tokenContract.decimals()
             ]);
             
-            console.log(`${token.symbol} balance (raw):`, balance.toString());
-            console.log(`${token.symbol} decimals:`, decimals.toString());
-            
             const formattedBalance = ethers.formatUnits(balance, decimals);
-            console.log(`${token.symbol} balance (formatted):`, formattedBalance);
-            
             newBalances.push({ 
               symbol: token.symbol, 
               balance: parseFloat(formattedBalance).toFixed(4), 
@@ -195,7 +97,6 @@ export const MultiTokenWallet = ({ compact = false }: MultiTokenWalletProps) => 
       }
     } catch (error) {
       console.error("Error initializing provider:", error);
-      // Fallback to all zeros if provider fails
       SUPPORTED_TOKENS.forEach(token => {
         newBalances.push({ 
           symbol: token.symbol, 
@@ -207,21 +108,34 @@ export const MultiTokenWallet = ({ compact = false }: MultiTokenWalletProps) => 
     }
 
     setBalances(newBalances);
-  };
+    setIsFetchingBalances(false);
+  }, []);
 
-  const disconnectWallet = () => {
-    setIsConnected(false);
-    setAddress("");
-    setBalances([]);
-    toast({
-      title: "Wallet Disconnected",
-      description: "Your wallet has been disconnected",
-    });
-  };
+  // Fetch balances when connected
+  useEffect(() => {
+    if (isConnected && address) {
+      fetchBalances(address);
+    }
+  }, [isConnected, address, fetchBalances]);
 
   const currentBalance = balances.find(b => b.symbol === selectedToken);
 
-  if (isConnected) {
+  // Loading state
+  if (!isInitialized) {
+    return (
+      <Button
+        disabled
+        variant={compact ? "ghost" : "default"}
+        size={compact ? "icon" : "sm"}
+        className={compact ? "h-8 w-8" : "gap-2"}
+      >
+        <Wallet className="h-4 w-4 animate-pulse" />
+        {!compact && <span className="hidden md:inline">Đang tải...</span>}
+      </Button>
+    );
+  }
+
+  if (isConnected && address) {
     return (
       <div className="flex items-center gap-2">
         <DropdownMenu>
@@ -234,19 +148,18 @@ export const MultiTokenWallet = ({ compact = false }: MultiTokenWalletProps) => 
                 : "gap-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
               }
             >
-              <Wallet className={compact ? "h-4 w-4" : "h-4 w-4"} />
+              <Wallet className="h-4 w-4" />
               {!compact && currentBalance && (
                 <img src={currentBalance.icon} alt={currentBalance.symbol} className="h-4 w-4 rounded-full" />
               )}
               {!compact && (
                 <>
                   <span className="hidden md:inline">
-                    {currentBalance?.balance || "0.0000"} {selectedToken}
+                    {isFetchingBalances ? "..." : (currentBalance?.balance || "0.0000")} {selectedToken}
                   </span>
                   <ChevronDown className="h-3 w-3" />
                 </>
               )}
-              {/* Connected indicator for compact mode */}
               {compact && (
                 <span className="absolute -top-0.5 -right-0.5 h-2 w-2 bg-green-500 rounded-full border border-background" />
               )}
@@ -273,7 +186,7 @@ export const MultiTokenWallet = ({ compact = false }: MultiTokenWalletProps) => 
             ))}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={disconnectWallet} className="text-destructive">
-              Disconnect Wallet
+              Ngắt kết nối ví
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -284,7 +197,7 @@ export const MultiTokenWallet = ({ compact = false }: MultiTokenWalletProps) => 
   return (
     <Button
       onClick={connectWallet}
-      disabled={isConnecting}
+      disabled={isLoading}
       variant={compact ? "ghost" : "default"}
       size={compact ? "icon" : "sm"}
       className={compact 
@@ -295,15 +208,9 @@ export const MultiTokenWallet = ({ compact = false }: MultiTokenWalletProps) => 
       <Wallet className="h-4 w-4" />
       {!compact && (
         <span className="hidden md:inline">
-          {isConnecting ? "Connecting..." : "Connect Wallet"}
+          {isLoading ? "Đang kết nối..." : "Kết nối ví"}
         </span>
       )}
     </Button>
   );
 };
-
-declare global {
-  interface Window {
-    ethereum?: any;
-  }
-}
