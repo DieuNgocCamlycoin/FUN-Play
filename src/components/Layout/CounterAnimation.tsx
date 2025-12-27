@@ -5,9 +5,10 @@ interface CounterAnimationProps {
   value: number;
   duration?: number;
   decimals?: number;
+  compact?: boolean; // Use K/M abbreviations for large numbers
 }
 
-export const CounterAnimation = ({ value, duration = 2000, decimals = 0 }: CounterAnimationProps) => {
+export const CounterAnimation = ({ value, duration = 2000, decimals = 0, compact = false }: CounterAnimationProps) => {
   const [displayValue, setDisplayValue] = useState(0);
   const frameRef = useRef<number>();
   const startTimeRef = useRef<number>();
@@ -45,11 +46,27 @@ export const CounterAnimation = ({ value, duration = 2000, decimals = 0 }: Count
   }, [value, duration]);
 
   const formatNumber = (num: number) => {
-    if (decimals === 0) {
-      return Math.floor(num).toLocaleString('en-US');
+    // Compact format: K for thousands, M for millions
+    if (compact) {
+      if (num >= 1000000) {
+        return (num / 1000000).toFixed(2) + 'M';
+      }
+      if (num >= 10000) {
+        return (num / 1000).toFixed(1) + 'K';
+      }
     }
-    // Format with thousand separators and specified decimals
-    return num.toLocaleString('en-US', { 
+    
+    // Smart decimals based on number size
+    if (num >= 1000) {
+      return Math.floor(num).toLocaleString('vi-VN');
+    }
+    
+    // Small numbers: use specified decimals
+    if (decimals === 0) {
+      return Math.floor(num).toLocaleString('vi-VN');
+    }
+    
+    return num.toLocaleString('vi-VN', { 
       minimumFractionDigits: decimals, 
       maximumFractionDigits: decimals 
     });

@@ -174,7 +174,7 @@ export default function Leaderboard() {
                             rank
                           )} bg-clip-text text-transparent tabular-nums`}
                         >
-                          <CounterAnimation value={user.total_camly_rewards} decimals={3} />
+                          <CounterAnimation value={user.total_camly_rewards} decimals={0} />
                           <span className="text-sm ml-1">CAMLY</span>
                         </div>
                       </div>
