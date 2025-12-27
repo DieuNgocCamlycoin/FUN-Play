@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Header } from "@/components/Layout/Header";
-import { Sidebar } from "@/components/Layout/Sidebar";
+import { MainLayout } from "@/components/Layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { VideoCard } from "@/components/Video/VideoCard";
@@ -54,7 +53,6 @@ interface Video {
 
 export default function Channel() {
   const { id, username } = useParams();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [channel, setChannel] = useState<Channel | null>(null);
   const [videos, setVideos] = useState<Video[]>([]);
   const [isSubscribed, setIsSubscribed] = useState(false);
@@ -390,14 +388,10 @@ export default function Channel() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
-      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
-
-      <main className="pt-16 lg:pl-64">
-        {profile?.music_enabled && profile.background_music_url && (
-          <BackgroundMusicPlayer musicUrl={profile.background_music_url} />
-        )}
+    <MainLayout className="pt-0">
+      {profile?.music_enabled && profile.background_music_url && (
+        <BackgroundMusicPlayer musicUrl={profile.background_music_url} />
+      )}
 
         {/* Channel Banner with Compact Honobar */}
         <div className="relative h-48 bg-gradient-to-r from-[#00E7FF]/30 via-[#7A2BFF]/20 to-[#FFD700]/30">
@@ -568,11 +562,8 @@ export default function Channel() {
                 <p className="text-foreground">{channel.description}</p>
               </div>
             </TabsContent>
-          </Tabs>
-        </div>
-      </main>
-
-      {/* QR Code Dialog */}
+        </Tabs>
+      </div>
       <Dialog open={showQRCode} onOpenChange={setShowQRCode}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -601,6 +592,6 @@ export default function Channel() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </MainLayout>
   );
 }

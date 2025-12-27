@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Header } from "@/components/Layout/Header";
-import { Sidebar } from "@/components/Layout/Sidebar";
+import { MainLayout } from "@/components/Layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -79,7 +78,6 @@ export default function BrowseMusic() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { playTrack, currentTrack, isPlaying, togglePlay, addToQueue } = useMusicPlayer();
 
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [tracks, setTracks] = useState<MusicTrack[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState(searchParams.get("q") || "");
@@ -260,13 +258,9 @@ export default function BrowseMusic() {
         url={`${window.location.origin}/browse/music`}
       />
 
-      <div className="min-h-screen bg-background">
-        <Header onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
-        <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
-
-        <main className="pt-16 lg:ml-64">
-          <div className="max-w-7xl mx-auto p-4 lg:p-8">
-            {/* Header */}
+      <MainLayout className="pt-2">
+        <div className="max-w-7xl mx-auto p-4 lg:p-8">
+          {/* Header */}
             <div className="mb-8">
               <div className="flex items-center gap-3 mb-2">
                 <div className="p-3 rounded-xl bg-gradient-to-br from-primary to-secondary">
@@ -570,8 +564,7 @@ export default function BrowseMusic() {
               </div>
             )}
           </div>
-        </main>
-      </div>
+        </MainLayout>
     </>
   );
 }
