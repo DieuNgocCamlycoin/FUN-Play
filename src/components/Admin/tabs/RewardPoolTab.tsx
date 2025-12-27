@@ -139,17 +139,25 @@ const RewardPoolTab = () => {
 
   const fetchPoolBalance = async () => {
     try {
-      // This would typically be done via an edge function for security
-      // For demo, we'll show a placeholder
-      // In production, create an edge function to check the admin wallet balance
-      setPoolBalance("Loading...");
-      setBnbBalance("Loading...");
-      setAdminWallet("0x...Admin");
+      setPoolBalance("Đang tải...");
+      setBnbBalance("Đang tải...");
       
-      // Note: In production, call an edge function like:
-      // const { data } = await supabase.functions.invoke('get-pool-balance');
+      const { data, error } = await supabase.functions.invoke('admin-wallet-balance');
+      
+      if (error) throw error;
+      
+      if (data?.success) {
+        setPoolBalance(`${formatNumber(Math.floor(data.data.camlyBalance))} CAMLY`);
+        setBnbBalance(`${data.data.bnbBalance.toFixed(4)} BNB`);
+        setAdminWallet(data.data.address);
+      } else {
+        setPoolBalance("Lỗi tải");
+        setBnbBalance("Lỗi tải");
+      }
     } catch (error) {
       console.error("Error fetching pool balance:", error);
+      setPoolBalance("Không thể tải");
+      setBnbBalance("Không thể tải");
     }
   };
 
