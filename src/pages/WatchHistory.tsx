@@ -14,6 +14,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useWatchHistory } from '@/hooks/useWatchHistory';
+import { getDefaultThumbnail } from '@/lib/defaultThumbnails';
 
 const WatchHistory = () => {
   const { watchHistory, loading, removeFromHistory, clearAllHistory } = useWatchHistory();
@@ -187,7 +188,7 @@ const WatchHistory = () => {
                         {/* Thumbnail */}
                         <div className="relative w-40 aspect-video rounded-lg overflow-hidden bg-muted shrink-0">
                           <img
-                            src={item.video.thumbnail_url || 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=400&h=225&fit=crop'}
+                            src={item.video.thumbnail_url || getDefaultThumbnail(item.video_id)}
                             alt={item.video.title}
                             className="w-full h-full object-cover"
                           />

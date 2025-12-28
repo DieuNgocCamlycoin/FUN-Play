@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { Play, Clock, Eye } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getDefaultThumbnail } from "@/lib/defaultThumbnails";
 
 interface Video {
   id: string;
@@ -87,7 +88,7 @@ export const MeditationVideoGrid = ({ videos, isLoading, onVideoSelect }: Medita
 
             {/* Thumbnail Image */}
             <img
-              src={video.thumbnail_url || "/placeholder.svg"}
+              src={video.thumbnail_url || getDefaultThumbnail(video.id)}
               alt={video.title}
               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
             />

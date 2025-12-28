@@ -18,6 +18,7 @@ import { useHapticFeedback } from "@/hooks/useHapticFeedback";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import homepageBackground from "@/assets/homepage-background.png";
+import { getDefaultThumbnail } from "@/lib/defaultThumbnails";
 
 interface Video {
   id: string;
@@ -327,7 +328,7 @@ const Index = () => {
                   videoId={video.id}
                   userId={video.user_id}
                   channelId={video.channels?.id}
-                  thumbnail={video.thumbnail_url || "https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=400&h=225&fit=crop"}
+                  thumbnail={video.thumbnail_url || getDefaultThumbnail(video.id)}
                   title={video.title}
                   channel={video.channels?.name || "Unknown Channel"}
                   avatarUrl={video.profiles?.avatar_url || undefined}

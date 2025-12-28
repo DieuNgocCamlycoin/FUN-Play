@@ -17,6 +17,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { getDefaultThumbnail } from "@/lib/defaultThumbnails";
 
 interface UpNextSidebarProps {
   onVideoSelect?: (video: VideoItem) => void;
@@ -212,7 +213,7 @@ export function UpNextSidebar({ onVideoSelect }: UpNextSidebarProps) {
           <div className="flex gap-3">
             <div className="relative w-24 aspect-video rounded-lg overflow-hidden bg-muted flex-shrink-0">
               <img
-                src={currentVideo.thumbnail_url || "/placeholder.svg"}
+                src={currentVideo.thumbnail_url || getDefaultThumbnail(currentVideo.id)}
                 alt={currentVideo.title}
                 className="w-full h-full object-cover"
               />
@@ -260,7 +261,7 @@ export function UpNextSidebar({ onVideoSelect }: UpNextSidebarProps) {
               {/* Thumbnail */}
               <div className="relative w-28 aspect-video rounded-lg overflow-hidden bg-muted flex-shrink-0">
                 <img
-                  src={video.thumbnail_url || "/placeholder.svg"}
+                  src={video.thumbnail_url || getDefaultThumbnail(video.id)}
                   alt={video.title}
                   className="w-full h-full object-cover group-hover:opacity-80 transition-opacity"
                 />
