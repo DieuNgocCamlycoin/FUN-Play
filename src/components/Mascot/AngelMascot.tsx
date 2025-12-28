@@ -126,10 +126,11 @@ export const AngelMascot: React.FC<AngelMascotProps> = ({ onTipReceived }) => {
       >
         {/* Angel Video - Pure character, no frame, transparent background */}
         <motion.div
-          className="w-full h-full overflow-hidden"
+          className="w-full h-full"
           animate={controls}
           style={{
-            borderRadius: '50%',
+            WebkitMaskImage: 'radial-gradient(ellipse 55% 65% at center 45%, black 30%, transparent 100%)',
+            maskImage: 'radial-gradient(ellipse 55% 65% at center 45%, black 30%, transparent 100%)',
           }}
         >
           <video
@@ -141,12 +142,12 @@ export const AngelMascot: React.FC<AngelMascotProps> = ({ onTipReceived }) => {
             style={{
               mixBlendMode: 'lighten',
               background: 'transparent',
-              transform: 'scale(2.2) translateY(-5%)',
+              transform: 'scale(2.5) translateY(-8%)',
               objectFit: 'cover',
               objectPosition: 'center top',
               filter: isExcited 
-                ? 'brightness(1.3) contrast(1.6) saturate(1.4) drop-shadow(0 0 20px rgba(255, 215, 0, 0.8))' 
-                : 'brightness(1.2) contrast(1.5) saturate(1.3) drop-shadow(0 0 12px rgba(255, 215, 0, 0.6))',
+                ? 'brightness(1.4) contrast(1.8) saturate(1.5) drop-shadow(0 0 20px rgba(255, 215, 0, 0.8))' 
+                : 'brightness(1.3) contrast(1.8) saturate(1.4) drop-shadow(0 0 12px rgba(255, 215, 0, 0.6))',
             }}
           >
             <source src="/videos/angel-bay.mp4" type="video/mp4" />
