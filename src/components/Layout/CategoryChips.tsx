@@ -23,7 +23,7 @@ interface CategoryChipsProps {
 
 export const CategoryChips = ({ selected = "Tất cả", onSelect }: CategoryChipsProps) => {
   return (
-    <div className="border-b border-border bg-background">
+    <div className="sticky top-14 z-30 border-b border-border bg-background">
       <ScrollArea className="w-full whitespace-nowrap">
         <div className="flex gap-3 px-4 py-3">
           {categories.map((category) => (
@@ -31,10 +31,10 @@ export const CategoryChips = ({ selected = "Tất cả", onSelect }: CategoryChi
               key={category}
               variant={selected === category ? "default" : "secondary"}
               size="sm"
-              className={`rounded-full px-4 h-8 text-sm font-medium transition-all border border-cyan-400/30 ${
+              className={`rounded-lg px-3 h-8 text-sm font-medium transition-colors ${
                 selected === category
-                  ? "bg-gradient-to-r from-[#00E5FF] via-[#00B8D4] to-[#0091EA] text-white shadow-[0_0_20px_rgba(0,229,255,0.4)] hover:shadow-[0_0_25px_rgba(0,229,255,0.6)]"
-                  : "bg-gradient-to-r from-[#00E5FF]/70 via-[#00B8D4]/70 to-[#0091EA]/70 text-white/90 hover:from-[#00E5FF] hover:via-[#00B8D4] hover:to-[#0091EA] hover:text-white hover:shadow-[0_0_15px_rgba(0,229,255,0.3)]"
+                  ? "bg-foreground text-background hover:bg-foreground/90"
+                  : "bg-muted text-foreground hover:bg-muted/80"
               }`}
               onClick={() => onSelect?.(category)}
             >
@@ -42,7 +42,7 @@ export const CategoryChips = ({ selected = "Tất cả", onSelect }: CategoryChi
             </Button>
           ))}
         </div>
-        <ScrollBar orientation="horizontal" />
+        <ScrollBar orientation="horizontal" className="invisible" />
       </ScrollArea>
     </div>
   );

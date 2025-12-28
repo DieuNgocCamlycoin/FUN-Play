@@ -552,16 +552,19 @@ export default function Watch() {
       />
 
       <div className="min-h-screen bg-background" {...(isMobile ? swipeHandlers : {})}>
-        <Header onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
-        <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+        {/* Desktop Header & Sidebar */}
+        <div className="hidden lg:block">
+          <Header onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
+          <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+        </div>
 
-      <main className="pt-14 lg:pl-64">
+      <main className={`${isMobile ? 'pt-0 pb-20' : 'pt-14 lg:pl-64'}`}>
         <div className="max-w-[1920px] mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6 p-6">
+          <div className={`grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6 ${isMobile ? 'p-0' : 'p-6'}`}>
             {/* Main Content */}
-            <div className="space-y-4">
-              {/* Video Player */}
-              <div ref={videoPlayerRef}>
+            <div className={`space-y-4 ${isMobile ? '' : ''}`}>
+              {/* Video Player - Full width on mobile */}
+              <div ref={videoPlayerRef} className={isMobile ? '-mx-0' : ''}>
                 <EnhancedVideoPlayer
                   videoUrl={video.video_url}
                   videoId={video.id}
@@ -586,12 +589,14 @@ export default function Watch() {
               </div>
 
               {/* Video Title */}
-              <h1 className="text-xl font-bold text-foreground">
-                {video.title}
-              </h1>
+              <div className={isMobile ? 'px-3' : ''}>
+                <h1 className="text-base lg:text-xl font-semibold text-foreground leading-snug">
+                  {video.title}
+                </h1>
+              </div>
 
               {/* Channel Info & Actions */}
-              <div className="flex items-center justify-between flex-wrap gap-4">
+              <div className={`flex items-center justify-between flex-wrap gap-4 ${isMobile ? 'px-3' : ''}`}>
                 <div className="flex items-center gap-3">
                   <div
                     className="w-10 h-10 rounded-full bg-gradient-to-br from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta flex items-center justify-center text-foreground font-semibold cursor-pointer hover:shadow-[0_0_40px_rgba(0,255,255,0.7)] transition-shadow"
@@ -694,7 +699,7 @@ export default function Watch() {
               </div>
 
               {/* Description */}
-              <div className="bg-muted rounded-xl p-4">
+              <div className={`bg-muted rounded-xl p-4 ${isMobile ? 'mx-3' : ''}`}>
                 <div className="flex items-center gap-2 text-sm font-semibold text-foreground mb-2">
                   <span>{(video.view_count || 0).toLocaleString()} lượt xem</span>
                   <span>•</span>
@@ -706,8 +711,8 @@ export default function Watch() {
               </div>
 
               {/* Comments Section */}
-              <div className="mt-6">
-                <h2 className="text-xl font-semibold mb-6 text-foreground">
+              <div className={`mt-6 ${isMobile ? 'px-3' : ''}`}>
+                <h2 className="text-lg lg:text-xl font-semibold mb-4 text-foreground">
                   {comments.length} bình luận
                 </h2>
 
@@ -796,10 +801,47 @@ export default function Watch() {
               </div>
             </div>
 
-            {/* Up Next Sidebar with Smart Queue */}
-            <UpNextSidebar 
-              onVideoSelect={(video) => navigate(`/watch/${video.id}`)}
-            />
+            {/* Up Next Sidebar - Desktop only */}
+            <div className="hidden lg:block">
+              <UpNextSidebar 
+                onVideoSelect={(video) => navigate(`/watch/${video.id}`)}
+              />
+            </div>
+
+            {/* Related Videos - Mobile inline */}
+            {isMobile && (
+              <div className="px-3 pb-6">
+                <h3 className="text-base font-semibold text-foreground mb-3">Video tiếp theo</h3>
+                <div className="space-y-3">
+                  {recommendedVideos.slice(0, 10).map((recVideo) => (
+                    <div 
+                      key={recVideo.id}
+                      className="flex gap-2 cursor-pointer"
+                      onClick={() => navigate(`/watch/${recVideo.id}`)}
+                    >
+                      <div className="w-40 flex-shrink-0">
+                        <img 
+                          src={recVideo.thumbnail_url || '/images/default-thumb-1.png'}
+                          alt={recVideo.title}
+                          className="w-full aspect-video object-cover rounded-lg"
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-sm font-medium text-foreground line-clamp-2 leading-snug">
+                          {recVideo.title}
+                        </h4>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {recVideo.channels?.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatViews(recVideo.view_count)} • {formatTimestamp(recVideo.created_at)}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </main>
