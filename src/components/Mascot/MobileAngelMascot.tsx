@@ -137,7 +137,7 @@ export const MobileAngelMascot: React.FC<MobileAngelMascotProps> = ({ onTipRecei
           width: `${size}px`, 
           height: `${size + 20}px`,
           overflow: 'hidden',
-          borderRadius: '50%',
+          background: 'transparent',
         }}
         initial={{ x: 20, y: 100 }}
         animate={{ 
@@ -159,8 +159,8 @@ export const MobileAngelMascot: React.FC<MobileAngelMascotProps> = ({ onTipRecei
           className="w-full h-full"
           animate={controls}
           style={{
-            WebkitMaskImage: 'radial-gradient(ellipse 60% 70% at center 45%, black 85%, transparent 100%)',
-            maskImage: 'radial-gradient(ellipse 60% 70% at center 45%, black 85%, transparent 100%)',
+            WebkitMaskImage: 'radial-gradient(ellipse 40% 50% at center 40%, black 70%, transparent 90%)',
+            maskImage: 'radial-gradient(ellipse 40% 50% at center 40%, black 70%, transparent 90%)',
           }}
         >
           <video
@@ -171,7 +171,7 @@ export const MobileAngelMascot: React.FC<MobileAngelMascotProps> = ({ onTipRecei
             className="w-full h-full"
             style={{
               background: 'transparent',
-              transform: 'scale(2.2) translateY(-8%)',
+              transform: 'scale(2.8) translateY(-10%)',
               objectFit: 'cover',
               objectPosition: 'center top',
               filter: isExcited 
