@@ -6,6 +6,7 @@ import { Sidebar } from '@/components/Layout/Sidebar';
 import { Button } from '@/components/ui/button';
 import { useWatchLater } from '@/hooks/useWatchLater';
 import { useVideoPlayback } from '@/contexts/VideoPlaybackContext';
+import { getDefaultThumbnail } from '@/lib/defaultThumbnails';
 
 const WatchLater = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -125,7 +126,7 @@ const WatchLater = () => {
                   {/* Thumbnail */}
                   <div className="relative w-40 aspect-video rounded-lg overflow-hidden bg-muted shrink-0">
                     <img
-                      src={item.video.thumbnail_url || 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=400&h=225&fit=crop'}
+                      src={item.video.thumbnail_url || getDefaultThumbnail(item.video.id)}
                       alt={item.video.title}
                       className="w-full h-full object-cover"
                     />
