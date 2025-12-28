@@ -23,8 +23,8 @@ export const MobileAngelMascot: React.FC<MobileAngelMascotProps> = ({ onTipRecei
   const { successFeedback, lightTap } = useHapticFeedback();
   const { playCoinShower, angelFly, celebrate, pop } = useSoundEffects();
 
-  // Size based on device - increased for clarity
-  const size = isMobile ? 140 : 180;
+  // Size based on device - original small sizes
+  const size = isMobile ? 70 : 90;
 
   // Random idle animations
   useEffect(() => {
@@ -136,6 +136,8 @@ export const MobileAngelMascot: React.FC<MobileAngelMascotProps> = ({ onTipRecei
         style={{ 
           width: `${size}px`, 
           height: `${size + 20}px`,
+          overflow: 'hidden',
+          borderRadius: '50%',
         }}
         initial={{ x: 20, y: 100 }}
         animate={{ 
@@ -157,8 +159,8 @@ export const MobileAngelMascot: React.FC<MobileAngelMascotProps> = ({ onTipRecei
           className="w-full h-full"
           animate={controls}
           style={{
-            WebkitMaskImage: 'radial-gradient(ellipse 70% 80% at center 45%, black 80%, transparent 100%)',
-            maskImage: 'radial-gradient(ellipse 70% 80% at center 45%, black 80%, transparent 100%)',
+            WebkitMaskImage: 'radial-gradient(ellipse 45% 55% at center 40%, black 40%, transparent 75%)',
+            maskImage: 'radial-gradient(ellipse 45% 55% at center 40%, black 40%, transparent 75%)',
           }}
         >
           <video
@@ -169,7 +171,7 @@ export const MobileAngelMascot: React.FC<MobileAngelMascotProps> = ({ onTipRecei
             className="w-full h-full"
             style={{
               background: 'transparent',
-              transform: 'scale(1.5) translateY(-5%)',
+              transform: 'scale(2.2) translateY(-8%)',
               objectFit: 'cover',
               objectPosition: 'center top',
               filter: isExcited 

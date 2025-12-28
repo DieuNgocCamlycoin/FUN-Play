@@ -104,8 +104,10 @@ export const AngelMascot: React.FC<AngelMascotProps> = ({ onTipReceived }) => {
         ref={angelRef}
         className="fixed z-[9999] cursor-pointer select-none pointer-events-auto"
         style={{ 
-          width: '180px', 
-          height: '240px',
+          width: '90px', 
+          height: '120px',
+          overflow: 'hidden',
+          borderRadius: '50%',
         }}
         initial={{ x: 100, y: 100 }}
         animate={{ 
@@ -129,8 +131,8 @@ export const AngelMascot: React.FC<AngelMascotProps> = ({ onTipReceived }) => {
           className="w-full h-full"
           animate={controls}
           style={{
-            WebkitMaskImage: 'radial-gradient(ellipse 70% 80% at center 45%, black 80%, transparent 100%)',
-            maskImage: 'radial-gradient(ellipse 70% 80% at center 45%, black 80%, transparent 100%)',
+            WebkitMaskImage: 'radial-gradient(ellipse 45% 55% at center 40%, black 40%, transparent 75%)',
+            maskImage: 'radial-gradient(ellipse 45% 55% at center 40%, black 40%, transparent 75%)',
           }}
         >
           <video
@@ -141,7 +143,7 @@ export const AngelMascot: React.FC<AngelMascotProps> = ({ onTipReceived }) => {
             className="w-full h-full"
             style={{
               background: 'transparent',
-              transform: 'scale(1.5) translateY(-5%)',
+              transform: 'scale(2.2) translateY(-8%)',
               objectFit: 'cover',
               objectPosition: 'center top',
               filter: isExcited 
