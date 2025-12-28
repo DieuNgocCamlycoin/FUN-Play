@@ -131,8 +131,10 @@ export const AngelMascot: React.FC<AngelMascotProps> = ({ onTipReceived }) => {
           className="w-full h-full"
           animate={controls}
           style={{
-            WebkitMaskImage: 'radial-gradient(ellipse 35% 45% at center 45%, black 95%, transparent 100%)',
-            maskImage: 'radial-gradient(ellipse 35% 45% at center 45%, black 95%, transparent 100%)',
+            WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 12%, black 88%, transparent 100%), linear-gradient(to right, transparent 0%, black 12%, black 88%, transparent 100%)',
+            maskImage: 'linear-gradient(to bottom, transparent 0%, black 12%, black 88%, transparent 100%), linear-gradient(to right, transparent 0%, black 12%, black 88%, transparent 100%)',
+            WebkitMaskComposite: 'destination-in',
+            maskComposite: 'intersect',
           }}
         >
           <video
@@ -143,7 +145,7 @@ export const AngelMascot: React.FC<AngelMascotProps> = ({ onTipReceived }) => {
             className="w-full h-full"
             style={{
               background: 'transparent',
-              transform: 'scale(3.2) translateY(-8%)',
+              transform: 'scale(2.5) translateY(-5%)',
               objectFit: 'cover',
               objectPosition: 'center top',
               filter: isExcited 
