@@ -129,8 +129,8 @@ export const AngelMascot: React.FC<AngelMascotProps> = ({ onTipReceived }) => {
           className="w-full h-full"
           animate={controls}
           style={{
-            WebkitMaskImage: 'radial-gradient(ellipse 55% 65% at center 45%, black 30%, transparent 100%)',
-            maskImage: 'radial-gradient(ellipse 55% 65% at center 45%, black 30%, transparent 100%)',
+            WebkitMaskImage: 'radial-gradient(ellipse 65% 75% at center 45%, black 70%, transparent 100%)',
+            maskImage: 'radial-gradient(ellipse 65% 75% at center 45%, black 70%, transparent 100%)',
           }}
         >
           <video
@@ -142,12 +142,12 @@ export const AngelMascot: React.FC<AngelMascotProps> = ({ onTipReceived }) => {
             style={{
               mixBlendMode: 'lighten',
               background: 'transparent',
-              transform: 'scale(2.5) translateY(-8%)',
+              transform: 'scale(2.0) translateY(-5%)',
               objectFit: 'cover',
               objectPosition: 'center top',
               filter: isExcited 
-                ? 'brightness(1.4) contrast(1.8) saturate(1.5) drop-shadow(0 0 20px rgba(255, 215, 0, 0.8))' 
-                : 'brightness(1.3) contrast(1.8) saturate(1.4) drop-shadow(0 0 12px rgba(255, 215, 0, 0.6))',
+                ? 'brightness(1.1) contrast(1.2) saturate(1.15) drop-shadow(0 0 15px rgba(255, 215, 0, 0.6))' 
+                : 'brightness(1.05) contrast(1.15) saturate(1.1) drop-shadow(0 0 10px rgba(255, 215, 0, 0.4))',
             }}
           >
             <source src="/videos/angel-bay.mp4" type="video/mp4" />
