@@ -21,6 +21,7 @@ import MiniPlayer from "@/components/Video/MiniPlayer";
 import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { DynamicMeta } from "@/components/SEO/DynamicMeta";
+import { WatchCategoryTabs } from "@/components/Video/WatchCategoryTabs";
 
 interface Video {
   id: string;
@@ -709,6 +710,13 @@ export default function Watch() {
                   {video.description}
                 </p>
               </div>
+
+              {/* Category Tabs - Mobile only */}
+              {isMobile && (
+                <div className="px-3 mt-4">
+                  <WatchCategoryTabs />
+                </div>
+              )}
 
               {/* Comments Section */}
               <div className={`mt-6 ${isMobile ? 'px-3' : ''}`}>

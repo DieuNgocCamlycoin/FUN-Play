@@ -85,7 +85,7 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 h-12 bg-background/95 backdrop-blur-lg border-b border-border z-50 lg:hidden">
+    <header className="fixed top-0 left-0 right-0 h-14 bg-background/95 backdrop-blur-lg border-b border-border/50 z-50 lg:hidden">
       {/* Normal Header */}
       <div
         className={cn(
@@ -117,7 +117,7 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
 
         {/* Right - Actions */}
         <TooltipProvider delayDuration={300}>
-          <div className="flex items-center gap-px shrink-0">
+          <div className="flex items-center gap-0.5 shrink-0">
             {/* CAMLY Price Widget */}
             <CAMLYMiniWidget compact className="mr-1" />
             
@@ -128,9 +128,9 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
                   variant="ghost"
                   size="icon"
                   onClick={() => setIsSearchOpen(true)}
-                  className="h-7 w-7"
+                  className="h-8 w-8 hover:text-cosmic-cyan"
                 >
-                  <Search className="h-3.5 w-3.5" />
+                  <Search className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom" className="text-xs">
@@ -138,18 +138,18 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
               </TooltipContent>
             </Tooltip>
 
-            {/* Claim Rewards - Always show icon */}
+            {/* Claim Rewards */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => user ? setClaimModalOpen(true) : navigate("/auth")}
-                  className="h-7 w-7 relative text-yellow-500 hover:text-yellow-400 hover:bg-yellow-500/10"
+                  className="h-8 w-8 relative text-yellow-500 hover:text-yellow-400 hover:bg-yellow-500/10"
                 >
-                  <Coins className="h-3.5 w-3.5" />
+                  <Coins className="h-4 w-4" />
                   {unclaimedRewards > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 min-w-[12px] h-3 px-0.5 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center animate-pulse">
+                    <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-3.5 px-0.5 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center animate-pulse">
                       {unclaimedRewards > 9 ? '9+' : unclaimedRewards}
                     </span>
                   )}
@@ -180,21 +180,21 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 text-primary"
+                      className="h-8 w-8 hover:text-cosmic-cyan"
                     >
-                      <Plus className="h-3.5 w-3.5" />
+                      <Plus className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-44 bg-background border-border">
-                    <DropdownMenuItem onClick={() => navigate("/upload")} className="gap-2">
+                    <DropdownMenuItem onClick={() => navigate("/upload")} className="gap-2 hover:text-cosmic-cyan">
                       <Upload className="h-4 w-4" />
                       Upload Video
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => navigate("/create-music")} className="gap-2">
+                    <DropdownMenuItem onClick={() => navigate("/create-music")} className="gap-2 hover:text-cosmic-magenta">
                       <Music className="h-4 w-4" />
                       Tạo Nhạc AI
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => navigate("/create-post")} className="gap-2">
+                    <DropdownMenuItem onClick={() => navigate("/create-post")} className="gap-2 hover:text-cosmic-sapphire">
                       <FileText className="h-4 w-4" />
                       Tạo Bài Viết
                     </DropdownMenuItem>
@@ -206,19 +206,16 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
               </TooltipContent>
             </Tooltip>
 
-            {/* Download App - with pulse animation */}
+            {/* Download App */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => navigate("/install")}
-                  className="h-7 w-7 relative text-green-500 hover:text-green-400 hover:bg-green-500/10 group"
+                  className="h-8 w-8 relative text-green-500 hover:text-green-400 hover:bg-green-500/10"
                 >
-                  <Download className="h-3.5 w-3.5 relative z-10" />
-                  {/* Pulse ring animation */}
-                  <span className="absolute inset-0 rounded-md bg-green-500/20 animate-ping" />
-                  <span className="absolute inset-0.5 rounded-md bg-green-500/10 animate-pulse" />
+                  <Download className="h-4 w-4 relative z-10" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom" className="text-xs">
@@ -232,12 +229,12 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
                 <Button 
                   variant="ghost" 
                   size="icon" 
-                  className="h-7 w-7 relative"
+                  className="h-8 w-8 relative hover:text-cosmic-cyan"
                   onClick={() => navigate("/reward-history")}
                 >
-                  <Bell className="h-3.5 w-3.5" />
+                  <Bell className="h-4 w-4" />
                   {notificationCount > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 min-w-[12px] h-3 px-0.5 bg-destructive text-destructive-foreground text-[8px] font-bold rounded-full flex items-center justify-center animate-pulse">
+                    <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-3.5 px-0.5 bg-destructive text-destructive-foreground text-[9px] font-bold rounded-full flex items-center justify-center animate-pulse">
                       {notificationCount > 9 ? '9+' : notificationCount}
                     </span>
                   )}
@@ -255,17 +252,17 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7 rounded-full p-0"
+                    className="h-8 w-8 rounded-full p-0"
                     onClick={() => navigate("/settings")}
                   >
                     {profile?.avatar_url ? (
                       <img
                         src={profile.avatar_url}
                         alt="Profile"
-                        className="w-5 h-5 rounded-full object-cover"
+                        className="w-6 h-6 rounded-full object-cover"
                       />
                     ) : (
-                      <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-[10px] font-semibold">
+                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-cosmic-sapphire to-cosmic-cyan flex items-center justify-center text-white text-[10px] font-semibold">
                         {user.email?.[0].toUpperCase()}
                       </div>
                     )}
@@ -274,9 +271,9 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
                   <Button
                     onClick={() => navigate("/auth")}
                     size="sm"
-                    className="h-6 text-[9px] px-1.5 font-medium"
+                    className="h-7 text-xs px-2 font-medium bg-cosmic-cyan text-white hover:bg-cosmic-cyan/80"
                   >
-                    Sign In
+                    Đăng nhập
                   </Button>
                 )}
               </TooltipTrigger>
