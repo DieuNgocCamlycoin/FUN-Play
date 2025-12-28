@@ -17,7 +17,6 @@ import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useHapticFeedback } from "@/hooks/useHapticFeedback";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import homepageBackground from "@/assets/homepage-background.png";
 import { getDefaultThumbnail } from "@/lib/defaultThumbnails";
 
 interface Video {
@@ -205,10 +204,10 @@ const Index = () => {
   };
 
   const formatViews = (views: number | null) => {
-    if (!views) return "0 views";
-    if (views >= 1000000) return `${(views / 1000000).toFixed(1)}M views`;
-    if (views >= 1000) return `${(views / 1000).toFixed(1)}K views`;
-    return `${views} views`;
+    if (!views) return "0 lượt xem";
+    if (views >= 1000000) return `${(views / 1000000).toFixed(1)}M lượt xem`;
+    if (views >= 1000) return `${(views / 1000).toFixed(1)}K lượt xem`;
+    return `${views} lượt xem`;
   };
 
   const formatTimestamp = (dateString: string) => {
@@ -234,7 +233,7 @@ const Index = () => {
 
   return (
     <div 
-      className="min-h-screen bg-background relative overflow-hidden"
+      className="min-h-screen bg-background"
       {...(isMobile ? pullHandlers : {})}
     >
       {/* Pull-to-refresh indicator */}
@@ -246,33 +245,6 @@ const Index = () => {
           pullDistance={pullDistance}
         />
       )}
-      {/* Homepage background image - Enhanced 8K clarity */}
-      <div 
-        className="fixed inset-0 z-0 pointer-events-none"
-        style={{
-          backgroundImage: `url(${homepageBackground})`,
-          backgroundPosition: 'bottom right',
-          backgroundRepeat: 'no-repeat',
-          backgroundSize: 'auto 80%',
-          opacity: 0.85,
-          filter: 'brightness(1.15) contrast(1.1) saturate(1.2)',
-          imageRendering: 'crisp-edges',
-          WebkitBackfaceVisibility: 'hidden',
-          backfaceVisibility: 'hidden',
-        }}
-      />
-      {/* Floating rainbow particles - Heavenly divine light rays */}
-      <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute top-1/4 left-1/4 w-3 h-3 bg-glow-sapphire rounded-full particle opacity-80 blur-sm shadow-[0_0_25px_rgba(0,102,255,0.9)]" />
-        <div className="absolute top-1/3 right-1/3 w-2.5 h-2.5 bg-glow-cyan rounded-full particle opacity-75 blur-sm shadow-[0_0_22px_rgba(0,255,255,0.9)]" style={{ animationDelay: '1s' }} />
-        <div className="absolute bottom-1/4 left-1/3 w-3.5 h-3.5 bg-glow-magenta rounded-full particle opacity-85 blur-sm shadow-[0_0_28px_rgba(217,0,255,0.95)]" style={{ animationDelay: '2s' }} />
-        <div className="absolute top-1/2 right-1/4 w-2 h-2 bg-divine-rose-gold rounded-full particle opacity-90 blur-sm shadow-[0_0_20px_rgba(255,183,246,1)]" style={{ animationDelay: '3s' }} />
-        <div className="absolute bottom-1/3 right-1/2 w-3 h-3 bg-glow-gold rounded-full particle opacity-80 blur-sm shadow-[0_0_24px_rgba(255,215,0,0.9)]" style={{ animationDelay: '1.5s' }} />
-        <div className="absolute top-2/3 left-1/2 w-2.5 h-2.5 bg-glow-white rounded-full particle opacity-95 blur-sm shadow-[0_0_26px_rgba(255,255,255,1)]" style={{ animationDelay: '2.5s' }} />
-        <div className="absolute top-1/5 right-1/2 w-3 h-3 bg-glow-sapphire rounded-full particle opacity-85 blur-sm shadow-[0_0_25px_rgba(0,102,255,0.9)]" style={{ animationDelay: '0.5s' }} />
-        <div className="absolute bottom-1/5 left-1/5 w-2 h-2 bg-glow-cyan rounded-full particle opacity-70 blur-sm shadow-[0_0_20px_rgba(0,255,255,0.8)]" style={{ animationDelay: '3.5s' }} />
-        <div className="absolute top-3/5 right-1/5 w-2.5 h-2.5 bg-glow-magenta rounded-full particle opacity-80 blur-sm shadow-[0_0_23px_rgba(217,0,255,0.9)]" style={{ animationDelay: '4s' }} />
-      </div>
 
       {/* Desktop Header & Sidebar */}
       <div className="hidden lg:block">
@@ -288,40 +260,42 @@ const Index = () => {
       </div>
       
       {/* Main content */}
-      <main className="pt-14 pb-20 lg:pb-0 lg:pl-64 relative z-10">
+      <main className="pt-14 pb-20 lg:pb-0 lg:pl-64">
         <CategoryChips />
+        
         {!user && (
-          <div className="glass-card mx-4 mt-4 rounded-xl border border-cosmic-magenta/50 p-4 shadow-[0_0_50px_rgba(217,0,255,0.5)]">
+          <div className="bg-muted/50 mx-4 mt-4 rounded-xl border border-border p-4">
             <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
               <p className="text-foreground font-medium text-center sm:text-left">
-                Join <span className="text-transparent bg-clip-text bg-gradient-to-r from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta font-bold">FUN Play</span> to upload videos, subscribe to channels, and tip creators!
+                Tham gia <span className="font-bold">FUN Play</span> để tải video, đăng ký kênh và hỗ trợ nhà sáng tạo!
               </p>
               <Button 
                 onClick={() => navigate("/auth")} 
-                className="bg-gradient-to-r from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta hover:shadow-[0_0_70px_rgba(0,255,255,1)] transition-all duration-500 border border-glow-cyan"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground"
               >
-                Sign In / Sign Up
+                Đăng nhập / Đăng ký
               </Button>
             </div>
           </div>
         )}
         
-        <div className="p-6">
+        <div className="p-4 lg:p-6">
           {/* Continue Watching Section */}
           {user && <ContinueWatching />}
+          
           {loadingVideos ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6">
               {[...Array(8)].map((_, i) => (
                 <VideoCard key={`skeleton-${i}`} isLoading={true} />
               ))}
             </div>
           ) : videos.length === 0 ? (
-            <div className="text-center py-20 glass-card rounded-2xl mx-auto max-w-2xl shadow-[0_0_60px_rgba(0,102,255,0.5)]">
-              <p className="text-foreground text-2xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta">Chưa có video nào</p>
-              <p className="text-sm text-muted-foreground mt-2">Hãy tải video đầu tiên lên và khám phá vũ trụ âm nhạc đầy năng lượng tình yêu!</p>
+            <div className="text-center py-20 bg-muted/30 rounded-xl mx-auto max-w-2xl">
+              <p className="text-foreground text-xl font-semibold mb-2">Chưa có video nào</p>
+              <p className="text-sm text-muted-foreground mt-2">Hãy tải video đầu tiên lên!</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6">
               {videos.map((video) => (
                 <VideoCard
                   key={video.id}
