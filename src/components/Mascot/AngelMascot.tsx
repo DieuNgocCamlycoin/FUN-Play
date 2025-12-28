@@ -104,8 +104,8 @@ export const AngelMascot: React.FC<AngelMascotProps> = ({ onTipReceived }) => {
         ref={angelRef}
         className="fixed z-[9999] cursor-pointer select-none pointer-events-auto"
         style={{ 
-          width: '90px', 
-          height: '120px',
+          width: '180px', 
+          height: '240px',
         }}
         initial={{ x: 100, y: 100 }}
         animate={{ 
@@ -129,8 +129,8 @@ export const AngelMascot: React.FC<AngelMascotProps> = ({ onTipReceived }) => {
           className="w-full h-full"
           animate={controls}
           style={{
-            WebkitMaskImage: 'radial-gradient(ellipse 50% 60% at center 45%, black 50%, transparent 85%)',
-            maskImage: 'radial-gradient(ellipse 50% 60% at center 45%, black 50%, transparent 85%)',
+            WebkitMaskImage: 'radial-gradient(ellipse 70% 80% at center 45%, black 80%, transparent 100%)',
+            maskImage: 'radial-gradient(ellipse 70% 80% at center 45%, black 80%, transparent 100%)',
           }}
         >
           <video
@@ -140,14 +140,13 @@ export const AngelMascot: React.FC<AngelMascotProps> = ({ onTipReceived }) => {
             playsInline
             className="w-full h-full"
             style={{
-              mixBlendMode: 'lighten',
               background: 'transparent',
-              transform: 'scale(2.0) translateY(-5%)',
+              transform: 'scale(1.5) translateY(-5%)',
               objectFit: 'cover',
               objectPosition: 'center top',
               filter: isExcited 
-                ? 'brightness(1.1) contrast(1.2) saturate(1.15) drop-shadow(0 0 15px rgba(255, 215, 0, 0.6))' 
-                : 'brightness(1.05) contrast(1.15) saturate(1.1) drop-shadow(0 0 10px rgba(255, 215, 0, 0.4))',
+                ? 'drop-shadow(0 0 12px rgba(255, 215, 0, 0.5))' 
+                : 'drop-shadow(0 0 8px rgba(255, 215, 0, 0.3))',
             }}
           >
             <source src="/videos/angel-bay.mp4" type="video/mp4" />
