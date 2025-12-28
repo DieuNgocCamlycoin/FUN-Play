@@ -535,14 +535,31 @@ export function EnhancedVideoPlayer({
         </div>
       )}
 
-      {/* Play/Pause overlay on click */}
+      {/* Large center Play/Pause overlay - YouTube style */}
       <div
         className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 pointer-events-none ${
-          !isPlaying && showControls ? "opacity-100" : "opacity-0"
+          showControls ? "opacity-100" : "opacity-0"
         }`}
       >
-        <div className="w-20 h-20 bg-black/50 rounded-full flex items-center justify-center backdrop-blur-sm">
-          <Play className="h-10 w-10 text-white ml-1" />
+        {/* Center play/pause button - only show when paused or when controls visible */}
+        <div 
+          className={`w-16 h-16 md:w-20 md:h-20 bg-black/60 rounded-full flex items-center justify-center backdrop-blur-sm transition-all duration-200 ${
+            !isPlaying ? "scale-100" : "scale-0"
+          }`}
+        >
+          <Play className="h-8 w-8 md:h-10 md:w-10 text-white ml-1" />
+        </div>
+      </div>
+
+      {/* Double-tap skip indicators */}
+      <div className="absolute inset-y-0 left-0 w-1/3 flex items-center justify-center pointer-events-none">
+        <div className="skip-indicator-left opacity-0 transition-opacity">
+          <span className="text-white text-sm font-medium">-10s</span>
+        </div>
+      </div>
+      <div className="absolute inset-y-0 right-0 w-1/3 flex items-center justify-center pointer-events-none">
+        <div className="skip-indicator-right opacity-0 transition-opacity">
+          <span className="text-white text-sm font-medium">+10s</span>
         </div>
       </div>
 

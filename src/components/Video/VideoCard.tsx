@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Play, Edit, Share2, ListPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -48,17 +47,17 @@ export const VideoCard = ({
   const [playlistModalOpen, setPlaylistModalOpen] = useState(false);
   const isOwner = user?.id === userId;
 
-  // Loading skeleton - YouTube style
+  // Loading skeleton with FunPlay shimmer effect
   if (isLoading) {
     return (
-      <div className="overflow-hidden">
-        <Skeleton className="aspect-video w-full rounded-xl" />
+      <div className="glass-card rainbow-sparkle overflow-hidden rounded-xl p-2">
+        <Skeleton className="aspect-video w-full rounded-xl bg-gradient-to-r from-cosmic-cyan/20 via-cosmic-magenta/20 to-cosmic-gold/20 animate-pulse" />
         <div className="pt-3 flex gap-3">
-          <Skeleton className="w-9 h-9 rounded-full flex-shrink-0" />
+          <Skeleton className="w-9 h-9 rounded-full bg-gradient-to-br from-cosmic-sapphire/30 to-cosmic-cyan/30" />
           <div className="flex-1 space-y-2">
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-3 w-3/4" />
-            <Skeleton className="h-3 w-1/2" />
+            <Skeleton className="h-4 w-full bg-gradient-to-r from-cosmic-cyan/20 to-cosmic-magenta/20" />
+            <Skeleton className="h-3 w-3/4 bg-cosmic-sapphire/20" />
+            <Skeleton className="h-3 w-1/2 bg-cosmic-gold/20" />
           </div>
         </div>
       </div>
@@ -106,8 +105,8 @@ export const VideoCard = ({
   };
 
   return (
-    <div className="group cursor-pointer">
-      {/* Thumbnail - YouTube style with rounded corners */}
+    <div className="group cursor-pointer glass-card rainbow-sparkle rounded-xl p-2 transition-all duration-300">
+      {/* Thumbnail with gradient overlay */}
       <div 
         className="relative aspect-video overflow-hidden rounded-xl bg-muted"
         onClick={handlePlay}
@@ -116,17 +115,20 @@ export const VideoCard = ({
           src={thumbnail || getDefaultThumbnail(videoId || '')}
           alt={title || 'Video thumbnail'}
           aspectRatio="video"
-          className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
         />
         
-        {/* Play button overlay on hover */}
-        <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-          <div className="h-12 w-12 rounded-full bg-black/70 flex items-center justify-center">
-            <Play className="h-5 w-5 fill-white text-white ml-0.5" />
+        {/* Gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        
+        {/* Play button overlay with gradient */}
+        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+          <div className="h-14 w-14 rounded-full bg-gradient-to-br from-cosmic-cyan via-cosmic-sapphire to-cosmic-magenta flex items-center justify-center shadow-[0_0_30px_rgba(0,255,255,0.8)]">
+            <Play className="h-6 w-6 fill-white text-white ml-0.5" />
           </div>
         </div>
 
-        {/* Action buttons on hover - YouTube style positioning */}
+        {/* Action buttons on hover */}
         <div className="absolute top-2 right-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
           {/* Watch Later */}
           {videoId && (
@@ -139,7 +141,7 @@ export const VideoCard = ({
           {user && (
             <Button
               size="icon"
-              className="h-8 w-8 bg-black/70 hover:bg-black/90 text-white border-0 rounded-sm"
+              className="h-8 w-8 bg-black/70 hover:bg-cosmic-cyan/80 text-white border-0 rounded-sm transition-colors"
               onClick={handleAddToPlaylist}
               title="Thêm vào danh sách phát"
             >
@@ -152,7 +154,7 @@ export const VideoCard = ({
         {isOwner && (
           <Button
             size="icon"
-            className="absolute top-2 left-2 h-8 w-8 bg-black/70 hover:bg-black/90 text-white border-0 rounded-sm opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+            className="absolute top-2 left-2 h-8 w-8 bg-black/70 hover:bg-cosmic-magenta/80 text-white border-0 rounded-sm opacity-0 group-hover:opacity-100 transition-all duration-200"
             onClick={handleEdit}
             title="Chỉnh sửa video"
           >
@@ -163,7 +165,7 @@ export const VideoCard = ({
         {/* Share button */}
         <Button
           size="icon"
-          className="absolute bottom-2 right-2 h-8 w-8 bg-black/70 hover:bg-black/90 text-white border-0 rounded-sm opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+          className="absolute bottom-2 right-2 h-8 w-8 bg-black/70 hover:bg-cosmic-sapphire/80 text-white border-0 rounded-sm opacity-0 group-hover:opacity-100 transition-all duration-200"
           onClick={handleShare}
           title="Chia sẻ video"
         >
@@ -171,7 +173,7 @@ export const VideoCard = ({
         </Button>
       </div>
 
-      {/* Video Info - YouTube style layout */}
+      {/* Video Info */}
       <div className="pt-3 flex gap-3">
         {/* Channel Avatar */}
         <div className="flex-shrink-0" onClick={handleChannelClick}>
@@ -179,10 +181,10 @@ export const VideoCard = ({
             <img
               src={avatarUrl}
               alt={channel}
-              className="w-9 h-9 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+              className="w-9 h-9 rounded-full object-cover cursor-pointer hover:ring-2 hover:ring-cosmic-cyan transition-all"
             />
           ) : (
-            <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-medium text-sm cursor-pointer hover:opacity-80 transition-opacity">
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta flex items-center justify-center text-white font-medium text-sm cursor-pointer hover:shadow-[0_0_20px_rgba(0,255,255,0.6)] transition-shadow">
               {channel?.[0] || "?"}
             </div>
           )}
@@ -191,13 +193,13 @@ export const VideoCard = ({
         {/* Title, Channel, Views */}
         <div className="flex-1 min-w-0">
           <h3 
-            className="font-medium text-sm text-foreground line-clamp-2 leading-snug mb-1 group-hover:text-foreground/90"
+            className="font-medium text-sm text-foreground line-clamp-2 leading-snug mb-1 group-hover:text-cosmic-cyan transition-colors cursor-pointer"
             onClick={handlePlay}
           >
             {title}
           </h3>
           <p 
-            className="text-xs text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+            className="text-xs text-muted-foreground hover:text-cosmic-magenta cursor-pointer transition-colors"
             onClick={handleChannelClick}
           >
             {channel}

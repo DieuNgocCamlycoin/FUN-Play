@@ -22,9 +22,9 @@ export const MobileBottomNav = () => {
   const { lightTap, mediumTap } = useHapticFeedback();
 
   const handleNavClick = (item: typeof navItems[0]) => {
-    lightTap(); // Haptic feedback on every nav tap
+    lightTap();
     if (item.isCreate) {
-      mediumTap(); // Stronger feedback for create button
+      mediumTap();
       if (user) {
         setUploadModalOpen(true);
       } else {
@@ -39,7 +39,7 @@ export const MobileBottomNav = () => {
 
   return (
     <>
-      <nav className="fixed bottom-0 left-0 right-0 h-16 bg-background/95 backdrop-blur-lg border-t border-border z-50 lg:hidden safe-area-bottom">
+      <nav className="fixed bottom-0 left-0 right-0 h-14 bg-background/95 backdrop-blur-lg border-t border-border/50 z-50 lg:hidden safe-area-bottom">
         <div className="flex items-center justify-around h-full px-2">
           {navItems.map((item) => {
             const isActive = item.href ? location.pathname === item.href : false;
@@ -50,29 +50,31 @@ export const MobileBottomNav = () => {
                 key={item.label}
                 onClick={() => handleNavClick(item)}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-0.5 min-w-[64px] h-full transition-all duration-200",
+                  "flex flex-col items-center justify-center gap-0.5 min-w-[56px] h-full transition-all duration-200",
                   isCreateButton
                     ? "relative"
                     : isActive
-                    ? "text-primary"
+                    ? "text-foreground"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 {isCreateButton ? (
-                  <div className="w-12 h-8 bg-gradient-to-r from-primary to-primary/80 rounded-lg flex items-center justify-center shadow-lg shadow-primary/30">
-                    <item.icon className="h-6 w-6 text-primary-foreground" />
+                  <div className="w-10 h-8 bg-foreground rounded-lg flex items-center justify-center">
+                    <item.icon className="h-5 w-5 text-background" strokeWidth={2.5} />
                   </div>
                 ) : (
                   <item.icon
                     className={cn(
-                      "h-6 w-6 transition-all",
-                      isActive && "scale-110"
+                      "h-5 w-5 transition-all",
+                      isActive ? "fill-current" : ""
                     )}
+                    strokeWidth={isActive ? 2.5 : 1.5}
                   />
                 )}
                 <span
                   className={cn(
-                    "text-[10px] font-medium",
+                    "text-[10px]",
+                    isActive ? "font-medium" : "font-normal",
                     isCreateButton && "mt-0.5"
                   )}
                 >
