@@ -144,7 +144,7 @@ const LikedVideos = () => {
       <div className="p-4 lg:p-6">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
-          <div className="p-3 rounded-full bg-gradient-to-br from-red-500 to-pink-500">
+          <div className="p-3 rounded-full bg-gradient-to-br from-cosmic-cyan to-glow-cyan shadow-[0_0_20px_rgba(0,255,255,0.5)]">
             <Heart className="h-6 w-6 text-white" fill="white" />
           </div>
           <div>

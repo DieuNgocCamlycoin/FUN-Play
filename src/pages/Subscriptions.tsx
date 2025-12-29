@@ -214,7 +214,7 @@ const Subscriptions = () => {
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-r from-cosmic-sapphire to-cosmic-magenta flex items-center justify-center">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-r from-cosmic-cyan to-glow-cyan flex items-center justify-center shadow-[0_0_20px_rgba(0,255,255,0.5)]">
                 <Users className="w-6 h-6 text-white" />
               </div>
               <div>

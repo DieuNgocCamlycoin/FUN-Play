@@ -121,7 +121,7 @@ export const VideoCard = ({
         {isOwner && (
           <Button
             size="icon"
-            className="absolute top-2 left-2 h-8 w-8 bg-black/70 hover:bg-cosmic-magenta/80 text-white border-0 rounded-sm opacity-0 group-hover:opacity-100 transition-all duration-200"
+            className="absolute top-2 left-2 h-8 w-8 bg-black/70 hover:bg-cosmic-cyan/80 text-white border-0 rounded-sm opacity-0 group-hover:opacity-100 transition-all duration-200"
             onClick={handleEdit}
             title="Chỉnh sửa video"
           >
@@ -186,7 +186,7 @@ export const VideoCard = ({
             {title}
           </h3>
           <p 
-            className="text-xs text-muted-foreground hover:text-cosmic-magenta cursor-pointer transition-colors"
+            className="text-xs text-muted-foreground hover:text-cosmic-cyan cursor-pointer transition-colors"
             onClick={handleChannelClick}
           >
             {channel}

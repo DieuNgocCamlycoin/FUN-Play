@@ -310,7 +310,7 @@ export default function Auth() {
                 type="button"
                 variant="ghost"
                 onClick={() => { setForgotPassword(false); clearMessages(); }}
-                className="w-full text-purple-600 hover:text-purple-700"
+                className="w-full text-cosmic-cyan hover:text-glow-cyan"
               >
                 ← Quay lại đăng nhập
               </Button>
@@ -391,7 +391,7 @@ export default function Auth() {
                     <button
                       type="button"
                       onClick={() => { setForgotPassword(true); clearMessages(); }}
-                      className="text-sm text-purple-600 hover:text-purple-700 font-medium"
+                      className="text-sm text-cosmic-cyan hover:text-glow-cyan font-medium"
                     >
                       Quên mật khẩu?
                     </button>
@@ -419,7 +419,7 @@ export default function Auth() {
                 type="button"
                 variant="outline"
                 onClick={handleContinueWithoutLogin}
-                className="w-full h-12 mt-4 rounded-lg border-purple-300 text-purple-600 hover:bg-purple-50 font-medium"
+                className="w-full h-12 mt-4 rounded-lg border-cosmic-cyan text-cosmic-cyan hover:bg-cosmic-cyan/10 font-medium"
               >
                 Tiếp tục không đăng nhập
               </Button>
@@ -427,12 +427,12 @@ export default function Auth() {
               {/* Toggle Login/Signup */}
               <p className="text-center mt-6 text-gray-600">
                 {isLogin ? "Chưa có " : "Đã có "}
-                <span className="text-purple-600">tài khoản</span>
+                <span className="text-cosmic-cyan">tài khoản</span>
                 {isLogin ? "? " : "? "}
                 <button
                   type="button"
                   onClick={() => { setIsLogin(!isLogin); clearMessages(); }}
-                  className="text-pink-500 hover:text-pink-600 font-semibold"
+                  className="text-cosmic-cyan hover:text-glow-cyan font-semibold"
                 >
                   {isLogin ? "Đăng ký ngay" : "Đăng nhập"}
                 </button>
