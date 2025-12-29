@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Play, Edit, Share2 } from "lucide-react";
+import { Play, Edit, Share2, ListVideo } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useNavigate } from "react-router-dom";
@@ -8,7 +8,8 @@ import { ShareModal } from "./ShareModal";
 import { LazyImage } from "@/components/ui/LazyImage";
 import { useHapticFeedback } from "@/hooks/useHapticFeedback";
 import { getDefaultThumbnail } from "@/lib/defaultThumbnails";
-
+import { WatchLaterButton } from "./WatchLaterButton";
+import { AddToPlaylistModal } from "@/components/Playlist/AddToPlaylistModal";
 interface VideoCardProps {
   thumbnail?: string;
   title?: string;
@@ -40,6 +41,7 @@ export const VideoCard = ({
   const { user } = useAuth();
   const { lightTap } = useHapticFeedback();
   const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [playlistModalOpen, setPlaylistModalOpen] = useState(false);
   const isOwner = user?.id === userId;
 
   // Loading skeleton with FunPlay shimmer effect
@@ -78,6 +80,12 @@ export const VideoCard = ({
     setShareModalOpen(true);
   };
 
+  const handleOpenPlaylist = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    lightTap();
+    setPlaylistModalOpen(true);
+  };
+
   const handleChannelClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (channelId) {
@@ -102,9 +110,9 @@ export const VideoCard = ({
         {/* Gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         
-        {/* Play button overlay with gradient */}
+        {/* Play button overlay - Xanh ngọc lam thiên đường */}
         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-          <div className="h-14 w-14 rounded-full bg-gradient-to-br from-cosmic-cyan via-cosmic-sapphire to-cosmic-magenta flex items-center justify-center shadow-[0_0_30px_rgba(0,255,255,0.8)]">
+          <div className="h-14 w-14 rounded-full bg-cosmic-cyan flex items-center justify-center shadow-[0_0_40px_rgba(0,255,255,0.9)]">
             <Play className="h-6 w-6 fill-white text-white ml-0.5" />
           </div>
         </div>
@@ -121,15 +129,35 @@ export const VideoCard = ({
           </Button>
         )}
 
-        {/* Share button */}
-        <Button
-          size="icon"
-          className="absolute top-2 right-2 h-8 w-8 bg-black/70 hover:bg-cosmic-sapphire/80 text-white border-0 rounded-sm opacity-0 group-hover:opacity-100 transition-all duration-200"
-          onClick={handleShare}
-          title="Chia sẻ video"
-        >
-          <Share2 className="h-4 w-4" />
-        </Button>
+        {/* 3 Action buttons ở góc phải trên - xếp dọc giống YouTube */}
+        <div className="absolute top-2 right-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
+          {/* Watch Later */}
+          <WatchLaterButton 
+            videoId={videoId || ""} 
+            variant="icon"
+            className="h-8 w-8 bg-black/70 hover:bg-black/90 text-white border-0 rounded-sm"
+          />
+          
+          {/* Add to Playlist */}
+          <Button
+            size="icon"
+            className="h-8 w-8 bg-black/70 hover:bg-black/90 text-white border-0 rounded-sm"
+            onClick={handleOpenPlaylist}
+            title="Thêm vào danh sách phát"
+          >
+            <ListVideo className="h-4 w-4" />
+          </Button>
+          
+          {/* Share */}
+          <Button
+            size="icon"
+            className="h-8 w-8 bg-black/70 hover:bg-black/90 text-white border-0 rounded-sm"
+            onClick={handleShare}
+            title="Chia sẻ video"
+          >
+            <Share2 className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       {/* Video Info */}
@@ -183,6 +211,12 @@ export const VideoCard = ({
         userId={user?.id}
       />
 
+      <AddToPlaylistModal
+        open={playlistModalOpen}
+        onOpenChange={setPlaylistModalOpen}
+        videoId={videoId || ""}
+        videoTitle={title || ""}
+      />
     </div>
   );
 };
