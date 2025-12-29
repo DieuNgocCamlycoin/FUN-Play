@@ -34,6 +34,7 @@ interface Video {
   profiles: {
     wallet_address: string | null;
     avatar_url: string | null;
+    username: string | null;
   };
 }
 
@@ -87,16 +88,17 @@ const Index = () => {
         const userIds = [...new Set(data.map(v => v.user_id))];
         const { data: profilesData } = await supabase
           .from("profiles")
-          .select("id, wallet_address, avatar_url")
+          .select("id, wallet_address, avatar_url, username")
           .in("id", userIds);
 
-        const profilesMap = new Map(profilesData?.map(p => [p.id, { wallet_address: p.wallet_address, avatar_url: p.avatar_url }]) || []);
+        const profilesMap = new Map(profilesData?.map(p => [p.id, { wallet_address: p.wallet_address, avatar_url: p.avatar_url, username: p.username }]) || []);
 
         const videosWithProfiles = data.map(video => ({
           ...video,
           profiles: {
             wallet_address: profilesMap.get(video.user_id)?.wallet_address || null,
             avatar_url: profilesMap.get(video.user_id)?.avatar_url || null,
+            username: profilesMap.get(video.user_id)?.username || null,
           },
         }));
 
@@ -153,6 +155,7 @@ const Index = () => {
                     profiles: {
                       wallet_address: payload.new.wallet_address,
                       avatar_url: payload.new.avatar_url,
+                      username: payload.new.username,
                     }
                   }
                 : video
@@ -239,96 +242,98 @@ const Index = () => {
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundAttachment: 'fixed',
+        filter: 'brightness(1.15) contrast(1.08) saturate(1.15)',
       }}
-      {...(isMobile ? pullHandlers : {})}
     >
-      {/* Pull-to-refresh indicator */}
-      {isMobile && (
-        <PullToRefreshIndicator
-          isPulling={isPulling}
-          isRefreshing={isRefreshing}
-          pullProgress={pullProgress}
-          pullDistance={pullDistance}
-        />
-      )}
-
-      {/* Desktop Header & Sidebar */}
-      <div className="hidden lg:block">
-        <Header onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
-        <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
-      </div>
-
-      {/* Mobile Header & Drawer */}
-      <div className="lg:hidden">
-        <MobileHeader onMenuClick={() => setIsMobileDrawerOpen(true)} />
-        <MobileDrawer isOpen={isMobileDrawerOpen} onClose={() => setIsMobileDrawerOpen(false)} />
-        <MobileBottomNav />
-      </div>
-      
-      {/* Main content */}
-      <main className="pt-14 pb-20 lg:pb-0 lg:pl-64">
-        <CategoryChips />
-        
-        {!user && (
-          <div className="bg-muted/50 mx-4 mt-4 rounded-xl border border-border p-4">
-            <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-              <p className="text-foreground font-medium text-center sm:text-left">
-                Tham gia <span className="font-bold">FUN Play</span> để tải video, đăng ký kênh và hỗ trợ nhà sáng tạo!
-              </p>
-              <Button 
-                onClick={() => navigate("/auth")} 
-                className="bg-primary hover:bg-primary/90 text-primary-foreground"
-              >
-                Đăng nhập / Đăng ký
-              </Button>
-            </div>
-          </div>
+      {/* Wrapper để nội dung không bị ảnh hưởng bởi filter */}
+      <div 
+        className="min-h-screen"
+        style={{ filter: 'brightness(0.87) contrast(0.93) saturate(0.87)' }}
+        {...(isMobile ? pullHandlers : {})}
+      >
+        {/* Pull-to-refresh indicator */}
+        {isMobile && (
+          <PullToRefreshIndicator
+            isPulling={isPulling}
+            isRefreshing={isRefreshing}
+            pullProgress={pullProgress}
+            pullDistance={pullDistance}
+          />
         )}
+
+        {/* Desktop Header & Sidebar */}
+        <div className="hidden lg:block">
+          <Header onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
+          <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+        </div>
+
+        {/* Mobile Header & Drawer */}
+        <div className="lg:hidden">
+          <MobileHeader onMenuClick={() => setIsMobileDrawerOpen(true)} />
+          <MobileDrawer isOpen={isMobileDrawerOpen} onClose={() => setIsMobileDrawerOpen(false)} />
+          <MobileBottomNav />
+        </div>
         
-        <div className="p-4 lg:p-6">
-          {/* Continue Watching Section */}
-          {user && <ContinueWatching />}
+        {/* Main content */}
+        <main className="pt-14 pb-20 lg:pb-0 lg:pl-64">
+          <CategoryChips />
           
-          {loadingVideos ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[...Array(8)].map((_, i) => (
-                <VideoCard key={`skeleton-${i}`} isLoading={true} />
-              ))}
-            </div>
-          ) : videos.length === 0 ? (
-            <div className="text-center py-20 bg-muted/30 rounded-xl mx-auto max-w-2xl">
-              <p className="text-foreground text-xl font-semibold mb-2">Chưa có video nào</p>
-              <p className="text-sm text-muted-foreground mt-2">Hãy tải video đầu tiên lên!</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {videos.map((video) => (
-                <VideoCard
-                  key={video.id}
-                  videoId={video.id}
-                  userId={video.user_id}
-                  channelId={video.channels?.id}
-                  thumbnail={video.thumbnail_url || getDefaultThumbnail(video.id)}
-                  title={video.title}
-                  channel={video.channels?.name || "Unknown Channel"}
-                  avatarUrl={video.profiles?.avatar_url || undefined}
-                  views={formatViews(video.view_count)}
-                  timestamp={formatTimestamp(video.created_at)}
-                  onPlay={handlePlayVideo}
-                />
-              ))}
+          {!user && (
+            <div className="bg-muted/50 mx-4 mt-4 rounded-xl border border-border p-4">
+              <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+                <p className="text-foreground font-medium text-center sm:text-left">
+                  Đăng nhập để nhận phần thưởng CAMLY khi xem video!
+                </p>
+                <Button 
+                  onClick={() => navigate('/auth')}
+                  className="bg-cosmic-cyan hover:bg-cosmic-cyan/90 text-white"
+                >
+                  Đăng nhập / Đăng ký
+                </Button>
+              </div>
             </div>
           )}
-        </div>
-      </main>
 
-      {/* Background Music Player */}
-      {user && (
-        <BackgroundMusicPlayer 
-          musicUrl={currentMusicUrl} 
-          autoPlay={true}
-        />
-      )}
+          {/* Continue Watching Section */}
+          {user && <ContinueWatching />}
+
+          <div className="p-4">
+            {loading ? (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <VideoCard key={i} isLoading={true} />
+                ))}
+              </div>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {videos.map((video) => (
+                  <VideoCard
+                    key={video.id}
+                    videoId={video.id}
+                    thumbnail={video.thumbnail_url || undefined}
+                    title={video.title}
+                    channel={video.channels?.name || video.profiles?.username || "Unknown"}
+                    avatarUrl={video.profiles?.avatar_url || undefined}
+                    channelId={video.channels?.id}
+                    userId={video.user_id}
+                    views={formatViews(video.view_count)}
+                    timestamp={formatTimestamp(video.created_at)}
+                    onPlay={handlePlayVideo}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </main>
+
+        {/* Background Music Player */}
+        {user && (
+          <BackgroundMusicPlayer 
+            musicUrl={currentMusicUrl} 
+            autoPlay={true}
+          />
+        )}
+      </div>
     </div>
   );
 };
