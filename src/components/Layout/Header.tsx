@@ -80,7 +80,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 h-14 bg-background border-b border-border z-50 hidden lg:flex items-center justify-between px-4 gap-4">
+    <header className="fixed top-0 left-0 right-0 h-14 bg-gradient-to-r from-cyan-50 via-white to-cyan-50 dark:from-cyan-950/50 dark:via-background dark:to-cyan-950/50 border-b border-cyan-200/50 dark:border-cyan-800/30 z-50 hidden lg:flex items-center justify-between px-4 gap-4 backdrop-blur-sm">
       {/* Left section */}
       <div className="flex items-center gap-4">
       <Button
