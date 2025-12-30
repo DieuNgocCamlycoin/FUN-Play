@@ -141,6 +141,14 @@ export default {
           "0%, 100%": { opacity: "0.5", transform: "scale(1)" },
           "50%": { opacity: "1", transform: "scale(1.1)" },
         },
+        "bounce-subtle": {
+          "0%, 100%": { transform: "translateY(0) scale(1)" },
+          "50%": { transform: "translateY(-4px) scale(1.05)" },
+        },
+        "glow-pulse": {
+          "0%, 100%": { boxShadow: "0 0 8px 2px hsl(var(--cosmic-cyan) / 0.4)" },
+          "50%": { boxShadow: "0 0 20px 6px hsl(var(--cosmic-cyan) / 0.7)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -152,6 +160,8 @@ export default {
         "rainbow-border": "rainbow-border 3s linear infinite",
         "sparkle-sweep": "sparkle-sweep 3s linear infinite",
         "pulse-halo": "pulse-halo 2s ease-in-out infinite",
+        "bounce-subtle": "bounce-subtle 2s ease-in-out infinite",
+        "glow-pulse": "glow-pulse 2s ease-in-out infinite",
       },
     },
   },

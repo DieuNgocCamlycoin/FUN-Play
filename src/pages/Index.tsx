@@ -8,6 +8,7 @@ import { MobileDrawer } from "@/components/Layout/MobileDrawer";
 import { CategoryChips } from "@/components/Layout/CategoryChips";
 import { CompactHonobar } from "@/components/Layout/CompactHonobar";
 import { VideoCard } from "@/components/Video/VideoCard";
+import { LazyVideoCard } from "@/components/Video/LazyVideoCard";
 import { ContinueWatching } from "@/components/Video/ContinueWatching";
 import { BackgroundMusicPlayer } from "@/components/BackgroundMusicPlayer";
 import { PullToRefreshIndicator } from "@/components/Layout/PullToRefreshIndicator";
@@ -311,20 +312,36 @@ const Index = () => {
               </div>
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {videos.map((video) => (
-                  <VideoCard
-                    key={video.id}
-                    videoId={video.id}
-                    thumbnail={video.thumbnail_url || undefined}
-                    title={video.title}
-                    channel={video.channels?.name || video.profiles?.username || "Unknown"}
-                    avatarUrl={video.profiles?.avatar_url || undefined}
-                    channelId={video.channels?.id}
-                    userId={video.user_id}
-                    views={formatViews(video.view_count)}
-                    timestamp={formatTimestamp(video.created_at)}
-                    onPlay={handlePlayVideo}
-                  />
+                {videos.map((video, index) => (
+                  index < 6 ? (
+                    <VideoCard
+                      key={video.id}
+                      videoId={video.id}
+                      thumbnail={video.thumbnail_url || undefined}
+                      title={video.title}
+                      channel={video.channels?.name || video.profiles?.username || "Unknown"}
+                      avatarUrl={video.profiles?.avatar_url || undefined}
+                      channelId={video.channels?.id}
+                      userId={video.user_id}
+                      views={formatViews(video.view_count)}
+                      timestamp={formatTimestamp(video.created_at)}
+                      onPlay={handlePlayVideo}
+                    />
+                  ) : (
+                    <LazyVideoCard
+                      key={video.id}
+                      videoId={video.id}
+                      thumbnail={video.thumbnail_url || undefined}
+                      title={video.title}
+                      channel={video.channels?.name || video.profiles?.username || "Unknown"}
+                      avatarUrl={video.profiles?.avatar_url || undefined}
+                      channelId={video.channels?.id}
+                      userId={video.user_id}
+                      views={formatViews(video.view_count)}
+                      timestamp={formatTimestamp(video.created_at)}
+                      onPlay={handlePlayVideo}
+                    />
+                  )
                 ))}
               </div>
             )}

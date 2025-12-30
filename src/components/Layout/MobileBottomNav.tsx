@@ -59,7 +59,7 @@ export const MobileBottomNav = () => {
                 )}
               >
                 {isCreateButton ? (
-                  <div className="w-10 h-8 bg-gradient-to-r from-cyan-400 to-cyan-500 rounded-lg flex items-center justify-center shadow-lg shadow-cyan-400/50">
+                  <div className="w-10 h-8 bg-gradient-to-r from-cyan-400 to-cyan-500 rounded-lg flex items-center justify-center shadow-lg shadow-cyan-400/50 animate-bounce-subtle animate-glow-pulse">
                     <item.icon className="h-5 w-5 text-white" strokeWidth={2.5} />
                   </div>
                 ) : (
