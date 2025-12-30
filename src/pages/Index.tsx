@@ -251,7 +251,8 @@ const Index = () => {
       
       {/* Main container */}
       <div 
-        className="min-h-screen relative z-10"
+        className="min-h-screen relative z-10 touch-pan-y"
+        style={{ touchAction: 'pan-y' }}
         {...(isMobile ? pullHandlers : {})}
       >
         {/* Pull-to-refresh indicator */}
