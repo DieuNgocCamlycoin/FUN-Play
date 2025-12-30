@@ -2,6 +2,20 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================
+   📱 MOBILE TOUCH BEHAVIOR - PREVENT ZOOM
+   ============================================ */
+html, body {
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+/* Prevent double-tap zoom on interactive elements */
+button, a, input, select, textarea, [role="button"] {
+  touch-action: manipulation;
+}
+
 /* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
 All colors MUST be HSL.
 */
