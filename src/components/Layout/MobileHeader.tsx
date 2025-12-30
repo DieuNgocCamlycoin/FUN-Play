@@ -63,7 +63,7 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 h-14 bg-background/95 backdrop-blur-lg border-b border-border/50 z-50 lg:hidden">
+    <header className="fixed top-0 left-0 right-0 h-14 bg-gradient-to-r from-cyan-50 via-white to-cyan-50 dark:from-cyan-950/80 dark:via-background/95 dark:to-cyan-950/80 backdrop-blur-lg border-b border-cyan-200/50 dark:border-cyan-800/30 z-50 lg:hidden">
       {/* Normal Header - YouTube Style */}
       <div
         className={cn(
@@ -124,7 +124,7 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
       {/* Search Mode */}
       <div
         className={cn(
-          "absolute inset-0 flex items-center gap-2 px-3 bg-background transition-opacity duration-200",
+          "absolute inset-0 flex items-center gap-2 px-3 bg-gradient-to-r from-cyan-50 via-white to-cyan-50 dark:from-cyan-950/80 dark:via-background dark:to-cyan-950/80 transition-opacity duration-200",
           isSearchOpen ? "opacity-100" : "opacity-0 pointer-events-none"
         )}
       >

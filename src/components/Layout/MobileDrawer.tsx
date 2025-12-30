@@ -97,10 +97,10 @@ export const MobileDrawer = ({ isOpen, onClose }: MobileDrawerProps) => {
             animate={{ x: 0 }}
             exit={{ x: "-100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="fixed left-0 top-0 bottom-0 w-[280px] max-w-[85vw] bg-background border-r border-border z-[70] lg:hidden"
+            className="fixed left-0 top-0 bottom-0 w-[280px] max-w-[85vw] bg-gradient-to-b from-cyan-50/95 via-white to-cyan-50/95 dark:from-cyan-950/90 dark:via-background dark:to-cyan-950/90 border-r border-cyan-200/50 dark:border-cyan-800/30 backdrop-blur-lg z-[70] lg:hidden"
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-border">
+            <div className="flex items-center justify-between p-4 border-b border-cyan-200/50 dark:border-cyan-800/30">
               <span className="text-lg font-bold bg-gradient-to-r from-[#00E7FF] to-[#00FFFF] bg-clip-text text-transparent">
                 FUN Play
               </span>
@@ -111,7 +111,7 @@ export const MobileDrawer = ({ isOpen, onClose }: MobileDrawerProps) => {
 
             {/* User Profile Section */}
             {user && (
-              <div className="p-4 border-b border-border">
+              <div className="p-4 border-b border-cyan-200/50 dark:border-cyan-800/30">
                 <div className="flex items-center gap-3">
                   {profile?.avatar_url ? (
                     <img

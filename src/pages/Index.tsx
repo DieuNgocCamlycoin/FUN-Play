@@ -236,11 +236,21 @@ const Index = () => {
 
   return (
     <div 
-      className="min-h-screen bg-gradient-to-br from-white via-cyan-50/30 to-white dark:from-background dark:via-cyan-950/20 dark:to-background"
+      className="min-h-screen bg-background relative"
+      style={{
+        backgroundImage: 'url("/images/homepage-background.jpg")',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundAttachment: 'fixed',
+        imageRendering: 'crisp-edges',
+      }}
     >
+      {/* Overlay for better contrast */}
+      <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-cyan-50/5 to-white/10 dark:from-background/30 dark:via-cyan-950/10 dark:to-background/30" />
+      
       {/* Main container */}
       <div 
-        className="min-h-screen"
+        className="min-h-screen relative z-10"
         {...(isMobile ? pullHandlers : {})}
       >
         {/* Pull-to-refresh indicator */}
