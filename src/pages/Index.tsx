@@ -236,19 +236,11 @@ const Index = () => {
 
   return (
     <div 
-      className="min-h-screen bg-background"
-      style={{
-        backgroundImage: 'url("/images/homepage-background.jpg")',
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundAttachment: 'fixed',
-        filter: 'brightness(1.25) contrast(1.12) saturate(1.2)',
-      }}
+      className="min-h-screen bg-gradient-to-br from-white via-cyan-50/30 to-white dark:from-background dark:via-cyan-950/20 dark:to-background"
     >
-      {/* Wrapper để nội dung không bị ảnh hưởng bởi filter */}
+      {/* Main container */}
       <div 
         className="min-h-screen"
-        style={{ filter: 'brightness(0.87) contrast(0.93) saturate(0.87)' }}
         {...(isMobile ? pullHandlers : {})}
       >
         {/* Pull-to-refresh indicator */}

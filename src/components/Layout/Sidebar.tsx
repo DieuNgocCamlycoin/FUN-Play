@@ -55,7 +55,7 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed left-0 top-14 bottom-0 w-64 bg-background border-r border-border z-40 transition-transform duration-300 lg:translate-x-0",
+          "fixed left-0 top-14 bottom-0 w-64 bg-gradient-to-b from-cyan-50/90 via-white to-cyan-50/90 dark:from-cyan-950/50 dark:via-background dark:to-cyan-950/50 border-r border-cyan-200/50 dark:border-cyan-800/30 z-40 transition-transform duration-300 lg:translate-x-0 backdrop-blur-sm",
           isOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
