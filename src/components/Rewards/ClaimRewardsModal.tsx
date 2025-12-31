@@ -2,14 +2,15 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Coins, Sparkles, Gift, CheckCircle, Loader2, ExternalLink, Wallet, Smartphone } from "lucide-react";
+import { Coins, Sparkles, Gift, CheckCircle, Loader2, ExternalLink, Wallet, Smartphone, AlertCircle, HelpCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useWalletConnectionWithRetry } from "@/hooks/useWalletConnectionWithRetry";
 import { WalletConnectionProgress } from "@/components/Web3/WalletConnectionProgress";
+import { MobileWalletGuide } from "@/components/Web3/MobileWalletGuide";
 import { toast } from "@/hooks/use-toast";
 import confetti from "canvas-confetti";
-import { isMobileBrowser, isInWalletBrowser, getWalletDeepLink } from "@/lib/web3Config";
+import { isMobileBrowser, isInWalletBrowser, getWalletDeepLink, logWalletDebug, REWARD_WALLET_ADDRESS } from "@/lib/web3Config";
 
 interface ClaimRewardsModalProps {
   open: boolean;
@@ -55,11 +56,13 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
   const [breakdown, setBreakdown] = useState<RewardBreakdown[]>([]);
   const [isMobile, setIsMobile] = useState(false);
   const [inWalletApp, setInWalletApp] = useState(false);
+  const [showWalletGuide, setShowWalletGuide] = useState(false);
+  const [claimError, setClaimError] = useState<string | null>(null);
 
   useEffect(() => {
     setIsMobile(isMobileBrowser());
     setInWalletApp(isInWalletBrowser());
-    console.log('[ClaimModal] Mobile detection:', { 
+    logWalletDebug('ClaimModal detection', { 
       isMobile: isMobileBrowser(), 
       inWalletApp: isInWalletBrowser() 
     });
@@ -123,12 +126,20 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
     }
 
     setClaiming(true);
+    setClaimError(null);
+    
+    logWalletDebug('Starting claim', { 
+      userId: user.id, 
+      walletAddress: address,
+      totalUnclaimed 
+    });
+    
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
       const response = await supabase.functions.invoke("claim-camly", {
         body: { walletAddress: address },
       });
+
+      logWalletDebug('Claim response', response);
 
       if (response.error) {
         throw new Error(response.error.message || "Claim failed");
@@ -156,10 +167,12 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
         throw new Error(data.error || "Claim failed");
       }
     } catch (error: any) {
-      console.error("Claim error:", error);
+      logWalletDebug('Claim error', error);
+      const errorMessage = error.message || "Không thể claim rewards. Vui lòng thử lại.";
+      setClaimError(errorMessage);
       toast({
         title: "Lỗi claim",
-        description: error.message || "Không thể claim rewards. Vui lòng thử lại.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -169,13 +182,14 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
 
   // Handle wallet connection with retry
   const handleConnect = useCallback(async () => {
-    console.log('[ClaimModal] Connecting wallet with retry...', { isMobile, inWalletApp });
+    logWalletDebug('ClaimModal: Connecting wallet', { isMobile, inWalletApp });
+    setClaimError(null);
     await connectWithRetry();
   }, [connectWithRetry, isMobile, inWalletApp]);
 
   // Open specific wallet app via deep link
   const openWalletApp = useCallback((wallet: 'metamask' | 'bitget' | 'trust') => {
-    console.log('[ClaimModal] Opening wallet app:', wallet);
+    logWalletDebug('Opening wallet app via deep link', { wallet });
     
     toast({
       title: '🔗 Đang mở ví...',
@@ -183,7 +197,11 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
     });
     
     const deepLink = getWalletDeepLink(wallet);
-    window.location.href = deepLink;
+    
+    // Small delay to show toast
+    setTimeout(() => {
+      window.location.href = deepLink;
+    }, 300);
   }, []);
 
   const formatNumber = (num: number) => {
@@ -385,6 +403,30 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
                           🛡️ Trust
                         </Button>
                       </div>
+                      
+                      {/* Help button */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowWalletGuide(true)}
+                        className="w-full text-xs text-muted-foreground"
+                      >
+                        <HelpCircle className="h-3 w-3 mr-1" />
+                        Hướng dẫn cài đặt ví
+                      </Button>
+                    </div>
+                  )}
+                  
+                  {/* Show error if any */}
+                  {claimError && (
+                    <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30 text-sm">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-destructive font-medium">Lỗi</p>
+                          <p className="text-muted-foreground text-xs">{claimError}</p>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -433,6 +475,13 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
             </>
           )}
         </div>
+        
+        {/* Mobile Wallet Guide */}
+        <MobileWalletGuide 
+          open={showWalletGuide} 
+          onOpenChange={setShowWalletGuide}
+          trigger={<></>}
+        />
       </DialogContent>
     </Dialog>
   );

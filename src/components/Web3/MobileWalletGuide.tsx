@@ -34,7 +34,7 @@ const WALLET_INFO = {
       "Tải MetaMask từ App Store/Play Store",
       "Mở app và tạo ví mới hoặc import ví có sẵn",
       "Thêm mạng BSC (BNB Smart Chain)",
-      "Quay lại CAMLY TV và nhấn 'Kết nối Ví'",
+      "Quay lại FUN PLAY và nhấn 'Kết nối Ví'",
       "Chọn MetaMask trong danh sách ví"
     ]
   },
@@ -50,14 +50,30 @@ const WALLET_INFO = {
       "Tải Bitget Wallet từ App Store/Play Store",
       "Mở app và tạo ví mới hoặc import",
       "BSC đã được hỗ trợ sẵn trong app",
-      "Quay lại CAMLY TV và nhấn 'Kết nối Ví'",
+      "Quay lại FUN PLAY và nhấn 'Kết nối Ví'",
       "Chọn Bitget Wallet trong danh sách"
+    ]
+  },
+  trust: {
+    name: "Trust Wallet",
+    icon: "🛡️",
+    description: "Ví chính thức của Binance, tích hợp BSC sẵn",
+    androidUrl: "https://play.google.com/store/apps/details?id=com.wallet.crypto.trustapp",
+    iosUrl: "https://apps.apple.com/app/trust-crypto-bitcoin-wallet/id1288339409",
+    deepLink: "trust://",
+    color: "from-cyan-500 to-blue-600",
+    steps: [
+      "Tải Trust Wallet từ App Store/Play Store",
+      "Mở app và tạo ví mới hoặc import",
+      "BSC (BNB Smart Chain) đã được hỗ trợ sẵn",
+      "Quay lại FUN PLAY và nhấn 'Kết nối Ví'",
+      "Chọn Trust Wallet trong danh sách"
     ]
   }
 };
 
 export const MobileWalletGuide = ({ open, onOpenChange, trigger }: MobileWalletGuideProps) => {
-  const [selectedWallet, setSelectedWallet] = useState<"metamask" | "bitget">("metamask");
+  const [selectedWallet, setSelectedWallet] = useState<"metamask" | "bitget" | "trust">("metamask");
   const isMobile = useIsMobile();
   
   const currentWallet = WALLET_INFO[selectedWallet];
@@ -85,12 +101,15 @@ export const MobileWalletGuide = ({ open, onOpenChange, trigger }: MobileWalletG
 
       {/* Wallet Selection Tabs */}
       <Tabs value={selectedWallet} onValueChange={(v) => setSelectedWallet(v as typeof selectedWallet)}>
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="metamask" className="gap-2">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="metamask" className="gap-1 text-xs">
             <span>🦊</span> MetaMask
           </TabsTrigger>
-          <TabsTrigger value="bitget" className="gap-2">
+          <TabsTrigger value="bitget" className="gap-1 text-xs">
             <span>💎</span> Bitget
+          </TabsTrigger>
+          <TabsTrigger value="trust" className="gap-1 text-xs">
+            <span>🛡️</span> Trust
           </TabsTrigger>
         </TabsList>
 
