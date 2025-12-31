@@ -12,6 +12,12 @@ const getMetadataUrl = () => {
   return 'https://play.fun.rich';
 };
 
+// Debug logging for wallet connection
+export const logWalletDebug = (message: string, data?: any) => {
+  const timestamp = new Date().toISOString();
+  console.log(`[Web3 ${timestamp}] ${message}`, data || '');
+};
+
 const metadata = {
   name: 'FUN PLAY',
   description: 'FUN PLAY - Web3 Video Platform với CAMLY Token trên BSC',
@@ -21,6 +27,9 @@ const metadata = {
 
 // BSC Mainnet
 export const BSC_CHAIN_ID = 56;
+
+// Admin reward wallet address for reference
+export const REWARD_WALLET_ADDRESS = '0x1dc24bfd99c256b12a4a4cc7732c7e3b9aa75998';
 
 // Wagmi config with BSC only
 export const wagmiConfig = defaultWagmiConfig({
@@ -39,10 +48,15 @@ let modal: ReturnType<typeof createWeb3Modal> | null = null;
 
 export const initWeb3Modal = () => {
   if (!modal && typeof window !== 'undefined') {
-    console.log('[Web3] Initializing Web3Modal with projectId:', projectId ? 'configured' : 'MISSING!');
+    logWalletDebug('Initializing Web3Modal', { 
+      projectId: projectId ? 'configured ✓' : 'MISSING!',
+      origin: window.location.origin,
+      userAgent: navigator.userAgent.substring(0, 100)
+    });
     
     if (!projectId) {
       console.error('[Web3] CRITICAL: VITE_WALLETCONNECT_PROJECT_ID is not configured!');
+      return null;
     }
     
     try {
@@ -61,9 +75,10 @@ export const initWeb3Modal = () => {
         // Enable QR code for mobile devices that don't have wallet installed
         enableOnramp: false,
       });
-      console.log('[Web3] Web3Modal initialized successfully');
+      logWalletDebug('Web3Modal initialized successfully ✓');
     } catch (error) {
       console.error('[Web3] Failed to initialize Web3Modal:', error);
+      logWalletDebug('Web3Modal initialization FAILED', error);
     }
   }
   return modal;
@@ -74,6 +89,18 @@ export const getWeb3Modal = () => {
     return initWeb3Modal();
   }
   return modal;
+};
+
+// Get WalletConnect configuration status
+export const getWeb3ConfigStatus = () => {
+  return {
+    projectId: !!projectId,
+    projectIdValue: projectId ? `${projectId.substring(0, 8)}...` : 'NOT SET',
+    modalInitialized: !!modal,
+    origin: typeof window !== 'undefined' ? window.location.origin : 'unknown',
+    isMobile: isMobileBrowser(),
+    isInWallet: isInWalletBrowser(),
+  };
 };
 
 // Helper to detect mobile browser
@@ -96,20 +123,72 @@ export const isInWalletBrowser = (): boolean => {
   );
 };
 
-// Deep link helpers for mobile wallets
+// Detect which wallet is available in the browser
+export const detectAvailableWallet = (): 'metamask' | 'bitget' | 'trust' | null => {
+  if (typeof window === 'undefined') return null;
+  const win = window as any;
+  
+  if (win.ethereum?.isMetaMask) return 'metamask';
+  if (win.ethereum?.isBitKeep) return 'bitget';
+  if (win.ethereum?.isTrust) return 'trust';
+  if (navigator.userAgent.includes('MetaMask')) return 'metamask';
+  if (navigator.userAgent.includes('BitKeep')) return 'bitget';
+  if (navigator.userAgent.includes('Trust')) return 'trust';
+  
+  return null;
+};
+
+// Deep link helpers for mobile wallets - IMPROVED FORMAT
 export const getWalletDeepLink = (wallet: 'metamask' | 'bitget' | 'trust'): string => {
-  const currentUrl = window.location.href;
   const host = window.location.host;
-  const path = window.location.pathname;
+  const path = window.location.pathname + window.location.search;
+  const fullUrl = window.location.href;
+  
+  logWalletDebug(`Generating deep link for ${wallet}`, { host, path });
   
   switch (wallet) {
     case 'metamask':
+      // MetaMask deep link format
       return `https://metamask.app.link/dapp/${host}${path}`;
     case 'bitget':
-      return `https://bkcode.vip/dapp/${encodeURIComponent(currentUrl)}`;
+      // Bitget Wallet deep link format
+      return `https://bkcode.vip/dapp/${encodeURIComponent(fullUrl)}`;
     case 'trust':
-      return `https://link.trustwallet.com/open_url?coin_id=20000714&url=${encodeURIComponent(currentUrl)}`;
+      // Trust Wallet deep link format - uses BSC coin ID
+      return `https://link.trustwallet.com/open_url?coin_id=20000714&url=${encodeURIComponent(fullUrl)}`;
     default:
       return '';
+  }
+};
+
+// Universal link for wallet connection (opens Web3Modal or redirects to wallet app)
+export const openWalletConnection = async (preferredWallet?: 'metamask' | 'bitget' | 'trust') => {
+  const isMobile = isMobileBrowser();
+  const inWallet = isInWalletBrowser();
+  
+  logWalletDebug('Opening wallet connection', { isMobile, inWallet, preferredWallet });
+  
+  // If already in wallet browser, use Web3Modal directly
+  if (inWallet) {
+    logWalletDebug('In wallet browser - using Web3Modal');
+    const modal = getWeb3Modal();
+    if (modal) {
+      await modal.open();
+    }
+    return;
+  }
+  
+  // On mobile with preferred wallet, use deep link
+  if (isMobile && preferredWallet) {
+    const deepLink = getWalletDeepLink(preferredWallet);
+    logWalletDebug(`Redirecting to ${preferredWallet} via deep link`, { deepLink });
+    window.location.href = deepLink;
+    return;
+  }
+  
+  // Default: use Web3Modal
+  const modal = getWeb3Modal();
+  if (modal) {
+    await modal.open();
   }
 };

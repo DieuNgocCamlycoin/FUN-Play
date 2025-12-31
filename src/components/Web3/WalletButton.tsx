@@ -1,6 +1,7 @@
-import { Wallet, ChevronDown, ExternalLink, LogOut, AlertTriangle, Loader2 } from "lucide-react";
+import { Wallet, ChevronDown, ExternalLink, LogOut, AlertTriangle, Loader2, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useWalletConnectionWithRetry } from "@/hooks/useWalletConnectionWithRetry";
+import { logWalletDebug, getWeb3ConfigStatus, isMobileBrowser } from "@/lib/web3Config";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,6 +10,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { motion } from "framer-motion";
+import { useState } from "react";
+import { MobileWalletGuide } from "./MobileWalletGuide";
 
 // Wallet icons
 const METAMASK_ICON = "https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg";
@@ -29,6 +32,9 @@ export const WalletButton = () => {
     isConnecting,
   } = useWalletConnectionWithRetry();
 
+  const [showGuide, setShowGuide] = useState(false);
+  const isMobile = isMobileBrowser();
+
   // Get wallet icon based on type
   const getWalletIcon = () => {
     if (walletType === 'metamask') return METAMASK_ICON;
@@ -47,6 +53,18 @@ export const WalletButton = () => {
     if (address) {
       window.open(`https://bscscan.com/address/${address}`, '_blank');
     }
+  };
+
+  // Handle connect with debug logging
+  const handleConnect = async () => {
+    const status = getWeb3ConfigStatus();
+    logWalletDebug('Connect button clicked', status);
+    
+    if (!status.projectId) {
+      console.error('[WalletButton] WalletConnect Project ID not configured!');
+    }
+    
+    await connectWithRetry();
   };
 
   // Loading state
@@ -165,19 +183,42 @@ export const WalletButton = () => {
 
   // Disconnected state - Connect button (uses Web3Modal which works on ALL devices)
   return (
-    <Button
-      onClick={connectWithRetry}
-      size="sm"
-      disabled={isLoading || isConnecting}
-      className="gap-2 bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-black font-semibold shadow-lg shadow-yellow-500/25 transition-all duration-300 hover:shadow-yellow-500/40 hover:scale-105"
-    >
-      {isConnecting ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
-      ) : (
-        <Wallet className="h-4 w-4" />
-      )}
-      <span className="hidden sm:inline">{isConnecting ? 'Đang kết nối...' : 'Kết nối ví'}</span>
-      <span className="sm:hidden">{isConnecting ? '...' : 'Ví'}</span>
-    </Button>
+    <>
+      <div className="flex items-center gap-1">
+        <Button
+          onClick={handleConnect}
+          size="sm"
+          disabled={isLoading || isConnecting}
+          className="gap-2 bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-black font-semibold shadow-lg shadow-yellow-500/25 transition-all duration-300 hover:shadow-yellow-500/40 hover:scale-105"
+        >
+          {isConnecting ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Wallet className="h-4 w-4" />
+          )}
+          <span className="hidden sm:inline">{isConnecting ? 'Đang kết nối...' : 'Kết nối ví'}</span>
+          <span className="sm:hidden">{isConnecting ? '...' : 'Ví'}</span>
+        </Button>
+        
+        {/* Help button for mobile users */}
+        {isMobile && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowGuide(true)}
+            className="p-2"
+          >
+            <HelpCircle className="h-4 w-4 text-muted-foreground" />
+          </Button>
+        )}
+      </div>
+      
+      {/* Mobile Wallet Guide Dialog */}
+      <MobileWalletGuide 
+        open={showGuide} 
+        onOpenChange={setShowGuide}
+        trigger={<></>}
+      />
+    </>
   );
 };

@@ -1,6 +1,16 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getAccount, watchAccount, switchChain, disconnect, getBalance } from '@wagmi/core';
-import { wagmiConfig, BSC_CHAIN_ID, getWeb3Modal, isMobileBrowser, isInWalletBrowser, getWalletDeepLink } from '@/lib/web3Config';
+import { 
+  wagmiConfig, 
+  BSC_CHAIN_ID, 
+  getWeb3Modal, 
+  isMobileBrowser, 
+  isInWalletBrowser, 
+  getWalletDeepLink,
+  logWalletDebug,
+  detectAvailableWallet,
+  getWeb3ConfigStatus
+} from '@/lib/web3Config';
 import { bsc } from '@wagmi/core/chains';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -131,25 +141,41 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
   const connectWallet = useCallback(async () => {
     try {
       setIsLoading(true);
-      console.log('[Wallet] Starting connection...', {
-        isMobile: isMobileBrowser(),
-        inWalletApp: isInWalletBrowser(),
+      const status = getWeb3ConfigStatus();
+      const availableWallet = detectAvailableWallet();
+      
+      logWalletDebug('Starting wallet connection', {
+        ...status,
+        availableWallet,
       });
+      
+      // Check if WalletConnect is properly configured
+      if (!status.projectId) {
+        toast({
+          title: 'Cấu hình thiếu',
+          description: 'WalletConnect chưa được cấu hình. Vui lòng liên hệ admin.',
+          variant: 'destructive',
+        });
+        return;
+      }
       
       const modal = getWeb3Modal();
       if (modal) {
-        console.log('[Wallet] Opening Web3Modal...');
+        logWalletDebug('Opening Web3Modal...');
         await modal.open();
       } else {
-        console.error('[Wallet] Web3Modal not initialized!');
+        logWalletDebug('Web3Modal not initialized - attempting re-init');
         toast({
-          title: 'Lỗi khởi tạo',
-          description: 'Web3Modal chưa được khởi tạo. Vui lòng reload trang.',
-          variant: 'destructive',
+          title: 'Đang khởi tạo...',
+          description: 'Vui lòng đợi và thử lại trong giây lát.',
         });
+        // Try to reinitialize
+        setTimeout(() => {
+          getWeb3Modal();
+        }, 500);
       }
     } catch (error: any) {
-      console.error('[Wallet] Connection error:', error);
+      logWalletDebug('Connection error', error);
       toast({
         title: 'Lỗi kết nối ví',
         description: error.message || 'Không thể kết nối ví. Vui lòng thử lại.',
@@ -164,12 +190,27 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
   const connectWithMobileSupport = useCallback(async (preferredWallet?: 'metamask' | 'bitget' | 'trust') => {
     const isMobile = isMobileBrowser();
     const inWallet = isInWalletBrowser();
+    const availableWallet = detectAvailableWallet();
     
-    console.log('[Wallet] Mobile connect:', { isMobile, inWallet, preferredWallet });
+    logWalletDebug('Mobile connect attempt', { 
+      isMobile, 
+      inWallet, 
+      preferredWallet,
+      availableWallet 
+    });
     
     // If already in wallet browser, just connect directly
     if (inWallet) {
-      console.log('[Wallet] In wallet browser, connecting directly...');
+      logWalletDebug('In wallet browser, connecting directly via injected provider');
+      
+      // If there's an injected provider, try to use it directly
+      if (availableWallet) {
+        toast({
+          title: `🦊 Kết nối ${availableWallet === 'metamask' ? 'MetaMask' : availableWallet === 'bitget' ? 'Bitget' : 'Trust'}...`,
+          description: 'Vui lòng xác nhận trong ví của bạn',
+        });
+      }
+      
       await connectWallet();
       return;
     }
@@ -177,18 +218,22 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
     // On mobile, if user selected a specific wallet, use deep link
     if (isMobile && preferredWallet) {
       const deepLink = getWalletDeepLink(preferredWallet);
-      console.log('[Wallet] Opening deep link:', deepLink);
+      logWalletDebug(`Opening ${preferredWallet} via deep link`, { deepLink });
       
       toast({
         title: '🔗 Đang mở ví...',
         description: `Đang chuyển đến ${preferredWallet === 'metamask' ? 'MetaMask' : preferredWallet === 'bitget' ? 'Bitget Wallet' : 'Trust Wallet'}`,
       });
       
-      window.location.href = deepLink;
+      // Small delay to show toast before redirect
+      setTimeout(() => {
+        window.location.href = deepLink;
+      }, 500);
       return;
     }
     
-    // Default: use Web3Modal (works on both mobile and desktop)
+    // Desktop or mobile without preferred wallet: use Web3Modal
+    logWalletDebug('Using Web3Modal for connection');
     await connectWallet();
   }, [connectWallet, toast]);
 
