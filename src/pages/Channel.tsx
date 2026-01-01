@@ -538,7 +538,7 @@ export default function Channel() {
                     videoId={video.id}
                     userId={channel.user_id}
                     channelId={channel.id}
-                    thumbnail={video.thumbnail_url || "https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=400&h=225&fit=crop"}
+                    thumbnail={video.thumbnail_url || undefined}
                     title={video.title}
                     channel={channel.name}
                     avatarUrl={profile?.avatar_url || undefined}

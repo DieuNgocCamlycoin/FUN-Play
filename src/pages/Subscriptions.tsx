@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { getDefaultThumbnail } from '@/lib/defaultThumbnails';
 
 interface SubscribedChannel {
   id: string;
@@ -295,7 +296,7 @@ const Subscriptions = () => {
                         >
                           <div className="relative aspect-video rounded-lg overflow-hidden bg-muted">
                             <img
-                              src={video.thumbnail_url || 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=400&h=225&fit=crop'}
+                              src={video.thumbnail_url || getDefaultThumbnail(video.id)}
                               alt={video.title}
                               className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                             />

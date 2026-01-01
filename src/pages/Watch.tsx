@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Header } from "@/components/Layout/Header";
 import { Sidebar } from "@/components/Layout/Sidebar";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ import MiniPlayer from "@/components/Video/MiniPlayer";
 import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { DynamicMeta } from "@/components/SEO/DynamicMeta";
+import { setGlobalVideoState, setGlobalPlayingState } from "@/components/Video/GlobalVideoPlayer";
 
 interface Video {
   id: string;
@@ -317,6 +318,43 @@ export default function Watch() {
       createSession(id, "RELATED", video.channels?.id);
     }
   }, [video?.id]);
+
+  // Enable global playback when navigating away while video is playing
+  useEffect(() => {
+    // When component unmounts (navigating away), dispatch event to start global playback
+    return () => {
+      if (video && isPlaying && currentTime > 0) {
+        const globalState = {
+          videoId: video.id,
+          videoUrl: video.video_url,
+          title: video.title,
+          thumbnailUrl: video.thumbnail_url,
+          channelName: video.channels.name,
+          channelId: video.channels.id,
+          currentTime: currentTime,
+          duration: duration,
+        };
+        
+        // Set global state directly for faster access
+        setGlobalVideoState(globalState);
+        setGlobalPlayingState(true);
+        
+        // Also dispatch event for the GlobalVideoPlayer component
+        window.dispatchEvent(new CustomEvent('startGlobalPlayback', { detail: globalState }));
+      }
+    };
+  }, [video, isPlaying, currentTime, duration]);
+
+  // Listen for global player closed event to stop local playback reference
+  useEffect(() => {
+    const handleGlobalPlayerClosed = () => {
+      // Global player was closed, clear any related state if needed
+      console.log('Global player closed');
+    };
+
+    window.addEventListener('globalPlayerClosed', handleGlobalPlayerClosed);
+    return () => window.removeEventListener('globalPlayerClosed', handleGlobalPlayerClosed);
+  }, []);
 
   const formatViews = (views: number | null) => {
     if (!views) return "0 lượt xem";

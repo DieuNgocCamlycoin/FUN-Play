@@ -47,6 +47,7 @@ import { AngelMascot } from './components/Mascot/AngelMascot';
 import { MusicPlayerProvider } from './contexts/MusicPlayerContext';
 import { VideoPlaybackProvider } from './contexts/VideoPlaybackContext';
 import { EnhancedMusicPlayer } from './components/Video/EnhancedMusicPlayer';
+import { GlobalVideoPlayer } from './components/Video/GlobalVideoPlayer';
 
 const queryClient = new QueryClient();
 
@@ -121,6 +122,7 @@ const App = () => (
             <BrowserRouter>
               <AppContent />
               <EnhancedMusicPlayer />
+              <GlobalVideoPlayer />
             </BrowserRouter>
           </VideoPlaybackProvider>
         </MusicPlayerProvider>
