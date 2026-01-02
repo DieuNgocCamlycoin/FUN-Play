@@ -41,7 +41,8 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
   const [walletType, setWalletType] = useState<WalletType>('unknown');
   const [chainId, setChainId] = useState<number | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(false);
-  const [isInitialized, setIsInitialized] = useState(false);
+  // Initialize immediately to true - button should always be visible
+  const [isInitialized, setIsInitialized] = useState(true);
   const [bnbBalance, setBnbBalance] = useState('0');
   const { user } = useAuth();
   const { toast } = useToast();

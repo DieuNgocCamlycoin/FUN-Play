@@ -120,20 +120,7 @@ export const MultiTokenWallet = ({ compact = false }: MultiTokenWalletProps) => 
 
   const currentBalance = balances.find(b => b.symbol === selectedToken);
 
-  // Loading state
-  if (!isInitialized) {
-    return (
-      <Button
-        disabled
-        variant={compact ? "ghost" : "default"}
-        size={compact ? "icon" : "sm"}
-        className={compact ? "h-8 w-8" : "gap-2"}
-      >
-        <Wallet className="h-4 w-4 animate-pulse" />
-        {!compact && <span className="hidden md:inline">Đang tải...</span>}
-      </Button>
-    );
-  }
+  // Always show the button - never hide it completely
 
   if (isConnected && address) {
     return (
