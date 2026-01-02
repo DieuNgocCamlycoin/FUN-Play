@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, AreaChart, Area } from "recharts";
-import { Users, Video, Eye, MessageSquare, Coins, TrendingUp, Crown, Award, Activity, ShieldX, CloudUpload, BarChart3, Settings } from "lucide-react";
+import { Users, Video, Eye, MessageSquare, Coins, TrendingUp, Crown, Award, Activity, ShieldX, CloudUpload, BarChart3, Settings, Wallet } from "lucide-react";
 import { format } from "date-fns";
 import { Navigate, useNavigate } from "react-router-dom";
 import VideoMigrationPanel from "@/components/Admin/VideoMigrationPanel";
@@ -92,6 +92,13 @@ const AdminDashboard = () => {
             >
               <BarChart3 className="w-4 h-4" />
               Thống Kê Video
+            </Button>
+            <Button 
+              onClick={() => navigate('/admin/claim-history')} 
+              className="gap-2 bg-gradient-to-r from-emerald-500 to-cyan-500 hover:opacity-90"
+            >
+              <Wallet className="w-4 h-4" />
+              Lịch Sử Claim
             </Button>
           </div>
         </div>

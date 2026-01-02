@@ -31,6 +31,7 @@ import AdminRewardConfig from "./pages/AdminRewardConfig";
 import AdminVideoStats from "./pages/AdminVideoStats";
 import AdminManage from "./pages/AdminManage";
 import AdminVideoApproval from "./pages/AdminVideoApproval";
+import AdminClaimHistory from "./pages/AdminClaimHistory";
 import NFTGallery from "./pages/NFTGallery";
 import Meditate from "./pages/Meditate";
 import CreateMusic from "./pages/CreateMusic";
@@ -94,6 +95,7 @@ function AppContent() {
         <Route path="/admin/manage" element={<AdminManage />} />
         <Route path="/admin-manage" element={<AdminManage />} />
         <Route path="/admin/video-approval" element={<AdminVideoApproval />} />
+        <Route path="/admin/claim-history" element={<AdminClaimHistory />} />
         <Route path="/nft-gallery" element={<NFTGallery />} />
         <Route path="/meditate" element={<Meditate />} />
         <Route path="/create-music" element={<CreateMusic />} />
