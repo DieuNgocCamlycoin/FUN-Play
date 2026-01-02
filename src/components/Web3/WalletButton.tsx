@@ -1,7 +1,7 @@
-import { Wallet, ChevronDown, ExternalLink, LogOut, AlertTriangle, Loader2 } from "lucide-react";
+import { Wallet, ChevronDown, ExternalLink, LogOut, AlertTriangle, Loader2, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useWalletConnectionWithRetry } from "@/hooks/useWalletConnectionWithRetry";
-import { logWalletDebug, getWeb3ConfigStatus, isMobileBrowser, getWalletDeepLink } from "@/lib/web3Config";
+import { logWalletDebug, getWeb3ConfigStatus, isMobileBrowser } from "@/lib/web3Config";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,8 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { motion } from "framer-motion";
 import { useState } from "react";
-import { WalletSelectionModal } from "./WalletSelectionModal";
-import { toast } from "@/hooks/use-toast";
+import { MobileWalletGuide } from "./MobileWalletGuide";
 
 // Wallet icons
 const METAMASK_ICON = "https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg";
@@ -33,7 +32,7 @@ export const WalletButton = () => {
     isConnecting,
   } = useWalletConnectionWithRetry();
 
-  const [showWalletModal, setShowWalletModal] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
   const isMobile = isMobileBrowser();
 
   // Get wallet icon based on type
@@ -56,32 +55,16 @@ export const WalletButton = () => {
     }
   };
 
-  // Handle connect - open wallet selection modal
-  const handleConnect = () => {
+  // Handle connect with debug logging
+  const handleConnect = async () => {
     const status = getWeb3ConfigStatus();
     logWalletDebug('Connect button clicked', status);
-    setShowWalletModal(true);
-  };
-
-  // Handle deep link redirect for mobile
-  const handleDeepLink = (wallet: 'metamask' | 'bitget' | 'trust') => {
-    const deepLink = getWalletDeepLink(wallet);
-    logWalletDebug(`Redirecting to ${wallet}`, { deepLink });
     
-    toast({
-      title: '🔗 Đang mở ví...',
-      description: `Chuyển đến ${wallet === 'metamask' ? 'MetaMask' : wallet === 'bitget' ? 'Bitget Wallet' : 'Trust Wallet'}`,
-    });
+    if (!status.projectId) {
+      console.error('[WalletButton] WalletConnect Project ID not configured!');
+    }
     
-    setTimeout(() => {
-      window.location.href = deepLink;
-    }, 500);
-  };
-
-  // Handle Web3Modal connect
-  const handleWeb3ModalConnect = async () => {
     await connectWithRetry();
-    setShowWalletModal(false);
   };
 
   // Loading state
@@ -198,31 +181,43 @@ export const WalletButton = () => {
     );
   }
 
-  // Disconnected state - Connect button
+  // Disconnected state - Connect button (uses Web3Modal which works on ALL devices)
   return (
     <>
-      <Button
-        onClick={handleConnect}
-        size="sm"
-        disabled={isLoading || isConnecting}
-        className="gap-2 bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-black font-semibold shadow-lg shadow-yellow-500/25 transition-all duration-300 hover:shadow-yellow-500/40 hover:scale-105"
-      >
-        {isConnecting ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <Wallet className="h-4 w-4" />
+      <div className="flex items-center gap-1">
+        <Button
+          onClick={handleConnect}
+          size="sm"
+          disabled={isLoading || isConnecting}
+          className="gap-2 bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-black font-semibold shadow-lg shadow-yellow-500/25 transition-all duration-300 hover:shadow-yellow-500/40 hover:scale-105"
+        >
+          {isConnecting ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Wallet className="h-4 w-4" />
+          )}
+          <span className="hidden sm:inline">{isConnecting ? 'Đang kết nối...' : 'Kết nối ví'}</span>
+          <span className="sm:hidden">{isConnecting ? '...' : 'Ví'}</span>
+        </Button>
+        
+        {/* Help button for mobile users */}
+        {isMobile && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowGuide(true)}
+            className="p-2"
+          >
+            <HelpCircle className="h-4 w-4 text-muted-foreground" />
+          </Button>
         )}
-        <span className="hidden sm:inline">{isConnecting ? 'Đang kết nối...' : 'Kết nối ví'}</span>
-        <span className="sm:hidden">{isConnecting ? '...' : 'Ví'}</span>
-      </Button>
+      </div>
       
-      {/* Wallet Selection Modal */}
-      <WalletSelectionModal 
-        open={showWalletModal} 
-        onOpenChange={setShowWalletModal}
-        onConnect={handleWeb3ModalConnect}
-        onDeepLink={handleDeepLink}
-        isConnecting={isConnecting}
+      {/* Mobile Wallet Guide Dialog */}
+      <MobileWalletGuide 
+        open={showGuide} 
+        onOpenChange={setShowGuide}
+        trigger={<></>}
       />
     </>
   );
