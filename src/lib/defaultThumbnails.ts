@@ -1,16 +1,19 @@
 // Default thumbnail images for videos without custom thumbnails
 // 10 hình Khóa Thiền Du học Vũ Trụ - FUN PLAY
+// Version number - change this when updating thumbnails to bust browser cache
+const THUMBNAIL_VERSION = 'v2';
+
 const DEFAULT_THUMBNAILS = [
-  '/images/default-thumbnails/default-thumb-1.png',
-  '/images/default-thumbnails/default-thumb-2.png',
-  '/images/default-thumbnails/default-thumb-3.png',
-  '/images/default-thumbnails/default-thumb-4.png',
-  '/images/default-thumbnails/default-thumb-5.png',
-  '/images/default-thumbnails/default-thumb-6.png',
-  '/images/default-thumbnails/default-thumb-7.png',
-  '/images/default-thumbnails/default-thumb-8.png',
-  '/images/default-thumbnails/default-thumb-9.png',
-  '/images/default-thumbnails/default-thumb-10.png',
+  `/images/default-thumbnails/default-thumb-1.png?${THUMBNAIL_VERSION}`,
+  `/images/default-thumbnails/default-thumb-2.png?${THUMBNAIL_VERSION}`,
+  `/images/default-thumbnails/default-thumb-3.png?${THUMBNAIL_VERSION}`,
+  `/images/default-thumbnails/default-thumb-4.png?${THUMBNAIL_VERSION}`,
+  `/images/default-thumbnails/default-thumb-5.png?${THUMBNAIL_VERSION}`,
+  `/images/default-thumbnails/default-thumb-6.png?${THUMBNAIL_VERSION}`,
+  `/images/default-thumbnails/default-thumb-7.png?${THUMBNAIL_VERSION}`,
+  `/images/default-thumbnails/default-thumb-8.png?${THUMBNAIL_VERSION}`,
+  `/images/default-thumbnails/default-thumb-9.png?${THUMBNAIL_VERSION}`,
+  `/images/default-thumbnails/default-thumb-10.png?${THUMBNAIL_VERSION}`,
 ];
 
 /**
