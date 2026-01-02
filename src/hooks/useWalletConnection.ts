@@ -161,10 +161,28 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
       }
       
       const modal = getWeb3Modal();
+      console.log('[WalletConnect] Modal instance:', !!modal);
+      console.log('[WalletConnect] Modal state before open:', modal?.getState?.());
+      
       if (modal) {
         logWalletDebug('Opening Web3Modal...');
         await modal.open();
+        logWalletDebug('modal.open() completed');
+        
+        // Debug: Check if modal elements exist in DOM after opening
+        setTimeout(() => {
+          const modalElements = document.querySelectorAll('w3m-modal, wcm-modal, [data-w3m-modal], wui-flex[data-modal="true"]');
+          console.log('[WalletConnect] Modal elements in DOM:', modalElements.length);
+          modalElements.forEach((el, i) => {
+            console.log(`[WalletConnect] Modal ${i}:`, el.tagName, el.className);
+            const computedStyle = window.getComputedStyle(el);
+            console.log(`[WalletConnect] Modal ${i} display:`, computedStyle.display);
+            console.log(`[WalletConnect] Modal ${i} visibility:`, computedStyle.visibility);
+            console.log(`[WalletConnect] Modal ${i} z-index:`, computedStyle.zIndex);
+          });
+        }, 500);
       } else {
+        console.error('[WalletConnect] Modal is null!');
         logWalletDebug('Web3Modal not initialized - attempting re-init');
         toast({
           title: 'Đang khởi tạo...',

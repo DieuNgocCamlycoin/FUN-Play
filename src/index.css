@@ -194,7 +194,7 @@ All colors MUST be HSL.
       transparent 70%
     );
     pointer-events: none;
-    z-index: 9999;
+    z-index: 100; /* Reduced from 9999 to allow Web3Modal to display */
     transform: translate(-50%, -50%);
     filter: blur(40px);
     opacity: 0;
@@ -205,6 +205,31 @@ All colors MUST be HSL.
   body.cursor-active::after {
     opacity: 1;
   }
+}
+
+/* Web3Modal z-index fix - Ensure modal displays above all elements */
+w3m-modal,
+.w3m-modal,
+[data-w3m-modal],
+wcm-modal,
+.wcm-modal,
+wui-flex[data-modal="true"],
+.w3m-overlay {
+  z-index: 99999 !important;
+  position: fixed !important;
+}
+
+/* Overlay for modal backdrop */
+w3m-modal::part(overlay),
+wcm-modal::part(overlay) {
+  z-index: 99998 !important;
+}
+
+/* Ensure modal container is always on top */
+body > w3m-modal,
+body > wcm-modal,
+body > [data-w3m-modal] {
+  z-index: 99999 !important;
 }
 
 /* Cosmic Divine Animations */
