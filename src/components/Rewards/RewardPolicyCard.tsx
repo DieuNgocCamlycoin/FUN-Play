@@ -3,7 +3,6 @@ import { Badge } from '@/components/ui/badge';
 import { 
   Video, 
   UserPlus, 
-  Wallet, 
   Eye, 
   MessageCircle, 
   Share2, 
@@ -38,12 +37,6 @@ const rewardItems: RewardItem[] = [
     title: 'Đăng ký tài khoản',
     amount: '50,000',
     description: 'Thưởng khi tạo tài khoản mới',
-  },
-  {
-    icon: <Wallet className="h-5 w-5" />,
-    title: 'Kết nối ví',
-    amount: '50,000',
-    description: 'Thưởng khi kết nối ví lần đầu',
   },
   {
     icon: <Eye className="h-5 w-5" />,
