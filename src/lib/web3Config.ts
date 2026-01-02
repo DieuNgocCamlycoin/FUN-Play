@@ -1,8 +1,9 @@
 import { createWeb3Modal, defaultWagmiConfig } from '@web3modal/wagmi';
 import { bsc } from '@wagmi/core/chains';
 
-// WalletConnect Cloud Project ID - loaded from environment variable for security
-const projectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || '';
+// WalletConnect Cloud Project ID - This is a publishable key (safe to include in client code)
+// Fallback to a working project ID if env variable is not available
+const projectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || '67a22a9e81c0c2cfddf1e5e3e32bf9e6';
 
 // Use current origin for metadata to ensure proper mobile redirects
 const getMetadataUrl = () => {
