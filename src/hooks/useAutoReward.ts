@@ -16,7 +16,7 @@ export const useAutoReward = () => {
 
   // Award CAMLY through edge function
   const awardCAMLY = useCallback(async (
-    type: 'VIEW' | 'LIKE' | 'COMMENT' | 'SHARE' | 'UPLOAD' | 'FIRST_UPLOAD' | 'SIGNUP' | 'WALLET_CONNECT',
+    type: 'VIEW' | 'LIKE' | 'COMMENT' | 'SHARE' | 'UPLOAD' | 'FIRST_UPLOAD' | 'SIGNUP',
     videoId?: string,
     contentHash?: string
   ): Promise<RewardResult> => {
@@ -53,8 +53,7 @@ export const useAutoReward = () => {
           SHARE: 'chia sẻ',
           UPLOAD: 'đăng video',
           FIRST_UPLOAD: 'đăng video đầu tiên',
-          SIGNUP: 'đăng ký tài khoản',
-          WALLET_CONNECT: 'kết nối ví'
+          SIGNUP: 'đăng ký tài khoản'
         };
 
         toast({
@@ -116,37 +115,6 @@ export const useAutoReward = () => {
       return false;
     } catch (err) {
       console.error('Signup reward error:', err);
-      return false;
-    }
-  }, [awardCAMLY]);
-
-  // Award wallet connect reward (one-time)
-  const awardWalletConnectReward = useCallback(async (userId: string): Promise<boolean> => {
-    try {
-      // Check if already rewarded
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('wallet_connect_rewarded')
-        .eq('id', userId)
-        .single();
-
-      if (profile?.wallet_connect_rewarded) {
-        return false; // Already rewarded
-      }
-
-      const result = await awardCAMLY('WALLET_CONNECT');
-      
-      if (result.success) {
-        // Mark as rewarded
-        await supabase
-          .from('profiles')
-          .update({ wallet_connect_rewarded: true })
-          .eq('id', userId);
-        return true;
-      }
-      return false;
-    } catch (err) {
-      console.error('Wallet connect reward error:', err);
       return false;
     }
   }, [awardCAMLY]);
@@ -255,7 +223,6 @@ export const useAutoReward = () => {
   return {
     awardCAMLY,
     awardSignupReward,
-    awardWalletConnectReward,
     awardFirstUploadReward,
     awardUploadReward,
     awardViewReward,

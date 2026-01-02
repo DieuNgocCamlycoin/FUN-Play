@@ -15,7 +15,6 @@ const DEFAULT_REWARD_AMOUNTS: Record<string, number> = {
   UPLOAD: 100000,
   FIRST_UPLOAD: 500000,
   SIGNUP: 50000,
-  WALLET_CONNECT: 50000,
 };
 
 // Default daily limits (fallback if reward_config not available)
@@ -52,7 +51,6 @@ async function getRewardConfig(adminSupabase: any): Promise<{ amounts: Record<st
       else if (key === 'UPLOAD_REWARD') amounts.UPLOAD = value;
       else if (key === 'FIRST_UPLOAD_REWARD') amounts.FIRST_UPLOAD = value;
       else if (key === 'SIGNUP_REWARD') amounts.SIGNUP = value;
-      else if (key === 'WALLET_CONNECT_REWARD') amounts.WALLET_CONNECT = value;
       // Map config keys to limits
       else if (key === 'DAILY_VIEW_LIMIT') limits.VIEW_REWARDS = value;
       else if (key === 'DAILY_COMMENT_LIMIT') limits.COMMENT_REWARDS = value;
@@ -146,7 +144,7 @@ serve(async (req) => {
     const { type, videoId, contentHash, sessionId } = await req.json();
 
     // 4. Validate reward type
-    const validTypes = ['VIEW', 'LIKE', 'COMMENT', 'SHARE', 'UPLOAD', 'FIRST_UPLOAD', 'SIGNUP', 'WALLET_CONNECT'];
+    const validTypes = ['VIEW', 'LIKE', 'COMMENT', 'SHARE', 'UPLOAD', 'FIRST_UPLOAD', 'SIGNUP'];
     if (!validTypes.includes(type)) {
       return new Response(
         JSON.stringify({ success: false, error: 'Invalid reward type' }),
