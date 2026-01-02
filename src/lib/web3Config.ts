@@ -109,9 +109,16 @@ export const isMobileBrowser = (): boolean => {
   return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 };
 
-// Helper to detect if running inside a wallet browser
+// Helper to detect if running inside a wallet browser (mobile only)
+// Desktop with extensions is NOT an in-wallet browser
 export const isInWalletBrowser = (): boolean => {
   if (typeof window === 'undefined') return false;
+  
+  // Only mobile can be a true in-app wallet browser
+  // Desktop with MetaMask extension should NOT trigger this
+  const isMobile = isMobileBrowser();
+  if (!isMobile) return false;
+  
   const win = window as any;
   return !!(
     win.ethereum?.isMetaMask ||
