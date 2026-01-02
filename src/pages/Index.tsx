@@ -69,6 +69,7 @@ const Index = () => {
           )
         `)
         .eq("is_public", true)
+        .eq("approval_status", "approved")
         .order("created_at", { ascending: false })
         .limit(1000);
 

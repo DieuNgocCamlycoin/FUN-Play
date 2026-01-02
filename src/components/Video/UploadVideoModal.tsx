@@ -7,10 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { Upload as UploadIcon, CheckCircle, Plus, Music } from "lucide-react";
+import { VIDEO_CATEGORY_OPTIONS, VideoSubCategory } from "@/lib/videoCategories";
+import { Upload as UploadIcon, CheckCircle, Plus, Music, AlertCircle, Clock } from "lucide-react";
 
 interface MeditationPlaylist {
   id: string;
@@ -31,9 +33,10 @@ export function UploadVideoModal({ open, onOpenChange }: UploadVideoModalProps) 
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStage, setUploadStage] = useState("");
-  const [isMeditation, setIsMeditation] = useState(false);
+  const [subCategory, setSubCategory] = useState<VideoSubCategory | "">("");
+  const [isDuplicate, setIsDuplicate] = useState(false);
   
-  // Playlist management
+  // Playlist management (for meditation categories)
   const [playlists, setPlaylists] = useState<MeditationPlaylist[]>([]);
   const [selectedPlaylistId, setSelectedPlaylistId] = useState<string>("");
   const [showNewPlaylist, setShowNewPlaylist] = useState(false);
@@ -43,6 +46,8 @@ export function UploadVideoModal({ open, onOpenChange }: UploadVideoModalProps) 
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  const isMeditation = subCategory === 'light_meditation' || subCategory === 'sound_therapy' || subCategory === 'mantra';
 
   // Fetch user's meditation playlists when meditation checkbox is checked
   useEffect(() => {
@@ -131,6 +136,16 @@ export function UploadVideoModal({ open, onOpenChange }: UploadVideoModalProps) 
         variant: "destructive",
       });
       navigate("/auth");
+      return;
+    }
+
+    // Check if category is selected
+    if (!subCategory) {
+      toast({
+        title: "Chưa chọn danh mục",
+        description: "Vui lòng chọn danh mục cho video",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -414,6 +429,8 @@ export function UploadVideoModal({ open, onOpenChange }: UploadVideoModalProps) 
         thumbnail_url: thumbnailUrl,
         is_public: true,
         category: isMeditation ? "meditation" : "general",
+        sub_category: subCategory,
+        approval_status: "pending",
       }).select("id").single();
 
       if (videoError) {
@@ -431,10 +448,8 @@ export function UploadVideoModal({ open, onOpenChange }: UploadVideoModalProps) 
       setUploadStage("Hoàn thành!");
 
       toast({
-        title: "Tải video thành công!",
-        description: isMeditation && targetPlaylistId 
-          ? "Video đã được đăng tải và thêm vào playlist!" 
-          : "Video của bạn đã được đăng tải",
+        title: "🎉 Video đã được gửi!",
+        description: "Video của bạn đang chờ Admin duyệt. Sẽ hiển thị trong vòng 24h.",
       });
 
       // Reset form
@@ -444,13 +459,14 @@ export function UploadVideoModal({ open, onOpenChange }: UploadVideoModalProps) 
         setVideoFile(null);
         setThumbnailFile(null);
         setYoutubeUrl("");
-        setIsMeditation(false);
+        setSubCategory("");
         setSelectedPlaylistId("");
         setShowNewPlaylist(false);
         setNewPlaylistName("");
         setNewPlaylistDescription("");
         setUploadProgress(0);
         setUploadStage("");
+        setIsDuplicate(false);
         onOpenChange(false);
         
         // Refresh page to show new video
@@ -618,101 +634,123 @@ export function UploadVideoModal({ open, onOpenChange }: UploadVideoModalProps) 
             </div>
           </div>
 
-          {/* Meditation Category */}
+          {/* Video Category - Required */}
           <div className="p-4 rounded-xl bg-gradient-to-r from-amber-500/10 via-yellow-500/10 to-amber-500/10 border border-amber-400/30">
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={isMeditation}
-                onChange={(e) => setIsMeditation(e.target.checked)}
-                disabled={uploading}
-                className="w-5 h-5 rounded border-amber-500 text-amber-500 focus:ring-amber-500"
-              />
-              <div>
-                <span className="font-medium bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-500 bg-clip-text text-transparent">
-                  ✨ Đăng lên mục "Meditate with Father"
-                </span>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Video thiền định & chữa lành sẽ hiển thị trong không gian thiền định đặc biệt
-                </p>
-              </div>
-            </label>
-
-            {/* Playlist Selection - Only show when meditation is checked */}
-            {isMeditation && (
-              <div className="mt-4 pt-4 border-t border-amber-300/30 space-y-3">
-                <div className="flex items-center gap-2">
-                  <Music className="w-4 h-4 text-amber-500" />
-                  <span className="text-sm font-medium text-amber-700">Thêm vào playlist thiền định</span>
-                </div>
-
-                {!showNewPlaylist ? (
-                  <>
-                    <Select value={selectedPlaylistId} onValueChange={setSelectedPlaylistId}>
-                      <SelectTrigger className="border-amber-300 bg-white/80">
-                        <SelectValue placeholder="Chọn playlist (tùy chọn)" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {playlists.map((playlist) => (
-                          <SelectItem key={playlist.id} value={playlist.id}>
-                            {playlist.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowNewPlaylist(true)}
-                      className="border-amber-300 text-amber-700 hover:bg-amber-50"
-                    >
-                      <Plus className="w-4 h-4 mr-1" />
-                      Tạo playlist mới
-                    </Button>
-                  </>
-                ) : (
-                  <div className="space-y-3 p-3 bg-white/50 rounded-lg border border-amber-200">
-                    <div>
-                      <Label className="text-sm text-amber-700">Tên playlist mới</Label>
-                      <Input
-                        value={newPlaylistName}
-                        onChange={(e) => setNewPlaylistName(e.target.value)}
-                        placeholder="VD: Thiền buổi sáng..."
-                        className="mt-1 border-amber-200"
-                        disabled={uploading}
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-sm text-amber-700">Mô tả (tùy chọn)</Label>
-                      <Textarea
-                        value={newPlaylistDescription}
-                        onChange={(e) => setNewPlaylistDescription(e.target.value)}
-                        placeholder="Mô tả playlist..."
-                        className="mt-1 border-amber-200"
-                        rows={2}
-                        disabled={uploading}
-                      />
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setShowNewPlaylist(false);
-                        setNewPlaylistName("");
-                        setNewPlaylistDescription("");
-                      }}
-                      className="text-amber-600"
-                    >
-                      ← Quay lại chọn playlist có sẵn
-                    </Button>
-                  </div>
-                )}
-              </div>
+            <Label className="text-base font-medium flex items-center gap-2">
+              <span className="text-lg">📁</span>
+              Danh mục video <span className="text-red-500">*</span>
+            </Label>
+            <p className="text-xs text-muted-foreground mt-1 mb-3">
+              FunPlay chỉ cho phép đăng video thuộc các danh mục dưới đây
+            </p>
+            <Select 
+              value={subCategory} 
+              onValueChange={(value) => setSubCategory(value as VideoSubCategory)}
+              disabled={uploading}
+            >
+              <SelectTrigger className="border-amber-300 bg-white/80">
+                <SelectValue placeholder="Chọn danh mục video..." />
+              </SelectTrigger>
+              <SelectContent>
+                {VIDEO_CATEGORY_OPTIONS.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id}>
+                    <span className="flex items-center gap-2">
+                      <span>{cat.icon}</span>
+                      <span>{cat.label}</span>
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {subCategory && (
+              <p className="text-xs text-amber-700 mt-2">
+                {VIDEO_CATEGORY_OPTIONS.find(c => c.id === subCategory)?.description}
+              </p>
             )}
           </div>
+
+          {/* Admin Notice */}
+          <Alert className="border-blue-300 bg-blue-50">
+            <Clock className="w-4 h-4 text-blue-600" />
+            <AlertDescription className="text-blue-700">
+              Video sẽ được Admin duyệt trước khi hiển thị công khai. Thời gian duyệt: 1-24 giờ.
+            </AlertDescription>
+          </Alert>
+
+          {/* Playlist Selection - Only show for meditation categories */}
+          {isMeditation && (
+            <div className="p-4 rounded-xl bg-gradient-to-r from-cyan-500/10 via-teal-500/10 to-cyan-500/10 border border-cyan-400/30 space-y-3">
+              <div className="flex items-center gap-2">
+                <Music className="w-4 h-4 text-cyan-600" />
+                <span className="text-sm font-medium text-cyan-700">Thêm vào playlist thiền định (tùy chọn)</span>
+              </div>
+
+              {!showNewPlaylist ? (
+                <>
+                  <Select value={selectedPlaylistId} onValueChange={setSelectedPlaylistId}>
+                    <SelectTrigger className="border-cyan-300 bg-white/80">
+                      <SelectValue placeholder="Chọn playlist (tùy chọn)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {playlists.map((playlist) => (
+                        <SelectItem key={playlist.id} value={playlist.id}>
+                          {playlist.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowNewPlaylist(true)}
+                    className="border-cyan-300 text-cyan-700 hover:bg-cyan-50"
+                  >
+                    <Plus className="w-4 h-4 mr-1" />
+                    Tạo playlist mới
+                  </Button>
+                </>
+              ) : (
+                <div className="space-y-3 p-3 bg-white/50 rounded-lg border border-cyan-200">
+                  <div>
+                    <Label className="text-sm text-cyan-700">Tên playlist mới</Label>
+                    <Input
+                      value={newPlaylistName}
+                      onChange={(e) => setNewPlaylistName(e.target.value)}
+                      placeholder="VD: Thiền buổi sáng..."
+                      className="mt-1 border-cyan-200"
+                      disabled={uploading}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm text-cyan-700">Mô tả (tùy chọn)</Label>
+                    <Textarea
+                      value={newPlaylistDescription}
+                      onChange={(e) => setNewPlaylistDescription(e.target.value)}
+                      placeholder="Mô tả playlist..."
+                      className="mt-1 border-cyan-200"
+                      rows={2}
+                      disabled={uploading}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setShowNewPlaylist(false);
+                      setNewPlaylistName("");
+                      setNewPlaylistDescription("");
+                    }}
+                    className="text-cyan-600"
+                  >
+                    ← Quay lại chọn playlist có sẵn
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Upload Progress */}
           {uploading && (
@@ -736,7 +774,7 @@ export function UploadVideoModal({ open, onOpenChange }: UploadVideoModalProps) 
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={uploading}>
               Hủy
             </Button>
-            <Button type="submit" disabled={uploading || (!videoFile && !youtubeUrl) || !title}>
+            <Button type="submit" disabled={uploading || (!videoFile && !youtubeUrl) || !title || !subCategory}>
               {uploading ? "Đang tải lên..." : "Tải lên"}
             </Button>
           </div>

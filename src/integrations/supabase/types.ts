@@ -1018,6 +1018,7 @@ export type Database = {
       }
       videos: {
         Row: {
+          approval_status: string | null
           category: string | null
           channel_id: string
           comment_count: number | null
@@ -1029,6 +1030,7 @@ export type Database = {
           id: string
           is_public: boolean | null
           like_count: number | null
+          sub_category: string | null
           thumbnail_url: string | null
           title: string
           updated_at: string
@@ -1037,6 +1039,7 @@ export type Database = {
           view_count: number | null
         }
         Insert: {
+          approval_status?: string | null
           category?: string | null
           channel_id: string
           comment_count?: number | null
@@ -1048,6 +1051,7 @@ export type Database = {
           id?: string
           is_public?: boolean | null
           like_count?: number | null
+          sub_category?: string | null
           thumbnail_url?: string | null
           title: string
           updated_at?: string
@@ -1056,6 +1060,7 @@ export type Database = {
           view_count?: number | null
         }
         Update: {
+          approval_status?: string | null
           category?: string | null
           channel_id?: string
           comment_count?: number | null
@@ -1067,6 +1072,7 @@ export type Database = {
           id?: string
           is_public?: boolean | null
           like_count?: number | null
+          sub_category?: string | null
           thumbnail_url?: string | null
           title?: string
           updated_at?: string

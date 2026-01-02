@@ -49,6 +49,7 @@ const Meditate = () => {
       .select("id, title, thumbnail_url, video_url, duration, view_count, channel_id, user_id")
       .eq("category", "meditation")
       .eq("is_public", true)
+      .eq("approval_status", "approved")
       .order("created_at", { ascending: false });
 
     if (error) {

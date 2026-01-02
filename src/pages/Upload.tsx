@@ -6,12 +6,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useAutoReward } from "@/hooks/useAutoReward";
 import { supabase } from "@/integrations/supabase/client";
 import { useR2Upload } from "@/hooks/useR2Upload";
-import { Upload as UploadIcon, Video, CheckCircle } from "lucide-react";
+import { VIDEO_CATEGORY_OPTIONS, VideoSubCategory } from "@/lib/videoCategories";
+import { Upload as UploadIcon, Video, CheckCircle, Clock } from "lucide-react";
 
 export default function Upload() {
   const [title, setTitle] = useState("");
@@ -23,6 +26,7 @@ export default function Upload() {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStage, setUploadStage] = useState("");
+  const [subCategory, setSubCategory] = useState<VideoSubCategory | "">("");
   const { user, loading } = useAuth();
   const { toast } = useToast();
   const { awardFirstUploadReward, awardUploadReward } = useAutoReward();
@@ -55,6 +59,15 @@ export default function Upload() {
 
   const handleVideoUpload = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!subCategory) {
+      toast({
+        title: "Chưa chọn danh mục",
+        description: "Vui lòng chọn danh mục cho video",
+        variant: "destructive",
+      });
+      return;
+    }
     
     if (!videoFile) {
       toast({
@@ -358,6 +371,8 @@ export default function Upload() {
       setUploadStage("Đang lưu thông tin...");
       setUploadProgress(93);
       
+      const isMeditation = subCategory === 'light_meditation' || subCategory === 'sound_therapy' || subCategory === 'mantra';
+      
       const { data: videoData, error: videoError } = await supabase.from("videos").insert({
         user_id: user.id,
         channel_id: channelId,
@@ -367,6 +382,9 @@ export default function Upload() {
         thumbnail_url: thumbnailUrl,
         file_size: videoFile.size,
         is_public: true,
+        category: isMeditation ? "meditation" : "general",
+        sub_category: subCategory,
+        approval_status: "pending",
       }).select('id').single();
 
       if (videoError) {
@@ -391,8 +409,8 @@ export default function Upload() {
       setUploadStage("Hoàn thành!");
 
       toast({
-        title: "🎉 Tải video thành công!",
-        description: "Video của bạn đã được đăng tải và bạn đã nhận thưởng CAMLY!",
+        title: "🎉 Video đã được gửi!",
+        description: "Video của bạn đang chờ Admin duyệt. Sẽ hiển thị trong vòng 24h.",
       });
 
       // Wait a bit to show completion
@@ -517,15 +535,46 @@ export default function Upload() {
               )}
             </div>
 
+            {/* Video Category - Required */}
+            <div className="p-4 rounded-xl bg-gradient-to-r from-amber-500/10 via-yellow-500/10 to-amber-500/10 border border-amber-400/30">
+              <Label className="text-base font-medium">📁 Danh mục video *</Label>
+              <p className="text-xs text-muted-foreground mt-1 mb-3">
+                FunPlay chỉ cho phép đăng video thuộc các danh mục dưới đây
+              </p>
+              <Select value={subCategory} onValueChange={(v) => setSubCategory(v as VideoSubCategory)} disabled={uploading}>
+                <SelectTrigger className="border-amber-300 bg-white/80">
+                  <SelectValue placeholder="Chọn danh mục video..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {VIDEO_CATEGORY_OPTIONS.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      <span className="flex items-center gap-2">
+                        <span>{cat.icon}</span>
+                        <span>{cat.label}</span>
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Admin Notice */}
+            <Alert className="border-blue-300 bg-blue-50">
+              <Clock className="w-4 h-4 text-blue-600" />
+              <AlertDescription className="text-blue-700">
+                Video sẽ được Admin duyệt trước khi hiển thị công khai (1-24 giờ).
+              </AlertDescription>
+            </Alert>
+
             {/* Title */}
             <div>
-              <Label htmlFor="title">Title (required)</Label>
+              <Label htmlFor="title">Tiêu đề (bắt buộc)</Label>
               <Input
                 id="title"
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Add a title that describes your video"
+                placeholder="Nhập tiêu đề video"
                 required
                 className="mt-1"
               />
@@ -623,7 +672,7 @@ export default function Upload() {
             <div className="flex gap-4">
               <Button
                 type="submit"
-                disabled={uploading || !videoFile || !title}
+                disabled={uploading || !videoFile || !title || !subCategory}
                 className="flex-1"
               >
                 {uploading ? "Đang tải lên..." : "Tải Video Lên"}
