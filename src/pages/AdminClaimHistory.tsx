@@ -31,11 +31,13 @@ import {
   Clock,
   XCircle,
   Coins,
-  Users
+  Users,
+  Download
 } from "lucide-react";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import { Navigate, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 interface ClaimRecord {
   id: string;
@@ -158,6 +160,44 @@ export default function AdminClaimHistory() {
     return { total, success, pending, failed, totalAmount, uniqueUsers };
   }, [claims]);
 
+  const exportToCSV = () => {
+    try {
+      const headers = ['User', 'Username', 'Amount (CAMLY)', 'Wallet Address', 'Status', 'TX Hash', 'Created At', 'Processed At', 'Error Message'];
+      
+      const csvData = filteredClaims.map(claim => [
+        claim.profile?.display_name || 'Unknown',
+        claim.profile?.username || claim.user_id.slice(0, 8),
+        claim.amount,
+        claim.wallet_address,
+        claim.status,
+        claim.tx_hash || '',
+        format(new Date(claim.created_at), "dd/MM/yyyy HH:mm:ss"),
+        claim.processed_at ? format(new Date(claim.processed_at), "dd/MM/yyyy HH:mm:ss") : '',
+        claim.error_message || ''
+      ]);
+
+      const csvContent = [
+        headers.join(','),
+        ...csvData.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      ].join('\n');
+
+      const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `claim-history-${format(new Date(), 'yyyy-MM-dd-HHmm')}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast.success(`Đã xuất ${filteredClaims.length} bản ghi ra file CSV`);
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Lỗi khi xuất file CSV');
+    }
+  };
+
   if (authLoading || checkingRole) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -200,10 +240,20 @@ export default function AdminClaimHistory() {
               <p className="text-muted-foreground">Quản lý và theo dõi tất cả claim requests</p>
             </div>
           </div>
-          <Button onClick={fetchClaims} disabled={loading}>
-            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-            Làm mới
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={exportToCSV} 
+              disabled={loading || filteredClaims.length === 0}
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Export CSV
+            </Button>
+            <Button onClick={fetchClaims} disabled={loading}>
+              <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+              Làm mới
+            </Button>
+          </div>
         </div>
 
         {/* Stats */}
