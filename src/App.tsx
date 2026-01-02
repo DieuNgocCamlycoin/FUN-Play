@@ -40,7 +40,7 @@ import Subscriptions from "./pages/Subscriptions";
 import CAMLYPrice from "./pages/CAMLYPrice";
 import MusicDetail from "./pages/MusicDetail";
 import BrowseMusic from "./pages/BrowseMusic";
-import { wagmiConfig } from '@/lib/web3Config';
+import { wagmiConfig, initWeb3Modal } from '@/lib/web3Config';
 import { useCursorBeam } from './hooks/useCursorBeam';
 import { GlobalPaymentNotifications } from './components/Web3/GlobalPaymentNotifications';
 import { AngelMascot } from './components/Mascot/AngelMascot';
@@ -50,6 +50,9 @@ import { EnhancedMusicPlayer } from './components/Video/EnhancedMusicPlayer';
 import { GlobalVideoPlayer } from './components/Video/GlobalVideoPlayer';
 
 const queryClient = new QueryClient();
+
+// Initialize Web3Modal at app start - CRITICAL for modal to work
+initWeb3Modal();
 
 function AppContent() {
   useCursorBeam();
