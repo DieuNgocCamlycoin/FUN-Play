@@ -1,5 +1,5 @@
 // Default thumbnail images for videos without custom thumbnails
-// 9 hình Khóa Thiền Du học Vũ Trụ - FUN PLAY
+// 10 hình Khóa Thiền Du học Vũ Trụ - FUN PLAY
 const DEFAULT_THUMBNAILS = [
   '/images/default-thumbnails/default-thumb-1.png',
   '/images/default-thumbnails/default-thumb-2.png',
@@ -10,6 +10,7 @@ const DEFAULT_THUMBNAILS = [
   '/images/default-thumbnails/default-thumb-7.png',
   '/images/default-thumbnails/default-thumb-8.png',
   '/images/default-thumbnails/default-thumb-9.png',
+  '/images/default-thumbnails/default-thumb-10.png',
 ];
 
 /**
