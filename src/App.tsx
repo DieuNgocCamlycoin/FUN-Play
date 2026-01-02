@@ -91,6 +91,7 @@ function AppContent() {
         <Route path="/admin/video-stats" element={<AdminVideoStats />} />
         <Route path="/admin/reward-config" element={<AdminRewardConfig />} />
         <Route path="/admin/manage" element={<AdminManage />} />
+        <Route path="/admin-manage" element={<AdminManage />} />
         <Route path="/nft-gallery" element={<NFTGallery />} />
         <Route path="/meditate" element={<Meditate />} />
         <Route path="/create-music" element={<CreateMusic />} />
