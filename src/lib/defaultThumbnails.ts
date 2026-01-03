@@ -1,7 +1,7 @@
 // Default thumbnail images for videos without custom thumbnails
 // 10 hình Khóa Thiền Du học Vũ Trụ - FUN PLAY
 // Version number - change this when updating thumbnails to bust browser cache
-const THUMBNAIL_VERSION = 'v2';
+const THUMBNAIL_VERSION = 'v3';
 
 const DEFAULT_THUMBNAILS = [
   `/images/default-thumbnails/default-thumb-1.png?${THUMBNAIL_VERSION}`,
