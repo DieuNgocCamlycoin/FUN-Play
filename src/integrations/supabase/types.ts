@@ -801,6 +801,9 @@ export type Database = {
       reward_transactions: {
         Row: {
           amount: number
+          approved: boolean | null
+          approved_at: string | null
+          approved_by: string | null
           claim_tx_hash: string | null
           claimed: boolean
           claimed_at: string | null
@@ -814,6 +817,9 @@ export type Database = {
         }
         Insert: {
           amount: number
+          approved?: boolean | null
+          approved_at?: string | null
+          approved_by?: string | null
           claim_tx_hash?: string | null
           claimed?: boolean
           claimed_at?: string | null
@@ -827,6 +833,9 @@ export type Database = {
         }
         Update: {
           amount?: number
+          approved?: boolean | null
+          approved_at?: string | null
+          approved_by?: string | null
           claim_tx_hash?: string | null
           claimed?: boolean
           claimed_at?: string | null

@@ -324,7 +324,7 @@ serve(async (req) => {
       );
     }
 
-    // 13. Create reward transaction record
+    // 13. Create reward transaction record (approved = false - cần admin duyệt)
     const txHash = `REWARD_${type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     await adminSupabase.from("reward_transactions").insert({
       user_id: userId,
@@ -333,6 +333,7 @@ serve(async (req) => {
       reward_type: type,
       status: "success",
       tx_hash: txHash,
+      approved: false, // Cần admin duyệt trước khi claim
     });
 
     // 14. Update daily limits

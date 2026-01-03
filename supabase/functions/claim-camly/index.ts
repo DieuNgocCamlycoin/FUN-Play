@@ -84,13 +84,14 @@ serve(async (req) => {
       );
     }
 
-    // Check for unclaimed rewards
+    // Check for unclaimed rewards - CHỈ LẤY NHỮNG REWARD ĐÃ ĐƯỢC ADMIN DUYỆT
     const { data: unclaimedRewards, error: rewardsError } = await supabaseAdmin
       .from('reward_transactions')
       .select('id, amount')
       .eq('user_id', user.id)
       .eq('claimed', false)
-      .eq('status', 'success');
+      .eq('status', 'success')
+      .eq('approved', true); // CHỈ CLAIM ĐƯỢC KHI ĐÃ ĐƯỢC ADMIN DUYỆT
 
     if (rewardsError) {
       console.error('Error fetching rewards:', rewardsError);
