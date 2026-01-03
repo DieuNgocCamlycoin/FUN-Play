@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -32,12 +33,15 @@ import {
   XCircle,
   Coins,
   Users,
-  Download
+  Download,
+  BarChart3,
+  TrendingUp
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, startOfWeek, startOfMonth, subDays, subWeeks, subMonths } from "date-fns";
 import { vi } from "date-fns/locale";
 import { Navigate, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
 
 interface ClaimRecord {
   id: string;
@@ -64,6 +68,7 @@ export default function AdminClaimHistory() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [chartPeriod, setChartPeriod] = useState<"day" | "week" | "month">("day");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -159,6 +164,74 @@ export default function AdminClaimHistory() {
 
     return { total, success, pending, failed, totalAmount, uniqueUsers };
   }, [claims]);
+
+  // Calculate chart data based on selected period
+  const chartData = useMemo(() => {
+    if (claims.length === 0) return [];
+
+    const now = new Date();
+    const dataMap = new Map<string, { date: string; count: number; amount: number; success: number; failed: number }>();
+
+    // Initialize data based on period
+    let numPeriods = 0;
+    let getKey: (date: Date) => string;
+    let formatLabel: (key: string) => string;
+
+    if (chartPeriod === "day") {
+      numPeriods = 30;
+      getKey = (date: Date) => format(date, "yyyy-MM-dd");
+      formatLabel = (key: string) => format(new Date(key), "dd/MM");
+      
+      for (let i = 0; i < numPeriods; i++) {
+        const date = subDays(now, numPeriods - 1 - i);
+        const key = getKey(date);
+        dataMap.set(key, { date: key, count: 0, amount: 0, success: 0, failed: 0 });
+      }
+    } else if (chartPeriod === "week") {
+      numPeriods = 12;
+      getKey = (date: Date) => format(startOfWeek(date, { weekStartsOn: 1 }), "yyyy-MM-dd");
+      formatLabel = (key: string) => `Tuần ${format(new Date(key), "dd/MM")}`;
+      
+      for (let i = 0; i < numPeriods; i++) {
+        const date = subWeeks(now, numPeriods - 1 - i);
+        const key = getKey(date);
+        dataMap.set(key, { date: key, count: 0, amount: 0, success: 0, failed: 0 });
+      }
+    } else {
+      numPeriods = 12;
+      getKey = (date: Date) => format(startOfMonth(date), "yyyy-MM");
+      formatLabel = (key: string) => format(new Date(key + "-01"), "MM/yyyy");
+      
+      for (let i = 0; i < numPeriods; i++) {
+        const date = subMonths(now, numPeriods - 1 - i);
+        const key = getKey(date);
+        dataMap.set(key, { date: key, count: 0, amount: 0, success: 0, failed: 0 });
+      }
+    }
+
+    // Aggregate claims data
+    claims.forEach(claim => {
+      const claimDate = new Date(claim.created_at);
+      const key = getKey(claimDate);
+      
+      if (dataMap.has(key)) {
+        const existing = dataMap.get(key)!;
+        existing.count += 1;
+        existing.amount += Number(claim.amount);
+        if (claim.status === 'success') existing.success += 1;
+        if (claim.status === 'failed') existing.failed += 1;
+      }
+    });
+
+    return Array.from(dataMap.values()).map(item => ({
+      ...item,
+      label: chartPeriod === "month" 
+        ? format(new Date(item.date + "-01"), "MM/yyyy")
+        : chartPeriod === "week"
+        ? `Tuần ${format(new Date(item.date), "dd/MM")}`
+        : format(new Date(item.date), "dd/MM")
+    }));
+  }, [claims, chartPeriod]);
 
   const exportToCSV = () => {
     try {
@@ -306,6 +379,119 @@ export default function AdminClaimHistory() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Claim Statistics Chart */}
+        <Card>
+          <CardHeader>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 text-emerald-500" />
+                Biểu đồ Claim theo thời gian
+              </CardTitle>
+              <div className="flex gap-2">
+                <Button
+                  variant={chartPeriod === "day" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setChartPeriod("day")}
+                >
+                  Ngày
+                </Button>
+                <Button
+                  variant={chartPeriod === "week" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setChartPeriod("week")}
+                >
+                  Tuần
+                </Button>
+                <Button
+                  variant={chartPeriod === "month" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setChartPeriod("month")}
+                >
+                  Tháng
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="h-[300px] flex items-center justify-center">
+                <RefreshCw className="w-8 h-8 animate-spin text-primary" />
+              </div>
+            ) : chartData.length === 0 ? (
+              <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                Không có dữ liệu
+              </div>
+            ) : (
+              <Tabs defaultValue="count" className="w-full">
+                <TabsList className="grid w-full grid-cols-2 mb-4">
+                  <TabsTrigger value="count">Số lượng Claims</TabsTrigger>
+                  <TabsTrigger value="amount">Tổng CAMLY</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="count">
+                  <div className="h-[300px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={chartData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+                        <YAxis />
+                        <Tooltip 
+                          formatter={(value: number, name: string) => {
+                            const label = name === 'success' ? 'Thành công' : 
+                                         name === 'failed' ? 'Thất bại' : 'Tổng';
+                            return [value, label];
+                          }}
+                        />
+                        <Bar dataKey="success" fill="#22c55e" name="success" stackId="status" radius={[0, 0, 0, 0]} />
+                        <Bar dataKey="failed" fill="#ef4444" name="failed" stackId="status" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="flex justify-center gap-6 mt-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded bg-green-500" />
+                      <span className="text-sm text-muted-foreground">Thành công</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded bg-red-500" />
+                      <span className="text-sm text-muted-foreground">Thất bại</span>
+                    </div>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="amount">
+                  <div className="h-[300px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={chartData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+                        <YAxis tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}K` : v} />
+                        <Tooltip 
+                          formatter={(value: number) => [value.toLocaleString('vi-VN') + ' CAMLY', 'Tổng số']}
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="amount" 
+                          stroke="#f59e0b" 
+                          strokeWidth={2}
+                          dot={{ fill: '#f59e0b', r: 4 }}
+                          activeDot={{ r: 6 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="flex justify-center gap-6 mt-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded bg-amber-500" />
+                      <span className="text-sm text-muted-foreground">Tổng CAMLY claimed</span>
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Filters */}
         <Card className="p-4">

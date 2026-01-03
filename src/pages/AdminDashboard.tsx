@@ -8,10 +8,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, AreaChart, Area } from "recharts";
-import { Users, Video, Eye, MessageSquare, Coins, TrendingUp, Crown, Award, Activity, ShieldX, CloudUpload, BarChart3, Settings, Wallet } from "lucide-react";
+import { Users, Video, Eye, MessageSquare, Coins, TrendingUp, Crown, Award, Activity, ShieldX, CloudUpload, BarChart3, Settings, Wallet, Download } from "lucide-react";
 import { format } from "date-fns";
 import { Navigate, useNavigate } from "react-router-dom";
 import VideoMigrationPanel from "@/components/Admin/VideoMigrationPanel";
+import { toast } from "sonner";
 
 const AdminDashboard = () => {
   const { user, loading: authLoading } = useAuth();
@@ -35,6 +36,101 @@ const AdminDashboard = () => {
     };
     checkAdminRole();
   }, [user]);
+
+  // Export reward statistics to CSV
+  const exportRewardStatsToCSV = () => {
+    try {
+      // Export daily stats
+      const headers = ['Ngày', 'Người dùng hoạt động', 'CAMLY phân phối', 'Lượt xem', 'Bình luận'];
+      
+      const csvData = dailyStats.map(day => [
+        format(new Date(day.date), "dd/MM/yyyy"),
+        day.activeUsers,
+        day.rewardsDistributed,
+        day.views,
+        day.comments
+      ]);
+
+      // Add summary row
+      const summaryRow = [
+        'TỔNG CỘNG',
+        platformStats?.activeUsersToday || 0,
+        platformStats?.totalRewardsDistributed || 0,
+        platformStats?.totalViews || 0,
+        platformStats?.totalComments || 0
+      ];
+
+      const csvContent = [
+        headers.join(','),
+        ...csvData.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')),
+        '',
+        summaryRow.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+      ].join('\n');
+
+      const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `reward-statistics-${format(new Date(), 'yyyy-MM-dd-HHmm')}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast.success(`Đã xuất thống kê phần thưởng 30 ngày ra file CSV`);
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Lỗi khi xuất file CSV');
+    }
+  };
+
+  // Export top creators/earners to CSV
+  const exportTopUsersToCSV = () => {
+    try {
+      // Top Creators
+      const creatorHeaders = ['Rank', 'Tên', 'Số video', 'Tổng lượt xem', 'Tổng CAMLY'];
+      const creatorData = topCreators.map((c, i) => [
+        i + 1,
+        c.displayName,
+        c.videoCount,
+        c.totalViews,
+        c.totalRewards
+      ]);
+
+      // Top Earners
+      const earnerHeaders = ['Rank', 'Tên', 'Tổng CAMLY kiếm được'];
+      const earnerData = topEarners.map((e, i) => [
+        i + 1,
+        e.displayName,
+        e.totalEarned
+      ]);
+
+      const csvContent = [
+        '=== TOP 10 CREATORS ===',
+        creatorHeaders.join(','),
+        ...creatorData.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')),
+        '',
+        '=== TOP 10 EARNERS ===',
+        earnerHeaders.join(','),
+        ...earnerData.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      ].join('\n');
+
+      const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `top-users-${format(new Date(), 'yyyy-MM-dd-HHmm')}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast.success('Đã xuất danh sách Top Users ra file CSV');
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Lỗi khi xuất file CSV');
+    }
+  };
 
   if (authLoading || loading || checkingRole) {
     return (
@@ -72,6 +168,24 @@ const AdminDashboard = () => {
             <p className="text-muted-foreground mt-2">Thống kê toàn nền tảng FUN Play</p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Button 
+              variant="outline"
+              onClick={exportRewardStatsToCSV}
+              disabled={loading || dailyStats.length === 0}
+              className="gap-2"
+            >
+              <Download className="w-4 h-4" />
+              Export Thống Kê
+            </Button>
+            <Button 
+              variant="outline"
+              onClick={exportTopUsersToCSV}
+              disabled={loading || (topCreators.length === 0 && topEarners.length === 0)}
+              className="gap-2"
+            >
+              <Download className="w-4 h-4" />
+              Export Top Users
+            </Button>
             <Button 
               onClick={() => navigate('/admin/manage')} 
               className="gap-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:opacity-90"
