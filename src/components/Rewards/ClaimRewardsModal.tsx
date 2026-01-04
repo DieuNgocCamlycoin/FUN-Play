@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Coins, Sparkles, Gift, CheckCircle, Loader2, ExternalLink, Wallet, Smartphone, AlertCircle, HelpCircle } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Coins, Sparkles, Gift, CheckCircle, Loader2, ExternalLink, Wallet, Smartphone, AlertCircle, HelpCircle, Clock, ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useWalletConnectionWithRetry } from "@/hooks/useWalletConnectionWithRetry";
@@ -53,7 +54,9 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
   const [claimSuccess, setClaimSuccess] = useState(false);
   const [txHash, setTxHash] = useState<string | null>(null);
   const [totalUnclaimed, setTotalUnclaimed] = useState(0);
+  const [totalPending, setTotalPending] = useState(0); // Chờ admin duyệt
   const [breakdown, setBreakdown] = useState<RewardBreakdown[]>([]);
+  const [pendingBreakdown, setPendingBreakdown] = useState<RewardBreakdown[]>([]);
   const [isMobile, setIsMobile] = useState(false);
   const [inWalletApp, setInWalletApp] = useState(false);
   const [showWalletGuide, setShowWalletGuide] = useState(false);
@@ -79,35 +82,56 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
     
     setLoading(true);
     try {
+      // Lấy tất cả reward chưa claim
       const { data: rewards, error } = await supabase
         .from("reward_transactions")
-        .select("reward_type, amount")
+        .select("reward_type, amount, approved")
         .eq("user_id", user.id)
         .eq("claimed", false)
         .eq("status", "success");
 
       if (error) throw error;
 
-      // Calculate breakdown
-      const breakdownMap = new Map<string, { amount: number; count: number }>();
-      let total = 0;
+      // Phân tách reward đã duyệt và chưa duyệt
+      const approvedBreakdownMap = new Map<string, { amount: number; count: number }>();
+      const pendingBreakdownMap = new Map<string, { amount: number; count: number }>();
+      let approvedTotal = 0;
+      let pendingTotal = 0;
 
       rewards?.forEach((r) => {
-        const existing = breakdownMap.get(r.reward_type) || { amount: 0, count: 0 };
-        breakdownMap.set(r.reward_type, {
+        const isApproved = r.approved === true;
+        const targetMap = isApproved ? approvedBreakdownMap : pendingBreakdownMap;
+        
+        const existing = targetMap.get(r.reward_type) || { amount: 0, count: 0 };
+        targetMap.set(r.reward_type, {
           amount: existing.amount + Number(r.amount),
           count: existing.count + 1,
         });
-        total += Number(r.amount);
+        
+        if (isApproved) {
+          approvedTotal += Number(r.amount);
+        } else {
+          pendingTotal += Number(r.amount);
+        }
       });
 
+      // Set breakdown cho rewards đã duyệt (có thể claim)
       setBreakdown(
-        Array.from(breakdownMap.entries()).map(([type, data]) => ({
+        Array.from(approvedBreakdownMap.entries()).map(([type, data]) => ({
           type,
           ...data,
         }))
       );
-      setTotalUnclaimed(total);
+      setTotalUnclaimed(approvedTotal);
+
+      // Set breakdown cho rewards chưa duyệt (chờ admin)
+      setPendingBreakdown(
+        Array.from(pendingBreakdownMap.entries()).map(([type, data]) => ({
+          type,
+          ...data,
+        }))
+      );
+      setTotalPending(pendingTotal);
     } catch (error) {
       console.error("Error fetching unclaimed rewards:", error);
     } finally {
@@ -316,29 +340,82 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
                 </div>
               </motion.div>
 
-              {/* Breakdown */}
+              {/* Breakdown - Rewards đã duyệt */}
               {breakdown.length > 0 && (
                 <div className="space-y-2">
-                  <h4 className="text-sm font-medium text-muted-foreground">Chi tiết phần thưởng</h4>
-                  <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                  <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <ShieldCheck className="h-4 w-4 text-green-500" />
+                    Phần thưởng đã duyệt (có thể claim)
+                  </h4>
+                  <div className="space-y-1.5 max-h-32 overflow-y-auto">
                     {breakdown.map((item, index) => (
                       <motion.div
                         key={item.type}
                         initial={{ x: -20, opacity: 0 }}
                         animate={{ x: 0, opacity: 1 }}
                         transition={{ delay: index * 0.1 }}
-                        className="flex items-center justify-between p-2 rounded-lg bg-muted/50"
+                        className="flex items-center justify-between p-2 rounded-lg bg-green-500/10 border border-green-500/20"
                       >
                         <span className="text-sm">
                           {REWARD_TYPE_LABELS[item.type] || item.type} ({item.count}x)
                         </span>
-                        <span className="font-medium text-yellow-500">
+                        <span className="font-medium text-green-500">
                           +{formatNumber(item.amount)}
                         </span>
                       </motion.div>
                     ))}
                   </div>
                 </div>
+              )}
+
+              {/* Thông báo pending rewards - CHỜ DUYỆT */}
+              {totalPending > 0 && (
+                <Alert className="border-yellow-500/30 bg-yellow-500/10">
+                  <Clock className="h-4 w-4 text-yellow-500" />
+                  <AlertTitle className="text-yellow-600 font-semibold">
+                    Phần thưởng đang chờ duyệt
+                  </AlertTitle>
+                  <AlertDescription className="text-sm space-y-2">
+                    <p className="text-muted-foreground">
+                      Bạn có <span className="font-bold text-yellow-500">{formatNumber(totalPending)} CAMLY</span> đang chờ Admin duyệt.
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      💡 Sau khi Admin duyệt, bạn có thể claim phần thưởng này. Thời gian duyệt thường từ 1-24 giờ.
+                    </p>
+                    
+                    {/* Chi tiết pending */}
+                    {pendingBreakdown.length > 0 && (
+                      <div className="mt-2 space-y-1 max-h-24 overflow-y-auto">
+                        {pendingBreakdown.map((item, index) => (
+                          <div
+                            key={item.type}
+                            className="flex items-center justify-between p-1.5 rounded bg-yellow-500/5 text-xs"
+                          >
+                            <span className="text-muted-foreground">
+                              {REWARD_TYPE_LABELS[item.type] || item.type} ({item.count}x)
+                            </span>
+                            <span className="text-yellow-500">
+                              +{formatNumber(item.amount)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* Thông báo khi không có reward nào để claim */}
+              {totalUnclaimed === 0 && totalPending > 0 && (
+                <Alert className="border-orange-500/30 bg-orange-500/10">
+                  <AlertCircle className="h-4 w-4 text-orange-500" />
+                  <AlertTitle className="text-orange-600 font-semibold">
+                    Chưa thể claim
+                  </AlertTitle>
+                  <AlertDescription className="text-sm text-muted-foreground">
+                    Tất cả phần thưởng của bạn đang chờ Admin duyệt. Vui lòng quay lại sau khi nhận được thông báo duyệt!
+                  </AlertDescription>
+                </Alert>
               )}
 
               {/* Connection Progress Indicator */}
