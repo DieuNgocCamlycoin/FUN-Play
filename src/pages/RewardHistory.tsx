@@ -41,6 +41,8 @@ interface RewardTransaction {
   reward_type: string;
   created_at: string;
   claimed: boolean;
+  approved: boolean;
+  approved_at: string | null;
   video_id: string | null;
   video_title?: string;
 }
@@ -75,8 +77,11 @@ export default function RewardHistory() {
   const [claimLoading, setClaimLoading] = useState(true);
   const [filterType, setFilterType] = useState<string>("all");
   const [filterTime, setFilterTime] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
   const [totalEarned, setTotalEarned] = useState(0);
-  const [totalUnclaimed, setTotalUnclaimed] = useState(0);
+  const [totalPending, setTotalPending] = useState(0);
+  const [totalApproved, setTotalApproved] = useState(0);
+  const [totalClaimed, setTotalClaimed] = useState(0);
   const { user, loading: authLoading } = useAuth();
 
   useEffect(() => {
@@ -109,7 +114,7 @@ export default function RewardHistory() {
 
   useEffect(() => {
     filterTransactions();
-  }, [transactions, filterType, filterTime]);
+  }, [transactions, filterType, filterTime, filterStatus]);
 
   const fetchTransactions = async () => {
     if (!user) return;
@@ -124,6 +129,8 @@ export default function RewardHistory() {
           reward_type,
           created_at,
           claimed,
+          approved,
+          approved_at,
           video_id
         `)
         .eq("user_id", user.id)
@@ -147,20 +154,32 @@ export default function RewardHistory() {
 
       const enrichedData = data?.map(t => ({
         ...t,
+        approved: t.approved ?? false,
+        approved_at: t.approved_at ?? null,
         video_title: t.video_id ? videoMap.get(t.video_id) : undefined
       })) || [];
 
       setTransactions(enrichedData);
 
-      // Calculate totals
+      // Calculate totals with 3 statuses
       let earned = 0;
-      let unclaimed = 0;
+      let pending = 0;
+      let approved = 0;
+      let claimed = 0;
       data?.forEach(t => {
         earned += Number(t.amount);
-        if (!t.claimed) unclaimed += Number(t.amount);
+        if (t.claimed) {
+          claimed += Number(t.amount);
+        } else if (t.approved) {
+          approved += Number(t.amount);
+        } else {
+          pending += Number(t.amount);
+        }
       });
       setTotalEarned(earned);
-      setTotalUnclaimed(unclaimed);
+      setTotalPending(pending);
+      setTotalApproved(approved);
+      setTotalClaimed(claimed);
     } catch (error) {
       console.error("Error fetching reward history:", error);
     } finally {
@@ -174,6 +193,15 @@ export default function RewardHistory() {
     // Filter by type
     if (filterType !== "all") {
       filtered = filtered.filter(t => t.reward_type === filterType);
+    }
+
+    // Filter by status
+    if (filterStatus === "pending") {
+      filtered = filtered.filter(t => !t.approved && !t.claimed);
+    } else if (filterStatus === "approved") {
+      filtered = filtered.filter(t => t.approved && !t.claimed);
+    } else if (filterStatus === "claimed") {
+      filtered = filtered.filter(t => t.claimed);
     }
 
     // Filter by time
@@ -229,12 +257,12 @@ export default function RewardHistory() {
           </motion.div>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-2 gap-4 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
               <Card className="bg-gradient-to-br from-yellow-500/10 to-amber-500/10 border-yellow-500/30">
                 <CardContent className="p-4 text-center">
-                  <Coins className="w-8 h-8 mx-auto text-yellow-500 mb-2" />
-                  <p className="text-2xl md:text-3xl font-bold text-yellow-500">
+                  <Coins className="w-6 h-6 mx-auto text-yellow-500 mb-1" />
+                  <p className="text-xl md:text-2xl font-bold text-yellow-500">
                     <CounterAnimation value={totalEarned} decimals={0} />
                   </p>
                   <p className="text-xs text-muted-foreground">Tổng đã kiếm</p>
@@ -242,14 +270,38 @@ export default function RewardHistory() {
               </Card>
             </motion.div>
 
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
+              <Card className="bg-gradient-to-br from-amber-500/10 to-orange-500/10 border-amber-500/30">
+                <CardContent className="p-4 text-center">
+                  <Clock className="w-6 h-6 mx-auto text-amber-500 mb-1" />
+                  <p className="text-xl md:text-2xl font-bold text-amber-500">
+                    <CounterAnimation value={totalPending} decimals={0} />
+                  </p>
+                  <p className="text-xs text-muted-foreground">Chờ duyệt</p>
+                </CardContent>
+              </Card>
+            </motion.div>
+
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
               <Card className="bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border-cyan-500/30">
                 <CardContent className="p-4 text-center">
-                  <Gift className="w-8 h-8 mx-auto text-cyan-500 mb-2" />
-                  <p className="text-2xl md:text-3xl font-bold text-cyan-500">
-                    <CounterAnimation value={totalUnclaimed} decimals={0} />
+                  <Gift className="w-6 h-6 mx-auto text-cyan-500 mb-1" />
+                  <p className="text-xl md:text-2xl font-bold text-cyan-500">
+                    <CounterAnimation value={totalApproved} decimals={0} />
                   </p>
-                  <p className="text-xs text-muted-foreground">Chờ claim</p>
+                  <p className="text-xs text-muted-foreground">Có thể claim</p>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+              <Card className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-green-500/30">
+                <CardContent className="p-4 text-center">
+                  <CheckCircle className="w-6 h-6 mx-auto text-green-500 mb-1" />
+                  <p className="text-xl md:text-2xl font-bold text-green-500">
+                    <CounterAnimation value={totalClaimed} decimals={0} />
+                  </p>
+                  <p className="text-xs text-muted-foreground">Đã claim</p>
                 </CardContent>
               </Card>
             </motion.div>
@@ -277,6 +329,18 @@ export default function RewardHistory() {
                   <SelectItem value="first_upload">Video đầu tiên</SelectItem>
                   <SelectItem value="signup">Đăng ký</SelectItem>
                   <SelectItem value="wallet_connect">Kết nối ví</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="Trạng thái" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tất cả trạng thái</SelectItem>
+                  <SelectItem value="pending">Chờ duyệt</SelectItem>
+                  <SelectItem value="approved">Đã duyệt</SelectItem>
+                  <SelectItem value="claimed">Đã claim</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -438,14 +502,30 @@ export default function RewardHistory() {
                             <p className="font-bold text-yellow-500">+<CounterAnimation value={tx.amount} decimals={0} showTooltip={false} /></p>
                             <Badge 
                               variant="secondary" 
-                              className={tx.claimed ? "bg-green-500/20 text-green-500 text-xs" : "bg-yellow-500/20 text-yellow-500 text-xs"}
+                              className={
+                                tx.claimed 
+                                  ? "bg-green-500/20 text-green-500 text-xs" 
+                                  : tx.approved 
+                                    ? "bg-cyan-500/20 text-cyan-500 text-xs"
+                                    : "bg-amber-500/20 text-amber-500 text-xs"
+                              }
                             >
                               {tx.claimed ? (
                                 <>
                                   <CheckCircle className="w-3 h-3 mr-1" />
                                   Đã claim
                                 </>
-                              ) : "Chờ claim"}
+                              ) : tx.approved ? (
+                                <>
+                                  <Gift className="w-3 h-3 mr-1" />
+                                  Có thể claim
+                                </>
+                              ) : (
+                                <>
+                                  <Clock className="w-3 h-3 mr-1" />
+                                  Chờ duyệt
+                                </>
+                              )}
                             </Badge>
                           </div>
                         </motion.div>

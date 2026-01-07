@@ -50,6 +50,7 @@ import { MusicPlayerProvider } from './contexts/MusicPlayerContext';
 import { VideoPlaybackProvider } from './contexts/VideoPlaybackContext';
 import { EnhancedMusicPlayer } from './components/Video/EnhancedMusicPlayer';
 import { GlobalVideoPlayer } from './components/Video/GlobalVideoPlayer';
+import { useRewardRealtimeNotification } from './hooks/useRewardRealtimeNotification';
 
 const queryClient = new QueryClient();
 
@@ -58,6 +59,7 @@ initWeb3Modal();
 
 function AppContent() {
   useCursorBeam();
+  useRewardRealtimeNotification();
   
   return (
     <>
