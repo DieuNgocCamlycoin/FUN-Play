@@ -9,7 +9,23 @@ interface SidebarProps {
   onClose: () => void;
 }
 
-const navItems = [
+interface NavItem {
+  icon?: any;
+  customIcon?: string;
+  label: string;
+  href: string;
+  special?: boolean;
+  isWallet?: boolean;
+}
+
+const navItems: NavItem[] = [
+  { 
+    customIcon: '/images/fun-wallet-logo.png',
+    label: "FUN Wallet", 
+    href: "/fun-wallet", 
+    special: true,
+    isWallet: true
+  },
   { icon: Home, label: "Home", href: "/" },
   { icon: Zap, label: "Shorts", href: "/shorts" },
   { icon: Users, label: "Subscriptions", href: "/subscriptions" },
@@ -71,14 +87,27 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                   className={cn(
                     "w-full justify-start gap-6 px-3 py-2.5 h-auto hover:bg-primary/10 hover:text-primary transition-all duration-300",
                     location.pathname === item.href && "bg-primary/10 text-primary font-semibold",
-                    (item as any).special && "bg-gradient-to-r from-cyan-500/10 via-purple-500/10 to-amber-500/10 hover:from-cyan-500/20 hover:via-purple-500/20 hover:to-amber-500/20"
+                    item.special && !item.isWallet && "bg-gradient-to-r from-cyan-500/10 via-purple-500/10 to-amber-500/10 hover:from-cyan-500/20 hover:via-purple-500/20 hover:to-amber-500/20",
+                    item.isWallet && "bg-gradient-to-r from-yellow-500/10 via-orange-500/10 to-yellow-600/10 hover:from-yellow-500/20 hover:via-orange-500/20 hover:to-yellow-600/20 border border-yellow-500/20"
                   )}
                 >
-                  <item.icon className={cn("h-5 w-5", (item as any).special && "text-cyan-400")} />
-                  <span className={(item as any).special ? "bg-gradient-to-r from-cyan-400 via-purple-400 to-amber-400 bg-clip-text text-transparent font-medium" : ""}>
+                  {item.customIcon ? (
+                    <img 
+                      src={item.customIcon} 
+                      alt={item.label} 
+                      className="h-6 w-6 rounded-full shadow-md"
+                    />
+                  ) : item.icon ? (
+                    <item.icon className={cn("h-5 w-5", item.special && "text-cyan-400")} />
+                  ) : null}
+                  <span className={cn(
+                    item.isWallet && "bg-gradient-to-r from-yellow-400 via-orange-500 to-yellow-600 bg-clip-text text-transparent font-bold",
+                    item.special && !item.isWallet && "bg-gradient-to-r from-cyan-400 via-purple-400 to-amber-400 bg-clip-text text-transparent font-medium"
+                  )}>
                     {item.label}
                   </span>
-                  {(item as any).special && <span className="ml-auto text-sm">✨</span>}
+                  {item.isWallet && <span className="ml-auto text-sm">💰</span>}
+                  {item.special && !item.isWallet && <span className="ml-auto text-sm">✨</span>}
                 </Button>
               ))}
             </div>
