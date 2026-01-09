@@ -1,14 +1,17 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { MainLayout } from '@/components/Layout/MainLayout';
 import { Button } from '@/components/ui/button';
-import { ExternalLink, CheckCircle2 } from 'lucide-react';
+import { ExternalLink, CheckCircle2, Send } from 'lucide-react';
 import { useFunWalletSync, FUN_WALLET_URL } from '@/hooks/useFunWalletSync';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
+import { SendToFunWalletModal } from '@/components/Web3/SendToFunWalletModal';
+import { showLocalNotification } from '@/lib/pushNotifications';
 
 export default function FunWallet() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const { isLinked, funWalletAddress, linkFunWallet } = useFunWalletSync();
+  const [showSendModal, setShowSendModal] = useState(false);
 
   // Listen for postMessage from FUN Wallet iframe
   useEffect(() => {
@@ -39,6 +42,22 @@ export default function FunWallet() {
           break;
         case 'FUN_WALLET_TX_ERROR':
           toast.error(`Giao dịch thất bại: ${payload?.message || 'Unknown error'}`);
+          break;
+        case 'FUN_WALLET_TX_RECEIVED':
+          // Show push notification for incoming transaction
+          showLocalNotification('🔶 FUN Wallet - RICH!', {
+            body: `Bạn vừa nhận được ${payload?.amount} ${payload?.token}! 🎉`,
+            icon: '/images/fun-wallet-logo.png',
+          });
+          // Dispatch event for RichNotification
+          window.dispatchEvent(new CustomEvent('fun-wallet-transaction', {
+            detail: {
+              amount: payload?.amount,
+              token: payload?.token,
+              from: payload?.from,
+              type: 'received'
+            }
+          }));
           break;
       }
     };
@@ -77,15 +96,28 @@ export default function FunWallet() {
               </p>
             </div>
           </div>
-          <Button 
-            variant="outline" 
-            size="sm"
-            className="gap-2"
-            onClick={() => window.open(FUN_WALLET_URL, '_blank')}
-          >
-            <ExternalLink className="h-4 w-4" />
-            <span className="hidden sm:inline">Mở tab mới</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            {isLinked && (
+              <Button 
+                variant="default" 
+                size="sm"
+                className="gap-2 bg-gradient-to-r from-primary to-primary/80"
+                onClick={() => setShowSendModal(true)}
+              >
+                <Send className="h-4 w-4" />
+                <span className="hidden sm:inline">Gửi CAMLY</span>
+              </Button>
+            )}
+            <Button 
+              variant="outline" 
+              size="sm"
+              className="gap-2"
+              onClick={() => window.open(FUN_WALLET_URL, '_blank')}
+            >
+              <ExternalLink className="h-4 w-4" />
+              <span className="hidden sm:inline">Mở tab mới</span>
+            </Button>
+          </div>
         </div>
         
         {/* Iframe container */}
@@ -99,6 +131,12 @@ export default function FunWallet() {
           />
         </div>
       </div>
+
+      {/* Send CAMLY Modal */}
+      <SendToFunWalletModal 
+        isOpen={showSendModal} 
+        onClose={() => setShowSendModal(false)} 
+      />
     </MainLayout>
   );
 }

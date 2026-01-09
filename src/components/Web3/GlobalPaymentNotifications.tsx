@@ -78,6 +78,28 @@ export const GlobalPaymentNotifications = () => {
     };
   }, [user]);
 
+  // Listen for FUN Wallet transaction events (from FunWallet page iframe)
+  useEffect(() => {
+    const handleFunWalletTx = (event: CustomEvent) => {
+      const { amount, token, type } = event.detail || {};
+      
+      if (type === 'received') {
+        setReceivedAmount(String(amount));
+        setReceivedToken(token || 'CAMLY');
+        setShowRichNotification(true);
+
+        // Browser notification
+        showLocalNotification('🔶 FUN Wallet - RICH!', {
+          body: `Bạn vừa nhận được ${amount} ${token}! 🎉`,
+          icon: '/images/fun-wallet-logo.png',
+        });
+      }
+    };
+
+    window.addEventListener('fun-wallet-transaction', handleFunWalletTx as EventListener);
+    return () => window.removeEventListener('fun-wallet-transaction', handleFunWalletTx as EventListener);
+  }, []);
+
   return (
     <RichNotification
       show={showRichNotification}

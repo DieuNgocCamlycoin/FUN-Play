@@ -116,6 +116,45 @@ export const useFunWalletSync = () => {
     };
   }, [user?.id]);
 
+  // Realtime monitoring for transactions TO FUN Wallet address
+  useEffect(() => {
+    if (!funWalletAddress) return;
+
+    const channel = supabase
+      .channel('fun-wallet-transactions')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'wallet_transactions',
+        },
+        (payload) => {
+          const newTx = payload.new as any;
+          // Check if transaction is TO the linked FUN Wallet address
+          if (newTx.to_address?.toLowerCase() === funWalletAddress.toLowerCase()) {
+            console.log('[FUN Wallet] Incoming transaction detected:', newTx);
+            
+            // Dispatch notification event
+            window.dispatchEvent(new CustomEvent('fun-wallet-transaction', {
+              detail: {
+                amount: newTx.amount,
+                token: newTx.token_type,
+                from: newTx.from_address,
+                txHash: newTx.tx_hash,
+                type: 'received'
+              }
+            }));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [funWalletAddress]);
+
   // Listen for postMessage from FUN Wallet
   useEffect(() => {
     const handleMessage = async (event: MessageEvent) => {
