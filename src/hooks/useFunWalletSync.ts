@@ -27,6 +27,19 @@ export const useFunWalletSync = () => {
   const [funWalletAddress, setFunWalletAddress] = useState<string | null>(null);
   const [walletLink, setWalletLink] = useState<WalletLink | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [balance, setBalance] = useState<string | null>(null);
+
+  // Listen for balance updates from iframe postMessage
+  useEffect(() => {
+    const handleBalanceUpdate = (event: CustomEvent) => {
+      if (event.detail?.balance) {
+        setBalance(event.detail.balance);
+      }
+    };
+    
+    window.addEventListener('fun-wallet-balance', handleBalanceUpdate as EventListener);
+    return () => window.removeEventListener('fun-wallet-balance', handleBalanceUpdate as EventListener);
+  }, []);
 
   // Check link status on mount
   useEffect(() => {
@@ -188,6 +201,7 @@ export const useFunWalletSync = () => {
     funWalletAddress,
     walletLink,
     isLoading,
+    balance,
     linkFunWallet,
     unlinkFunWallet,
     openFunWallet,

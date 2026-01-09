@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { MultiTokenWallet } from "@/components/Web3/MultiTokenWallet";
 import { CAMLYMiniWidget } from "@/components/Web3/CAMLYMiniWidget";
+import { FunWalletMiniWidget } from "@/components/Web3/FunWalletMiniWidget";
 import { UploadVideoModal } from "@/components/Video/UploadVideoModal";
 import { ClaimRewardsButton } from "@/components/Rewards/ClaimRewardsButton";
 import { useAuth } from "@/hooks/useAuth";
@@ -143,6 +144,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
 
       {/* Right section */}
       <div className="flex items-center gap-2">
+        <FunWalletMiniWidget />
         <CAMLYMiniWidget />
         <ClaimRewardsButton />
         <MultiTokenWallet />
