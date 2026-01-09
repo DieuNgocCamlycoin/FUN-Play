@@ -51,8 +51,15 @@ export default defineConfig(({ mode }) => ({
         ]
       },
       workbox: {
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2}"],
+        // Không cache HTML để luôn lấy bản mới
+        globPatterns: ["**/*.{js,css,ico,png,svg,woff,woff2}"],
+        globIgnores: ["**/index.html", "**/*.html"],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB
+        // Force SW mới kích hoạt ngay
+        skipWaiting: true,
+        clientsClaim: true,
+        // Không dùng fallback cho navigation
+        navigateFallback: null,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,

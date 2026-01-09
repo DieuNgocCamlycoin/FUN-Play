@@ -1,18 +1,19 @@
 // Custom service worker for push notifications and offline video caching
-const CACHE_NAME = 'funplay-v1';
-const VIDEO_CACHE_NAME = 'funplay-videos-v1';
-const STATIC_CACHE_NAME = 'funplay-static-v1';
+// VERSION 2 - Network First for HTML to prevent stale pages
+const CACHE_VERSION = 'v2';
+const CACHE_NAME = 'funplay-' + CACHE_VERSION;
+const VIDEO_CACHE_NAME = 'funplay-videos-' + CACHE_VERSION;
+const STATIC_CACHE_NAME = 'funplay-static-' + CACHE_VERSION;
 
-// Static assets to cache immediately
+// Static assets to cache - KHÔNG bao gồm HTML để luôn lấy bản mới
 const STATIC_ASSETS = [
-  '/',
-  '/index.html',
   '/images/camly-coin.png',
   '/manifest.json',
 ];
 
 // Install event - cache static assets
 self.addEventListener('install', function(event) {
+  console.log('[SW] Installing new version:', CACHE_VERSION);
   event.waitUntil(
     caches.open(STATIC_CACHE_NAME).then(function(cache) {
       console.log('[SW] Caching static assets');
@@ -21,18 +22,19 @@ self.addEventListener('install', function(event) {
       });
     })
   );
+  // Force activate immediately
   self.skipWaiting();
 });
 
-// Activate event - clean up old caches
+// Activate event - clean up ALL old caches
 self.addEventListener('activate', function(event) {
+  console.log('[SW] Activating new version:', CACHE_VERSION);
   event.waitUntil(
     caches.keys().then(function(cacheNames) {
       return Promise.all(
         cacheNames.map(function(cacheName) {
-          if (cacheName !== CACHE_NAME && 
-              cacheName !== VIDEO_CACHE_NAME && 
-              cacheName !== STATIC_CACHE_NAME) {
+          // Xóa TẤT CẢ cache không phải version hiện tại
+          if (!cacheName.includes(CACHE_VERSION)) {
             console.log('[SW] Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
@@ -40,12 +42,38 @@ self.addEventListener('activate', function(event) {
       );
     })
   );
+  // Take control of all clients immediately
   return self.clients.claim();
 });
+
+// Check if request is for HTML document
+function isHtmlRequest(request) {
+  const url = new URL(request.url);
+  return request.destination === 'document' || 
+         request.mode === 'navigate' ||
+         url.pathname === '/' ||
+         url.pathname.endsWith('.html');
+}
 
 // Fetch event - serve from cache or network
 self.addEventListener('fetch', function(event) {
   const url = new URL(event.request.url);
+  
+  // HTML/Navigation: LUÔN lấy từ network trước (Network First)
+  if (isHtmlRequest(event.request)) {
+    event.respondWith(
+      fetch(event.request)
+        .then(function(response) {
+          console.log('[SW] Fetched fresh HTML from network');
+          return response;
+        })
+        .catch(function() {
+          console.log('[SW] Network failed, trying cache for HTML');
+          return caches.match(event.request);
+        })
+    );
+    return;
+  }
   
   // Handle video requests specially
   if (isVideoRequest(event.request)) {
@@ -63,7 +91,7 @@ self.addEventListener('fetch', function(event) {
   event.respondWith(
     fetch(event.request)
       .then(function(response) {
-        // Cache successful responses
+        // Cache successful responses (except HTML)
         if (response.status === 200) {
           const responseClone = response.clone();
           caches.open(CACHE_NAME).then(function(cache) {

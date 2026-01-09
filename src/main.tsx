@@ -17,4 +17,27 @@ if (isNative) {
   });
 }
 
+// Auto-reload when new Service Worker is activated
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.ready.then((registration) => {
+    registration.addEventListener('updatefound', () => {
+      const newWorker = registration.installing;
+      if (newWorker) {
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'activated') {
+            console.log('[App] New version activated, reloading...');
+            window.location.reload();
+          }
+        });
+      }
+    });
+  });
+  
+  // Listen for SW controller change (when new SW takes over)
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    console.log('[App] New Service Worker controller, reloading...');
+    window.location.reload();
+  });
+}
+
 createRoot(document.getElementById("root")!).render(<App />);
