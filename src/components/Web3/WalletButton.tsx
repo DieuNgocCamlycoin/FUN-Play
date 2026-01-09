@@ -1,4 +1,4 @@
-import { Wallet, ChevronDown, ExternalLink, LogOut, AlertTriangle, Loader2, HelpCircle } from "lucide-react";
+import { Wallet, ChevronDown, ExternalLink, LogOut, AlertTriangle, Loader2, HelpCircle, Gamepad2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useWalletConnectionWithRetry } from "@/hooks/useWalletConnectionWithRetry";
 import { logWalletDebug, getWeb3ConfigStatus, isMobileBrowser } from "@/lib/web3Config";
@@ -9,9 +9,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
 import { useState } from "react";
 import { MobileWalletGuide } from "./MobileWalletGuide";
+import { useFunWalletSync, FUN_WALLET_URL } from "@/hooks/useFunWalletSync";
 
 // Wallet icons
 const METAMASK_ICON = "https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg";
@@ -34,9 +36,11 @@ export const WalletButton = () => {
 
   const [showGuide, setShowGuide] = useState(false);
   const isMobile = isMobileBrowser();
+  const { isLinked: isFunWalletLinked, funWalletAddress, openFunWallet } = useFunWalletSync();
 
-  // Get wallet icon based on type
+  // Get wallet icon based on type  
   const getWalletIcon = () => {
+    if (isFunWalletLinked) return null; // Use emoji for FUN Wallet
     if (walletType === 'metamask') return METAMASK_ICON;
     if (walletType === 'bitget') return BITGET_ICON;
     return null;
@@ -109,7 +113,9 @@ export const WalletButton = () => {
               disabled={isLoading}
             >
               {/* Wallet icon */}
-              {walletIcon ? (
+              {isFunWalletLinked ? (
+                <span className="text-lg">🎮</span>
+              ) : walletIcon ? (
                 <img src={walletIcon} alt={walletType} className="h-5 w-5 rounded-full" />
               ) : (
                 <Wallet className="h-4 w-4" />
@@ -141,6 +147,11 @@ export const WalletButton = () => {
               <p className="text-xs text-muted-foreground">Đã kết nối với</p>
               <p className="font-mono text-sm font-medium">{formatAddress(address)}</p>
               <div className="flex items-center gap-1.5 mt-1">
+                {isFunWalletLinked && (
+                  <Badge variant="outline" className="text-xs bg-yellow-500/20 text-yellow-500 border-yellow-500/30 mr-1">
+                    🎮 FUN Wallet
+                  </Badge>
+                )}
                 {isCorrectChain ? (
                   <>
                     <img src={BSC_ICON} alt="BSC" className="h-3 w-3 rounded-full" />
@@ -153,6 +164,12 @@ export const WalletButton = () => {
             </div>
             
             <DropdownMenuSeparator />
+            
+            {/* FUN Wallet link */}
+            <DropdownMenuItem onClick={() => window.open(FUN_WALLET_URL, '_blank')} className="gap-2">
+              <Gamepad2 className="h-4 w-4 text-yellow-500" />
+              Mở FUN Wallet
+            </DropdownMenuItem>
             
             {!isCorrectChain && (
               <DropdownMenuItem onClick={switchToBSC} className="gap-2 text-yellow-600">

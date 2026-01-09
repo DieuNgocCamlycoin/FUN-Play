@@ -1153,6 +1153,39 @@ export type Database = {
           },
         ]
       }
+      wallet_links: {
+        Row: {
+          id: string
+          is_primary: boolean | null
+          last_sync_at: string | null
+          linked_at: string | null
+          platform: string
+          sync_status: string | null
+          user_id: string
+          wallet_address: string
+        }
+        Insert: {
+          id?: string
+          is_primary?: boolean | null
+          last_sync_at?: string | null
+          linked_at?: string | null
+          platform?: string
+          sync_status?: string | null
+          user_id: string
+          wallet_address: string
+        }
+        Update: {
+          id?: string
+          is_primary?: boolean | null
+          last_sync_at?: string | null
+          linked_at?: string | null
+          platform?: string
+          sync_status?: string | null
+          user_id?: string
+          wallet_address?: string
+        }
+        Relationships: []
+      }
       wallet_transactions: {
         Row: {
           amount: number
