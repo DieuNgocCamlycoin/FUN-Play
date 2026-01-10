@@ -3,8 +3,9 @@ import funplayLogo from "@/assets/funplay-logo.jpg";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { UnifiedWalletButton } from "@/components/Web3/UnifiedWalletButton";
+import { MultiTokenWallet } from "@/components/Web3/MultiTokenWallet";
 import { CAMLYMiniWidget } from "@/components/Web3/CAMLYMiniWidget";
+import { FunWalletMiniWidget } from "@/components/Web3/FunWalletMiniWidget";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { useNavigate } from "react-router-dom";
@@ -118,8 +119,8 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
         {/* Right - Actions */}
         <TooltipProvider delayDuration={300}>
           <div className="flex items-center gap-px shrink-0">
-            {/* Unified Wallet Button (FUN Wallet + Kết nối ví) */}
-            <UnifiedWalletButton compact className="mr-0.5" />
+            {/* FUN Wallet Widget */}
+            <FunWalletMiniWidget compact className="mr-0.5" />
             
             {/* CAMLY Price Widget */}
             <CAMLYMiniWidget compact className="mr-1" />
@@ -160,6 +161,18 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
               </TooltipTrigger>
               <TooltipContent side="bottom" className="text-xs">
                 Nhận thưởng CAMLY
+              </TooltipContent>
+            </Tooltip>
+
+            {/* Wallet - Compact */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div>
+                  <MultiTokenWallet compact />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-xs">
+                Ví tiền điện tử
               </TooltipContent>
             </Tooltip>
 
