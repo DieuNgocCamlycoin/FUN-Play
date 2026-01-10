@@ -35,6 +35,7 @@ import AdminVideoApproval from "./pages/AdminVideoApproval";
 import AdminClaimHistory from "./pages/AdminClaimHistory";
 import NFTGallery from "./pages/NFTGallery";
 import FunWallet from "./pages/FunWallet";
+import FunWalletCallback from "./pages/FunWalletCallback";
 import Meditate from "./pages/Meditate";
 import CreateMusic from "./pages/CreateMusic";
 import Playlist from "./pages/Playlist";
@@ -105,6 +106,7 @@ function AppContent() {
         <Route path="/admin/claim" element={<AdminClaimHistory />} />
         <Route path="/nft-gallery" element={<NFTGallery />} />
         <Route path="/fun-wallet" element={<FunWallet />} />
+        <Route path="/fun-wallet-callback" element={<FunWalletCallback />} />
         <Route path="/meditate" element={<Meditate />} />
         <Route path="/create-music" element={<CreateMusic />} />
         <Route path="/music/:id" element={<MusicDetail />} />
