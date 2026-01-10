@@ -1,8 +1,10 @@
+import { useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Wallet, ExternalLink, Gamepad2 } from "lucide-react";
+import { Wallet, ExternalLink } from "lucide-react";
 import { FUN_WALLET_URL } from "@/hooks/useFunWalletSync";
+import { toast } from "sonner";
 
 interface WalletSelectionModalProps {
   open: boolean;
@@ -19,10 +21,45 @@ export const WalletSelectionModal = ({
   onSelectOtherWallet,
   isConnecting = false,
 }: WalletSelectionModalProps) => {
+  
+  // Listen for callback success from popup
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      
+      if (event.data?.type === 'FUN_WALLET_CALLBACK_SUCCESS') {
+        console.log('[WalletSelectionModal] Received callback success:', event.data.payload);
+        toast.success('Đã kết nối FUN Wallet thành công!');
+        onOpenChange(false);
+      }
+    };
+    
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [onOpenChange]);
+  
   const handleFunWallet = () => {
-    window.open(FUN_WALLET_URL, '_blank');
+    // Create callback URL for FUN Wallet to redirect back
+    const callbackUrl = `${window.location.origin}/fun-wallet-callback`;
+    const funWalletConnectUrl = `${FUN_WALLET_URL}/connect?callback=${encodeURIComponent(callbackUrl)}&app=funplay`;
+    
+    console.log('[WalletSelectionModal] Opening FUN Wallet connect:', funWalletConnectUrl);
+    
+    // Open in popup window for better control
+    const popup = window.open(
+      funWalletConnectUrl,
+      'fun-wallet-connect',
+      'width=450,height=700,left=100,top=100,scrollbars=yes,resizable=yes'
+    );
+    
+    // If popup blocked, fall back to new tab
+    if (!popup) {
+      console.log('[WalletSelectionModal] Popup blocked, opening in new tab');
+      window.open(funWalletConnectUrl, '_blank');
+    }
+    
     onSelectFunWallet();
-    onOpenChange(false);
+    // Don't close modal immediately - wait for callback
   };
 
   const handleOtherWallet = () => {
