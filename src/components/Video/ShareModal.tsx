@@ -130,15 +130,52 @@ export const ShareModal = ({
     }
   };
 
+  // Helper function with fallback for clipboard
+  const copyToClipboard = async (text: string): Promise<boolean> => {
+    try {
+      // Modern Clipboard API
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (err) {
+      // Fallback: execCommand (deprecated but works better on mobile)
+      try {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-9999px';
+        textArea.style.top = '-9999px';
+        textArea.style.opacity = '0';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        const success = document.execCommand('copy');
+        document.body.removeChild(textArea);
+        return success;
+      } catch (fallbackErr) {
+        console.error('All copy methods failed:', fallbackErr);
+        return false;
+      }
+    }
+  };
+
   const handleCopyLink = async () => {
-    await navigator.clipboard.writeText(shareUrl);
-    setCopiedLink(true);
-    setTimeout(() => setCopiedLink(false), 2000);
-    awardShare();
-    toast({
-      title: "Đã copy link!",
-      description: `Link ${getContentTypeLabel()} đã được copy vào clipboard (+2 CAMLY)`,
-    });
+    const success = await copyToClipboard(shareUrl);
+    
+    if (success) {
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
+      awardShare();
+      toast({
+        title: "Đã copy link!",
+        description: `Link ${getContentTypeLabel()} đã được copy vào clipboard (+2 CAMLY)`,
+      });
+    } else {
+      toast({
+        title: "Không thể copy link",
+        description: "Vui lòng copy link thủ công từ ô bên trên",
+        variant: "destructive",
+      });
+    }
   };
 
   // Native Web Share API
@@ -164,7 +201,7 @@ export const ShareModal = ({
     }
   };
 
-  const handleShare = (platform: string) => {
+  const handleShare = async (platform: string) => {
     awardShare();
     // Use prerender URL for social media platforms (for proper OG meta tags)
     // Use regular shareUrl for other platforms
@@ -193,11 +230,19 @@ export const ShareModal = ({
         break;
       case "tiktok":
         // TikTok doesn't have a direct share URL, copy link instead
-        navigator.clipboard.writeText(shareUrl);
-        toast({
-          title: "Link đã được copy!",
-          description: "Dán link vào TikTok để chia sẻ (+2 CAMLY)",
-        });
+        const tiktokCopySuccess = await copyToClipboard(shareUrl);
+        if (tiktokCopySuccess) {
+          toast({
+            title: "Link đã được copy!",
+            description: "Dán link vào TikTok để chia sẻ (+2 CAMLY)",
+          });
+        } else {
+          toast({
+            title: "Không thể copy link",
+            description: "Vui lòng copy link thủ công từ ô bên trên",
+            variant: "destructive",
+          });
+        }
         return;
       case "linkedin":
         shareLink = `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`;
