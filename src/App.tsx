@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { WagmiProvider } from 'wagmi';
+import { VersionCheck } from './components/VersionCheck';
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import ProfileSettings from "./pages/ProfileSettings";
@@ -65,6 +66,7 @@ function AppContent() {
   
   return (
     <>
+      <VersionCheck />
       <GlobalPaymentNotifications />
       <AngelMascot />
       <div>

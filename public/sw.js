@@ -1,6 +1,6 @@
 // Custom service worker for push notifications and offline video caching
-// VERSION 2 - Network First for HTML to prevent stale pages
-const CACHE_VERSION = 'v2';
+// VERSION 3 - Force refresh after new Shorts page deployment
+const CACHE_VERSION = 'v3';
 const CACHE_NAME = 'funplay-' + CACHE_VERSION;
 const VIDEO_CACHE_NAME = 'funplay-videos-' + CACHE_VERSION;
 const STATIC_CACHE_NAME = 'funplay-static-' + CACHE_VERSION;

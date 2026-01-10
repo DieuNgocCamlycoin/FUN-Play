@@ -51,9 +51,9 @@ export default defineConfig(({ mode }) => ({
         ]
       },
       workbox: {
-        // Không cache HTML để luôn lấy bản mới
-        globPatterns: ["**/*.{js,css,ico,png,svg,woff,woff2}"],
-        globIgnores: ["**/index.html", "**/*.html"],
+        // Chỉ cache assets tĩnh (không cache JS/CSS để luôn lấy bản mới)
+        globPatterns: ["**/*.{ico,png,svg,woff,woff2}"],
+        globIgnores: ["**/index.html", "**/*.html", "**/*.js", "**/*.css"],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB
         // Force SW mới kích hoạt ngay
         skipWaiting: true,
@@ -61,6 +61,33 @@ export default defineConfig(({ mode }) => ({
         // Không dùng fallback cho navigation
         navigateFallback: null,
         runtimeCaching: [
+          // JS files - Network First để luôn lấy bản mới nhất
+          {
+            urlPattern: /\.js$/,
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "js-cache-v3",
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60 // 1 hour
+              },
+              networkTimeoutSeconds: 3
+            }
+          },
+          // CSS files - Network First
+          {
+            urlPattern: /\.css$/,
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "css-cache-v3",
+              expiration: {
+                maxEntries: 20,
+                maxAgeSeconds: 60 * 60 // 1 hour
+              },
+              networkTimeoutSeconds: 3
+            }
+          },
+          // Google Fonts - Cache First (ít thay đổi)
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
             handler: "CacheFirst",
