@@ -423,13 +423,20 @@ export default function Shorts() {
       </div>
 
       {/* Share Modal */}
-      {shareVideoId && (
-        <ShareModal
-          videoId={shareVideoId}
-          isOpen={!!shareVideoId}
-          onClose={() => setShareVideoId(null)}
-        />
-      )}
+      {shareVideoId && (() => {
+        const video = videos.find(v => v.id === shareVideoId);
+        return (
+          <ShareModal
+            videoId={shareVideoId}
+            videoTitle={video?.title || 'Short Video'}
+            thumbnailUrl={video?.thumbnail_url || undefined}
+            userId={user?.id}
+            contentType="video"
+            isOpen={!!shareVideoId}
+            onClose={() => setShareVideoId(null)}
+          />
+        );
+      })()}
 
       {/* Comment Sheet */}
       <ShortsCommentSheet

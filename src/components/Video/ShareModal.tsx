@@ -28,6 +28,7 @@ import {
 import { QRCodeSVG } from "qrcode.react";
 import { awardShareReward } from "@/lib/enhancedRewards";
 import { motion, AnimatePresence } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 // TikTok SVG Icon
 const TikTokIcon = () => (
@@ -75,6 +76,7 @@ export const ShareModal = ({
   const [showQR, setShowQR] = useState(false);
   const [hasShared, setHasShared] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [showCopySuccess, setShowCopySuccess] = useState(false);
   const { toast } = useToast();
   
   // Support legacy props
@@ -163,7 +165,9 @@ export const ShareModal = ({
     
     if (success) {
       setCopiedLink(true);
+      setShowCopySuccess(true);
       setTimeout(() => setCopiedLink(false), 2000);
+      setTimeout(() => setShowCopySuccess(false), 1500);
       awardShare();
       toast({
         title: "Đã copy link!",
@@ -312,7 +316,7 @@ export const ShareModal = ({
           )}
 
           {/* Copy Link Section */}
-          <div className="space-y-3">
+          <div className="space-y-3 relative">
             <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-cosmic-cyan/20">
               <Input
                 value={shareUrl}
@@ -321,15 +325,21 @@ export const ShareModal = ({
               />
               <Button
                 onClick={handleCopyLink}
-                className="bg-cosmic-cyan hover:bg-cosmic-cyan/90 shadow-[0_0_20px_rgba(0,231,255,0.4)] px-5 font-semibold gap-2"
+                className={cn(
+                  "px-5 font-semibold gap-2 transition-all duration-300",
+                  copiedLink 
+                    ? "bg-green-500 hover:bg-green-600 shadow-[0_0_25px_rgba(34,197,94,0.6)]" 
+                    : "bg-cosmic-cyan hover:bg-cosmic-cyan/90 shadow-[0_0_20px_rgba(0,231,255,0.4)]"
+                )}
               >
                 <AnimatePresence mode="wait">
                   {copiedLink ? (
                     <motion.div
                       key="check"
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
+                      initial={{ scale: 0, rotate: -180 }}
+                      animate={{ scale: 1, rotate: 0 }}
                       exit={{ scale: 0 }}
+                      transition={{ type: "spring", stiffness: 300, damping: 20 }}
                     >
                       <Check className="w-4 h-4" />
                     </motion.div>
@@ -347,6 +357,59 @@ export const ShareModal = ({
                 {copiedLink ? "Đã copy!" : "Sao chép"}
               </Button>
             </div>
+
+            {/* Copy Success Animation Overlay */}
+            <AnimatePresence>
+              {showCopySuccess && (
+                <motion.div
+                  className="absolute inset-0 pointer-events-none flex items-center justify-center z-10"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                >
+                  {/* Pulse ring effect */}
+                  <motion.div
+                    className="absolute w-16 h-16 rounded-full border-4 border-green-400"
+                    initial={{ scale: 0, opacity: 1 }}
+                    animate={{ scale: 2.5, opacity: 0 }}
+                    transition={{ duration: 0.7, ease: "easeOut" }}
+                  />
+                  <motion.div
+                    className="absolute w-16 h-16 rounded-full border-4 border-cosmic-cyan"
+                    initial={{ scale: 0, opacity: 1 }}
+                    animate={{ scale: 2, opacity: 0 }}
+                    transition={{ duration: 0.6, ease: "easeOut", delay: 0.1 }}
+                  />
+                  
+                  {/* Center check icon with glow */}
+                  <motion.div
+                    className="w-14 h-14 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center shadow-[0_0_30px_rgba(34,197,94,0.7)]"
+                    initial={{ scale: 0, rotate: -180 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    exit={{ scale: 0, opacity: 0 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                  >
+                    <Check className="w-7 h-7 text-white" strokeWidth={3} />
+                  </motion.div>
+                  
+                  {/* Floating particles */}
+                  {[...Array(8)].map((_, i) => (
+                    <motion.div
+                      key={i}
+                      className="absolute w-2 h-2 rounded-full bg-green-400"
+                      initial={{ scale: 0, x: 0, y: 0, opacity: 1 }}
+                      animate={{
+                        scale: [0, 1.2, 0],
+                        x: Math.cos((i * 45 * Math.PI) / 180) * 50,
+                        y: Math.sin((i * 45 * Math.PI) / 180) * 50,
+                        opacity: [1, 1, 0],
+                      }}
+                      transition={{ duration: 0.6, delay: 0.05 * i, ease: "easeOut" }}
+                    />
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Native Share Button (Mobile) */}
