@@ -60,14 +60,7 @@ export default function Upload() {
   const handleVideoUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!subCategory) {
-      toast({
-        title: "Chưa chọn danh mục",
-        description: "Vui lòng chọn danh mục cho video",
-        variant: "destructive",
-      });
-      return;
-    }
+    // Category validation removed - videos will use default category
     
     if (!videoFile) {
       toast({
@@ -382,8 +375,8 @@ export default function Upload() {
         thumbnail_url: thumbnailUrl,
         file_size: videoFile.size,
         is_public: true,
-        category: isMeditation ? "meditation" : "general",
-        sub_category: subCategory,
+        category: "general",
+        sub_category: "general",
         approval_status: "approved",
       }).select('id').single();
 
@@ -535,28 +528,7 @@ export default function Upload() {
               )}
             </div>
 
-            {/* Video Category - Required */}
-            <div className="p-4 rounded-xl bg-gradient-to-r from-amber-500/10 via-yellow-500/10 to-amber-500/10 border border-amber-400/30">
-              <Label className="text-base font-medium">📁 Danh mục video *</Label>
-              <p className="text-xs text-muted-foreground mt-1 mb-3">
-                FunPlay chỉ cho phép đăng video thuộc các danh mục dưới đây
-              </p>
-              <Select value={subCategory} onValueChange={(v) => setSubCategory(v as VideoSubCategory)} disabled={uploading}>
-                <SelectTrigger className="border-amber-300 bg-white/80">
-                  <SelectValue placeholder="Chọn danh mục video..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {VIDEO_CATEGORY_OPTIONS.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.id}>
-                      <span className="flex items-center gap-2">
-                        <span>{cat.icon}</span>
-                        <span>{cat.label}</span>
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Video Category section removed */}
 
             {/* Title */}
             <div>
@@ -664,7 +636,7 @@ export default function Upload() {
             <div className="flex gap-4">
               <Button
                 type="submit"
-                disabled={uploading || !videoFile || !title || !subCategory}
+                disabled={uploading || !videoFile || !title}
                 className="flex-1"
               >
                 {uploading ? "Đang tải lên..." : "Tải Video Lên"}

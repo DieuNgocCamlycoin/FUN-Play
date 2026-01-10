@@ -180,15 +180,7 @@ export function UploadVideoModal({ open, onOpenChange }: UploadVideoModalProps) 
       return;
     }
 
-    // Check if category is selected (not required for Shorts)
-    if (!isShorts && !subCategory) {
-      toast({
-        title: "Chưa chọn danh mục",
-        description: "Vui lòng chọn danh mục cho video",
-        variant: "destructive",
-      });
-      return;
-    }
+    // Category validation removed - videos will use default category
 
     // Check if either video file or YouTube URL is provided
     if (!videoFile && !youtubeUrl) {
@@ -470,7 +462,7 @@ export function UploadVideoModal({ open, onOpenChange }: UploadVideoModalProps) 
         thumbnail_url: thumbnailUrl,
         is_public: true,
         category: isShorts ? "shorts" : (isMeditation ? "meditation" : "general"),
-        sub_category: isShorts ? "shorts" : subCategory,
+        sub_category: isShorts ? "shorts" : "general",
         duration: videoDuration || null,
         approval_status: "approved",
       }).select("id").single();
@@ -742,42 +734,7 @@ export function UploadVideoModal({ open, onOpenChange }: UploadVideoModalProps) 
             )}
           </div>
 
-          {/* Video Category - Required (hide when Shorts is selected) */}
-          {!isShorts && (
-            <div className="p-4 rounded-xl bg-gradient-to-r from-amber-500/10 via-yellow-500/10 to-amber-500/10 border border-amber-400/30">
-              <Label className="text-base font-medium flex items-center gap-2">
-                <span className="text-lg">📁</span>
-                Danh mục video <span className="text-red-500">*</span>
-              </Label>
-              <p className="text-xs text-muted-foreground mt-1 mb-3">
-                FunPlay chỉ cho phép đăng video thuộc các danh mục dưới đây
-              </p>
-              <Select 
-                value={subCategory} 
-                onValueChange={(value) => setSubCategory(value as VideoSubCategory)}
-                disabled={uploading}
-              >
-                <SelectTrigger className="border-amber-300 bg-white/80">
-                  <SelectValue placeholder="Chọn danh mục video..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {VIDEO_CATEGORY_OPTIONS.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.id}>
-                      <span className="flex items-center gap-2">
-                        <span>{cat.icon}</span>
-                        <span>{cat.label}</span>
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {subCategory && (
-                <p className="text-xs text-amber-700 mt-2">
-                  {VIDEO_CATEGORY_OPTIONS.find(c => c.id === subCategory)?.description}
-                </p>
-              )}
-            </div>
-          )}
+          {/* Video Category section removed */}
 
           {/* Playlist Selection - Only show for meditation categories */}
           {isMeditation && (
@@ -878,7 +835,7 @@ export function UploadVideoModal({ open, onOpenChange }: UploadVideoModalProps) 
             </Button>
             <Button 
               type="submit" 
-              disabled={uploading || (!videoFile && !youtubeUrl) || !title || (!isShorts && !subCategory)}
+              disabled={uploading || (!videoFile && !youtubeUrl) || !title}
             >
               {uploading ? "Đang tải lên..." : "Tải lên"}
             </Button>
