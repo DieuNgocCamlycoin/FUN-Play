@@ -376,7 +376,7 @@ export default function Upload() {
         file_size: videoFile.size,
         is_public: true,
         category: "general",
-        sub_category: "general",
+        sub_category: null,
         approval_status: "approved",
       }).select('id').single();
 

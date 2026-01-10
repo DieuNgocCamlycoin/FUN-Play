@@ -462,7 +462,7 @@ export function UploadVideoModal({ open, onOpenChange }: UploadVideoModalProps) 
         thumbnail_url: thumbnailUrl,
         is_public: true,
         category: isShorts ? "shorts" : (isMeditation ? "meditation" : "general"),
-        sub_category: isShorts ? "shorts" : "general",
+        sub_category: null,
         duration: videoDuration || null,
         approval_status: "approved",
       }).select("id").single();
