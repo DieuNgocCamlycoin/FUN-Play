@@ -472,7 +472,7 @@ export function UploadVideoModal({ open, onOpenChange }: UploadVideoModalProps) 
         category: isShorts ? "shorts" : (isMeditation ? "meditation" : "general"),
         sub_category: isShorts ? "shorts" : subCategory,
         duration: videoDuration || null,
-        approval_status: "pending",
+        approval_status: "approved",
       }).select("id").single();
 
       if (videoError) {
@@ -490,8 +490,8 @@ export function UploadVideoModal({ open, onOpenChange }: UploadVideoModalProps) 
       setUploadStage("Hoàn thành!");
 
       toast({
-        title: "🎉 Video đã được gửi!",
-        description: "Video của bạn đang chờ Admin duyệt. Sẽ hiển thị trong vòng 24h.",
+        title: "🎉 Video đã được tải lên thành công!",
+        description: "Video của bạn đã hiển thị công khai ngay bây giờ.",
       });
 
       // Reset form
@@ -778,14 +778,6 @@ export function UploadVideoModal({ open, onOpenChange }: UploadVideoModalProps) 
               )}
             </div>
           )}
-
-          {/* Admin Notice */}
-          <Alert className="border-blue-300 bg-blue-50">
-            <Clock className="w-4 h-4 text-blue-600" />
-            <AlertDescription className="text-blue-700">
-              Video sẽ được Admin duyệt trước khi hiển thị công khai. Thời gian duyệt: 1-24 giờ.
-            </AlertDescription>
-          </Alert>
 
           {/* Playlist Selection - Only show for meditation categories */}
           {isMeditation && (
