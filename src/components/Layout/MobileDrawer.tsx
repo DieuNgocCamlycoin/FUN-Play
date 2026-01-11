@@ -1,4 +1,4 @@
-import { X, Home, Zap, Users, Library, History, Video, Clock, ThumbsUp, Wallet, ListVideo, FileText, Tv, Trophy, Coins, UserPlus, Image, Sparkles, Music, Settings, LogOut, Download } from "lucide-react";
+import { X, Home, Zap, Users, Library, History, Video, Clock, ThumbsUp, Wallet, ListVideo, FileText, Tv, Trophy, Coins, UserPlus, Image, Sparkles, Music, Settings, LogOut, Download, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
@@ -12,7 +12,17 @@ interface MobileDrawerProps {
   onClose: () => void;
 }
 
-const mainNavItems = [
+interface NavItem {
+  icon?: any;
+  customIcon?: string;
+  label: string;
+  href: string;
+  special?: boolean;
+  isWallet?: boolean;
+  external?: boolean;
+}
+
+const mainNavItems: NavItem[] = [
   { icon: Home, label: "Trang chủ", href: "/" },
   { icon: Zap, label: "Shorts", href: "/shorts" },
   { icon: Users, label: "Kênh đăng ký", href: "/subscriptions" },
@@ -20,7 +30,35 @@ const mainNavItems = [
   { icon: Music, label: "Tạo Nhạc Ánh Sáng", href: "/create-music", special: true },
 ];
 
-const libraryItems = [
+// FUN Platforms - External links + FUN Wallet
+const funPlatformItems: NavItem[] = [
+  { 
+    customIcon: '/images/fun-rich-logo.png',
+    label: "FUN.RICH", 
+    href: "https://fun.rich/",
+    external: true
+  },
+  { 
+    customIcon: '/images/fun-farm-logo.png',
+    label: "FUN FARM", 
+    href: "https://farm.fun.rich/",
+    external: true
+  },
+  { 
+    customIcon: '/images/fun-planet-logo.png',
+    label: "FUN PLANET", 
+    href: "https://planet.fun.rich/?ref=22282B49",
+    external: true
+  },
+  { 
+    customIcon: '/images/fun-wallet-logo.png',
+    label: "FUN Wallet", 
+    href: "/fun-wallet",
+    isWallet: true
+  },
+];
+
+const libraryItems: NavItem[] = [
   { icon: Library, label: "Thư viện", href: "/library" },
   { icon: History, label: "Lịch sử xem", href: "/history" },
   { icon: Video, label: "Video của bạn", href: "/your-videos" },
@@ -29,7 +67,7 @@ const libraryItems = [
   { icon: Image, label: "Bộ sưu tập NFT", href: "/nft-gallery" },
 ];
 
-const rewardItems = [
+const rewardItems: NavItem[] = [
   { icon: Trophy, label: "Bảng Xếp Hạng", href: "/leaderboard" },
   { icon: Coins, label: "Lịch Sử Phần Thưởng", href: "/reward-history" },
   { icon: UserPlus, label: "Giới Thiệu Bạn Bè", href: "/referral" },
@@ -37,7 +75,7 @@ const rewardItems = [
   { icon: Download, label: "Cài đặt App", href: "/install", special: true },
 ];
 
-const manageItems = [
+const manageItems: NavItem[] = [
   { icon: Tv, label: "Studio", href: "/studio" },
   { icon: Tv, label: "Quản lý kênh", href: "/manage-channel" },
   { icon: ListVideo, label: "Danh sách phát", href: "/manage-playlists" },
@@ -55,12 +93,20 @@ export const MobileDrawer = ({ isOpen, onClose }: MobileDrawerProps) => {
     onClose();
   };
 
+  const handleItemClick = (item: NavItem) => {
+    if (item.external) {
+      window.open(item.href, '_blank');
+    } else {
+      handleNavigation(item.href);
+    }
+  };
+
   const handleSignOut = async () => {
     await signOut();
     onClose();
   };
 
-  const NavButton = ({ item }: { item: { icon: any; label: string; href: string; special?: boolean } }) => (
+  const NavButton = ({ item }: { item: NavItem }) => (
     <Button
       variant="ghost"
       onClick={() => handleNavigation(item.href)}
@@ -70,11 +116,41 @@ export const MobileDrawer = ({ isOpen, onClose }: MobileDrawerProps) => {
         item.special && "bg-gradient-to-r from-cyan-500/10 via-purple-500/10 to-amber-500/10"
       )}
     >
-      <item.icon className={cn("h-6 w-6", item.special && "text-primary")} />
+      {item.icon && (
+        <item.icon className={cn("h-6 w-6", item.special && "text-primary")} />
+      )}
       <span className={item.special ? "bg-gradient-to-r from-cyan-400 via-purple-400 to-amber-400 bg-clip-text text-transparent font-medium" : ""}>
         {item.label}
       </span>
       {item.special && <span className="ml-auto">✨</span>}
+    </Button>
+  );
+
+  const FunPlatformButton = ({ item }: { item: NavItem }) => (
+    <Button
+      variant="ghost"
+      onClick={() => handleItemClick(item)}
+      className={cn(
+        "w-full justify-start gap-4 px-4 py-3 h-auto text-base hover:bg-primary/10",
+        !item.external && location.pathname === item.href && "bg-primary/10 text-primary font-semibold",
+        item.isWallet && "bg-gradient-to-r from-yellow-500/10 via-orange-500/10 to-yellow-600/10 border border-yellow-500/20"
+      )}
+    >
+      {item.customIcon && (
+        <img 
+          src={item.customIcon} 
+          alt={item.label} 
+          className="h-6 w-6 rounded-full shadow-md object-cover"
+        />
+      )}
+      <span className={cn(
+        item.isWallet && "bg-gradient-to-r from-yellow-400 via-orange-500 to-yellow-600 bg-clip-text text-transparent font-bold"
+      )}>
+        {item.label}
+      </span>
+      {item.external && (
+        <ExternalLink className="h-4 w-4 ml-auto text-muted-foreground" />
+      )}
     </Button>
   );
 
@@ -139,6 +215,18 @@ export const MobileDrawer = ({ isOpen, onClose }: MobileDrawerProps) => {
                 <div className="px-2">
                   {mainNavItems.map((item) => (
                     <NavButton key={item.label} item={item} />
+                  ))}
+                </div>
+
+                <div className="h-px bg-border my-3 mx-4" />
+
+                {/* FUN Platforms */}
+                <div className="px-2">
+                  <p className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    FUN Platforms
+                  </p>
+                  {funPlatformItems.map((item) => (
+                    <FunPlatformButton key={item.label} item={item} />
                   ))}
                 </div>
 

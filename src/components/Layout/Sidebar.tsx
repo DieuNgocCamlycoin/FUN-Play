@@ -1,4 +1,4 @@
-import { Home, Zap, Users, Library, History, Video, Clock, ThumbsUp, Wallet, ListVideo, FileText, Tv, Trophy, Coins, UserPlus, Image, Sparkles, Music } from "lucide-react";
+import { Home, Zap, Users, Library, History, Video, Clock, ThumbsUp, Wallet, ListVideo, FileText, Tv, Trophy, Coins, UserPlus, Image, Sparkles, Music, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
@@ -16,21 +16,43 @@ interface NavItem {
   href: string;
   special?: boolean;
   isWallet?: boolean;
+  external?: boolean;
 }
 
-const navItems: NavItem[] = [
-  { 
-    customIcon: '/images/fun-wallet-logo.png',
-    label: "FUN Wallet", 
-    href: "/fun-wallet", 
-    special: true,
-    isWallet: true
-  },
+const mainNavItems: NavItem[] = [
   { icon: Home, label: "Home", href: "/" },
   { icon: Zap, label: "Shorts", href: "/shorts" },
   { icon: Users, label: "Subscriptions", href: "/subscriptions" },
   { icon: Sparkles, label: "Meditate with Father", href: "/meditate", special: true },
   { icon: Music, label: "Tạo Nhạc Ánh Sáng", href: "/create-music", special: true },
+];
+
+// FUN Platforms - External links + FUN Wallet
+const funPlatformItems: NavItem[] = [
+  { 
+    customIcon: '/images/fun-rich-logo.png',
+    label: "FUN.RICH", 
+    href: "https://fun.rich/",
+    external: true
+  },
+  { 
+    customIcon: '/images/fun-farm-logo.png',
+    label: "FUN FARM", 
+    href: "https://farm.fun.rich/",
+    external: true
+  },
+  { 
+    customIcon: '/images/fun-planet-logo.png',
+    label: "FUN PLANET", 
+    href: "https://planet.fun.rich/?ref=22282B49",
+    external: true
+  },
+  { 
+    customIcon: '/images/fun-wallet-logo.png',
+    label: "FUN Wallet", 
+    href: "/fun-wallet",
+    isWallet: true
+  },
 ];
 
 const libraryItems = [
@@ -58,6 +80,14 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
     onClose();
   };
 
+  const handleItemClick = (item: NavItem) => {
+    if (item.external) {
+      window.open(item.href, '_blank');
+    } else {
+      handleNavigation(item.href);
+    }
+  };
+
   return (
     <>
       {/* Mobile overlay */}
@@ -79,7 +109,7 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
           <div className="py-2">
             {/* Main navigation */}
             <div className="px-3 py-2">
-            {navItems.map((item) => (
+              {mainNavItems.map((item) => (
                 <Button
                   key={item.label}
                   variant="ghost"
@@ -87,27 +117,55 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                   className={cn(
                     "w-full justify-start gap-6 px-3 py-2.5 h-auto hover:bg-primary/10 hover:text-primary transition-all duration-300",
                     location.pathname === item.href && "bg-primary/10 text-primary font-semibold",
-                    item.special && !item.isWallet && "bg-gradient-to-r from-cyan-500/10 via-purple-500/10 to-amber-500/10 hover:from-cyan-500/20 hover:via-purple-500/20 hover:to-amber-500/20",
-                    item.isWallet && "bg-gradient-to-r from-yellow-500/10 via-orange-500/10 to-yellow-600/10 hover:from-yellow-500/20 hover:via-orange-500/20 hover:to-yellow-600/20 border border-yellow-500/20"
+                    item.special && "bg-gradient-to-r from-cyan-500/10 via-purple-500/10 to-amber-500/10 hover:from-cyan-500/20 hover:via-purple-500/20 hover:to-amber-500/20"
                   )}
                 >
-                  {item.customIcon ? (
-                    <img 
-                      src={item.customIcon} 
-                      alt={item.label} 
-                      className="h-6 w-6 rounded-full shadow-md"
-                    />
-                  ) : item.icon ? (
+                  {item.icon && (
                     <item.icon className={cn("h-5 w-5", item.special && "text-cyan-400")} />
-                  ) : null}
+                  )}
                   <span className={cn(
-                    item.isWallet && "bg-gradient-to-r from-yellow-400 via-orange-500 to-yellow-600 bg-clip-text text-transparent font-bold",
-                    item.special && !item.isWallet && "bg-gradient-to-r from-cyan-400 via-purple-400 to-amber-400 bg-clip-text text-transparent font-medium"
+                    item.special && "bg-gradient-to-r from-cyan-400 via-purple-400 to-amber-400 bg-clip-text text-transparent font-medium"
                   )}>
                     {item.label}
                   </span>
-                  {item.isWallet && <span className="ml-auto text-sm">💰</span>}
-                  {item.special && !item.isWallet && <span className="ml-auto text-sm">✨</span>}
+                  {item.special && <span className="ml-auto text-sm">✨</span>}
+                </Button>
+              ))}
+            </div>
+
+            <div className="h-px bg-border my-2" />
+
+            {/* FUN Platforms section */}
+            <div className="px-3 py-2">
+              <p className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                FUN Platforms
+              </p>
+              {funPlatformItems.map((item) => (
+                <Button
+                  key={item.label}
+                  variant="ghost"
+                  onClick={() => handleItemClick(item)}
+                  className={cn(
+                    "w-full justify-start gap-6 px-3 py-2.5 h-auto hover:bg-primary/10 hover:text-primary transition-all duration-300",
+                    !item.external && location.pathname === item.href && "bg-primary/10 text-primary font-semibold",
+                    item.isWallet && "bg-gradient-to-r from-yellow-500/10 via-orange-500/10 to-yellow-600/10 hover:from-yellow-500/20 hover:via-orange-500/20 hover:to-yellow-600/20 border border-yellow-500/20"
+                  )}
+                >
+                  {item.customIcon && (
+                    <img 
+                      src={item.customIcon} 
+                      alt={item.label} 
+                      className="h-6 w-6 rounded-full shadow-md object-cover"
+                    />
+                  )}
+                  <span className={cn(
+                    item.isWallet && "bg-gradient-to-r from-yellow-400 via-orange-500 to-yellow-600 bg-clip-text text-transparent font-bold"
+                  )}>
+                    {item.label}
+                  </span>
+                  {item.external && (
+                    <ExternalLink className="h-4 w-4 ml-auto text-muted-foreground" />
+                  )}
                 </Button>
               ))}
             </div>
