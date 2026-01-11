@@ -706,6 +706,7 @@ export type Database = {
       reward_config: {
         Row: {
           config_key: string
+          config_text: string | null
           config_value: number
           description: string | null
           id: string
@@ -714,6 +715,7 @@ export type Database = {
         }
         Insert: {
           config_key: string
+          config_text?: string | null
           config_value: number
           description?: string | null
           id?: string
@@ -722,6 +724,7 @@ export type Database = {
         }
         Update: {
           config_key?: string
+          config_text?: string | null
           config_value?: number
           description?: string | null
           id?: string

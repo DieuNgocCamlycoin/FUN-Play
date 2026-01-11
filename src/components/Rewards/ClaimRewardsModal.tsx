@@ -7,6 +7,7 @@ import { Coins, Sparkles, Gift, CheckCircle, Loader2, ExternalLink, Wallet, Smar
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useWalletConnectionWithRetry } from "@/hooks/useWalletConnectionWithRetry";
+import { useClaimNotificationSound } from "@/hooks/useClaimNotificationSound";
 import { WalletConnectionProgress } from "@/components/Web3/WalletConnectionProgress";
 import { MobileWalletGuide } from "@/components/Web3/MobileWalletGuide";
 import { toast } from "@/hooks/use-toast";
@@ -48,6 +49,7 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
     cancel,
     isConnecting 
   } = useWalletConnectionWithRetry();
+  const { playClaimSound } = useClaimNotificationSound();
   
   const [loading, setLoading] = useState(true);
   const [claiming, setClaiming] = useState(false);
@@ -174,6 +176,9 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
       if (data.success) {
         setClaimSuccess(true);
         setTxHash(data.txHash);
+
+        // 🔔 PHÁT NHẠC CHUÔNG CỐ ĐỊNH KHI CLAIM THÀNH CÔNG
+        playClaimSound({ volume: 0.7 });
 
         // Trigger confetti celebration
         confetti({

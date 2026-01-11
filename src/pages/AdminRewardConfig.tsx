@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useRewardConfig, CONFIG_KEYS } from "@/hooks/useRewardConfig";
+import { useUpdateClaimSound } from "@/hooks/useClaimNotificationSound";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -11,18 +12,26 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { 
   Settings, Coins, Eye, MessageSquare, Upload, Heart, 
-  Clock, Hash, ShieldX, Save, History, ArrowLeft, RefreshCw
+  Clock, Hash, ShieldX, Save, History, ArrowLeft, RefreshCw,
+  Bell, Play, Pause, Music, Volume2
 } from "lucide-react";
 import { format } from "date-fns";
 import { Navigate, useNavigate } from "react-router-dom";
+import { toast } from "@/hooks/use-toast";
 
 const AdminRewardConfig = () => {
   const { user, loading: authLoading } = useAuth();
   const { configs, history, loading, updating, updateConfig } = useRewardConfig();
+  const { updateClaimSound, updating: updatingSoundConfig } = useUpdateClaimSound();
   const [isAdmin, setIsAdmin] = useState(false);
   const [checkingRole, setCheckingRole] = useState(true);
   const [editValues, setEditValues] = useState<Record<string, string>>({});
   const navigate = useNavigate();
+  
+  // Notification sound states
+  const [claimSoundUrl, setClaimSoundUrl] = useState("");
+  const [isPlaying, setIsPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     const checkAdminRole = async () => {
@@ -49,10 +58,67 @@ const AdminRewardConfig = () => {
     setEditValues(values);
   }, [configs]);
 
+  // Fetch claim notification sound URL
+  useEffect(() => {
+    const fetchClaimSound = async () => {
+      const { data } = await supabase
+        .from('reward_config')
+        .select('config_text')
+        .eq('config_key', 'CLAIM_NOTIFICATION_SOUND')
+        .single();
+      
+      if (data?.config_text) {
+        setClaimSoundUrl(data.config_text);
+      }
+    };
+    fetchClaimSound();
+  }, []);
+
   const handleSave = async (configKey: string) => {
     const newValue = parseFloat(editValues[configKey]);
     if (isNaN(newValue)) return;
     await updateConfig(configKey, newValue);
+  };
+
+  const handlePlayPreview = () => {
+    if (!claimSoundUrl) return;
+    
+    if (isPlaying && audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      setIsPlaying(false);
+    } else {
+      audioRef.current = new Audio(claimSoundUrl);
+      audioRef.current.volume = 0.6;
+      audioRef.current.play().catch(console.error);
+      audioRef.current.onended = () => setIsPlaying(false);
+      setIsPlaying(true);
+    }
+  };
+
+  const handleSaveClaimSound = async () => {
+    if (!claimSoundUrl.trim()) {
+      toast({
+        title: "Lỗi",
+        description: "Vui lòng nhập URL nhạc chuông",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const success = await updateClaimSound(claimSoundUrl.trim());
+    if (success) {
+      toast({
+        title: "Thành công",
+        description: "Đã lưu nhạc chuông claim CAMLY cho tất cả người dùng!",
+      });
+    } else {
+      toast({
+        title: "Lỗi",
+        description: "Không thể lưu nhạc chuông. Vui lòng thử lại.",
+        variant: "destructive"
+      });
+    }
   };
 
   const getConfigIcon = (key: string) => {
@@ -186,7 +252,7 @@ const AdminRewardConfig = () => {
         </div>
 
         <Tabs defaultValue="rewards" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="rewards" className="flex items-center gap-2">
               <Coins className="w-4 h-4" />
               Mức thưởng
@@ -198,6 +264,10 @@ const AdminRewardConfig = () => {
             <TabsTrigger value="validation" className="flex items-center gap-2">
               <Settings className="w-4 h-4" />
               Validation
+            </TabsTrigger>
+            <TabsTrigger value="notification" className="flex items-center gap-2">
+              <Bell className="w-4 h-4" />
+              Nhạc chuông
             </TabsTrigger>
             <TabsTrigger value="history" className="flex items-center gap-2">
               <History className="w-4 h-4" />
@@ -263,6 +333,108 @@ const AdminRewardConfig = () => {
                   {validationConfigs.map(config => (
                     <ConfigCard key={config.id} config={config} />
                   ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="notification">
+            <Card className="border-primary/20">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Bell className="w-5 h-5 text-[#FFD700]" />
+                  Cài Đặt Nhạc Chuông Claim CAMLY
+                </CardTitle>
+                <CardDescription>
+                  Nhạc chuông này sẽ phát cho <span className="font-bold text-primary">TẤT CẢ NGƯỜI DÙNG</span> khi họ claim CAMLY thành công
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Current Sound URL */}
+                <div className="space-y-3">
+                  <Label className="flex items-center gap-2">
+                    <Music className="w-4 h-4" />
+                    URL Nhạc Chuông
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="text"
+                      value={claimSoundUrl}
+                      onChange={(e) => setClaimSoundUrl(e.target.value)}
+                      placeholder="https://example.com/sound.mp3"
+                      className="flex-1"
+                    />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={handlePlayPreview}
+                      disabled={!claimSoundUrl}
+                      title={isPlaying ? "Dừng" : "Nghe thử"}
+                    >
+                      {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Hỗ trợ: .mp3, .wav, .ogg (tối đa 10MB). Nhạc này sẽ phát khi user claim CAMLY thành công.
+                  </p>
+                </div>
+
+                {/* Preview Card */}
+                {claimSoundUrl && (
+                  <Card className="bg-gradient-to-r from-yellow-500/10 via-cyan-500/10 to-yellow-500/10 border-yellow-500/30">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-full bg-yellow-500/20">
+                          <Volume2 className="w-5 h-5 text-yellow-500" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm">Nhạc chuông hiện tại</p>
+                          <p className="text-xs text-muted-foreground truncate">{claimSoundUrl}</p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={handlePlayPreview}
+                          className="gap-1"
+                        >
+                          {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                          {isPlaying ? "Dừng" : "Nghe thử"}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Save Button */}
+                <Button
+                  onClick={handleSaveClaimSound}
+                  disabled={updatingSoundConfig}
+                  className="w-full bg-gradient-to-r from-yellow-500 to-cyan-500 hover:from-yellow-600 hover:to-cyan-600"
+                >
+                  {updatingSoundConfig ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                      Đang lưu...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4 mr-2" />
+                      Lưu Nhạc Chuông Cho Tất Cả User
+                    </>
+                  )}
+                </Button>
+
+                {/* Info */}
+                <div className="p-4 rounded-lg bg-muted/50 space-y-2">
+                  <h4 className="font-medium text-sm flex items-center gap-2">
+                    <Bell className="w-4 h-4" />
+                    Thông tin
+                  </h4>
+                  <ul className="text-xs text-muted-foreground space-y-1">
+                    <li>• Nhạc chuông này được dùng cho: <span className="font-medium text-foreground">Claim CAMLY</span> và <span className="font-medium text-foreground">Rich Notification</span></li>
+                    <li>• Tất cả người dùng sẽ dùng chung nhạc này khi nhận CAMLY</li>
+                    <li>• Có thể thay đổi bất cứ lúc nào, thay đổi sẽ áp dụng ngay lập tức</li>
+                  </ul>
                 </div>
               </CardContent>
             </Card>
