@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 // CAMLY Token on BSC Mainnet
-const CAMLY_TOKEN_ADDRESS = "0x0910320181889FEFde0bB1Ca63962B0A8882E413";
+const CAMLY_TOKEN_ADDRESS = "0x0910320181889fefde0bb1ca63962b0a8882e413";
 const BSC_RPC_URL = "https://bsc-dataseed1.binance.org";
 
 // ERC20 ABI for balanceOf
