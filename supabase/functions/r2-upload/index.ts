@@ -405,15 +405,18 @@ serve(async (req) => {
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-    const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
     
-    // Use service role key with user's auth header to validate
-    const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
-      global: { headers: { Authorization: authHeader } }
+    // Extract token from Authorization header
+    const token = authHeader.replace('Bearer ', '');
+    
+    // Create client with anon key (getUser validates the token)
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: { persistSession: false }
     });
 
-    // Get user with the provided token
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    // Validate token by passing it directly to getUser
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     
     if (authError || !user) {
       console.error('Auth error:', authError?.message);
