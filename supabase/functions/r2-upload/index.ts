@@ -405,25 +405,25 @@ serve(async (req) => {
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+    const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
     
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    // Use service role key with user's auth header to validate
+    const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
       global: { headers: { Authorization: authHeader } }
     });
 
-    // Use getClaims for JWT validation (recommended for edge functions)
-    const token = authHeader.replace('Bearer ', '');
-    const { data: claimsData, error: authError } = await supabase.auth.getClaims(token);
+    // Get user with the provided token
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
     
-    if (authError || !claimsData?.claims) {
-      console.error('Auth error:', authError);
+    if (authError || !user) {
+      console.error('Auth error:', authError?.message);
       return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
+        JSON.stringify({ error: 'Unauthorized', details: authError?.message }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const userId = claimsData.claims.sub as string;
+    const userId = user.id;
     console.log(`User authenticated: ${userId}`);
 
     const R2_ACCESS_KEY_ID = Deno.env.get('R2_ACCESS_KEY_ID') ?? '';
