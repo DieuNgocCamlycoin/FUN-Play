@@ -405,17 +405,22 @@ serve(async (req) => {
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+    const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
     
     // Extract token from Authorization header
     const token = authHeader.replace('Bearer ', '');
+    console.log('Token received:', token ? `${token.substring(0, 20)}...` : 'empty');
     
-    // Create client with anon key (getUser validates the token)
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      auth: { persistSession: false }
+    // Create admin client with service role key for token validation
+    const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
+      auth: { 
+        autoRefreshToken: false,
+        persistSession: false,
+        detectSessionInUrl: false
+      }
     });
 
-    // Validate token by passing it directly to getUser
+    // Validate the user's JWT token using service role client
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     
     if (authError || !user) {
