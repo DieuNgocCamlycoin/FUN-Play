@@ -47,9 +47,7 @@ import BrowseMusic from "./pages/BrowseMusic";
 import Shorts from "./pages/Shorts";
 import PlatformDocs from "./pages/PlatformDocs";
 import { wagmiConfig, initWeb3Modal } from '@/lib/web3Config';
-import { useCursorBeam } from './hooks/useCursorBeam';
 import { GlobalPaymentNotifications } from './components/Web3/GlobalPaymentNotifications';
-import { AngelMascot } from './components/Mascot/AngelMascot';
 import { MusicPlayerProvider } from './contexts/MusicPlayerContext';
 import { VideoPlaybackProvider } from './contexts/VideoPlaybackContext';
 import { EnhancedMusicPlayer } from './components/Video/EnhancedMusicPlayer';
@@ -62,14 +60,12 @@ const queryClient = new QueryClient();
 initWeb3Modal();
 
 function AppContent() {
-  useCursorBeam();
   useRewardRealtimeNotification();
   
   return (
     <>
       <VersionCheck />
       <GlobalPaymentNotifications />
-      <AngelMascot />
       <div>
         <Routes>
         <Route path="/" element={<Index />} />

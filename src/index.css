@@ -155,55 +155,12 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
-    background: linear-gradient(135deg, #FFFFFF 0%, #F8F4FF 50%, #FFFFFF 100%);
-    background-attachment: fixed;
-    position: relative;
-  }
-  
-  body::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: 
-      radial-gradient(ellipse at 20% 30%, hsl(180 100% 50% / 0.1), transparent 50%),
-      radial-gradient(ellipse at 80% 70%, hsl(291 100% 50% / 0.1), transparent 50%),
-      radial-gradient(ellipse at 50% 50%, hsl(51 100% 50% / 0.05), transparent 50%);
-    pointer-events: none;
-    z-index: 0;
+    background: #FFFFFF;
   }
   
   body > * {
     position: relative;
     z-index: 1;
-  }
-
-  /* Cursor light beam sweep effect */
-  body::after {
-    content: '';
-    position: fixed;
-    width: 600px;
-    height: 600px;
-    background: radial-gradient(
-      circle at center,
-      rgba(0, 231, 255, 0.15) 0%,
-      rgba(122, 43, 255, 0.1) 25%,
-      rgba(255, 0, 229, 0.08) 50%,
-      transparent 70%
-    );
-    pointer-events: none;
-    z-index: 100; /* Reduced from 9999 to allow Web3Modal to display */
-    transform: translate(-50%, -50%);
-    filter: blur(40px);
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    mix-blend-mode: screen;
-  }
-
-  body.cursor-active::after {
-    opacity: 1;
   }
 }
 
