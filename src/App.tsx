@@ -46,6 +46,7 @@ import MusicDetail from "./pages/MusicDetail";
 import BrowseMusic from "./pages/BrowseMusic";
 import Shorts from "./pages/Shorts";
 import PlatformDocs from "./pages/PlatformDocs";
+import PostDetail from "./pages/PostDetail";
 import { wagmiConfig, initWeb3Modal } from '@/lib/web3Config';
 import { GlobalPaymentNotifications } from './components/Web3/GlobalPaymentNotifications';
 import { MusicPlayerProvider } from './contexts/MusicPlayerContext';
@@ -116,6 +117,8 @@ function AppContent() {
         <Route path="/shorts" element={<Shorts />} />
         <Route path="/library" element={<Index />} />
         <Route path="/liked" element={<LikedVideos />} />
+        <Route path="/post/:id" element={<PostDetail />} />
+        <Route path="/docs/platform" element={<PlatformDocs />} />
         <Route path="/docs/platform" element={<PlatformDocs />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
