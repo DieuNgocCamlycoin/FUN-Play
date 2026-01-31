@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 
 export interface PostComment {
   id: string;
@@ -26,16 +27,21 @@ interface UsePostCommentsReturn {
   comments: PostComment[];
   loading: boolean;
   submitting: boolean;
+  likedCommentIds: Set<string>;
   fetchComments: () => Promise<void>;
   createComment: (content: string, parentId?: string | null) => Promise<boolean>;
   softDeleteComment: (commentId: string) => Promise<boolean>;
+  toggleLike: (commentId: string) => Promise<void>;
 }
 
 export const usePostComments = (postId: string): UsePostCommentsReturn => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [comments, setComments] = useState<PostComment[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [likedCommentIds, setLikedCommentIds] = useState<Set<string>>(new Set());
+  const [likingCommentIds, setLikingCommentIds] = useState<Set<string>>(new Set());
 
   // Fetch all comments for the post
   const fetchComments = useCallback(async () => {
@@ -102,6 +108,26 @@ export const usePostComments = (postId: string): UsePostCommentsReturn => {
       }));
 
       setComments(commentsWithReplies);
+
+      // Fetch user's likes if logged in
+      if (user) {
+        const allCommentIds = commentsWithReplies.flatMap(c => [
+          c.id,
+          ...(c.replies?.map(r => r.id) || [])
+        ]);
+        
+        if (allCommentIds.length > 0) {
+          const { data: likesData } = await supabase
+            .from('post_comment_likes')
+            .select('comment_id')
+            .eq('user_id', user.id)
+            .in('comment_id', allCommentIds);
+          
+          if (likesData) {
+            setLikedCommentIds(new Set(likesData.map(l => l.comment_id)));
+          }
+        }
+      }
     } catch (error) {
       console.error('Error fetching post comments:', error);
       toast({
@@ -112,7 +138,7 @@ export const usePostComments = (postId: string): UsePostCommentsReturn => {
     } finally {
       setLoading(false);
     }
-  }, [postId]);
+  }, [postId, user]);
 
   // Create a new comment
   const createComment = useCallback(async (content: string, parentId?: string | null): Promise<boolean> => {
@@ -244,12 +270,121 @@ export const usePostComments = (postId: string): UsePostCommentsReturn => {
     };
   }, [postId, fetchComments]);
 
+  // Toggle like on a comment
+  const toggleLike = useCallback(async (commentId: string): Promise<void> => {
+    if (!user) {
+      toast({
+        title: "Chưa đăng nhập",
+        description: "Vui lòng đăng nhập để thích bình luận",
+        variant: "destructive"
+      });
+      navigate('/auth');
+      return;
+    }
+
+    // Prevent double-clicking
+    if (likingCommentIds.has(commentId)) return;
+
+    const isLiked = likedCommentIds.has(commentId);
+    
+    // Optimistic UI update
+    setLikedCommentIds(prev => {
+      const newSet = new Set(prev);
+      if (isLiked) {
+        newSet.delete(commentId);
+      } else {
+        newSet.add(commentId);
+      }
+      return newSet;
+    });
+
+    // Update like count optimistically
+    const updateLikeCount = (comments: PostComment[], delta: number): PostComment[] => {
+      return comments.map(c => {
+        if (c.id === commentId) {
+          return { ...c, like_count: Math.max(0, c.like_count + delta) };
+        }
+        if (c.replies) {
+          return { ...c, replies: updateLikeCount(c.replies, delta) };
+        }
+        return c;
+      });
+    };
+    
+    setComments(prev => updateLikeCount(prev, isLiked ? -1 : 1));
+    setLikingCommentIds(prev => new Set(prev).add(commentId));
+
+    try {
+      if (isLiked) {
+        // Unlike: Delete from post_comment_likes
+        const { error: deleteError } = await supabase
+          .from('post_comment_likes')
+          .delete()
+          .eq('comment_id', commentId)
+          .eq('user_id', user.id);
+
+        if (deleteError) throw deleteError;
+
+        // Update like_count in post_comments
+        const { error: updateError } = await supabase
+          .from('post_comments')
+          .update({ like_count: Math.max(0, (comments.find(c => c.id === commentId)?.like_count || 1) - 1) })
+          .eq('id', commentId);
+
+        if (updateError) throw updateError;
+      } else {
+        // Like: Insert into post_comment_likes
+        const { error: insertError } = await supabase
+          .from('post_comment_likes')
+          .insert({ comment_id: commentId, user_id: user.id });
+
+        if (insertError) throw insertError;
+
+        // Update like_count in post_comments
+        const { error: updateError } = await supabase
+          .from('post_comments')
+          .update({ like_count: (comments.find(c => c.id === commentId)?.like_count || 0) + 1 })
+          .eq('id', commentId);
+
+        if (updateError) throw updateError;
+      }
+    } catch (error) {
+      console.error('Error toggling like:', error);
+      
+      // Rollback optimistic updates
+      setLikedCommentIds(prev => {
+        const newSet = new Set(prev);
+        if (isLiked) {
+          newSet.add(commentId);
+        } else {
+          newSet.delete(commentId);
+        }
+        return newSet;
+      });
+      setComments(prev => updateLikeCount(prev, isLiked ? 1 : -1));
+      
+      toast({
+        title: "Lỗi",
+        description: "Không thể thực hiện thao tác này",
+        variant: "destructive"
+      });
+    } finally {
+      setLikingCommentIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(commentId);
+        return newSet;
+      });
+    }
+  }, [user, likedCommentIds, likingCommentIds, comments, navigate]);
+
   return {
     comments,
     loading,
     submitting,
+    likedCommentIds,
     fetchComments,
     createComment,
-    softDeleteComment
+    softDeleteComment,
+    toggleLike
   };
 };
