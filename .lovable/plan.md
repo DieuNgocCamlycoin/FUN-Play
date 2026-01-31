@@ -1,294 +1,203 @@
 
 
-# Kế Hoạch: Xây Dựng Hệ Thống Bình Luận Cho Bài Đăng (Posts)
+# Kế Hoạch: Thêm Chức Năng Like/Unlike cho Bình Luận Bài Đăng
 
 ## Tổng Quan
 
-Xây dựng hệ thống bình luận hoàn chỉnh cho bài đăng (posts) với các tính năng:
-- Bình luận gốc (root comments)
-- Trả lời bình luận (1 cấp lồng nhau)
-- Soft delete (xóa mềm - giữ dữ liệu nhưng ẩn đi)
-- Phân quyền dựa trên xác thực
-- Cập nhật realtime
-- Optimistic UI
+Thêm tính năng like/unlike cho các bình luận bài đăng với:
+- Optimistic UI (cập nhật giao diện ngay lập tức)
+- Theo dõi trong database
+- Hiển thị số lượt thích
+- Nút like với animation
 
 ---
 
-## Phần 1: Thiết Kế Cơ Sở Dữ Liệu
+## Phần 1: Thiết Kế Database
 
-### Tạo Bảng `post_comments`
+### Tạo Bảng `post_comment_likes`
 
-Sẽ tạo bảng mới `post_comments` riêng biệt với bảng `comments` hiện tại (dành cho video) để tránh xung đột và dễ quản lý.
+Tạo bảng mới riêng biệt để lưu trữ lượt thích cho bình luận bài đăng (tách khỏi bảng `likes` hiện tại dành cho video).
 
 **Schema:**
 
 | Cột | Kiểu | Nullable | Mặc định | Mô tả |
 |-----|------|----------|----------|-------|
 | id | uuid | NO | gen_random_uuid() | Khóa chính |
-| post_id | uuid | NO | - | Liên kết đến posts(id) ON DELETE CASCADE |
-| user_id | uuid | NO | - | Người bình luận |
-| parent_id | uuid | YES | NULL | Bình luận cha (để trả lời) |
-| content | text | NO | - | Nội dung bình luận |
-| is_deleted | boolean | NO | false | Đánh dấu xóa mềm |
-| like_count | integer | NO | 0 | Số lượt thích |
-| created_at | timestamptz | NO | now() | Thời gian tạo |
-| updated_at | timestamptz | NO | now() | Thời gian cập nhật |
+| comment_id | uuid | NO | - | FK đến post_comments(id) ON DELETE CASCADE |
+| user_id | uuid | NO | - | Người thích |
+| created_at | timestamptz | NO | now() | Thời gian thích |
 
-**Indexes:**
-- `idx_post_comments_post_id` - Tìm kiếm theo bài đăng
-- `idx_post_comments_parent_id` - Tìm kiếm bình luận con
-- `idx_post_comments_user_id` - Tìm kiếm theo người dùng
-- `idx_post_comments_created_at` - Sắp xếp theo thời gian
+**Constraints:**
+- UNIQUE (comment_id, user_id) - Mỗi user chỉ được like 1 lần cho mỗi comment
+
+**Index:**
+- `idx_post_comment_likes_comment_id` - Đếm like nhanh theo comment
+- `idx_post_comment_likes_user_id` - Tìm các comment user đã like
 
 ---
 
 ## Phần 2: Row Level Security (RLS)
 
-### Chính Sách Bảo Mật
-
 | Hành động | Quy tắc |
 |-----------|---------|
-| **SELECT** | Mọi người có thể đọc bình luận chưa bị xóa (`is_deleted = false`) HOẶC chủ sở hữu thấy cả bình luận đã xóa của mình |
-| **INSERT** | Chỉ người dùng đã xác thực mới được tạo bình luận (`auth.uid() = user_id`) |
-| **UPDATE** | Chỉ chủ sở hữu được cập nhật nội dung (`auth.uid() = user_id`) |
-| **DELETE** | Không cho phép xóa cứng - dùng soft delete qua UPDATE |
-
-**Lưu ý bảo mật:**
-- Không cho phép DELETE trực tiếp từ client
-- Soft delete được thực hiện qua UPDATE (set `is_deleted = true`)
-- Trigger tự động cập nhật `updated_at` khi có thay đổi
+| **SELECT** | Mọi người có thể xem ai đã like |
+| **INSERT** | User chỉ được tạo like cho chính mình (`auth.uid() = user_id`) |
+| **DELETE** | User chỉ được xóa like của mình (`auth.uid() = user_id`) |
 
 ---
 
-## Phần 3: Frontend Components
+## Phần 3: Cập Nhật Hook `usePostComments`
 
-### 3.1. Component Structure
-
-```text
-src/components/Post/
-├── PostComments.tsx          # Container chính cho bình luận
-├── PostCommentList.tsx       # Danh sách bình luận với realtime
-├── PostCommentItem.tsx       # Hiển thị 1 bình luận
-├── PostCommentInput.tsx      # Ô nhập bình luận
-└── PostCommentReplies.tsx    # Hiển thị các reply
-```
-
-### 3.2. `PostComments` - Component Chính
-
-**Props:**
-- `postId: string` - ID của bài đăng
-- `onCommentCountChange?: (count: number) => void` - Callback khi số comment thay đổi
-
-**Chức năng:**
-- Fetch danh sách bình luận
-- Subscribe realtime để nhận bình luận mới
-- Render danh sách + form nhập
-
-### 3.3. `PostCommentItem` - Hiển Thị Bình Luận
-
-**Features:**
-- Avatar người dùng (từ profiles)
-- Tên hiển thị + username
-- Nội dung bình luận
-- Thời gian tương đối (vd: "3 phút trước")
-- Nút "Trả lời" → mở form reply
-- Nút "Xóa" (chỉ hiện cho chủ sở hữu)
-- Hiển thị replies (indent nhẹ)
-- Nếu `is_deleted = true` → hiện "Bình luận này đã bị xóa"
-
-### 3.4. `PostCommentInput` - Ô Nhập Bình Luận
-
-**Features:**
-- Textarea với placeholder
-- Validate: không cho phép bình luận trống
-- Disabled nếu chưa đăng nhập
-- Optimistic UI: hiển thị comment ngay khi submit
-- Rollback nếu có lỗi
-
----
-
-## Phần 4: Hook `usePostComments`
-
-Tạo custom hook để quản lý logic bình luận:
+### Thêm State và Functions
 
 ```typescript
-usePostComments(postId: string) {
-  // State
-  comments: PostComment[]
-  loading: boolean
-  submitting: boolean
-  
-  // Actions
-  fetchComments()
-  createComment(content, parentId?)
-  softDeleteComment(commentId)
-  
-  // Realtime subscription
-  subscribeToChanges()
+interface UsePostCommentsReturn {
+  // ... existing
+  likedCommentIds: Set<string>;    // Set các comment ID user đã like
+  toggleLike: (commentId: string) => Promise<void>;
 }
 ```
 
----
+### Logic Toggle Like
 
-## Phần 5: Trang Chi Tiết Bài Đăng (PostDetail)
-
-### Tạo Route Mới
-
-Thêm route `/post/:id` để xem chi tiết bài đăng kèm bình luận.
-
-**Components:**
-- Hiển thị nội dung bài đăng
-- Hình ảnh (nếu có)
-- Thông tin tác giả
-- Section bình luận sử dụng `PostComments`
+1. **Check Like Status**: Khi fetch comments, cũng fetch các like của user hiện tại
+2. **Toggle Like**: 
+   - Nếu chưa like → INSERT vào `post_comment_likes` + UPDATE `like_count` tăng 1
+   - Nếu đã like → DELETE khỏi `post_comment_likes` + UPDATE `like_count` giảm 1
+3. **Optimistic UI**: Cập nhật UI ngay trước khi gọi API
 
 ---
 
-## Phần 6: Flow Người Dùng
+## Phần 4: Cập Nhật Components
 
-### Flow 1: Xem Bình Luận
-```text
-User vào /post/:id
-    ↓
-Fetch post data + comments
-    ↓
-Subscribe realtime channel
-    ↓
-Render comments (root + replies)
+### 4.1. `PostCommentItem` - Thêm Nút Like
+
+**UI Changes:**
+- Thêm nút Heart/ThumbsUp trước nút "Trả lời"
+- Hiển thị số lượt thích bên cạnh icon
+- Icon đổi màu khi đã like (filled vs outline)
+- Animation nhỏ khi click
+
+**Props mới:**
+```typescript
+interface PostCommentItemProps {
+  // ... existing
+  isLiked: boolean;
+  onToggleLike: (commentId: string) => Promise<void>;
+}
 ```
 
-### Flow 2: Đăng Bình Luận
+### 4.2. `PostCommentList` - Truyền Like Props
+
+Nhận `likedCommentIds` và `onToggleLike` từ parent, truyền xuống từng `PostCommentItem`.
+
+### 4.3. `PostComments` - Container
+
+Lấy `likedCommentIds` và `toggleLike` từ hook, truyền xuống `PostCommentList`.
+
+---
+
+## Phần 5: Flow Người Dùng
+
+### Flow Like Bình Luận
 ```text
-User nhập nội dung → Submit
+User bấm nút ❤️ trên comment
     ↓
-Optimistic: Hiển thị comment ngay
+Optimistic: Icon đổi màu + số like +1
     ↓
-Insert vào Supabase
+INSERT vào post_comment_likes
+    ↓
+UPDATE post_comments SET like_count = like_count + 1
     ↓
 Thành công → Giữ nguyên
-Thất bại → Rollback + hiện lỗi
+Thất bại → Rollback UI + hiện lỗi
 ```
 
-### Flow 3: Trả Lời Bình Luận
+### Flow Unlike Bình Luận
 ```text
-Bấm "Trả lời" trên comment
+User bấm nút ❤️ (đang đỏ) trên comment
     ↓
-Hiện form reply (parent_id = comment.id)
+Optimistic: Icon đổi outline + số like -1
     ↓
-Submit reply
+DELETE khỏi post_comment_likes
     ↓
-Reply hiển thị indent dưới comment cha
-```
-
-### Flow 4: Xóa Bình Luận (Soft Delete)
-```text
-Chủ sở hữu bấm "Xóa"
+UPDATE post_comments SET like_count = like_count - 1
     ↓
-Confirm dialog
-    ↓
-UPDATE is_deleted = true
-    ↓
-UI hiển thị "Bình luận này đã bị xóa"
+Thành công → Giữ nguyên
+Thất bại → Rollback UI
 ```
 
 ---
 
-## Phần 7: Realtime Updates
+## Phần 6: UI/UX
 
-### Cấu Hình
+### Thiết Kế Nút Like
 
-```sql
-ALTER PUBLICATION supabase_realtime ADD TABLE public.post_comments;
+```text
+┌─────────────────────────────────────────────┐
+│ 👤 Tên người dùng • 3 phút trước           │
+│ Nội dung bình luận ở đây...                 │
+│                                             │
+│ [♡ 12]  [↩️ Trả lời]  [🗑️ Xóa]             │
+│    ↑                                        │
+│   Icon thay đổi: ♡ (chưa like) → ❤️ (đã like)│
+└─────────────────────────────────────────────┘
 ```
 
-### Subscribe Pattern
+### States
 
-```typescript
-supabase
-  .channel(`post-comments-${postId}`)
-  .on('postgres_changes', {
-    event: '*',
-    schema: 'public',
-    table: 'post_comments',
-    filter: `post_id=eq.${postId}`
-  }, handleChange)
-  .subscribe()
-```
+| Trạng thái | Hiển thị |
+|------------|----------|
+| Chưa like | Icon outline (Heart), số mờ |
+| Đã like | Icon filled đỏ (❤️), số sáng |
+| Đang xử lý | Disabled, opacity giảm |
+| Chưa đăng nhập | Redirect đến /auth khi click |
+
+### Animation
+- Scale nhỏ khi click (0.9 → 1.1 → 1)
+- Transition màu mượt (150ms)
 
 ---
 
-## Phần 8: Danh Sách Files Sẽ Tạo/Sửa
+## Phần 7: Files Cần Thay Đổi
 
-### Files Mới
+### Database Migration (Mới)
 
-| File | Mô tả |
-|------|-------|
-| `src/components/Post/PostComments.tsx` | Component container chính |
-| `src/components/Post/PostCommentList.tsx` | Danh sách bình luận |
-| `src/components/Post/PostCommentItem.tsx` | 1 item bình luận |
-| `src/components/Post/PostCommentInput.tsx` | Form nhập bình luận |
-| `src/hooks/usePostComments.ts` | Custom hook logic |
-| `src/pages/PostDetail.tsx` | Trang chi tiết bài đăng |
+| Thay đổi | Mô tả |
+|----------|-------|
+| CREATE TABLE post_comment_likes | Bảng lưu lượt thích |
+| CREATE UNIQUE INDEX | Đảm bảo 1 user = 1 like/comment |
+| CREATE INDEXES | Performance indexes |
+| ENABLE RLS | Bảo mật |
+| CREATE POLICIES | 3 policies (SELECT, INSERT, DELETE) |
 
 ### Files Sửa
 
 | File | Thay đổi |
 |------|----------|
-| `src/App.tsx` | Thêm route `/post/:id` |
-
-### Database Migration
-
-| Thay đổi | Mô tả |
-|----------|-------|
-| CREATE TABLE post_comments | Bảng mới cho bình luận bài đăng |
-| CREATE INDEXES | 4 indexes cho performance |
-| ENABLE RLS | Bảo mật row-level |
-| CREATE POLICIES | 3 policies (SELECT, INSERT, UPDATE) |
-| CREATE TRIGGER | Auto update `updated_at` |
-| ADD TO REALTIME | Enable realtime cho bảng |
+| `src/hooks/usePostComments.ts` | Thêm `likedCommentIds`, `toggleLike`, fetch like status |
+| `src/components/Post/PostCommentItem.tsx` | Thêm nút Like với animation |
+| `src/components/Post/PostCommentList.tsx` | Truyền like props |
+| `src/components/Post/PostComments.tsx` | Lấy và truyền like state |
 
 ---
 
-## Phần 9: UI/UX Requirements
-
-### Thiết Kế Giao Diện
-
-- **Clean & Minimal**: Phù hợp style FUN Play hiện tại
-- **Responsive**: Hoạt động tốt trên mobile và desktop
-- **Dark mode compatible**: Hỗ trợ theme tối
-- **Animations**: Sử dụng Framer Motion cho transitions
-
-### Trạng Thái UI
-
-| Trạng thái | Hiển thị |
-|------------|----------|
-| Loading | Skeleton placeholder |
-| Empty | "Chưa có bình luận nào" + icon |
-| Error | Toast thông báo lỗi |
-| Deleted comment | "Bình luận này đã bị xóa" (text mờ) |
-| Reply indent | Margin-left 48px |
-
----
-
-## Phần 10: Bảo Mật & Chất Lượng
+## Phần 8: Bảo Mật & Chất Lượng
 
 ### Validation
-
-- Không cho phép bình luận rỗng (trim + check length)
-- Giới hạn độ dài tối đa: 1000 ký tự
-- Sanitize content để tránh XSS (React tự xử lý)
+- Chỉ user đã đăng nhập mới được like
+- Không thể like comment đã bị xóa
+- Rate limiting tự nhiên qua unique constraint
 
 ### Error Handling
-
-- Try-catch tất cả async operations
+- Optimistic rollback khi API fail
 - Toast thông báo lỗi user-friendly
-- Console log chi tiết cho debugging
+- Không cho like khi đang pending
 
 ### Type Safety
-
-- TypeScript interfaces cho tất cả data types
-- Strict null checks
-- Proper type guards
+- TypeScript interfaces cho like data
+- Proper null checks
+- Type guards cho API responses
 
 ---
 
@@ -296,12 +205,11 @@ supabase
 
 Sau khi hoàn thành:
 
-1. **Database**: Bảng `post_comments` với RLS và realtime
-2. **UI Components**: Bộ component modular, tái sử dụng
-3. **User Experience**: 
-   - Đăng bình luận với optimistic UI
-   - Trả lời bình luận (1 cấp)
-   - Xóa mềm với xác nhận
-   - Realtime updates
-4. **PostDetail Page**: Trang chi tiết xem bài đăng + bình luận
+1. **Database**: Bảng `post_comment_likes` với RLS đầy đủ
+2. **UI**: Nút like với animation mượt mà
+3. **UX**: 
+   - Like/unlike tức thì với optimistic UI
+   - Hiển thị số lượt thích real-time
+   - Feedback trực quan khi thao tác
+4. **Security**: RLS đảm bảo user chỉ thao tác được like của mình
 
