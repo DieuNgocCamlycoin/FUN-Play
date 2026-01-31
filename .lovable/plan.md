@@ -1,179 +1,307 @@
 
-## Mục tiêu
-Tìm đúng nguyên nhân vì sao “điền đúng email + mật khẩu” nhưng vẫn báo lỗi và không đăng nhập được, đồng thời sửa triệt để luồng “Quên mật khẩu” để user **bắt buộc đặt mật khẩu mới** (đúng yêu cầu: có form đổi mật khẩu + bắt buộc xác nhận email + gợi ý reset khi sai).
+
+# Kế Hoạch: Xây Dựng Hệ Thống Bình Luận Cho Bài Đăng (Posts)
+
+## Tổng Quan
+
+Xây dựng hệ thống bình luận hoàn chỉnh cho bài đăng (posts) với các tính năng:
+- Bình luận gốc (root comments)
+- Trả lời bình luận (1 cấp lồng nhau)
+- Soft delete (xóa mềm - giữ dữ liệu nhưng ẩn đi)
+- Phân quyền dựa trên xác thực
+- Cập nhật realtime
+- Optimistic UI
 
 ---
 
-## 1) Chẩn đoán từ code hiện tại (nguyên nhân gốc có thể xảy ra)
+## Phần 1: Thiết Kế Cơ Sở Dữ Liệu
 
-### A. Luồng “Quên mật khẩu” đang bị thiếu bước “đặt mật khẩu mới”
-Trong `src/pages/Auth.tsx`, `onAuthStateChange` đang làm:
-- Hễ có `session?.user` là `navigate("/")` ngay.
-- Khi user bấm link reset trong email, hệ thống sẽ tạo session (đăng nhập tạm thời để đổi mật khẩu) → app lập tức redirect về `/` → user **không bao giờ được nhập mật khẩu mới**.
-Kết quả:
-- User “đăng nhập được” sau khi bấm link email (vì có session), nhưng **không biết mật khẩu mới là gì** (và có thể mật khẩu vẫn là mật khẩu cũ hoặc chưa được set đúng cách).
-- Lần sau login bằng email+password sẽ dễ báo `Invalid login credentials`.
+### Tạo Bảng `post_comments`
 
-=> Đây khớp chính xác mô tả của con: “bấm quên mật khẩu thì vào được, nhưng không có mục đổi pass”.
+Sẽ tạo bảng mới `post_comments` riêng biệt với bảng `comments` hiện tại (dành cho video) để tránh xung đột và dễ quản lý.
 
-### B. Input email có thể có khoảng trắng ở đầu/cuối (rất hay gặp)
-Code hiện tại chỉ dùng `email.trim()` để kiểm tra rỗng, nhưng lúc gọi:
-```ts
-supabase.auth.signInWithPassword({ email, password })
+**Schema:**
+
+| Cột | Kiểu | Nullable | Mặc định | Mô tả |
+|-----|------|----------|----------|-------|
+| id | uuid | NO | gen_random_uuid() | Khóa chính |
+| post_id | uuid | NO | - | Liên kết đến posts(id) ON DELETE CASCADE |
+| user_id | uuid | NO | - | Người bình luận |
+| parent_id | uuid | YES | NULL | Bình luận cha (để trả lời) |
+| content | text | NO | - | Nội dung bình luận |
+| is_deleted | boolean | NO | false | Đánh dấu xóa mềm |
+| like_count | integer | NO | 0 | Số lượt thích |
+| created_at | timestamptz | NO | now() | Thời gian tạo |
+| updated_at | timestamptz | NO | now() | Thời gian cập nhật |
+
+**Indexes:**
+- `idx_post_comments_post_id` - Tìm kiếm theo bài đăng
+- `idx_post_comments_parent_id` - Tìm kiếm bình luận con
+- `idx_post_comments_user_id` - Tìm kiếm theo người dùng
+- `idx_post_comments_created_at` - Sắp xếp theo thời gian
+
+---
+
+## Phần 2: Row Level Security (RLS)
+
+### Chính Sách Bảo Mật
+
+| Hành động | Quy tắc |
+|-----------|---------|
+| **SELECT** | Mọi người có thể đọc bình luận chưa bị xóa (`is_deleted = false`) HOẶC chủ sở hữu thấy cả bình luận đã xóa của mình |
+| **INSERT** | Chỉ người dùng đã xác thực mới được tạo bình luận (`auth.uid() = user_id`) |
+| **UPDATE** | Chỉ chủ sở hữu được cập nhật nội dung (`auth.uid() = user_id`) |
+| **DELETE** | Không cho phép xóa cứng - dùng soft delete qua UPDATE |
+
+**Lưu ý bảo mật:**
+- Không cho phép DELETE trực tiếp từ client
+- Soft delete được thực hiện qua UPDATE (set `is_deleted = true`)
+- Trigger tự động cập nhật `updated_at` khi có thay đổi
+
+---
+
+## Phần 3: Frontend Components
+
+### 3.1. Component Structure
+
+```text
+src/components/Post/
+├── PostComments.tsx          # Container chính cho bình luận
+├── PostCommentList.tsx       # Danh sách bình luận với realtime
+├── PostCommentItem.tsx       # Hiển thị 1 bình luận
+├── PostCommentInput.tsx      # Ô nhập bình luận
+└── PostCommentReplies.tsx    # Hiển thị các reply
 ```
-Email **không trim**. Nếu user copy/paste có dấu cách (đầu/cuối) thì:
-- User nhìn “đúng email”, nhưng hệ thống nhận “email có space” → sai → `Invalid login credentials`.
 
-=> Đây là một lý do phổ biến tạo cảm giác “điền đúng mà vẫn lỗi”.
+### 3.2. `PostComments` - Component Chính
 
-### C. Các user cũ có thể thuộc các trạng thái khác nhau
-Vì app đã chạy lâu và có nhiều user, có thể có user:
-- Đã tạo tài khoản nhưng **chưa confirm email** → sẽ báo “Email not confirmed”.
-- Được tạo từ các luồng khác (magic link / provider / import) → có thể không có password “chuẩn”.
+**Props:**
+- `postId: string` - ID của bài đăng
+- `onCommentCountChange?: (count: number) => void` - Callback khi số comment thay đổi
 
-Ta sẽ vừa sửa UI/flow, vừa thêm chẩn đoán để phân loại lỗi chính xác, thay vì chỉ show chung chung.
+**Chức năng:**
+- Fetch danh sách bình luận
+- Subscribe realtime để nhận bình luận mới
+- Render danh sách + form nhập
 
----
+### 3.3. `PostCommentItem` - Hiển Thị Bình Luận
 
-## 2) Kế hoạch kiểm tra (để “tìm ra lỗi hiện tại” một cách chắc chắn)
+**Features:**
+- Avatar người dùng (từ profiles)
+- Tên hiển thị + username
+- Nội dung bình luận
+- Thời gian tương đối (vd: "3 phút trước")
+- Nút "Trả lời" → mở form reply
+- Nút "Xóa" (chỉ hiện cho chủ sở hữu)
+- Hiển thị replies (indent nhẹ)
+- Nếu `is_deleted = true` → hiện "Bình luận này đã bị xóa"
 
-### 2.1. Bổ sung log chẩn đoán ngay tại Auth page (tạm thời trong dev)
-Trong `Auth.tsx`:
-- Khi submit login: log `emailNormalized` (trim + lowercase) và log mã lỗi trả về từ auth (không log password).
-- Khi `onAuthStateChange`: log `event` và có/không có session.
+### 3.4. `PostCommentInput` - Ô Nhập Bình Luận
 
-Mục tiêu: xác nhận lỗi user gặp thuộc nhóm nào:
-- `invalid_credentials`
-- `email_not_confirmed`
-- `user_not_found`
-- `recovery_session`/redirect sai
-
-### 2.2. Đọc auth logs từ backend (Live)
-Tiếp tục kiểm tra logs kiểu `/token` 400 `invalid_credentials` theo thời gian user report, để đối chiếu với hành vi UI.
-
----
-
-## 3) Kế hoạch sửa triệt để (implementation)
-
-### File sẽ sửa
-- `src/pages/Auth.tsx` (chính)
-- (Tùy chọn) `src/hooks/useAuth.tsx` nếu đang bị dùng ở nơi khác để auto-redirect làm nhiễu flow recovery, nhưng hiện tại lỗi chủ yếu nằm ở Auth page.
+**Features:**
+- Textarea với placeholder
+- Validate: không cho phép bình luận trống
+- Disabled nếu chưa đăng nhập
+- Optimistic UI: hiển thị comment ngay khi submit
+- Rollback nếu có lỗi
 
 ---
 
-## 4) Thiết kế lại flow “Quên mật khẩu” đúng chuẩn
+## Phần 4: Hook `usePostComments`
 
-### 4.1. Thêm trạng thái “Đang ở chế độ đặt mật khẩu mới”
-Thêm state:
-- `resetMode: boolean` (hoặc `showResetPasswordForm`)
-- `newPassword`, `confirmPassword`
-- `resetTokenDetected` (optional) để xử lý UI khi link reset vừa mở
+Tạo custom hook để quản lý logic bình luận:
 
-### 4.2. Bắt event password recovery và chặn redirect về trang chủ
-Trong `supabase.auth.onAuthStateChange((event, session) => ...)`:
-- Nếu `event === "PASSWORD_RECOVERY"`:
-  - set `resetMode = true`
-  - set session/user vào state
-  - **return sớm** (không navigate `/`)
-- Chỉ `navigate("/")` khi:
-  - user sign in bình thường (`SIGNED_IN`) và **không ở resetMode**
-
-Ngoài event, cũng parse URL để bắt trường hợp provider trả về dạng query:
-- `type=recovery` (hoặc các tham số auth tương tự)
-Khi phát hiện `type=recovery`:
-- bật `resetMode = true` ngay khi page load.
-
-### 4.3. Thêm form “Đặt mật khẩu mới”
-UI:
-- 2 ô: “Mật khẩu mới”, “Xác nhận mật khẩu”
-- Validate:
-  - >= 6 ký tự
-  - khớp nhau
-- Nút submit gọi:
-```ts
-await supabase.auth.updateUser({ password: newPassword })
+```typescript
+usePostComments(postId: string) {
+  // State
+  comments: PostComment[]
+  loading: boolean
+  submitting: boolean
+  
+  // Actions
+  fetchComments()
+  createComment(content, parentId?)
+  softDeleteComment(commentId)
+  
+  // Realtime subscription
+  subscribeToChanges()
+}
 ```
-Nếu thành công:
-- show success message “Đổi mật khẩu thành công”
-- clear URL query (optional) để tránh loop
-- navigate về `/` (hoặc về login tùy mong muốn; đề xuất về `/auth` và auto chuyển sang login cũng được, nhưng vì user đã có session recovery thì về `/` hợp lý)
 
 ---
 
-## 5) Sửa lỗi “điền đúng nhưng vẫn invalid_credentials” do khoảng trắng / chuẩn hóa email
+## Phần 5: Trang Chi Tiết Bài Đăng (PostDetail)
 
-### 5.1. Chuẩn hóa email trước khi gửi đi
-Ở cả 3 chỗ:
-- login
-- signup
-- forgot password
+### Tạo Route Mới
 
-Dùng:
-- `const emailNormalized = email.trim().toLowerCase();`
-Sau đó call auth bằng `emailNormalized`.
+Thêm route `/post/:id` để xem chi tiết bài đăng kèm bình luận.
 
-Ghi chú:
-- Password không nên trim (vì password hợp lệ có thể có space), nhưng ta sẽ:
-  - detect nếu password có leading/trailing whitespace (`password !== password.trim()`)
-  - hiện cảnh báo nhỏ “Mật khẩu đang có khoảng trắng ở đầu/cuối, hãy kiểm tra lại” (nhiều user “dính” lỗi này khi copy).
+**Components:**
+- Hiển thị nội dung bài đăng
+- Hình ảnh (nếu có)
+- Thông tin tác giả
+- Section bình luận sử dụng `PostComments`
 
 ---
 
-## 6) “Gợi ý reset khi sai” (đúng yêu cầu của con)
-Khi login thất bại và message match `Invalid login credentials`:
-- Hiển thị một box nổi bật ngay dưới lỗi:
-  - “Có thể bạn đã quên mật khẩu”
-  - Button: “Đặt lại mật khẩu”
-  - Click → set `forgotPassword = true` và tự điền email đang nhập (nếu có)
+## Phần 6: Flow Người Dùng
+
+### Flow 1: Xem Bình Luận
+```text
+User vào /post/:id
+    ↓
+Fetch post data + comments
+    ↓
+Subscribe realtime channel
+    ↓
+Render comments (root + replies)
+```
+
+### Flow 2: Đăng Bình Luận
+```text
+User nhập nội dung → Submit
+    ↓
+Optimistic: Hiển thị comment ngay
+    ↓
+Insert vào Supabase
+    ↓
+Thành công → Giữ nguyên
+Thất bại → Rollback + hiện lỗi
+```
+
+### Flow 3: Trả Lời Bình Luận
+```text
+Bấm "Trả lời" trên comment
+    ↓
+Hiện form reply (parent_id = comment.id)
+    ↓
+Submit reply
+    ↓
+Reply hiển thị indent dưới comment cha
+```
+
+### Flow 4: Xóa Bình Luận (Soft Delete)
+```text
+Chủ sở hữu bấm "Xóa"
+    ↓
+Confirm dialog
+    ↓
+UPDATE is_deleted = true
+    ↓
+UI hiển thị "Bình luận này đã bị xóa"
+```
 
 ---
 
-## 7) Bắt buộc xác nhận email (đúng yêu cầu)
-Về phía app:
-- Giữ nguyên: nếu lỗi “Email not confirmed” → hiển thị tiếng Việt rõ ràng.
-- Sau signup:
-  - cập nhật thông báo thành: “Vui lòng mở email để xác nhận trước khi đăng nhập.”
-  - không auto-login.
+## Phần 7: Realtime Updates
 
-Về phía backend (Lovable Cloud auth setting):
-- Xác nhận lại đang bật “require email confirmation”.
-- Nếu chưa bật, sẽ bật bằng cấu hình auth (không làm trong plan mode; sẽ làm khi implement).
+### Cấu Hình
 
----
+```sql
+ALTER PUBLICATION supabase_realtime ADD TABLE public.post_comments;
+```
 
-## 8) Kiểm thử end-to-end (bắt buộc để chắc chắn hết lỗi)
-Kịch bản test tối thiểu:
+### Subscribe Pattern
 
-1) User mới:
-- Signup → nhận mail confirm → confirm → login bằng password vừa đặt → OK
-
-2) User cũ quên mật khẩu:
-- Vào /auth → bấm “Quên mật khẩu” → nhận email → bấm link →
-  - Phải vào đúng /auth và hiển thị form “Đặt mật khẩu mới”
-  - Đặt mật khẩu mới → logout → login lại bằng mật khẩu mới → OK
-
-3) Case khoảng trắng:
-- Email có space đầu/cuối → login phải vẫn OK (vì email trim)
-- Password có space đầu/cuối → app cảnh báo rõ, user sửa và login OK
-
-4) Case chưa confirm email:
-- Login → báo đúng “Email chưa được xác nhận” + hướng dẫn kiểm tra inbox/spam
+```typescript
+supabase
+  .channel(`post-comments-${postId}`)
+  .on('postgres_changes', {
+    event: '*',
+    schema: 'public',
+    table: 'post_comments',
+    filter: `post_id=eq.${postId}`
+  }, handleChange)
+  .subscribe()
+```
 
 ---
 
-## 9) Tiêu chí hoàn thành
-- User bấm link reset password luôn thấy form đổi mật khẩu (không bị đá về trang chủ trước).
-- Tỷ lệ `invalid_credentials` giảm rõ rệt do email được chuẩn hóa.
-- UX “gợi ý reset khi sai” hoạt động và giúp user tự xử lý.
-- Không phá luồng thưởng signup hiện tại (awardSignupReward) và không gây double navigate.
+## Phần 8: Danh Sách Files Sẽ Tạo/Sửa
+
+### Files Mới
+
+| File | Mô tả |
+|------|-------|
+| `src/components/Post/PostComments.tsx` | Component container chính |
+| `src/components/Post/PostCommentList.tsx` | Danh sách bình luận |
+| `src/components/Post/PostCommentItem.tsx` | 1 item bình luận |
+| `src/components/Post/PostCommentInput.tsx` | Form nhập bình luận |
+| `src/hooks/usePostComments.ts` | Custom hook logic |
+| `src/pages/PostDetail.tsx` | Trang chi tiết bài đăng |
+
+### Files Sửa
+
+| File | Thay đổi |
+|------|----------|
+| `src/App.tsx` | Thêm route `/post/:id` |
+
+### Database Migration
+
+| Thay đổi | Mô tả |
+|----------|-------|
+| CREATE TABLE post_comments | Bảng mới cho bình luận bài đăng |
+| CREATE INDEXES | 4 indexes cho performance |
+| ENABLE RLS | Bảo mật row-level |
+| CREATE POLICIES | 3 policies (SELECT, INSERT, UPDATE) |
+| CREATE TRIGGER | Auto update `updated_at` |
+| ADD TO REALTIME | Enable realtime cho bảng |
 
 ---
 
-## Những thay đổi dự kiến (tóm tắt)
-- `Auth.tsx`:
-  - Thêm reset password mode + form đổi pass
-  - Xử lý event `PASSWORD_RECOVERY` + parse URL `type=recovery`
-  - Chuẩn hóa email khi login/signup/forgot
-  - Cảnh báo password có khoảng trắng đầu/cuối
-  - Hiển thị gợi ý reset khi login sai
-  - Điều chỉnh điều kiện `navigate("/")` để không chặn flow recovery
+## Phần 9: UI/UX Requirements
+
+### Thiết Kế Giao Diện
+
+- **Clean & Minimal**: Phù hợp style FUN Play hiện tại
+- **Responsive**: Hoạt động tốt trên mobile và desktop
+- **Dark mode compatible**: Hỗ trợ theme tối
+- **Animations**: Sử dụng Framer Motion cho transitions
+
+### Trạng Thái UI
+
+| Trạng thái | Hiển thị |
+|------------|----------|
+| Loading | Skeleton placeholder |
+| Empty | "Chưa có bình luận nào" + icon |
+| Error | Toast thông báo lỗi |
+| Deleted comment | "Bình luận này đã bị xóa" (text mờ) |
+| Reply indent | Margin-left 48px |
+
+---
+
+## Phần 10: Bảo Mật & Chất Lượng
+
+### Validation
+
+- Không cho phép bình luận rỗng (trim + check length)
+- Giới hạn độ dài tối đa: 1000 ký tự
+- Sanitize content để tránh XSS (React tự xử lý)
+
+### Error Handling
+
+- Try-catch tất cả async operations
+- Toast thông báo lỗi user-friendly
+- Console log chi tiết cho debugging
+
+### Type Safety
+
+- TypeScript interfaces cho tất cả data types
+- Strict null checks
+- Proper type guards
+
+---
+
+## Kết Quả Mong Đợi
+
+Sau khi hoàn thành:
+
+1. **Database**: Bảng `post_comments` với RLS và realtime
+2. **UI Components**: Bộ component modular, tái sử dụng
+3. **User Experience**: 
+   - Đăng bình luận với optimistic UI
+   - Trả lời bình luận (1 cấp)
+   - Xóa mềm với xác nhận
+   - Realtime updates
+4. **PostDetail Page**: Trang chi tiết xem bài đăng + bình luận
+
