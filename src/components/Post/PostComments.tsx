@@ -17,8 +17,10 @@ export const PostComments: React.FC<PostCommentsProps> = ({
     comments,
     loading,
     submitting,
+    likedCommentIds,
     createComment,
-    softDeleteComment
+    softDeleteComment,
+    toggleLike
   } = usePostComments(postId);
 
   // Calculate total comment count (including replies)
@@ -72,6 +74,8 @@ export const PostComments: React.FC<PostCommentsProps> = ({
         loading={loading}
         onReply={handleReply}
         onDelete={handleDelete}
+        onToggleLike={toggleLike}
+        likedCommentIds={likedCommentIds}
         submitting={submitting}
       />
     </div>

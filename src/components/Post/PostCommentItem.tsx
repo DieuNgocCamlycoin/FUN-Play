@@ -3,7 +3,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Reply, Trash2, MoreHorizontal, MessageSquare } from 'lucide-react';
+import { Reply, Trash2, MessageSquare, Heart } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { PostCommentInput } from './PostCommentInput';
 import { PostComment } from '@/hooks/usePostComments';
@@ -25,6 +25,9 @@ interface PostCommentItemProps {
   comment: PostComment;
   onReply: (content: string, parentId: string) => Promise<boolean>;
   onDelete: (commentId: string) => Promise<boolean>;
+  onToggleLike: (commentId: string) => Promise<void>;
+  isLiked: boolean;
+  likedCommentIds: Set<string>;
   submitting?: boolean;
   isReply?: boolean;
 }
@@ -33,12 +36,23 @@ export const PostCommentItem: React.FC<PostCommentItemProps> = ({
   comment,
   onReply,
   onDelete,
+  onToggleLike,
+  isLiked,
+  likedCommentIds,
   submitting = false,
   isReply = false
 }) => {
   const { user } = useAuth();
   const [showReplyInput, setShowReplyInput] = useState(false);
   const [showReplies, setShowReplies] = useState(true);
+  const [isLiking, setIsLiking] = useState(false);
+
+  const handleLikeClick = async () => {
+    if (isLiking) return;
+    setIsLiking(true);
+    await onToggleLike(comment.id);
+    setIsLiking(false);
+  };
 
   const isOwner = user?.id === comment.user_id;
   const displayName = comment.profiles?.display_name || comment.profiles?.username || 'Người dùng';
@@ -111,6 +125,42 @@ export const PostCommentItem: React.FC<PostCommentItemProps> = ({
 
           {/* Actions */}
           <div className="flex items-center gap-1 mt-2">
+            {/* Like button */}
+            <motion.div whileTap={{ scale: 0.9 }}>
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  "h-7 px-2 text-xs transition-colors",
+                  isLiked 
+                    ? "text-red-500 hover:text-red-600" 
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+                onClick={handleLikeClick}
+                disabled={isLiking}
+              >
+                <motion.div
+                  animate={isLiked ? { scale: [1, 1.2, 1] } : { scale: 1 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Heart 
+                    className={cn(
+                      "h-3.5 w-3.5 mr-1 transition-all",
+                      isLiked && "fill-current"
+                    )} 
+                  />
+                </motion.div>
+                {comment.like_count > 0 && (
+                  <span className={cn(
+                    "tabular-nums",
+                    isLiked && "text-red-500"
+                  )}>
+                    {comment.like_count}
+                  </span>
+                )}
+              </Button>
+            </motion.div>
+
             {!isReply && user && (
               <Button
                 variant="ghost"
@@ -208,6 +258,9 @@ export const PostCommentItem: React.FC<PostCommentItemProps> = ({
                     comment={reply}
                     onReply={onReply}
                     onDelete={onDelete}
+                    onToggleLike={onToggleLike}
+                    isLiked={likedCommentIds.has(reply.id)}
+                    likedCommentIds={likedCommentIds}
                     submitting={submitting}
                     isReply
                   />

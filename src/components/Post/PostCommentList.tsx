@@ -10,6 +10,8 @@ interface PostCommentListProps {
   loading: boolean;
   onReply: (content: string, parentId: string) => Promise<boolean>;
   onDelete: (commentId: string) => Promise<boolean>;
+  onToggleLike: (commentId: string) => Promise<void>;
+  likedCommentIds: Set<string>;
   submitting?: boolean;
 }
 
@@ -18,6 +20,8 @@ export const PostCommentList: React.FC<PostCommentListProps> = ({
   loading,
   onReply,
   onDelete,
+  onToggleLike,
+  likedCommentIds,
   submitting = false
 }) => {
   if (loading) {
@@ -58,6 +62,9 @@ export const PostCommentList: React.FC<PostCommentListProps> = ({
           comment={comment}
           onReply={onReply}
           onDelete={onDelete}
+          onToggleLike={onToggleLike}
+          isLiked={likedCommentIds.has(comment.id)}
+          likedCommentIds={likedCommentIds}
           submitting={submitting}
         />
       ))}
