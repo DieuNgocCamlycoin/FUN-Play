@@ -61,36 +61,51 @@ export default function Auth() {
   const isRecoveryRef = useRef(false); // Synchronous flag for immediate checks
 
   useEffect(() => {
-    // 🔴 FIX 1: Check URL hash IMMEDIATELY before anything else
-    const hashParams = new URLSearchParams(window.location.hash.substring(1));
-    const recoveryType = hashParams.get('type');
+    // 🔴 CRITICAL: Check URL hash SYNCHRONOUSLY before ANY async operations
+    const checkRecoveryMode = () => {
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const recoveryType = hashParams.get('type');
+      const accessToken = hashParams.get('access_token');
+      
+      // Recovery mode if type=recovery OR if we have access_token in hash (email link)
+      if (recoveryType === 'recovery' || (accessToken && recoveryType === 'recovery')) {
+        console.log("[Auth] Recovery mode detected from URL hash");
+        isRecoveryRef.current = true;
+        setIsPasswordRecovery(true);
+        return true;
+      }
+      return false;
+    };
     
-    if (recoveryType === 'recovery') {
-      console.log("[Auth] Recovery mode detected from URL hash");
-      isRecoveryRef.current = true;
-      setIsPasswordRecovery(true);
-    }
+    // Run IMMEDIATELY - before any Supabase calls
+    const isRecovery = checkRecoveryMode();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        console.log("[Auth] State change:", { event, hasSession: !!session });
+        console.log("[Auth] State change:", { event, hasSession: !!session, isRecoveryRef: isRecoveryRef.current });
         
-        // Handle PASSWORD_RECOVERY event - show password form, don't redirect
+        // 🔴 PRIORITY 1: Handle PASSWORD_RECOVERY event FIRST
         if (event === 'PASSWORD_RECOVERY') {
-          console.log("[Auth] PASSWORD_RECOVERY event triggered");
-          isRecoveryRef.current = true; // Update ref IMMEDIATELY
+          console.log("[Auth] PASSWORD_RECOVERY event - blocking all redirects");
+          isRecoveryRef.current = true;
           setIsPasswordRecovery(true);
           setSession(session);
           setUser(session?.user ?? null);
-          return; // Don't navigate away
+          return; // STOP - don't process further
         }
         
-        // 🔴 FIX 2: Check REF (instant), not state
+        // 🔴 PRIORITY 2: If in recovery mode, block ALL redirects
         if (isRecoveryRef.current) {
-          console.log("[Auth] Skipping redirect - recovery mode active");
-          return;
+          console.log("[Auth] Recovery mode active - blocking redirect");
+          // Still update session/user for the password form to work
+          if (session) {
+            setSession(session);
+            setUser(session.user);
+          }
+          return; // STOP - don't redirect
         }
         
+        // Normal flow - update state
         setSession(session);
         setUser(session?.user ?? null);
         
@@ -102,27 +117,35 @@ export default function Auth() {
           }, 1000);
         }
         
-        // 🔴 FIX 3: Only redirect if NOT in recovery mode
-        if (session?.user && !isRecoveryRef.current) {
+        // 🔴 ONLY redirect if NOT in recovery mode AND user is logged in
+        if (event === 'SIGNED_IN' && session?.user && !isRecoveryRef.current) {
+          console.log("[Auth] Redirecting to home - not in recovery mode");
           navigate("/");
         }
       }
     );
 
-    // 🔴 FIX 4: getSession does NOT redirect - let onAuthStateChange handle it
+    // Initial session check - but NEVER redirect if in recovery mode
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log("[Auth] getSession:", { hasSession: !!session, isRecoveryRef: isRecoveryRef.current });
+      
+      // If we detected recovery mode from URL, don't do anything here
       if (isRecoveryRef.current) {
-        console.log("[Auth] getSession: Skipping - recovery mode");
+        console.log("[Auth] getSession: Recovery mode - skipping redirect");
+        if (session) {
+          setSession(session);
+          setUser(session.user);
+        }
         return;
       }
       
       setSession(session);
       setUser(session?.user ?? null);
-      // Do NOT navigate here - onAuthStateChange will handle it
+      // Note: Don't navigate here - let onAuthStateChange handle it
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate, awardSignupReward]); // 🔴 Removed isPasswordRecovery from deps
+  }, [navigate, awardSignupReward]);
 
   const clearMessages = () => {
     setErrorMessage(null);
