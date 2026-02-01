@@ -7,8 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useAutoReward } from "@/hooks/useAutoReward";
-import { Eye, EyeOff, Mail, Lock, User, AlertCircle, CheckCircle, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, User, AlertCircle, CheckCircle, Loader2, AlertTriangle } from "lucide-react";
 import { User as SupabaseUser, Session } from "@supabase/supabase-js";
+import SetNewPasswordForm from "@/components/Auth/SetNewPasswordForm";
 
 // Vietnamese error messages mapping
 const getVietnameseError = (error: string): string => {
@@ -45,6 +46,7 @@ export default function Auth() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [forgotPassword, setForgotPassword] = useState(false);
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { awardSignupReward } = useAutoReward();
@@ -53,13 +55,28 @@ export default function Auth() {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        console.log("[Auth] State change:", { event, hasSession: !!session });
+        
+        // Handle PASSWORD_RECOVERY event - show password form, don't redirect
+        if (event === 'PASSWORD_RECOVERY') {
+          console.log("[Auth] Password recovery mode activated");
+          setIsPasswordRecovery(true);
+          setSession(session);
+          setUser(session?.user ?? null);
+          return; // Don't navigate away
+        }
+        
+        // If in password recovery mode, don't auto-redirect
+        if (isPasswordRecovery) {
+          return;
+        }
+        
         setSession(session);
         setUser(session?.user ?? null);
         
         // Award signup reward for new users
         if (event === 'SIGNED_IN' && session?.user && !signupRewardedRef.current) {
           signupRewardedRef.current = true;
-          // Defer the reward to avoid blocking auth
           setTimeout(() => {
             awardSignupReward(session.user.id);
           }, 1000);
@@ -72,6 +89,9 @@ export default function Auth() {
     );
 
     supabase.auth.getSession().then(({ data: { session } }) => {
+      // Don't auto-redirect if in password recovery mode
+      if (isPasswordRecovery) return;
+      
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
@@ -80,7 +100,7 @@ export default function Auth() {
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate, awardSignupReward]);
+  }, [navigate, awardSignupReward, isPasswordRecovery]);
 
   const clearMessages = () => {
     setErrorMessage(null);
@@ -244,18 +264,45 @@ export default function Auth() {
 
         {/* Auth Card - Transparent Frosted Glass */}
         <div className="bg-white/50 backdrop-blur-xl border border-white/30 rounded-2xl p-8 shadow-lg">
-          <h2 className="text-2xl font-bold text-center mb-2 bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] to-[#FF00E5] bg-clip-text text-transparent">
-            {forgotPassword ? "Quên Mật Khẩu" : isLogin ? "Đăng Nhập" : "Đăng Ký"}
+        <h2 className="text-2xl font-bold text-center mb-2 bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] to-[#FF00E5] bg-clip-text text-transparent">
+            {isPasswordRecovery 
+              ? "Đặt Mật Khẩu Mới" 
+              : forgotPassword 
+                ? "Quên Mật Khẩu" 
+                : isLogin 
+                  ? "Đăng Nhập" 
+                  : "Đăng Ký"}
           </h2>
           
           {/* Instruction text */}
           <p className="text-center text-gray-600 text-sm mb-6">
-            {forgotPassword 
-              ? "Nhập email để nhận link đặt lại mật khẩu" 
-              : isLogin 
-                ? "Chào mừng trở lại! Hãy đăng nhập để tiếp tục." 
-                : "Tạo tài khoản mới để trải nghiệm FUN PLAY!"}
+            {isPasswordRecovery 
+              ? "Nhập mật khẩu mới cho tài khoản của bạn"
+              : forgotPassword 
+                ? "Nhập email để nhận link đặt lại mật khẩu" 
+                : isLogin 
+                  ? "Chào mừng trở lại! Hãy đăng nhập để tiếp tục." 
+                  : "Tạo tài khoản mới để trải nghiệm FUN PLAY!"}
           </p>
+
+          {/* Password Recovery Form */}
+          {isPasswordRecovery ? (
+            <SetNewPasswordForm 
+              onSuccess={() => {
+                setIsPasswordRecovery(false);
+                toast({
+                  title: "Mật khẩu đã được cập nhật!",
+                  description: "Hãy đăng nhập với mật khẩu mới.",
+                });
+                setSuccessMessage("Mật khẩu đã được đặt lại thành công!");
+              }}
+              onBackToLogin={async () => {
+                await supabase.auth.signOut();
+                setIsPasswordRecovery(false);
+              }}
+            />
+          ) : (
+            <>
 
           {/* Error Message */}
           {errorMessage && (
@@ -495,6 +542,8 @@ export default function Auth() {
                 </p>
               </div>
             </>
+          )}
+          </>
           )}
         </div>
       </div>
