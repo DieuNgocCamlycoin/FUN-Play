@@ -9,10 +9,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Save, Play, Pause } from "lucide-react";
+import { ArrowLeft, Save, Play, Pause, Lock } from "lucide-react";
 import { Header } from "@/components/Layout/Header";
 import { DragDropImageUpload } from "@/components/Profile/DragDropImageUpload";
 import { ProfileCompletionIndicator } from "@/components/Profile/ProfileCompletionIndicator";
+import { ChangePasswordForm } from "@/components/Profile/ChangePasswordForm";
 
 export default function ProfileSettings() {
   const { user, loading } = useAuth();
@@ -506,6 +507,15 @@ export default function ProfileSettings() {
                 </Button>
               </div>
             </form>
+
+            {/* Security Section - Change Password */}
+            <div className="border-t border-border pt-6 mt-6">
+              <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                <Lock className="h-5 w-5" />
+                Bảo Mật
+              </h3>
+              <ChangePasswordForm userEmail={user?.email || ""} />
+            </div>
           </div>
         </div>
       </main>
