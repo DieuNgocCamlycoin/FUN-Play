@@ -10,6 +10,63 @@ interface ChangePasswordFormProps {
   userEmail: string;
 }
 
+interface PasswordInputProps {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  show: boolean;
+  onToggleShow: () => void;
+  error?: string;
+  placeholder: string;
+}
+
+// ✅ Định nghĩa BÊN NGOÀI component chính để tránh bị tạo lại mỗi render
+const PasswordInput = ({
+  id,
+  label,
+  value,
+  onChange,
+  show,
+  onToggleShow,
+  error,
+  placeholder,
+}: PasswordInputProps) => (
+  <div className="space-y-2">
+    <Label htmlFor={id}>{label}</Label>
+    <div className="relative">
+      <Input
+        id={id}
+        type={show ? "text" : "password"}
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={`pr-10 ${error ? "border-destructive" : ""}`}
+      />
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+        onClick={onToggleShow}
+        tabIndex={-1}
+      >
+        {show ? (
+          <EyeOff className="h-4 w-4 text-muted-foreground" />
+        ) : (
+          <Eye className="h-4 w-4 text-muted-foreground" />
+        )}
+      </Button>
+    </div>
+    {error && (
+      <p className="text-sm text-destructive flex items-center gap-1">
+        <AlertCircle className="h-3 w-3" />
+        {error}
+      </p>
+    )}
+  </div>
+);
+
 export function ChangePasswordForm({ userEmail }: ChangePasswordFormProps) {
   const { toast } = useToast();
   const [currentPassword, setCurrentPassword] = useState("");
@@ -99,60 +156,6 @@ export function ChangePasswordForm({ userEmail }: ChangePasswordFormProps) {
       setIsSubmitting(false);
     }
   };
-
-  const PasswordInput = ({
-    id,
-    label,
-    value,
-    onChange,
-    show,
-    onToggleShow,
-    error,
-    placeholder,
-  }: {
-    id: string;
-    label: string;
-    value: string;
-    onChange: (value: string) => void;
-    show: boolean;
-    onToggleShow: () => void;
-    error?: string;
-    placeholder: string;
-  }) => (
-    <div className="space-y-2">
-      <Label htmlFor={id}>{label}</Label>
-      <div className="relative">
-        <Input
-          id={id}
-          type={show ? "text" : "password"}
-          placeholder={placeholder}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className={`pr-10 ${error ? "border-destructive" : ""}`}
-        />
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-          onClick={onToggleShow}
-          tabIndex={-1}
-        >
-          {show ? (
-            <EyeOff className="h-4 w-4 text-muted-foreground" />
-          ) : (
-            <Eye className="h-4 w-4 text-muted-foreground" />
-          )}
-        </Button>
-      </div>
-      {error && (
-        <p className="text-sm text-destructive flex items-center gap-1">
-          <AlertCircle className="h-3 w-3" />
-          {error}
-        </p>
-      )}
-    </div>
-  );
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
