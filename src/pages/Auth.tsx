@@ -51,23 +51,36 @@ export default function Auth() {
   const { toast } = useToast();
   const { awardSignupReward } = useAutoReward();
   const signupRewardedRef = useRef(false);
+  const isRecoveryRef = useRef(false); // Synchronous flag for immediate checks
 
   useEffect(() => {
+    // 🔴 FIX 1: Check URL hash IMMEDIATELY before anything else
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const recoveryType = hashParams.get('type');
+    
+    if (recoveryType === 'recovery') {
+      console.log("[Auth] Recovery mode detected from URL hash");
+      isRecoveryRef.current = true;
+      setIsPasswordRecovery(true);
+    }
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         console.log("[Auth] State change:", { event, hasSession: !!session });
         
         // Handle PASSWORD_RECOVERY event - show password form, don't redirect
         if (event === 'PASSWORD_RECOVERY') {
-          console.log("[Auth] Password recovery mode activated");
+          console.log("[Auth] PASSWORD_RECOVERY event triggered");
+          isRecoveryRef.current = true; // Update ref IMMEDIATELY
           setIsPasswordRecovery(true);
           setSession(session);
           setUser(session?.user ?? null);
           return; // Don't navigate away
         }
         
-        // If in password recovery mode, don't auto-redirect
-        if (isPasswordRecovery) {
+        // 🔴 FIX 2: Check REF (instant), not state
+        if (isRecoveryRef.current) {
+          console.log("[Auth] Skipping redirect - recovery mode active");
           return;
         }
         
@@ -82,25 +95,27 @@ export default function Auth() {
           }, 1000);
         }
         
-        if (session?.user) {
+        // 🔴 FIX 3: Only redirect if NOT in recovery mode
+        if (session?.user && !isRecoveryRef.current) {
           navigate("/");
         }
       }
     );
 
+    // 🔴 FIX 4: getSession does NOT redirect - let onAuthStateChange handle it
     supabase.auth.getSession().then(({ data: { session } }) => {
-      // Don't auto-redirect if in password recovery mode
-      if (isPasswordRecovery) return;
+      if (isRecoveryRef.current) {
+        console.log("[Auth] getSession: Skipping - recovery mode");
+        return;
+      }
       
       setSession(session);
       setUser(session?.user ?? null);
-      if (session?.user) {
-        navigate("/");
-      }
+      // Do NOT navigate here - onAuthStateChange will handle it
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate, awardSignupReward, isPasswordRecovery]);
+  }, [navigate, awardSignupReward]); // 🔴 Removed isPasswordRecovery from deps
 
   const clearMessages = () => {
     setErrorMessage(null);
