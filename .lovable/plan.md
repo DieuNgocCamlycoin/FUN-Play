@@ -1,175 +1,129 @@
 
 
-## Phân Tích Lỗi "2 Form Xuất Hiện Khi Click Link Reset Password"
+## Thêm Tính Năng Đổi Mật Khẩu Trong Profile Settings
 
-### Nguyên Nhân Chính Xác
+### Tại Sao Cần Thêm?
 
-Khi con nhấp vào link reset password từ email, **Supabase gửi URL chứa token trong hash fragment**:
-```
-https://funlay.lovable.app/auth#access_token=xxx&type=recovery&...
-```
+Hiện tại user chỉ có thể đổi mật khẩu qua flow "Quên mật khẩu" từ trang đăng nhập. Điều này **không tiện** vì:
+1. User đã đăng nhập phải logout mới reset được
+2. Phải chờ email
+3. Không có cách đổi mật khẩu trực tiếp khi đã biết mật khẩu cũ
 
-**Bug xảy ra do 3 vấn đề đồng thời:**
+### Giải Pháp
 
-1. **Race condition trong `useEffect`**: 
-   - `isPasswordRecovery` được dùng làm dependency trong useEffect (line 103)
-   - Khi `PASSWORD_RECOVERY` event xảy ra, code set `isPasswordRecovery = true`
-   - Nhưng vì state chưa update xong, `getSession()` ở line 91-100 **chạy trước khi state update**
-   - `getSession()` thấy có session → redirect về "/" → mở tab mới
-
-2. **Thứ tự event không đảm bảo**:
-   - Supabase có thể trigger `INITIAL_SESSION` hoặc `SIGNED_IN` trước `PASSWORD_RECOVERY`
-   - Code hiện tại check `if (session?.user) navigate("/")` (line 85-87) **trước khi biết đây là password recovery**
-
-3. **`isPasswordRecovery` là React state** - nó **không đồng bộ ngay lập tức**:
-   - Khi set `setIsPasswordRecovery(true)`, React **không cập nhật giá trị ngay**
-   - Các dòng code tiếp theo vẫn thấy `isPasswordRecovery = false`
-
-### Flow Thực Tế Đang Xảy Ra
+Thêm một section **"Bảo Mật"** trong trang Profile Settings với form đổi mật khẩu:
 
 ```
-1. User click link → Browser mở /auth#access_token=xxx&type=recovery
-2. Auth.tsx mount → useEffect chạy
-3. getSession() gọi ngay → thấy session (từ token) → navigate("/") → TAB 1 chuyển về HOME!
-4. Đồng thời onAuthStateChange trigger PASSWORD_RECOVERY → setIsPasswordRecovery(true) → hiện form đổi pass
-5. Nhưng navigate("/") đã chạy → React Router chuyển trang → TAB MỚI mở
+┌─────────────────────────────────────────┐
+│  🔒 Bảo Mật                             │
+├─────────────────────────────────────────┤
+│  Mật khẩu hiện tại: [____________]      │
+│  Mật khẩu mới:      [____________] 👁   │
+│  Xác nhận mật khẩu: [____________] 👁   │
+│                                         │
+│           [ Đổi Mật Khẩu ]              │
+└─────────────────────────────────────────┘
 ```
 
-**Kết quả**: User thấy 2 form vì:
-- Tab hiện tại nhảy về Home (do navigate trước)
-- Nhưng form password recovery vẫn render trong khoảng thời gian ngắn
-- Hoặc browser behavior mở thêm tab mới
+### Chi Tiết Kỹ Thuật
 
----
+**1. Tạo component `ChangePasswordForm.tsx`**
 
-## Giải Pháp
+| Trường | Mô tả |
+|--------|-------|
+| `currentPassword` | Mật khẩu hiện tại (bắt buộc xác thực) |
+| `newPassword` | Mật khẩu mới (min 6 ký tự) |
+| `confirmPassword` | Xác nhận mật khẩu mới (phải trùng khớp) |
 
-### 1. Kiểm tra URL hash TRƯỚC khi redirect
-
-Thêm logic check URL ngay khi component mount:
+**Logic xử lý:**
 ```typescript
-// Ở đầu useEffect, kiểm tra URL hash
-const hashParams = new URLSearchParams(window.location.hash.substring(1));
-const type = hashParams.get('type');
-
-if (type === 'recovery') {
-  setIsPasswordRecovery(true);
-  return; // Không làm gì khác, đợi PASSWORD_RECOVERY event
-}
-```
-
-### 2. Sử dụng useRef thay vì useState cho flag recovery
-
-`useRef` update **ngay lập tức**, không có delay như useState:
-```typescript
-const isRecoveryRef = useRef(false);
-
-// Trong event handler
-if (event === 'PASSWORD_RECOVERY') {
-  isRecoveryRef.current = true; // Cập nhật NGAY LẬP TỨC
-  setIsPasswordRecovery(true);  // Cho UI render
-}
-
-// Trong getSession callback
-if (isRecoveryRef.current) return; // Check ref, không check state
-```
-
-### 3. KHÔNG gọi navigate() trong getSession callback
-
-Di chuyển logic redirect ra khỏi `getSession()`, chỉ dựa vào `onAuthStateChange`:
-```typescript
-supabase.auth.getSession().then(({ data: { session } }) => {
-  setSession(session);
-  setUser(session?.user ?? null);
-  // KHÔNG navigate ở đây nữa - để onAuthStateChange xử lý
+// Bước 1: Xác thực mật khẩu cũ bằng cách re-authenticate
+const { error: authError } = await supabase.auth.signInWithPassword({
+  email: user.email,
+  password: currentPassword,
 });
+
+if (authError) {
+  // Mật khẩu hiện tại sai
+  throw new Error("Mật khẩu hiện tại không đúng");
+}
+
+// Bước 2: Cập nhật mật khẩu mới
+const { error: updateError } = await supabase.auth.updateUser({
+  password: newPassword,
+});
+
+if (updateError) throw updateError;
+
+// Thành công!
+toast({ title: "Đổi mật khẩu thành công!" });
+```
+
+**2. Validation Rules**
+- Mật khẩu hiện tại: Bắt buộc nhập
+- Mật khẩu mới: Tối thiểu 6 ký tự
+- Xác nhận: Phải trùng với mật khẩu mới
+- Cảnh báo nếu có khoảng trắng đầu/cuối
+
+**3. Tích hợp vào ProfileSettings.tsx**
+
+Thêm section mới sau phần "Cài đặt thông báo giọng nói":
+```tsx
+{/* Security Section */}
+<div className="border-t border-border pt-6 mt-6">
+  <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+    <Lock className="h-5 w-5" />
+    Bảo Mật
+  </h3>
+  <ChangePasswordForm userEmail={user?.email || ""} />
+</div>
 ```
 
 ---
 
-## Files Cần Chỉnh Sửa
+### Files Cần Tạo/Chỉnh Sửa
 
-| File | Thay đổi |
-|------|----------|
-| `src/pages/Auth.tsx` | Thêm URL hash check, dùng useRef, fix race condition |
+| File | Hành động |
+|------|-----------|
+| `src/components/Profile/ChangePasswordForm.tsx` | **Tạo mới** - Form đổi mật khẩu độc lập |
+| `src/pages/ProfileSettings.tsx` | **Chỉnh sửa** - Thêm section Bảo Mật |
 
 ---
 
-## Code Cụ Thể Sẽ Implement
+### Giao Diện Sau Khi Hoàn Thành
 
-```typescript
-// src/pages/Auth.tsx - Đầu component
-const isRecoveryRef = useRef(false);
-const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
+```
+Profile Settings
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-useEffect(() => {
-  // 🔴 FIX 1: Check URL hash NGAY LẬP TỨC trước khi làm gì khác
-  const hashParams = new URLSearchParams(window.location.hash.substring(1));
-  const recoveryType = hashParams.get('type');
-  
-  if (recoveryType === 'recovery') {
-    console.log("[Auth] Recovery mode detected from URL hash");
-    isRecoveryRef.current = true;
-    setIsPasswordRecovery(true);
-  }
+Display Name: [_______________]
+Wallet Address: [_______________]
+Avatar: [Drag & Drop]
+Banner: [Drag & Drop]  
+Bio: [_______________]
 
-  const { data: { subscription } } = supabase.auth.onAuthStateChange(
-    (event, session) => {
-      console.log("[Auth] State change:", { event, hasSession: !!session });
-      
-      if (event === 'PASSWORD_RECOVERY') {
-        console.log("[Auth] PASSWORD_RECOVERY event");
-        isRecoveryRef.current = true;
-        setIsPasswordRecovery(true);
-        setSession(session);
-        setUser(session?.user ?? null);
-        return;
-      }
-      
-      // 🔴 FIX 2: Check REF (instant), không check state
-      if (isRecoveryRef.current) {
-        return;
-      }
-      
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (event === 'SIGNED_IN' && session?.user && !signupRewardedRef.current) {
-        signupRewardedRef.current = true;
-        setTimeout(() => {
-          awardSignupReward(session.user.id);
-        }, 1000);
-      }
-      
-      // 🔴 FIX 3: Chỉ redirect nếu KHÔNG phải recovery mode
-      if (session?.user && !isRecoveryRef.current) {
-        navigate("/");
-      }
-    }
-  );
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Cài đặt thông báo giọng nói "RICH"
+Music URL: [_______________]
 
-  // 🔴 FIX 4: getSession KHÔNG redirect nữa
-  supabase.auth.getSession().then(({ data: { session } }) => {
-    if (isRecoveryRef.current) return;
-    
-    setSession(session);
-    setUser(session?.user ?? null);
-    // Không navigate ở đây - để onAuthStateChange xử lý
-  });
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔒 Bảo Mật                    ← MỚI!
 
-  return () => subscription.unsubscribe();
-}, [navigate, awardSignupReward]); // Bỏ isPasswordRecovery khỏi deps
+Mật khẩu hiện tại: [_______________]
+Mật khẩu mới:      [_______________] 👁
+Xác nhận:          [_______________] 👁
+
+         [ Đổi Mật Khẩu ]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[Cancel]                        [Save]
 ```
 
 ---
 
-## Kết Quả Sau Fix
+### Bảo Mật
 
-1. **Click link reset** → Browser mở `/auth#...&type=recovery`
-2. **useEffect chạy** → Đọc URL hash → `isRecoveryRef.current = true` **NGAY LẬP TỨC**
-3. **getSession()** → Check `isRecoveryRef.current` → `true` → KHÔNG redirect
-4. **onAuthStateChange PASSWORD_RECOVERY** → Hiện form đổi mật khẩu
-5. **User nhập mật khẩu mới** → Submit → Success → Redirect home
-
-**Chỉ còn 1 form duy nhất!**
+1. **Yêu cầu mật khẩu cũ**: Đảm bảo chỉ chủ tài khoản mới đổi được
+2. **Re-authenticate trước khi update**: Gọi `signInWithPassword` để xác thực
+3. **Không lưu mật khẩu vào state lâu**: Clear form sau khi submit
 
