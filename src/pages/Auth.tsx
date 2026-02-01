@@ -304,6 +304,7 @@ export default function Auth() {
           {isPasswordRecovery ? (
             <SetNewPasswordForm 
               onSuccess={() => {
+                isRecoveryRef.current = false; // Reset ref để cho phép redirect
                 setIsPasswordRecovery(false);
                 toast({
                   title: "Mật khẩu đã được cập nhật!",
@@ -312,6 +313,7 @@ export default function Auth() {
                 setSuccessMessage("Mật khẩu đã được đặt lại thành công!");
               }}
               onBackToLogin={async () => {
+                isRecoveryRef.current = false; // Reset ref nếu user quay lại
                 await supabase.auth.signOut();
                 setIsPasswordRecovery(false);
               }}
