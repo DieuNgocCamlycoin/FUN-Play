@@ -47,10 +47,17 @@ export default function Auth() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [forgotPassword, setForgotPassword] = useState(false);
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
+  const [showInvalidCredentialsHelp, setShowInvalidCredentialsHelp] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { awardSignupReward } = useAutoReward();
   const signupRewardedRef = useRef(false);
+
+  // Check for password with leading/trailing spaces
+  const hasPasswordSpaces = password.length > 0 && (password.startsWith(' ') || password.endsWith(' '));
+
+  // Sanitize email: trim whitespace and convert to lowercase
+  const sanitizeEmail = (email: string) => email.trim().toLowerCase();
   const isRecoveryRef = useRef(false); // Synchronous flag for immediate checks
 
   useEffect(() => {
@@ -120,6 +127,7 @@ export default function Auth() {
   const clearMessages = () => {
     setErrorMessage(null);
     setSuccessMessage(null);
+    setShowInvalidCredentialsHelp(false);
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -141,14 +149,15 @@ export default function Auth() {
 
     try {
       const redirectUrl = `${window.location.origin}/`;
+      const cleanEmail = sanitizeEmail(email);
       
       const { error } = await supabase.auth.signUp({
-        email,
+        email: cleanEmail,
         password,
         options: {
           emailRedirectTo: redirectUrl,
           data: {
-            display_name: displayName || email.split("@")[0],
+            display_name: displayName || cleanEmail.split("@")[0],
           },
         },
       });
@@ -191,8 +200,10 @@ export default function Auth() {
     }
 
     try {
+      const cleanEmail = sanitizeEmail(email);
+      
       const { error } = await supabase.auth.signInWithPassword({
-        email,
+        email: cleanEmail,
         password,
       });
 
@@ -202,6 +213,12 @@ export default function Auth() {
     } catch (error: any) {
       const vietnameseError = getVietnameseError(error.message);
       setErrorMessage(vietnameseError);
+      
+      // Show helpful link if invalid credentials
+      if (error.message?.toLowerCase().includes("invalid login credentials")) {
+        setShowInvalidCredentialsHelp(true);
+      }
+      
       toast({
         title: "Đăng nhập thất bại",
         description: vietnameseError,
@@ -224,7 +241,9 @@ export default function Auth() {
     }
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      const cleanEmail = sanitizeEmail(email);
+      
+      const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
         redirectTo: `${window.location.origin}/auth`,
       });
 
@@ -323,9 +342,20 @@ export default function Auth() {
 
           {/* Error Message */}
           {errorMessage && (
-            <div className="mb-4 p-3 rounded-lg bg-red-100 border border-red-300 flex items-start gap-2">
-              <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
-              <p className="text-red-700 text-sm">{errorMessage}</p>
+            <div className="mb-4 p-3 rounded-lg bg-red-100 border border-red-300">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
+                <p className="text-red-700 text-sm">{errorMessage}</p>
+              </div>
+              {showInvalidCredentialsHelp && (
+                <button
+                  type="button"
+                  onClick={() => { setForgotPassword(true); clearMessages(); }}
+                  className="mt-2 text-sm text-purple-600 hover:text-purple-700 font-medium underline"
+                >
+                  Quên mật khẩu? Nhấn vào đây để đặt lại
+                </button>
+              )}
             </div>
           )}
 
@@ -447,6 +477,14 @@ export default function Auth() {
                     <p className="text-xs text-gray-500 mt-1">
                       Mật khẩu phải có ít nhất 6 ký tự
                     </p>
+                  )}
+                  {hasPasswordSpaces && (
+                    <div className="flex items-center gap-1 mt-1">
+                      <AlertTriangle className="h-3 w-3 text-amber-500" />
+                      <p className="text-xs text-amber-600">
+                        Mật khẩu có khoảng trắng ở đầu hoặc cuối
+                      </p>
+                    </div>
                   )}
                 </div>
 
