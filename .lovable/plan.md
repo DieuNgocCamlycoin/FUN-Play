@@ -1,129 +1,108 @@
 
 
-## Thêm Tính Năng Đổi Mật Khẩu Trong Profile Settings
+## Phân Tích Lỗi: Input Mất Focus Sau Mỗi Ký Tự
 
-### Tại Sao Cần Thêm?
+### Nguyên Nhân Chính Xác
 
-Hiện tại user chỉ có thể đổi mật khẩu qua flow "Quên mật khẩu" từ trang đăng nhập. Điều này **không tiện** vì:
-1. User đã đăng nhập phải logout mới reset được
-2. Phải chờ email
-3. Không có cách đổi mật khẩu trực tiếp khi đã biết mật khẩu cũ
+**Bug nằm ở việc định nghĩa component `PasswordInput` BÊN TRONG component `ChangePasswordForm`** (dòng 103-155).
 
-### Giải Pháp
+Khi định nghĩa một React component bên trong component khác:
 
-Thêm một section **"Bảo Mật"** trong trang Profile Settings với form đổi mật khẩu:
-
-```
-┌─────────────────────────────────────────┐
-│  🔒 Bảo Mật                             │
-├─────────────────────────────────────────┤
-│  Mật khẩu hiện tại: [____________]      │
-│  Mật khẩu mới:      [____________] 👁   │
-│  Xác nhận mật khẩu: [____________] 👁   │
-│                                         │
-│           [ Đổi Mật Khẩu ]              │
-└─────────────────────────────────────────┘
-```
-
-### Chi Tiết Kỹ Thuật
-
-**1. Tạo component `ChangePasswordForm.tsx`**
-
-| Trường | Mô tả |
-|--------|-------|
-| `currentPassword` | Mật khẩu hiện tại (bắt buộc xác thực) |
-| `newPassword` | Mật khẩu mới (min 6 ký tự) |
-| `confirmPassword` | Xác nhận mật khẩu mới (phải trùng khớp) |
-
-**Logic xử lý:**
 ```typescript
-// Bước 1: Xác thực mật khẩu cũ bằng cách re-authenticate
-const { error: authError } = await supabase.auth.signInWithPassword({
-  email: user.email,
-  password: currentPassword,
-});
-
-if (authError) {
-  // Mật khẩu hiện tại sai
-  throw new Error("Mật khẩu hiện tại không đúng");
+export function ChangePasswordForm() {
+  const [currentPassword, setCurrentPassword] = useState("");
+  
+  // ❌ Component được định nghĩa TRONG component cha
+  const PasswordInput = ({ ... }) => (
+    <Input ... />
+  );
+  
+  return <PasswordInput ... />;
 }
-
-// Bước 2: Cập nhật mật khẩu mới
-const { error: updateError } = await supabase.auth.updateUser({
-  password: newPassword,
-});
-
-if (updateError) throw updateError;
-
-// Thành công!
-toast({ title: "Đổi mật khẩu thành công!" });
 ```
 
-**2. Validation Rules**
-- Mật khẩu hiện tại: Bắt buộc nhập
-- Mật khẩu mới: Tối thiểu 6 ký tự
-- Xác nhận: Phải trùng với mật khẩu mới
-- Cảnh báo nếu có khoảng trắng đầu/cuối
+**Mỗi khi state thay đổi** (ví dụ: nhập 1 ký tự → `setCurrentPassword` chạy):
+1. `ChangePasswordForm` re-render
+2. `PasswordInput` được **tạo lại từ đầu** (function mới)
+3. React thấy đây là component **khác hoàn toàn** (reference khác)
+4. React **unmount component cũ, mount component mới**
+5. Input **mất focus** vì DOM element bị thay thế
 
-**3. Tích hợp vào ProfileSettings.tsx**
+### Flow Lỗi
 
-Thêm section mới sau phần "Cài đặt thông báo giọng nói":
-```tsx
-{/* Security Section */}
-<div className="border-t border-border pt-6 mt-6">
-  <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-    <Lock className="h-5 w-5" />
-    Bảo Mật
-  </h3>
-  <ChangePasswordForm userEmail={user?.email || ""} />
-</div>
+```
+User gõ "a" → setCurrentPassword("a") 
+           → ChangePasswordForm re-render 
+           → PasswordInput được tạo lại (new function)
+           → React unmount input cũ, mount input mới
+           → Input mới = mất focus
+           → User phải click lại để gõ tiếp
 ```
 
 ---
 
-### Files Cần Tạo/Chỉnh Sửa
+## Giải Pháp
 
-| File | Hành động |
-|------|-----------|
-| `src/components/Profile/ChangePasswordForm.tsx` | **Tạo mới** - Form đổi mật khẩu độc lập |
-| `src/pages/ProfileSettings.tsx` | **Chỉnh sửa** - Thêm section Bảo Mật |
+**Di chuyển component `PasswordInput` ra NGOÀI component `ChangePasswordForm`.**
 
----
-
-### Giao Diện Sau Khi Hoàn Thành
-
-```
-Profile Settings
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Display Name: [_______________]
-Wallet Address: [_______________]
-Avatar: [Drag & Drop]
-Banner: [Drag & Drop]  
-Bio: [_______________]
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Cài đặt thông báo giọng nói "RICH"
-Music URL: [_______________]
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🔒 Bảo Mật                    ← MỚI!
-
-Mật khẩu hiện tại: [_______________]
-Mật khẩu mới:      [_______________] 👁
-Xác nhận:          [_______________] 👁
-
-         [ Đổi Mật Khẩu ]
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-[Cancel]                        [Save]
-```
+Khi component được định nghĩa ở cấp module (ngoài function component):
+- React chỉ tạo component 1 lần
+- Re-render chỉ cập nhật props, không thay thế component
+- Input giữ nguyên focus
 
 ---
 
-### Bảo Mật
+## Thay Đổi Code
 
-1. **Yêu cầu mật khẩu cũ**: Đảm bảo chỉ chủ tài khoản mới đổi được
-2. **Re-authenticate trước khi update**: Gọi `signInWithPassword` để xác thực
-3. **Không lưu mật khẩu vào state lâu**: Clear form sau khi submit
+### Trước (Lỗi)
+```typescript
+export function ChangePasswordForm() {
+  // State...
+  
+  // ❌ Định nghĩa bên trong - bị tạo lại mỗi render
+  const PasswordInput = ({ ... }) => ( ... );
+  
+  return <PasswordInput ... />;
+}
+```
+
+### Sau (Đúng)
+```typescript
+// ✅ Định nghĩa BÊN NGOÀI - chỉ tạo 1 lần
+const PasswordInput = ({ ... }: PasswordInputProps) => ( ... );
+
+export function ChangePasswordForm() {
+  // State...
+  
+  return <PasswordInput ... />;
+}
+```
+
+---
+
+## File Cần Chỉnh Sửa
+
+| File | Thay đổi |
+|------|----------|
+| `src/components/Profile/ChangePasswordForm.tsx` | Di chuyển `PasswordInput` ra ngoài component chính |
+
+---
+
+## Chi Tiết Kỹ Thuật
+
+1. **Tạo interface `PasswordInputProps`** ở đầu file (trước các component)
+
+2. **Di chuyển function `PasswordInput`** từ dòng 103-155 ra trước `ChangePasswordForm`
+
+3. Thêm React.memo (optional) để tối ưu performance thêm:
+```typescript
+const PasswordInput = React.memo(({ ... }: PasswordInputProps) => ( ... ));
+```
+
+---
+
+## Kết Quả Sau Fix
+
+- User có thể gõ liên tục mà không bị mất focus
+- Input hoạt động bình thường như các input khác trong app
 
