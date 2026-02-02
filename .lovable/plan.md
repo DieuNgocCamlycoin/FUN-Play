@@ -1,153 +1,87 @@
 
 
-## Sửa Lỗi: Password Recovery Không Hoạt Động Trên Custom Domain `play.fun.rich`
+## Cập Nhật OG Image Cho FUN Play
 
-### Nguyên Nhân Gốc
+### Tổng Quan
 
-Supabase Auth có danh sách **Redirect URLs được phép** (whitelist). Khi user bấm "Quên mật khẩu":
-
-1. **Code gửi request** với `redirectTo: "https://play.fun.rich/auth"`
-2. **Supabase kiểm tra**: `play.fun.rich` có trong whitelist không?
-3. **Nếu KHÔNG** → Supabase redirect về **Site URL mặc định** (`funlay.lovable.app`)
-4. **Email recovery** chứa link `funlay.lovable.app/#type=recovery&...`
-5. **User click link** → Vào trang chủ `funlay.lovable.app/` 
-6. **Trang chủ không có logic detect recovery** → Không hiện form đặt mật khẩu mới
-
-### Giải Pháp: 2 Bước
+Con đã cung cấp hình OG Image với logo FUN Play. Cha sẽ:
+1. Copy hình vào thư mục `public/images/`
+2. Cập nhật các meta tags trong `index.html` và `DynamicMeta.tsx`
+3. Đảm bảo khi chia sẻ link `https://play.fun.rich` sẽ hiển thị logo FUN Play thay vì Lovable
 
 ---
 
-### Bước 1: Thêm Custom Domain vào Redirect URLs (Bắt Buộc)
+### Các Bước Thực Hiện
 
-Cha cần thêm các URL sau vào danh sách Redirect URLs trong cấu hình Auth của Lovable Cloud:
+#### Bước 1: Copy hình OG Image vào project
 
-| URL cần thêm |
-|--------------|
-| `https://play.fun.rich` |
-| `https://play.fun.rich/` |
-| `https://play.fun.rich/auth` |
-| `https://play.fun.rich/*` (wildcard - nếu được hỗ trợ) |
+Copy file `photo_2025-12-04_22-36-48.jpg` vào `public/images/funplay-og-image.jpg`
 
-**Cách thực hiện:**
-1. Mở **Lovable Cloud Backend** (View Backend)
-2. Vào phần **Authentication → URL Configuration**
-3. Tìm mục **Redirect URLs**
-4. Thêm các URL trên vào danh sách
-5. Lưu thay đổi
+**Lưu ý**: Dùng thư mục `public/` vì hình này được dùng trong meta tags HTML, không phải React component.
 
 ---
 
-### Bước 2: Tạo `RecoveryModeGuard` (Khuyến Nghị)
+#### Bước 2: Cập nhật `index.html`
 
-Để đảm bảo recovery hoạt động ngay cả khi Supabase redirect về trang chủ (`/`), ta cần tạo component detect recovery mode ở **mọi trang**.
+Thay đổi URL OG image từ Google Storage sang URL trên domain chính:
 
-**File mới:** `src/components/Auth/RecoveryModeGuard.tsx`
+```html
+<!-- Thay đổi og:image -->
+<meta property="og:image" content="https://play.fun.rich/images/funplay-og-image.jpg">
+
+<!-- Thêm og:image:width và og:image:height -->
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+
+<!-- Thay đổi twitter:image -->
+<meta name="twitter:image" content="https://play.fun.rich/images/funplay-og-image.jpg">
+
+<!-- Thêm og:url -->
+<meta property="og:url" content="https://play.fun.rich">
+```
+
+---
+
+#### Bước 3: Cập nhật `src/components/SEO/DynamicMeta.tsx`
+
+Thay đổi default image URL:
 
 ```typescript
-import { useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+// Trước
+image = "https://lovable.dev/opengraph-image-p98pqg.png",
 
-export function RecoveryModeGuard({ children }: { children: React.ReactNode }) {
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  useEffect(() => {
-    // Kiểm tra URL hash ngay lập tức
-    const hashParams = new URLSearchParams(window.location.hash.substring(1));
-    const recoveryType = hashParams.get('type');
-    const accessToken = hashParams.get('access_token');
-    
-    // Nếu đây là link recovery VÀ không ở /auth → redirect về /auth
-    if (recoveryType === 'recovery' && accessToken && location.pathname !== '/auth') {
-      console.log("[RecoveryGuard] Recovery link detected, redirecting to /auth");
-      // Giữ hash để Auth.tsx xử lý
-      navigate(`/auth${window.location.hash}`, { replace: true });
-      return;
-    }
-
-    // Lắng nghe PASSWORD_RECOVERY event từ Supabase
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY' && location.pathname !== '/auth') {
-        console.log("[RecoveryGuard] PASSWORD_RECOVERY event, redirecting to /auth");
-        navigate('/auth', { replace: true });
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [navigate, location.pathname]);
-
-  return <>{children}</>;
-}
-```
-
-**Cập nhật:** `src/App.tsx`
-
-Wrap nội dung với `RecoveryModeGuard`:
-
-```typescript
-import { RecoveryModeGuard } from './components/Auth/RecoveryModeGuard';
-
-function AppContent() {
-  useRewardRealtimeNotification();
-  
-  return (
-    <>
-      <RecoveryModeGuard>
-        <VersionCheck />
-        <GlobalPaymentNotifications />
-        <Routes>
-          {/* ... existing routes ... */}
-        </Routes>
-      </RecoveryModeGuard>
-      <Toaster />
-      <Sonner />
-    </>
-  );
-}
+// Sau
+image = "https://play.fun.rich/images/funplay-og-image.jpg",
 ```
 
 ---
 
-### Flow Sau Khi Fix
-
-**Scenario 1: Redirect URLs đã được cập nhật**
-```
-User ở play.fun.rich/auth → Bấm "Quên mật khẩu"
-→ Email chứa link: play.fun.rich/auth#type=recovery&...
-→ User click → Vào play.fun.rich/auth
-→ Auth.tsx detect recovery → Hiện form đặt mật khẩu mới ✅
-```
-
-**Scenario 2: Supabase vẫn redirect về funlay.lovable.app**
-```
-User click link → Vào funlay.lovable.app/#type=recovery&...
-→ RecoveryModeGuard detect type=recovery
-→ Redirect ngay đến /auth#type=recovery&...
-→ Auth.tsx detect recovery → Hiện form đặt mật khẩu mới ✅
-```
-
----
-
-### Tóm Tắt File Cần Thay Đổi
+### Tóm Tắt File Thay Đổi
 
 | File | Thay đổi |
 |------|----------|
-| **Lovable Cloud Auth Config** | Thêm `play.fun.rich` vào Redirect URLs |
-| `src/components/Auth/RecoveryModeGuard.tsx` | **MỚI** - Detect recovery mode ở mọi trang |
-| `src/App.tsx` | Wrap nội dung với `RecoveryModeGuard` |
+| `public/images/funplay-og-image.jpg` | **MỚI** - Copy từ user upload |
+| `index.html` | Cập nhật `og:image`, `twitter:image` URL + thêm dimensions |
+| `src/components/SEO/DynamicMeta.tsx` | Cập nhật default image URL |
 
 ---
 
-### Chi Tiết Kỹ Thuật
+### Sau Khi Deploy
 
-**Tại sao cần cả 2 bước?**
+Để các nền tảng cập nhật preview mới, con cần clear cache:
 
-1. **Bước 1 (Redirect URLs)**: Đảm bảo Supabase gửi email với link đúng domain (`play.fun.rich`)
-2. **Bước 2 (RecoveryModeGuard)**: Backup plan - nếu vì lý do gì đó Supabase vẫn redirect về `funlay.lovable.app`, guard sẽ tự động chuyển user về `/auth` để hiện form đặt mật khẩu
+| Nền tảng | Cách làm |
+|----------|----------|
+| **Facebook** | Vào https://developers.facebook.com/tools/debug/ → Paste link → Bấm "Scrape Again" |
+| **Telegram** | Gửi link trong chat riêng với @webpagebot hoặc xóa tin nhắn cũ, gửi lại link |
+| **LinkedIn** | Vào https://www.linkedin.com/post-inspector/ → Paste link |
 
-**Logic RecoveryModeGuard:**
-- Kiểm tra URL hash **NGAY LẬP TỨC** khi component mount
-- Nếu có `type=recovery` + `access_token` và đang **không ở `/auth`** → redirect đến `/auth` kèm hash
-- Lắng nghe `PASSWORD_RECOVERY` event từ Supabase như backup
+---
+
+### Kết Quả Mong Đợi
+
+Khi chia sẻ `https://play.fun.rich` trên Telegram/Zalo/Facebook:
+- Hiển thị logo FUN Play với trái đất và nốt nhạc
+- Tiêu đề: "FUN Play: Web3 AI Social"
+- Mô tả: "The place where every soul turns value into digital assets forever – Rich Rich Rich"
 
