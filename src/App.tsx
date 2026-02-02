@@ -54,6 +54,7 @@ import { VideoPlaybackProvider } from './contexts/VideoPlaybackContext';
 import { EnhancedMusicPlayer } from './components/Video/EnhancedMusicPlayer';
 import { GlobalVideoPlayer } from './components/Video/GlobalVideoPlayer';
 import { useRewardRealtimeNotification } from './hooks/useRewardRealtimeNotification';
+import { RecoveryModeGuard } from './components/Auth/RecoveryModeGuard';
 
 const queryClient = new QueryClient();
 
@@ -65,10 +66,11 @@ function AppContent() {
   
   return (
     <>
-      <VersionCheck />
-      <GlobalPaymentNotifications />
-      <div>
-        <Routes>
+      <RecoveryModeGuard>
+        <VersionCheck />
+        <GlobalPaymentNotifications />
+        <div>
+          <Routes>
         <Route path="/" element={<Index />} />
         <Route path="/auth" element={<Auth />} />
         <Route path="/settings" element={<ProfileSettings />} />
@@ -121,9 +123,10 @@ function AppContent() {
         <Route path="/docs/platform" element={<PlatformDocs />} />
         <Route path="/docs/platform" element={<PlatformDocs />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-      </div>
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+        </div>
+      </RecoveryModeGuard>
       <Toaster />
       <Sonner />
     </>
