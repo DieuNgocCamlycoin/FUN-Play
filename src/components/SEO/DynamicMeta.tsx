@@ -22,7 +22,7 @@ interface DynamicMetaProps {
 export const DynamicMeta = ({
   title = "FUN Play: Web3 AI Social",
   description = "The place where every soul turns value into digital assets forever – Rich Rich Rich",
-  image = "https://lovable.dev/opengraph-image-p98pqg.png",
+  image = "https://play.fun.rich/images/funplay-og-image.jpg",
   url,
   type = "website",
   audio,
@@ -95,7 +95,7 @@ export const DynamicMeta = ({
       document.title = "FUN Play: Web3 AI Social";
       updateMetaTag("og:title", "FUN Play: Web3 AI Social");
       updateMetaTag("og:description", "The place where every soul turns value into digital assets forever – Rich Rich Rich");
-      updateMetaTag("og:image", "https://lovable.dev/opengraph-image-p98pqg.png");
+      updateMetaTag("og:image", "https://play.fun.rich/images/funplay-og-image.jpg");
       updateMetaTag("og:type", "website");
     };
   }, [title, description, image, url, type, audio, siteName, keywords, author]);
