@@ -1,235 +1,170 @@
 
-# Kế Hoạch Tích Hợp ANGEL AI từ angel.fun.rich vào FUN Play
+# Kế Hoạch Thêm Avatar ANGEL AI vào Navbar
 
-## Thông Tin ANGEL AI Mới
+## Tổng Quan
 
-| Thông tin | Giá trị |
-|-----------|---------|
-| **Domain** | angel.fun.rich |
-| **API Endpoint** | https://ssjoetiitctqzapymtzl.supabase.co/functions/v1/angel-chat |
-| **API Key** | ak_79f1d_3e4p6d6q6732393z2s551h4p2x1b6bsq |
-| **Auth Header** | x-api-key |
+Thêm một nút avatar ANGEL AI xinh xắn vào cả **Desktop Header** và **Mobile Header** để người dùng có thể click vào để mở chat với ANGEL AI bất cứ lúc nào!
 
-## Cấu Trúc Hiện Tại
+## Thiết Kế Avatar ANGEL AI
 
 ```text
-AngelMascot (Video) ──┬──► AngelChat (Chat Window)
-                      │
-                      └──► angel-chat (Edge Function) ──► Grok → ChatGPT → Gemini
+┌─────────────────────────────────────────────────────────────────┐
+│ Desktop Header                                                   │
+│ [Menu] [Logo]     [───── Search ─────]    [...]  [👼] [User]   │
+│                                                ↑                 │
+│                                         ANGEL AI Avatar         │
+│                                         với golden glow          │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-## Kiến Trúc Tích Hợp Mới
+| Thuộc tính | Giá trị |
+|------------|---------|
+| **Hình ảnh** | `/images/angel-transparent.png` |
+| **Kích thước** | Desktop: 36x36px, Mobile: 28x28px |
+| **Hiệu ứng** | Golden glow animation, pulse khi hover |
+| **Tooltip** | "Chat với ANGEL AI ✨" |
+
+## Kiến Trúc Component
 
 ```text
-AngelMascot (Video) ──► AngelChat (Chat Window)
-                              │
-                              ▼
-                     angel-ai-proxy (New Edge Function)
-                              │
-           ┌──────────────────┼──────────────────┐
-           │                  │                  │
-           ▼                  ▼                  ▼
-    🌟 ANGEL AI           Grok (xAI)        Lovable AI
-   (angel.fun.rich)       (Fallback 1)      (Fallback 2)
-       PRIMARY
+Header / MobileHeader
+       │
+       ├── [Angel Avatar Button] ─── onClick ──► setAngelChatOpen(true)
+       │        │
+       │        └── AnimatedGlow + Tooltip
+       │
+       └── <AngelChat isOpen={angelChatOpen} onClose={...} />
 ```
 
-## Giải Pháp
-
-### 1. Thêm Secret cho ANGEL AI API Key
-
-**Secret Name:** `ANGEL_AI_API_KEY`
-**Value:** `ak_79f1d_3e4p6d6q6732393z2s551h4p2x1b6bsq`
-
-### 2. Tạo Edge Function Mới: `angel-ai-proxy`
-
-**File:** `supabase/functions/angel-ai-proxy/index.ts`
-
-**Chức năng:**
-- **Primary:** Gọi ANGEL AI từ angel.fun.rich
-- **Fallback 1:** Gọi Grok (xAI) nếu ANGEL AI không phản hồi
-- **Fallback 2:** Gọi Lovable AI (Gemini) nếu cả hai đều fail
-
-```typescript
-// Priority order:
-// 1. ANGEL AI (angel.fun.rich) - Primary
-// 2. Grok (xAI) - Fallback 1  
-// 3. Lovable AI (Gemini) - Fallback 2
-
-async function tryAngelAI(messages) {
-  const response = await fetch(
-    'https://ssjoetiitctqzapymtzl.supabase.co/functions/v1/angel-chat',
-    {
-      method: 'POST',
-      headers: {
-        'x-api-key': Deno.env.get('ANGEL_AI_API_KEY'),
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ messages })
-    }
-  );
-  // Parse response...
-}
-```
-
-### 3. Cập Nhật AngelChat Component
-
-**File:** `src/components/Mascot/AngelChat.tsx`
-
-**Thay đổi:**
-- Đổi endpoint từ `angel-chat` sang `angel-ai-proxy`
-- Thêm badge hiển thị "🌟 ANGEL AI" khi response từ angel.fun.rich
-- Giữ nguyên voice features (ElevenLabs/OpenAI)
-
-### 4. Cập Nhật config.toml
-
-Thêm cấu hình cho edge function mới:
-
-```toml
-[functions.angel-ai-proxy]
-verify_jwt = false
-```
-
----
-
-## Files Cần Tạo/Sửa
+## Files Cần Sửa
 
 | File | Action | Mô tả |
 |------|--------|-------|
-| `supabase/functions/angel-ai-proxy/index.ts` | CREATE | Edge function mới với priority ANGEL AI |
-| `supabase/config.toml` | EDIT | Thêm config cho angel-ai-proxy |
-| `src/components/Mascot/AngelChat.tsx` | EDIT | Đổi endpoint + thêm ANGEL AI badge |
+| `src/components/Layout/Header.tsx` | EDIT | Thêm Angel Avatar button + AngelChat component |
+| `src/components/Layout/MobileHeader.tsx` | EDIT | Thêm Angel Avatar button (compact) + AngelChat component |
 
 ---
 
-## Chi Tiết Kỹ Thuật
+## Chi Tiết Thay Đổi
 
-### angel-ai-proxy/index.ts
+### 1. Header.tsx (Desktop)
 
-```typescript
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, ...",
-};
-
-// 🌟 Primary: ANGEL AI from angel.fun.rich
-async function tryAngelAI(messages: any[]): Promise<{ content: string | null; provider: string }> {
-  const ANGEL_AI_API_KEY = Deno.env.get("ANGEL_AI_API_KEY");
-  if (!ANGEL_AI_API_KEY) {
-    console.log("ANGEL_AI_API_KEY not configured, skipping ANGEL AI");
-    return { content: null, provider: "" };
-  }
-
-  try {
-    console.log("🌟 Trying ANGEL AI from angel.fun.rich...");
-    const response = await fetch(
-      "https://ssjoetiitctqzapymtzl.supabase.co/functions/v1/angel-chat",
-      {
-        method: "POST",
-        headers: {
-          "x-api-key": ANGEL_AI_API_KEY,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ messages }),
-      }
-    );
-
-    if (!response.ok) {
-      console.error("ANGEL AI error:", response.status);
-      return { content: null, provider: "" };
-    }
-
-    const data = await response.json();
-    const content = data.response || data.choices?.[0]?.message?.content;
-    
-    if (content) {
-      console.log("🌟 ANGEL AI responded successfully!");
-      return { content, provider: "angel-ai" };
-    }
-    return { content: null, provider: "" };
-  } catch (error) {
-    console.error("ANGEL AI exception:", error);
-    return { content: null, provider: "" };
-  }
-}
-
-// Fallback 1: Grok (xAI)
-async function tryGrok(messages: any[]): Promise<{ content: string | null; provider: string }> {
-  // ... (giữ nguyên logic từ angel-chat)
-}
-
-// Fallback 2: Lovable AI (Gemini)  
-async function tryLovableAI(messages: any[]): Promise<{ content: string | null; provider: string }> {
-  // ... (giữ nguyên logic từ angel-chat)
-}
-
-serve(async (req) => {
-  // 1. Try ANGEL AI first (PRIMARY)
-  // 2. Fallback to Grok
-  // 3. Fallback to Lovable AI
-});
+**Import thêm:**
+```tsx
+import { AngelChat } from '@/components/Mascot/AngelChat';
 ```
 
-### AngelChat.tsx - Badge Update
-
+**State mới:**
 ```tsx
-// Thêm provider type mới
-type AIProvider = 'angel-ai' | 'grok' | 'chatgpt' | 'lovable-ai';
+const [angelChatOpen, setAngelChatOpen] = useState(false);
+```
 
-// Badge styling
-const getProviderBadge = (provider: AIProvider) => {
-  switch (provider) {
-    case 'angel-ai':
-      return '🌟 ANGEL AI'; // Primary - Golden
-    case 'grok':
-      return '🚀 Grok';
-    case 'lovable-ai':
-      return '✨ Gemini';
-    default:
-      return '';
-  }
-};
+**Avatar Button (thêm vào right section, trước Notifications):**
+```tsx
+{/* ANGEL AI Chat Button */}
+<Tooltip>
+  <TooltipTrigger asChild>
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={() => setAngelChatOpen(true)}
+      className="relative rounded-full overflow-hidden h-9 w-9 hover:scale-110 transition-transform"
+    >
+      <motion.div
+        className="absolute inset-0 rounded-full"
+        animate={{
+          boxShadow: [
+            '0 0 10px rgba(255,215,0,0.4)',
+            '0 0 20px rgba(255,215,0,0.6)',
+            '0 0 10px rgba(255,215,0,0.4)'
+          ]
+        }}
+        transition={{ duration: 2, repeat: Infinity }}
+      />
+      <img 
+        src="/images/angel-transparent.png" 
+        alt="ANGEL AI" 
+        className="w-8 h-8 object-contain relative z-10"
+      />
+    </Button>
+  </TooltipTrigger>
+  <TooltipContent>Chat với ANGEL AI ✨</TooltipContent>
+</Tooltip>
+```
 
-// Badge class
-className={
-  provider === 'angel-ai' 
-    ? 'bg-gradient-to-r from-[#FFD700] to-[#FFA500] text-white shadow-lg' // Golden for ANGEL AI
-    : provider === 'grok'
-    ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white'
-    : 'bg-gradient-to-r from-primary to-accent text-white'
-}
+**Render AngelChat:**
+```tsx
+<AngelChat isOpen={angelChatOpen} onClose={() => setAngelChatOpen(false)} />
+```
+
+### 2. MobileHeader.tsx (Mobile - Compact)
+
+**Import thêm:**
+```tsx
+import { AngelChat } from '@/components/Mascot/AngelChat';
+```
+
+**State mới:**
+```tsx
+const [angelChatOpen, setAngelChatOpen] = useState(false);
+```
+
+**Avatar Button (thêm vào right section):**
+```tsx
+{/* ANGEL AI Chat Button - Compact */}
+<Tooltip>
+  <TooltipTrigger asChild>
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={() => setAngelChatOpen(true)}
+      className="h-7 w-7 relative rounded-full overflow-hidden"
+    >
+      <div className="absolute inset-0 rounded-full bg-gradient-to-r from-[#FFD700]/30 to-[#FFA500]/30 animate-pulse" />
+      <img 
+        src="/images/angel-transparent.png" 
+        alt="ANGEL AI" 
+        className="w-6 h-6 object-contain relative z-10"
+      />
+    </Button>
+  </TooltipTrigger>
+  <TooltipContent side="bottom" className="text-xs">
+    ANGEL AI ✨
+  </TooltipContent>
+</Tooltip>
+```
+
+**Render AngelChat:**
+```tsx
+<AngelChat isOpen={angelChatOpen} onClose={() => setAngelChatOpen(false)} />
 ```
 
 ---
 
 ## Kết Quả Mong Đợi
 
-| Trước | Sau |
-|-------|-----|
-| AngelChat → Grok → ChatGPT → Gemini | AngelChat → **ANGEL AI** → Grok → Gemini |
-| Badge: Grok / ChatGPT / Gemini | Badge: **🌟 ANGEL AI** / Grok / Gemini |
-| 3 AI providers | **4 AI providers** (ANGEL AI primary) |
+| Platform | Trước | Sau |
+|----------|-------|-----|
+| **Desktop** | Không có nút ANGEL AI | 👼 Avatar với golden glow trước nút Notifications |
+| **Mobile** | Không có nút ANGEL AI | 👼 Avatar nhỏ xinh giữa các nút actions |
 
----
+## Vị Trí Đề Xuất trong Header
 
-## Bước Triển Khai
+**Desktop (Header.tsx):**
+```text
+[FunWallet] [CAMLY] [ClaimRewards] [Wallet] [Create ▾] [👼 ANGEL] [🔔] [User]
+```
 
-1. **Thêm Secret** `ANGEL_AI_API_KEY` vào backend secrets
-2. **Tạo** `supabase/functions/angel-ai-proxy/index.ts`
-3. **Cập nhật** `supabase/config.toml`
-4. **Sửa** `src/components/Mascot/AngelChat.tsx` để dùng endpoint mới
-5. **Deploy** edge function và test
+**Mobile (MobileHeader.tsx):**
+```text
+[FunWallet] [CAMLY] [🔍] [💰] [💼] [➕] [👼] [📥] [🔔] [User]
+```
 
----
-
-## Lợi Ích Tích Hợp
+## Lợi Ích
 
 | Lợi ích | Mô tả |
 |---------|-------|
-| **ANGEL AI làm Primary** | Ưu tiên AI của FUN Ecosystem |
-| **Fallback đáng tin cậy** | Grok + Gemini làm backup |
-| **Badge nhận diện** | User biết AI nào đang trả lời |
-| **Không mất tính năng cũ** | Voice, emoji, personality giữ nguyên |
-| **Mở rộng tương lai** | Dễ thêm providers mới |
+| **Dễ truy cập** | Click 1 lần để mở chat, không cần tìm mascot |
+| **Nhận diện thương hiệu** | Avatar Angel luôn hiện diện trên navbar |
+| **Golden glow** | Animation thu hút sự chú ý |
+| **Responsive** | Hoạt động tốt trên cả desktop và mobile |
