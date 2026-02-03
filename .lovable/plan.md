@@ -1,178 +1,235 @@
 
-# Kế Hoạch Sửa Lỗi Layout Upload Wizard Desktop
+# Kế Hoạch Tích Hợp ANGEL AI từ angel.fun.rich vào FUN Play
 
-## Phân Tích Vấn Đề Chi Tiết
+## Thông Tin ANGEL AI Mới
 
-Dựa trên screenshot của con, modal hiện nhưng **nội dung chính (dropzone) bị trượt xuống dưới fold**:
+| Thông tin | Giá trị |
+|-----------|---------|
+| **Domain** | angel.fun.rich |
+| **API Endpoint** | https://ssjoetiitctqzapymtzl.supabase.co/functions/v1/angel-chat |
+| **API Key** | ak_79f1d_3e4p6d6q6732393z2s551h4p2x1b6bsq |
+| **Auth Header** | x-api-key |
+
+## Cấu Trúc Hiện Tại
 
 ```text
-+---------------------------------------+
-| Đăng video mới                    [X] |  <-- Header visible
-| [Video] [Thông tin] [Thumbnail]...    |  <-- Tabs visible  
-| ██████████████████████████████████████ |  <-- Progress bar visible
-|                                       |
-|         (CONTENT HIDDEN BELOW)        |  <-- Dropzone NOT visible
-|                                       |
-+---------------------------------------+
-               ↓ PHẢI SCROLL ĐỂ THẤY
+AngelMascot (Video) ──┬──► AngelChat (Chat Window)
+                      │
+                      └──► angel-chat (Edge Function) ──► Grok → ChatGPT → Gemini
 ```
 
-### Nguyên Nhân Gốc
+## Kiến Trúc Tích Hợp Mới
 
-| Vấn đề | Giải thích |
-|--------|------------|
-| **DialogContent dùng `grid` layout** | Radix Dialog mặc định dùng `display: grid`, nhưng UploadWizard pass `flex flex-col` - 2 layout này conflict |
-| **Thiếu height constraint** | DialogContent không có `h-[90vh]` hoặc `h-full`, nên content không bị giới hạn |
-| **Header quá cao** | DialogHeader với stepper tabs chiếm ~120-150px, đẩy content xuống |
-| **Không có `overflow-y-auto` trên đúng container** | Content area có `overflow-auto` nhưng parent không có height cố định nên không scroll được |
-
----
+```text
+AngelMascot (Video) ──► AngelChat (Chat Window)
+                              │
+                              ▼
+                     angel-ai-proxy (New Edge Function)
+                              │
+           ┌──────────────────┼──────────────────┐
+           │                  │                  │
+           ▼                  ▼                  ▼
+    🌟 ANGEL AI           Grok (xAI)        Lovable AI
+   (angel.fun.rich)       (Fallback 1)      (Fallback 2)
+       PRIMARY
+```
 
 ## Giải Pháp
 
-### 1. Fix DialogContent Layout trong UploadWizard
+### 1. Thêm Secret cho ANGEL AI API Key
 
-**Vấn đề**: `flex flex-col` không override được `grid` mặc định của Radix
+**Secret Name:** `ANGEL_AI_API_KEY`
+**Value:** `ak_79f1d_3e4p6d6q6732393z2s551h4p2x1b6bsq`
 
-**Giải pháp**: Thêm `!flex !flex-col` để force override, kèm height cố định cho desktop
+### 2. Tạo Edge Function Mới: `angel-ai-proxy`
 
-```tsx
-<DialogContent 
-  hideCloseButton
-  className={cn(
-    "!flex !flex-col p-0 gap-0 overflow-hidden relative bg-background border-border",
-    isMobile 
-      ? "max-w-full w-full h-full max-h-full rounded-none" 
-      : "max-w-4xl w-[90vw] h-[85vh] max-h-[85vh] rounded-2xl shadow-2xl"
-  )}
->
+**File:** `supabase/functions/angel-ai-proxy/index.ts`
+
+**Chức năng:**
+- **Primary:** Gọi ANGEL AI từ angel.fun.rich
+- **Fallback 1:** Gọi Grok (xAI) nếu ANGEL AI không phản hồi
+- **Fallback 2:** Gọi Lovable AI (Gemini) nếu cả hai đều fail
+
+```typescript
+// Priority order:
+// 1. ANGEL AI (angel.fun.rich) - Primary
+// 2. Grok (xAI) - Fallback 1  
+// 3. Lovable AI (Gemini) - Fallback 2
+
+async function tryAngelAI(messages) {
+  const response = await fetch(
+    'https://ssjoetiitctqzapymtzl.supabase.co/functions/v1/angel-chat',
+    {
+      method: 'POST',
+      headers: {
+        'x-api-key': Deno.env.get('ANGEL_AI_API_KEY'),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ messages })
+    }
+  );
+  // Parse response...
+}
 ```
 
-### 2. Fix Content Area Height
+### 3. Cập Nhật AngelChat Component
 
-**Vấn đề**: `flex-1` không hoạt động khi parent không có height
+**File:** `src/components/Mascot/AngelChat.tsx`
 
-**Giải pháp**: Thêm `min-h-0` để cho phép flex shrink, và `overflow-y-auto` với smooth scroll
+**Thay đổi:**
+- Đổi endpoint từ `angel-chat` sang `angel-ai-proxy`
+- Thêm badge hiển thị "🌟 ANGEL AI" khi response từ angel.fun.rich
+- Giữ nguyên voice features (ElevenLabs/OpenAI)
 
-```tsx
-<div className={cn(
-  "flex-1 min-h-0 overflow-y-auto scroll-smooth px-4 sm:px-6 py-4 relative z-10",
-  isMobile && "pb-20"
-)}>
-```
+### 4. Cập Nhật config.toml
 
-### 3. Compact Header cho Desktop
+Thêm cấu hình cho edge function mới:
 
-**Giảm padding của header** trên desktop để dành chỗ cho content:
-
-```tsx
-<DialogHeader className="px-4 sm:px-6 pt-3 sm:pt-4 pb-3 border-b border-border/50 ...">
+```toml
+[functions.angel-ai-proxy]
+verify_jwt = false
 ```
 
 ---
 
-## Files Cần Sửa
+## Files Cần Tạo/Sửa
 
 | File | Action | Mô tả |
 |------|--------|-------|
-| `src/components/Upload/UploadWizard.tsx` | EDIT | Fix layout với !flex, height constraint, overflow |
+| `supabase/functions/angel-ai-proxy/index.ts` | CREATE | Edge function mới với priority ANGEL AI |
+| `supabase/config.toml` | EDIT | Thêm config cho angel-ai-proxy |
+| `src/components/Mascot/AngelChat.tsx` | EDIT | Đổi endpoint + thêm ANGEL AI badge |
 
 ---
 
-## Chi Tiết Thay Đổi
+## Chi Tiết Kỹ Thuật
 
-### UploadWizard.tsx - DialogContent (dòng 401-407)
+### angel-ai-proxy/index.ts
 
-**Trước:**
-```tsx
-<DialogContent 
-  hideCloseButton
-  className={cn(
-    "flex flex-col p-0 gap-0 overflow-hidden relative bg-background border-border",
-    isMobile ? "max-w-full w-full h-full max-h-full rounded-none" : "max-w-4xl max-h-[90vh] rounded-2xl"
-  )}
->
+```typescript
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, ...",
+};
+
+// 🌟 Primary: ANGEL AI from angel.fun.rich
+async function tryAngelAI(messages: any[]): Promise<{ content: string | null; provider: string }> {
+  const ANGEL_AI_API_KEY = Deno.env.get("ANGEL_AI_API_KEY");
+  if (!ANGEL_AI_API_KEY) {
+    console.log("ANGEL_AI_API_KEY not configured, skipping ANGEL AI");
+    return { content: null, provider: "" };
+  }
+
+  try {
+    console.log("🌟 Trying ANGEL AI from angel.fun.rich...");
+    const response = await fetch(
+      "https://ssjoetiitctqzapymtzl.supabase.co/functions/v1/angel-chat",
+      {
+        method: "POST",
+        headers: {
+          "x-api-key": ANGEL_AI_API_KEY,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ messages }),
+      }
+    );
+
+    if (!response.ok) {
+      console.error("ANGEL AI error:", response.status);
+      return { content: null, provider: "" };
+    }
+
+    const data = await response.json();
+    const content = data.response || data.choices?.[0]?.message?.content;
+    
+    if (content) {
+      console.log("🌟 ANGEL AI responded successfully!");
+      return { content, provider: "angel-ai" };
+    }
+    return { content: null, provider: "" };
+  } catch (error) {
+    console.error("ANGEL AI exception:", error);
+    return { content: null, provider: "" };
+  }
+}
+
+// Fallback 1: Grok (xAI)
+async function tryGrok(messages: any[]): Promise<{ content: string | null; provider: string }> {
+  // ... (giữ nguyên logic từ angel-chat)
+}
+
+// Fallback 2: Lovable AI (Gemini)  
+async function tryLovableAI(messages: any[]): Promise<{ content: string | null; provider: string }> {
+  // ... (giữ nguyên logic từ angel-chat)
+}
+
+serve(async (req) => {
+  // 1. Try ANGEL AI first (PRIMARY)
+  // 2. Fallback to Grok
+  // 3. Fallback to Lovable AI
+});
 ```
 
-**Sau:**
+### AngelChat.tsx - Badge Update
+
 ```tsx
-<DialogContent 
-  hideCloseButton
-  className={cn(
-    "!flex !flex-col p-0 gap-0 overflow-hidden relative bg-background border-border",
-    isMobile 
-      ? "max-w-full w-full h-full max-h-full rounded-none" 
-      : "max-w-4xl w-[90vw] h-[85vh] max-h-[85vh] rounded-2xl shadow-2xl"
-  )}
->
-```
+// Thêm provider type mới
+type AIProvider = 'angel-ai' | 'grok' | 'chatgpt' | 'lovable-ai';
 
-### UploadWizard.tsx - DialogHeader (dòng 413)
+// Badge styling
+const getProviderBadge = (provider: AIProvider) => {
+  switch (provider) {
+    case 'angel-ai':
+      return '🌟 ANGEL AI'; // Primary - Golden
+    case 'grok':
+      return '🚀 Grok';
+    case 'lovable-ai':
+      return '✨ Gemini';
+    default:
+      return '';
+  }
+};
 
-**Trước:**
-```tsx
-<DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-4 border-b ...">
-```
-
-**Sau:**
-```tsx
-<DialogHeader className="px-4 sm:px-6 pt-3 sm:pt-4 pb-3 border-b flex-shrink-0 ...">
-```
-
-### UploadWizard.tsx - Content Area (dòng 511-514)
-
-**Trước:**
-```tsx
-<div className={cn(
-  "flex-1 overflow-auto px-4 sm:px-6 py-4 relative z-10",
-  isMobile && "pb-20"
-)}>
-```
-
-**Sau:**
-```tsx
-<div className={cn(
-  "flex-1 min-h-0 overflow-y-auto scroll-smooth px-4 sm:px-6 py-4 sm:py-6 relative z-10",
-  isMobile && "pb-20"
-)}>
+// Badge class
+className={
+  provider === 'angel-ai' 
+    ? 'bg-gradient-to-r from-[#FFD700] to-[#FFA500] text-white shadow-lg' // Golden for ANGEL AI
+    : provider === 'grok'
+    ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white'
+    : 'bg-gradient-to-r from-primary to-accent text-white'
+}
 ```
 
 ---
 
 ## Kết Quả Mong Đợi
 
-```text
-+-------------------------------------------+
-| Đăng video mới                        [X] |  <- Compact header
-| [Video] [Thông tin] [Thumbnail] [Preview] |  <- Stepper
-| ██████████████████████████████████████████ |  <- Progress bar
-|                                           |
-|    ╔═══════════════════════════════════╗  |
-|    ║     📤 Kéo thả video vào đây     ║  |  <- DROPZONE VISIBLE!
-|    ║                                   ║  |
-|    ║        hoặc bấm để chọn          ║  |
-|    ║                                   ║  |
-|    ║   🎬 MP4, MOV, WEBM - Max 10GB   ║  |
-|    ╚═══════════════════════════════════╝  |
-|                                           |
-|    💡 Tips: Video dọc ≤3 phút = Short     |
-+-------------------------------------------+
-         ↑ CENTERED + SCROLLABLE
-```
-
 | Trước | Sau |
 |-------|-----|
-| Content bị khuất dưới fold | Content hiện đầy đủ, centered |
-| Header quá cao (pt-6 pb-4) | Header compact (pt-4 pb-3) |
-| Không scroll được bên trong | Scroll smooth bên trong nếu content dài |
-| Chỉ thấy tabs + progress bar | Thấy dropzone ngay lập tức |
+| AngelChat → Grok → ChatGPT → Gemini | AngelChat → **ANGEL AI** → Grok → Gemini |
+| Badge: Grok / ChatGPT / Gemini | Badge: **🌟 ANGEL AI** / Grok / Gemini |
+| 3 AI providers | **4 AI providers** (ANGEL AI primary) |
 
 ---
 
-## Test Checklist
+## Bước Triển Khai
 
-1. Desktop: Bấm "+ Tạo" → "Tải video lên" → Modal hiện centered
-2. Desktop: Dropzone hiển thị đầy đủ, không cần scroll để thấy
-3. Desktop: Scroll bên trong modal nếu content dài (ở step metadata)
-4. Mobile: Vẫn full-screen như cũ
-5. Nút X đóng modal đúng
+1. **Thêm Secret** `ANGEL_AI_API_KEY` vào backend secrets
+2. **Tạo** `supabase/functions/angel-ai-proxy/index.ts`
+3. **Cập nhật** `supabase/config.toml`
+4. **Sửa** `src/components/Mascot/AngelChat.tsx` để dùng endpoint mới
+5. **Deploy** edge function và test
+
+---
+
+## Lợi Ích Tích Hợp
+
+| Lợi ích | Mô tả |
+|---------|-------|
+| **ANGEL AI làm Primary** | Ưu tiên AI của FUN Ecosystem |
+| **Fallback đáng tin cậy** | Grok + Gemini làm backup |
+| **Badge nhận diện** | User biết AI nào đang trả lời |
+| **Không mất tính năng cũ** | Voice, emoji, personality giữ nguyên |
+| **Mở rộng tương lai** | Dễ thêm providers mới |
