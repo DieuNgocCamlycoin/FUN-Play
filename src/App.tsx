@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { WagmiProvider } from 'wagmi';
 import { VersionCheck } from './components/VersionCheck';
 import Index from "./pages/Index";
@@ -47,6 +47,7 @@ import BrowseMusic from "./pages/BrowseMusic";
 import Shorts from "./pages/Shorts";
 import PlatformDocs from "./pages/PlatformDocs";
 import PostDetail from "./pages/PostDetail";
+import VideoRedirect from "./pages/VideoRedirect";
 import { wagmiConfig, initWeb3Modal } from '@/lib/web3Config';
 import { GlobalPaymentNotifications } from './components/Web3/GlobalPaymentNotifications';
 import { MusicPlayerProvider } from './contexts/MusicPlayerContext';
@@ -117,6 +118,8 @@ function AppContent() {
         <Route path="/camly-price" element={<CAMLYPrice />} />
         {/* Shorts page - TikTok/Reels style */}
         <Route path="/shorts" element={<Shorts />} />
+        {/* Short link redirect */}
+        <Route path="/v/:id" element={<VideoRedirect />} />
         <Route path="/library" element={<Index />} />
         <Route path="/liked" element={<LikedVideos />} />
         <Route path="/post/:id" element={<PostDetail />} />
