@@ -34,6 +34,14 @@ const COLORS = [
 export function ThumbnailCanvas({ baseImage, onExport }: ThumbnailCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  
+  // Image cache refs - prevent async loading flash
+  const loadedImageRef = useRef<HTMLImageElement | null>(null);
+  const loadedImageSrcRef = useRef<string | null>(null);
+  
+  // RAF throttle ref
+  const rafRef = useRef<number | null>(null);
+  
   const [text, setText] = useState("");
   const [font, setFont] = useState("Inter");
   const [fontSize, setFontSize] = useState(48);
@@ -43,7 +51,80 @@ export function ThumbnailCanvas({ baseImage, onExport }: ThumbnailCanvasProps) {
   const [textPosition, setTextPosition] = useState({ x: 0.5, y: 0.5 }); // Normalized 0-1
   const [isDragging, setIsDragging] = useState(false);
 
-  // Draw canvas
+  // Text wrapping function - auto wrap long text
+  const drawTextWithWrapping = useCallback((
+    ctx: CanvasRenderingContext2D, 
+    canvas: HTMLCanvasElement,
+    currentText: string,
+    currentFont: string,
+    currentFontSize: number,
+    currentColor: string,
+    currentAlign: "left" | "center" | "right",
+    currentShowStroke: boolean,
+    currentTextPosition: { x: number; y: number }
+  ) => {
+    if (!currentText.trim()) return;
+
+    ctx.font = `bold ${currentFontSize}px ${currentFont}`;
+    ctx.textBaseline = "top";
+
+    // Max width = 80% of canvas width
+    const maxWidth = canvas.width * 0.8;
+    
+    // Split text into lines based on width
+    const words = currentText.split(' ');
+    const lines: string[] = [];
+    let currentLine = '';
+
+    for (const word of words) {
+      const testLine = currentLine ? `${currentLine} ${word}` : word;
+      const metrics = ctx.measureText(testLine);
+      
+      if (metrics.width > maxWidth && currentLine) {
+        lines.push(currentLine);
+        currentLine = word;
+      } else {
+        currentLine = testLine;
+      }
+    }
+    if (currentLine) lines.push(currentLine);
+
+    // Calculate Y start position (center lines vertically)
+    const lineHeight = currentFontSize * 1.3;
+    const totalHeight = lines.length * lineHeight;
+    let y = (canvas.height * currentTextPosition.y) - (totalHeight / 2);
+
+    // Draw each line
+    for (const line of lines) {
+      let x = canvas.width * currentTextPosition.x;
+      
+      if (currentAlign === "left") {
+        ctx.textAlign = "left";
+        x = Math.max(60, x - 200);
+      } else if (currentAlign === "right") {
+        ctx.textAlign = "right";
+        x = Math.min(canvas.width - 60, x + 200);
+      } else {
+        ctx.textAlign = "center";
+      }
+
+      // Stroke (outline)
+      if (currentShowStroke) {
+        ctx.strokeStyle = "#000000";
+        ctx.lineWidth = currentFontSize / 8;
+        ctx.lineJoin = "round";
+        ctx.strokeText(line, x, y);
+      }
+
+      // Fill
+      ctx.fillStyle = currentColor;
+      ctx.fillText(line, x, y);
+
+      y += lineHeight;
+    }
+  }, []);
+
+  // Draw canvas - optimized with image caching
   const drawCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -51,78 +132,79 @@ export function ThumbnailCanvas({ baseImage, onExport }: ThumbnailCanvasProps) {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Clear
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Helper to draw image and text
+    const renderContent = (img: HTMLImageElement | null) => {
+      // Clear canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw background
-    if (baseImage) {
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => {
+      if (img) {
         // Cover fit
         const ratio = Math.max(canvas.width / img.width, canvas.height / img.height);
         const newWidth = img.width * ratio;
         const newHeight = img.height * ratio;
         const x = (canvas.width - newWidth) / 2;
         const y = (canvas.height - newHeight) / 2;
-
         ctx.drawImage(img, x, y, newWidth, newHeight);
+      } else {
+        // Aurora gradient background
+        const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+        gradient.addColorStop(0, "#00E7FF");
+        gradient.addColorStop(0.33, "#7A2BFF");
+        gradient.addColorStop(0.66, "#FF00E5");
+        gradient.addColorStop(1, "#FFD700");
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
 
-        // Draw text overlay
-        drawText(ctx, canvas);
+      // Draw text with wrapping
+      drawTextWithWrapping(ctx, canvas, text, font, fontSize, color, align, showStroke, textPosition);
+    };
+
+    // Check if image is cached and matches current baseImage
+    if (baseImage && loadedImageRef.current && loadedImageSrcRef.current === baseImage) {
+      // Use cached image - no async, no flash!
+      renderContent(loadedImageRef.current);
+      return;
+    }
+
+    // If new image or no cache, load and cache it
+    if (baseImage) {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        // Cache the loaded image
+        loadedImageRef.current = img;
+        loadedImageSrcRef.current = baseImage;
+        renderContent(img);
       };
       img.src = baseImage;
     } else {
-      // Aurora gradient background
-      const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-      gradient.addColorStop(0, "#00E7FF");
-      gradient.addColorStop(0.33, "#7A2BFF");
-      gradient.addColorStop(0.66, "#FF00E5");
-      gradient.addColorStop(1, "#FFD700");
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      drawText(ctx, canvas);
+      // No base image - just draw gradient
+      renderContent(null);
     }
-  }, [baseImage, text, font, fontSize, color, align, showStroke, textPosition]);
+  }, [baseImage, text, font, fontSize, color, align, showStroke, textPosition, drawTextWithWrapping]);
 
-  const drawText = (ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement) => {
-    if (!text.trim()) return;
-
-    ctx.font = `bold ${fontSize}px ${font}`;
-    ctx.textBaseline = "middle";
-
-    // Calculate position based on textPosition and align
-    let x = canvas.width * textPosition.x;
-    if (align === "left") {
-      ctx.textAlign = "left";
-      x = Math.max(60, x - 200);
-    } else if (align === "right") {
-      ctx.textAlign = "right";
-      x = Math.min(canvas.width - 60, x + 200);
-    } else {
-      ctx.textAlign = "center";
+  // Reset image cache when baseImage changes
+  useEffect(() => {
+    if (baseImage !== loadedImageSrcRef.current) {
+      loadedImageRef.current = null;
+      loadedImageSrcRef.current = null;
     }
-
-    const y = canvas.height * textPosition.y;
-
-    // Stroke (outline)
-    if (showStroke) {
-      ctx.strokeStyle = "#000000";
-      ctx.lineWidth = fontSize / 8;
-      ctx.lineJoin = "round";
-      ctx.strokeText(text, x, y);
-    }
-
-    // Fill
-    ctx.fillStyle = color;
-    ctx.fillText(text, x, y);
-  };
+  }, [baseImage]);
 
   // Initial draw and on changes
   useEffect(() => {
     drawCanvas();
   }, [drawCanvas]);
+
+  // Cleanup RAF on unmount
+  useEffect(() => {
+    return () => {
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+      }
+    };
+  }, []);
 
   // Touch/Mouse handlers for dragging text position
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
@@ -131,6 +213,7 @@ export function ThumbnailCanvas({ baseImage, onExport }: ThumbnailCanvasProps) {
     e.currentTarget.setPointerCapture(e.pointerId);
   }, [text]);
 
+  // Throttled pointer move with requestAnimationFrame
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     if (!isDragging || !containerRef.current) return;
     
@@ -138,11 +221,21 @@ export function ThumbnailCanvas({ baseImage, onExport }: ThumbnailCanvasProps) {
     const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     const y = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
     
-    setTextPosition({ x, y });
+    // Throttle with requestAnimationFrame to prevent jank
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+    }
+    rafRef.current = requestAnimationFrame(() => {
+      setTextPosition({ x, y });
+    });
   }, [isDragging]);
 
   const handlePointerUp = useCallback(() => {
     setIsDragging(false);
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
   }, []);
 
   // Handle export
@@ -168,6 +261,9 @@ export function ThumbnailCanvas({ baseImage, onExport }: ThumbnailCanvasProps) {
     setShowStroke(true);
     setTextPosition({ x: 0.5, y: 0.5 });
   };
+
+  // Estimate line count for UX feedback
+  const estimatedLines = text.length > 0 ? Math.max(1, Math.ceil(text.length / 20)) : 0;
 
   return (
     <div className="space-y-4">
@@ -220,9 +316,12 @@ export function ThumbnailCanvas({ baseImage, onExport }: ThumbnailCanvasProps) {
               value={text}
               onChange={(e) => setText(e.target.value)}
               placeholder="Nhập tiêu đề..."
-              maxLength={50}
+              maxLength={80}
               className="h-11"
             />
+            <p className="text-xs text-muted-foreground">
+              {text.length}/80 ký tự • ~{estimatedLines} dòng (tự động xuống dòng)
+            </p>
           </div>
 
           <div className="space-y-2">
