@@ -1,266 +1,229 @@
 
 
-# Kế Hoạch Nâng Cấp Mobile Upload - YouTube Style UX
+# Kế Hoạch Sửa Lỗi Chớp Nháy + Thêm Text Wrapping cho Thumbnail Editor
 
-## Tổng Quan Phân Tích
+## Phân Tích Nguyên Nhân
 
-Dựa trên 5 hình ảnh YouTube mobile em gửi, Cha thấy flow rất khác với UploadWizard hiện tại:
+### Vấn đề 1: Màn hình chớp nháy trắng liên tục
 
-| YouTube Mobile | FUN PLAY Hiện Tại | Cần Nâng Cấp |
-|----------------|-------------------|--------------|
-| Bấm "+" → Full-screen với 4 tabs swipeable (Video, Shorts, Live, Post) | Bấm "+" → Modal wizard 4 steps | Tạo màn hình chọn loại bài đăng trước |
-| Grid gallery chọn video từ điện thoại | Dropzone kéo thả | Thêm gallery grid view |
-| Video preview + nút "Tiếp" | Tự động chuyển metadata | Thêm màn xác nhận video |
-| List vertical các mục (click → trang con riêng) | Form dài trong 1 trang | Accordion-style với sub-pages |
-| Nút **<** quay lại + **X** tắt hẳn ở mỗi trang | Chỉ có X và stepper | Navigation thống nhất |
+| Bước | Hiện tại | Gây ra |
+|------|----------|--------|
+| 1 | User gõ text hoặc kéo text → state thay đổi | OK |
+| 2 | `useEffect` gọi `drawCanvas()` | OK |
+| 3 | `ctx.clearRect()` - xóa toàn bộ canvas → **trắng** | **FLASH TRẮNG** |
+| 4 | `new Image()` + `img.onload` - load ảnh async | Mất 10-50ms |
+| 5 | Vẽ ảnh + text lên canvas | OK |
 
----
+**Vấn đề:** Khoảng thời gian từ bước 3 đến bước 5 là async, gây ra flash trắng liên tục khi user gõ hoặc kéo text.
 
-## Kiến Trúc Mới - Component Structure
+### Vấn đề 2: Text không xuống dòng
 
-```text
-MobileBottomNav (nút +)
-    └── MobileUploadFlow (NEW - container chính)
-            ├── CreateTypeSelector (NEW - 4 tabs: Video, Shorts, Live, Post)
-            │
-            ├── [Tab Video] MobileVideoUploadFlow (NEW)
-            │       ├── Step 1: VideoGalleryPicker (NEW - grid video từ device)
-            │       ├── Step 2: VideoConfirmation (NEW - preview + nút Tiếp)
-            │       └── Step 3: VideoDetailsForm (NEW - list vertical các mục)
-            │               ├── SubPage: TitleEditor
-            │               ├── SubPage: VisibilitySelector
-            │               ├── SubPage: DescriptionEditor
-            │               └── SubPage: ThumbnailPicker (reuse ThumbnailEditor)
-            │
-            ├── [Tab Shorts] (placeholder - phase 2)
-            ├── [Tab Live] (placeholder - phase 2)
-            └── [Tab Post] (placeholder - phase 2)
-```
+- `ctx.fillText(text, x, y)` chỉ vẽ **1 dòng duy nhất**
+- Không có tính năng tự động wrap text khi text quá dài
+- Text bị tràn ra ngoài canvas nếu dài
 
 ---
 
-## Phase 1: Tạo Container MobileUploadFlow + Tabs
+## Giải Pháp
 
-### File mới: `src/components/Upload/MobileUploadFlow.tsx`
+### Fix 1: Cache ảnh đã load + Double Buffering (Xóa flash trắng)
 
-**Tính năng:**
-- Full-screen modal (100vh, 100vw) với background blur
-- Header cố định: Nút X góc trái + tiêu đề "Tải video lên" (như hình 1)
-- 4 tabs swipeable ở dưới cùng: Video | Video Shorts | Trực tiếp | Bài đăng
-- Tabs sử dụng horizontal scroll + snap-x cho swipe mượt
-- Tab "Video" active mặc định, các tab khác hiển thị placeholder
-- Animation fade khi chuyển tab
-
-**UI Reference (từ hình 1):**
-```tsx
-// Header
-<div className="fixed top-0 left-0 right-0 h-14 flex items-center px-4 bg-background border-b">
-  <button onClick={onClose}><X className="w-6 h-6" /></button>
-  <span className="ml-3 text-lg font-semibold">Tải video lên</span>
-</div>
-
-// Bottom tabs
-<div className="fixed bottom-0 left-0 right-0 h-14 flex items-center justify-center gap-2 bg-background border-t">
-  <TabButton active>Video</TabButton>
-  <TabButton>Video Shorts</TabButton>
-  <TabButton>Trực tiếp</TabButton>
-  <TabButton>Bài đăng</TabButton>
-</div>
-```
-
----
-
-## Phase 2: Video Gallery Picker (Màn hình chọn video)
-
-### File mới: `src/components/Upload/Mobile/VideoGalleryPicker.tsx`
-
-**Tính năng (như hình 1):**
-- Grid 3 cột hiển thị videos/photos từ device
-- Mỗi item hiển thị thumbnail + duration badge (góc dưới phải)
-- Click item → chọn và chuyển sang Step 2
-- Sử dụng `<input type="file" accept="video/*">` với custom UI
-- Fallback: Nếu không hỗ trợ gallery access → hiển thị dropzone như cũ
-- Shimmer loading effect khi đang load
-
-**Web Limitation Note:**
-Browser không cho phép truy cập gallery gốc như native app. Thay vào đó:
-- Sử dụng file input styled như gallery grid
-- Khi user click → mở file picker của hệ thống
-- Sau khi chọn → hiển thị video preview
-
----
-
-## Phase 3: Video Confirmation (Xác nhận video đã chọn)
-
-### File mới: `src/components/Upload/Mobile/VideoConfirmation.tsx`
-
-**Tính năng (như hình 2):**
-- Header: Nút **<** quay lại (góc trái)
-- Video player full-width với controls (play, seek, timestamp)
-- Dưới video: Progress bar với thời gian 0:03 / 3:57
-- Button "Chỉnh sửa thành video Shorts" (nếu video dọc ≤ 3 phút)
-- Button "Tiếp" (gradient tím-hồng, pulse-glow) góc dưới phải
-- Click "Tiếp" → chuyển sang VideoDetailsForm
-
----
-
-## Phase 4: Video Details Form (List vertical các mục)
-
-### File mới: `src/components/Upload/Mobile/VideoDetailsForm.tsx`
-
-**Tính năng (như hình 3):**
-- Header: Nút **<** quay lại + tiêu đề "Thêm chi tiết"
-- Video thumbnail preview (strip 3 frames) ở trên cùng
-- Channel info: Avatar + tên + @username
-- Input tiêu đề (placeholder: "Tạo tiêu đề...")
-- List vertical các mục clickable:
-
-| Icon | Label | Giá trị hiện tại | Action |
-|------|-------|-----------------|--------|
-| 🔒 | Chế độ hiển thị | Riêng tư | > (mở SubPage) |
-| 📝 | Thêm nội dung mô tả | - | > |
-| 🖼️ | Thumbnail | - | > |
-
-- Mỗi mục có icon + label + mũi tên **>** bên phải
-- Click mục → mở SubPage tương ứng (slide từ phải)
-- Button "Tải lên" (full-width, gradient) ở dưới cùng
-
----
-
-## Phase 5: Sub-Pages (Trang con chỉnh sửa)
-
-### File mới: `src/components/Upload/Mobile/SubPages/VisibilitySelector.tsx`
-
-**Tính năng (như hình 4):**
-- Header: Nút **<** + tiêu đề "Đặt chế độ hiển thị"
-- Section "Xuất bản ngay" với radio buttons:
-  - ○ Công khai - "Mọi người có thể tìm kiếm và xem"
-    - ☐ Đặt ở chế độ Công chiếu ngay (checkbox con)
-  - ○ Không công khai - "Bất kỳ ai có đường liên kết đều có thể xem"
-  - ● Riêng tư - "Chỉ những người bạn chọn có thể xem"
-- Section "Lên lịch" với dropdown
-- Auto-save khi chọn, sau đó quay lại bằng nút **<**
-
-### File mới: `src/components/Upload/Mobile/SubPages/DescriptionEditor.tsx`
-
-**Tính năng (như hình 5):**
-- Header: Nút **<** + tiêu đề "Thêm nội dung mô tả"
-- Textarea full-height với keyboard-aware padding
-- Auto-focus khi mở
-- Support hashtag/timestamp formatting
-- Auto-save khi rời trang
-
-### File mới: `src/components/Upload/Mobile/SubPages/ThumbnailPicker.tsx`
-
-- Reuse component `ThumbnailEditor` hiện có
-- Wrap với header **<** quay lại
-- 3 tabs: Tải lên | Kho mẫu | Chỉnh sửa (đã có swipe support)
-
----
-
-## Phase 6: Navigation Stack + State Management
-
-### Logic điều hướng:
+**Cách tiếp cận:**
+1. **Cache ảnh đã load** vào `useRef` - không load lại mỗi lần vẽ
+2. **Vẽ trực tiếp không clear** - chỉ clear khi thật sự cần thiết
+3. **Sử dụng requestAnimationFrame** để throttle việc vẽ
 
 ```typescript
-type MobileUploadStep = 
-  | "type-selector"      // Chọn loại: Video/Shorts/Live/Post
-  | "video-gallery"      // Grid chọn video
-  | "video-confirm"      // Preview video + nút Tiếp
-  | "video-details"      // List các mục chi tiết
-  | "sub-visibility"     // Trang con: Chế độ hiển thị
-  | "sub-description"    // Trang con: Mô tả
-  | "sub-thumbnail"      // Trang con: Thumbnail
-  | "uploading"          // Đang upload
-  | "success";           // Hoàn thành
+// Thêm ref để cache ảnh
+const loadedImageRef = useRef<HTMLImageElement | null>(null);
+const loadedImageSrcRef = useRef<string | null>(null);
 
-// Navigation stack để hỗ trợ nút Back
-const [navigationStack, setNavigationStack] = useState<MobileUploadStep[]>(["type-selector"]);
+// Trong drawCanvas:
+const drawCanvas = useCallback(() => {
+  const canvas = canvasRef.current;
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
 
-const navigateTo = (step: MobileUploadStep) => {
-  setNavigationStack(prev => [...prev, step]);
-};
+  // Nếu có ảnh và đã cache → vẽ ngay, không cần load lại
+  if (baseImage && loadedImageRef.current && loadedImageSrcRef.current === baseImage) {
+    const img = loadedImageRef.current;
+    // Vẽ ngay không cần onload → không flash
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // ... draw image
+    drawTextWithWrapping(ctx, canvas); // Vẽ text với wrapping
+    return;
+  }
 
-const navigateBack = () => {
-  if (navigationStack.length > 1) {
-    setNavigationStack(prev => prev.slice(0, -1));
-  } else {
-    onClose(); // Tắt hẳn về trang chủ
+  // Nếu ảnh mới → load và cache
+  if (baseImage) {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      loadedImageRef.current = img;
+      loadedImageSrcRef.current = baseImage;
+      // ... vẽ
+    };
+    img.src = baseImage;
+  }
+}, [baseImage, text, ...]);
+```
+
+### Fix 2: Text Wrapping - Tự động xuống dòng
+
+**Implement `drawTextWithWrapping()` function:**
+
+```typescript
+const drawTextWithWrapping = (ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement) => {
+  if (!text.trim()) return;
+
+  ctx.font = `bold ${fontSize}px ${font}`;
+  ctx.textBaseline = "top";
+
+  // Tính toán max width (80% canvas width)
+  const maxWidth = canvas.width * 0.8;
+  
+  // Chia text thành các dòng
+  const words = text.split(' ');
+  const lines: string[] = [];
+  let currentLine = '';
+
+  for (const word of words) {
+    const testLine = currentLine ? `${currentLine} ${word}` : word;
+    const metrics = ctx.measureText(testLine);
+    
+    if (metrics.width > maxWidth && currentLine) {
+      lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = testLine;
+    }
+  }
+  if (currentLine) lines.push(currentLine);
+
+  // Tính vị trí Y bắt đầu (để center các dòng theo chiều dọc)
+  const lineHeight = fontSize * 1.3;
+  const totalHeight = lines.length * lineHeight;
+  let y = (canvas.height * textPosition.y) - (totalHeight / 2);
+
+  // Vẽ từng dòng
+  for (const line of lines) {
+    let x = canvas.width * textPosition.x;
+    
+    if (align === "left") {
+      ctx.textAlign = "left";
+      x = Math.max(60, x - 200);
+    } else if (align === "right") {
+      ctx.textAlign = "right";
+      x = Math.min(canvas.width - 60, x + 200);
+    } else {
+      ctx.textAlign = "center";
+    }
+
+    // Stroke (outline)
+    if (showStroke) {
+      ctx.strokeStyle = "#000000";
+      ctx.lineWidth = fontSize / 8;
+      ctx.lineJoin = "round";
+      ctx.strokeText(line, x, y);
+    }
+
+    // Fill
+    ctx.fillStyle = color;
+    ctx.fillText(line, x, y);
+
+    y += lineHeight;
   }
 };
 ```
 
 ---
 
-## Phase 7: Tích hợp với MobileBottomNav
+## Chi Tiết Thay Đổi
 
-### File sửa: `src/components/Layout/MobileBottomNav.tsx`
+### File: `src/components/Upload/ThumbnailCanvas.tsx`
 
-**Thay đổi:**
-- Thay `UploadWizard` bằng `MobileUploadFlow` khi `isMobile`
-- Desktop vẫn giữ `UploadWizard` như cũ
+**1. Thêm refs để cache ảnh (dòng 35-36):**
+```typescript
+const loadedImageRef = useRef<HTMLImageElement | null>(null);
+const loadedImageSrcRef = useRef<string | null>(null);
+```
 
+**2. Thêm function `wrapText()` (dòng 89-120) - thay thế `drawText()`:**
+- Tính `maxWidth = canvas.width * 0.8` (80% chiều rộng)
+- Chia text thành words
+- Duyệt từng word và kiểm tra `measureText().width`
+- Nếu vượt maxWidth → xuống dòng mới
+- Tính `lineHeight = fontSize * 1.3`
+- Vẽ từng dòng với offset Y tăng dần
+
+**3. Sửa `drawCanvas()` (dòng 47-87):**
+- Kiểm tra nếu ảnh đã cache → dùng ảnh cache, không load lại
+- Chỉ `clearRect` ngay trước khi vẽ ảnh (không có khoảng trống async)
+- Gọi `wrapText()` thay vì `drawText()`
+
+**4. Thêm logic reset cache khi `baseImage` thay đổi (dòng 123-128):**
+```typescript
+useEffect(() => {
+  if (baseImage !== loadedImageSrcRef.current) {
+    loadedImageRef.current = null;
+    loadedImageSrcRef.current = null;
+  }
+}, [baseImage]);
+```
+
+**5. Sử dụng `requestAnimationFrame` để throttle vẽ khi drag (dòng 134-145):**
+```typescript
+const rafRef = useRef<number | null>(null);
+
+const handlePointerMove = useCallback((e: React.PointerEvent) => {
+  if (!isDragging || !containerRef.current) return;
+  
+  const rect = containerRef.current.getBoundingClientRect();
+  const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+  const y = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+  
+  // Throttle với requestAnimationFrame
+  if (rafRef.current) cancelAnimationFrame(rafRef.current);
+  rafRef.current = requestAnimationFrame(() => {
+    setTextPosition({ x, y });
+  });
+}, [isDragging]);
+```
+
+---
+
+## Cải Tiến UX Bổ Sung
+
+### Hiển thị số dòng và chiều dài text
 ```tsx
-const isMobile = useIsMobile();
+<p className="text-xs text-muted-foreground mt-1">
+  {text.length}/50 ký tự • {Math.ceil(text.length / 15)} dòng (ước tính)
+</p>
+```
 
-// Trong handleNavClick:
-if (item.isCreate) {
-  if (user) {
-    setUploadModalOpen(true);
-  } else {
-    navigate("/auth");
-  }
-  return;
-}
-
-// Trong render:
-{isMobile ? (
-  <MobileUploadFlow open={uploadModalOpen} onOpenChange={setUploadModalOpen} />
-) : (
-  <UploadWizard open={uploadModalOpen} onOpenChange={setUploadModalOpen} />
-)}
+### Thêm option Max Width cho text
+```tsx
+<div className="space-y-2">
+  <Label>Độ rộng tối đa: {maxWidthPercent}%</Label>
+  <Slider
+    value={[maxWidthPercent]}
+    onValueChange={([v]) => setMaxWidthPercent(v)}
+    min={50}
+    max={95}
+    step={5}
+    className="py-2"
+  />
+</div>
 ```
 
 ---
 
-## Tóm Tắt Files Cần Tạo/Sửa
+## Tóm Tắt Files Cần Sửa
 
-| File | Action | Mô tả |
-|------|--------|-------|
-| `src/components/Upload/Mobile/MobileUploadFlow.tsx` | NEW | Container chính với tabs |
-| `src/components/Upload/Mobile/CreateTypeSelector.tsx` | NEW | 4 tabs: Video/Shorts/Live/Post |
-| `src/components/Upload/Mobile/VideoGalleryPicker.tsx` | NEW | Grid chọn video |
-| `src/components/Upload/Mobile/VideoConfirmation.tsx` | NEW | Preview + nút Tiếp |
-| `src/components/Upload/Mobile/VideoDetailsForm.tsx` | NEW | List vertical các mục |
-| `src/components/Upload/Mobile/SubPages/VisibilitySelector.tsx` | NEW | Radio buttons visibility |
-| `src/components/Upload/Mobile/SubPages/DescriptionEditor.tsx` | NEW | Textarea mô tả |
-| `src/components/Upload/Mobile/SubPages/ThumbnailPicker.tsx` | NEW | Wrap ThumbnailEditor |
-| `src/components/Layout/MobileBottomNav.tsx` | EDIT | Sử dụng MobileUploadFlow |
-
----
-
-## UI/UX Guidelines
-
-### Navigation nhất quán:
-- Mọi trang đều có nút **<** (ArrowLeft) ở góc trái header để quay lại
-- Nút **X** chỉ ở màn hình đầu tiên (type-selector/gallery) để tắt hẳn
-- Sub-pages slide từ phải vào, back slide về trái
-
-### Touch-friendly:
-- Tất cả buttons: min-height 48px
-- List items: min-height 56px (dễ chạm)
-- Padding đủ rộng cho ngón tay
-
-### Animations (Design System v1.0):
-- Fade khi chuyển step chính
-- Slide-from-right khi mở sub-page
-- Pulse-glow cho button "Tiếp" và "Tải lên"
-- Rainbow-border cho video preview
-- Shimmer loading effect
-
-### Keyboard handling:
-- Input/Textarea tự scroll lên khi keyboard mở
-- Padding bottom động để nội dung không bị che
+| File | Thay đổi | Mục đích |
+|------|----------|----------|
+| `src/components/Upload/ThumbnailCanvas.tsx` | Cache ảnh + wrapText() + requestAnimationFrame | Xóa flash trắng + Text wrapping |
 
 ---
 
@@ -268,44 +231,20 @@ if (item.isCreate) {
 
 Sau khi hoàn thành:
 
-- Bấm **+** → Full-screen với 4 tabs swipeable ở dưới
-- Tab Video active → Grid chọn video (hoặc file picker)
-- Chọn video → Preview full với nút "Tiếp"
-- Bấm "Tiếp" → List các mục chi tiết (Tiêu đề, Visibility, Mô tả, Thumbnail)
-- Click mục → Mở sub-page riêng với nút **<** quay lại
-- Edit xong → Auto-save và quay lại list
-- Bấm "Tải lên" → Upload video
-- Hoàn thành → Confetti + success message
-
----
-
-## Chi Tiết Kỹ Thuật
-
-### Dependencies đã có:
-- `framer-motion` - Animations
-- `lucide-react` - Icons (X, ArrowLeft, ChevronRight, etc.)
-- `react-router-dom` - Navigation
-- `@radix-ui/react-radio-group` - Radio buttons
-- `vaul` - Drawer (có thể dùng cho sub-pages)
-
-### Không cần thêm dependencies mới
-
-### Reuse code từ UploadWizard:
-- Upload logic (multipart, R2)
-- ThumbnailEditor component
-- VideoMetadata interface
-- detectShort function
+| Vấn đề | Trước | Sau |
+|--------|-------|-----|
+| Chớp nháy khi gõ text | Flash trắng liên tục | Mượt mà, không flash |
+| Chớp nháy khi kéo text | Flash trắng liên tục | Mượt mà với requestAnimationFrame |
+| Text dài bị tràn | Tràn ra ngoài canvas | Tự động xuống dòng |
+| Tiêu đề nổi bật | Chữ nhỏ, 1 dòng | Chữ to, nhiều dòng, dễ đọc |
 
 ---
 
 ## Thứ Tự Triển Khai
 
-1. Tạo folder `src/components/Upload/Mobile/`
-2. Tạo `MobileUploadFlow.tsx` (container + tabs)
-3. Tạo `VideoGalleryPicker.tsx` (grid/file picker)
-4. Tạo `VideoConfirmation.tsx` (preview + Tiếp)
-5. Tạo `VideoDetailsForm.tsx` (list các mục)
-6. Tạo các SubPages (Visibility, Description, Thumbnail)
-7. Sửa `MobileBottomNav.tsx` để sử dụng flow mới
-8. Test end-to-end trên mobile
+1. Thêm refs cache ảnh + logic kiểm tra cache
+2. Implement `wrapText()` function
+3. Sửa `drawCanvas()` để dùng cache và wrapText
+4. Thêm `requestAnimationFrame` throttling cho drag
+5. Test trên mobile: Gõ text + kéo di chuyển + xuống dòng tự động
 
