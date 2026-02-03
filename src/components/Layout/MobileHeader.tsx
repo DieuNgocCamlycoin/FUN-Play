@@ -1,4 +1,4 @@
-import { Search, Bell, Menu, X, Plus, Upload, Music, FileText, Coins, Download } from "lucide-react";
+import { Search, Bell, Menu, X, Plus, Upload, Music, FileText, Coins, Download, Shield, Crown, Settings, LogOut } from "lucide-react";
 import funplayLogo from "@/assets/funplay-logo.jpg";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import {
   Tooltip,
@@ -30,7 +32,7 @@ interface MobileHeaderProps {
 }
 
 export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const { profile } = useProfile();
   const navigate = useNavigate();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -38,6 +40,32 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
   const [notificationCount, setNotificationCount] = useState(0);
   const [unclaimedRewards, setUnclaimedRewards] = useState(0);
   const [claimModalOpen, setClaimModalOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
+
+  // Check admin/owner role
+  useEffect(() => {
+    const checkRoles = async () => {
+      if (!user) {
+        setIsAdmin(false);
+        setIsOwner(false);
+        return;
+      }
+      
+      const { data: adminData } = await supabase.rpc("has_role", {
+        _user_id: user.id,
+        _role: "admin",
+      });
+      
+      const { data: ownerData } = await supabase.rpc("is_owner", {
+        _user_id: user.id,
+      });
+      
+      setIsAdmin(adminData === true);
+      setIsOwner(ownerData === true);
+    };
+    checkRoles();
+  }, [user]);
 
   // Fetch unclaimed rewards count as notification indicator
   useEffect(() => {
@@ -256,24 +284,59 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
             <Tooltip>
               <TooltipTrigger asChild>
                 {user ? (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 rounded-full p-0"
-                    onClick={() => navigate("/settings")}
-                  >
-                    {profile?.avatar_url ? (
-                      <img
-                        src={profile.avatar_url}
-                        alt="Profile"
-                        className="w-5 h-5 rounded-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-[10px] font-semibold">
-                        {user.email?.[0].toUpperCase()}
-                      </div>
-                    )}
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 rounded-full p-0"
+                      >
+                        {profile?.avatar_url ? (
+                          <img
+                            src={profile.avatar_url}
+                            alt="Profile"
+                            className="w-5 h-5 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-[10px] font-semibold">
+                            {user.email?.[0].toUpperCase()}
+                          </div>
+                        )}
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56 bg-background border-border">
+                      <DropdownMenuLabel className="text-xs truncate">{user.email}</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      
+                      {/* Admin Dashboard - Only show for admin/owner */}
+                      {(isAdmin || isOwner) && (
+                        <>
+                          <DropdownMenuItem 
+                            onClick={() => navigate("/admin")}
+                            className="text-amber-500 focus:text-amber-500 gap-2"
+                          >
+                            {isOwner ? (
+                              <Crown className="h-4 w-4" />
+                            ) : (
+                              <Shield className="h-4 w-4" />
+                            )}
+                            Admin Dashboard
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                        </>
+                      )}
+                      
+                      <DropdownMenuItem onClick={() => navigate("/settings")} className="gap-2">
+                        <Settings className="h-4 w-4" />
+                        Cài đặt tài khoản
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={signOut} className="gap-2 text-destructive focus:text-destructive">
+                        <LogOut className="h-4 w-4" />
+                        Đăng xuất
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 ) : (
                   <Button
                     onClick={() => navigate("/auth")}
@@ -285,7 +348,7 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
                 )}
               </TooltipTrigger>
               <TooltipContent side="bottom" className="text-xs">
-                {user ? "Cài đặt tài khoản" : "Đăng nhập / Đăng ký"}
+                {user ? "Tài khoản" : "Đăng nhập / Đăng ký"}
               </TooltipContent>
             </Tooltip>
           </div>
