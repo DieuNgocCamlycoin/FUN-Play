@@ -45,31 +45,8 @@ export const useAutoReward = () => {
       }
 
       if (data?.success) {
-        // Show success notification
-        const typeLabels: Record<string, string> = {
-          VIEW: 'xem video',
-          LIKE: 'thích video',
-          COMMENT: 'bình luận',
-          SHARE: 'chia sẻ',
-          UPLOAD: 'đăng video',
-          FIRST_UPLOAD: 'đăng video đầu tiên',
-          SIGNUP: 'đăng ký tài khoản'
-        };
-
-        toast({
-          title: `🎉 +${data.amount?.toLocaleString('vi-VN')} CAMLY!`,
-          description: `Bạn được thưởng vì ${typeLabels[type]}`,
-        });
-
-        // Check for milestone
-        if (data.milestone) {
-          setTimeout(() => {
-            toast({
-              title: `🏆 Đạt mốc ${data.milestone.toLocaleString('vi-VN')} CAMLY!`,
-              description: 'Chúc mừng bạn đã đạt được cột mốc mới!',
-            });
-          }, 1500);
-        }
+        // No reward notifications - 5D Light Economy spirit
+        // Rewards are processed silently in the background
 
         return {
           success: true,

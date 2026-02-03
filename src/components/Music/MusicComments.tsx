@@ -116,7 +116,7 @@ export function MusicComments({ musicId, onCommentCountChange }: MusicCommentsPr
     if (wordCount < 5) {
       toast({
         title: "Bình luận quá ngắn",
-        description: "Bình luận phải có ít nhất 5 từ để nhận thưởng CAMLY",
+        description: "Bình luận cần ít nhất 5 từ để chia sẻ ý nghĩa hơn",
         variant: "destructive",
       });
       return;

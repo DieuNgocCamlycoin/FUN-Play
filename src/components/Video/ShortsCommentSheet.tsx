@@ -92,10 +92,10 @@ export function ShortsCommentSheet({ videoId, isOpen, onClose, commentCount }: S
       return;
     }
 
-    // Validate min 5 words for CAMLY reward
+    // Validate min 5 words
     const wordCount = trimmedComment.split(/\s+/).filter(w => w.length > 0).length;
     if (wordCount < 5) {
-      toast.warning('Bình luận cần ít nhất 5 từ để nhận thưởng CAMLY');
+      toast.warning('Bình luận cần ít nhất 5 từ để chia sẻ ý nghĩa hơn');
     }
 
     setSubmitting(true);
@@ -218,7 +218,7 @@ export function ShortsCommentSheet({ videoId, isOpen, onClose, commentCount }: S
                   handleSubmit();
                 }
               }}
-              placeholder="Viết bình luận (tối thiểu 5 từ để nhận CAMLY)..."
+              placeholder="Chia sẻ cảm nhận của bạn..."
               className="flex-1 bg-white/10 border-white/20 text-white placeholder:text-white/40"
               disabled={submitting || !user}
             />

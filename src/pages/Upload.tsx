@@ -428,7 +428,7 @@ export default function Upload() {
       }
 
       setUploadProgress(98);
-      setUploadStage("Đang trao thưởng CAMLY...");
+      setUploadStage("Đang hoàn tất...");
 
       // Award upload reward
       if (videoData?.id) {
@@ -444,8 +444,8 @@ export default function Upload() {
       setUploadStage("Hoàn thành!");
 
       toast({
-        title: "🎉 Video đã được tải lên thành công!",
-        description: "Video của bạn đã hiển thị công khai ngay bây giờ.",
+        title: "✨ Chúc mừng! Video đã được đăng thành công!",
+        description: "Cảm ơn bạn đã chia sẻ ánh sáng và lan tỏa năng lượng tích cực đến cộng đồng FUN PLAY!",
       });
 
       // Wait a bit to show completion
