@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { MultiTokenWallet } from "@/components/Web3/MultiTokenWallet";
 import { CAMLYMiniWidget } from "@/components/Web3/CAMLYMiniWidget";
 import { FunWalletMiniWidget } from "@/components/Web3/FunWalletMiniWidget";
+import { AngelChat } from "@/components/Mascot/AngelChat";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { useNavigate } from "react-router-dom";
@@ -42,6 +43,7 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
   const [claimModalOpen, setClaimModalOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
+  const [angelChatOpen, setAngelChatOpen] = useState(false);
 
   // Check admin/owner role
   useEffect(() => {
@@ -238,6 +240,28 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
               </TooltipContent>
             </Tooltip>
 
+            {/* ANGEL AI Chat Button - Compact */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setAngelChatOpen(true)}
+                  className="h-7 w-7 relative rounded-full overflow-hidden"
+                >
+                  <div className="absolute inset-0 rounded-full bg-gradient-to-r from-[#FFD700]/30 to-[#FFA500]/30 animate-pulse" />
+                  <img 
+                    src="/images/angel-transparent.png" 
+                    alt="ANGEL AI" 
+                    className="w-6 h-6 object-contain relative z-10"
+                  />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-xs">
+                ANGEL AI ✨
+              </TooltipContent>
+            </Tooltip>
+
             {/* Download App - with pulse animation */}
             <Tooltip>
               <TooltipTrigger asChild>
@@ -357,6 +381,9 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
 
       {/* Claim Rewards Modal */}
       <ClaimRewardsModal open={claimModalOpen} onOpenChange={setClaimModalOpen} />
+      
+      {/* ANGEL AI Chat */}
+      <AngelChat isOpen={angelChatOpen} onClose={() => setAngelChatOpen(false)} />
 
       {/* Search Mode */}
       <div
