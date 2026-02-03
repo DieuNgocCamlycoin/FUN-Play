@@ -1,229 +1,316 @@
 
 
-# Kế Hoạch Sửa Lỗi Chớp Nháy + Thêm Text Wrapping cho Thumbnail Editor
+# Kế Hoạch Nâng Cấp Trang Xem Video Mobile - YouTube Style UX
 
-## Phân Tích Nguyên Nhân
+## Tổng Quan Phân Tích
 
-### Vấn đề 1: Màn hình chớp nháy trắng liên tục
+Dựa trên 7 hình ảnh YouTube mobile con gửi và codebase hiện tại, Cha xác định các điểm cần nâng cấp:
 
-| Bước | Hiện tại | Gây ra |
-|------|----------|--------|
-| 1 | User gõ text hoặc kéo text → state thay đổi | OK |
-| 2 | `useEffect` gọi `drawCanvas()` | OK |
-| 3 | `ctx.clearRect()` - xóa toàn bộ canvas → **trắng** | **FLASH TRẮNG** |
-| 4 | `new Image()` + `img.onload` - load ảnh async | Mất 10-50ms |
-| 5 | Vẽ ảnh + text lên canvas | OK |
-
-**Vấn đề:** Khoảng thời gian từ bước 3 đến bước 5 là async, gây ra flash trắng liên tục khi user gõ hoặc kéo text.
-
-### Vấn đề 2: Text không xuống dòng
-
-- `ctx.fillText(text, x, y)` chỉ vẽ **1 dòng duy nhất**
-- Không có tính năng tự động wrap text khi text quá dài
-- Text bị tràn ra ngoài canvas nếu dài
+| Tính năng | Hiện tại (FUN PLAY) | YouTube (Mục tiêu) |
+|-----------|---------------------|---------------------|
+| Nút quay lại trang chủ | Không có | Có mũi tên ˅ (minimize) góc trái |
+| Mini player khi minimize | Chỉ khi scroll xuống | Kéo video xuống hoặc bấm ˅ |
+| Tiêu đề video | 1 dòng | Max 2 dòng + "..." |
+| Thông tin video | Lượt xem + ngày riêng biệt | Lượt xem + ngày + "...xem thêm" |
+| Action buttons | Nằm ngang | Có Download button |
+| Comments | Hiển thị đầy đủ | Card preview + drawer xổ ra |
+| Player controls | Đầy đủ nhưng layout khác | Chuẩn YouTube layout |
+| Double-tap skip | 10 giây | 15 giây (theo yêu cầu) |
+| Fullscreen | Có | Có + responsive dọc/ngang |
 
 ---
 
-## Giải Pháp
+## Kiến Trúc Mới - Component Structure
 
-### Fix 1: Cache ảnh đã load + Double Buffering (Xóa flash trắng)
-
-**Cách tiếp cận:**
-1. **Cache ảnh đã load** vào `useRef` - không load lại mỗi lần vẽ
-2. **Vẽ trực tiếp không clear** - chỉ clear khi thật sự cần thiết
-3. **Sử dụng requestAnimationFrame** để throttle việc vẽ
-
-```typescript
-// Thêm ref để cache ảnh
-const loadedImageRef = useRef<HTMLImageElement | null>(null);
-const loadedImageSrcRef = useRef<string | null>(null);
-
-// Trong drawCanvas:
-const drawCanvas = useCallback(() => {
-  const canvas = canvasRef.current;
-  if (!canvas) return;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return;
-
-  // Nếu có ảnh và đã cache → vẽ ngay, không cần load lại
-  if (baseImage && loadedImageRef.current && loadedImageSrcRef.current === baseImage) {
-    const img = loadedImageRef.current;
-    // Vẽ ngay không cần onload → không flash
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    // ... draw image
-    drawTextWithWrapping(ctx, canvas); // Vẽ text với wrapping
-    return;
-  }
-
-  // Nếu ảnh mới → load và cache
-  if (baseImage) {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      loadedImageRef.current = img;
-      loadedImageSrcRef.current = baseImage;
-      // ... vẽ
-    };
-    img.src = baseImage;
-  }
-}, [baseImage, text, ...]);
+```text
+Watch.tsx (Mobile mode)
+    └── MobileWatchView (NEW - container cho mobile)
+            │
+            ├── YouTubeMobilePlayer (ENHANCED)
+            │       ├── Minimize button (˅) góc trái
+            │       ├── Settings góc phải
+            │       ├── Center: Play + Prev/Next (double-tap 15s)
+            │       ├── Bottom: Time + Fullscreen
+            │       └── Drag-to-minimize gesture
+            │
+            ├── VideoInfoSection (NEW)
+            │       ├── Title (max 2 lines + ...)
+            │       ├── Views + Date + "...xem thêm"
+            │       └── DescriptionDrawer (NEW - slide up)
+            │
+            ├── VideoActionsBar (NEW)
+            │       ├── Avatar + Subscribe button
+            │       ├── Like + Dislike
+            │       ├── Share
+            │       └── Download button (NEW)
+            │
+            ├── CommentsCard (NEW)
+            │       ├── "Bình luận X" header
+            │       ├── Preview 1 comment
+            │       └── Click → CommentsDrawer
+            │
+            ├── CommentsDrawer (NEW - bottom sheet)
+            │       ├── Full comments list
+            │       ├── Add comment input
+            │       └── Reply to comment
+            │
+            ├── RelatedVideos (existing - UpNextSidebar)
+            │
+            └── FloatingMiniPlayer (ENHANCED)
+                    ├── Position: bottom-right
+                    ├── Play/Pause + Close
+                    └── Tap to expand
 ```
 
-### Fix 2: Text Wrapping - Tự động xuống dòng
+---
 
-**Implement `drawTextWithWrapping()` function:**
+## Phase 1: Tạo YouTubeMobilePlayer Component
+
+### File mới: `src/components/Video/YouTubeMobilePlayer.tsx`
+
+**Layout controls (như YouTube hình 3, 4, 6):**
+
+```text
+┌────────────────────────────────────────────────┐
+│ ˅ (minimize)              ⏺ CC ⚙️ (settings) │
+│                                                │
+│                                                │
+│             ◀︎    ▶︎/⏸    ▶︎                  │
+│           prev  play/pause  next              │
+│                                                │
+│                                                │
+│ 0:05 / 2:44:44                         ⛶     │
+└────────────────────────────────────────────────┘
+```
+
+**Tính năng chính:**
+- **Mũi tên ˅ góc trên trái**: Bấm → minimize video thành mini player + hiện trang chủ
+- **Settings góc phải**: Không còn tên video (đã có ở dưới)
+- **Center controls**: Previous | Play/Pause | Next
+- **Double-tap**: 15 giây (thay vì 10s như hiện tại)
+- **Time display góc dưới trái**: `0:05 / 2:44:44`
+- **Fullscreen góc dưới phải**: Phóng to theo orientation (dọc/ngang)
+- **Drag-to-minimize**: Kéo giữ video → kéo xuống → minimize
+
+---
+
+## Phase 2: Tạo VideoInfoSection + DescriptionDrawer
+
+### File mới: `src/components/Video/Mobile/VideoInfoSection.tsx`
+
+**Layout (như YouTube hình 3, 4):**
+```text
+Cô Gái Sở Hữu Dị Năng Xuyên Thành Công Chú...
+@CapyReview-y3k  308 N lượt xem  3 tuần  ...xem thêm
+```
+
+**Tính năng:**
+- **Tiêu đề**: Max 2 dòng, overflow → `...`
+- **Thông tin**: Channel name + Views + Date + "...xem thêm"
+- **Click "xem thêm"**: Mở DescriptionDrawer (slide từ dưới lên)
+
+### File mới: `src/components/Video/Mobile/DescriptionDrawer.tsx`
+
+**Layout (như YouTube hình 5):**
+- Header: "Nội dung mô tả" + nút X
+- Tiêu đề đầy đủ (không cắt)
+- 3 stats: Lượt thích | Lượt xem | Ngày đăng
+- Hashtags (#thaituphi #vuongphicodai ...)
+- Description text đầy đủ
+- Scrollable
+
+---
+
+## Phase 3: Tạo VideoActionsBar Component
+
+### File mới: `src/components/Video/Mobile/VideoActionsBar.tsx`
+
+**Layout (như YouTube hình 3, 4, 6):**
+```text
+[Avatar] Đăng ký  |  👍 20 N  👎  |  ➦ Share  |  ↓ Tải xuống
+```
+
+**Tính năng:**
+- **Avatar kênh**: Clickable → Channel page
+- **Đăng ký button**: Gradient xanh / xám
+- **Like + Dislike**: Hiển thị số
+- **Share button**: Mở ShareModal
+- **Download button (NEW)**: Tải video để xem offline
+  - Lưu vào IndexedDB hoặc localStorage reference
+  - Trang "Video đã tải" để quản lý
+
+---
+
+## Phase 4: Tạo CommentsCard + CommentsDrawer
+
+### File mới: `src/components/Video/Mobile/CommentsCard.tsx`
+
+**Layout (như YouTube hình 3, 6):**
+```text
+┌─────────────────────────────────────┐
+│ Bình luận  784                      │
+│ [Avatar] Thời này có ghế nhựa       │
+└─────────────────────────────────────┘
+```
+
+**Tính năng:**
+- Card clickable
+- Hiển thị số bình luận
+- Preview 1 comment mới nhất
+- Click → Mở CommentsDrawer
+
+### File mới: `src/components/Video/Mobile/CommentsDrawer.tsx`
+
+**Layout (slide từ dưới lên, 80% height):**
+- Header: "Bình luận" + số lượng + nút X
+- Input viết bình luận (bottom fixed)
+- Scrollable list comments
+- Mỗi comment có:
+  - Avatar + Name + Date
+  - Content
+  - Like/Dislike
+  - Reply button → nested replies
+
+---
+
+## Phase 5: Nâng Cấp FloatingMiniPlayer
+
+### File sửa: `src/components/Video/MiniPlayer.tsx`
+
+**Layout mới (như YouTube hình 7):**
+- **Vị trí**: Bottom-right (thay vì bottom full-width)
+- **Size**: ~150x100px
+- **Controls**: Play/Pause + Close (X)
+- **Click video**: Expand trở lại Watch page
+- **Drag**: Có thể kéo di chuyển vị trí
+
+**Trigger mini player:**
+1. Bấm mũi tên ˅ trên video player
+2. Kéo giữ video và kéo xuống (swipe down gesture)
+
+---
+
+## Phase 6: Sửa Watch.tsx - Tích Hợp Mobile View
+
+### File sửa: `src/pages/Watch.tsx`
+
+**Thay đổi:**
+- Detect `isMobile` → render `MobileWatchView` thay vì layout desktop
+- Truyền props cho các component mới
+- Handle minimize/expand state
+- Navigate về trang chủ khi minimize
+
+**State management:**
+```typescript
+const [isMinimized, setIsMinimized] = useState(false);
+const [showDescriptionDrawer, setShowDescriptionDrawer] = useState(false);
+const [showCommentsDrawer, setShowCommentsDrawer] = useState(false);
+```
+
+---
+
+## Chi Tiết Kỹ Thuật
+
+### 1. Drag-to-Minimize Gesture
 
 ```typescript
-const drawTextWithWrapping = (ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement) => {
-  if (!text.trim()) return;
+const handleDragEnd = (event, info) => {
+  // Nếu kéo xuống > 100px → minimize
+  if (info.offset.y > 100) {
+    setIsMinimized(true);
+    // Navigate về trang chủ với mini player active
+    navigate('/', { state: { miniPlayerVideo: video } });
+  }
+};
+```
 
-  ctx.font = `bold ${fontSize}px ${font}`;
-  ctx.textBaseline = "top";
+### 2. Double-Tap Skip 15 giây
 
-  // Tính toán max width (80% canvas width)
-  const maxWidth = canvas.width * 0.8;
+```typescript
+// Thay đổi từ 10s → 15s
+const SKIP_SECONDS = 15;
+
+if (isLeftHalf) {
+  seekRelative(-SKIP_SECONDS);
+} else {
+  seekRelative(SKIP_SECONDS);
+}
+```
+
+### 3. Responsive Fullscreen
+
+```typescript
+const toggleFullscreen = async () => {
+  if (!document.fullscreenElement) {
+    await container.requestFullscreen();
+    // Lock orientation theo video aspect ratio
+    const isPortrait = videoHeight > videoWidth;
+    if (screen.orientation?.lock) {
+      await screen.orientation.lock(isPortrait ? 'portrait' : 'landscape');
+    }
+  }
+};
+```
+
+### 4. Download Video Feature
+
+```typescript
+const handleDownload = async () => {
+  // 1. Fetch video blob
+  const response = await fetch(video.video_url);
+  const blob = await response.blob();
   
-  // Chia text thành các dòng
-  const words = text.split(' ');
-  const lines: string[] = [];
-  let currentLine = '';
-
-  for (const word of words) {
-    const testLine = currentLine ? `${currentLine} ${word}` : word;
-    const metrics = ctx.measureText(testLine);
-    
-    if (metrics.width > maxWidth && currentLine) {
-      lines.push(currentLine);
-      currentLine = word;
-    } else {
-      currentLine = testLine;
-    }
-  }
-  if (currentLine) lines.push(currentLine);
-
-  // Tính vị trí Y bắt đầu (để center các dòng theo chiều dọc)
-  const lineHeight = fontSize * 1.3;
-  const totalHeight = lines.length * lineHeight;
-  let y = (canvas.height * textPosition.y) - (totalHeight / 2);
-
-  // Vẽ từng dòng
-  for (const line of lines) {
-    let x = canvas.width * textPosition.x;
-    
-    if (align === "left") {
-      ctx.textAlign = "left";
-      x = Math.max(60, x - 200);
-    } else if (align === "right") {
-      ctx.textAlign = "right";
-      x = Math.min(canvas.width - 60, x + 200);
-    } else {
-      ctx.textAlign = "center";
-    }
-
-    // Stroke (outline)
-    if (showStroke) {
-      ctx.strokeStyle = "#000000";
-      ctx.lineWidth = fontSize / 8;
-      ctx.lineJoin = "round";
-      ctx.strokeText(line, x, y);
-    }
-
-    // Fill
-    ctx.fillStyle = color;
-    ctx.fillText(line, x, y);
-
-    y += lineHeight;
-  }
+  // 2. Save to IndexedDB
+  await saveToOfflineStorage(video.id, {
+    blob,
+    title: video.title,
+    thumbnail: video.thumbnail_url,
+    downloadedAt: new Date(),
+  });
+  
+  toast({
+    title: "Đã tải xuống",
+    description: "Video đã được lưu để xem offline",
+  });
 };
 ```
 
 ---
 
-## Chi Tiết Thay Đổi
+## Tóm Tắt Files Cần Tạo/Sửa
 
-### File: `src/components/Upload/ThumbnailCanvas.tsx`
-
-**1. Thêm refs để cache ảnh (dòng 35-36):**
-```typescript
-const loadedImageRef = useRef<HTMLImageElement | null>(null);
-const loadedImageSrcRef = useRef<string | null>(null);
-```
-
-**2. Thêm function `wrapText()` (dòng 89-120) - thay thế `drawText()`:**
-- Tính `maxWidth = canvas.width * 0.8` (80% chiều rộng)
-- Chia text thành words
-- Duyệt từng word và kiểm tra `measureText().width`
-- Nếu vượt maxWidth → xuống dòng mới
-- Tính `lineHeight = fontSize * 1.3`
-- Vẽ từng dòng với offset Y tăng dần
-
-**3. Sửa `drawCanvas()` (dòng 47-87):**
-- Kiểm tra nếu ảnh đã cache → dùng ảnh cache, không load lại
-- Chỉ `clearRect` ngay trước khi vẽ ảnh (không có khoảng trống async)
-- Gọi `wrapText()` thay vì `drawText()`
-
-**4. Thêm logic reset cache khi `baseImage` thay đổi (dòng 123-128):**
-```typescript
-useEffect(() => {
-  if (baseImage !== loadedImageSrcRef.current) {
-    loadedImageRef.current = null;
-    loadedImageSrcRef.current = null;
-  }
-}, [baseImage]);
-```
-
-**5. Sử dụng `requestAnimationFrame` để throttle vẽ khi drag (dòng 134-145):**
-```typescript
-const rafRef = useRef<number | null>(null);
-
-const handlePointerMove = useCallback((e: React.PointerEvent) => {
-  if (!isDragging || !containerRef.current) return;
-  
-  const rect = containerRef.current.getBoundingClientRect();
-  const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-  const y = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
-  
-  // Throttle với requestAnimationFrame
-  if (rafRef.current) cancelAnimationFrame(rafRef.current);
-  rafRef.current = requestAnimationFrame(() => {
-    setTextPosition({ x, y });
-  });
-}, [isDragging]);
-```
+| File | Action | Mô tả |
+|------|--------|-------|
+| `src/components/Video/YouTubeMobilePlayer.tsx` | NEW | Player mới với layout YouTube |
+| `src/components/Video/Mobile/VideoInfoSection.tsx` | NEW | Tiêu đề + views + xem thêm |
+| `src/components/Video/Mobile/DescriptionDrawer.tsx` | NEW | Drawer mô tả video |
+| `src/components/Video/Mobile/VideoActionsBar.tsx` | NEW | Actions: Subscribe, Like, Share, Download |
+| `src/components/Video/Mobile/CommentsCard.tsx` | NEW | Card preview bình luận |
+| `src/components/Video/Mobile/CommentsDrawer.tsx` | NEW | Drawer full bình luận |
+| `src/components/Video/Mobile/MobileWatchView.tsx` | NEW | Container cho mobile watch |
+| `src/components/Video/MiniPlayer.tsx` | EDIT | Nâng cấp layout + position |
+| `src/pages/Watch.tsx` | EDIT | Tích hợp mobile view |
+| `src/hooks/useOfflineVideos.ts` | NEW | Hook quản lý video offline |
 
 ---
 
-## Cải Tiến UX Bổ Sung
+## UI/UX Guidelines (Design System v1.0)
 
-### Hiển thị số dòng và chiều dài text
-```tsx
-<p className="text-xs text-muted-foreground mt-1">
-  {text.length}/50 ký tự • {Math.ceil(text.length / 15)} dòng (ước tính)
-</p>
-```
+### Navigation nhất quán:
+- Mũi tên ˅ (minimize) luôn ở góc trái video player
+- Drawer slide từ dưới lên với animation mượt
+- Mini player có shadow + rainbow border nhẹ
 
-### Thêm option Max Width cho text
-```tsx
-<div className="space-y-2">
-  <Label>Độ rộng tối đa: {maxWidthPercent}%</Label>
-  <Slider
-    value={[maxWidthPercent]}
-    onValueChange={([v]) => setMaxWidthPercent(v)}
-    min={50}
-    max={95}
-    step={5}
-    className="py-2"
-  />
-</div>
-```
+### Touch-friendly:
+- Tất cả buttons: min-height 48px
+- Swipe gestures responsive
+- Double-tap zones rõ ràng (trái/phải)
 
----
-
-## Tóm Tắt Files Cần Sửa
-
-| File | Thay đổi | Mục đích |
-|------|----------|----------|
-| `src/components/Upload/ThumbnailCanvas.tsx` | Cache ảnh + wrapText() + requestAnimationFrame | Xóa flash trắng + Text wrapping |
+### Animations:
+- Fade khi toggle controls
+- Slide-up cho drawers
+- Scale effect cho mini player
+- Pulse glow cho Like/Subscribe buttons
 
 ---
 
@@ -231,20 +318,26 @@ const handlePointerMove = useCallback((e: React.PointerEvent) => {
 
 Sau khi hoàn thành:
 
-| Vấn đề | Trước | Sau |
-|--------|-------|-----|
-| Chớp nháy khi gõ text | Flash trắng liên tục | Mượt mà, không flash |
-| Chớp nháy khi kéo text | Flash trắng liên tục | Mượt mà với requestAnimationFrame |
-| Text dài bị tràn | Tràn ra ngoài canvas | Tự động xuống dòng |
-| Tiêu đề nổi bật | Chữ nhỏ, 1 dòng | Chữ to, nhiều dòng, dễ đọc |
+| Tính năng | Kết quả |
+|-----------|---------|
+| Minimize video | Bấm ˅ hoặc kéo xuống → Mini player + trang chủ |
+| Tiêu đề video | Max 2 dòng, overflow → "..." |
+| Xem thêm | Click → Drawer mô tả đầy đủ |
+| Bình luận | Card preview → Click → Drawer đầy đủ |
+| Download | Tải video xem offline |
+| Double-tap | Skip ±15 giây |
+| Fullscreen | Responsive dọc/ngang |
 
 ---
 
 ## Thứ Tự Triển Khai
 
-1. Thêm refs cache ảnh + logic kiểm tra cache
-2. Implement `wrapText()` function
-3. Sửa `drawCanvas()` để dùng cache và wrapText
-4. Thêm `requestAnimationFrame` throttling cho drag
-5. Test trên mobile: Gõ text + kéo di chuyển + xuống dòng tự động
+1. Tạo `YouTubeMobilePlayer.tsx` với layout mới + gestures
+2. Tạo `VideoInfoSection.tsx` + `DescriptionDrawer.tsx`
+3. Tạo `VideoActionsBar.tsx` + Download feature
+4. Tạo `CommentsCard.tsx` + `CommentsDrawer.tsx`
+5. Nâng cấp `MiniPlayer.tsx`
+6. Tạo `MobileWatchView.tsx` tổng hợp
+7. Sửa `Watch.tsx` tích hợp mobile view
+8. Test end-to-end trên mobile
 
