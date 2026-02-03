@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -7,7 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { extractVideoThumbnailFromUrl } from "@/lib/videoThumbnail";
 import { toast } from "sonner";
-import { Image, RefreshCw, CheckCircle, XCircle, Play, Pause, AlertTriangle, Youtube, Cloud, Globe, SkipForward } from "lucide-react";
+import { Image, RefreshCw, CheckCircle, XCircle, Play, Pause, AlertTriangle, Youtube, Cloud, Globe, SkipForward, Home, ExternalLink } from "lucide-react";
 
 type VideoSource = 'r2' | 'youtube' | 'supabase' | 'external';
 
@@ -57,11 +58,13 @@ const SourceIcon = ({ source }: { source: VideoSource }) => {
 };
 
 const ThumbnailRegenerationPanel = () => {
+  const navigate = useNavigate();
   const [videos, setVideos] = useState<VideoItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [stats, setStats] = useState({ total: 0, success: 0, error: 0, remaining: 0, skipped: 0 });
+  const [showSuccessActions, setShowSuccessActions] = useState(false);
   const abortRef = useRef(false);
 
   // Fetch videos with NULL thumbnails
@@ -288,6 +291,10 @@ const ThumbnailRegenerationPanel = () => {
       toast.info('Đã dừng xử lý batch');
     } else {
       toast.success(`Hoàn thành! Thành công: ${successCount}, Lỗi: ${errorCount}, Bỏ qua: ${skippedCount}`);
+      // Show success actions if any thumbnails were created
+      if (successCount > 0) {
+        setShowSuccessActions(true);
+      }
     }
   };
 
@@ -414,6 +421,47 @@ const ThumbnailRegenerationPanel = () => {
             </Button>
           )}
         </div>
+
+        {/* Success Actions - Show after batch processing completes */}
+        {showSuccessActions && stats.success > 0 && !processing && (
+          <div className="flex flex-wrap gap-3 p-4 rounded-lg bg-green-500/10 border border-green-500/30">
+            <div className="w-full mb-2">
+              <div className="flex items-center gap-2 text-green-400 font-medium">
+                <CheckCircle className="w-5 h-5" />
+                Đã tạo thành công {stats.success} thumbnail!
+              </div>
+              <p className="text-sm text-muted-foreground mt-1">
+                Thumbnail đã được lưu vào database và sẽ hiển thị ngay trên trang chủ.
+              </p>
+            </div>
+            <Button
+              onClick={() => navigate('/')}
+              className="gap-2 bg-gradient-to-r from-green-500 to-emerald-500"
+            >
+              <Home className="w-4 h-4" />
+              Xem trang chủ
+            </Button>
+            <Button
+              onClick={() => {
+                setShowSuccessActions(false);
+                fetchVideosWithoutThumbnails();
+              }}
+              variant="outline"
+              className="gap-2"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Kiểm tra video còn lại
+            </Button>
+            <Button
+              onClick={() => window.open('/', '_blank')}
+              variant="outline"
+              className="gap-2"
+            >
+              <ExternalLink className="w-4 h-4" />
+              Mở tab mới
+            </Button>
+          </div>
+        )}
 
         {/* Video List */}
         <ScrollArea className="h-[400px] border rounded-lg">
