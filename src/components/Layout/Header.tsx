@@ -239,7 +239,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
                   transition={{ duration: 2, repeat: Infinity }}
                 />
                 <img 
-                  src="/images/angel-transparent.png" 
+                  src="/images/angel-ai-v2.png" 
                   alt="ANGEL AI" 
                   className="w-8 h-8 object-contain relative z-10"
                 />

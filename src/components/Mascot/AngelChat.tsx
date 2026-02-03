@@ -205,7 +205,7 @@ export const AngelChat: React.FC<AngelChatProps> = ({ isOpen, onClose }) => {
                 transition={{ duration: 2, repeat: Infinity }}
               >
                 <motion.img 
-                  src="/images/angel-transparent.png" 
+                  src="/images/angel-ai-v2.png" 
                   alt="Angel" 
                   className="w-14 h-14 object-contain"
                   animate={{ scale: [1, 1.05, 1] }}

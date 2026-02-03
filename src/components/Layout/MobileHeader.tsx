@@ -251,7 +251,7 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
                 >
                   <div className="absolute inset-0 rounded-full bg-gradient-to-r from-[#FFD700]/30 to-[#FFA500]/30 animate-pulse" />
                   <img 
-                    src="/images/angel-transparent.png" 
+                    src="/images/angel-ai-v2.png" 
                     alt="ANGEL AI" 
                     className="w-6 h-6 object-contain relative z-10"
                   />

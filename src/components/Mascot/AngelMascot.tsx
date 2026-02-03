@@ -130,7 +130,7 @@ export const AngelMascot: React.FC<AngelMascotProps> = ({ onTipReceived }) => {
           animate={controls}
         >
           <motion.img
-            src="/images/angel-transparent.png"
+            src="/images/angel-ai-v2.png"
             alt="Angel AI"
             className="w-full h-full object-contain"
             animate={{
