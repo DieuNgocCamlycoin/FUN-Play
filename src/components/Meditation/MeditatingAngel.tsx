@@ -63,15 +63,23 @@ export const MeditatingAngel = () => {
           />
         </div>
 
-        {/* Angel Video */}
-        <video
-          src="/videos/angel-mascot-new.mp4"
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="w-full h-full object-contain opacity-95"
-          style={{ mixBlendMode: "multiply" }}
+        {/* Angel Logo - PNG với thiền định effect */}
+        <motion.img
+          src="/images/angel-transparent.png"
+          alt="Angel AI"
+          className="w-full h-full object-contain"
+          animate={{
+            y: [0, -3, 0],
+            scale: [1, 1.02, 1],
+          }}
+          transition={{
+            duration: 4,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+          style={{
+            filter: 'drop-shadow(0 0 12px rgba(250, 204, 21, 0.6)) drop-shadow(0 0 24px rgba(255, 215, 0, 0.4))'
+          }}
         />
 
         {/* Halo Effect - Golden */}

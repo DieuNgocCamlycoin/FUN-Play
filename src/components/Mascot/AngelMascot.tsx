@@ -124,33 +124,30 @@ export const AngelMascot: React.FC<AngelMascotProps> = ({ onTipReceived }) => {
         onMouseLeave={handleMouseLeave}
         whileHover={{ filter: 'brightness(1.2)', scale: 1.1 }}
       >
-        {/* Angel Video - Pure character, no frame, transparent background */}
+        {/* Angel Logo - PNG với golden glow animation */}
         <motion.div
           className="w-full h-full"
           animate={controls}
-          style={{
-            filter: isExcited 
-              ? 'drop-shadow(0 0 20px rgba(255, 215, 0, 0.8)) drop-shadow(0 0 40px rgba(255, 215, 0, 0.4))' 
-              : 'drop-shadow(0 0 12px rgba(255, 215, 0, 0.6)) drop-shadow(0 0 25px rgba(255, 215, 0, 0.3))'
-          }}
         >
-          <video
-            autoPlay
-            loop
-            muted
-            playsInline
+          <motion.img
+            src="/images/angel-transparent.png"
+            alt="Angel AI"
             className="w-full h-full object-contain"
-            style={{
-              mixBlendMode: 'lighten',
-              background: 'transparent',
-              filter: 'brightness(1.0) contrast(1.1) saturate(1.1)',
-              WebkitMaskImage: 'radial-gradient(ellipse 65% 75% at center 50%, black 25%, transparent 80%)',
-              maskImage: 'radial-gradient(ellipse 65% 75% at center 50%, black 25%, transparent 80%)',
+            animate={{
+              y: [0, -5, 0],
+              scale: [1, 1.03, 1],
             }}
-          >
-            <source src="/videos/angel-mascot-original.mp4" type="video/mp4" />
-            <source src="/videos/angel-mascot-new.mp4" type="video/mp4" />
-          </video>
+            transition={{
+              duration: 3,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+            style={{
+              filter: isExcited 
+                ? 'drop-shadow(0 0 20px rgba(255, 215, 0, 0.9)) drop-shadow(0 0 40px rgba(255, 215, 0, 0.5))' 
+                : 'drop-shadow(0 0 15px rgba(255, 215, 0, 0.7)) drop-shadow(0 0 30px rgba(255, 215, 0, 0.4))'
+            }}
+          />
         </motion.div>
 
         {/* Speech Bubble */}
