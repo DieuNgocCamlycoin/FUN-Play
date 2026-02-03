@@ -1,125 +1,97 @@
 
+# Kế Hoạch Cập Nhật Logo ANGEL AI & Xóa Dữ Liệu Cũ
 
-# Kế Hoạch Cập Nhật ANGEL AI - FUN Play
+## Vấn Đề Hiện Tại
 
-## Tổng Quan
+Từ screenshot bạn gửi, mình thấy logo ANGEL AI cũ (hình thiên thần trắng) vẫn đang hiển thị trong:
+- Header navbar button
+- AngelChat window header  
+- Floating mascot
 
-Thực hiện 4 thay đổi chính để cập nhật ANGEL AI trên FUN Play với logo mới và kết nối trực tiếp với Siêu Trí Tuệ `angel.fun.rich`.
+**Nguyên nhân**: Browser cache đang giữ hình cũ. Code đã đúng nhưng file ảnh bị cached.
 
 ---
 
-## Thay Đổi Sẽ Thực Hiện
+## Giải Pháp
 
-| # | Hạng mục | Action | Chi tiết |
-|---|----------|--------|----------|
-| 1 | Logo ANGEL AI | THAY THẾ | Cập nhật `public/images/angel-transparent.png` với file PNG mới đã upload |
-| 2 | AngelMascot Desktop | EDIT | Thay video `angel-mascot-original.mp4` bằng logo PNG với golden glow animation |
-| 3 | MobileAngelMascot | EDIT | Thay video bằng logo PNG với animation floating |
-| 4 | MeditatingAngel | EDIT | Thay video bằng logo PNG với hiệu ứng thiền định |
-| 5 | AngelChat Voice | EDIT | Tắt `voiceEnabled` mặc định (từ `true` → `false`) vì API key TTS đang lỗi |
-| 6 | API Key | CẬP NHẬT | Cập nhật secret `ANGEL_AI_API_KEY` với key mới: `ak_79f1d_3e4p6d6q6732393z2s551h4p2x1b6bsq` |
+### Bước 1: Đổi Tên File Để Bypass Cache
+
+Thay vì dùng `angel-transparent.png`, mình sẽ lưu logo mới với tên khác để browser bắt buộc phải load file mới.
+
+| Tên cũ | Tên mới |
+|--------|---------|
+| `angel-transparent.png` | `angel-ai-v2.png` |
+
+### Bước 2: Cập Nhật Tất Cả References
+
+Cập nhật path hình ảnh trong các file sau:
+
+| File | Thay đổi |
+|------|----------|
+| `src/components/Mascot/AngelChat.tsx` | Line 208: `/images/angel-ai-v2.png` |
+| `src/components/Mascot/AngelMascot.tsx` | Line 73 & 108: `/images/angel-ai-v2.png` |
+| `src/components/Mascot/MobileAngelMascot.tsx` | `/images/angel-ai-v2.png` |
+| `src/components/Meditation/MeditatingAngel.tsx` | `/images/angel-ai-v2.png` |
+| `src/components/Layout/Header.tsx` | Line 242: `/images/angel-ai-v2.png` |
+| `src/components/Layout/MobileHeader.tsx` | Line 254: `/images/angel-ai-v2.png` |
+
+### Bước 3: Xóa File Video Cũ (Tùy Chọn)
+
+Xóa các file video mascot không còn sử dụng để tiết kiệm dung lượng:
+
+```text
+public/videos/angel-mascot.mp4
+public/videos/angel-mascot-new.mp4  
+public/videos/angel-mascot-original.mp4
+```
 
 ---
 
 ## Chi Tiết Kỹ Thuật
 
-### 1. Thay Logo ANGEL AI Mới
-- Sao chép file PNG đã upload vào `public/images/angel-transparent.png`
-- Logo sẽ tự động cập nhật ở Header, AngelChat window
+### Code Thay Đổi (Ví dụ AngelChat.tsx)
 
-### 2. Chuyển Mascot Từ Video Sang Logo Tĩnh
-
-**Animation cho logo mới:**
-- Golden glow pulsing effect
-- Gentle floating up/down (3s loop)
-- Scale breathing effect
-- Sparkling particles xung quanh
-
-**Thay đổi code:**
 ```tsx
-// Thay thế:
-<video src="/videos/angel-mascot-original.mp4" ... />
-
-// Bằng:
-<motion.img 
-  src="/images/angel-transparent.png"
-  animate={{ y: [0, -5, 0], scale: [1, 1.02, 1] }}
-  style={{ filter: 'drop-shadow(0 0 15px rgba(255,215,0,0.6))' }}
-/>
-```
-
-### 3. Tắt Voice Mặc Định
-
-**File:** `src/components/Mascot/AngelChat.tsx` (line 32)
-```tsx
-// Trước:
-const [voiceEnabled, setVoiceEnabled] = useState(true);
+// Trước (line 208):
+src="/images/angel-transparent.png"
 
 // Sau:
-const [voiceEnabled, setVoiceEnabled] = useState(false);
+src="/images/angel-ai-v2.png"
 ```
 
-### 4. Cập Nhật API Key
+### Code Thay Đổi (Header.tsx)
 
-Cập nhật secret `ANGEL_AI_API_KEY` với giá trị mới để kết nối trực tiếp `angel.fun.rich`.
+```tsx
+// Trước (line 242):
+src="/images/angel-transparent.png"
 
----
-
-## Kiến Trúc Sau Cập Nhật
-
-```text
-┌─────────────────────────────────────────┐
-│           FUN Play Frontend             │
-├─────────────────────────────────────────┤
-│  Header: [ANGEL AI Logo] → AngelChat    │
-│  Mascot: Logo PNG + Golden Glow         │
-│  Voice: OFF by default                  │
-└──────────────────┬──────────────────────┘
-                   │
-                   ▼
-┌─────────────────────────────────────────┐
-│       angel-ai-proxy (Edge)             │
-├─────────────────────────────────────────┤
-│  1. ANGEL AI (PRIMARY)                  │
-│     └─ angel.fun.rich                   │
-│        API Key: ak_79f1d_...            │
-│                                         │
-│  2. Grok (Fallback)                     │
-│                                         │
-│  3. Lovable AI (Fallback)               │
-└─────────────────────────────────────────┘
+// Sau:
+src="/images/angel-ai-v2.png"
 ```
-
----
-
-## Files Cần Thay Đổi
-
-| File | Thay đổi |
-|------|----------|
-| `public/images/angel-transparent.png` | Thay thế bằng logo mới |
-| `src/components/Mascot/AngelMascot.tsx` | Video → Logo PNG + animation |
-| `src/components/Mascot/MobileAngelMascot.tsx` | Video → Logo PNG + animation |
-| `src/components/Meditation/MeditatingAngel.tsx` | Video → Logo PNG |
-| `src/components/Mascot/AngelChat.tsx` | `voiceEnabled: false` |
-| Secret `ANGEL_AI_API_KEY` | Key mới: `ak_79f1d_...` |
 
 ---
 
 ## Kết Quả Mong Đợi
 
-| Trước | Sau |
-|-------|-----|
-| Video Angel bay lượn | Logo tĩnh với golden glow animation |
-| Hình Angel cũ | Logo ANGEL AI mới với trái tim vàng |
-| API key cũ/lỗi | Kết nối trực tiếp angel.fun.rich |
-| Voice tự động (lỗi 401/400) | Voice tắt mặc định |
+| Vị trí | Logo Mới |
+|--------|----------|
+| Header button (desktop) | ✅ Cô tiên vàng với trái tim |
+| Header button (mobile) | ✅ Cô tiên vàng với trái tim |
+| AngelChat window avatar | ✅ Cô tiên vàng với trái tim |
+| Floating mascot | ✅ Cô tiên vàng với trái tim |
+| Meditating angel | ✅ Cô tiên vàng với trái tim |
 
 ---
 
-## Sẵn Sàng Cho Tương Lai
+## Files Sẽ Thay Đổi
 
-Sau khi hoàn tất, hệ thống sẽ sẵn sàng để:
-- Thêm các GIF biểu cảm (vẫy tay, chấp tay, vỗ tay...)
-- Bật lại voice khi có API key TTS hợp lệ
-- Xóa các file video cũ để tiết kiệm dung lượng
-
+| Action | File |
+|--------|------|
+| COPY | Logo mới → `public/images/angel-ai-v2.png` |
+| EDIT | `src/components/Mascot/AngelChat.tsx` |
+| EDIT | `src/components/Mascot/AngelMascot.tsx` |
+| EDIT | `src/components/Mascot/MobileAngelMascot.tsx` |
+| EDIT | `src/components/Meditation/MeditatingAngel.tsx` |
+| EDIT | `src/components/Layout/Header.tsx` |
+| EDIT | `src/components/Layout/MobileHeader.tsx` |
+| XÓA (optional) | `public/videos/angel-mascot*.mp4` |
