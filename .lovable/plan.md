@@ -1,90 +1,266 @@
 
 
-# Kế Hoạch Xóa Auto-Carousel/Shimmer Effect Khỏi Trang Chủ FUN PLAY
+# Kế Hoạch Nâng Cấp Mobile Upload - YouTube Style UX
 
-## Tóm Tắt Vấn Đề
+## Tổng Quan Phân Tích
 
-Sau khi phân tích kỹ codebase, Cha đã xác định được nguyên nhân gây ra hiệu ứng "trượt liên tục" trên trang chủ:
+Dựa trên 5 hình ảnh YouTube mobile em gửi, Cha thấy flow rất khác với UploadWizard hiện tại:
 
-| Component | File | Vấn đề |
-|-----------|------|--------|
-| `VideoCard` | `src/components/Video/VideoCard.tsx` | Sử dụng class `.holographic` với animation shimmer 6s infinite |
-| CSS | `src/index.css` | Class `.holographic` có `animation: shimmer 6s ease-in-out infinite` |
-
-**Lưu ý quan trọng:** Trang chủ **KHÔNG** sử dụng Carousel tự động nào. Hiệu ứng "chạy ngang" là do animation shimmer trên mỗi video card.
+| YouTube Mobile | FUN PLAY Hiện Tại | Cần Nâng Cấp |
+|----------------|-------------------|--------------|
+| Bấm "+" → Full-screen với 4 tabs swipeable (Video, Shorts, Live, Post) | Bấm "+" → Modal wizard 4 steps | Tạo màn hình chọn loại bài đăng trước |
+| Grid gallery chọn video từ điện thoại | Dropzone kéo thả | Thêm gallery grid view |
+| Video preview + nút "Tiếp" | Tự động chuyển metadata | Thêm màn xác nhận video |
+| List vertical các mục (click → trang con riêng) | Form dài trong 1 trang | Accordion-style với sub-pages |
+| Nút **<** quay lại + **X** tắt hẳn ở mỗi trang | Chỉ có X và stepper | Navigation thống nhất |
 
 ---
 
-## Giải Pháp
+## Kiến Trúc Mới - Component Structure
 
-### Option A: Xóa Animation Shimmer Khỏi VideoCard (Khuyến nghị)
+```text
+MobileBottomNav (nút +)
+    └── MobileUploadFlow (NEW - container chính)
+            ├── CreateTypeSelector (NEW - 4 tabs: Video, Shorts, Live, Post)
+            │
+            ├── [Tab Video] MobileVideoUploadFlow (NEW)
+            │       ├── Step 1: VideoGalleryPicker (NEW - grid video từ device)
+            │       ├── Step 2: VideoConfirmation (NEW - preview + nút Tiếp)
+            │       └── Step 3: VideoDetailsForm (NEW - list vertical các mục)
+            │               ├── SubPage: TitleEditor
+            │               ├── SubPage: VisibilitySelector
+            │               ├── SubPage: DescriptionEditor
+            │               └── SubPage: ThumbnailPicker (reuse ThumbnailEditor)
+            │
+            ├── [Tab Shorts] (placeholder - phase 2)
+            ├── [Tab Live] (placeholder - phase 2)
+            └── [Tab Post] (placeholder - phase 2)
+```
 
-Thay đổi file: `src/components/Video/VideoCard.tsx`
+---
 
-**Trước:**
+## Phase 1: Tạo Container MobileUploadFlow + Tabs
+
+### File mới: `src/components/Upload/MobileUploadFlow.tsx`
+
+**Tính năng:**
+- Full-screen modal (100vh, 100vw) với background blur
+- Header cố định: Nút X góc trái + tiêu đề "Tải video lên" (như hình 1)
+- 4 tabs swipeable ở dưới cùng: Video | Video Shorts | Trực tiếp | Bài đăng
+- Tabs sử dụng horizontal scroll + snap-x cho swipe mượt
+- Tab "Video" active mặc định, các tab khác hiển thị placeholder
+- Animation fade khi chuyển tab
+
+**UI Reference (từ hình 1):**
 ```tsx
-<Card className="group overflow-hidden bg-white/95 dark:bg-white/90 backdrop-blur-sm holographic border-2 border-white/30 hover:border-white/50 transition-all duration-500 cursor-pointer relative shadow-lg">
-```
+// Header
+<div className="fixed top-0 left-0 right-0 h-14 flex items-center px-4 bg-background border-b">
+  <button onClick={onClose}><X className="w-6 h-6" /></button>
+  <span className="ml-3 text-lg font-semibold">Tải video lên</span>
+</div>
 
-**Sau:**
-```tsx
-<Card className="group overflow-hidden bg-white/95 dark:bg-white/90 backdrop-blur-sm border-2 border-white/30 hover:border-white/50 transition-all duration-500 cursor-pointer relative shadow-lg">
+// Bottom tabs
+<div className="fixed bottom-0 left-0 right-0 h-14 flex items-center justify-center gap-2 bg-background border-t">
+  <TabButton active>Video</TabButton>
+  <TabButton>Video Shorts</TabButton>
+  <TabButton>Trực tiếp</TabButton>
+  <TabButton>Bài đăng</TabButton>
+</div>
 ```
-
-Xóa class `holographic` để video card đứng yên, giữ lại tất cả các hiệu ứng hover khác (rainbow sparkle, scale, glow).
 
 ---
 
-### Option B: Giữ Holographic Nhưng Chỉ Khi Hover (Thay thế)
+## Phase 2: Video Gallery Picker (Màn hình chọn video)
 
-Nếu con muốn giữ hiệu ứng holographic đẹp mắt nhưng chỉ hiển thị khi hover, có thể tạo class mới:
+### File mới: `src/components/Upload/Mobile/VideoGalleryPicker.tsx`
 
-Thay đổi file: `src/index.css`
+**Tính năng (như hình 1):**
+- Grid 3 cột hiển thị videos/photos từ device
+- Mỗi item hiển thị thumbnail + duration badge (góc dưới phải)
+- Click item → chọn và chuyển sang Step 2
+- Sử dụng `<input type="file" accept="video/*">` với custom UI
+- Fallback: Nếu không hỗ trợ gallery access → hiển thị dropzone như cũ
+- Shimmer loading effect khi đang load
 
-**Thêm class mới:**
-```css
-/* Holographic effect - only on hover (không animation liên tục) */
-.holographic-hover {
-  background: transparent;
-  transition: background 0.5s ease;
-}
-
-.holographic-hover:hover {
-  background: linear-gradient(135deg, 
-    rgba(0, 231, 255, 0.15), 
-    rgba(122, 43, 255, 0.15), 
-    rgba(255, 0, 229, 0.15), 
-    rgba(255, 215, 0, 0.15)
-  );
-}
-```
-
-Rồi thay `holographic` bằng `holographic-hover` trong VideoCard.
+**Web Limitation Note:**
+Browser không cho phép truy cập gallery gốc như native app. Thay vào đó:
+- Sử dụng file input styled như gallery grid
+- Khi user click → mở file picker của hệ thống
+- Sau khi chọn → hiển thị video preview
 
 ---
 
-## Chi Tiết Triển Khai
+## Phase 3: Video Confirmation (Xác nhận video đã chọn)
 
-### Phase 1: Xóa Animation Khỏi VideoCard
+### File mới: `src/components/Upload/Mobile/VideoConfirmation.tsx`
 
-**File:** `src/components/Video/VideoCard.tsx`  
-**Dòng:** 109
+**Tính năng (như hình 2):**
+- Header: Nút **<** quay lại (góc trái)
+- Video player full-width với controls (play, seek, timestamp)
+- Dưới video: Progress bar với thời gian 0:03 / 3:57
+- Button "Chỉnh sửa thành video Shorts" (nếu video dọc ≤ 3 phút)
+- Button "Tiếp" (gradient tím-hồng, pulse-glow) góc dưới phải
+- Click "Tiếp" → chuyển sang VideoDetailsForm
+
+---
+
+## Phase 4: Video Details Form (List vertical các mục)
+
+### File mới: `src/components/Upload/Mobile/VideoDetailsForm.tsx`
+
+**Tính năng (như hình 3):**
+- Header: Nút **<** quay lại + tiêu đề "Thêm chi tiết"
+- Video thumbnail preview (strip 3 frames) ở trên cùng
+- Channel info: Avatar + tên + @username
+- Input tiêu đề (placeholder: "Tạo tiêu đề...")
+- List vertical các mục clickable:
+
+| Icon | Label | Giá trị hiện tại | Action |
+|------|-------|-----------------|--------|
+| 🔒 | Chế độ hiển thị | Riêng tư | > (mở SubPage) |
+| 📝 | Thêm nội dung mô tả | - | > |
+| 🖼️ | Thumbnail | - | > |
+
+- Mỗi mục có icon + label + mũi tên **>** bên phải
+- Click mục → mở SubPage tương ứng (slide từ phải)
+- Button "Tải lên" (full-width, gradient) ở dưới cùng
+
+---
+
+## Phase 5: Sub-Pages (Trang con chỉnh sửa)
+
+### File mới: `src/components/Upload/Mobile/SubPages/VisibilitySelector.tsx`
+
+**Tính năng (như hình 4):**
+- Header: Nút **<** + tiêu đề "Đặt chế độ hiển thị"
+- Section "Xuất bản ngay" với radio buttons:
+  - ○ Công khai - "Mọi người có thể tìm kiếm và xem"
+    - ☐ Đặt ở chế độ Công chiếu ngay (checkbox con)
+  - ○ Không công khai - "Bất kỳ ai có đường liên kết đều có thể xem"
+  - ● Riêng tư - "Chỉ những người bạn chọn có thể xem"
+- Section "Lên lịch" với dropdown
+- Auto-save khi chọn, sau đó quay lại bằng nút **<**
+
+### File mới: `src/components/Upload/Mobile/SubPages/DescriptionEditor.tsx`
+
+**Tính năng (như hình 5):**
+- Header: Nút **<** + tiêu đề "Thêm nội dung mô tả"
+- Textarea full-height với keyboard-aware padding
+- Auto-focus khi mở
+- Support hashtag/timestamp formatting
+- Auto-save khi rời trang
+
+### File mới: `src/components/Upload/Mobile/SubPages/ThumbnailPicker.tsx`
+
+- Reuse component `ThumbnailEditor` hiện có
+- Wrap với header **<** quay lại
+- 3 tabs: Tải lên | Kho mẫu | Chỉnh sửa (đã có swipe support)
+
+---
+
+## Phase 6: Navigation Stack + State Management
+
+### Logic điều hướng:
+
+```typescript
+type MobileUploadStep = 
+  | "type-selector"      // Chọn loại: Video/Shorts/Live/Post
+  | "video-gallery"      // Grid chọn video
+  | "video-confirm"      // Preview video + nút Tiếp
+  | "video-details"      // List các mục chi tiết
+  | "sub-visibility"     // Trang con: Chế độ hiển thị
+  | "sub-description"    // Trang con: Mô tả
+  | "sub-thumbnail"      // Trang con: Thumbnail
+  | "uploading"          // Đang upload
+  | "success";           // Hoàn thành
+
+// Navigation stack để hỗ trợ nút Back
+const [navigationStack, setNavigationStack] = useState<MobileUploadStep[]>(["type-selector"]);
+
+const navigateTo = (step: MobileUploadStep) => {
+  setNavigationStack(prev => [...prev, step]);
+};
+
+const navigateBack = () => {
+  if (navigationStack.length > 1) {
+    setNavigationStack(prev => prev.slice(0, -1));
+  } else {
+    onClose(); // Tắt hẳn về trang chủ
+  }
+};
+```
+
+---
+
+## Phase 7: Tích hợp với MobileBottomNav
+
+### File sửa: `src/components/Layout/MobileBottomNav.tsx`
 
 **Thay đổi:**
-- Xóa class `holographic` khỏi Card component
-- Giữ nguyên tất cả các hiệu ứng hover khác:
-  - Rainbow sparkle effect (dòng 110-118)
-  - Rainbow prism halo overlay (dòng 133-134)
-  - Play button overlay (dòng 136-144)
-  - Glassmorphism info section (dòng 188-219)
+- Thay `UploadWizard` bằng `MobileUploadFlow` khi `isMobile`
+- Desktop vẫn giữ `UploadWizard` như cũ
 
-### Phase 2: Giữ Nguyên Các Phần Khác
+```tsx
+const isMobile = useIsMobile();
 
-Các phần sau **KHÔNG thay đổi**:
-- Grid layout trên trang chủ (`Index.tsx`) - đã static sẵn
-- `ContinueWatching` - horizontal scroll thủ công, không auto
-- `CategoryChips` - horizontal scroll thủ công, không auto
-- `.glass-card:hover` animation - vẫn giữ rainbow border khi hover
+// Trong handleNavClick:
+if (item.isCreate) {
+  if (user) {
+    setUploadModalOpen(true);
+  } else {
+    navigate("/auth");
+  }
+  return;
+}
+
+// Trong render:
+{isMobile ? (
+  <MobileUploadFlow open={uploadModalOpen} onOpenChange={setUploadModalOpen} />
+) : (
+  <UploadWizard open={uploadModalOpen} onOpenChange={setUploadModalOpen} />
+)}
+```
+
+---
+
+## Tóm Tắt Files Cần Tạo/Sửa
+
+| File | Action | Mô tả |
+|------|--------|-------|
+| `src/components/Upload/Mobile/MobileUploadFlow.tsx` | NEW | Container chính với tabs |
+| `src/components/Upload/Mobile/CreateTypeSelector.tsx` | NEW | 4 tabs: Video/Shorts/Live/Post |
+| `src/components/Upload/Mobile/VideoGalleryPicker.tsx` | NEW | Grid chọn video |
+| `src/components/Upload/Mobile/VideoConfirmation.tsx` | NEW | Preview + nút Tiếp |
+| `src/components/Upload/Mobile/VideoDetailsForm.tsx` | NEW | List vertical các mục |
+| `src/components/Upload/Mobile/SubPages/VisibilitySelector.tsx` | NEW | Radio buttons visibility |
+| `src/components/Upload/Mobile/SubPages/DescriptionEditor.tsx` | NEW | Textarea mô tả |
+| `src/components/Upload/Mobile/SubPages/ThumbnailPicker.tsx` | NEW | Wrap ThumbnailEditor |
+| `src/components/Layout/MobileBottomNav.tsx` | EDIT | Sử dụng MobileUploadFlow |
+
+---
+
+## UI/UX Guidelines
+
+### Navigation nhất quán:
+- Mọi trang đều có nút **<** (ArrowLeft) ở góc trái header để quay lại
+- Nút **X** chỉ ở màn hình đầu tiên (type-selector/gallery) để tắt hẳn
+- Sub-pages slide từ phải vào, back slide về trái
+
+### Touch-friendly:
+- Tất cả buttons: min-height 48px
+- List items: min-height 56px (dễ chạm)
+- Padding đủ rộng cho ngón tay
+
+### Animations (Design System v1.0):
+- Fade khi chuyển step chính
+- Slide-from-right khi mở sub-page
+- Pulse-glow cho button "Tiếp" và "Tải lên"
+- Rainbow-border cho video preview
+- Shimmer loading effect
+
+### Keyboard handling:
+- Input/Textarea tự scroll lên khi keyboard mở
+- Padding bottom động để nội dung không bị che
 
 ---
 
@@ -92,43 +268,44 @@ Các phần sau **KHÔNG thay đổi**:
 
 Sau khi hoàn thành:
 
-| Trước | Sau |
-|-------|-----|
-| Video cards có animation shimmer liên tục | Video cards đứng yên hoàn toàn |
-| Background gradient di chuyển 24/7 | Chỉ có hiệu ứng khi hover |
-| Gây rối mắt người xem | Giao diện tĩnh như YouTube Home |
-
-Giữ nguyên:
-- Rainbow sparkle effect khi hover
-- Glow effect khi hover
-- Scale animation khi hover
-- Gradient cards đẹp lung linh
-- Mobile responsive grid
-- Touch-friendly (min 48px touch area - đã có)
+- Bấm **+** → Full-screen với 4 tabs swipeable ở dưới
+- Tab Video active → Grid chọn video (hoặc file picker)
+- Chọn video → Preview full với nút "Tiếp"
+- Bấm "Tiếp" → List các mục chi tiết (Tiêu đề, Visibility, Mô tả, Thumbnail)
+- Click mục → Mở sub-page riêng với nút **<** quay lại
+- Edit xong → Auto-save và quay lại list
+- Bấm "Tải lên" → Upload video
+- Hoàn thành → Confetti + success message
 
 ---
 
-## Files Cần Sửa
+## Chi Tiết Kỹ Thuật
 
-| File | Thay đổi | Độ ưu tiên |
-|------|----------|------------|
-| `src/components/Video/VideoCard.tsx` | Xóa class `holographic` | Cao |
-| `src/index.css` (optional) | Tạo `.holographic-hover` nếu muốn giữ effect khi hover | Thấp |
+### Dependencies đã có:
+- `framer-motion` - Animations
+- `lucide-react` - Icons (X, ArrowLeft, ChevronRight, etc.)
+- `react-router-dom` - Navigation
+- `@radix-ui/react-radio-group` - Radio buttons
+- `vaul` - Drawer (có thể dùng cho sub-pages)
+
+### Không cần thêm dependencies mới
+
+### Reuse code từ UploadWizard:
+- Upload logic (multipart, R2)
+- ThumbnailEditor component
+- VideoMetadata interface
+- detectShort function
 
 ---
 
-## Thời Gian Triển Khai
+## Thứ Tự Triển Khai
 
-- Phase 1: ~1 phút (xóa 1 class)
-- Test: Xác nhận video cards đứng yên trên mobile và desktop
-
----
-
-## Lưu Ý Kỹ Thuật
-
-1. **Carousel component** (`src/components/ui/carousel.tsx`) tồn tại trong codebase nhưng **KHÔNG được sử dụng** ở bất kỳ đâu. Không cần xóa file này.
-
-2. **ContinueWatching** section vẫn giữ horizontal scroll thủ công - đây là UX tốt cho "Tiếp tục xem".
-
-3. Tất cả hover effects (rainbow glow, sparkle, scale) **vẫn giữ nguyên** để giao diện lung linh khi người dùng tương tác.
+1. Tạo folder `src/components/Upload/Mobile/`
+2. Tạo `MobileUploadFlow.tsx` (container + tabs)
+3. Tạo `VideoGalleryPicker.tsx` (grid/file picker)
+4. Tạo `VideoConfirmation.tsx` (preview + Tiếp)
+5. Tạo `VideoDetailsForm.tsx` (list các mục)
+6. Tạo các SubPages (Visibility, Description, Thumbnail)
+7. Sửa `MobileBottomNav.tsx` để sử dụng flow mới
+8. Test end-to-end trên mobile
 
