@@ -7,7 +7,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Heart, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { getDefaultThumbnail } from "@/lib/defaultThumbnails";
 
 interface Video {
   id: string;
@@ -178,7 +177,7 @@ const LikedVideos = () => {
                 key={video.id}
                 videoId={video.id}
                 title={video.title}
-                thumbnail={video.thumbnail_url || getDefaultThumbnail(video.id)}
+                thumbnail={video.thumbnail_url || undefined}
                 channel={video.channels?.name || "Unknown"}
                 channelId={video.channels?.id}
                 views={String(video.view_count || 0)}
