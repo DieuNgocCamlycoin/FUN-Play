@@ -52,8 +52,10 @@ import { wagmiConfig, initWeb3Modal } from '@/lib/web3Config';
 import { GlobalPaymentNotifications } from './components/Web3/GlobalPaymentNotifications';
 import { MusicPlayerProvider } from './contexts/MusicPlayerContext';
 import { VideoPlaybackProvider } from './contexts/VideoPlaybackContext';
+import { MiniPlayerProvider } from './contexts/MiniPlayerContext';
 import { EnhancedMusicPlayer } from './components/Video/EnhancedMusicPlayer';
 import { GlobalVideoPlayer } from './components/Video/GlobalVideoPlayer';
+import { GlobalMiniPlayer } from './components/Video/GlobalMiniPlayer';
 import { useRewardRealtimeNotification } from './hooks/useRewardRealtimeNotification';
 import { RecoveryModeGuard } from './components/Auth/RecoveryModeGuard';
 
@@ -130,6 +132,7 @@ function AppContent() {
         </Routes>
         </div>
       </RecoveryModeGuard>
+      <GlobalMiniPlayer />
       <Toaster />
       <Sonner />
     </>
@@ -142,11 +145,13 @@ const App = () => (
       <TooltipProvider>
         <MusicPlayerProvider>
           <VideoPlaybackProvider>
-            <BrowserRouter>
-              <AppContent />
-              <EnhancedMusicPlayer />
-              <GlobalVideoPlayer />
-            </BrowserRouter>
+            <MiniPlayerProvider>
+              <BrowserRouter>
+                <AppContent />
+                <EnhancedMusicPlayer />
+                <GlobalVideoPlayer />
+              </BrowserRouter>
+            </MiniPlayerProvider>
           </VideoPlaybackProvider>
         </MusicPlayerProvider>
       </TooltipProvider>

@@ -7,8 +7,8 @@ import { CommentsCard } from "./CommentsCard";
 import { CommentsDrawer } from "./CommentsDrawer";
 import { UpNextSidebar } from "../UpNextSidebar";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import MiniPlayer from "../MiniPlayer";
 import { useVideoPlayback } from "@/contexts/VideoPlaybackContext";
+import { useMiniPlayer } from "@/contexts/MiniPlayerContext";
 
 interface Video {
   id: string;
@@ -63,37 +63,25 @@ export function MobileWatchView({
 }: MobileWatchViewProps) {
   const navigate = useNavigate();
   const { session, nextVideo, previousVideo, getUpNext } = useVideoPlayback();
+  const { showMiniPlayer } = useMiniPlayer();
   const [showCommentsDrawer, setShowCommentsDrawer] = useState(false);
-  const [isMinimized, setIsMinimized] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const playerRef = useRef<HTMLDivElement>(null);
 
-  // Handle minimize - navigate to home with mini player
+  // Handle minimize - show mini player and navigate to home
   const handleMinimize = () => {
-    setIsMinimized(true);
-    // Navigate to home while keeping mini player active
-    navigate("/", {
-      state: {
-        miniPlayerVideo: {
-          id: video.id,
-          videoUrl: video.video_url,
-          title: video.title,
-          channelName: video.channels.name,
-          thumbnailUrl: video.thumbnail_url,
-          currentTime,
-          duration,
-          isPlaying,
-        },
-      },
+    showMiniPlayer({
+      id: video.id,
+      videoUrl: video.video_url,
+      title: video.title,
+      channelName: video.channels.name,
+      thumbnailUrl: video.thumbnail_url,
+      currentTime,
+      duration,
     });
-  };
-
-  // Handle expand from mini player
-  const handleExpand = () => {
-    setIsMinimized(false);
-    playerRef.current?.scrollIntoView({ behavior: "smooth" });
+    navigate("/");
   };
 
   const handlePrevious = () => {
@@ -112,25 +100,6 @@ export function MobileWatchView({
 
   // Get latest comment for preview
   const latestComment = comments.length > 0 ? comments[0] : null;
-
-  // If minimized, show mini player
-  if (isMinimized) {
-    return (
-      <MiniPlayer
-        videoUrl={video.video_url}
-        title={video.title}
-        channelName={video.channels.name}
-        thumbnailUrl={video.thumbnail_url}
-        isPlaying={isPlaying}
-        currentTime={currentTime}
-        duration={duration}
-        onClose={() => setIsMinimized(false)}
-        onExpand={handleExpand}
-        onPlayPause={() => setIsPlaying(!isPlaying)}
-        onNext={handleNext}
-      />
-    );
-  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
