@@ -1,10 +1,11 @@
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Upload, FileVideo, Image, Eye, CheckCircle, Sparkles, X, ArrowLeft, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
 import { UploadDropzone } from "./UploadDropzone";
 import { UploadMetadataForm, VideoMetadata } from "./UploadMetadataForm";
 import { ThumbnailEditor } from "./ThumbnailEditor";
@@ -423,6 +424,11 @@ export function UploadWizard({ open, onOpenChange }: UploadWizardProps) {
                 "Đăng video mới"
               )}
             </DialogTitle>
+            <VisuallyHidden.Root>
+              <DialogDescription>
+                Tải lên video mới lên kênh của bạn
+              </DialogDescription>
+            </VisuallyHidden.Root>
             
             <div className="flex items-center gap-2">
               {isShort && currentStep !== "upload" && currentStep !== "success" && (
