@@ -29,7 +29,7 @@ export const AngelChat: React.FC<AngelChatProps> = ({ isOpen, onClose }) => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
-  const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [voiceEnabled, setVoiceEnabled] = useState(false); // Tắt voice mặc định vì API key TTS đang lỗi
   const [voiceProvider, setVoiceProvider] = useState<VoiceProvider>('elevenlabs'); // Default to baby voice
   const [isSpeaking, setIsSpeaking] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
