@@ -1,4 +1,4 @@
-import { Search, Video, Bell, Menu, User as UserIcon, LogOut, Settings, Radio, SquarePen, Plus, FileVideo, List, Music } from "lucide-react";
+import { Search, Video, Bell, Menu, User as UserIcon, LogOut, Settings, Radio, SquarePen, Plus, FileVideo, List, Music, Shield, Crown } from "lucide-react";
 import funplayLogo from "@/assets/funplay-logo.jpg";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,32 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [suggestions, setSuggestions] = useState<Array<{ id: string; title: string }>>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
+
+  // Check admin/owner role
+  useEffect(() => {
+    const checkRoles = async () => {
+      if (!user) {
+        setIsAdmin(false);
+        setIsOwner(false);
+        return;
+      }
+      
+      const { data: adminData } = await supabase.rpc("has_role", {
+        _user_id: user.id,
+        _role: "admin",
+      });
+      
+      const { data: ownerData } = await supabase.rpc("is_owner", {
+        _user_id: user.id,
+      });
+      
+      setIsAdmin(adminData === true);
+      setIsOwner(ownerData === true);
+    };
+    checkRoles();
+  }, [user]);
 
   // Fetch search suggestions
   useEffect(() => {
@@ -206,6 +232,25 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel>{user.email}</DropdownMenuLabel>
               <DropdownMenuSeparator />
+              
+              {/* Admin Dashboard - Only show for admin/owner */}
+              {(isAdmin || isOwner) && (
+                <>
+                  <DropdownMenuItem 
+                    onClick={() => navigate("/admin")}
+                    className="text-amber-500 focus:text-amber-500"
+                  >
+                    {isOwner ? (
+                      <Crown className="mr-2 h-4 w-4" />
+                    ) : (
+                      <Shield className="mr-2 h-4 w-4" />
+                    )}
+                    Admin Dashboard
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              )}
+              
               <DropdownMenuItem onClick={() => navigate("/your-videos")}>
                 <UserIcon className="mr-2 h-4 w-4" />
                 Video của bạn
