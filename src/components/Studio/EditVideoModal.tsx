@@ -7,8 +7,9 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useR2Upload } from "@/hooks/useR2Upload";
-import { Loader2, Upload } from "lucide-react";
+import { Loader2, Upload, Film } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { extractVideoThumbnailFromUrl } from "@/lib/videoThumbnail";
 
 interface Video {
   id: string;
@@ -16,6 +17,7 @@ interface Video {
   description: string | null;
   thumbnail_url: string | null;
   is_public: boolean | null;
+  video_url?: string;
 }
 
 interface EditVideoModalProps {
@@ -32,6 +34,7 @@ export const EditVideoModal = ({ video, open, onClose, onSaved }: EditVideoModal
   const [thumbnail, setThumbnail] = useState<File | null>(null);
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(video.thumbnail_url);
   const [saving, setSaving] = useState(false);
+  const [generatingThumbnail, setGeneratingThumbnail] = useState(false);
   const { toast } = useToast();
   const { uploadToR2 } = useR2Upload({ folder: 'thumbnails' });
 
@@ -44,6 +47,62 @@ export const EditVideoModal = ({ video, open, onClose, onSaved }: EditVideoModal
         setThumbnailPreview(reader.result as string);
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const handleGenerateFromVideo = async () => {
+    if (!video.video_url) {
+      toast({
+        title: "Lỗi",
+        description: "Không tìm thấy URL video",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check if it's an external URL (YouTube, etc.)
+    if (video.video_url.includes('youtube.com') || video.video_url.includes('youtu.be')) {
+      toast({
+        title: "Không hỗ trợ",
+        description: "Không thể tạo thumbnail từ video YouTube. Vui lòng tải lên thumbnail riêng.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setGeneratingThumbnail(true);
+    try {
+      const blob = await extractVideoThumbnailFromUrl(video.video_url);
+      
+      if (blob) {
+        // Create a File object from the blob
+        const file = new File([blob], 'auto-thumbnail.jpg', { type: 'image/jpeg' });
+        setThumbnail(file);
+        
+        // Create preview URL
+        const previewUrl = URL.createObjectURL(blob);
+        setThumbnailPreview(previewUrl);
+        
+        toast({
+          title: "Thành công",
+          description: "Đã tạo thumbnail từ video",
+        });
+      } else {
+        toast({
+          title: "Lỗi",
+          description: "Không thể trích xuất frame từ video. Có thể video chưa được tải hoàn tất hoặc định dạng không hỗ trợ.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error generating thumbnail:', error);
+      toast({
+        title: "Lỗi",
+        description: "Không thể tạo thumbnail từ video",
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingThumbnail(false);
     }
   };
 
@@ -132,8 +191,8 @@ export const EditVideoModal = ({ video, open, onClose, onSaved }: EditVideoModal
 
           <div>
             <Label>Hình thu nhỏ</Label>
-            <div className="mt-2">
-              <label htmlFor="edit-thumbnail" className="cursor-pointer">
+            <div className="mt-2 space-y-3">
+              <label htmlFor="edit-thumbnail" className="cursor-pointer block">
                 <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-primary transition-colors">
                   {thumbnailPreview ? (
                     <img
@@ -158,6 +217,29 @@ export const EditVideoModal = ({ video, open, onClose, onSaved }: EditVideoModal
                   className="hidden"
                 />
               </label>
+              
+              {/* Generate from video button */}
+              {video.video_url && !video.video_url.includes('youtube.com') && !video.video_url.includes('youtu.be') && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleGenerateFromVideo}
+                  disabled={generatingThumbnail || saving}
+                  className="w-full"
+                >
+                  {generatingThumbnail ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Đang tạo thumbnail...
+                    </>
+                  ) : (
+                    <>
+                      <Film className="mr-2 h-4 w-4" />
+                      🎬 Tạo thumbnail từ video
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
           </div>
 

@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { VIDEO_CATEGORY_OPTIONS, VideoSubCategory } from "@/lib/videoCategories";
 import { Upload as UploadIcon, CheckCircle, Plus, Music, AlertCircle, Clock, Smartphone, Check, X } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { extractVideoThumbnail } from "@/lib/videoThumbnail";
 
 interface MeditationPlaylist {
   id: string;
@@ -412,6 +413,8 @@ export function UploadVideoModal({ open, onOpenChange }: UploadVideoModalProps) 
 
       // Upload thumbnail to Cloudflare R2
       let thumbnailUrl = null;
+      
+      // If user provided a thumbnail file, upload it
       if (thumbnailFile) {
         setUploadStage("Đang tải thumbnail lên R2...");
         setUploadProgress(87);
@@ -444,6 +447,44 @@ export function UploadVideoModal({ open, onOpenChange }: UploadVideoModalProps) 
           } catch (thumbErr) {
             console.error('Thumbnail upload error:', thumbErr);
           }
+        }
+      } 
+      // Auto-generate thumbnail from video if no thumbnail provided and video file exists
+      else if (videoFile) {
+        setUploadStage("Đang tạo thumbnail từ video...");
+        setUploadProgress(87);
+        
+        try {
+          const extractedBlob = await extractVideoThumbnail(videoFile);
+          
+          if (extractedBlob) {
+            const thumbnailFileName = `thumbnails/${Date.now()}-auto-thumb.jpg`;
+            
+            const { data: thumbPresign, error: thumbPresignError } = await supabase.functions.invoke('r2-upload', {
+              body: {
+                action: 'getPresignedUrl',
+                fileName: thumbnailFileName,
+                contentType: 'image/jpeg',
+                fileSize: extractedBlob.size,
+              },
+            });
+
+            if (!thumbPresignError && thumbPresign?.presignedUrl) {
+              const thumbResponse = await fetch(thumbPresign.presignedUrl, {
+                method: 'PUT',
+                body: extractedBlob,
+              });
+
+              if (thumbResponse.ok) {
+                thumbnailUrl = thumbPresign.publicUrl;
+                console.log('Auto-generated thumbnail uploaded:', thumbnailUrl);
+              }
+            }
+          } else {
+            console.log('Could not extract thumbnail from video, will use default');
+          }
+        } catch (thumbErr) {
+          console.error('Auto thumbnail extraction error:', thumbErr);
         }
       }
 
