@@ -1391,6 +1391,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_admin_role: {
+        Args: { p_owner_id: string; p_target_user_id: string }
+        Returns: boolean
+      }
       approve_user_reward: {
         Args: { p_admin_id: string; p_note?: string; p_user_id: string }
         Returns: number
@@ -1406,9 +1410,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_owner: { Args: { _user_id: string }; Returns: boolean }
       reject_user_reward: {
         Args: { p_admin_id: string; p_note?: string; p_user_id: string }
         Returns: number
+      }
+      remove_admin_role: {
+        Args: { p_owner_id: string; p_target_user_id: string }
+        Returns: boolean
       }
       unapprove_user_reward: {
         Args: { p_admin_id: string; p_note?: string; p_user_id: string }
@@ -1420,7 +1429,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "moderator" | "user"
+      app_role: "admin" | "moderator" | "user" | "owner"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1548,7 +1557,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "moderator", "user"],
+      app_role: ["admin", "moderator", "user", "owner"],
     },
   },
 } as const
