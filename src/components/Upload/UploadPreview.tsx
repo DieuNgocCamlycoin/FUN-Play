@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Upload, Globe, Lock, Eye, Clock, Play, Sparkles, Heart } from "lucide-react";
+import { ArrowLeft, Upload, Globe, Lock, Eye, Clock, Play, Sparkles, Heart, Pencil, ArrowRight } from "lucide-react";
 import { VideoMetadata } from "./UploadMetadataForm";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
@@ -14,6 +14,8 @@ interface UploadPreviewProps {
   isShort: boolean;
   onPublish: () => void;
   onBack: () => void;
+  onEditMetadata?: () => void;
+  onEditThumbnail?: () => void;
 }
 
 const VISIBILITY_ICONS = {
@@ -37,8 +39,18 @@ export function UploadPreview({
   isShort,
   onPublish,
   onBack,
+  onEditMetadata,
+  onEditThumbnail,
 }: UploadPreviewProps) {
   const VisibilityIcon = VISIBILITY_ICONS[metadata.visibility];
+
+  // Handle click with haptic feedback
+  const handleEditClick = (callback?: () => void) => {
+    if (callback) {
+      if (navigator.vibrate) navigator.vibrate(30);
+      callback();
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -49,7 +61,7 @@ export function UploadPreview({
           Xem trước video
         </h3>
         <p className="text-sm text-muted-foreground">
-          Kiểm tra lại thông tin trước khi đăng
+          Kiểm tra lại thông tin trước khi đăng. Nhấn vào để chỉnh sửa ✨
         </p>
       </div>
 
@@ -84,15 +96,28 @@ export function UploadPreview({
           </div>
         </motion.div>
 
-        {/* Thumbnail Preview */}
+        {/* Thumbnail Preview - Clickable to edit */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
           className="space-y-2"
         >
-          <p className="text-sm font-semibold">Thumbnail</p>
-          <div className="relative aspect-video rounded-xl overflow-hidden bg-muted border border-border/50 shadow-lg">
+          <p className="text-sm font-semibold flex items-center gap-2">
+            Thumbnail
+            {onEditThumbnail && (
+              <span className="text-xs text-muted-foreground">(nhấn để chỉnh sửa)</span>
+            )}
+          </p>
+          <motion.div 
+            onClick={() => handleEditClick(onEditThumbnail)}
+            whileHover={onEditThumbnail ? { scale: 1.02 } : {}}
+            whileTap={onEditThumbnail ? { scale: 0.98 } : {}}
+            className={cn(
+              "relative aspect-video rounded-xl overflow-hidden bg-muted border border-border/50 shadow-lg group",
+              onEditThumbnail && "cursor-pointer"
+            )}
+          >
             {thumbnailPreview ? (
               <img
                 src={thumbnailPreview}
@@ -104,39 +129,89 @@ export function UploadPreview({
                 Chưa có thumbnail
               </div>
             )}
-          </div>
+            {/* Edit overlay */}
+            {onEditThumbnail && (
+              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <div className="bg-background/90 rounded-full p-3">
+                  <Pencil className="w-5 h-5 text-[hsl(var(--cosmic-cyan))]" />
+                </div>
+              </div>
+            )}
+          </motion.div>
         </motion.div>
       </div>
 
-      {/* Metadata Summary with glass effect */}
+      {/* Metadata Summary - Clickable sections */}
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
         className="rounded-xl border border-border/50 p-4 sm:p-5 space-y-4 bg-gradient-to-br from-muted/30 to-muted/10 backdrop-blur-sm"
       >
-        <div>
-          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
+        {/* Title - Clickable */}
+        <motion.div 
+          onClick={() => handleEditClick(onEditMetadata)}
+          whileHover={onEditMetadata ? { backgroundColor: "hsl(var(--cosmic-cyan) / 0.05)" } : {}}
+          className={cn(
+            "rounded-lg p-2 -m-2 transition-colors group",
+            onEditMetadata && "cursor-pointer"
+          )}
+        >
+          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-2">
             Tiêu đề
+            {onEditMetadata && (
+              <span className="opacity-0 group-hover:opacity-100 text-[hsl(var(--cosmic-cyan))] transition-opacity flex items-center gap-1">
+                <Pencil className="w-3 h-3" />
+                Chỉnh sửa
+              </span>
+            )}
           </p>
           <p className="font-bold text-lg">{metadata.title || "Chưa có tiêu đề"}</p>
-        </div>
+        </motion.div>
 
+        {/* Description - Clickable */}
         {metadata.description && (
-          <div>
-            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
+          <motion.div 
+            onClick={() => handleEditClick(onEditMetadata)}
+            whileHover={onEditMetadata ? { backgroundColor: "hsl(var(--cosmic-cyan) / 0.05)" } : {}}
+            className={cn(
+              "rounded-lg p-2 -m-2 transition-colors group",
+              onEditMetadata && "cursor-pointer"
+            )}
+          >
+            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-2">
               Mô tả
+              {onEditMetadata && (
+                <span className="opacity-0 group-hover:opacity-100 text-[hsl(var(--cosmic-cyan))] transition-opacity flex items-center gap-1">
+                  <Pencil className="w-3 h-3" />
+                  Chỉnh sửa
+                </span>
+              )}
             </p>
             <p className="text-sm text-muted-foreground whitespace-pre-wrap line-clamp-3">
               {metadata.description}
             </p>
-          </div>
+          </motion.div>
         )}
 
+        {/* Tags - Clickable */}
         {metadata.tags.length > 0 && (
-          <div>
-            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">
+          <motion.div 
+            onClick={() => handleEditClick(onEditMetadata)}
+            whileHover={onEditMetadata ? { backgroundColor: "hsl(var(--cosmic-cyan) / 0.05)" } : {}}
+            className={cn(
+              "rounded-lg p-2 -m-2 transition-colors group",
+              onEditMetadata && "cursor-pointer"
+            )}
+          >
+            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-2">
               Tags
+              {onEditMetadata && (
+                <span className="opacity-0 group-hover:opacity-100 text-[hsl(var(--cosmic-cyan))] transition-opacity flex items-center gap-1">
+                  <Pencil className="w-3 h-3" />
+                  Chỉnh sửa
+                </span>
+              )}
             </p>
             <div className="flex flex-wrap gap-1.5">
               {metadata.tags.map((tag) => (
@@ -149,10 +224,18 @@ export function UploadPreview({
                 </Badge>
               ))}
             </div>
-          </div>
+          </motion.div>
         )}
 
-        <div className="flex items-center gap-4 pt-3 border-t border-border/50">
+        {/* Visibility - Clickable */}
+        <motion.div 
+          onClick={() => handleEditClick(onEditMetadata)}
+          whileHover={onEditMetadata ? { backgroundColor: "hsl(var(--cosmic-cyan) / 0.05)" } : {}}
+          className={cn(
+            "flex items-center gap-4 pt-3 border-t border-border/50 rounded-lg p-2 -m-2 transition-colors group",
+            onEditMetadata && "cursor-pointer"
+          )}
+        >
           <div className="flex items-center gap-2">
             <div className={cn(
               "w-8 h-8 rounded-lg flex items-center justify-center",
@@ -164,6 +247,11 @@ export function UploadPreview({
               <VisibilityIcon className="w-4 h-4" />
             </div>
             <span className="text-sm font-medium">{VISIBILITY_LABELS[metadata.visibility]}</span>
+            {onEditMetadata && (
+              <span className="opacity-0 group-hover:opacity-100 text-[hsl(var(--cosmic-cyan))] transition-opacity flex items-center gap-1 text-xs">
+                <Pencil className="w-3 h-3" />
+              </span>
+            )}
           </div>
           
           {metadata.visibility === "scheduled" && metadata.scheduledAt && (
@@ -171,7 +259,7 @@ export function UploadPreview({
               {format(metadata.scheduledAt, "PPP 'lúc' HH:mm", { locale: vi })}
             </span>
           )}
-        </div>
+        </motion.div>
       </motion.div>
 
       {/* Light Economy Message */}
@@ -188,19 +276,27 @@ export function UploadPreview({
         </p>
       </motion.div>
 
-      {/* Navigation */}
+      {/* Navigation with pulse-halo effect */}
       <div className="flex flex-col sm:flex-row justify-between gap-3 pt-4 border-t border-border/50">
-        <Button variant="ghost" onClick={onBack} className="gap-2 min-h-[48px]">
+        <Button variant="ghost" onClick={onBack} className="gap-2 min-h-[48px] touch-manipulation">
           <ArrowLeft className="w-4 h-4" />
           Quay lại chỉnh sửa
         </Button>
         <Button 
           onClick={onPublish} 
-          className="gap-2 min-h-[52px] px-8 bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] via-[hsl(var(--cosmic-magenta))] to-[hsl(var(--cosmic-gold))] hover:from-[hsl(var(--cosmic-cyan)/0.9)] hover:via-[hsl(var(--cosmic-magenta)/0.9)] hover:to-[hsl(var(--cosmic-gold)/0.9)] text-white shadow-lg shadow-[hsl(var(--cosmic-magenta)/0.3)] font-bold"
+          className="gap-2 min-h-[52px] px-8 bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] via-[hsl(var(--cosmic-magenta))] to-[hsl(var(--cosmic-gold))] hover:from-[hsl(var(--cosmic-cyan)/0.9)] hover:via-[hsl(var(--cosmic-magenta)/0.9)] hover:to-[hsl(var(--cosmic-gold)/0.9)] text-white shadow-lg shadow-[hsl(var(--cosmic-magenta)/0.3)] font-bold relative overflow-hidden touch-manipulation"
         >
-          <Upload className="w-5 h-5" />
-          Đăng video
-          <Sparkles className="w-4 h-4" />
+          <motion.span
+            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+            initial={{ x: "-100%" }}
+            whileHover={{ x: "100%" }}
+            transition={{ duration: 0.5 }}
+          />
+          <span className="relative z-10 flex items-center gap-2">
+            <Upload className="w-5 h-5" />
+            Đăng video
+            <Sparkles className="w-4 h-4" />
+          </span>
         </Button>
       </div>
     </div>

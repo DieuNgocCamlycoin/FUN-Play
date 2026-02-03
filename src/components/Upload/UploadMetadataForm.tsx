@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ArrowLeft, ArrowRight, X, CalendarIcon, Globe, Lock, Eye, Clock, Sparkles, Hash } from "lucide-react";
+import { ArrowLeft, ArrowRight, X, CalendarIcon, Globe, Lock, Eye, Clock, Sparkles, Hash, Pencil } from "lucide-react";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -81,6 +81,11 @@ const SUGGESTED_TAGS = [
 
 export function UploadMetadataForm({ metadata, onChange, onNext, onBack }: UploadMetadataFormProps) {
   const [tagInput, setTagInput] = useState("");
+  
+  // Refs for focusing inputs
+  const titleRef = useRef<HTMLInputElement>(null);
+  const descriptionRef = useRef<HTMLTextAreaElement>(null);
+  const tagInputRef = useRef<HTMLInputElement>(null);
 
   const handleAddTag = (tag: string) => {
     const trimmedTag = tag.trim().toLowerCase().replace(/^#/, "");
@@ -101,22 +106,36 @@ export function UploadMetadataForm({ metadata, onChange, onNext, onBack }: Uploa
     }
   };
 
+  // Focus and scroll to input
+  const handleLabelClick = (ref: React.RefObject<HTMLInputElement | HTMLTextAreaElement>) => {
+    ref.current?.focus();
+    ref.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    // Haptic feedback
+    if (navigator.vibrate) navigator.vibrate(30);
+  };
+
   const isValid = metadata.title.trim().length >= 3;
 
   return (
     <div className="space-y-6">
-      {/* Title */}
+      {/* Title - Clickable label */}
       <div className="space-y-2">
-        <Label htmlFor="title" className="text-base font-semibold flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => handleLabelClick(titleRef)}
+          className="text-base font-semibold flex items-center gap-2 hover:text-[hsl(var(--cosmic-cyan))] transition-colors group w-full text-left"
+        >
           Tiêu đề <span className="text-destructive">*</span>
-        </Label>
+          <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-[hsl(var(--cosmic-cyan))]" />
+        </button>
         <div className="relative">
           <Input
+            ref={titleRef}
             id="title"
             value={metadata.title}
             onChange={(e) => onChange({ ...metadata, title: e.target.value.slice(0, 100) })}
             placeholder="Nhập tiêu đề hấp dẫn cho video..."
-            className="pr-16 h-12 text-base"
+            className="pr-16 h-12 text-base focus:ring-2 focus:ring-[hsl(var(--cosmic-cyan)/0.5)] focus:border-[hsl(var(--cosmic-cyan))]"
             maxLength={100}
           />
           <span className={cn(
@@ -131,12 +150,18 @@ export function UploadMetadataForm({ metadata, onChange, onNext, onBack }: Uploa
         )}
       </div>
 
-      {/* Description */}
+      {/* Description - Clickable label */}
       <div className="space-y-2">
-        <Label htmlFor="description" className="text-base font-semibold">
+        <button
+          type="button"
+          onClick={() => handleLabelClick(descriptionRef)}
+          className="text-base font-semibold flex items-center gap-2 hover:text-[hsl(var(--cosmic-cyan))] transition-colors group w-full text-left"
+        >
           Mô tả
-        </Label>
+          <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-[hsl(var(--cosmic-cyan))]" />
+        </button>
         <Textarea
+          ref={descriptionRef}
           id="description"
           value={metadata.description}
           onChange={(e) => onChange({ ...metadata, description: e.target.value.slice(0, 5000) })}
@@ -147,7 +172,7 @@ Ví dụ:
 1:30 Nội dung chính
 
 #funplay #camlycoin #5d`}
-          className="min-h-[140px] sm:min-h-[160px] resize-none text-base"
+          className="min-h-[140px] sm:min-h-[160px] resize-none text-base focus:ring-2 focus:ring-[hsl(var(--cosmic-cyan)/0.5)] focus:border-[hsl(var(--cosmic-cyan))]"
           maxLength={5000}
         />
         <p className="text-xs text-muted-foreground text-right">
@@ -155,12 +180,17 @@ Ví dụ:
         </p>
       </div>
 
-      {/* Tags */}
+      {/* Tags - Clickable label */}
       <div className="space-y-3">
-        <Label className="text-base font-semibold flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => handleLabelClick(tagInputRef)}
+          className="text-base font-semibold flex items-center gap-2 hover:text-[hsl(var(--cosmic-cyan))] transition-colors group w-full text-left"
+        >
           <Hash className="w-4 h-4" />
           Thẻ (Tags)
-        </Label>
+          <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-[hsl(var(--cosmic-cyan))]" />
+        </button>
         
         {/* Current tags */}
         <AnimatePresence mode="popLayout">
@@ -192,12 +222,13 @@ Ví dụ:
         </AnimatePresence>
 
         <Input
+          ref={tagInputRef}
           value={tagInput}
           onChange={(e) => setTagInput(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Nhập tag và nhấn Enter (tối đa 15 tags)"
           disabled={metadata.tags.length >= 15}
-          className="h-11"
+          className="h-11 focus:ring-2 focus:ring-[hsl(var(--cosmic-cyan)/0.5)] focus:border-[hsl(var(--cosmic-cyan))]"
         />
         
         {/* Suggested Tags - scrollable on mobile */}
@@ -223,9 +254,11 @@ Ví dụ:
         </div>
       </div>
 
-      {/* Visibility - Card style with gradients */}
+      {/* Visibility - Clickable label */}
       <div className="space-y-3">
-        <Label className="text-base font-semibold">Quyền riêng tư</Label>
+        <Label className="text-base font-semibold flex items-center gap-2">
+          Quyền riêng tư
+        </Label>
         <RadioGroup
           value={metadata.visibility}
           onValueChange={(value) => onChange({ 
@@ -331,19 +364,27 @@ Ví dụ:
         </AnimatePresence>
       </div>
 
-      {/* Navigation */}
+      {/* Navigation with pulse-halo effect */}
       <div className="flex justify-between pt-4 border-t border-border/50">
-        <Button variant="ghost" onClick={onBack} className="gap-2 min-h-[48px]">
+        <Button variant="ghost" onClick={onBack} className="gap-2 min-h-[48px] touch-manipulation">
           <ArrowLeft className="w-4 h-4" />
           Quay lại
         </Button>
         <Button 
           onClick={onNext} 
           disabled={!isValid}
-          className="gap-2 min-h-[48px] bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] to-[hsl(var(--cosmic-magenta))] hover:from-[hsl(var(--cosmic-cyan)/0.9)] hover:to-[hsl(var(--cosmic-magenta)/0.9)] text-white shadow-lg"
+          className="gap-2 min-h-[48px] bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] to-[hsl(var(--cosmic-magenta))] hover:from-[hsl(var(--cosmic-cyan)/0.9)] hover:to-[hsl(var(--cosmic-magenta)/0.9)] text-white shadow-lg relative overflow-hidden touch-manipulation"
         >
-          Tiếp tục
-          <ArrowRight className="w-4 h-4" />
+          <motion.span
+            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+            initial={{ x: "-100%" }}
+            whileHover={{ x: "100%" }}
+            transition={{ duration: 0.5 }}
+          />
+          <span className="relative z-10 flex items-center gap-2">
+            Tiếp tục
+            <ArrowRight className="w-4 h-4" />
+          </span>
         </Button>
       </div>
     </div>

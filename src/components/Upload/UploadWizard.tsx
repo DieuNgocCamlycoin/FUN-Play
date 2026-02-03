@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Upload, FileVideo, Image, Eye, CheckCircle, Sparkles } from "lucide-react";
+import { Upload, FileVideo, Image, Eye, CheckCircle, Sparkles, X, ArrowLeft, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UploadDropzone } from "./UploadDropzone";
 import { UploadMetadataForm, VideoMetadata } from "./UploadMetadataForm";
@@ -54,6 +54,47 @@ export function UploadWizard({ open, onOpenChange }: UploadWizardProps) {
   const [uploadStage, setUploadStage] = useState("");
   const [uploadedVideoId, setUploadedVideoId] = useState<string | null>(null);
   const [uploadedVideoUrl, setUploadedVideoUrl] = useState<string | null>(null);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+
+  // Check if there's unsaved data
+  const hasUnsavedData = videoFile !== null || metadata.title.trim() !== "";
+
+  // Check if can navigate to a step
+  const canNavigateToStep = useCallback((targetStep: Step): boolean => {
+    const stepOrder = ["upload", "metadata", "thumbnail", "preview"];
+    const currentIndex = stepOrder.indexOf(currentStep);
+    const targetIndex = stepOrder.indexOf(targetStep as string);
+    
+    // Can go back to any previous step if we have a video
+    return targetIndex <= currentIndex && videoFile !== null;
+  }, [currentStep, videoFile]);
+
+  // Handle step click for smart navigation
+  const handleStepClick = useCallback((stepId: string) => {
+    const targetStep = stepId as Step;
+    if (canNavigateToStep(targetStep)) {
+      setCurrentStep(targetStep);
+      // Haptic feedback
+      if (navigator.vibrate) navigator.vibrate(50);
+    }
+  }, [canNavigateToStep]);
+
+  // Handle close button click
+  const handleCloseClick = useCallback(() => {
+    if (hasUnsavedData && currentStep !== "success") {
+      setShowCloseConfirm(true);
+    } else {
+      handleClose();
+      navigate("/");
+    }
+  }, [hasUnsavedData, currentStep]);
+
+  // Confirm close and navigate home
+  const handleConfirmClose = useCallback(() => {
+    setShowCloseConfirm(false);
+    handleClose();
+    navigate("/");
+  }, []);
 
   // Detect if video is a Short (vertical/square + ≤3 min)
   const detectShort = useCallback((file: File) => {
@@ -331,6 +372,7 @@ export function UploadWizard({ open, onOpenChange }: UploadWizardProps) {
     setIsShort(false);
     setUploadProgress(0);
     setUploadedVideoId(null);
+    setShowCloseConfirm(false);
     onOpenChange(false);
   };
 
@@ -357,13 +399,16 @@ export function UploadWizard({ open, onOpenChange }: UploadWizardProps) {
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent 
         className={cn(
-          "flex flex-col p-0 gap-0 overflow-hidden",
+          "flex flex-col p-0 gap-0 overflow-hidden relative",
           // Mobile: fullscreen
           isMobile ? "max-w-full w-full h-full max-h-full rounded-none" : "max-w-4xl max-h-[90vh]"
         )}
       >
+        {/* Holographic border effect */}
+        <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] via-[hsl(var(--cosmic-magenta))] to-[hsl(var(--cosmic-gold))] opacity-10 pointer-events-none" />
+        
         {/* Header with gradient border */}
-        <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-4 border-b border-border/50 bg-gradient-to-r from-background via-background to-background relative">
+        <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-4 border-b border-border/50 bg-gradient-to-r from-background via-background to-background relative z-10">
           {/* Aurora glow effect */}
           <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] via-[hsl(var(--cosmic-magenta))] to-[hsl(var(--cosmic-gold))] opacity-50" />
           
@@ -378,39 +423,60 @@ export function UploadWizard({ open, onOpenChange }: UploadWizardProps) {
                 "Đăng video mới"
               )}
             </DialogTitle>
-            {isShort && currentStep !== "upload" && currentStep !== "success" && (
-              <motion.span 
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                className="px-3 py-1 text-xs font-bold bg-gradient-to-r from-[hsl(var(--cosmic-magenta))] to-[hsl(var(--cosmic-purple)/1)] text-white rounded-full flex items-center gap-1 shadow-lg"
-              >
-                <Sparkles className="w-3 h-3" />
-                SHORT
-              </motion.span>
-            )}
+            
+            <div className="flex items-center gap-2">
+              {isShort && currentStep !== "upload" && currentStep !== "success" && (
+                <motion.span 
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  className="px-3 py-1 text-xs font-bold bg-gradient-to-r from-[hsl(var(--cosmic-magenta))] to-[hsl(var(--cosmic-purple)/1)] text-white rounded-full flex items-center gap-1 shadow-lg"
+                >
+                  <Sparkles className="w-3 h-3" />
+                  SHORT
+                </motion.span>
+              )}
+              
+              {/* Close button */}
+              {currentStep !== "uploading" && (
+                <motion.button
+                  whileHover={{ scale: 1.1, rotate: 90 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={handleCloseClick}
+                  className="w-8 h-8 rounded-full flex items-center justify-center bg-muted/50 hover:bg-destructive/20 hover:text-destructive transition-all"
+                  title="Tắt & quay về trang chủ"
+                >
+                  <X className="w-4 h-4" />
+                </motion.button>
+              )}
+            </div>
           </div>
 
-          {/* Step Indicator - Enhanced with gradient connections */}
+          {/* Step Indicator - Enhanced with clickable navigation */}
           {currentStep !== "uploading" && currentStep !== "success" && (
-            <div className="flex items-center justify-center gap-1 sm:gap-2 mt-4 overflow-x-auto pb-1 scrollbar-hide">
+            <div className="flex items-center justify-start sm:justify-center gap-1 sm:gap-2 mt-4 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory px-1">
               {STEPS.map((step, index) => {
                 const Icon = step.icon;
                 const isActive = getStepIndex(currentStep) === index;
                 const isCompleted = getStepIndex(currentStep) > index;
+                const isClickable = canNavigateToStep(step.id as Step);
                 
                 return (
-                  <div key={step.id} className="flex items-center flex-shrink-0">
+                  <div key={step.id} className="flex items-center flex-shrink-0 snap-center">
                     <motion.div
                       initial={false}
                       animate={{
                         scale: isActive ? 1.05 : 1,
                       }}
+                      whileHover={isClickable ? { scale: 1.08 } : {}}
+                      whileTap={isClickable ? { scale: 0.95 } : {}}
+                      onClick={() => handleStepClick(step.id)}
                       className={cn(
-                        "flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-full text-xs sm:text-sm transition-all duration-300",
+                        "flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-full text-xs sm:text-sm transition-all duration-300 min-h-[40px] sm:min-h-[44px]",
                         isActive && "bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] to-[hsl(var(--cosmic-magenta))] text-white shadow-lg shadow-[hsl(var(--cosmic-cyan)/0.3)]",
-                        isCompleted && "bg-[hsl(var(--cosmic-cyan)/0.2)] text-[hsl(var(--cosmic-cyan))]",
-                        !isActive && !isCompleted && "bg-muted text-muted-foreground"
+                        isCompleted && "bg-[hsl(var(--cosmic-cyan)/0.2)] text-[hsl(var(--cosmic-cyan))] cursor-pointer hover:shadow-[0_0_20px_hsl(var(--cosmic-cyan)/0.5)]",
+                        !isActive && !isCompleted && "bg-muted text-muted-foreground cursor-not-allowed opacity-60"
                       )}
+                      title={isClickable ? `Nhấn để chỉnh sửa ${step.label} ✨` : ""}
                     >
                       {isCompleted ? (
                         <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -436,7 +502,7 @@ export function UploadWizard({ open, onOpenChange }: UploadWizardProps) {
 
         {/* Content area with smooth transitions */}
         <div className={cn(
-          "flex-1 overflow-auto px-4 sm:px-6 py-4",
+          "flex-1 overflow-auto px-4 sm:px-6 py-4 relative z-10",
           isMobile && "pb-20" // Extra padding for mobile bottom nav
         )}>
           <AnimatePresence mode="wait">
@@ -478,6 +544,8 @@ export function UploadWizard({ open, onOpenChange }: UploadWizardProps) {
                   isShort={isShort}
                   onPublish={handleUpload}
                   onBack={() => setCurrentStep("thumbnail")}
+                  onEditMetadata={() => setCurrentStep("metadata")}
+                  onEditThumbnail={() => setCurrentStep("thumbnail")}
                 />
               )}
 
@@ -549,6 +617,54 @@ export function UploadWizard({ open, onOpenChange }: UploadWizardProps) {
             </motion.div>
           </AnimatePresence>
         </div>
+        
+        {/* Close Confirmation Dialog */}
+        <AnimatePresence>
+          {showCloseConfirm && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm"
+              onClick={() => setShowCloseConfirm(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-background/95 backdrop-blur-xl border border-[hsl(var(--cosmic-cyan)/0.3)] rounded-2xl p-6 max-w-sm mx-4 shadow-2xl"
+              >
+                <div className="text-center space-y-4">
+                  <div className="w-16 h-16 mx-auto rounded-full bg-gradient-to-r from-[hsl(var(--cosmic-cyan)/0.2)] to-[hsl(var(--cosmic-magenta)/0.2)] flex items-center justify-center">
+                    <Sparkles className="w-8 h-8 text-[hsl(var(--cosmic-gold))]" />
+                  </div>
+                  <h3 className="text-lg font-bold">Chờ đã! ✨</h3>
+                  <p className="text-muted-foreground text-sm">
+                    Bạn chắc chắn muốn hủy không?<br/>
+                    Ánh sáng của bạn đang chờ lan tỏa đấy! 💕
+                  </p>
+                  <div className="flex gap-3 pt-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowCloseConfirm(false)}
+                      className="flex-1 min-h-[48px] border-[hsl(var(--cosmic-cyan)/0.3)] hover:border-[hsl(var(--cosmic-cyan))] hover:bg-[hsl(var(--cosmic-cyan)/0.1)]"
+                    >
+                      Tiếp tục đăng
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={handleConfirmClose}
+                      className="flex-1 min-h-[48px]"
+                    >
+                      Hủy bỏ
+                    </Button>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </DialogContent>
     </Dialog>
   );
