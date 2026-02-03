@@ -7,10 +7,11 @@ import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ArrowLeft, ArrowRight, X, CalendarIcon, Globe, Lock, Eye, Clock } from "lucide-react";
+import { ArrowLeft, ArrowRight, X, CalendarIcon, Globe, Lock, Eye, Clock, Sparkles, Hash } from "lucide-react";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { motion, AnimatePresence } from "framer-motion";
 
 export interface VideoMetadata {
   title: string;
@@ -28,15 +29,54 @@ interface UploadMetadataFormProps {
 }
 
 const VISIBILITY_OPTIONS = [
-  { value: "public", label: "Công khai", description: "Mọi người có thể xem", icon: Globe },
-  { value: "unlisted", label: "Không công khai", description: "Chỉ ai có link mới xem được", icon: Eye },
-  { value: "private", label: "Riêng tư", description: "Chỉ bạn xem được", icon: Lock },
-  { value: "scheduled", label: "Lên lịch", description: "Đăng vào thời gian đã chọn", icon: Clock },
+  { 
+    value: "public", 
+    label: "Công khai", 
+    description: "Mọi người có thể xem", 
+    icon: Globe,
+    gradient: "from-[hsl(var(--cosmic-cyan))] to-[hsl(var(--cosmic-sapphire))]"
+  },
+  { 
+    value: "unlisted", 
+    label: "Không công khai", 
+    description: "Chỉ ai có link mới xem được", 
+    icon: Eye,
+    gradient: "from-[hsl(var(--cosmic-gold))] to-[hsl(var(--cosmic-cyan))]"
+  },
+  { 
+    value: "private", 
+    label: "Riêng tư", 
+    description: "Chỉ bạn xem được", 
+    icon: Lock,
+    gradient: "from-[hsl(var(--cosmic-magenta))] to-[hsl(var(--cosmic-purple)/1)]"
+  },
+  { 
+    value: "scheduled", 
+    label: "Lên lịch", 
+    description: "Đăng vào thời gian đã chọn", 
+    icon: Clock,
+    gradient: "from-[hsl(var(--divine-lavender))] to-[hsl(var(--cosmic-magenta))]"
+  },
 ];
 
+// Extended suggested tags for 5D/healing/meditation content
 const SUGGESTED_TAGS = [
-  "funplay", "camlycoin", "5d", "lighteconomy", "healing", "meditation",
-  "music", "vlog", "tutorial", "review", "gaming", "lifestyle"
+  // Core platform tags
+  "funplay", "camlycoin", "5d", "lighteconomy", 
+  // Healing & Wellness
+  "healing", "meditation", "mindfulness", "wellness", "selfcare", "innerpeace",
+  "spirituality", "chakra", "reiki", "energy", "holistic", "zenlife",
+  // Music & Entertainment
+  "music", "relaxing", "ambient", "nature", "asmr", "soundhealing",
+  // Lifestyle & Content
+  "vlog", "tutorial", "review", "gaming", "lifestyle", "motivation",
+  "inspiration", "positivity", "gratitude", "manifestation",
+  // Vietnamese specific
+  "thiennhien", "suclang", "binhan", "yeuthuong", "hanphuc",
+  "tamlinh", "yogatre", "suckhoe", "doisong", "giaitri",
+  // Cosmic & Universe
+  "universe", "cosmos", "stars", "galaxy", "aurora", "divine",
+  "angelic", "lightworker", "ascension", "awakening"
 ];
 
 export function UploadMetadataForm({ metadata, onChange, onNext, onBack }: UploadMetadataFormProps) {
@@ -67,7 +107,7 @@ export function UploadMetadataForm({ metadata, onChange, onNext, onBack }: Uploa
     <div className="space-y-6">
       {/* Title */}
       <div className="space-y-2">
-        <Label htmlFor="title" className="text-base font-medium">
+        <Label htmlFor="title" className="text-base font-semibold flex items-center gap-2">
           Tiêu đề <span className="text-destructive">*</span>
         </Label>
         <div className="relative">
@@ -76,26 +116,38 @@ export function UploadMetadataForm({ metadata, onChange, onNext, onBack }: Uploa
             value={metadata.title}
             onChange={(e) => onChange({ ...metadata, title: e.target.value.slice(0, 100) })}
             placeholder="Nhập tiêu đề hấp dẫn cho video..."
-            className="pr-16"
+            className="pr-16 h-12 text-base"
             maxLength={100}
           />
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+          <span className={cn(
+            "absolute right-3 top-1/2 -translate-y-1/2 text-xs transition-colors",
+            metadata.title.length > 90 ? "text-destructive" : "text-muted-foreground"
+          )}>
             {metadata.title.length}/100
           </span>
         </div>
+        {metadata.title.length > 0 && metadata.title.length < 3 && (
+          <p className="text-xs text-destructive">Tiêu đề cần ít nhất 3 ký tự</p>
+        )}
       </div>
 
       {/* Description */}
       <div className="space-y-2">
-        <Label htmlFor="description" className="text-base font-medium">
+        <Label htmlFor="description" className="text-base font-semibold">
           Mô tả
         </Label>
         <Textarea
           id="description"
           value={metadata.description}
           onChange={(e) => onChange({ ...metadata, description: e.target.value.slice(0, 5000) })}
-          placeholder="Mô tả nội dung video, thêm link, hashtag, timestamp...&#10;&#10;Ví dụ:&#10;0:00 Giới thiệu&#10;1:30 Nội dung chính&#10;&#10;#funplay #camlycoin"
-          className="min-h-[150px] resize-none"
+          placeholder={`Mô tả nội dung video, thêm link, hashtag, timestamp...
+
+Ví dụ:
+0:00 Giới thiệu
+1:30 Nội dung chính
+
+#funplay #camlycoin #5d`}
+          className="min-h-[140px] sm:min-h-[160px] resize-none text-base"
           maxLength={5000}
         />
         <p className="text-xs text-muted-foreground text-right">
@@ -104,55 +156,76 @@ export function UploadMetadataForm({ metadata, onChange, onNext, onBack }: Uploa
       </div>
 
       {/* Tags */}
-      <div className="space-y-2">
-        <Label className="text-base font-medium">
+      <div className="space-y-3">
+        <Label className="text-base font-semibold flex items-center gap-2">
+          <Hash className="w-4 h-4" />
           Thẻ (Tags)
         </Label>
-        <div className="flex flex-wrap gap-2 mb-2">
-          {metadata.tags.map(tag => (
-            <Badge
-              key={tag}
-              variant="secondary"
-              className="px-2 py-1 gap-1 text-xs"
-            >
-              #{tag}
-              <button
-                type="button"
-                onClick={() => handleRemoveTag(tag)}
-                className="ml-1 hover:text-destructive"
+        
+        {/* Current tags */}
+        <AnimatePresence mode="popLayout">
+          <div className="flex flex-wrap gap-2 min-h-[32px]">
+            {metadata.tags.map(tag => (
+              <motion.div
+                key={tag}
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                layout
               >
-                <X className="w-3 h-3" />
-              </button>
-            </Badge>
-          ))}
-        </div>
+                <Badge
+                  variant="secondary"
+                  className="px-3 py-1.5 gap-1.5 text-sm bg-gradient-to-r from-[hsl(var(--cosmic-cyan)/0.15)] to-[hsl(var(--cosmic-magenta)/0.15)] border border-[hsl(var(--cosmic-cyan)/0.3)] hover:border-[hsl(var(--cosmic-magenta)/0.5)] transition-all"
+                >
+                  #{tag}
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveTag(tag)}
+                    className="ml-1 hover:text-destructive transition-colors"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </Badge>
+              </motion.div>
+            ))}
+          </div>
+        </AnimatePresence>
+
         <Input
           value={tagInput}
           onChange={(e) => setTagInput(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Nhập tag và nhấn Enter (tối đa 15 tags)"
           disabled={metadata.tags.length >= 15}
+          className="h-11"
         />
         
-        {/* Suggested Tags */}
-        <div className="flex flex-wrap gap-1.5 mt-2">
-          <span className="text-xs text-muted-foreground">Gợi ý:</span>
-          {SUGGESTED_TAGS.filter(t => !metadata.tags.includes(t)).slice(0, 8).map(tag => (
-            <button
-              key={tag}
-              type="button"
-              onClick={() => handleAddTag(tag)}
-              className="text-xs px-2 py-0.5 rounded-full bg-muted hover:bg-primary/20 hover:text-primary transition-colors"
-            >
-              #{tag}
-            </button>
-          ))}
+        {/* Suggested Tags - scrollable on mobile */}
+        <div className="space-y-2">
+          <span className="text-xs text-muted-foreground flex items-center gap-1">
+            <Sparkles className="w-3 h-3" />
+            Gợi ý:
+          </span>
+          <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+            {SUGGESTED_TAGS.filter(t => !metadata.tags.includes(t)).slice(0, 20).map(tag => (
+              <motion.button
+                key={tag}
+                type="button"
+                onClick={() => handleAddTag(tag)}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="text-xs px-2.5 py-1 rounded-full bg-muted hover:bg-gradient-to-r hover:from-[hsl(var(--cosmic-cyan)/0.2)] hover:to-[hsl(var(--cosmic-magenta)/0.2)] hover:text-foreground border border-transparent hover:border-[hsl(var(--cosmic-cyan)/0.3)] transition-all"
+              >
+                #{tag}
+              </motion.button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Visibility */}
+      {/* Visibility - Card style with gradients */}
       <div className="space-y-3">
-        <Label className="text-base font-medium">Quyền riêng tư</Label>
+        <Label className="text-base font-semibold">Quyền riêng tư</Label>
         <RadioGroup
           value={metadata.visibility}
           onValueChange={(value) => onChange({ 
@@ -160,10 +233,12 @@ export function UploadMetadataForm({ metadata, onChange, onNext, onBack }: Uploa
             visibility: value as VideoMetadata["visibility"],
             scheduledAt: value === "scheduled" ? metadata.scheduledAt : null 
           })}
-          className="grid grid-cols-2 gap-3"
+          className="grid grid-cols-1 sm:grid-cols-2 gap-3"
         >
           {VISIBILITY_OPTIONS.map(option => {
             const Icon = option.icon;
+            const isSelected = metadata.visibility === option.value;
+            
             return (
               <div key={option.value}>
                 <RadioGroupItem
@@ -173,19 +248,43 @@ export function UploadMetadataForm({ metadata, onChange, onNext, onBack }: Uploa
                 />
                 <Label
                   htmlFor={option.value}
-                  className={cn(
-                    "flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all",
-                    "hover:bg-muted/50",
-                    metadata.visibility === option.value
-                      ? "border-primary bg-primary/5"
-                      : "border-muted"
-                  )}
+                  className="block cursor-pointer"
                 >
-                  <Icon className="w-5 h-5 text-muted-foreground mt-0.5" />
-                  <div>
-                    <span className="font-medium text-sm">{option.label}</span>
-                    <p className="text-xs text-muted-foreground">{option.description}</p>
-                  </div>
+                  <motion.div
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className={cn(
+                      "relative flex items-start gap-3 p-4 rounded-xl border-2 transition-all duration-300 min-h-[80px]",
+                      isSelected
+                        ? "border-transparent bg-gradient-to-br from-[hsl(var(--cosmic-cyan)/0.1)] to-[hsl(var(--cosmic-magenta)/0.1)]"
+                        : "border-border hover:border-[hsl(var(--cosmic-cyan)/0.3)] hover:bg-muted/50"
+                    )}
+                  >
+                    {/* Gradient border effect when selected */}
+                    {isSelected && (
+                      <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] via-[hsl(var(--cosmic-magenta))] to-[hsl(var(--cosmic-gold))] opacity-50 blur-sm -z-10" />
+                    )}
+                    
+                    <div className={cn(
+                      "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 transition-all",
+                      isSelected 
+                        ? `bg-gradient-to-br ${option.gradient} text-white shadow-lg` 
+                        : "bg-muted text-muted-foreground"
+                    )}>
+                      <Icon className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <span className={cn(
+                        "font-semibold text-sm block",
+                        isSelected && "text-foreground"
+                      )}>
+                        {option.label}
+                      </span>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {option.description}
+                      </p>
+                    </div>
+                  </motion.div>
                 </Label>
               </div>
             );
@@ -193,42 +292,58 @@ export function UploadMetadataForm({ metadata, onChange, onNext, onBack }: Uploa
         </RadioGroup>
 
         {/* Schedule Date Picker */}
-        {metadata.visibility === "scheduled" && (
-          <div className="mt-3">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="w-full justify-start text-left">
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {metadata.scheduledAt ? (
-                    format(metadata.scheduledAt, "PPP 'lúc' HH:mm", { locale: vi })
-                  ) : (
-                    "Chọn ngày đăng"
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={metadata.scheduledAt || undefined}
-                  onSelect={(date) => onChange({ ...metadata, scheduledAt: date || null })}
-                  disabled={(date) => date < new Date()}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-        )}
+        <AnimatePresence>
+          {metadata.visibility === "scheduled" && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden"
+            >
+              <div className="pt-3">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-start text-left h-12 border-[hsl(var(--cosmic-cyan)/0.3)] hover:border-[hsl(var(--cosmic-cyan))] hover:bg-[hsl(var(--cosmic-cyan)/0.05)]"
+                    >
+                      <CalendarIcon className="mr-2 h-5 w-5 text-[hsl(var(--cosmic-cyan))]" />
+                      {metadata.scheduledAt ? (
+                        format(metadata.scheduledAt, "PPP 'lúc' HH:mm", { locale: vi })
+                      ) : (
+                        <span className="text-muted-foreground">Chọn ngày giờ đăng</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={metadata.scheduledAt || undefined}
+                      onSelect={(date) => onChange({ ...metadata, scheduledAt: date || null })}
+                      disabled={(date) => date < new Date()}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Navigation */}
-      <div className="flex justify-between pt-4 border-t">
-        <Button variant="ghost" onClick={onBack}>
-          <ArrowLeft className="w-4 h-4 mr-2" />
+      <div className="flex justify-between pt-4 border-t border-border/50">
+        <Button variant="ghost" onClick={onBack} className="gap-2 min-h-[48px]">
+          <ArrowLeft className="w-4 h-4" />
           Quay lại
         </Button>
-        <Button onClick={onNext} disabled={!isValid}>
+        <Button 
+          onClick={onNext} 
+          disabled={!isValid}
+          className="gap-2 min-h-[48px] bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] to-[hsl(var(--cosmic-magenta))] hover:from-[hsl(var(--cosmic-cyan)/0.9)] hover:to-[hsl(var(--cosmic-magenta)/0.9)] text-white shadow-lg"
+        >
           Tiếp tục
-          <ArrowRight className="w-4 h-4 ml-2" />
+          <ArrowRight className="w-4 h-4" />
         </Button>
       </div>
     </div>

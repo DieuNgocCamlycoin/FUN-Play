@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Upload, FileVideo, Image, Eye, CheckCircle, X } from "lucide-react";
+import { Upload, FileVideo, Image, Eye, CheckCircle, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UploadDropzone } from "./UploadDropzone";
 import { UploadMetadataForm, VideoMetadata } from "./UploadMetadataForm";
@@ -14,6 +14,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { extractVideoThumbnail } from "@/lib/videoThumbnail";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface UploadWizardProps {
   open: boolean;
@@ -33,6 +35,7 @@ export function UploadWizard({ open, onOpenChange }: UploadWizardProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   
   const [currentStep, setCurrentStep] = useState<Step>("upload");
   const [videoFile, setVideoFile] = useState<File | null>(null);
@@ -303,8 +306,8 @@ export function UploadWizard({ open, onOpenChange }: UploadWizardProps) {
     } catch (error: any) {
       console.error("Upload error:", error);
       toast({
-        title: "Tải lên thất bại",
-        description: error.message || "Vui lòng thử lại sau.",
+        title: "Ồ, có lỗi xảy ra!",
+        description: error.message || "Vui lòng thử lại sau nhé 💕",
         variant: "destructive",
       });
       setCurrentStep("preview");
@@ -352,48 +355,76 @@ export function UploadWizard({ open, onOpenChange }: UploadWizardProps) {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0">
-        <DialogHeader className="px-6 pt-6 pb-4 border-b">
-          <div className="flex items-center justify-between">
-            <DialogTitle className="text-xl font-bold">
-              {currentStep === "success" ? "✨ Hoàn thành!" : "Đăng video mới"}
+      <DialogContent 
+        className={cn(
+          "flex flex-col p-0 gap-0 overflow-hidden",
+          // Mobile: fullscreen
+          isMobile ? "max-w-full w-full h-full max-h-full rounded-none" : "max-w-4xl max-h-[90vh]"
+        )}
+      >
+        {/* Header with gradient border */}
+        <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-4 border-b border-border/50 bg-gradient-to-r from-background via-background to-background relative">
+          {/* Aurora glow effect */}
+          <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] via-[hsl(var(--cosmic-magenta))] to-[hsl(var(--cosmic-gold))] opacity-50" />
+          
+          <div className="flex items-center justify-between gap-2">
+            <DialogTitle className="text-lg sm:text-xl font-bold flex items-center gap-2">
+              {currentStep === "success" ? (
+                <>
+                  <Sparkles className="w-5 h-5 text-[hsl(var(--cosmic-gold))]" />
+                  Hoàn thành!
+                </>
+              ) : (
+                "Đăng video mới"
+              )}
             </DialogTitle>
             {isShort && currentStep !== "upload" && currentStep !== "success" && (
-              <span className="px-3 py-1 text-xs font-semibold bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-full">
+              <motion.span 
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="px-3 py-1 text-xs font-bold bg-gradient-to-r from-[hsl(var(--cosmic-magenta))] to-[hsl(var(--cosmic-purple)/1)] text-white rounded-full flex items-center gap-1 shadow-lg"
+              >
+                <Sparkles className="w-3 h-3" />
                 SHORT
-              </span>
+              </motion.span>
             )}
           </div>
 
-          {/* Step Indicator */}
+          {/* Step Indicator - Enhanced with gradient connections */}
           {currentStep !== "uploading" && currentStep !== "success" && (
-            <div className="flex items-center justify-center gap-2 mt-4">
+            <div className="flex items-center justify-center gap-1 sm:gap-2 mt-4 overflow-x-auto pb-1 scrollbar-hide">
               {STEPS.map((step, index) => {
                 const Icon = step.icon;
                 const isActive = getStepIndex(currentStep) === index;
                 const isCompleted = getStepIndex(currentStep) > index;
                 
                 return (
-                  <div key={step.id} className="flex items-center">
-                    <div
+                  <div key={step.id} className="flex items-center flex-shrink-0">
+                    <motion.div
+                      initial={false}
+                      animate={{
+                        scale: isActive ? 1.05 : 1,
+                      }}
                       className={cn(
-                        "flex items-center gap-2 px-3 py-1.5 rounded-full text-sm transition-all",
-                        isActive && "bg-primary text-primary-foreground",
-                        isCompleted && "bg-primary/20 text-primary",
+                        "flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-full text-xs sm:text-sm transition-all duration-300",
+                        isActive && "bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] to-[hsl(var(--cosmic-magenta))] text-white shadow-lg shadow-[hsl(var(--cosmic-cyan)/0.3)]",
+                        isCompleted && "bg-[hsl(var(--cosmic-cyan)/0.2)] text-[hsl(var(--cosmic-cyan))]",
                         !isActive && !isCompleted && "bg-muted text-muted-foreground"
                       )}
                     >
                       {isCompleted ? (
-                        <CheckCircle className="w-4 h-4" />
+                        <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4" />
                       ) : (
-                        <Icon className="w-4 h-4" />
+                        <Icon className="w-3 h-3 sm:w-4 sm:h-4" />
                       )}
-                      <span className="hidden sm:inline">{step.label}</span>
-                    </div>
+                      <span className="hidden xs:inline sm:inline">{step.label}</span>
+                    </motion.div>
                     {index < STEPS.length - 1 && (
                       <div className={cn(
-                        "w-8 h-0.5 mx-1",
-                        isCompleted ? "bg-primary" : "bg-muted"
+                        "w-4 sm:w-8 h-0.5 mx-0.5 sm:mx-1 rounded-full transition-all duration-300",
+                        isCompleted 
+                          ? "bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] to-[hsl(var(--cosmic-magenta))]" 
+                          : "bg-muted"
                       )} />
                     )}
                   </div>
@@ -403,69 +434,120 @@ export function UploadWizard({ open, onOpenChange }: UploadWizardProps) {
           )}
         </DialogHeader>
 
-        <div className="flex-1 overflow-auto px-6 py-4">
-          {currentStep === "upload" && (
-            <UploadDropzone onFileSelect={handleVideoSelect} />
-          )}
+        {/* Content area with smooth transitions */}
+        <div className={cn(
+          "flex-1 overflow-auto px-4 sm:px-6 py-4",
+          isMobile && "pb-20" // Extra padding for mobile bottom nav
+        )}>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentStep}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.2 }}
+            >
+              {currentStep === "upload" && (
+                <UploadDropzone onFileSelect={handleVideoSelect} isShort={isShort} />
+              )}
 
-          {currentStep === "metadata" && (
-            <UploadMetadataForm
-              metadata={metadata}
-              onChange={setMetadata}
-              onNext={() => setCurrentStep("thumbnail")}
-              onBack={() => setCurrentStep("upload")}
-            />
-          )}
-
-          {currentStep === "thumbnail" && (
-            <ThumbnailEditor
-              videoFile={videoFile}
-              currentThumbnail={thumbnailPreview}
-              onThumbnailChange={handleThumbnailChange}
-              onNext={() => setCurrentStep("preview")}
-              onBack={() => setCurrentStep("metadata")}
-            />
-          )}
-
-          {currentStep === "preview" && (
-            <UploadPreview
-              videoPreviewUrl={videoPreviewUrl}
-              thumbnailPreview={thumbnailPreview}
-              metadata={metadata}
-              isShort={isShort}
-              onPublish={handleUpload}
-              onBack={() => setCurrentStep("thumbnail")}
-            />
-          )}
-
-          {currentStep === "uploading" && (
-            <div className="flex flex-col items-center justify-center py-12 space-y-6">
-              <div className="relative w-24 h-24">
-                <div className="absolute inset-0 rounded-full border-4 border-muted" />
-                <div
-                  className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin"
-                  style={{ animationDuration: "1.5s" }}
+              {currentStep === "metadata" && (
+                <UploadMetadataForm
+                  metadata={metadata}
+                  onChange={setMetadata}
+                  onNext={() => setCurrentStep("thumbnail")}
+                  onBack={() => setCurrentStep("upload")}
                 />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-lg font-bold">{uploadProgress}%</span>
-                </div>
-              </div>
-              <Progress value={uploadProgress} className="w-full max-w-md" />
-              <p className="text-muted-foreground">{uploadStage}</p>
-            </div>
-          )}
+              )}
 
-          {currentStep === "success" && (
-            <UploadSuccess
-              videoId={uploadedVideoId || ""}
-              onViewVideo={handleViewVideo}
-              onUploadAnother={() => {
-                handleClose();
-                setTimeout(() => onOpenChange(true), 100);
-              }}
-              onClose={handleClose}
-            />
-          )}
+              {currentStep === "thumbnail" && (
+                <ThumbnailEditor
+                  videoFile={videoFile}
+                  currentThumbnail={thumbnailPreview}
+                  onThumbnailChange={handleThumbnailChange}
+                  onNext={() => setCurrentStep("preview")}
+                  onBack={() => setCurrentStep("metadata")}
+                />
+              )}
+
+              {currentStep === "preview" && (
+                <UploadPreview
+                  videoPreviewUrl={videoPreviewUrl}
+                  thumbnailPreview={thumbnailPreview}
+                  metadata={metadata}
+                  isShort={isShort}
+                  onPublish={handleUpload}
+                  onBack={() => setCurrentStep("thumbnail")}
+                />
+              )}
+
+              {currentStep === "uploading" && (
+                <div className="flex flex-col items-center justify-center py-8 sm:py-12 space-y-6">
+                  {/* Animated upload indicator */}
+                  <div className="relative w-24 h-24 sm:w-28 sm:h-28">
+                    {/* Outer glow ring */}
+                    <div className="absolute inset-0 rounded-full bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] via-[hsl(var(--cosmic-magenta))] to-[hsl(var(--cosmic-gold))] opacity-30 blur-xl animate-pulse" />
+                    
+                    {/* Background circle */}
+                    <div className="absolute inset-0 rounded-full border-4 border-muted" />
+                    
+                    {/* Progress arc */}
+                    <svg className="absolute inset-0 -rotate-90" viewBox="0 0 100 100">
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="46"
+                        fill="none"
+                        stroke="url(#progressGradient)"
+                        strokeWidth="8"
+                        strokeLinecap="round"
+                        strokeDasharray={`${uploadProgress * 2.89} 289`}
+                        className="transition-all duration-300"
+                      />
+                      <defs>
+                        <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                          <stop offset="0%" stopColor="hsl(var(--cosmic-cyan))" />
+                          <stop offset="50%" stopColor="hsl(var(--cosmic-magenta))" />
+                          <stop offset="100%" stopColor="hsl(var(--cosmic-gold))" />
+                        </linearGradient>
+                      </defs>
+                    </svg>
+                    
+                    {/* Center percentage */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] to-[hsl(var(--cosmic-magenta))] bg-clip-text text-transparent">
+                        {uploadProgress}%
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Progress bar with shimmer */}
+                  <div className="w-full max-w-md relative">
+                    <Progress value={uploadProgress} className="h-2" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+                  </div>
+                  
+                  <p className="text-muted-foreground text-center text-sm sm:text-base">{uploadStage}</p>
+                  
+                  <p className="text-xs text-muted-foreground/60 text-center">
+                    ✨ Đang lan tỏa ánh sáng của bạn đến cộng đồng...
+                  </p>
+                </div>
+              )}
+
+              {currentStep === "success" && (
+                <UploadSuccess
+                  videoId={uploadedVideoId || ""}
+                  onViewVideo={handleViewVideo}
+                  onUploadAnother={() => {
+                    handleClose();
+                    setTimeout(() => onOpenChange(true), 100);
+                  }}
+                  onClose={handleClose}
+                />
+              )}
+            </motion.div>
+          </AnimatePresence>
         </div>
       </DialogContent>
     </Dialog>
