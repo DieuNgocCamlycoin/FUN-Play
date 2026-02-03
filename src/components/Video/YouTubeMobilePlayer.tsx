@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, TouchEvent } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import {
@@ -43,11 +43,12 @@ export function YouTubeMobilePlayer({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [showSkipIndicator, setShowSkipIndicator] = useState<'left' | 'right' | null>(null);
-  const [skipAmount, setSkipAmount] = useState(0);
-  const [lastTap, setLastTap] = useState<{ time: number; x: number } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragY, setDragY] = useState(0);
   const hideControlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const tapTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const tapCountRef = useRef(0);
+  const lastTapXRef = useRef(0);
 
   // Skip amount changed from 10s to 15s
   const SKIP_SECONDS = 15;
@@ -110,11 +111,10 @@ export function YouTubeMobilePlayer({
     }
   };
 
-  // Double tap to skip 15s
+  // Tap handler - single tap to toggle controls, double tap to skip
   const handleTap = (e: React.MouseEvent | React.TouchEvent) => {
     if (isDragging) return;
     
-    const now = Date.now();
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect) return;
 
@@ -122,31 +122,43 @@ export function YouTubeMobilePlayer({
     const x = clientX - rect.left;
     const isLeftHalf = x < rect.width / 2;
 
-    if (lastTap && now - lastTap.time < 300) {
-      // Double tap detected - skip 15s
-      if (isLeftHalf) {
-        seekRelative(-SKIP_SECONDS);
-        setShowSkipIndicator('left');
-        setSkipAmount(prev => prev + SKIP_SECONDS);
-      } else {
-        seekRelative(SKIP_SECONDS);
-        setShowSkipIndicator('right');
-        setSkipAmount(prev => prev + SKIP_SECONDS);
-      }
-      setTimeout(() => {
-        setShowSkipIndicator(null);
-        setSkipAmount(0);
-      }, 600);
-      setLastTap(null);
-    } else {
-      setLastTap({ time: now, x });
-      // Single tap - toggle controls
-      setTimeout(() => {
-        if (lastTap?.time === now) {
-          resetControlsTimeout();
-        }
-      }, 300);
+    tapCountRef.current += 1;
+    lastTapXRef.current = x;
+    
+    if (tapTimeoutRef.current) {
+      clearTimeout(tapTimeoutRef.current);
     }
+
+    tapTimeoutRef.current = setTimeout(() => {
+      if (tapCountRef.current === 1) {
+        // Single tap - toggle controls visibility
+        setShowControls(prev => {
+          const newValue = !prev;
+          // If showing controls and playing, set auto-hide timeout
+          if (newValue && isPlaying) {
+            if (hideControlsTimeoutRef.current) {
+              clearTimeout(hideControlsTimeoutRef.current);
+            }
+            hideControlsTimeoutRef.current = setTimeout(() => {
+              setShowControls(false);
+            }, 3000);
+          }
+          return newValue;
+        });
+      } else if (tapCountRef.current >= 2) {
+        // Double tap - skip 15s
+        const tapIsLeftHalf = lastTapXRef.current < rect.width / 2;
+        if (tapIsLeftHalf) {
+          seekRelative(-SKIP_SECONDS);
+          setShowSkipIndicator('left');
+        } else {
+          seekRelative(SKIP_SECONDS);
+          setShowSkipIndicator('right');
+        }
+        setTimeout(() => setShowSkipIndicator(null), 600);
+      }
+      tapCountRef.current = 0;
+    }, 250); // 250ms window để detect double-tap
   };
 
   // Drag to minimize gesture
