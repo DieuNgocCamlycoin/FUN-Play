@@ -7,24 +7,61 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { extractVideoThumbnailFromUrl } from "@/lib/videoThumbnail";
 import { toast } from "sonner";
-import { Image, RefreshCw, CheckCircle, XCircle, Play, Pause, AlertTriangle } from "lucide-react";
+import { Image, RefreshCw, CheckCircle, XCircle, Play, Pause, AlertTriangle, Youtube, Cloud, Globe, SkipForward } from "lucide-react";
+
+type VideoSource = 'r2' | 'youtube' | 'supabase' | 'external';
 
 interface VideoItem {
   id: string;
   title: string;
   video_url: string;
   thumbnail_url: string | null;
-  status: 'pending' | 'processing' | 'success' | 'error';
+  status: 'pending' | 'processing' | 'success' | 'error' | 'skipped';
   errorMessage?: string;
   newThumbnailUrl?: string;
+  source: VideoSource;
 }
+
+// Detect video source from URL
+const detectVideoSource = (url: string): VideoSource => {
+  if (!url) return 'external';
+  if (url.includes('youtube.com') || url.includes('youtu.be')) return 'youtube';
+  if (url.includes('r2.dev') || url.includes('pub-')) return 'r2';
+  if (url.includes('supabase.co/storage')) return 'supabase';
+  return 'external';
+};
+
+// Get source label and icon info
+const getSourceInfo = (source: VideoSource) => {
+  switch (source) {
+    case 'r2':
+      return { label: 'R2', color: 'bg-orange-500', canProcess: true };
+    case 'youtube':
+      return { label: 'YouTube', color: 'bg-red-500', canProcess: false };
+    case 'supabase':
+      return { label: 'Supabase', color: 'bg-green-500', canProcess: true };
+    case 'external':
+      return { label: 'External', color: 'bg-gray-500', canProcess: false };
+  }
+};
+
+const SourceIcon = ({ source }: { source: VideoSource }) => {
+  switch (source) {
+    case 'r2':
+      return <Cloud className="w-3 h-3" />;
+    case 'youtube':
+      return <Youtube className="w-3 h-3" />;
+    default:
+      return <Globe className="w-3 h-3" />;
+  }
+};
 
 const ThumbnailRegenerationPanel = () => {
   const [videos, setVideos] = useState<VideoItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [stats, setStats] = useState({ total: 0, success: 0, error: 0, remaining: 0 });
+  const [stats, setStats] = useState({ total: 0, success: 0, error: 0, remaining: 0, skipped: 0 });
   const abortRef = useRef(false);
 
   // Fetch videos with NULL thumbnails
@@ -40,17 +77,34 @@ const ThumbnailRegenerationPanel = () => {
 
       if (error) throw error;
 
-      const videoItems: VideoItem[] = (data || []).map(v => ({
-        ...v,
-        status: 'pending' as const
-      }));
+      const videoItems: VideoItem[] = (data || []).map(v => {
+        const source = detectVideoSource(v.video_url);
+        const sourceInfo = getSourceInfo(source);
+        return {
+          ...v,
+          source,
+          status: sourceInfo.canProcess ? 'pending' as const : 'skipped' as const,
+          errorMessage: sourceInfo.canProcess ? undefined : `${sourceInfo.label} không hỗ trợ trích xuất thumbnail`
+        };
+      });
+
+      // Count by source
+      const r2Count = videoItems.filter(v => v.source === 'r2').length;
+      const youtubeCount = videoItems.filter(v => v.source === 'youtube').length;
+      const externalCount = videoItems.filter(v => v.source === 'external' || v.source === 'supabase').length;
+      const processableCount = videoItems.filter(v => v.status === 'pending').length;
+      const skippedCount = videoItems.filter(v => v.status === 'skipped').length;
+
+      console.log(`📊 Video sources: R2=${r2Count}, YouTube=${youtubeCount}, External=${externalCount}`);
+      console.log(`✅ Processable videos: ${processableCount}`);
 
       setVideos(videoItems);
       setStats({
         total: videoItems.length,
         success: 0,
         error: 0,
-        remaining: videoItems.length
+        remaining: processableCount,
+        skipped: skippedCount
       });
     } catch (error) {
       console.error('Error fetching videos:', error);
@@ -66,29 +120,37 @@ const ThumbnailRegenerationPanel = () => {
 
   // Process single video - extract thumbnail and upload
   const processVideo = async (video: VideoItem): Promise<{ success: boolean; thumbnailUrl?: string; error?: string }> => {
+    const sourceInfo = getSourceInfo(video.source);
+    
+    // Skip non-processable sources
+    if (!sourceInfo.canProcess) {
+      return { 
+        success: false, 
+        error: `${sourceInfo.label} không hỗ trợ trích xuất thumbnail (CORS restriction)` 
+      };
+    }
+
     try {
-      // Check if video URL is from R2 (can process) or external (cannot process)
-      const isR2Video = video.video_url?.includes('r2.dev') || video.video_url?.includes('pub-');
-      
-      if (!isR2Video) {
-        return { 
-          success: false, 
-          error: 'Video không phải từ R2, không thể trích xuất thumbnail' 
-        };
-      }
+      console.log(`🎬 Processing video: ${video.title} (${video.source})`);
+      console.log(`📎 URL: ${video.video_url}`);
 
       // Extract thumbnail from video URL
+      console.log(`⏳ Extracting frame at 25% position...`);
       const thumbnailBlob = await extractVideoThumbnailFromUrl(video.video_url);
       
       if (!thumbnailBlob) {
+        console.error(`❌ Frame extraction failed for: ${video.title}`);
         return { 
           success: false, 
-          error: 'Không thể trích xuất frame từ video' 
+          error: 'Không thể trích xuất frame từ video (có thể do CORS hoặc video format không hỗ trợ)' 
         };
       }
 
+      console.log(`✅ Frame extracted, size: ${(thumbnailBlob.size / 1024).toFixed(2)} KB`);
+
       // Upload thumbnail to R2
       const thumbnailFileName = `thumbnails/${Date.now()}-${video.id}-auto.jpg`;
+      console.log(`📤 Uploading to R2: ${thumbnailFileName}`);
       
       const { data: presignData, error: presignError } = await supabase.functions.invoke('r2-upload', {
         body: {
@@ -100,9 +162,10 @@ const ThumbnailRegenerationPanel = () => {
       });
 
       if (presignError || !presignData?.presignedUrl) {
+        console.error(`❌ Presign URL error:`, presignError);
         return { 
           success: false, 
-          error: 'Lỗi khi tạo presigned URL' 
+          error: 'Lỗi khi tạo presigned URL cho R2' 
         };
       }
 
@@ -116,11 +179,14 @@ const ThumbnailRegenerationPanel = () => {
       });
 
       if (!uploadResponse.ok) {
+        console.error(`❌ R2 upload failed: ${uploadResponse.status}`);
         return { 
           success: false, 
-          error: 'Lỗi khi upload thumbnail lên R2' 
+          error: `Lỗi khi upload thumbnail lên R2 (${uploadResponse.status})` 
         };
       }
+
+      console.log(`✅ Uploaded to R2: ${presignData.publicUrl}`);
 
       // Update video record in database
       const { error: updateError } = await supabase
@@ -129,22 +195,25 @@ const ThumbnailRegenerationPanel = () => {
         .eq('id', video.id);
 
       if (updateError) {
+        console.error(`❌ Database update error:`, updateError);
         return { 
           success: false, 
           error: 'Lỗi khi cập nhật database' 
         };
       }
 
+      console.log(`🎉 Successfully processed: ${video.title}`);
       return { 
         success: true, 
         thumbnailUrl: presignData.publicUrl 
       };
 
     } catch (error) {
-      console.error('Process video error:', error);
+      console.error('❌ Process video error:', error);
+      const errorMsg = error instanceof Error ? error.message : 'Lỗi không xác định';
       return { 
         success: false, 
-        error: error instanceof Error ? error.message : 'Lỗi không xác định' 
+        error: errorMsg.includes('CORS') ? 'CORS error - Video không cho phép truy cập cross-origin' : errorMsg 
       };
     }
   };
@@ -154,7 +223,12 @@ const ThumbnailRegenerationPanel = () => {
     setProcessing(true);
     abortRef.current = false;
 
+    // Only process videos that can be processed (not skipped)
     const pendingVideos = videos.filter(v => v.status === 'pending');
+    const skippedCount = videos.filter(v => v.status === 'skipped').length;
+    
+    console.log(`🚀 Starting batch processing: ${pendingVideos.length} videos (${skippedCount} skipped)`);
+    
     let successCount = 0;
     let errorCount = 0;
 
@@ -162,6 +236,8 @@ const ThumbnailRegenerationPanel = () => {
       if (abortRef.current) break;
 
       const video = pendingVideos[i];
+      
+      console.log(`\n📹 [${i + 1}/${pendingVideos.length}] Processing: ${video.title}`);
       
       // Update status to processing
       setVideos(prev => prev.map(v => 
@@ -184,8 +260,10 @@ const ThumbnailRegenerationPanel = () => {
 
       if (result.success) {
         successCount++;
+        console.log(`✅ [${i + 1}/${pendingVideos.length}] Success: ${video.title}`);
       } else {
         errorCount++;
+        console.log(`❌ [${i + 1}/${pendingVideos.length}] Error: ${video.title} - ${result.error}`);
       }
 
       // Update progress
@@ -204,10 +282,12 @@ const ThumbnailRegenerationPanel = () => {
 
     setProcessing(false);
     
+    console.log(`\n📊 Batch processing complete: Success=${successCount}, Error=${errorCount}`);
+    
     if (abortRef.current) {
       toast.info('Đã dừng xử lý batch');
     } else {
-      toast.success(`Hoàn thành! Thành công: ${successCount}, Lỗi: ${errorCount}`);
+      toast.success(`Hoàn thành! Thành công: ${successCount}, Lỗi: ${errorCount}, Bỏ qua: ${skippedCount}`);
     }
   };
 
@@ -225,6 +305,9 @@ const ThumbnailRegenerationPanel = () => {
     startBatchProcessing();
   };
 
+  const pendingCount = videos.filter(v => v.status === 'pending').length;
+  const skippedCount = videos.filter(v => v.status === 'skipped').length;
+
   return (
     <Card>
       <CardHeader>
@@ -238,7 +321,7 @@ const ThumbnailRegenerationPanel = () => {
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <Card className="p-4 text-center bg-muted/30">
             <div className="text-2xl font-bold">{stats.total}</div>
             <div className="text-xs text-muted-foreground">Tổng số</div>
@@ -255,6 +338,26 @@ const ThumbnailRegenerationPanel = () => {
             <div className="text-2xl font-bold text-yellow-500">{stats.remaining}</div>
             <div className="text-xs text-muted-foreground">Còn lại</div>
           </Card>
+          <Card className="p-4 text-center bg-gray-500/10 border-gray-500/30">
+            <div className="text-2xl font-bold text-gray-400">{stats.skipped}</div>
+            <div className="text-xs text-muted-foreground">Bỏ qua</div>
+          </Card>
+        </div>
+
+        {/* Source Legend */}
+        <div className="flex flex-wrap gap-3 text-xs">
+          <div className="flex items-center gap-1">
+            <Badge className="bg-orange-500 gap-1"><Cloud className="w-3 h-3" /> R2</Badge>
+            <span className="text-muted-foreground">Có thể xử lý</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Badge className="bg-red-500 gap-1"><Youtube className="w-3 h-3" /> YouTube</Badge>
+            <span className="text-muted-foreground">Không hỗ trợ (CORS)</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Badge className="bg-gray-500 gap-1"><Globe className="w-3 h-3" /> External</Badge>
+            <span className="text-muted-foreground">Không hỗ trợ</span>
+          </div>
         </div>
 
         {/* Progress */}
@@ -283,11 +386,11 @@ const ThumbnailRegenerationPanel = () => {
           {!processing ? (
             <Button
               onClick={startBatchProcessing}
-              disabled={loading || videos.filter(v => v.status === 'pending').length === 0}
+              disabled={loading || pendingCount === 0}
               className="gap-2 bg-gradient-to-r from-purple-500 to-pink-500"
             >
               <Play className="w-4 h-4" />
-              Bắt đầu xử lý ({videos.filter(v => v.status === 'pending').length} video)
+              Bắt đầu xử lý ({pendingCount} video)
             </Button>
           ) : (
             <Button
@@ -327,6 +430,7 @@ const ThumbnailRegenerationPanel = () => {
                     video.status === 'processing' ? 'bg-blue-500/10 border border-blue-500/30' :
                     video.status === 'success' ? 'bg-green-500/10 border border-green-500/30' :
                     video.status === 'error' ? 'bg-red-500/10 border border-red-500/30' :
+                    video.status === 'skipped' ? 'bg-gray-500/10 border border-gray-500/30' :
                     'bg-muted/30'
                   }`}
                 >
@@ -345,11 +449,17 @@ const ThumbnailRegenerationPanel = () => {
                     )}
                   </div>
 
+                  {/* Source Badge */}
+                  <Badge className={`${getSourceInfo(video.source).color} gap-1 flex-shrink-0`}>
+                    <SourceIcon source={video.source} />
+                    {getSourceInfo(video.source).label}
+                  </Badge>
+
                   {/* Title */}
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-sm truncate">{video.title}</div>
                     {video.errorMessage && (
-                      <div className="text-xs text-red-400 mt-1">{video.errorMessage}</div>
+                      <div className="text-xs text-red-400 mt-1 truncate">{video.errorMessage}</div>
                     )}
                   </div>
 
@@ -375,6 +485,12 @@ const ThumbnailRegenerationPanel = () => {
                       Lỗi
                     </Badge>
                   )}
+                  {video.status === 'skipped' && (
+                    <Badge variant="secondary" className="bg-gray-500/20">
+                      <SkipForward className="w-3 h-3 mr-1" />
+                      Bỏ qua
+                    </Badge>
+                  )}
                 </div>
               ))
             )}
@@ -386,7 +502,12 @@ const ThumbnailRegenerationPanel = () => {
           <AlertTriangle className="w-4 h-4 text-yellow-500 flex-shrink-0 mt-0.5" />
           <div>
             <strong>Lưu ý:</strong> Chỉ các video được host trên R2 mới có thể trích xuất thumbnail.
-            Video từ YouTube hoặc nguồn bên ngoài sẽ không được xử lý.
+            Video từ YouTube hoặc nguồn bên ngoài sẽ bị bỏ qua do hạn chế CORS.
+            {skippedCount > 0 && (
+              <span className="text-yellow-400 ml-1">
+                ({skippedCount} video sẽ bị bỏ qua)
+              </span>
+            )}
           </div>
         </div>
       </CardContent>
