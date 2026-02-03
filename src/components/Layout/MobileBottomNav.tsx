@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useState } from "react";
-import { UploadVideoModal } from "@/components/Video/UploadVideoModal";
+import { UploadWizard } from "@/components/Upload/UploadWizard";
 import { useHapticFeedback } from "@/hooks/useHapticFeedback";
 
 interface NavItem {
@@ -91,7 +91,7 @@ export const MobileBottomNav = () => {
         </div>
       </nav>
 
-      <UploadVideoModal open={uploadModalOpen} onOpenChange={setUploadModalOpen} />
+      <UploadWizard open={uploadModalOpen} onOpenChange={setUploadModalOpen} />
     </>
   );
 };

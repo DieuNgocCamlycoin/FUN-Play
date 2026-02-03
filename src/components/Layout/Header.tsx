@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { MultiTokenWallet } from "@/components/Web3/MultiTokenWallet";
 import { CAMLYMiniWidget } from "@/components/Web3/CAMLYMiniWidget";
 import { FunWalletMiniWidget } from "@/components/Web3/FunWalletMiniWidget";
-import { UploadVideoModal } from "@/components/Video/UploadVideoModal";
+import { UploadWizard } from "@/components/Upload/UploadWizard";
 import { ClaimRewardsButton } from "@/components/Rewards/ClaimRewardsButton";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
@@ -273,7 +273,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
         )}
       </div>
       
-      <UploadVideoModal open={uploadModalOpen} onOpenChange={setUploadModalOpen} />
+      <UploadWizard open={uploadModalOpen} onOpenChange={setUploadModalOpen} />
     </header>
   );
 };
