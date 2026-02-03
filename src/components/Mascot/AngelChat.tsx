@@ -11,7 +11,7 @@ type VoiceProvider = 'openai' | 'elevenlabs';
 interface Message {
   role: 'user' | 'assistant';
   content: string;
-  provider?: 'grok' | 'chatgpt' | 'lovable-ai';
+  provider?: 'angel-ai' | 'grok' | 'chatgpt' | 'lovable-ai';
 }
 
 interface AngelChatProps {
@@ -122,7 +122,7 @@ export const AngelChat: React.FC<AngelChatProps> = ({ isOpen, onClose }) => {
     setInput('');
 
     try {
-      const { data, error } = await supabase.functions.invoke('angel-chat', {
+      const { data, error } = await supabase.functions.invoke('angel-ai-proxy', {
         body: { messages: newMessages }
       });
 
@@ -296,13 +296,15 @@ export const AngelChat: React.FC<AngelChatProps> = ({ isOpen, onClose }) => {
                       <div className="flex items-center gap-2 mt-2 justify-between">
                         {msg.provider && (
                           <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                            msg.provider === 'grok' 
+                            msg.provider === 'angel-ai'
+                              ? 'bg-gradient-to-r from-[#FFD700] to-[#FFA500] text-white shadow-lg'
+                              : msg.provider === 'grok' 
                               ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white' 
                               : msg.provider === 'chatgpt'
                               ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white'
                               : 'bg-gradient-to-r from-primary to-accent text-white'
                           }`}>
-                            {msg.provider === 'grok' ? '🚀 Grok' : msg.provider === 'chatgpt' ? '🤖 ChatGPT' : '✨ Gemini'}
+                            {msg.provider === 'angel-ai' ? '🌟 ANGEL AI' : msg.provider === 'grok' ? '🚀 Grok' : msg.provider === 'chatgpt' ? '🤖 ChatGPT' : '✨ Gemini'}
                           </span>
                         )}
                         <div className="flex gap-1 items-center">
