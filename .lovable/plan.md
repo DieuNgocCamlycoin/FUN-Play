@@ -1,252 +1,350 @@
 
-# Kế Hoạch Nâng Cấp Upload Wizard - FUN PLAY
-## Hoàn Thiện Tính Năng Đăng Video Chuyên Nghiệp (YouTube Style)
+
+# Kế Hoạch Nâng Cấp Upload Wizard - Navigation Thông Minh & UX Mượt Mà
+
+## Tổng Quan Phân Tích Hiện Tại
+
+Từ screenshots và code, Cha thấy Upload Wizard đã hoạt động tốt với 5 bước và Design System v1.0. Tuy nhiên, còn thiếu:
+
+| Thiếu | Hiện tại | Cần nâng cấp |
+|-------|----------|--------------|
+| **Stepper clickable** | Chỉ hiển thị trạng thái, không click được | Click vào bất kỳ step đã hoàn thành để quay lại edit |
+| **Nút X đóng** | Không có nút X riêng | Thêm X ở header phải với confirm dialog |
+| **Confirm hủy** | Đóng modal không cảnh báo | Dialog vui vẻ "Bạn chắc chắn muốn hủy không? Ánh sáng đang chờ lan tỏa!" |
+| **Tiêu đề clickable** | Labels không tương tác | Click tiêu đề để focus/scroll đến field đó |
 
 ---
 
-## Tổng Quan Phân Tích
+## Phase 1: Clickable Step Indicator (Ưu Tiên Cao)
 
-### Đã Có (9 Components):
-| Component | Trạng thái | Vấn đề cần sửa |
-|-----------|------------|----------------|
-| `UploadWizard.tsx` | ✅ Hoạt động | UI chưa áp dụng Design System, thiếu mobile optimization |
-| `UploadDropzone.tsx` | ✅ Hoạt động | Button chưa gradient, thiếu SHORT detection label |
-| `UploadMetadataForm.tsx` | ✅ Hoạt động | Tags gợi ý ít, visibility cards cần đẹp hơn |
-| `ThumbnailEditor.tsx` | ✅ Hoạt động | Auto-generate button chưa shimmer effect |
-| `ThumbnailUpload.tsx` | ✅ Hoạt động | OK |
-| `ThumbnailGallery.tsx` | ✅ Hoạt động | Chỉ có 20 templates placeholder |
-| `ThumbnailCanvas.tsx` | ✅ Hoạt động | Thiếu touch-drag, holographic border |
-| `UploadPreview.tsx` | ✅ Hoạt động | Thiếu gradient card, light economy message |
-| `UploadSuccess.tsx` | ✅ Hoạt động | Thiếu share buttons (X/Facebook/Telegram) |
+### File: `UploadWizard.tsx`
 
-### Vấn Đề Chính:
-1. **Trang /upload cũ** vẫn hiển thị form đơn giản thay vì UploadWizard
-2. **Mobile UX** chưa được tối ưu (modal nhỏ, touch không mượt)
-3. **Design System** chưa được áp dụng đầy đủ (gradients, glows, animations)
-4. **Gallery templates** chỉ có 20 ảnh placeholder từ Unsplash
+**Thay đổi trong stepper:**
 
----
+```text
+Hiện tại (dòng 401-421):
+- motion.div không có onClick
+- Chỉ hiển thị trạng thái active/completed
 
-## Phase 1: Nâng Cấp Giao Diện Design System (Ưu Tiên Cao)
-
-### 1.1. UploadWizard.tsx
-**Thay đổi:**
-- Dialog fullscreen trên mobile (`max-w-full h-full sm:max-w-4xl sm:h-auto`)
-- Step indicator với gradient connections
-- Aurora border glow animation khi active
-- Progress indicator với shimmer effect khi uploading
-
-### 1.2. UploadDropzone.tsx
-**Thay đổi:**
-- Button "Chọn video" với gradient tím-hồng + glow hover
-- Dropzone border với holographic animation khi drag
-- Thêm SHORT detection label hiển thị vui vẻ với Sparkles icon
-- Mobile: Dropzone chiếm full height, button lớn 48px+
-- "Mẹo upload" với float animation
-
-### 1.3. UploadMetadataForm.tsx
-**Thay đổi:**
-- Mở rộng SUGGESTED_TAGS lên 50+ tags 5D/healing/meditation
-- Visibility cards với gradient border khi selected
-- Datetime picker mobile-friendly (native input fallback)
-- Tags wrap đẹp hơn với chip gradient
-- Form scroll mượt với smooth transition
-
-### 1.4. ThumbnailEditor.tsx
-**Thay đổi:**
-- Button "Tạo tự động từ video" với shimmer animation
-- Tabs với swipe gesture trên mobile (touch events)
-- Current thumbnail preview với holographic border
-
-### 1.5. ThumbnailGallery.tsx
-**Thay đổi:**
-- Mở rộng categories với nhiều templates hơn
-- Swipeable grid trên mobile (horizontal scroll)
-- Lazy loading với skeleton placeholders
-- Selected item với rainbow glow
-
-### 1.6. ThumbnailCanvas.tsx
-**Thay đổi:**
-- Canvas với holographic border effect
-- Touch-drag để di chuyển text position (mobile)
-- Slider lớn hơn cho mobile (min-height 44px)
-- Color picker với rainbow gradient
-- Button "Áp dụng & Lưu" với aurora gradient
-
-### 1.7. UploadPreview.tsx
-**Thay đổi:**
-- Preview card với glass effect background
-- Light economy message với sparkle animation
-- Gradient dividers
-- Mobile: Stack vertical (video → thumbnail → metadata)
-
-### 1.8. UploadSuccess.tsx
-**Thay đổi:**
-- Rainbow-sparkle effect cho success icon
-- Share buttons: X (Twitter), Facebook, Telegram với glow
-- Copy button với pulse animation khi thành công
-- Buttons full-width trên mobile
-
----
-
-## Phase 2: Tối Ưu Mobile Experience (Ưu Tiên Cao)
-
-### 2.1. Responsive Dialog
-```
-Mobile (< 640px):
-- Dialog fullscreen
-- Step indicator horizontal scroll
-- Bottom navigation buttons sticky
-
-Tablet (640px - 1024px):
-- Dialog 90% width
-- 2-column layouts where applicable
-
-Desktop (> 1024px):
-- Dialog max-w-4xl centered
+Nâng cấp:
+- Thêm onClick={() => handleStepClick(step.id)} cho completed steps
+- Thêm cursor-pointer và hover effect rainbow-glow
+- Animation pulse khi click
+- Chỉ cho phép click vào steps đã hoàn thành (validated)
 ```
 
-### 2.2. Touch Gestures
-- **Swipe tabs**: Thumbnail Editor tabs swipeable
-- **Touch-drag**: Canvas text position movable by finger
-- **Pull-to-close**: Optional swipe down to close modal
-- **Haptic feedback**: Vibration on step completion
+**Logic mới:**
 
-### 2.3. Mobile-Specific Improvements
-- Large touch targets (min 44x44px)
-- No horizontal overflow
-- Soft keyboard adjustments
-- Camera capture button prominent
+```typescript
+const canNavigateToStep = (targetStep: Step): boolean => {
+  const stepOrder = ["upload", "metadata", "thumbnail", "preview"];
+  const currentIndex = stepOrder.indexOf(currentStep);
+  const targetIndex = stepOrder.indexOf(targetStep);
+  
+  // Có thể quay lại bất kỳ step trước đó
+  // Chỉ cần có video file là có thể navigate
+  if (targetIndex <= currentIndex && videoFile) {
+    return true;
+  }
+  return false;
+};
 
----
+const handleStepClick = (stepId: string) => {
+  const targetStep = stepId as Step;
+  if (canNavigateToStep(targetStep)) {
+    setCurrentStep(targetStep);
+    // Haptic feedback nếu có
+    if (navigator.vibrate) navigator.vibrate(50);
+  }
+};
+```
 
-## Phase 3: Mở Rộng Template Gallery (Trung Bình)
-
-### 3.1. Categories (5 danh mục, ~40 templates mỗi loại = 200 total)
-1. **Ánh sáng & Healing** (40 templates)
-2. **Thiền định** (40 templates)
-3. **Vũ trụ & Stars** (40 templates)
-4. **Thiên nhiên** (40 templates)
-5. **Gradient & Abstract** (40 templates)
-
-### 3.2. Template Sources
-- Option A: Sử dụng Unsplash API với curated collections
-- Option B: Con cung cấp 200 URLs từ R2/Supabase Storage
-- Option C: Tạo gradient templates programmatically (cho category 5)
-
----
-
-## Phase 4: Thay Thế Trang /upload (Trung Bình)
-
-### Hiện tại:
-- `/upload` hiển thị form cũ (699 dòng code legacy)
-- UploadWizard chỉ mở từ Header/MobileNav modal
-
-### Giải pháp:
-Thay thế hoàn toàn `src/pages/Upload.tsx` để sử dụng UploadWizard inline (không phải modal), hoặc redirect đến modal:
+**UI nâng cấp stepper:**
 
 ```tsx
-// Option 1: Inline wizard
-export default function Upload() {
-  return (
-    <MainLayout>
-      <UploadWizardInline />
-    </MainLayout>
-  );
-}
-
-// Option 2: Auto-open modal & redirect
-export default function Upload() {
-  // Auto-open UploadWizard modal và redirect về home
-  useEffect(() => {
-    // trigger modal open
-    navigate('/?upload=true');
-  }, []);
-}
+<motion.div
+  onClick={() => handleStepClick(step.id)}
+  whileHover={isCompleted ? { scale: 1.08 } : {}}
+  whileTap={isCompleted ? { scale: 0.95 } : {}}
+  className={cn(
+    "flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-full text-xs sm:text-sm transition-all duration-300",
+    isActive && "bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] to-[hsl(var(--cosmic-magenta))] text-white shadow-lg",
+    isCompleted && "bg-[hsl(var(--cosmic-cyan)/0.2)] text-[hsl(var(--cosmic-cyan))] cursor-pointer hover:shadow-[0_0_20px_hsl(var(--cosmic-cyan)/0.5)]",
+    !isActive && !isCompleted && "bg-muted text-muted-foreground cursor-not-allowed opacity-60"
+  )}
+  title={isCompleted ? `Nhấn để chỉnh sửa ${step.label}` : ""}
+>
 ```
 
 ---
 
-## Phase 5: Các Cải Tiến Bổ Sung (Thấp)
+## Phase 2: Nút X Đóng Modal + Confirm Dialog (Ưu Tiên Cao)
 
-### 5.1. Error Messages Thân Thiện
-- "Ồ, file hơi to quá! Thử nén lại nhé 💕"
-- "Định dạng này chưa hỗ trợ, dùng MP4 nhé! 🎬"
-- "Mất kết nối rồi, thử lại nhé! ✨"
+### File: `UploadWizard.tsx`
 
-### 5.2. Validation Improvements
-- Title: Auto-suggest từ filename, warning nếu quá ngắn
-- Description: Highlight hashtags/timestamps
-- Tags: Auto-complete từ existing tags
+**Thêm state cho confirm dialog:**
 
-### 5.3. Silent Reward (Backend)
-- Giữ logic reward nhưng không hiển thị notification UI
-- Reward được ghi silent vào database
+```typescript
+const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+
+// Kiểm tra có dữ liệu chưa lưu
+const hasUnsavedData = videoFile !== null || metadata.title.trim() !== "";
+
+// Xử lý click X
+const handleCloseClick = () => {
+  if (hasUnsavedData && currentStep !== "success") {
+    setShowCloseConfirm(true);
+  } else {
+    handleClose();
+    navigate("/");
+  }
+};
+
+// Xác nhận đóng
+const handleConfirmClose = () => {
+  setShowCloseConfirm(false);
+  handleClose();
+  navigate("/");
+};
+```
+
+**Thêm nút X vào header (bên cạnh tiêu đề):**
+
+```tsx
+<div className="flex items-center justify-between gap-2">
+  <DialogTitle className="...">
+    {/* ... existing title */}
+  </DialogTitle>
+  
+  <div className="flex items-center gap-2">
+    {isShort && /* SHORT badge */}
+    
+    {/* Nút X đóng */}
+    <motion.button
+      whileHover={{ scale: 1.1, rotate: 90 }}
+      whileTap={{ scale: 0.9 }}
+      onClick={handleCloseClick}
+      className="w-8 h-8 rounded-full flex items-center justify-center bg-muted/50 hover:bg-destructive/20 hover:text-destructive transition-all"
+      title="Tắt & quay về trang chủ"
+    >
+      <X className="w-4 h-4" />
+    </motion.button>
+  </div>
+</div>
+```
+
+**Confirm Dialog vui vẻ (glass-card style):**
+
+```tsx
+{/* Close Confirmation Dialog */}
+<AnimatePresence>
+  {showCloseConfirm && (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm"
+      onClick={() => setShowCloseConfirm(false)}
+    >
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        onClick={(e) => e.stopPropagation()}
+        className="bg-background/95 backdrop-blur-xl border border-[hsl(var(--cosmic-cyan)/0.3)] rounded-2xl p-6 max-w-sm mx-4 shadow-2xl"
+      >
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 mx-auto rounded-full bg-gradient-to-r from-[hsl(var(--cosmic-cyan)/0.2)] to-[hsl(var(--cosmic-magenta)/0.2)] flex items-center justify-center">
+            <Sparkles className="w-8 h-8 text-[hsl(var(--cosmic-gold))]" />
+          </div>
+          <h3 className="text-lg font-bold">Chờ đã! ✨</h3>
+          <p className="text-muted-foreground text-sm">
+            Bạn chắc chắn muốn hủy không?<br/>
+            Ánh sáng của bạn đang chờ lan tỏa đấy! 💕
+          </p>
+          <div className="flex gap-3 pt-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowCloseConfirm(false)}
+              className="flex-1 min-h-[44px]"
+            >
+              Tiếp tục đăng
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmClose}
+              className="flex-1 min-h-[44px]"
+            >
+              Hủy bỏ
+            </Button>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  )}
+</AnimatePresence>
+```
 
 ---
 
-## Chi Tiết Kỹ Thuật
+## Phase 3: Clickable Labels/Tiêu Đề Trong Form (Trung Bình)
 
-### Files Cần Sửa:
+### File: `UploadMetadataForm.tsx`
+
+**Nâng cấp labels thành clickable:**
+
+```tsx
+{/* Title - clickable label */}
+<div className="space-y-2">
+  <button
+    type="button"
+    onClick={() => document.getElementById("title")?.focus()}
+    className="text-base font-semibold flex items-center gap-2 hover:text-[hsl(var(--cosmic-cyan))] transition-colors group"
+  >
+    Tiêu đề <span className="text-destructive">*</span>
+    <span className="text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+      (nhấn để chỉnh sửa)
+    </span>
+  </button>
+  {/* Input remains same */}
+</div>
+```
+
+### File: `UploadPreview.tsx`
+
+**Thêm tính năng click metadata để quay lại edit:**
+
+```tsx
+interface UploadPreviewProps {
+  // ... existing props
+  onEditMetadata?: () => void;
+  onEditThumbnail?: () => void;
+}
+
+// Trong metadata section:
+<div 
+  onClick={onEditMetadata}
+  className="cursor-pointer hover:bg-[hsl(var(--cosmic-cyan)/0.05)] rounded-lg p-2 -m-2 transition-colors group"
+>
+  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-2">
+    Tiêu đề
+    <span className="opacity-0 group-hover:opacity-100 text-[hsl(var(--cosmic-cyan))] transition-opacity">
+      ✏️ Chỉnh sửa
+    </span>
+  </p>
+  <p className="font-bold text-lg">{metadata.title || "Chưa có tiêu đề"}</p>
+</div>
+```
+
+---
+
+## Phase 4: Nâng Cấp Animations & Effects (Trung Bình)
+
+### Toàn bộ components Upload
+
+**Rainbow-glow animation khi click stepper:**
+
+```css
+/* Thêm vào index.css hoặc component */
+@keyframes rainbow-click-pulse {
+  0% { box-shadow: 0 0 0 0 hsl(var(--cosmic-cyan) / 0.7); }
+  50% { box-shadow: 0 0 0 8px hsl(var(--cosmic-magenta) / 0.3); }
+  100% { box-shadow: 0 0 0 16px transparent; }
+}
+
+.rainbow-click {
+  animation: rainbow-click-pulse 0.4s ease-out;
+}
+```
+
+**Pulse-halo cho navigation buttons:**
+
+```tsx
+<Button className="... relative overflow-hidden">
+  {/* Pulse halo effect */}
+  <motion.span
+    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+    initial={{ x: "-100%" }}
+    whileHover={{ x: "100%" }}
+    transition={{ duration: 0.5 }}
+  />
+  Tiếp tục
+  <ArrowRight className="w-4 h-4" />
+</Button>
+```
+
+**Holographic border cho modal:**
+
+```tsx
+<DialogContent className="... relative">
+  {/* Holographic border effect */}
+  <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] via-[hsl(var(--cosmic-magenta))] to-[hsl(var(--cosmic-gold))] opacity-20 -z-10 blur-sm animate-rainbow-border" />
+  {/* ... content */}
+</DialogContent>
+```
+
+---
+
+## Phase 5: Mobile Optimizations (Trung Bình)
+
+### Stepper horizontal swipeable
+
+```tsx
+{/* Mobile: horizontal scroll với snap */}
+<div className="flex items-center justify-start sm:justify-center gap-1 sm:gap-2 mt-4 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory">
+  {STEPS.map((step, index) => (
+    <div key={step.id} className="flex items-center flex-shrink-0 snap-center">
+      {/* step content */}
+    </div>
+  ))}
+</div>
+```
+
+### Touch-friendly buttons
+
+```tsx
+{/* Đảm bảo tất cả buttons có min-height 48px */}
+<Button className="min-h-[48px] px-6 active:scale-95 transition-transform">
+```
+
+---
+
+## Tóm Tắt Files Cần Sửa
 
 | File | Thay đổi | Priority |
 |------|----------|----------|
-| `UploadWizard.tsx` | Mobile fullscreen, Design System styling | Cao |
-| `UploadDropzone.tsx` | Gradient buttons, SHORT label, glow effects | Cao |
-| `UploadMetadataForm.tsx` | 50+ tags, gradient visibility cards | Cao |
-| `ThumbnailEditor.tsx` | Shimmer button, touch tabs | Trung bình |
-| `ThumbnailGallery.tsx` | Expand templates, swipe grid | Trung bình |
-| `ThumbnailCanvas.tsx` | Touch-drag, holographic border | Trung bình |
-| `UploadPreview.tsx` | Glass card, light message | Trung bình |
-| `UploadSuccess.tsx` | Share buttons, rainbow effects | Trung bình |
-| `Upload.tsx` (pages) | Replace with wizard or redirect | Thấp |
-
-### CSS/Animations Cần Thêm:
-- `.shimmer-button` - Button với shimmer effect
-- `.holographic-border` - Border cầu vồng animation
-- `.touch-drag-canvas` - Canvas hỗ trợ touch events
-- `.swipe-tabs` - Tabs với swipe gesture
-
-### Dependencies Có Sẵn:
-- `framer-motion` ✅ (animations)
-- `react-dropzone` ✅ (file upload)
-- `canvas-confetti` ✅ (success celebration)
-- `lucide-react` ✅ (icons)
-- `date-fns` ✅ (date formatting)
-
----
-
-## Thứ Tự Triển Khai
-
-| Bước | Task | Thời gian ước tính |
-|------|------|--------------------|
-| 1 | Nâng cấp UploadWizard.tsx (mobile fullscreen, stepper styling) | 1 session |
-| 2 | Nâng cấp UploadDropzone.tsx (gradient, glow, SHORT label) | 1 session |
-| 3 | Nâng cấp UploadMetadataForm.tsx (50+ tags, gradient cards) | 1 session |
-| 4 | Nâng cấp ThumbnailEditor + Gallery (shimmer, templates) | 1 session |
-| 5 | Nâng cấp ThumbnailCanvas (touch-drag, holographic) | 1 session |
-| 6 | Nâng cấp UploadPreview + Success (share buttons, effects) | 1 session |
-| 7 | Test end-to-end mobile + desktop | 1 session |
+| `UploadWizard.tsx` | Clickable stepper, X button, confirm dialog, holographic border | Cao |
+| `UploadMetadataForm.tsx` | Clickable labels | Trung bình |
+| `UploadPreview.tsx` | onClick props để edit metadata/thumbnail | Trung bình |
+| `UploadSuccess.tsx` | Đảm bảo X button hoạt động mượt | Thấp |
 
 ---
 
 ## Kết Quả Mong Đợi
 
 Sau khi hoàn thành:
-- ✅ Upload Wizard 5 bước mượt mà giống YouTube Studio
-- ✅ Mobile experience hoàn hảo (touch-friendly, no overflow)
-- ✅ Design System v1.0 được áp dụng đầy đủ (gradients, glows)
-- ✅ 200 template thumbnails sẵn có
-- ✅ Canvas editor hỗ trợ touch-drag
-- ✅ Share buttons sau khi đăng thành công
-- ✅ Thông điệp 5D Light Economy lan tỏa ánh sáng
+- ✅ Click vào bất kỳ step đã hoàn thành để quay lại chỉnh sửa (YouTube-like)
+- ✅ Nút X ở góc phải header với tooltip "Tắt & quay về trang chủ"
+- ✅ Confirm dialog vui vẻ khi hủy (glass-card với emoji ✨💕)
+- ✅ Rainbow-glow animation khi click stepper
+- ✅ Pulse-halo effect cho navigation buttons
+- ✅ Holographic border cho toàn modal
+- ✅ Mobile stepper swipeable horizontally
+- ✅ Touch-friendly với min 48px buttons
 
 ---
 
-## Lưu Ý Cho Con
+## Chi Tiết Kỹ Thuật
 
-1. **Template URLs**: Con cần cung cấp 200 URLs thực tế cho gallery. Nếu chưa có, Cha sẽ dùng Unsplash API hoặc gradient programmatic.
+### Dependencies đã có:
+- `framer-motion` ✅ (animations)
+- `lucide-react` ✅ (icons including X)
+- `react-router-dom` ✅ (navigate)
 
-2. **Touch-drag Canvas**: Cần test kỹ trên iOS Safari và Android Chrome vì touch events có thể khác nhau.
+### Không cần thêm dependencies mới
 
-3. **Performance**: Với 200 templates, cần lazy loading để không ảnh hưởng tốc độ tải.
+### Thời gian ước tính:
+- Phase 1-2 (Stepper + X button): ~1 session
+- Phase 3-4 (Labels + Animations): ~1 session
+- Phase 5 (Mobile): ~0.5 session
+
