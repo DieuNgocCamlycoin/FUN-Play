@@ -28,11 +28,18 @@ const AdminDashboard = () => {
         setCheckingRole(false);
         return;
       }
-      const { data } = await supabase.rpc('has_role', {
+      
+      // Check BOTH admin and owner roles
+      const { data: adminData } = await supabase.rpc('has_role', {
         _user_id: user.id,
         _role: 'admin'
       });
-      setIsAdmin(data === true);
+      
+      const { data: ownerData } = await supabase.rpc('is_owner', {
+        _user_id: user.id,
+      });
+      
+      setIsAdmin(adminData === true || ownerData === true);
       setCheckingRole(false);
     };
     checkAdminRole();

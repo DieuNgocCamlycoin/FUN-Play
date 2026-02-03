@@ -59,14 +59,17 @@ export default function AdminVideoApproval() {
   const checkAdminRole = async () => {
     if (!user) return;
     
-    const { data } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id)
-      .eq("role", "admin")
-      .maybeSingle();
+    // Check BOTH admin and owner roles using RPC functions
+    const { data: adminData } = await supabase.rpc('has_role', {
+      _user_id: user.id,
+      _role: 'admin'
+    });
     
-    if (data) {
+    const { data: ownerData } = await supabase.rpc('is_owner', {
+      _user_id: user.id,
+    });
+    
+    if (adminData === true || ownerData === true) {
       setIsAdmin(true);
       fetchVideos();
     } else {
