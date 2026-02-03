@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Gift, Trash2, AlertTriangle, Search, CheckCircle, Download, Blocks, Users, Ban, ShieldX, ArrowLeft, Coins } from "lucide-react";
+import { Gift, Trash2, AlertTriangle, Search, CheckCircle, Download, Blocks, Users, Ban, ShieldX, ArrowLeft, Coins, Crown } from "lucide-react";
 import { Navigate, useNavigate } from "react-router-dom";
 
 import RewardApprovalTab from "@/components/Admin/tabs/RewardApprovalTab";
@@ -18,10 +18,12 @@ import BlockchainTab from "@/components/Admin/tabs/BlockchainTab";
 import AllUsersTab from "@/components/Admin/tabs/AllUsersTab";
 import BannedUsersTab from "@/components/Admin/tabs/BannedUsersTab";
 import RewardPoolTab from "@/components/Admin/tabs/RewardPoolTab";
+import AdminManagementTab from "@/components/Admin/tabs/AdminManagementTab";
 
 const AdminManage = () => {
   const { user, loading: authLoading } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
   const [checkingRole, setCheckingRole] = useState(true);
   const navigate = useNavigate();
 
@@ -41,19 +43,28 @@ const AdminManage = () => {
   } = useAdminManage();
 
   useEffect(() => {
-    const checkAdminRole = async () => {
+    const checkRoles = async () => {
       if (!user) {
         setCheckingRole(false);
         return;
       }
-      const { data } = await supabase.rpc("has_role", {
+      
+      // Check admin role
+      const { data: adminData } = await supabase.rpc("has_role", {
         _user_id: user.id,
         _role: "admin",
       });
-      setIsAdmin(data === true);
+      
+      // Check owner role
+      const { data: ownerData } = await supabase.rpc("is_owner", {
+        _user_id: user.id,
+      });
+      
+      setIsAdmin(adminData === true || ownerData === true);
+      setIsOwner(ownerData === true);
       setCheckingRole(false);
     };
-    checkAdminRole();
+    checkRoles();
   }, [user]);
 
   if (authLoading || checkingRole) {
@@ -159,6 +170,9 @@ const AdminManage = () => {
             <TabsTrigger value="banned" className="gap-1 text-xs">
               <Ban className="w-3 h-3" /> Ban ({stats.bannedCount})
             </TabsTrigger>
+            <TabsTrigger value="admin-management" className="gap-1 text-xs">
+              <Crown className="w-3 h-3" /> Quản lý Admin
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="reward-pool" className="mt-4">
@@ -190,6 +204,9 @@ const AdminManage = () => {
           </TabsContent>
           <TabsContent value="banned" className="mt-4">
             <BannedUsersTab users={users} onUnban={unbanUser} loading={actionLoading} />
+          </TabsContent>
+          <TabsContent value="admin-management" className="mt-4">
+            <AdminManagementTab />
           </TabsContent>
         </Tabs>
       </div>
