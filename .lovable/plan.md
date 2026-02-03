@@ -1,178 +1,172 @@
 
+## Hệ Thống Phân Quyền Owner / Admin
 
-## Tự Động Tạo Thumbnail Từ Video (Giống YouTube)
+### Tổng Quan Yêu Cầu
 
-### Tổng Quan
+| Role | Quyền |
+|------|-------|
+| **Owner** (Diệu Ngọc) | Truy cập Admin Dashboard + Thêm/Xóa Admin |
+| **Admin** (Thu Trang, Thu Hà, hoangtydo88) | Truy cập Admin Dashboard, KHÔNG thể thêm/xóa Admin |
 
-Thay đổi logic thumbnail mặc định: thay vì dùng 10 hình Bé Ly trong thư mục `default-thumbnails`, hệ thống sẽ **tự động trích xuất 1 frame từ video** khi user không upload thumbnail riêng.
+---
 
-### Cách Hoạt Động
+### Thông Tin Tài Khoản
 
-```text
-User upload video → Không chọn thumbnail riêng
-    ↓
-Hệ thống tự động:
-    1. Load video vào <video> element (ẩn)
-    2. Seek đến giây thứ 2 (hoặc 25% duration)
-    3. Capture frame bằng <canvas>
-    4. Convert sang Blob (JPEG)
-    5. Upload thumbnail lên R2
-    6. Lưu URL vào database
-```
+| Email | Tên hiển thị | User ID | Role mới |
+|-------|--------------|---------|----------|
+| dieungoc.happycamlycoin@gmail.com | Angel Diệu Ngọc là | `b3f6d0d7-fee7-4988-a8f8-3cd97b6f86c9` | **owner** |
+| trang393934@gmail.com | Thu Trang | `43631378-8238-4967-b661-c93f89d03bb9` | admin |
+| nguyenha2340@gmail.com | Angel Thu Ha | `d06c21f9-a612-4d0e-8d22-05e89eb5120d` | admin |
+| (hoangtydo88) | Hoangtydo | `9372717d-424c-40fa-8d38-c5b757cf85a3` | admin (đã có) |
 
 ---
 
 ### Các Bước Thực Hiện
 
-#### Bước 1: Tạo utility function trích xuất frame từ video
+#### Bước 1: Thêm role `owner` vào enum `app_role`
 
-**File mới:** `src/lib/videoThumbnail.ts`
+Hiện tại enum chỉ có: `admin`, `moderator`, `user`
 
-```typescript
-/**
- * Trích xuất 1 frame từ video file làm thumbnail
- * @param videoFile - File video từ input
- * @param seekPercent - Vị trí lấy frame (0-1), mặc định 0.25 (25%)
- * @returns Promise<Blob | null> - JPEG blob của frame
- */
-export async function extractVideoThumbnail(
-  videoFile: File, 
-  seekPercent: number = 0.25
-): Promise<Blob | null> {
-  return new Promise((resolve) => {
-    const video = document.createElement('video');
-    video.preload = 'metadata';
-    video.muted = true;
-    video.playsInline = true;
-    
-    const objectUrl = URL.createObjectURL(videoFile);
-    video.src = objectUrl;
-
-    video.onloadedmetadata = () => {
-      // Seek to position (default: 25% of video duration, or 2 seconds minimum)
-      const seekTime = Math.max(2, video.duration * seekPercent);
-      video.currentTime = Math.min(seekTime, video.duration - 0.5);
-    };
-
-    video.onseeked = () => {
-      // Create canvas with video dimensions
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        URL.revokeObjectURL(objectUrl);
-        resolve(null);
-        return;
-      }
-
-      // Draw video frame to canvas
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-      // Convert to JPEG blob
-      canvas.toBlob(
-        (blob) => {
-          URL.revokeObjectURL(objectUrl);
-          resolve(blob);
-        },
-        'image/jpeg',
-        0.85 // Quality 85%
-      );
-    };
-
-    video.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      resolve(null);
-    };
-  });
-}
+```sql
+ALTER TYPE public.app_role ADD VALUE 'owner';
 ```
 
 ---
 
-#### Bước 2: Cập nhật `UploadVideoModal.tsx`
+#### Bước 2: Tạo function kiểm tra owner
 
-**Thay đổi logic upload thumbnail:**
+```sql
+CREATE OR REPLACE FUNCTION public.is_owner(_user_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.user_roles
+    WHERE user_id = _user_id AND role = 'owner'
+  )
+$$;
+```
 
-```typescript
-// Import utility mới
-import { extractVideoThumbnail } from "@/lib/videoThumbnail";
+---
 
-// Trong handleSubmit(), sau khi upload video:
+#### Bước 3: Cấp quyền cho các tài khoản
 
-// Upload thumbnail to Cloudflare R2
-let thumbnailUrl = null;
+```sql
+-- Cấp role OWNER cho Diệu Ngọc
+INSERT INTO user_roles (user_id, role) VALUES
+  ('b3f6d0d7-fee7-4988-a8f8-3cd97b6f86c9', 'owner')
+ON CONFLICT (user_id, role) DO NOTHING;
 
-// Nếu user có chọn thumbnail riêng → upload thumbnail đó
-if (thumbnailFile) {
-  // ... giữ nguyên logic hiện tại ...
-} 
-// Nếu KHÔNG chọn thumbnail VÀ có video file → tự động trích xuất từ video
-else if (videoFile) {
-  setUploadStage("Đang tạo thumbnail từ video...");
-  setUploadProgress(87);
+-- Cấp role ADMIN cho Thu Trang và Thu Hà
+INSERT INTO user_roles (user_id, role) VALUES
+  ('43631378-8238-4967-b661-c93f89d03bb9', 'admin'),
+  ('d06c21f9-a612-4d0e-8d22-05e89eb5120d', 'admin')
+ON CONFLICT (user_id, role) DO NOTHING;
+```
+
+---
+
+#### Bước 4: Tạo component quản lý Admin
+
+**File mới:** `src/components/Admin/tabs/AdminManagementTab.tsx`
+
+Chức năng:
+- Hiển thị danh sách tất cả Admin + Owner
+- Owner có thể:
+  - Thêm Admin mới (tìm user theo username/email → assign role admin)
+  - Xóa Admin (remove role admin)
+- Admin thường:
+  - Chỉ xem danh sách, không có nút thêm/xóa
+
+---
+
+#### Bước 5: Tạo database functions cho Owner
+
+```sql
+-- Function: Thêm admin mới (chỉ Owner được gọi)
+CREATE OR REPLACE FUNCTION public.add_admin_role(
+  p_owner_id uuid, 
+  p_target_user_id uuid
+)
+RETURNS boolean
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT public.is_owner(p_owner_id) THEN
+    RAISE EXCEPTION 'Only owners can add admins';
+  END IF;
   
-  const extractedBlob = await extractVideoThumbnail(videoFile);
+  INSERT INTO user_roles (user_id, role)
+  VALUES (p_target_user_id, 'admin')
+  ON CONFLICT (user_id, role) DO NOTHING;
   
-  if (extractedBlob) {
-    const thumbnailFileName = `thumbnails/${Date.now()}-auto-thumb.jpg`;
-    
-    const { data: thumbPresign, error: thumbPresignError } = await supabase.functions.invoke('r2-upload', {
-      body: {
-        action: 'getPresignedUrl',
-        fileName: thumbnailFileName,
-        contentType: 'image/jpeg',
-        fileSize: extractedBlob.size,
-      },
-    });
+  RETURN true;
+END;
+$$;
 
-    if (!thumbPresignError && thumbPresign?.presignedUrl) {
-      try {
-        const thumbResponse = await fetch(thumbPresign.presignedUrl, {
-          method: 'PUT',
-          body: extractedBlob,
-        });
-
-        if (thumbResponse.ok) {
-          thumbnailUrl = thumbPresign.publicUrl;
-          console.log('Auto-generated thumbnail uploaded:', thumbnailUrl);
-        }
-      } catch (thumbErr) {
-        console.error('Auto thumbnail upload error:', thumbErr);
-      }
-    }
-  }
-}
+-- Function: Xóa admin (chỉ Owner được gọi)
+CREATE OR REPLACE FUNCTION public.remove_admin_role(
+  p_owner_id uuid, 
+  p_target_user_id uuid
+)
+RETURNS boolean
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT public.is_owner(p_owner_id) THEN
+    RAISE EXCEPTION 'Only owners can remove admins';
+  END IF;
+  
+  -- Không cho xóa Owner
+  IF public.is_owner(p_target_user_id) THEN
+    RAISE EXCEPTION 'Cannot remove owner role';
+  END IF;
+  
+  DELETE FROM user_roles 
+  WHERE user_id = p_target_user_id AND role = 'admin';
+  
+  RETURN true;
+END;
+$$;
 ```
 
 ---
 
-#### Bước 3: Cập nhật `EditVideoModal.tsx` (Studio)
+#### Bước 6: Cập nhật Admin Dashboard UI
 
-Thêm tính năng tương tự cho trường hợp edit video và muốn regenerate thumbnail:
-
-```typescript
-// Thêm nút "Tạo từ video" bên cạnh input upload thumbnail
-
-<Button 
-  type="button" 
-  variant="outline" 
-  onClick={generateThumbnailFromVideo}
->
-  🎬 Tạo từ video
-</Button>
-```
+Thêm tab "Quản lý Admin" vào `AdminManage.tsx`:
+- Chỉ hiển thị nếu user là `owner` HOẶC `admin`
+- Các nút thêm/xóa chỉ hiển thị nếu user là `owner`
 
 ---
 
-#### Bước 4: Cập nhật fallback `getDefaultThumbnail()`
+### Sơ Đồ Phân Quyền
 
-Giữ nguyên `defaultThumbnails.ts` làm **fallback cuối cùng** cho trường hợp:
-- Video được nhập bằng YouTube URL (không có file để trích xuất)
-- Trích xuất frame thất bại
-
-Nhưng thay đổi các component để ưu tiên dùng `thumbnail_url` từ database (đã được tự động tạo từ video).
+```text
+┌──────────────────────────────────────────────────────────┐
+│                    FUN Play Admin System                  │
+├──────────────────────────────────────────────────────────┤
+│                                                          │
+│  OWNER (Diệu Ngọc)                                       │
+│  ├── ✅ Truy cập Admin Dashboard                         │
+│  ├── ✅ Quản lý Users, Videos, Rewards                   │
+│  ├── ✅ Xem tất cả thống kê                              │
+│  ├── ✅ THÊM Admin mới                                   │
+│  └── ✅ XÓA Admin                                        │
+│                                                          │
+│  ADMIN (Thu Trang, Thu Hà, hoangtydo88)                  │
+│  ├── ✅ Truy cập Admin Dashboard                         │
+│  ├── ✅ Quản lý Users, Videos, Rewards                   │
+│  ├── ✅ Xem tất cả thống kê                              │
+│  ├── ❌ KHÔNG thể thêm Admin                             │
+│  └── ❌ KHÔNG thể xóa Admin                              │
+│                                                          │
+└──────────────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -180,35 +174,23 @@ Nhưng thay đổi các component để ưu tiên dùng `thumbnail_url` từ dat
 
 | File | Thay đổi |
 |------|----------|
-| `src/lib/videoThumbnail.ts` | **MỚI** - Utility trích xuất frame từ video |
-| `src/components/Video/UploadVideoModal.tsx` | Tự động tạo thumbnail nếu user không chọn |
-| `src/components/Studio/EditVideoModal.tsx` | Thêm nút "Tạo từ video" |
+| **Database Migration** | Thêm role `owner` vào enum, tạo functions |
+| `src/components/Admin/tabs/AdminManagementTab.tsx` | **MỚI** - UI quản lý admin |
+| `src/pages/AdminManage.tsx` | Thêm tab "Quản lý Admin" |
+| `src/hooks/useAdminManage.ts` | Thêm functions addAdmin, removeAdmin |
 
 ---
 
-### Chi Tiết Kỹ Thuật
+### Bảo Mật
 
-**Tại sao chọn 25% duration?**
-- Frame đầu (0s) thường là logo/intro
-- 25% duration thường hiển thị nội dung chính của video
-- Giống cách YouTube chọn thumbnail mặc định
-
-**Tại sao dùng JPEG 85%?**
-- Cân bằng chất lượng và dung lượng
-- JPEG phù hợp cho hình ảnh thực (video frame)
-- 85% gần như không nhìn thấy sự khác biệt với 100%
-
-**Edge cases:**
-- Video rất ngắn (<3 giây): Lấy frame ở giây thứ 1
-- Video URL (YouTube): Giữ fallback hình Bé Ly
-- Trích xuất thất bại: Giữ fallback hình Bé Ly
+1. **Server-side validation**: Tất cả actions thêm/xóa admin được validate trong database function với `SECURITY DEFINER`
+2. **Role-based check**: UI ẩn nút thêm/xóa cho non-owner, nhưng backend vẫn validate
+3. **Cannot remove owner**: Function `remove_admin_role` kiểm tra không cho xóa owner
 
 ---
 
 ### Kết Quả Mong Đợi
 
 Sau khi implement:
-- User upload video → Thumbnail tự động được tạo từ frame video
-- Không còn thấy hình Bé Ly lặp lại nhiều lần
-- Giống trải nghiệm YouTube khi user không chọn thumbnail
-
+- Diệu Ngọc (Owner): Thấy tab "Quản lý Admin", có thể thêm/xóa admin
+- Thu Trang, Thu Hà, hoangtydo88 (Admin): Truy cập Admin Dashboard đầy đủ, nhưng KHÔNG thấy nút thêm/xóa admin
