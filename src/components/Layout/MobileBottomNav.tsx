@@ -4,7 +4,9 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useState } from "react";
 import { UploadWizard } from "@/components/Upload/UploadWizard";
+import { MobileUploadFlow } from "@/components/Upload/Mobile/MobileUploadFlow";
 import { useHapticFeedback } from "@/hooks/useHapticFeedback";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface NavItem {
   icon: typeof Home;
@@ -27,6 +29,7 @@ export const MobileBottomNav = () => {
   const { user } = useAuth();
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const { lightTap, mediumTap } = useHapticFeedback();
+  const isMobile = useIsMobile();
 
   const handleNavClick = (item: typeof navItems[0]) => {
     lightTap(); // Haptic feedback on every nav tap
@@ -91,7 +94,12 @@ export const MobileBottomNav = () => {
         </div>
       </nav>
 
-      <UploadWizard open={uploadModalOpen} onOpenChange={setUploadModalOpen} />
+      {/* Use MobileUploadFlow for mobile, UploadWizard for desktop */}
+      {isMobile ? (
+        <MobileUploadFlow open={uploadModalOpen} onOpenChange={setUploadModalOpen} />
+      ) : (
+        <UploadWizard open={uploadModalOpen} onOpenChange={setUploadModalOpen} />
+      )}
     </>
   );
 };
