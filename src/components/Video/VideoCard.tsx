@@ -11,7 +11,7 @@ import { AddToPlaylistModal } from "@/components/Playlist/AddToPlaylistModal";
 import { WatchLaterButton } from "./WatchLaterButton";
 import { LazyImage } from "@/components/ui/LazyImage";
 import { useHapticFeedback } from "@/hooks/useHapticFeedback";
-import { getDefaultThumbnail } from "@/lib/defaultThumbnails";
+import { VideoPlaceholder } from "./VideoPlaceholder";
 
 interface VideoCardProps {
   thumbnail?: string;
@@ -119,12 +119,16 @@ export const VideoCard = ({
 
       {/* Thumbnail with Lazy Loading */}
       <div className="relative aspect-video overflow-hidden rounded-t-lg" onClick={handlePlay}>
-        <LazyImage
-          src={thumbnail || getDefaultThumbnail(videoId)}
-          alt={title || 'Video thumbnail'}
-          aspectRatio="video"
-          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-        />
+        {thumbnail ? (
+          <LazyImage
+            src={thumbnail}
+            alt={title || 'Video thumbnail'}
+            aspectRatio="video"
+            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+          />
+        ) : (
+          <VideoPlaceholder className="group-hover:scale-110 transition-transform duration-700" />
+        )}
         
         {/* Rainbow prism halo overlay on hover */}
         <div className="absolute inset-0 bg-gradient-to-br from-glow-sapphire/30 via-glow-cyan/25 via-glow-magenta/25 to-divine-rose-gold/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />

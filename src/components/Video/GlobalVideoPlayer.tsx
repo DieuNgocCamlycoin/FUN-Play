@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Card } from "@/components/ui/card";
 import { useNavigate, useLocation } from "react-router-dom";
-import { getDefaultThumbnail } from "@/lib/defaultThumbnails";
+import { VideoPlaceholder } from "./VideoPlaceholder";
 import { cn } from "@/lib/utils";
 
 interface GlobalVideoState {
@@ -273,11 +273,15 @@ export const GlobalVideoPlayer = () => {
                   animate={isPlaying ? { scale: [1, 1.02, 1] } : {}}
                   transition={{ duration: 2, repeat: Infinity }}
                 >
-                  <img 
-                    src={videoState.thumbnailUrl || getDefaultThumbnail(videoState.videoId)} 
-                    alt={videoState.title}
-                    className="w-full h-full object-cover"
-                  />
+                  {videoState.thumbnailUrl ? (
+                    <img 
+                      src={videoState.thumbnailUrl} 
+                      alt={videoState.title}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <VideoPlaceholder />
+                  )}
                   {isPlaying && (
                     <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
                       <div className="w-3 h-3 rounded-full bg-primary animate-pulse" />

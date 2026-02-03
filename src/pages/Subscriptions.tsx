@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { getDefaultThumbnail } from '@/lib/defaultThumbnails';
+import { VideoPlaceholder } from '@/components/Video/VideoPlaceholder';
 
 interface SubscribedChannel {
   id: string;
@@ -295,11 +295,15 @@ const Subscriptions = () => {
                           onClick={() => navigate(`/watch/${video.id}`)}
                         >
                           <div className="relative aspect-video rounded-lg overflow-hidden bg-muted">
-                            <img
-                              src={video.thumbnail_url || getDefaultThumbnail(video.id)}
-                              alt={video.title}
-                              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                            />
+                            {video.thumbnail_url ? (
+                              <img
+                                src={video.thumbnail_url}
+                                alt={video.title}
+                                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                              />
+                            ) : (
+                              <VideoPlaceholder className="transition-transform duration-300 group-hover:scale-105" />
+                            )}
                             <div className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1 rounded">
                               {formatDuration(video.duration)}
                             </div>

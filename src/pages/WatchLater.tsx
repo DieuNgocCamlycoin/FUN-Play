@@ -6,7 +6,7 @@ import { Sidebar } from '@/components/Layout/Sidebar';
 import { Button } from '@/components/ui/button';
 import { useWatchLater } from '@/hooks/useWatchLater';
 import { useVideoPlayback } from '@/contexts/VideoPlaybackContext';
-import { getDefaultThumbnail } from '@/lib/defaultThumbnails';
+import { VideoPlaceholder } from '@/components/Video/VideoPlaceholder';
 
 const WatchLater = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -125,11 +125,15 @@ const WatchLater = () => {
 
                   {/* Thumbnail */}
                   <div className="relative w-40 aspect-video rounded-lg overflow-hidden bg-muted shrink-0">
-                    <img
-                      src={item.video.thumbnail_url || getDefaultThumbnail(item.video_id)}
-                      alt={item.video.title}
-                      className="w-full h-full object-cover"
-                    />
+                    {item.video.thumbnail_url ? (
+                      <img
+                        src={item.video.thumbnail_url}
+                        alt={item.video.title}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <VideoPlaceholder />
+                    )}
                     <div className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1 rounded">
                       {formatDuration(item.video.duration)}
                     </div>

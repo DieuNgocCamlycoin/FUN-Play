@@ -14,7 +14,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useWatchHistory } from '@/hooks/useWatchHistory';
-import { getDefaultThumbnail } from '@/lib/defaultThumbnails';
+import { VideoPlaceholder } from '@/components/Video/VideoPlaceholder';
 
 const WatchHistory = () => {
   const { watchHistory, loading, removeFromHistory, clearAllHistory } = useWatchHistory();
@@ -187,11 +187,15 @@ const WatchHistory = () => {
                       >
                         {/* Thumbnail */}
                         <div className="relative w-40 aspect-video rounded-lg overflow-hidden bg-muted shrink-0">
-                          <img
-                            src={item.video.thumbnail_url || getDefaultThumbnail(item.video_id)}
-                            alt={item.video.title}
-                            className="w-full h-full object-cover"
-                          />
+                          {item.video.thumbnail_url ? (
+                            <img
+                              src={item.video.thumbnail_url}
+                              alt={item.video.title}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <VideoPlaceholder />
+                          )}
                           {/* Progress bar */}
                           <div className="absolute bottom-0 left-0 right-0 h-1 bg-background/50">
                             <div

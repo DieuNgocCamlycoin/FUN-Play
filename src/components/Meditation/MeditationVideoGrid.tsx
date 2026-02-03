@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { Play, Clock, Eye } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getDefaultThumbnail } from "@/lib/defaultThumbnails";
+import { VideoPlaceholder } from "@/components/Video/VideoPlaceholder";
 
 interface Video {
   id: string;
@@ -87,11 +87,15 @@ export const MeditationVideoGrid = ({ videos, isLoading, onVideoSelect }: Medita
             <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500/30 to-purple-500/30 rounded-xl blur-lg opacity-0 group-hover:opacity-60 transition-opacity duration-500" />
 
             {/* Thumbnail Image */}
-            <img
-              src={video.thumbnail_url || getDefaultThumbnail(video.id)}
-              alt={video.title}
-              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-            />
+            {video.thumbnail_url ? (
+              <img
+                src={video.thumbnail_url}
+                alt={video.title}
+                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+              />
+            ) : (
+              <VideoPlaceholder className="transition-transform duration-500 group-hover:scale-105" />
+            )}
 
             {/* Play Overlay */}
             <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
