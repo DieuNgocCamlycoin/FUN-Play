@@ -14,6 +14,7 @@ import { useAutoReward } from "@/hooks/useAutoReward";
 import { supabase } from "@/integrations/supabase/client";
 import { useR2Upload } from "@/hooks/useR2Upload";
 import { VIDEO_CATEGORY_OPTIONS, VideoSubCategory } from "@/lib/videoCategories";
+import { extractVideoThumbnail } from "@/lib/videoThumbnail";
 import { Upload as UploadIcon, Video, CheckCircle, Clock } from "lucide-react";
 
 export default function Upload() {
@@ -326,7 +327,9 @@ export default function Upload() {
 
       // Step 3: Upload thumbnail to R2 (85% - 90% progress)
       let thumbnailUrl = null;
+      
       if (thumbnailFile) {
+        // User đã chọn thumbnail riêng → Upload lên R2
         setUploadStage("Đang tải thumbnail lên R2...");
         setUploadProgress(87);
         
@@ -355,6 +358,45 @@ export default function Upload() {
           } catch (thumbErr) {
             console.error('Thumbnail upload error:', thumbErr);
           }
+        }
+      } else {
+        // TỰ ĐỘNG tạo thumbnail từ video (giống YouTube)
+        setUploadStage("Đang tạo thumbnail từ video...");
+        setUploadProgress(87);
+        
+        try {
+          const thumbnailBlob = await extractVideoThumbnail(videoFile, 0.25);
+          
+          if (thumbnailBlob) {
+            setUploadStage("Đang upload thumbnail tự động...");
+            setUploadProgress(88);
+            
+            const autoThumbFileName = `thumbnails/${Date.now()}-auto-thumb.jpg`;
+            
+            const { data: thumbPresign, error: thumbPresignError } = await supabase.functions.invoke('r2-upload', {
+              body: {
+                action: 'getPresignedUrl',
+                fileName: autoThumbFileName,
+                contentType: 'image/jpeg',
+                fileSize: thumbnailBlob.size,
+              },
+            });
+
+            if (!thumbPresignError && thumbPresign?.presignedUrl) {
+              const thumbResponse = await fetch(thumbPresign.presignedUrl, {
+                method: 'PUT',
+                body: thumbnailBlob,
+                headers: { 'Content-Type': 'image/jpeg' },
+              });
+              
+              if (thumbResponse.ok) {
+                thumbnailUrl = thumbPresign.publicUrl;
+                console.log('Auto-generated thumbnail uploaded:', thumbnailUrl);
+              }
+            }
+          }
+        } catch (thumbErr) {
+          console.warn('Auto thumbnail generation failed, video will use placeholder:', thumbErr);
         }
       }
 
