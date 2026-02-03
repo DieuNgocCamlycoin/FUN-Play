@@ -106,7 +106,7 @@ export const VideoCard = ({
   };
 
   return (
-    <Card className="group overflow-hidden bg-white/95 dark:bg-white/90 backdrop-blur-sm holographic border-2 border-white/30 hover:border-white/50 transition-all duration-500 cursor-pointer relative shadow-lg">
+    <Card className="group overflow-hidden bg-white/95 dark:bg-white/90 backdrop-blur-sm border-2 border-white/30 hover:border-white/50 transition-all duration-500 cursor-pointer relative shadow-lg">
       {/* Rainbow diamond sparkle effect on hover */}
       <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500">
         <div className="absolute top-1/4 left-1/4 w-3 h-3 bg-glow-sapphire rounded-full animate-[sparkle_1s_ease-in-out_infinite] shadow-[0_0_20px_rgba(0,102,255,1)]" />
