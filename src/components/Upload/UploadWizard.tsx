@@ -401,16 +401,17 @@ export function UploadWizard({ open, onOpenChange }: UploadWizardProps) {
       <DialogContent 
         hideCloseButton
         className={cn(
-          "flex flex-col p-0 gap-0 overflow-hidden relative bg-background border-border",
-          // Mobile: fullscreen
-          isMobile ? "max-w-full w-full h-full max-h-full rounded-none" : "max-w-4xl max-h-[90vh] rounded-2xl"
+          "!flex !flex-col p-0 gap-0 overflow-hidden relative bg-background border-border",
+          isMobile 
+            ? "max-w-full w-full h-full max-h-full rounded-none" 
+            : "max-w-4xl w-[90vw] h-[85vh] max-h-[85vh] rounded-2xl shadow-2xl"
         )}
       >
         {/* Holographic border effect */}
         <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] via-[hsl(var(--cosmic-magenta))] to-[hsl(var(--cosmic-gold))] opacity-10 pointer-events-none" />
         
         {/* Header with gradient border */}
-        <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-4 border-b border-border/50 bg-gradient-to-r from-background via-background to-background relative z-10">
+        <DialogHeader className="px-4 sm:px-6 pt-3 sm:pt-4 pb-3 border-b border-border/50 bg-gradient-to-r from-background via-background to-background relative z-10 flex-shrink-0">
           {/* Aurora glow effect */}
           <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] via-[hsl(var(--cosmic-magenta))] to-[hsl(var(--cosmic-gold))] opacity-50" />
           
@@ -509,7 +510,7 @@ export function UploadWizard({ open, onOpenChange }: UploadWizardProps) {
 
         {/* Content area with smooth transitions */}
         <div className={cn(
-          "flex-1 overflow-auto px-4 sm:px-6 py-4 relative z-10",
+          "flex-1 min-h-0 overflow-y-auto scroll-smooth px-4 sm:px-6 py-4 sm:py-6 relative z-10",
           isMobile && "pb-20" // Extra padding for mobile bottom nav
         )}>
           <AnimatePresence mode="wait">
