@@ -8,10 +8,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, AreaChart, Area } from "recharts";
-import { Users, Video, Eye, MessageSquare, Coins, TrendingUp, Crown, Award, Activity, ShieldX, CloudUpload, BarChart3, Settings, Wallet, Download } from "lucide-react";
+import { Users, Video, Eye, MessageSquare, Coins, TrendingUp, Crown, Award, Activity, ShieldX, CloudUpload, BarChart3, Settings, Wallet, Download, Image } from "lucide-react";
 import { format } from "date-fns";
 import { Navigate, useNavigate } from "react-router-dom";
 import VideoMigrationPanel from "@/components/Admin/VideoMigrationPanel";
+import ThumbnailRegenerationPanel from "@/components/Admin/ThumbnailRegenerationPanel";
 import { toast } from "sonner";
 
 const AdminDashboard = () => {
@@ -270,10 +271,14 @@ const AdminDashboard = () => {
 
         {/* Charts */}
         <Tabs defaultValue="activity" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="activity">Hoạt động</TabsTrigger>
             <TabsTrigger value="rewards">Phần thưởng</TabsTrigger>
             <TabsTrigger value="engagement">Tương tác</TabsTrigger>
+            <TabsTrigger value="thumbnails" className="flex items-center gap-1">
+              <Image className="w-4 h-4" />
+              Thumbnails
+            </TabsTrigger>
             <TabsTrigger value="migration" className="flex items-center gap-1">
               <CloudUpload className="w-4 h-4" />
               Migration
@@ -391,6 +396,10 @@ const AdminDashboard = () => {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="thumbnails">
+            <ThumbnailRegenerationPanel />
           </TabsContent>
 
           <TabsContent value="migration">
