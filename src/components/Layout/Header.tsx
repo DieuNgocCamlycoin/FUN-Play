@@ -9,9 +9,11 @@ import { CAMLYMiniWidget } from "@/components/Web3/CAMLYMiniWidget";
 import { FunWalletMiniWidget } from "@/components/Web3/FunWalletMiniWidget";
 import { UploadWizard } from "@/components/Upload/UploadWizard";
 import { ClaimRewardsButton } from "@/components/Rewards/ClaimRewardsButton";
+import { AngelChat } from "@/components/Mascot/AngelChat";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,6 +22,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -35,6 +43,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
+  const [angelChatOpen, setAngelChatOpen] = useState(false);
 
   // Check admin/owner role
   useEffect(() => {
@@ -207,6 +216,38 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
             </DropdownMenuContent>
           </DropdownMenu>
         )}
+
+        {/* ANGEL AI Chat Button */}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setAngelChatOpen(true)}
+                className="relative rounded-full overflow-hidden h-9 w-9 hover:scale-110 transition-transform"
+              >
+                <motion.div
+                  className="absolute inset-0 rounded-full"
+                  animate={{
+                    boxShadow: [
+                      '0 0 10px rgba(255,215,0,0.4)',
+                      '0 0 20px rgba(255,215,0,0.6)',
+                      '0 0 10px rgba(255,215,0,0.4)'
+                    ]
+                  }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                />
+                <img 
+                  src="/images/angel-transparent.png" 
+                  alt="ANGEL AI" 
+                  className="w-8 h-8 object-contain relative z-10"
+                />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Chat với ANGEL AI ✨</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
         
         <Button variant="ghost" size="icon" className="hidden md:flex">
           <Bell className="h-5 w-5" />
@@ -274,6 +315,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
       </div>
       
       <UploadWizard open={uploadModalOpen} onOpenChange={setUploadModalOpen} />
+      <AngelChat isOpen={angelChatOpen} onClose={() => setAngelChatOpen(false)} />
     </header>
   );
 };
