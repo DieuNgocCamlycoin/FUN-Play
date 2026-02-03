@@ -399,10 +399,11 @@ export function UploadWizard({ open, onOpenChange }: UploadWizardProps) {
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent 
+        hideCloseButton
         className={cn(
-          "flex flex-col p-0 gap-0 overflow-hidden relative",
+          "flex flex-col p-0 gap-0 overflow-hidden relative bg-background border-border",
           // Mobile: fullscreen
-          isMobile ? "max-w-full w-full h-full max-h-full rounded-none" : "max-w-4xl max-h-[90vh]"
+          isMobile ? "max-w-full w-full h-full max-h-full rounded-none" : "max-w-4xl max-h-[90vh] rounded-2xl"
         )}
       >
         {/* Holographic border effect */}
