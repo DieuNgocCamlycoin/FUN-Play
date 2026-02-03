@@ -22,6 +22,7 @@ import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { DynamicMeta } from "@/components/SEO/DynamicMeta";
 import { setGlobalVideoState, setGlobalPlayingState } from "@/components/Video/GlobalVideoPlayer";
+import { MobileWatchView } from "@/components/Video/Mobile/MobileWatchView";
 
 interface Video {
   id: string;
@@ -578,6 +579,55 @@ export default function Watch() {
 
   const shareUrl = `${window.location.origin}/watch/${video.id}`;
 
+  // Mobile view - use new YouTube-style layout
+  if (isMobile) {
+    return (
+      <>
+        <DynamicMeta
+          title={`${video.title} - ${video.channels?.name || "FUN Play"}`}
+          description={video.description || `Xem video "${video.title}" trên FUN Play - Web3 Video Platform`}
+          image={video.thumbnail_url || "https://lovable.dev/opengraph-image-p98pqg.png"}
+          url={shareUrl}
+          type="video.other"
+        />
+        <MobileWatchView
+          video={video}
+          comments={comments}
+          isSubscribed={isSubscribed}
+          hasLiked={hasLiked}
+          onSubscribe={handleSubscribe}
+          onLike={handleLike}
+          onShare={() => setShareModalOpen(true)}
+          onVideoEnd={handleVideoEnd}
+        />
+        <ShareModal
+          isOpen={shareModalOpen}
+          onClose={() => setShareModalOpen(false)}
+          contentId={id || ""}
+          contentTitle={video?.title || ""}
+          contentType="video"
+          thumbnailUrl={video?.thumbnail_url || undefined}
+          channelName={video?.channels?.name}
+          userId={user?.id}
+        />
+        <TipModal
+          open={tipModalOpen}
+          onOpenChange={setTipModalOpen}
+          videoId={id}
+          creatorName={video?.channels.name || ""}
+          channelUserId={video?.user_id}
+        />
+        <RewardNotification 
+          amount={rewardNotif.amount}
+          type={rewardNotif.type}
+          show={rewardNotif.show}
+          onClose={() => setRewardNotif(prev => ({ ...prev, show: false }))}
+        />
+      </>
+    );
+  }
+
+  // Desktop view - keep existing layout
   return (
     <>
       {/* Dynamic Open Graph Meta Tags for Video */}
@@ -589,7 +639,7 @@ export default function Watch() {
         type="video.other"
       />
 
-      <div className="min-h-screen bg-background" {...(isMobile ? swipeHandlers : {})}>
+      <div className="min-h-screen bg-background">
         <Header onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
         <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
@@ -868,27 +918,6 @@ export default function Watch() {
         onClose={() => setRewardNotif(prev => ({ ...prev, show: false }))}
       />
 
-      {/* Mobile Mini Player */}
-      {isMobile && showMiniPlayer && video && (
-        <MiniPlayer
-          videoUrl={video.video_url}
-          title={video.title}
-          channelName={video.channels.name}
-          isPlaying={isPlaying}
-          currentTime={currentTime}
-          duration={duration}
-          onClose={() => setShowMiniPlayer(false)}
-          onExpand={() => {
-            setShowMiniPlayer(false);
-            videoPlayerRef.current?.scrollIntoView({ behavior: "smooth" });
-          }}
-          onPlayPause={() => setIsPlaying(!isPlaying)}
-          onNext={() => {
-            const next = nextVideo();
-            if (next) navigate(`/watch/${next.id}`);
-          }}
-        />
-      )}
     </div>
     </>
   );
