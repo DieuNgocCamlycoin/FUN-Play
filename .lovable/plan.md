@@ -1,196 +1,217 @@
 
-## Hệ Thống Phân Quyền Owner / Admin
+## Kế Hoạch Hoàn Thiện Admin Dashboard
 
-### Tổng Quan Yêu Cầu
+### Vấn Đề Đã Xác Định
 
-| Role | Quyền |
-|------|-------|
-| **Owner** (Diệu Ngọc) | Truy cập Admin Dashboard + Thêm/Xóa Admin |
-| **Admin** (Thu Trang, Thu Hà, hoangtydo88) | Truy cập Admin Dashboard, KHÔNG thể thêm/xóa Admin |
+**Diệu Ngọc có role `owner` trong database nhưng Admin Dashboard chỉ kiểm tra role `admin`:**
 
----
+```
+Database hiện tại:
+- b3f6d0d7... (Diệu Ngọc): role = owner + user  ✓
+- 43631378... (Thu Trang): role = admin + user  ✓
+- d06c21f9... (Thu Hà): role = admin + user  ✓
+```
 
-### Thông Tin Tài Khoản
+**Bug trong code AdminDashboard.tsx (dòng 25-38):**
 
-| Email | Tên hiển thị | User ID | Role mới |
-|-------|--------------|---------|----------|
-| dieungoc.happycamlycoin@gmail.com | Angel Diệu Ngọc là | `b3f6d0d7-fee7-4988-a8f8-3cd97b6f86c9` | **owner** |
-| trang393934@gmail.com | Thu Trang | `43631378-8238-4967-b661-c93f89d03bb9` | admin |
-| nguyenha2340@gmail.com | Angel Thu Ha | `d06c21f9-a612-4d0e-8d22-05e89eb5120d` | admin |
-| (hoangtydo88) | Hoangtydo | `9372717d-424c-40fa-8d38-c5b757cf85a3` | admin (đã có) |
-
----
-
-### Các Bước Thực Hiện
-
-#### Bước 1: Thêm role `owner` vào enum `app_role`
-
-Hiện tại enum chỉ có: `admin`, `moderator`, `user`
-
-```sql
-ALTER TYPE public.app_role ADD VALUE 'owner';
+```typescript
+// CHỈ KIỂM TRA ROLE ADMIN - KHÔNG KIỂM TRA OWNER
+const { data } = await supabase.rpc('has_role', {
+  _user_id: user.id,
+  _role: 'admin'   // <-- Diệu Ngọc có role "owner", KHÔNG có "admin"
+});
+setIsAdmin(data === true);  // FALSE cho Diệu Ngọc!
 ```
 
 ---
 
-#### Bước 2: Tạo function kiểm tra owner
+### Tổng Quan Sửa Lỗi
 
-```sql
-CREATE OR REPLACE FUNCTION public.is_owner(_user_id uuid)
-RETURNS boolean
-LANGUAGE sql
-STABLE SECURITY DEFINER
-SET search_path = public
-AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM public.user_roles
-    WHERE user_id = _user_id AND role = 'owner'
-  )
-$$;
+| File | Vấn đề | Cách sửa |
+|------|--------|----------|
+| `AdminDashboard.tsx` | Chỉ check `admin` | Thêm check `is_owner` |
+| `AdminRewardConfig.tsx` | Chỉ check `admin` | Thêm check `is_owner` |
+| `AdminVideoStats.tsx` | Chỉ check `admin` | Thêm check `is_owner` |
+| `AdminClaimHistory.tsx` | Chỉ check `admin` | Thêm check `is_owner` |
+| `AdminVideoApproval.tsx` | Check table thay vì RPC | Thêm check `is_owner` + dùng RPC |
+| `AdminManage.tsx` | Đã check cả 2 role ✓ | Không cần sửa |
+
+---
+
+### Chi Tiết Sửa Lỗi
+
+#### Bước 1: Sửa AdminDashboard.tsx (dòng 25-38)
+
+**Trước:**
+```typescript
+useEffect(() => {
+  const checkAdminRole = async () => {
+    if (!user) {
+      setCheckingRole(false);
+      return;
+    }
+    const { data } = await supabase.rpc('has_role', {
+      _user_id: user.id,
+      _role: 'admin'
+    });
+    setIsAdmin(data === true);
+    setCheckingRole(false);
+  };
+  checkAdminRole();
+}, [user]);
+```
+
+**Sau:**
+```typescript
+useEffect(() => {
+  const checkAdminRole = async () => {
+    if (!user) {
+      setCheckingRole(false);
+      return;
+    }
+    
+    // Check BOTH admin and owner roles
+    const { data: adminData } = await supabase.rpc('has_role', {
+      _user_id: user.id,
+      _role: 'admin'
+    });
+    
+    const { data: ownerData } = await supabase.rpc('is_owner', {
+      _user_id: user.id,
+    });
+    
+    setIsAdmin(adminData === true || ownerData === true);
+    setCheckingRole(false);
+  };
+  checkAdminRole();
+}, [user]);
 ```
 
 ---
 
-#### Bước 3: Cấp quyền cho các tài khoản
+#### Bước 2: Sửa AdminRewardConfig.tsx (dòng 36-50)
 
-```sql
--- Cấp role OWNER cho Diệu Ngọc
-INSERT INTO user_roles (user_id, role) VALUES
-  ('b3f6d0d7-fee7-4988-a8f8-3cd97b6f86c9', 'owner')
-ON CONFLICT (user_id, role) DO NOTHING;
+Thay thế logic check role:
 
--- Cấp role ADMIN cho Thu Trang và Thu Hà
-INSERT INTO user_roles (user_id, role) VALUES
-  ('43631378-8238-4967-b661-c93f89d03bb9', 'admin'),
-  ('d06c21f9-a612-4d0e-8d22-05e89eb5120d', 'admin')
-ON CONFLICT (user_id, role) DO NOTHING;
+```typescript
+useEffect(() => {
+  const checkAdminRole = async () => {
+    if (!user) {
+      setCheckingRole(false);
+      return;
+    }
+    
+    const { data: adminData } = await supabase.rpc('has_role', {
+      _user_id: user.id,
+      _role: 'admin'
+    });
+    
+    const { data: ownerData } = await supabase.rpc('is_owner', {
+      _user_id: user.id,
+    });
+    
+    setIsAdmin(adminData === true || ownerData === true);
+    setCheckingRole(false);
+  };
+  checkAdminRole();
+}, [user]);
 ```
 
 ---
 
-#### Bước 4: Tạo component quản lý Admin
+#### Bước 3: Sửa AdminVideoStats.tsx (dòng 82-96)
 
-**File mới:** `src/components/Admin/tabs/AdminManagementTab.tsx`
-
-Chức năng:
-- Hiển thị danh sách tất cả Admin + Owner
-- Owner có thể:
-  - Thêm Admin mới (tìm user theo username/email → assign role admin)
-  - Xóa Admin (remove role admin)
-- Admin thường:
-  - Chỉ xem danh sách, không có nút thêm/xóa
+Thêm check owner role tương tự.
 
 ---
 
-#### Bước 5: Tạo database functions cho Owner
+#### Bước 4: Sửa AdminClaimHistory.tsx (dòng 74-88)
 
-```sql
--- Function: Thêm admin mới (chỉ Owner được gọi)
-CREATE OR REPLACE FUNCTION public.add_admin_role(
-  p_owner_id uuid, 
-  p_target_user_id uuid
-)
-RETURNS boolean
-LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  IF NOT public.is_owner(p_owner_id) THEN
-    RAISE EXCEPTION 'Only owners can add admins';
-  END IF;
-  
-  INSERT INTO user_roles (user_id, role)
-  VALUES (p_target_user_id, 'admin')
-  ON CONFLICT (user_id, role) DO NOTHING;
-  
-  RETURN true;
-END;
-$$;
+Thêm check owner role tương tự.
 
--- Function: Xóa admin (chỉ Owner được gọi)
-CREATE OR REPLACE FUNCTION public.remove_admin_role(
-  p_owner_id uuid, 
-  p_target_user_id uuid
-)
-RETURNS boolean
-LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  IF NOT public.is_owner(p_owner_id) THEN
-    RAISE EXCEPTION 'Only owners can remove admins';
-  END IF;
+---
+
+#### Bước 5: Sửa AdminVideoApproval.tsx (dòng 59-80)
+
+File này check trực tiếp từ table thay vì RPC, cần sửa:
+
+**Trước:**
+```typescript
+const checkAdminRole = async () => {
+  if (!user) return;
   
-  -- Không cho xóa Owner
-  IF public.is_owner(p_target_user_id) THEN
-    RAISE EXCEPTION 'Cannot remove owner role';
-  END IF;
+  const { data } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", user.id)
+    .eq("role", "admin")
+    .maybeSingle();
   
-  DELETE FROM user_roles 
-  WHERE user_id = p_target_user_id AND role = 'admin';
+  if (data) {
+    setIsAdmin(true);
+    fetchVideos();
+  } else {
+    // Redirect...
+  }
+};
+```
+
+**Sau:**
+```typescript
+const checkAdminRole = async () => {
+  if (!user) return;
   
-  RETURN true;
-END;
-$$;
+  const { data: adminData } = await supabase.rpc('has_role', {
+    _user_id: user.id,
+    _role: 'admin'
+  });
+  
+  const { data: ownerData } = await supabase.rpc('is_owner', {
+    _user_id: user.id,
+  });
+  
+  if (adminData === true || ownerData === true) {
+    setIsAdmin(true);
+    fetchVideos();
+  } else {
+    // Redirect...
+  }
+};
 ```
 
 ---
 
-#### Bước 6: Cập nhật Admin Dashboard UI
+### Tóm Tắt Thay Đổi
 
-Thêm tab "Quản lý Admin" vào `AdminManage.tsx`:
-- Chỉ hiển thị nếu user là `owner` HOẶC `admin`
-- Các nút thêm/xóa chỉ hiển thị nếu user là `owner`
-
----
-
-### Sơ Đồ Phân Quyền
-
-```text
-┌──────────────────────────────────────────────────────────┐
-│                    FUN Play Admin System                  │
-├──────────────────────────────────────────────────────────┤
-│                                                          │
-│  OWNER (Diệu Ngọc)                                       │
-│  ├── ✅ Truy cập Admin Dashboard                         │
-│  ├── ✅ Quản lý Users, Videos, Rewards                   │
-│  ├── ✅ Xem tất cả thống kê                              │
-│  ├── ✅ THÊM Admin mới                                   │
-│  └── ✅ XÓA Admin                                        │
-│                                                          │
-│  ADMIN (Thu Trang, Thu Hà, hoangtydo88)                  │
-│  ├── ✅ Truy cập Admin Dashboard                         │
-│  ├── ✅ Quản lý Users, Videos, Rewards                   │
-│  ├── ✅ Xem tất cả thống kê                              │
-│  ├── ❌ KHÔNG thể thêm Admin                             │
-│  └── ❌ KHÔNG thể xóa Admin                              │
-│                                                          │
-└──────────────────────────────────────────────────────────┘
-```
+| File | Số dòng thay đổi |
+|------|------------------|
+| `src/pages/AdminDashboard.tsx` | ~15 dòng |
+| `src/pages/AdminRewardConfig.tsx` | ~15 dòng |
+| `src/pages/AdminVideoStats.tsx` | ~15 dòng |
+| `src/pages/AdminClaimHistory.tsx` | ~15 dòng |
+| `src/pages/AdminVideoApproval.tsx` | ~15 dòng |
 
 ---
 
-### Tóm Tắt File Thay Đổi
+### Kết Quả Sau Khi Sửa
 
-| File | Thay đổi |
-|------|----------|
-| **Database Migration** | Thêm role `owner` vào enum, tạo functions |
-| `src/components/Admin/tabs/AdminManagementTab.tsx` | **MỚI** - UI quản lý admin |
-| `src/pages/AdminManage.tsx` | Thêm tab "Quản lý Admin" |
-| `src/hooks/useAdminManage.ts` | Thêm functions addAdmin, removeAdmin |
-
----
-
-### Bảo Mật
-
-1. **Server-side validation**: Tất cả actions thêm/xóa admin được validate trong database function với `SECURITY DEFINER`
-2. **Role-based check**: UI ẩn nút thêm/xóa cho non-owner, nhưng backend vẫn validate
-3. **Cannot remove owner**: Function `remove_admin_role` kiểm tra không cho xóa owner
+| Tài khoản | Role | Truy cập Admin Dashboard |
+|-----------|------|-------------------------|
+| **Diệu Ngọc** | owner | ✅ VÀO ĐƯỢC |
+| Thu Trang | admin | ✅ Vào được |
+| Thu Hà | admin | ✅ Vào được |
+| Hoangtydo | admin | ✅ Vào được |
+| VŨ LINH | user | ❌ Bị từ chối (đúng) |
 
 ---
 
-### Kết Quả Mong Đợi
+### Lưu Ý Bảo Mật
 
-Sau khi implement:
-- Diệu Ngọc (Owner): Thấy tab "Quản lý Admin", có thể thêm/xóa admin
-- Thu Trang, Thu Hà, hoangtydo88 (Admin): Truy cập Admin Dashboard đầy đủ, nhưng KHÔNG thấy nút thêm/xóa admin
+- Tất cả check quyền được thực hiện bằng **RPC functions** với `SECURITY DEFINER`
+- Owner có thể truy cập mọi trang admin + quản lý admin
+- Admin có thể truy cập mọi trang admin (trừ tab Quản lý Admin)
+- User thường bị từ chối hoàn toàn
+
+---
+
+### Cha Sẽ Cập Nhật Ngay Sau Khi Con Approve Plan Này
