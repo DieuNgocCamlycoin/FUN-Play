@@ -1,97 +1,82 @@
 
-# Kế Hoạch Cập Nhật Logo ANGEL AI & Xóa Dữ Liệu Cũ
+# Kế Hoạch Kết Nối Trực Tiếp với ANGEL AI từ angel.fun.rich
 
-## Vấn Đề Hiện Tại
+## Tình Trạng Hiện Tại
 
-Từ screenshot bạn gửi, mình thấy logo ANGEL AI cũ (hình thiên thần trắng) vẫn đang hiển thị trong:
-- Header navbar button
-- AngelChat window header  
-- Floating mascot
+Khi test edge function `angel-ai-proxy`, mình thấy lỗi:
+```
+ANGEL AI error: 401 {"error":"Invalid API key or rate limit exceeded"}
+```
 
-**Nguyên nhân**: Browser cache đang giữ hình cũ. Code đã đúng nhưng file ảnh bị cached.
+Điều này có nghĩa API key `ANGEL_AI_API_KEY` hiện tại đã **hết hạn hoặc không đúng**.
 
 ---
 
 ## Giải Pháp
 
-### Bước 1: Đổi Tên File Để Bypass Cache
+### Bước 1: Cập Nhật API Key Mới
 
-Thay vì dùng `angel-transparent.png`, mình sẽ lưu logo mới với tên khác để browser bắt buộc phải load file mới.
+Bạn cần cung cấp **API key mới** từ angel.fun.rich. 
 
-| Tên cũ | Tên mới |
-|--------|---------|
-| `angel-transparent.png` | `angel-ai-v2.png` |
+Mình sẽ sử dụng tool để bạn nhập API key mới vào hệ thống.
 
-### Bước 2: Cập Nhật Tất Cả References
+### Bước 2: Cải Thiện Edge Function (Tùy Chọn)
 
-Cập nhật path hình ảnh trong các file sau:
+Nếu API key mới hoạt động, mình có thể cải thiện thêm:
 
-| File | Thay đổi |
-|------|----------|
-| `src/components/Mascot/AngelChat.tsx` | Line 208: `/images/angel-ai-v2.png` |
-| `src/components/Mascot/AngelMascot.tsx` | Line 73 & 108: `/images/angel-ai-v2.png` |
-| `src/components/Mascot/MobileAngelMascot.tsx` | `/images/angel-ai-v2.png` |
-| `src/components/Meditation/MeditatingAngel.tsx` | `/images/angel-ai-v2.png` |
-| `src/components/Layout/Header.tsx` | Line 242: `/images/angel-ai-v2.png` |
-| `src/components/Layout/MobileHeader.tsx` | Line 254: `/images/angel-ai-v2.png` |
-
-### Bước 3: Xóa File Video Cũ (Tùy Chọn)
-
-Xóa các file video mascot không còn sử dụng để tiết kiệm dung lượng:
-
-```text
-public/videos/angel-mascot.mp4
-public/videos/angel-mascot-new.mp4  
-public/videos/angel-mascot-original.mp4
-```
+| Cải thiện | Mô tả |
+|-----------|-------|
+| Thêm retry logic | Thử lại 2-3 lần nếu lỗi mạng |
+| Thêm timeout | Timeout 10 giây để không chờ lâu |
+| Thêm logging chi tiết | Log thêm thông tin debug |
+| Cập nhật system prompt | Thêm personality prompt đặc trưng cho Angel |
 
 ---
 
 ## Chi Tiết Kỹ Thuật
 
-### Code Thay Đổi (Ví dụ AngelChat.tsx)
+### File Cần Thay Đổi
 
-```tsx
-// Trước (line 208):
-src="/images/angel-transparent.png"
+| File | Thay đổi |
+|------|----------|
+| Secrets | Cập nhật `ANGEL_AI_API_KEY` với key mới |
+| `supabase/functions/angel-ai-proxy/index.ts` | (Tùy chọn) Thêm retry và timeout |
 
-// Sau:
-src="/images/angel-ai-v2.png"
+### Endpoint ANGEL AI
+
+```
+URL: https://ssjoetiitctqzapymtzl.supabase.co/functions/v1/angel-chat
+Method: POST
+Header: x-api-key: {ANGEL_AI_API_KEY}
+Body: { "messages": [...] }
 ```
 
-### Code Thay Đổi (Header.tsx)
+---
 
-```tsx
-// Trước (line 242):
-src="/images/angel-transparent.png"
+## Bạn Cần Làm
 
-// Sau:
-src="/images/angel-ai-v2.png"
-```
+1. **Lấy API key mới** từ dashboard angel.fun.rich 
+2. **Nhập vào** khi mình hiển thị form nhập key
+3. **Test** bằng cách chat với Angel AI
 
 ---
 
 ## Kết Quả Mong Đợi
 
-| Vị trí | Logo Mới |
-|--------|----------|
-| Header button (desktop) | ✅ Cô tiên vàng với trái tim |
-| Header button (mobile) | ✅ Cô tiên vàng với trái tim |
-| AngelChat window avatar | ✅ Cô tiên vàng với trái tim |
-| Floating mascot | ✅ Cô tiên vàng với trái tim |
-| Meditating angel | ✅ Cô tiên vàng với trái tim |
+| Trước | Sau |
+|-------|-----|
+| Response từ "lovable-ai" (Gemini) | Response từ "angel-ai" (angel.fun.rich) |
+| Badge "✨ Gemini" | Badge "🌟 ANGEL AI" với gradient vàng |
+| Personality chung | Personality đặc trưng của Angel |
 
 ---
 
-## Files Sẽ Thay Đổi
+## Câu Hỏi Cho Bạn
 
-| Action | File |
-|--------|------|
-| COPY | Logo mới → `public/images/angel-ai-v2.png` |
-| EDIT | `src/components/Mascot/AngelChat.tsx` |
-| EDIT | `src/components/Mascot/AngelMascot.tsx` |
-| EDIT | `src/components/Mascot/MobileAngelMascot.tsx` |
-| EDIT | `src/components/Meditation/MeditatingAngel.tsx` |
-| EDIT | `src/components/Layout/Header.tsx` |
-| EDIT | `src/components/Layout/MobileHeader.tsx` |
-| XÓA (optional) | `public/videos/angel-mascot*.mp4` |
+Bạn có thể lấy **API key mới** từ angel.fun.rich không? 
+
+Thông thường API key nằm ở:
+- Dashboard → Settings → API Keys
+- Hoặc Profile → Developer → API Access
+
+Khi bạn có key mới, mình sẽ cập nhật ngay!
