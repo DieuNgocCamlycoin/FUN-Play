@@ -27,6 +27,33 @@ export function ThumbnailEditor({
   const [activeTab, setActiveTab] = useState("upload");
   const [selectedBase, setSelectedBase] = useState<string | null>(currentThumbnail);
   const [isGenerating, setIsGenerating] = useState(false);
+  
+  // Touch swipe state for mobile tab navigation
+  const [touchStart, setTouchStart] = useState(0);
+  const tabOrder = ["upload", "gallery", "editor"];
+
+  // Handle touch swipe for tabs
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStart(e.touches[0].clientX);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const touchEnd = e.changedTouches[0].clientX;
+    const diff = touchStart - touchEnd;
+    const currentIndex = tabOrder.indexOf(activeTab);
+    
+    if (Math.abs(diff) > 50) {
+      if (diff > 0 && currentIndex < tabOrder.length - 1) {
+        // Swipe left - go to next tab
+        setActiveTab(tabOrder[currentIndex + 1]);
+        if (navigator.vibrate) navigator.vibrate(30);
+      } else if (diff < 0 && currentIndex > 0) {
+        // Swipe right - go to previous tab
+        setActiveTab(tabOrder[currentIndex - 1]);
+        if (navigator.vibrate) navigator.vibrate(30);
+      }
+    }
+  };
 
   // Auto-generate thumbnail from video at different timestamps
   const handleAutoGenerate = useCallback(async () => {
@@ -121,7 +148,7 @@ export function ThumbnailEditor({
               onClick={handleAutoGenerate}
               disabled={isGenerating || !videoFile}
               className={cn(
-                "w-full sm:w-auto min-h-[52px] relative overflow-hidden border-2 border-[hsl(var(--cosmic-cyan)/0.4)] hover:border-[hsl(var(--cosmic-cyan))] hover:bg-[hsl(var(--cosmic-cyan)/0.1)] transition-all",
+                "w-full sm:w-auto min-h-[52px] relative overflow-hidden border-2 border-[hsl(var(--cosmic-cyan)/0.4)] hover:border-[hsl(var(--cosmic-cyan))] hover:bg-[hsl(var(--cosmic-cyan)/0.1)] transition-all touch-manipulation",
                 isGenerating && "border-[hsl(var(--cosmic-magenta))]"
               )}
             >
@@ -142,75 +169,88 @@ export function ThumbnailEditor({
           </motion.div>
           <p className="text-xs text-muted-foreground flex items-center gap-1">
             <Sparkles className="w-3 h-3" />
-            Hoặc chọn từ các tùy chọn bên dưới
+            Hoặc chọn từ các tùy chọn bên dưới (vuốt ngang để chuyển tab)
           </p>
         </div>
       </div>
 
       {/* Tabs - with touch-friendly swipe support */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3 h-12 p-1 bg-muted/50">
-          <TabsTrigger 
-            value="upload" 
-            className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-[hsl(var(--cosmic-cyan)/0.2)] data-[state=active]:to-[hsl(var(--cosmic-magenta)/0.2)] data-[state=active]:text-foreground min-h-[40px]"
-          >
-            <Upload className="w-4 h-4" />
-            <span className="hidden xs:inline sm:inline">Tải lên</span>
-          </TabsTrigger>
-          <TabsTrigger 
-            value="gallery" 
-            className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-[hsl(var(--cosmic-cyan)/0.2)] data-[state=active]:to-[hsl(var(--cosmic-magenta)/0.2)] data-[state=active]:text-foreground min-h-[40px]"
-          >
-            <ImageIcon className="w-4 h-4" />
-            <span className="hidden xs:inline sm:inline">Kho mẫu</span>
-          </TabsTrigger>
-          <TabsTrigger 
-            value="editor" 
-            className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-[hsl(var(--cosmic-cyan)/0.2)] data-[state=active]:to-[hsl(var(--cosmic-magenta)/0.2)] data-[state=active]:text-foreground min-h-[40px]"
-          >
-            <Wand2 className="w-4 h-4" />
-            <span className="hidden xs:inline sm:inline">Chỉnh sửa</span>
-          </TabsTrigger>
-        </TabsList>
+      <div 
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-3 h-12 p-1 bg-muted/50">
+            <TabsTrigger 
+              value="upload" 
+              className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-[hsl(var(--cosmic-cyan)/0.2)] data-[state=active]:to-[hsl(var(--cosmic-magenta)/0.2)] data-[state=active]:text-foreground min-h-[40px] touch-manipulation"
+            >
+              <Upload className="w-4 h-4" />
+              <span className="hidden xs:inline sm:inline">Tải lên</span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="gallery" 
+              className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-[hsl(var(--cosmic-cyan)/0.2)] data-[state=active]:to-[hsl(var(--cosmic-magenta)/0.2)] data-[state=active]:text-foreground min-h-[40px] touch-manipulation"
+            >
+              <ImageIcon className="w-4 h-4" />
+              <span className="hidden xs:inline sm:inline">Kho mẫu</span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="editor" 
+              className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-[hsl(var(--cosmic-cyan)/0.2)] data-[state=active]:to-[hsl(var(--cosmic-magenta)/0.2)] data-[state=active]:text-foreground min-h-[40px] touch-manipulation"
+            >
+              <Wand2 className="w-4 h-4" />
+              <span className="hidden xs:inline sm:inline">Chỉnh sửa</span>
+            </TabsTrigger>
+          </TabsList>
 
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
-          >
-            <TabsContent value="upload" className="mt-4">
-              <ThumbnailUpload onUpload={handleUpload} />
-            </TabsContent>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+            >
+              <TabsContent value="upload" className="mt-4">
+                <ThumbnailUpload onUpload={handleUpload} />
+              </TabsContent>
 
-            <TabsContent value="gallery" className="mt-4">
-              <ThumbnailGallery onSelect={handleGallerySelect} />
-            </TabsContent>
+              <TabsContent value="gallery" className="mt-4">
+                <ThumbnailGallery onSelect={handleGallerySelect} />
+              </TabsContent>
 
-            <TabsContent value="editor" className="mt-4">
-              <ThumbnailCanvas
-                baseImage={selectedBase}
-                onExport={handleCanvasExport}
-              />
-            </TabsContent>
-          </motion.div>
-        </AnimatePresence>
-      </Tabs>
+              <TabsContent value="editor" className="mt-4">
+                <ThumbnailCanvas
+                  baseImage={selectedBase}
+                  onExport={handleCanvasExport}
+                />
+              </TabsContent>
+            </motion.div>
+          </AnimatePresence>
+        </Tabs>
+      </div>
 
-      {/* Navigation */}
+      {/* Navigation with pulse-halo effect */}
       <div className="flex justify-between pt-4 border-t border-border/50">
-        <Button variant="ghost" onClick={onBack} className="gap-2 min-h-[48px]">
+        <Button variant="ghost" onClick={onBack} className="gap-2 min-h-[48px] touch-manipulation">
           <ArrowLeft className="w-4 h-4" />
           Quay lại
         </Button>
         <Button 
           onClick={onNext}
-          className="gap-2 min-h-[48px] bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] to-[hsl(var(--cosmic-magenta))] hover:from-[hsl(var(--cosmic-cyan)/0.9)] hover:to-[hsl(var(--cosmic-magenta)/0.9)] text-white shadow-lg"
+          className="gap-2 min-h-[48px] bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] to-[hsl(var(--cosmic-magenta))] hover:from-[hsl(var(--cosmic-cyan)/0.9)] hover:to-[hsl(var(--cosmic-magenta)/0.9)] text-white shadow-lg relative overflow-hidden touch-manipulation"
         >
-          Tiếp tục
-          <ArrowRight className="w-4 h-4" />
+          <motion.span
+            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+            initial={{ x: "-100%" }}
+            whileHover={{ x: "100%" }}
+            transition={{ duration: 0.5 }}
+          />
+          <span className="relative z-10 flex items-center gap-2">
+            Tiếp tục
+            <ArrowRight className="w-4 h-4" />
+          </span>
         </Button>
       </div>
     </div>
