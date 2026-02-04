@@ -141,6 +141,28 @@ export default {
           "0%, 100%": { opacity: "0.5", transform: "scale(1)" },
           "50%": { opacity: "1", transform: "scale(1.1)" },
         },
+        "rainbow-sparkle": {
+          "0%": { 
+            boxShadow: "0 0 10px rgba(0,255,255,0.5), 0 0 20px rgba(0,255,255,0.3)" 
+          },
+          "25%": { 
+            boxShadow: "0 0 15px rgba(168,85,247,0.5), 0 0 30px rgba(168,85,247,0.3)" 
+          },
+          "50%": { 
+            boxShadow: "0 0 15px rgba(236,72,153,0.5), 0 0 30px rgba(236,72,153,0.3)" 
+          },
+          "75%": { 
+            boxShadow: "0 0 15px rgba(251,191,36,0.5), 0 0 30px rgba(251,191,36,0.3)" 
+          },
+          "100%": { 
+            boxShadow: "0 0 10px rgba(0,255,255,0.5), 0 0 20px rgba(0,255,255,0.3)" 
+          },
+        },
+        "mini-player-border": {
+          "0%, 100%": { borderColor: "rgba(0, 255, 255, 0.3)" },
+          "33%": { borderColor: "rgba(168, 85, 247, 0.3)" },
+          "66%": { borderColor: "rgba(236, 72, 153, 0.3)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -152,6 +174,8 @@ export default {
         "rainbow-border": "rainbow-border 3s linear infinite",
         "sparkle-sweep": "sparkle-sweep 3s linear infinite",
         "pulse-halo": "pulse-halo 2s ease-in-out infinite",
+        "rainbow-sparkle": "rainbow-sparkle 0.6s ease-out",
+        "mini-player-border": "mini-player-border 3s ease-in-out infinite",
       },
     },
   },
