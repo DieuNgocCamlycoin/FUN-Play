@@ -10,8 +10,6 @@ import { VideoCard } from "@/components/Video/VideoCard";
 import { ContinueWatching } from "@/components/Video/ContinueWatching";
 import { BackgroundMusicPlayer } from "@/components/BackgroundMusicPlayer";
 import { PullToRefreshIndicator } from "@/components/Layout/PullToRefreshIndicator";
-import { EnhancedHonobar } from "@/components/Layout/EnhancedHonobar";
-import { MobileHonobar } from "@/components/Layout/MobileHonobar";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -264,12 +262,6 @@ const Index = () => {
       
       {/* Main content */}
       <main className="pt-14 pb-20 lg:pb-0 lg:pl-64 relative z-10">
-        {/* Honor Board - Desktop */}
-        {!isMobile && <EnhancedHonobar />}
-        
-        {/* Honor Board - Mobile */}
-        {isMobile && <MobileHonobar />}
-        
         <CategoryChips />
         {!user && (
           <div className="glass-card mx-4 mt-4 rounded-xl border border-cosmic-magenta/50 p-4 shadow-[0_0_50px_rgba(217,0,255,0.5)]">
