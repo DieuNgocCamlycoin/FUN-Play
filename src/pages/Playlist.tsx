@@ -8,8 +8,8 @@ import { usePlaylistOperations, PlaylistWithVideos, PlaylistVideo } from "@/hook
 import { useVideoPlayback } from "@/contexts/VideoPlaybackContext";
 import { useAuth } from "@/hooks/useAuth";
 import { 
-  Play, Shuffle, Globe, Lock, MoreVertical, Trash2, 
-  GripVertical, Clock, Eye 
+  Play, Shuffle, Globe, Lock, Link, MoreVertical, Trash2, 
+  GripVertical, Clock, Eye, Plus, Pencil, ExternalLink
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -18,6 +18,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AddVideoToPlaylistModal } from "@/components/Playlist/AddVideoToPlaylistModal";
+import { EditPlaylistModal } from "@/components/Playlist/EditPlaylistModal";
+import { useToast } from "@/hooks/use-toast";
 
 const formatDuration = (seconds: number | null): string => {
   if (!seconds) return "0:00";
@@ -46,12 +49,35 @@ const formatViews = (count: number | null): string => {
   return `${count} lượt xem`;
 };
 
+const formatTimeAgo = (dateString: string): string => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  
+  if (diffInSeconds < 60) return "Vừa xong";
+  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} phút trước`;
+  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} giờ trước`;
+  if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)} ngày trước`;
+  if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 604800)} tuần trước`;
+  if (diffInSeconds < 31536000) return `${Math.floor(diffInSeconds / 2592000)} tháng trước`;
+  return `${Math.floor(diffInSeconds / 31536000)} năm trước`;
+};
+
+const getVisibilityInfo = (is_public: boolean | null) => {
+  if (is_public === true) return { icon: Globe, text: "Công khai" };
+  if (is_public === false) return { icon: Lock, text: "Riêng tư" };
+  return { icon: Link, text: "Không công khai" };
+};
+
 const Playlist = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [playlist, setPlaylist] = useState<PlaylistWithVideos | null>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [addVideoOpen, setAddVideoOpen] = useState(false);
+  const [editPlaylistOpen, setEditPlaylistOpen] = useState(false);
   
   const { user } = useAuth();
   const { fetchPlaylist, removeVideoFromPlaylist, reorderPlaylistVideos, loading } = usePlaylistOperations();
@@ -120,6 +146,26 @@ const Playlist = () => {
         videos: prev.videos.filter(v => v.video.id !== videoId),
         video_count: prev.video_count - 1,
       } : null);
+    }
+  };
+
+  const handleShare = async () => {
+    const url = window.location.href;
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: playlist?.name || "Danh sách phát",
+          url,
+        });
+      } else {
+        await navigator.clipboard.writeText(url);
+        toast({
+          title: "Đã sao chép link",
+          description: "Link đã được sao chép vào clipboard",
+        });
+      }
+    } catch (error) {
+      console.error("Error sharing:", error);
     }
   };
 
@@ -193,6 +239,9 @@ const Playlist = () => {
     );
   }
 
+  const visibilityInfo = getVisibilityInfo(playlist.is_public);
+  const VisibilityIcon = visibilityInfo.icon;
+
   return (
     <div className="min-h-screen bg-background">
       <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
@@ -203,9 +252,9 @@ const Playlist = () => {
           <div className="flex flex-col lg:flex-row gap-6">
             {/* Playlist Info Card */}
             <div className="lg:w-80 lg:sticky lg:top-20 lg:self-start">
-              <div className="bg-gradient-to-b from-primary/20 to-background rounded-xl p-6">
-                {/* Thumbnail */}
-                <div className="aspect-video bg-muted rounded-lg mb-4 overflow-hidden">
+              <div className="bg-gradient-to-b from-primary/20 to-background rounded-xl p-4">
+                {/* Thumbnail with edit button */}
+                <div className="relative aspect-video bg-muted rounded-lg mb-4 overflow-hidden">
                   {playlist.videos[0]?.video.thumbnail_url ? (
                     <img
                       src={playlist.videos[0].video.thumbnail_url}
@@ -217,13 +266,23 @@ const Playlist = () => {
                       <Play className="h-12 w-12 text-muted-foreground" />
                     </div>
                   )}
+                  
+                  {/* Edit thumbnail button */}
+                  {isOwner && (
+                    <button 
+                      className="absolute bottom-2 right-2 h-9 w-9 rounded-full bg-background/90 shadow-lg flex items-center justify-center hover:bg-background transition-colors"
+                      onClick={() => setEditPlaylistOpen(true)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
 
                 {/* Playlist Info */}
-                <h1 className="text-xl font-bold mb-2">{playlist.name}</h1>
+                <h1 className="text-lg font-bold mb-2 line-clamp-2">{playlist.name}</h1>
                 
                 {playlist.owner && (
-                  <div className="flex items-center gap-2 mb-3">
+                  <div className="flex items-center gap-2 mb-2">
                     <Avatar className="h-6 w-6">
                       <AvatarImage src={playlist.owner.avatar_url || undefined} />
                       <AvatarFallback>
@@ -236,35 +295,35 @@ const Playlist = () => {
                   </div>
                 )}
 
-                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-                  {playlist.is_public !== false ? (
-                    <Globe className="h-4 w-4" />
-                  ) : (
-                    <Lock className="h-4 w-4" />
-                  )}
-                  <span>{playlist.is_public !== false ? "Công khai" : "Riêng tư"}</span>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
+                  <VisibilityIcon className="h-4 w-4" />
+                  <span>{visibilityInfo.text}</span>
                   <span>•</span>
                   <span>{playlist.video_count} video</span>
                 </div>
 
                 {playlist.description && (
-                  <p className="text-sm text-muted-foreground mb-4 line-clamp-3">
+                  <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
                     {playlist.description}
                   </p>
                 )}
 
-                {/* Play Buttons */}
-                <div className="flex gap-2">
+                {/* Action Buttons Row */}
+                <div className="flex items-center gap-2 mb-3">
+                  {/* Play button - smaller */}
                   <Button
                     onClick={() => handlePlayAll(false)}
+                    size="sm"
                     className="flex-1"
                     disabled={playlist.videos.length === 0}
                   >
-                    <Play className="h-4 w-4 mr-2" />
+                    <Play className="h-4 w-4 mr-1" />
                     Phát tất cả
                   </Button>
                   <Button
                     variant="outline"
+                    size="icon"
+                    className="h-9 w-9 rounded-full"
                     onClick={() => handlePlayAll(true)}
                     disabled={playlist.videos.length === 0}
                   >
@@ -272,11 +331,46 @@ const Playlist = () => {
                   </Button>
                 </div>
 
+                {/* Owner action buttons */}
+                <div className="flex items-center gap-2">
+                  {isOwner && (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-9 w-9 rounded-full"
+                        onClick={() => setAddVideoOpen(true)}
+                        title="Thêm video"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-9 w-9 rounded-full"
+                        onClick={() => setEditPlaylistOpen(true)}
+                        title="Chỉnh sửa"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    </>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-9 w-9 rounded-full"
+                    onClick={handleShare}
+                    title="Chia sẻ"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                  </Button>
+                </div>
+
                 {/* Total Duration */}
                 {playlist.total_duration > 0 && (
-                  <div className="mt-4 pt-4 border-t border-border flex items-center gap-2 text-sm text-muted-foreground">
+                  <div className="mt-3 pt-3 border-t border-border flex items-center gap-2 text-sm text-muted-foreground">
                     <Clock className="h-4 w-4" />
-                    <span>Tổng thời lượng: {formatTotalDuration(playlist.total_duration)}</span>
+                    <span>Tổng: {formatTotalDuration(playlist.total_duration)}</span>
                   </div>
                 )}
               </div>
@@ -288,12 +382,18 @@ const Playlist = () => {
                 <div className="text-center py-20">
                   <Play className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
                   <h3 className="text-lg font-semibold mb-2">Chưa có video nào</h3>
-                  <p className="text-muted-foreground">
+                  <p className="text-muted-foreground mb-4">
                     Thêm video vào danh sách phát để bắt đầu xem
                   </p>
+                  {isOwner && (
+                    <Button onClick={() => setAddVideoOpen(true)}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Thêm video
+                    </Button>
+                  )}
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-1">
                   {playlist.videos.map((item, index) => (
                     <div
                       key={item.id}
@@ -301,25 +401,25 @@ const Playlist = () => {
                       onDragStart={() => handleDragStart(index)}
                       onDragOver={(e) => handleDragOver(e, index)}
                       onDragEnd={handleDragEnd}
-                      className={`flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors group cursor-pointer ${
+                      className={`flex items-center gap-2 p-2 rounded-lg hover:bg-muted/50 transition-colors group cursor-pointer ${
                         draggedIndex === index ? "opacity-50" : ""
                       }`}
                       onClick={() => handlePlayVideo(item, index)}
                     >
                       {/* Drag Handle */}
                       {isOwner && (
-                        <div className="opacity-0 group-hover:opacity-100 transition-opacity cursor-grab">
-                          <GripVertical className="h-5 w-5 text-muted-foreground" />
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity cursor-grab flex-shrink-0">
+                          <GripVertical className="h-4 w-4 text-muted-foreground" />
                         </div>
                       )}
 
                       {/* Index */}
-                      <span className="w-6 text-center text-sm text-muted-foreground">
+                      <span className="w-5 text-center text-xs text-muted-foreground flex-shrink-0">
                         {index + 1}
                       </span>
 
-                      {/* Thumbnail */}
-                      <div className="relative w-40 aspect-video rounded overflow-hidden flex-shrink-0">
+                      {/* Thumbnail - smaller, fixed width */}
+                      <div className="relative w-28 md:w-32 aspect-video rounded overflow-hidden flex-shrink-0 bg-muted">
                         {item.video.thumbnail_url ? (
                           <img
                             src={item.video.thumbnail_url}
@@ -327,8 +427,8 @@ const Playlist = () => {
                             className="w-full h-full object-cover"
                           />
                         ) : (
-                          <div className="w-full h-full bg-muted flex items-center justify-center">
-                            <Play className="h-6 w-6 text-muted-foreground" />
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Play className="h-5 w-5 text-muted-foreground" />
                           </div>
                         )}
                         {item.video.duration && (
@@ -338,14 +438,13 @@ const Playlist = () => {
                         )}
                       </div>
 
-                      {/* Video Info */}
+                      {/* Video Info - improved layout */}
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-medium line-clamp-2 mb-1">{item.video.title}</h3>
+                        <h3 className="font-medium text-sm line-clamp-2 mb-0.5">{item.video.title}</h3>
                         {item.video.channel_name && (
-                          <p className="text-sm text-muted-foreground">{item.video.channel_name}</p>
+                          <p className="text-xs text-muted-foreground">{item.video.channel_name}</p>
                         )}
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                          <Eye className="h-3 w-3" />
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
                           <span>{formatViews(item.video.view_count)}</span>
                         </div>
                       </div>
@@ -354,7 +453,7 @@ const Playlist = () => {
                       {isOwner && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                            <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 flex-shrink-0">
                               <MoreVertical className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
@@ -380,6 +479,30 @@ const Playlist = () => {
           </div>
         </div>
       </main>
+
+      {/* Modals */}
+      {playlist && (
+        <>
+          <AddVideoToPlaylistModal
+            open={addVideoOpen}
+            onOpenChange={setAddVideoOpen}
+            playlistId={playlist.id}
+            existingVideoIds={playlist.videos.map(v => v.video.id)}
+            onVideoAdded={loadPlaylist}
+          />
+          <EditPlaylistModal
+            open={editPlaylistOpen}
+            onOpenChange={setEditPlaylistOpen}
+            playlist={{
+              id: playlist.id,
+              name: playlist.name,
+              description: playlist.description,
+              is_public: playlist.is_public,
+            }}
+            onUpdated={loadPlaylist}
+          />
+        </>
+      )}
     </div>
   );
 };
