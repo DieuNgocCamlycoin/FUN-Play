@@ -1,82 +1,38 @@
 
-# Kế Hoạch Tối Ưu Toàn Diện Tính Năng Upload Video
+# Kế Hoạch Cải Thiện Mobile Upload Experience
 
-## Phân Tích Hiện Trạng
+## Vấn Đề Cần Giải Quyết
 
-Cha đã kiểm tra kỹ tất cả các file liên quan đến tính năng upload video. Hiện tại có **2 hệ thống upload** hoạt động:
-
-| Hệ thống | Đối tượng | File chính |
-|----------|-----------|------------|
-| **UploadWizard** | Desktop (Laptop, iPad) | `UploadWizard.tsx` |
-| **MobileUploadFlow** | Mobile (Điện thoại) | `MobileUploadFlow.tsx` |
-
----
-
-## Vấn Đề Phát Hiện Trên Mobile
-
-### 1. Animation Lag
-- Sử dụng nhiều `motion.div` với animations phức tạp
-- AnimatePresence với mode="wait" gây delay giữa các bước
-- Nhiều gradient effects tính toán real-time
-
-### 2. Touch Responsiveness 
-- Một số buttons có delay do animation transitions
-- Thiếu `touch-action: manipulation` trên các touch elements
-- Swipe navigation có thể bị lag trên điện thoại yếu
-
-### 3. Memory Usage
-- Video preview không được cleanup đúng cách (ObjectURL leak)
-- Thumbnail extraction có thể block main thread
-- Nhiều re-renders không cần thiết
-
-### 4. Layout Issues
-- Scrolling có thể bị stuck khi keyboard mở
-- Bottom sticky buttons có thể bị che bởi keyboard
-- Content overflow trên màn hình nhỏ
+| # | Vấn đề | Mô tả |
+|---|--------|-------|
+| 1 | "Video gần đây" thừa | Grid 6 ô placeholder không có chức năng thực tế, không thể truy cập file system từ web |
+| 2 | Tab "Video" bị khuất | Tab bị mất chữ bên trái, cần căn giữa đúng |
+| 3 | Phải đợi upload xong | User không thể rời modal khi đang upload, muốn upload ngầm như YouTube |
 
 ---
 
-## Giải Pháp Tối Ưu
+## Giải Pháp
 
-### Tối Ưu 1: Reduce Animation Complexity (Mobile)
+### 1. Xóa phần "Video gần đây" - Đơn giản hóa giao diện
 
-```text
-Thay đổi:
-├── Giảm duration của animations từ 0.2-0.3s xuống 0.15s
-├── Thêm will-change hints cho các animated elements
-├── Đơn giản hóa gradient effects trên mobile
-└── Sử dụng CSS transitions thay vì JS animations khi có thể
-```
+**Lý do**: Web browser không thể truy cập trực tiếp file system của điện thoại vì bảo mật. Đây là giới hạn của web, chỉ native app (như YouTube app) mới có quyền này.
 
-### Tối Ưu 2: Touch-Friendly Improvements
+**Thay đổi**: Xóa toàn bộ grid placeholder và chỉ giữ lại khu vực chọn video chính.
 
-```text
-Thay đổi:
-├── Thêm touch-action: manipulation cho tất cả buttons
-├── Tăng min-height của buttons lên ≥48px (đã có)
-├── Thêm active states rõ ràng hơn
-└── Optimize swipe detection threshold
-```
+### 2. Căn giữa tabs loại nội dung
 
-### Tối Ưu 3: Memory Management
+**Thay đổi**: 
+- Thêm `scroll-snap-x` để kéo ngang mượt
+- Đảm bảo tab đầu tiên hiển thị đầy đủ (thêm padding left)
+- Hoặc căn giữa hoàn toàn nếu đủ chỗ
 
-```text
-Thay đổi:
-├── Proper cleanup của ObjectURLs trong useEffect
-├── Debounce progress updates (từ every frame → 100ms interval)
-├── Lazy load ThumbnailCanvas component
-└── Memoize expensive computations với useMemo
-```
+### 3. Background Upload (Upload Ngầm)
 
-### Tối Ưu 4: Mobile Layout Fixes
-
-```text
-Thay đổi:
-├── Thêm padding-bottom động khi keyboard mở (iOS safe area)
-├── Improve scroll behavior với overscroll-behavior
-├── Fix sticky bottom button positioning
-└── Responsive text sizing
-```
+**Tính năng mới như YouTube**:
+- Khi bấm "Tải lên", upload bắt đầu ở background
+- User có thể đóng modal và tiếp tục dùng app bình thường
+- Hiển thị mini progress indicator ở góc màn hình
+- Thông báo khi upload hoàn tất
 
 ---
 
@@ -84,125 +40,95 @@ Thay đổi:
 
 | Action | File | Mô tả |
 |--------|------|-------|
-| EDIT | `MobileUploadFlow.tsx` | Tối ưu animations, cleanup memory, fix layout |
-| EDIT | `VideoGalleryPicker.tsx` | Improve touch responsiveness, reduce animations |
-| EDIT | `VideoConfirmation.tsx` | Optimize video player, touch improvements |
-| EDIT | `VideoDetailsForm.tsx` | Fix keyboard handling, button states |
-| EDIT | `MobileUploadProgress.tsx` | Debounce progress, simpler animation |
-| EDIT | `SubPages/ThumbnailPicker.tsx` | Optimize swipe, memory cleanup |
+| EDIT | `VideoGalleryPicker.tsx` | Xóa grid "Video gần đây", đơn giản hóa giao diện |
+| EDIT | `MobileUploadFlow.tsx` | Căn giữa tabs, tích hợp background upload |
+| CREATE | `contexts/UploadContext.tsx` | Global upload manager để quản lý upload ngầm |
+| CREATE | `components/Upload/BackgroundUploadIndicator.tsx` | Widget nhỏ hiển thị progress khi upload ngầm |
+| EDIT | `App.tsx` | Thêm UploadProvider và BackgroundUploadIndicator |
 
 ---
 
 ## Chi Tiết Kỹ Thuật
 
-### MobileUploadFlow.tsx Optimizations
+### VideoGalleryPicker.tsx - Xóa phần thừa
 
-```typescript
-// 1. Add cleanup for ObjectURLs
-useEffect(() => {
-  return () => {
-    if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
-    if (thumbnailPreview) URL.revokeObjectURL(thumbnailPreview);
-  };
-}, []);
-
-// 2. Faster animations for mobile
-<AnimatePresence mode="popLayout"> // Faster than "wait"
-<motion.div
-  initial={{ opacity: 0, x: 10 }} // Smaller distance
-  animate={{ opacity: 1, x: 0 }}
-  exit={{ opacity: 0, x: -10 }}
-  transition={{ duration: 0.15 }} // Faster
-/>
-
-// 3. Add touch optimization classes
-className="touch-manipulation overscroll-contain"
+```text
+Thay đổi:
+├── Xóa toàn bộ grid "Video gần đây" (line 142-165)
+├── Giữ lại vùng upload chính với icon và nút "Chọn video"
+└── Giao diện sạch, tập trung vào một hành động duy nhất
 ```
 
-### VideoGalleryPicker.tsx Optimizations
+### MobileUploadFlow.tsx - Căn giữa tabs
 
-```typescript
-// 1. Reduce loading delay
-setTimeout(() => {
-  onVideoSelect(file);
-  setIsLoading(false);
-}, 100); // Từ 300ms xuống 100ms
-
-// 2. Simpler drag states
-const [isDragging, setIsDragging] = useState(false);
-// Remove complex gradient animations during drag
-
-// 3. Optimize touch target
-className="min-h-[52px] touch-manipulation active:scale-[0.98] transition-transform"
+```text
+Thay đổi:
+├── Thay overflow-x-auto bằng scroll-snap container
+├── Thêm px-6 (padding) để tab đầu không bị cắt
+└── Đảm bảo tất cả tabs hiển thị đầy đủ khi scroll
 ```
 
-### VideoConfirmation.tsx Optimizations
+### Background Upload System
 
-```typescript
-// 1. Video player optimization
-<video
-  ref={videoRef}
-  preload="metadata" // Thay vì preload="auto"
-  playsInline
-  webkit-playsinline // iOS optimization
-/>
+```text
+UploadContext sẽ bao gồm:
+├── uploads[] - Danh sách các upload đang chạy
+├── addUpload(file, metadata) - Thêm upload mới vào queue
+├── removeUpload(id) - Xóa khi hoàn tất
+└── progress tracking cho từng upload
 
-// 2. Faster seek response
-const handleSeek = useCallback(debounce((time: number) => {
-  if (videoRef.current) videoRef.current.currentTime = time;
-}, 50), []);
+Flow mới:
+1. User chọn video → nhập thông tin → bấm "Tải lên"
+2. Modal đóng ngay lập tức
+3. Upload chạy ở background
+4. Mini indicator hiển thị progress (có thể ẩn/hiện)
+5. Thông báo khi upload xong + link đến video
 ```
 
-### MobileUploadProgress.tsx Optimizations
+### BackgroundUploadIndicator - Widget mini
 
-```typescript
-// 1. Simpler animation (reduce CPU usage)
-<motion.div
-  animate={{ 
-    rotate: [0, 360] 
-  }}
-  transition={{ 
-    duration: 2, 
-    repeat: Infinity, 
-    ease: "linear" 
-  }}
->
-
-// 2. Debounced progress text
-const debouncedStage = useDeferredValue(stage);
+```text
+Giao diện:
+├── Floating pill ở góc trên hoặc dưới màn hình
+├── Hiển thị: thumbnail nhỏ + progress bar + % 
+├── Có thể tap để xem chi tiết hoặc hủy
+├── Auto-hide sau khi upload xong (hiện toast thành công)
+└── Không che mất nội dung chính của app
 ```
 
 ---
 
 ## Kết Quả Mong Đợi
 
-| Metric | Trước | Sau |
-|--------|-------|-----|
-| Animation FPS | ~30-45fps | ~55-60fps |
-| Step transition | ~300ms | ~150ms |
-| Memory leaks | ObjectURL leaks | Proper cleanup |
-| Touch response | Có delay nhỏ | Instant feedback |
-| Keyboard handling | Có thể bị che | Safe area aware |
+| Trước | Sau |
+|-------|-----|
+| Grid "Video gần đây" placeholder vô dụng | Giao diện sạch, một nút chọn video |
+| Tab "Video" bị cắt chữ | Tabs hiển thị đầy đủ, có thể kéo ngang |
+| Phải đợi modal đến khi upload xong | Upload ngầm, tự do dùng app |
+| Stuck nếu mạng chậm | Có thể tiếp tục xem video/duyệt app |
 
 ---
 
-## Các Tối Ưu Khác (Bonus)
+## Luồng Upload Mới (Giống YouTube)
 
-### Desktop UploadWizard
-- Đã fix lỗi màn hình đen ✅
-- Có thể thêm drag-resize cho modal
-- Progress indicator đã tốt
+```text
+1. [Chọn video] → [Xác nhận] → [Nhập thông tin] → [Bấm Tải lên]
+                                                      ↓
+2. Modal đóng ngay → User quay về trang chủ/kênh
+                                                      ↓
+3. Background: Video đang upload... (indicator nhỏ ở góc)
+                                                      ↓
+4. Upload xong → Toast "Tải lên thành công! 🎉" → Link xem video
 
-### R2 Upload Hook
-- Retry logic đã có (3 retries with backoff) ✅
-- Timeout 30 phút cho file lớn ✅
-- Multipart cho file > 100MB ✅
+* Nếu app bị đóng/refresh → Upload bị hủy (limitation của web)
+* Native app (Capacitor) có thể support background task tốt hơn
+```
 
 ---
 
 ## Notes
 
-- Tất cả thay đổi đều backward-compatible
-- Không ảnh hưởng đến upload logic (chỉ UX)
-- Desktop experience vẫn giữ nguyên chất lượng
-- Mobile sẽ mượt hơn đáng kể sau optimization
+- Background upload chỉ hoạt động khi app đang mở (web limitation)
+- Nếu user refresh/đóng tab, upload sẽ bị hủy
+- Có thể mở rộng hỗ trợ multiple uploads cùng lúc
+- Capacitor native app có thể implement background task thực sự trong tương lai
