@@ -68,6 +68,7 @@ export function MobileWatchView({
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [liveCommentCount, setLiveCommentCount] = useState(comments.length);
   const playerRef = useRef<HTMLDivElement>(null);
 
   // Handle minimize - show mini player and navigate to home
@@ -151,9 +152,9 @@ export function MobileWatchView({
           videoId={video.id}
         />
 
-        {/* Comments Card */}
+        {/* Comments Card - Sử dụng liveCommentCount thay vì comments.length */}
         <CommentsCard
-          commentCount={comments.length}
+          commentCount={liveCommentCount}
           latestComment={latestComment}
           onClick={() => setShowCommentsDrawer(true)}
         />
@@ -164,12 +165,13 @@ export function MobileWatchView({
         </div>
       </ScrollArea>
 
-      {/* Comments Drawer */}
+      {/* Comments Drawer - Với callback cập nhật số comment */}
       <CommentsDrawer
         isOpen={showCommentsDrawer}
         onClose={() => setShowCommentsDrawer(false)}
         videoId={video.id}
         commentCount={comments.length}
+        onCommentCountChange={setLiveCommentCount}
       />
     </div>
   );

@@ -29,14 +29,16 @@ interface CommentsDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   videoId: string;
-  commentCount: number;
+  commentCount?: number; // Optional - sẽ tự đếm realtime
+  onCommentCountChange?: (count: number) => void; // Callback khi count thay đổi
 }
 
 export function CommentsDrawer({
   isOpen,
   onClose,
   videoId,
-  commentCount,
+  commentCount: initialCommentCount,
+  onCommentCountChange,
 }: CommentsDrawerProps) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -47,12 +49,49 @@ export function CommentsDrawer({
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyContent, setReplyContent] = useState("");
   const [loading, setLoading] = useState(false);
+  const [totalCommentCount, setTotalCommentCount] = useState(initialCommentCount || 0);
 
+  // Fetch comments when drawer opens
   useEffect(() => {
     if (isOpen) {
       fetchComments();
     }
   }, [isOpen, videoId]);
+
+  // Calculate and update total comment count (parent + replies)
+  useEffect(() => {
+    const count = comments.reduce((acc, comment) => {
+      return acc + 1 + (comment.replies?.length || 0);
+    }, 0);
+    setTotalCommentCount(count);
+    onCommentCountChange?.(count);
+  }, [comments, onCommentCountChange]);
+
+  // Realtime subscription for new comments
+  useEffect(() => {
+    if (!videoId) return;
+
+    const channel = supabase
+      .channel(`comments-${videoId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'comments',
+          filter: `video_id=eq.${videoId}`,
+        },
+        () => {
+          // Refetch comments when any change happens
+          fetchComments();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [videoId]);
 
   const fetchComments = async () => {
     setLoading(true);
@@ -228,8 +267,8 @@ export function CommentsDrawer({
 
             {/* Header */}
             <div className="flex items-center justify-between px-4 pb-3 border-b border-border">
-              <h2 className="text-lg font-semibold text-foreground">
-                Bình luận <span className="text-muted-foreground font-normal">{commentCount}</span>
+            <h2 className="text-lg font-semibold text-foreground">
+                Bình luận <span className="text-muted-foreground font-normal">{totalCommentCount}</span>
               </h2>
               <Button
                 variant="ghost"
