@@ -5,8 +5,10 @@ import {
   Play, Pause, Volume2, VolumeX, Maximize, Minimize,
   SkipBack, SkipForward, Settings, RotateCcw, RotateCw,
   PictureInPicture2, Repeat, Repeat1, Shuffle, ChevronRight,
-  Check
+  Check, X
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -64,6 +66,7 @@ export function EnhancedVideoPlayer({
   onPlayStateChange,
   onTimeUpdate,
 }: EnhancedVideoPlayerProps) {
+  const navigate = useNavigate();
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -501,6 +504,28 @@ export function EnhancedVideoPlayer({
         }}
         playsInline
       />
+
+      {/* Close button - Top left, visible on hover */}
+      <div className={cn(
+        "absolute top-4 left-4 z-30 transition-opacity duration-300",
+        showControls ? "opacity-100" : "opacity-0"
+      )}>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (videoRef.current) {
+              videoRef.current.pause();
+            }
+            navigate('/');
+          }}
+          className="h-10 w-10 text-white bg-black/50 hover:bg-red-500/40 rounded-full backdrop-blur-sm transition-all duration-200"
+          title="Đóng video"
+        >
+          <X className="h-6 w-6" />
+        </Button>
+      </div>
 
       {/* End Screen */}
       {showEndScreen && (
