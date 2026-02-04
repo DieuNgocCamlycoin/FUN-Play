@@ -26,7 +26,7 @@ interface Playlist {
 
 const Profile = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { profile, loading: profileLoading } = useProfile();
   const { watchHistory, loading: historyLoading } = useWatchHistory();
   const { videos: offlineVideos, getCount } = useOfflineVideos();
@@ -37,6 +37,7 @@ const Profile = () => {
   const [offlineCount, setOfflineCount] = useState(0);
 
   useEffect(() => {
+    if (authLoading) return; // Đợi auth check xong
     if (!user) {
       navigate("/auth");
       return;
@@ -96,7 +97,7 @@ const Profile = () => {
     };
 
     fetchData();
-  }, [user, navigate]);
+  }, [user, authLoading, navigate]);
 
   useEffect(() => {
     const fetchOfflineCount = async () => {
@@ -105,6 +106,14 @@ const Profile = () => {
     };
     fetchOfflineCount();
   }, [getCount, offlineVideos]);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
 
   if (!user) return null;
 
