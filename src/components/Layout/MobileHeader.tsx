@@ -1,12 +1,12 @@
-import { Search, Bell, Menu, X, Plus, Upload, Music, FileText, Coins, Download, Shield, Crown, Settings, LogOut } from "lucide-react";
+import { Search, Bell, Menu, X, Plus, Upload, Music, FileText, Download, Shield, Crown, Settings, LogOut } from "lucide-react";
 import funplayLogo from "@/assets/funplay-logo.jpg";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { MultiTokenWallet } from "@/components/Web3/MultiTokenWallet";
 import { CAMLYMiniWidget } from "@/components/Web3/CAMLYMiniWidget";
 import { FunWalletMiniWidget } from "@/components/Web3/FunWalletMiniWidget";
 import { AngelChat } from "@/components/Mascot/AngelChat";
+import { UnifiedClaimButton } from "@/components/Rewards/UnifiedClaimButton";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { useNavigate } from "react-router-dom";
@@ -26,7 +26,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
-import { ClaimRewardsModal } from "@/components/Rewards/ClaimRewardsModal";
 import { UploadWizard } from "@/components/Upload/UploadWizard";
 import { MobileUploadFlow } from "@/components/Upload/Mobile/MobileUploadFlow";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -42,8 +41,6 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [notificationCount, setNotificationCount] = useState(0);
-  const [unclaimedRewards, setUnclaimedRewards] = useState(0);
-  const [claimModalOpen, setClaimModalOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
   const [angelChatOpen, setAngelChatOpen] = useState(false);
@@ -74,17 +71,16 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
     checkRoles();
   }, [user]);
 
-  // Fetch unclaimed rewards count as notification indicator
+  // Fetch notification count
   useEffect(() => {
     const fetchNotificationCount = async () => {
       if (!user) {
         setNotificationCount(0);
-        setUnclaimedRewards(0);
         return;
       }
 
       try {
-        const { data, count } = await supabase
+        const { count } = await supabase
           .from('reward_transactions')
           .select('amount', { count: 'exact' })
           .eq('user_id', user.id)
@@ -92,7 +88,6 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
           .eq('status', 'success');
 
         setNotificationCount(count || 0);
-        setUnclaimedRewards(data?.length || 0);
       } catch (error) {
         console.error('Error fetching notification count:', error);
       }
@@ -177,39 +172,8 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
               </TooltipContent>
             </Tooltip>
 
-            {/* Claim Rewards - Always show icon */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => user ? setClaimModalOpen(true) : navigate("/auth")}
-                  className="h-7 w-7 relative text-yellow-500 hover:text-yellow-400 hover:bg-yellow-500/10"
-                >
-                  <Coins className="h-3.5 w-3.5" />
-                  {unclaimedRewards > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 min-w-[12px] h-3 px-0.5 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center animate-pulse">
-                      {unclaimedRewards > 9 ? '9+' : unclaimedRewards}
-                    </span>
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="text-xs">
-                Nhận thưởng CAMLY
-              </TooltipContent>
-            </Tooltip>
-
-            {/* Wallet - Compact */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div>
-                  <MultiTokenWallet compact />
-                </div>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="text-xs">
-                Ví tiền điện tử
-              </TooltipContent>
-            </Tooltip>
+            {/* Unified Claim Button - Replaces separate Coins + Wallet buttons */}
+            <UnifiedClaimButton compact />
 
             {/* Create Button */}
             <Tooltip>
@@ -384,9 +348,6 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
         </TooltipProvider>
       </div>
 
-      {/* Claim Rewards Modal */}
-      <ClaimRewardsModal open={claimModalOpen} onOpenChange={setClaimModalOpen} />
-      
       {/* ANGEL AI Chat */}
       <AngelChat isOpen={angelChatOpen} onClose={() => setAngelChatOpen(false)} />
 
