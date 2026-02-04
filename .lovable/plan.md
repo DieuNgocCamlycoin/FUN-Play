@@ -1,257 +1,211 @@
 
-# Kế Hoạch: Hoàn Thiện UI Playlist Giống YouTube
+# Kế Hoạch: Hoàn Thiện Video Player Giống YouTube
 
 ## Tổng Quan Các Vấn Đề
 
 | # | Vấn Đề | Tình Trạng Hiện Tại | Mong Muốn (YouTube) |
 |---|--------|---------------------|---------------------|
-| 1 | Bottom Sheet Chế độ hiển thị | Nằm ở dưới, bị ẩn, phải scroll | Nổi lên trên cùng màn hình, không cần scroll |
-| 2 | Playlist Page Layout | Có số thứ tự, 6-dot icon, không có nút quay lại | Thumbnail full-width top, nút < quay lại, layout gọn |
-| 3 | Video List trong Playlist | Có GripVertical, index number, spacing lớn | Vertical clean, thumbnail left-aligned sát trái, no numbers |
+| 1 | Nút bấm dưới video | Icons nhỏ, thiếu dislike count, thiếu glow effect | Icons lớn (24-32px), gradient glow, pulse animation, realtime counts |
+| 2 | Mini-player minimize | Bấm ↓ chưa hoạt động mượt, che trang chủ, khó tắt | Thu nhỏ góc phải dưới, không che overlay, swipe down tắt hẳn |
 
 ---
 
-## Phần 1: Fix Bottom Sheet "Đặt Chế Độ Hiển Thị"
+## Phần 1: Cải Thiện Nút Bấm Dưới Video (VideoActionsBar)
 
-### Vấn Đề Chi Tiết
-- `DrawerContent` hiện tại dùng `h-auto` → sheet tự co theo nội dung nhưng bị ẩn dưới viewport
-- Không có nút quay lại hoặc đóng rõ ràng
+### Layout Mới (Theo YouTube Mobile - Hình 2)
+
+```text
++------------------------------------------------------------------+
+| [Avatar] | Channel Name          | [Đăng ký]                    |
+|          | 12 người đăng ký       |                              |
++------------------------------------------------------------------+
+| [🔔▼] [👍 8] [👎] [➡️] [🔖 Lưu] [⬇️ Đã tải x...]               |
++------------------------------------------------------------------+
+```
+
+### Thay Đổi Chi Tiết
+
+**File: `src/components/Video/Mobile/VideoActionsBar.tsx`**
+
+1. **Thêm notification bell với dropdown** (như YouTube)
+2. **Icons lớn hơn** (h-5 w-5 thay vì h-4 w-4)
+3. **Gradient glow effect khi hover/tap**:
+   ```typescript
+   className={cn(
+     "transition-all duration-200",
+     hasLiked && "text-cyan-400 animate-pulse shadow-[0_0_15px_rgba(0,255,255,0.4)]"
+   )}
+   ```
+4. **Thêm haptic feedback** khi bấm nút
+5. **Rainbow sparkle animation khi like**:
+   ```css
+   @keyframes rainbow-sparkle {
+     0% { box-shadow: 0 0 10px rgba(0,255,255,0.5); }
+     33% { box-shadow: 0 0 15px rgba(168,85,247,0.5); }
+     66% { box-shadow: 0 0 15px rgba(236,72,153,0.5); }
+     100% { box-shadow: 0 0 10px rgba(0,255,255,0.5); }
+   }
+   ```
+6. **Tooltip vui** khi hover: "Lan tỏa ánh sáng! ✨"
+
+### Code Changes
+
+```typescript
+// Thêm imports
+import { useHapticFeedback } from "@/hooks/useHapticFeedback";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Bell, BellOff } from "lucide-react";
+import { motion } from "framer-motion";
+
+// Trong component
+const { lightTap, successFeedback } = useHapticFeedback();
+
+// Like button với gradient glow và animation
+<Tooltip>
+  <TooltipTrigger asChild>
+    <motion.div
+      whileTap={{ scale: 0.9 }}
+    >
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => {
+          successFeedback();
+          onLike();
+        }}
+        className={cn(
+          "rounded-full rounded-r-none gap-1.5 h-10 px-4",
+          hasLiked && "text-cosmic-cyan bg-cosmic-cyan/10 shadow-[0_0_20px_rgba(0,255,255,0.3)]"
+        )}
+      >
+        <ThumbsUp className={cn("h-5 w-5 transition-transform", hasLiked && "fill-current scale-110")} />
+        <span className="font-semibold">{formatNumber(likeCount)}</span>
+      </Button>
+    </motion.div>
+  </TooltipTrigger>
+  <TooltipContent>
+    <p>{hasLiked ? "Đã thích video này!" : "Lan tỏa ánh sáng! ✨"}</p>
+  </TooltipContent>
+</Tooltip>
+```
+
+---
+
+## Phần 2: Sửa Lỗi Minimize Video → Mini-Player
+
+### Vấn Đề Hiện Tại
+- `handleMinimize()` trong MobileWatchView gọi `showMiniPlayer()` và `navigate("/")` 
+- GlobalMiniPlayer hiển thị ở góc phải dưới với `bottom-20 right-2`
+- Vấn đề: Mini-player có thể che MobileBottomNav hoặc không hiển thị đúng
 
 ### Giải Pháp
-Cập nhật `CreatePlaylistModal.tsx` để drawer nổi đúng vị trí với max-height và back button:
 
-```text
-+----------------------------------+
-| ← Đặt chế độ hiển thị            |  <- Back button top-left
-+----------------------------------+
-|                                  |
-|  🌐 Công khai               ✓    |
-|     Mọi người có thể tìm kiếm    |
-+----------------------------------+
-|  🔗 Không công khai              |
-|     Bất kỳ ai có link có thể xem |
-+----------------------------------+
-|  🔒 Riêng tư                     |
-|     Chỉ bạn mới có thể xem       |
-+----------------------------------+
-```
-
-### Thay Đổi Code
-
-**File: `src/components/Playlist/CreatePlaylistModal.tsx`**
+**1. Cải thiện GlobalMiniPlayer positioning và interactions:**
 
 ```typescript
-// Cập nhật DrawerContent với max-h-[90vh] và thêm back button
-<DrawerContent className="max-h-[90vh]">
-  <DrawerHeader className="flex items-center gap-3">
-    <button
-      onClick={() => {
-        lightTap(); // Haptic feedback
-        setVisibilityDrawerOpen(false);
-      }}
-      className="p-2 -ml-2 rounded-full hover:bg-muted transition-colors"
-    >
-      <ChevronLeft className="h-5 w-5" />
-    </button>
-    <DrawerTitle>Đặt chế độ hiển thị</DrawerTitle>
-  </DrawerHeader>
-  
-  {/* Options với gradient glow trên radio buttons */}
-  <div className="p-4 space-y-1 pb-8 overflow-y-auto">
-    {/* Options với rainbow glow effect khi selected */}
-    <button
-      onClick={() => { lightTap(); setVisibility("public"); setVisibilityDrawerOpen(false); }}
-      className={cn(
-        "w-full flex items-center justify-between p-4 rounded-xl transition-all",
-        visibility === "public" 
-          ? "bg-gradient-to-r from-primary/10 to-purple-500/10 ring-2 ring-primary/50" 
-          : "hover:bg-muted"
-      )}
-    >
-      ...
-    </button>
-  </div>
-</DrawerContent>
+// GlobalMiniPlayer.tsx
+// Thêm swipe-to-dismiss gesture
+<motion.div
+  drag="y"
+  dragConstraints={{ top: -50, bottom: 100 }}
+  onDragEnd={(_, info) => {
+    if (info.offset.y > 50) {
+      hideMiniPlayer(); // Swipe down to dismiss
+    }
+  }}
+  className={cn(
+    "fixed z-[60]", // Higher z-index
+    "bottom-[72px] right-3", // Above bottom nav (16px height + padding)
+    "w-44 rounded-xl overflow-hidden", // Slightly larger
+    "bg-background/95 backdrop-blur-lg",
+    "shadow-2xl",
+    "border border-primary/20", // Rainbow border subtle
+    "cursor-pointer"
+  )}
+>
+```
+
+**2. Thêm rainbow border animation khi mini:**
+
+```typescript
+// Thêm class cho rainbow border
+"animate-[rainbow-border_3s_ease-in-out_infinite]"
+
+// Trong tailwind.config.ts
+"rainbow-border": {
+  "0%, 100%": { borderColor: "rgba(0, 255, 255, 0.3)" },
+  "33%": { borderColor: "rgba(168, 85, 247, 0.3)" },
+  "66%": { borderColor: "rgba(236, 72, 153, 0.3)" },
+}
+```
+
+**3. Thêm nút X rõ ràng để tắt:**
+
+```typescript
+// Close button với haptic feedback
+<Button
+  variant="ghost"
+  size="icon"
+  onClick={(e) => {
+    e.stopPropagation();
+    lightTap();
+    hideMiniPlayer();
+  }}
+  className="h-8 w-8 rounded-full bg-red-500/20 hover:bg-red-500/40"
+>
+  <X className="h-4 w-4 text-red-400" />
+</Button>
+```
+
+**4. Đảm bảo mini-player không che tương tác:**
+
+```typescript
+// Thêm pointer-events handling
+<motion.div
+  className="pointer-events-auto" // Only this element captures events
+  style={{ pointerEvents: 'auto' }}
+>
 ```
 
 ---
 
-## Phần 2: Redesign Playlist Page Layout
+## Phần 3: Cải Thiện Swipe Gesture trong YouTubeMobilePlayer
 
-### Vấn Đề Chi Tiết (từ Hình 1 so với Hình 2 YouTube)
-- Không có nút `<` quay lại ở top-left
-- Thumbnail không full-width trên mobile
-- Layout desktop có sidebar trái, mobile cần full-width
+### Vấn Đề
+- Drag gesture có nhưng feedback chưa rõ ràng
+- Cần thêm indicator "Kéo xuống để thu nhỏ" rõ ràng hơn
 
-### Thiết Kế Mới (Mobile-First như YouTube)
-
-```text
-MOBILE VIEW:
-+----------------------------------+
-| < |        [Cast] [Search] [⋮]   |  <- Header với back button
-+----------------------------------+
-|                                  |
-|     [THUMBNAIL FULL WIDTH]       |
-|                       [✏️]       |  <- Edit button góc thumbnail
-+----------------------------------+
-| LÀM VIỆC VỚI CHA                 |  <- Title bold
-| của CAMLY COSMIC COACH - Angel   |
-| Danh sách phát • Công khai • 33  |
-| LÀM VIỆC VỚI CHA                 |  <- Description
-+----------------------------------+
-| [▶ Phát tất cả] [+] [✏️] [↗] [⤓] |  <- Action buttons
-+----------------------------------+
-| [Sort dropdown: Mới nhất ▼]      |
-+----------------------------------+
-|                                  |
-| [THUMB] | MEETING LÀM VIỆC...    |
-| 3:35:05 | CAMLY COSMIC COACH     |
-|         | (no views/time needed) |
-+----------------------------------+
-| [THUMB] | MEETING LÀM VIỆC...    |
-| 4:00    | CAMLY COSMIC COACH     |
-+----------------------------------+
-```
-
-### Thay Đổi Code
-
-**File: `src/pages/Playlist.tsx`**
+### Giải Pháp
 
 ```typescript
-// 1. Import thêm
-import { ChevronLeft, Download } from "lucide-react";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { useHapticFeedback } from "@/hooks/useHapticFeedback";
-
-// 2. Trong component
-const isMobile = useIsMobile();
-const { lightTap } = useHapticFeedback();
-
-// 3. Thêm Back button handler
-const handleGoBack = () => {
-  lightTap();
-  navigate(-1);
-};
-
-// 4. Cập nhật Layout - Mobile view khác Desktop
-{isMobile ? (
-  // MOBILE LAYOUT
-  <div className="flex flex-col">
-    {/* Back Button Header */}
-    <div className="fixed top-0 left-0 right-0 z-40 bg-background/80 backdrop-blur-sm">
-      <div className="flex items-center justify-between p-2">
-        <button 
-          onClick={handleGoBack}
-          className="p-2 rounded-full hover:bg-muted transition-colors"
-        >
-          <ChevronLeft className="h-6 w-6" />
-        </button>
-        {/* Right icons */}
-      </div>
-    </div>
-    
-    {/* Full-width Thumbnail */}
-    <div className="relative w-full aspect-video pt-14">
-      <img src={thumbnail} className="w-full h-full object-cover" />
-      {isOwner && (
-        <button className="absolute bottom-3 right-3 h-10 w-10 rounded-full bg-white/90 shadow-lg">
-          <Pencil className="h-5 w-5" />
-        </button>
-      )}
-    </div>
-    
-    {/* Metadata */}
-    <div className="p-4">
-      <h1 className="text-xl font-bold">{playlist.name}</h1>
-      ...
-    </div>
-    
-    {/* Video List - NO numbers, NO grip icons */}
-    <div className="px-0">
-      {playlist.videos.map((item) => (
-        <VideoListItem key={item.id} item={item} showIndex={false} />
-      ))}
-    </div>
-  </div>
-) : (
-  // DESKTOP LAYOUT (keep existing with improvements)
-  ...
+// YouTubeMobilePlayer.tsx
+// Cải thiện drag indicator
+{isDragging && (
+  <motion.div 
+    className="absolute top-8 left-1/2 -translate-x-1/2 
+               bg-gradient-to-r from-cyan-500/80 to-purple-500/80 
+               rounded-full px-4 py-2 backdrop-blur-sm"
+    initial={{ opacity: 0, y: -10 }}
+    animate={{ opacity: 1, y: 0 }}
+  >
+    <span className="text-white text-sm font-medium flex items-center gap-2">
+      <ChevronDown className="h-4 w-4 animate-bounce" />
+      Kéo xuống để thu nhỏ
+    </span>
+  </motion.div>
 )}
-```
 
----
-
-## Phần 3: Clean Video List Display
-
-### Vấn Đề Chi Tiết
-- Có `GripVertical` icon (6 chấm)
-- Có số thứ tự (1, 2, 3...)
-- Video không sát trái
-- Spacing lớn
-
-### Thiết Kế Mới (Theo YouTube Mobile)
-
-```text
-+--------------------------------------------------+
-| [THUMB 16:9] | MEETING LÀM VIỆC CÙNG CHA 7.6... |  <- Title bold, line-clamp-2
-| [  3:35:05 ] | CAMLY COSMIC COACH - Angel...    |  <- Channel small
-|              |                                  ⋮ |  <- Menu dots
-+--------------------------------------------------+
-```
-
-### Thay Đổi Code
-
-**File: `src/pages/Playlist.tsx` - Video List Section**
-
-```typescript
-// XÓA: GripVertical icon và index number
-// CẬP NHẬT: Layout video item
-
-<div className="space-y-0">
-  {playlist.videos.map((item, index) => (
-    <div
-      key={item.id}
-      className="flex items-start gap-3 p-2 hover:bg-muted/50 transition-colors cursor-pointer"
-      onClick={() => handlePlayVideo(item, index)}
-    >
-      {/* Thumbnail - LEFT ALIGNED, no margin */}
-      <div className="relative w-40 aspect-video rounded-lg overflow-hidden flex-shrink-0">
-        <img
-          src={item.video.thumbnail_url}
-          alt={item.video.title}
-          className="w-full h-full object-cover"
-        />
-        {item.video.duration && (
-          <span className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1.5 py-0.5 rounded">
-            {formatDuration(item.video.duration)}
-          </span>
-        )}
-      </div>
-
-      {/* Info - RIGHT SIDE */}
-      <div className="flex-1 min-w-0 py-0.5">
-        <h3 className="font-semibold text-sm line-clamp-2 mb-1">
-          {item.video.title}
-        </h3>
-        <p className="text-xs text-muted-foreground line-clamp-1">
-          {item.video.channel_name}
-        </p>
-      </div>
-
-      {/* Menu dots - only visible on hover or owner */}
-      {isOwner && (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-            <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
-              <MoreVertical className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          ...
-        </DropdownMenu>
-      )}
-    </div>
-  ))}
-</div>
+// Giảm threshold để dễ trigger hơn
+const handleDragEnd = (_event: any, info: PanInfo) => {
+  setIsDragging(false);
+  setDragY(0);
+  
+  // Giảm từ 100px xuống 80px để dễ trigger hơn
+  if (info.offset.y > 80 || info.velocity.y > 300) {
+    lightTap(); // Haptic feedback
+    onMinimize?.();
+  }
+};
 ```
 
 ---
@@ -260,315 +214,314 @@ const handleGoBack = () => {
 
 | File | Loại | Mô Tả |
 |------|------|-------|
-| `src/components/Playlist/CreatePlaylistModal.tsx` | SỬA | Fix drawer height, thêm back button, gradient glow cho selected option |
-| `src/pages/Playlist.tsx` | SỬA | Redesign mobile layout, thêm back button, xóa index/grip icons, left-align videos |
+| `src/components/Video/Mobile/VideoActionsBar.tsx` | SỬA | Icons lớn, gradient glow, haptic, tooltip, animation |
+| `src/components/Video/GlobalMiniPlayer.tsx` | SỬA | Swipe dismiss, rainbow border, positioning fix, X button |
+| `src/components/Video/YouTubeMobilePlayer.tsx` | SỬA | Cải thiện drag indicator, giảm threshold, haptic |
+| `tailwind.config.ts` | SỬA | Thêm keyframes rainbow-border, rainbow-sparkle |
 
 ---
 
-## Chi Tiết Kỹ Thuật
+## Chi Tiết Triển Khai
 
-### CreatePlaylistModal.tsx - Cập Nhật Đầy Đủ
+### VideoActionsBar.tsx - Redesign Hoàn Chỉnh
 
 ```typescript
-// Thêm imports
-import { ChevronLeft } from "lucide-react";
-import { useHapticFeedback } from "@/hooks/useHapticFeedback";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { 
+  ThumbsUp, ThumbsDown, ExternalLink, Download, Loader2, 
+  Bookmark, Bell, BellOff, Share2 
+} from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-
-// Trong component
-const { lightTap } = useHapticFeedback();
-
-// Drawer với styling mới
-<Drawer open={visibilityDrawerOpen} onOpenChange={setVisibilityDrawerOpen}>
-  <DrawerContent className="max-h-[85vh] rounded-t-[20px]">
-    {/* Header với back button */}
-    <DrawerHeader className="flex flex-row items-center gap-2 pb-2">
-      <button
-        type="button"
-        onClick={() => {
-          lightTap();
-          setVisibilityDrawerOpen(false);
-        }}
-        className="p-2 -ml-2 rounded-full hover:bg-muted transition-colors"
-      >
-        <ChevronLeft className="h-5 w-5" />
-      </button>
-      <DrawerTitle className="flex-1">Đặt chế độ hiển thị</DrawerTitle>
-    </DrawerHeader>
-    
-    <div className="p-4 space-y-2 pb-8 overflow-y-auto">
-      {/* Công khai - với gradient glow khi selected */}
-      <button
-        type="button"
-        onClick={() => { 
-          lightTap();
-          setVisibility("public"); 
-          setVisibilityDrawerOpen(false); 
-        }}
-        className={cn(
-          "w-full flex items-center justify-between p-4 rounded-xl transition-all duration-200",
-          visibility === "public" 
-            ? "bg-gradient-to-r from-cyan-500/10 via-purple-500/10 to-pink-500/10 ring-2 ring-cyan-500/30" 
-            : "hover:bg-muted"
-        )}
-      >
-        <div className="flex items-center gap-3">
-          <div className={cn(
-            "p-2 rounded-full",
-            visibility === "public" ? "bg-gradient-to-r from-cyan-500 to-purple-500 text-white" : "bg-muted"
-          )}>
-            <Globe className="h-5 w-5" />
-          </div>
-          <div className="text-left">
-            <p className="font-medium">Công khai</p>
-            <p className="text-sm text-muted-foreground">Mọi người có thể tìm kiếm và xem</p>
-          </div>
-        </div>
-        {visibility === "public" && (
-          <Check className="h-5 w-5 text-cyan-500" />
-        )}
-      </button>
-      
-      {/* Tương tự cho Không công khai và Riêng tư */}
-    </div>
-  </DrawerContent>
-</Drawer>
-```
-
-### Playlist.tsx - Mobile Layout Mới
-
-```typescript
-// Thêm imports
-import { ChevronLeft, Download } from "lucide-react";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { SaveToPlaylistDrawer } from "@/components/Playlist/SaveToPlaylistDrawer";
 import { useHapticFeedback } from "@/hooks/useHapticFeedback";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { motion } from "framer-motion";
 
-// Trong component
-const isMobile = useIsMobile();
-const { lightTap } = useHapticFeedback();
+// ... props interface stays same
 
-const handleGoBack = () => {
-  lightTap();
-  navigate(-1);
-};
-
-// MOBILE LAYOUT - trong return statement
-return (
-  <div className="min-h-screen bg-background">
-    {/* Conditional Header based on mobile */}
-    {!isMobile && (
-      <>
-        <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
-        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      </>
-    )}
-    
-    <main className={cn(
-      isMobile ? "pt-0" : "pt-14 lg:pl-64"
-    )}>
-      {isMobile ? (
-        // MOBILE LAYOUT
-        <div className="flex flex-col min-h-screen">
-          {/* Fixed Back Button */}
-          <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-b from-black/50 to-transparent">
-            <div className="flex items-center justify-between p-2 safe-area-top">
-              <button 
-                onClick={handleGoBack}
-                className="p-2 rounded-full text-white hover:bg-white/20 transition-colors"
-              >
-                <ChevronLeft className="h-6 w-6" />
-              </button>
-              <div className="flex items-center gap-2">
-                {/* Cast, Search, More icons */}
-              </div>
-            </div>
-          </div>
+export function VideoActionsBar({ ...props }: VideoActionsBarProps) {
+  const { lightTap, successFeedback } = useHapticFeedback();
+  const [showLikeAnimation, setShowLikeAnimation] = useState(false);
+  
+  const handleLike = () => {
+    successFeedback();
+    setShowLikeAnimation(true);
+    setTimeout(() => setShowLikeAnimation(false), 600);
+    onLike();
+  };
+  
+  return (
+    <TooltipProvider>
+      <div className="px-3 py-3 border-b border-border">
+        {/* Channel row - giữ nguyên */}
+        
+        {/* Actions row - CẢI THIỆN */}
+        <div className="flex items-center gap-2 mt-3 overflow-x-auto pb-1 scrollbar-hide">
+          {/* Notification bell dropdown */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="rounded-full bg-muted/80 h-10 px-3 shrink-0"
+          >
+            <Bell className="h-5 w-5" />
+            <ChevronDown className="h-3 w-3 ml-0.5" />
+          </Button>
           
-          {/* Full-width Thumbnail with Edit Button */}
-          <div className="relative w-full aspect-video">
-            {playlist.videos[0]?.video.thumbnail_url ? (
-              <img
-                src={playlist.videos[0].video.thumbnail_url}
-                alt={playlist.name}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full bg-gradient-to-br from-purple-500/20 to-cyan-500/20 flex items-center justify-center">
-                <Play className="h-16 w-16 text-white/50" />
-              </div>
-            )}
-            
-            {/* Gradient overlay bottom */}
-            <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-background to-transparent" />
-            
-            {/* Edit Thumbnail Button */}
-            {isOwner && (
-              <button 
-                onClick={() => {
-                  lightTap();
-                  setEditPlaylistOpen(true);
-                }}
-                className="absolute bottom-3 right-3 h-10 w-10 rounded-full bg-white/90 shadow-lg flex items-center justify-center hover:bg-white transition-colors"
-              >
-                <Pencil className="h-5 w-5 text-gray-800" />
-              </button>
-            )}
-          </div>
-          
-          {/* Playlist Info Section */}
-          <div className="px-4 py-3 -mt-4 relative z-10">
-            <h1 className="text-xl font-bold mb-1">{playlist.name}</h1>
-            
-            {/* Owner info */}
-            {playlist.owner && (
-              <p className="text-sm text-muted-foreground mb-1">
-                của {playlist.owner.display_name || playlist.owner.username}
-              </p>
-            )}
-            
-            {/* Stats line */}
-            <div className="flex items-center gap-1 text-sm text-muted-foreground mb-2">
-              <span>Danh sách phát</span>
-              <span>•</span>
-              <VisibilityIcon className="h-3.5 w-3.5" />
-              <span>{visibilityInfo.text}</span>
-              <span>•</span>
-              <span>{playlist.video_count} video</span>
-            </div>
-            
-            {/* Description */}
-            {playlist.description && (
-              <p className="text-sm text-muted-foreground line-clamp-1 mb-3">
-                {playlist.description}
-              </p>
-            )}
-            
-            {/* Action Buttons Row */}
-            <div className="flex items-center gap-2">
-              <Button
-                onClick={() => handlePlayAll(false)}
-                variant="outline"
-                className="flex-1"
-                disabled={playlist.videos.length === 0}
-              >
-                <Play className="h-4 w-4 mr-2 fill-current" />
-                Phát tất cả
-              </Button>
-              
-              {/* Circular action buttons */}
-              {isOwner && (
-                <>
+          {/* Like/Dislike pill - ENHANCED */}
+          <div className="flex items-center bg-muted/80 rounded-full shrink-0">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <motion.div whileTap={{ scale: 0.9 }}>
                   <Button
-                    variant="secondary"
-                    size="icon"
-                    className="h-10 w-10 rounded-full"
-                    onClick={() => { lightTap(); setAddVideoOpen(true); }}
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleLike}
+                    className={cn(
+                      "rounded-full rounded-r-none gap-1.5 h-10 px-4 transition-all duration-300",
+                      hasLiked && "text-cosmic-cyan bg-gradient-to-r from-cyan-500/10 to-purple-500/10",
+                      showLikeAnimation && "animate-[rainbow-sparkle_0.6s_ease-out]"
+                    )}
                   >
-                    <Plus className="h-5 w-5" />
+                    <ThumbsUp className={cn(
+                      "h-5 w-5 transition-all duration-200", 
+                      hasLiked && "fill-current scale-110"
+                    )} />
+                    <span className="font-semibold">{formatNumber(likeCount)}</span>
                   </Button>
-                  <Button
-                    variant="secondary"
-                    size="icon"
-                    className="h-10 w-10 rounded-full"
-                    onClick={() => { lightTap(); setEditPlaylistOpen(true); }}
-                  >
-                    <Pencil className="h-5 w-5" />
-                  </Button>
-                </>
-              )}
-              <Button
-                variant="secondary"
-                size="icon"
-                className="h-10 w-10 rounded-full"
-                onClick={() => { lightTap(); handleShare(); }}
-              >
-                <ExternalLink className="h-5 w-5" />
-              </Button>
-              <Button
-                variant="secondary"
-                size="icon"
-                className="h-10 w-10 rounded-full"
-              >
-                <Download className="h-5 w-5" />
-              </Button>
-            </div>
-          </div>
-          
-          {/* Sort Dropdown */}
-          <div className="px-4 py-2 border-b border-border">
-            <Button variant="ghost" size="sm" className="text-sm">
-              Ngày xuất bản (mới nhất)
-              <ChevronDown className="h-4 w-4 ml-1" />
+                </motion.div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="text-sm">{hasLiked ? "Đã thích! 💖" : "Lan tỏa ánh sáng! ✨"}</p>
+              </TooltipContent>
+            </Tooltip>
+            
+            <div className="w-px h-6 bg-border" />
+            
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => lightTap()}
+              className="rounded-full rounded-l-none h-10 px-4"
+            >
+              <ThumbsDown className="h-5 w-5" />
             </Button>
           </div>
-          
-          {/* Video List - CLEAN, no numbers, no grip */}
-          <div className="flex-1">
-            {playlist.videos.map((item, index) => (
-              <div
-                key={item.id}
-                className="flex items-start gap-3 px-4 py-2 active:bg-muted/50 transition-colors"
-                onClick={() => handlePlayVideo(item, index)}
+
+          {/* Share button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => { lightTap(); onShare(); }}
+            className="rounded-full bg-muted/80 h-10 px-4 shrink-0"
+          >
+            <Share2 className="h-5 w-5" />
+          </Button>
+
+          {/* Save to playlist - với icon và text */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { lightTap(); setSaveDrawerOpen(true); }}
+                className="rounded-full bg-muted/80 h-10 px-4 gap-1.5 shrink-0 hover:bg-primary/10"
               >
-                {/* Thumbnail - LEFT ALIGNED */}
-                <div className="relative w-40 aspect-video rounded-lg overflow-hidden flex-shrink-0">
-                  <img
-                    src={item.video.thumbnail_url || "/placeholder.svg"}
-                    alt={item.video.title}
-                    className="w-full h-full object-cover"
-                  />
-                  {item.video.duration && (
-                    <span className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1.5 py-0.5 rounded font-medium">
-                      {formatDuration(item.video.duration)}
-                    </span>
-                  )}
-                </div>
+                <Bookmark className="h-5 w-5" />
+                <span className="text-sm font-medium">Lưu</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Lưu vào danh sách phát 📚</p>
+            </TooltipContent>
+          </Tooltip>
 
-                {/* Video Info */}
-                <div className="flex-1 min-w-0 py-0.5">
-                  <h3 className="font-semibold text-sm line-clamp-2 mb-1">
-                    {item.video.title}
-                  </h3>
-                  <p className="text-xs text-muted-foreground line-clamp-1">
-                    {item.video.channel_name}
-                  </p>
-                </div>
+          {/* Download - với status */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => { lightTap(); handleDownload(); }}
+            disabled={isDownloading}
+            className="rounded-full bg-muted/80 h-10 px-4 gap-1.5 shrink-0"
+          >
+            {isDownloading ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <Download className="h-5 w-5" />
+            )}
+            <span className="text-sm font-medium">Tải xuống</span>
+          </Button>
+        </div>
+      </div>
+    </TooltipProvider>
+  );
+}
+```
 
-                {/* Menu - visible */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0 mt-1">
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    {isOwner && (
-                      <DropdownMenuItem
-                        className="text-destructive"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRemoveVideo(item.video.id);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Xóa khỏi danh sách
-                      </DropdownMenuItem>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            ))}
+### GlobalMiniPlayer.tsx - Enhanced
+
+```typescript
+import { useRef, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { useMiniPlayer } from "@/contexts/MiniPlayerContext";
+import { Button } from "@/components/ui/button";
+import { Play, Pause, X, Maximize2 } from "lucide-react";
+import { motion, AnimatePresence, PanInfo } from "framer-motion";
+import { cn } from "@/lib/utils";
+import { useHapticFeedback } from "@/hooks/useHapticFeedback";
+
+export function GlobalMiniPlayer() {
+  const { lightTap } = useHapticFeedback();
+  // ... existing code
+  
+  const handleDragEnd = (_: any, info: PanInfo) => {
+    // Swipe down to dismiss
+    if (info.offset.y > 50 || info.velocity.y > 200) {
+      lightTap();
+      hideMiniPlayer();
+    }
+  };
+
+  return (
+    <AnimatePresence>
+      {miniPlayerVideo && isVisible && !shouldHide && (
+        <motion.div
+          key="mini-player"
+          initial={{ opacity: 0, y: 100, scale: 0.8 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 100, scale: 0.8 }}
+          transition={{ type: "spring", damping: 25, stiffness: 300 }}
+          drag="y"
+          dragConstraints={{ top: -30, bottom: 0 }}
+          dragElastic={0.2}
+          onDragEnd={handleDragEnd}
+          className={cn(
+            "fixed z-[60]",
+            "bottom-[76px] right-3", // Đảm bảo trên MobileBottomNav
+            "w-44 rounded-xl overflow-hidden",
+            "bg-background/95 backdrop-blur-lg",
+            "shadow-[0_8px_32px_rgba(0,0,0,0.3)]",
+            "border-2 border-transparent",
+            "bg-clip-padding",
+            "cursor-pointer",
+            // Rainbow border effect
+            "before:absolute before:inset-0 before:-z-10 before:m-[-2px] before:rounded-xl",
+            "before:bg-gradient-to-r before:from-cyan-500 before:via-purple-500 before:to-pink-500",
+            "before:animate-[rainbow-border_3s_linear_infinite]"
+          )}
+          onClick={handleExpand}
+        >
+          {/* Video */}
+          <div className="relative aspect-video">
+            <video
+              ref={videoRef}
+              src={miniPlayerVideo.videoUrl}
+              className="w-full h-full object-cover"
+              playsInline
+              muted={false}
+              // ... existing handlers
+            />
+            
+            {/* Overlay gradient */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+            
+            {/* Progress bar - thinner, red like YouTube */}
+            <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-white/20">
+              <div 
+                className="h-full bg-red-500 transition-all duration-200"
+                style={{ width: `${progressPercentage}%` }}
+              />
+            </div>
+            
+            {/* Expand button overlay */}
+            <div className="absolute top-2 right-2">
+              <Maximize2 className="h-4 w-4 text-white/80" />
+            </div>
           </div>
-        </div>
-      ) : (
-        // DESKTOP LAYOUT - giữ nguyên với cải tiến
-        <div className="max-w-7xl mx-auto p-4 lg:p-6">
-          {/* ... existing desktop layout but with removed index numbers ... */}
-        </div>
+
+          {/* Controls */}
+          <div className="p-2 flex items-center gap-1.5 bg-background">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handlePlayPause}
+              className="h-9 w-9 text-foreground hover:bg-accent rounded-full"
+            >
+              {isPlaying ? (
+                <Pause className="h-5 w-5" />
+              ) : (
+                <Play className="h-5 w-5 ml-0.5" />
+              )}
+            </Button>
+            
+            <div className="flex-1 min-w-0 px-1">
+              <p className="text-xs font-semibold truncate text-foreground">
+                {miniPlayerVideo.title}
+              </p>
+              <p className="text-[10px] text-muted-foreground truncate">
+                {miniPlayerVideo.channelName}
+              </p>
+            </div>
+
+            {/* Close button - more prominent */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleClose}
+              className="h-9 w-9 rounded-full text-muted-foreground hover:text-white hover:bg-red-500/20"
+            >
+              <X className="h-5 w-5" />
+            </Button>
+          </div>
+        </motion.div>
       )}
-    </main>
-  </div>
-);
+    </AnimatePresence>
+  );
+}
+```
+
+### tailwind.config.ts - Thêm Keyframes
+
+```typescript
+keyframes: {
+  // ... existing keyframes
+  
+  "rainbow-sparkle": {
+    "0%": { 
+      boxShadow: "0 0 10px rgba(0,255,255,0.5), 0 0 20px rgba(0,255,255,0.3)" 
+    },
+    "25%": { 
+      boxShadow: "0 0 15px rgba(168,85,247,0.5), 0 0 30px rgba(168,85,247,0.3)" 
+    },
+    "50%": { 
+      boxShadow: "0 0 15px rgba(236,72,153,0.5), 0 0 30px rgba(236,72,153,0.3)" 
+    },
+    "75%": { 
+      boxShadow: "0 0 15px rgba(251,191,36,0.5), 0 0 30px rgba(251,191,36,0.3)" 
+    },
+    "100%": { 
+      boxShadow: "0 0 10px rgba(0,255,255,0.5), 0 0 20px rgba(0,255,255,0.3)" 
+    },
+  },
+  
+  "rainbow-border": {
+    "0%, 100%": { 
+      backgroundPosition: "0% 50%" 
+    },
+    "50%": { 
+      backgroundPosition: "100% 50%" 
+    },
+  },
+},
+
+animation: {
+  // ... existing
+  "rainbow-sparkle": "rainbow-sparkle 0.6s ease-out",
+  "rainbow-border": "rainbow-border 3s linear infinite",
+}
 ```
 
 ---
@@ -577,20 +530,21 @@ return (
 
 | Tính Năng | Trước | Sau |
 |-----------|-------|-----|
-| Bottom Sheet Visibility | Bị ẩn dưới viewport | Nổi lên đầy đủ với max-h-[85vh], có nút < quay lại |
-| Playlist Header | Không có back button | Nút < trắng ở góc trái trên thumbnail |
-| Thumbnail Top | Nhỏ, trong card | Full-width trên mobile với edit button góc phải |
-| Video List | Có số thứ tự, 6-dot grip | Clean vertical, không số, không grip icon |
-| Video Alignment | Có padding trái | Left-aligned sát mép trái |
-| Haptic Feedback | Không có | Vibrate nhẹ khi bấm nút back/chọn visibility |
-| Design System | Đã apply một phần | Gradient glow cho selected options, rainbow hover |
+| Icons action buttons | h-4 w-4, không glow | h-5 w-5, gradient glow, pulse animation |
+| Like button | Đổi màu đơn giản | Rainbow sparkle animation, tooltip "Lan tỏa ánh sáng!" |
+| Haptic feedback | Không có | Vibrate nhẹ khi bấm tất cả nút |
+| Mini-player position | bottom-20, có thể bị che | bottom-[76px], luôn trên MobileBottomNav |
+| Mini-player dismiss | Chỉ có nút X | Swipe down hoặc nút X với haptic |
+| Mini-player border | border-white/20 đơn giản | Rainbow gradient border animation |
+| Progress bar | primary color | Red (YouTube style) |
+| Drag indicator | Text đơn giản | Gradient background, icon animate bounce |
 
 ---
 
-## Ghi Chú Thực Thi
+## Ghi Chú Kỹ Thuật
 
-1. **useIsMobile hook**: Đã có sẵn trong project để detect mobile viewport
-2. **useHapticFeedback hook**: Đã có sẵn, dùng `lightTap()` cho feedback nhẹ
-3. **Safe Area**: Thêm `safe-area-top` class cho devices có notch
-4. **Drag/Drop trên Desktop**: Giữ nguyên GripVertical cho desktop, chỉ ẩn trên mobile
-5. **Responsive**: Mobile dùng full-width layout, Desktop giữ sidebar layout
+1. **useHapticFeedback**: Đã có sẵn trong project, dùng `lightTap()` cho tap thường, `successFeedback()` cho like
+2. **framer-motion**: Đã có sẵn, dùng cho whileTap scale và drag gestures
+3. **TooltipProvider**: Cần wrap trong provider để tooltip hoạt động
+4. **z-index**: GlobalMiniPlayer cần z-[60] để luôn trên MobileBottomNav (z-50)
+5. **Safe area**: bottom-[76px] = 60px (nav height) + 16px (spacing)
