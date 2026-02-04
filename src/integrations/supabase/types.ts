@@ -316,39 +316,114 @@ export type Database = {
           },
         ]
       }
+      daily_claim_records: {
+        Row: {
+          claim_count: number | null
+          created_at: string | null
+          date: string
+          id: string
+          total_claimed: number | null
+          user_id: string
+        }
+        Insert: {
+          claim_count?: number | null
+          created_at?: string | null
+          date?: string
+          id?: string
+          total_claimed?: number | null
+          user_id: string
+        }
+        Update: {
+          claim_count?: number | null
+          created_at?: string | null
+          date?: string
+          id?: string
+          total_claimed?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       daily_reward_limits: {
         Row: {
+          comment_count: number | null
           comment_rewards_earned: number
           created_at: string
           date: string
           id: string
+          like_count: number | null
+          long_video_count: number | null
+          share_count: number | null
+          short_video_count: number | null
           updated_at: string
           upload_rewards_earned: number
           uploads_count: number
           user_id: string
+          view_count: number | null
           view_rewards_earned: number
         }
         Insert: {
+          comment_count?: number | null
           comment_rewards_earned?: number
           created_at?: string
           date?: string
           id?: string
+          like_count?: number | null
+          long_video_count?: number | null
+          share_count?: number | null
+          short_video_count?: number | null
           updated_at?: string
           upload_rewards_earned?: number
           uploads_count?: number
           user_id: string
+          view_count?: number | null
           view_rewards_earned?: number
         }
         Update: {
+          comment_count?: number | null
           comment_rewards_earned?: number
           created_at?: string
           date?: string
           id?: string
+          like_count?: number | null
+          long_video_count?: number | null
+          share_count?: number | null
+          short_video_count?: number | null
           updated_at?: string
           upload_rewards_earned?: number
           uploads_count?: number
           user_id?: string
+          view_count?: number | null
           view_rewards_earned?: number
+        }
+        Relationships: []
+      }
+      ip_tracking: {
+        Row: {
+          action_type: string
+          created_at: string | null
+          device_fingerprint: string | null
+          id: string
+          ip_hash: string
+          user_id: string | null
+          wallet_address: string | null
+        }
+        Insert: {
+          action_type: string
+          created_at?: string | null
+          device_fingerprint?: string | null
+          id?: string
+          ip_hash: string
+          user_id?: string | null
+          wallet_address?: string | null
+        }
+        Update: {
+          action_type?: string
+          created_at?: string | null
+          device_fingerprint?: string | null
+          id?: string
+          ip_hash?: string
+          user_id?: string | null
+          wallet_address?: string | null
         }
         Relationships: []
       }
@@ -719,7 +794,9 @@ export type Database = {
           music_enabled: boolean | null
           music_url: string | null
           pending_rewards: number | null
+          signup_ip_hash: string | null
           signup_rewarded: boolean | null
+          suspicious_score: number | null
           total_camly_rewards: number
           updated_at: string
           username: string
@@ -745,7 +822,9 @@ export type Database = {
           music_enabled?: boolean | null
           music_url?: string | null
           pending_rewards?: number | null
+          signup_ip_hash?: string | null
           signup_rewarded?: boolean | null
+          suspicious_score?: number | null
           total_camly_rewards?: number
           updated_at?: string
           username: string
@@ -771,7 +850,9 @@ export type Database = {
           music_enabled?: boolean | null
           music_url?: string | null
           pending_rewards?: number | null
+          signup_ip_hash?: string | null
           signup_rewarded?: boolean | null
+          suspicious_score?: number | null
           total_camly_rewards?: number
           updated_at?: string
           username?: string
@@ -779,6 +860,30 @@ export type Database = {
           wallet_address?: string | null
           wallet_connect_rewarded?: boolean | null
           wallet_type?: string | null
+        }
+        Relationships: []
+      }
+      reward_actions: {
+        Row: {
+          action_type: string
+          id: string
+          rewarded_at: string | null
+          user_id: string
+          video_id: string
+        }
+        Insert: {
+          action_type: string
+          id?: string
+          rewarded_at?: string | null
+          user_id: string
+          video_id: string
+        }
+        Update: {
+          action_type?: string
+          id?: string
+          rewarded_at?: string | null
+          user_id?: string
+          video_id?: string
         }
         Relationships: []
       }
@@ -1185,6 +1290,7 @@ export type Database = {
           thumbnail_url: string | null
           title: string
           updated_at: string
+          upload_rewarded: boolean | null
           user_id: string
           video_url: string
           view_count: number | null
@@ -1206,6 +1312,7 @@ export type Database = {
           thumbnail_url?: string | null
           title: string
           updated_at?: string
+          upload_rewarded?: boolean | null
           user_id: string
           video_url: string
           view_count?: number | null
@@ -1227,6 +1334,7 @@ export type Database = {
           thumbnail_url?: string | null
           title?: string
           updated_at?: string
+          upload_rewarded?: boolean | null
           user_id?: string
           video_url?: string
           view_count?: number | null
