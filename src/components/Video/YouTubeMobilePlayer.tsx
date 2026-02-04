@@ -323,11 +323,11 @@ export function YouTubeMobilePlayer({
           webkit-playsinline="true"
         />
 
-        {/* Thin progress bar always visible at bottom edge (when controls hidden) */}
+        {/* Thin progress bar always visible at bottom edge (when controls hidden) - Gradient theo Design System */}
         {!showControls && (
           <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-white/20 z-30">
             <div 
-              className="h-full bg-red-600 transition-all duration-100"
+              className="h-full bg-gradient-to-r from-cosmic-magenta to-cosmic-cyan transition-all duration-100"
               style={{ width: `${progressPercentage}%` }}
             />
           </div>

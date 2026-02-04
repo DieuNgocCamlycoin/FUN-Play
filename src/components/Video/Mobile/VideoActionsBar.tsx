@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ThumbsUp, ThumbsDown, Download, Loader2, Bookmark, Bell, ChevronDown, Share2 } from "lucide-react";
+import { ThumbsUp, ThumbsDown, Download, Loader2, Bookmark, Bell, BellRing, BellOff, ChevronDown, Share2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -9,6 +9,13 @@ import { SaveToPlaylistDrawer } from "@/components/Playlist/SaveToPlaylistDrawer
 import { useHapticFeedback } from "@/hooks/useHapticFeedback";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { motion } from "framer-motion";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface VideoActionsBarProps {
   channelId: string;
@@ -121,34 +128,59 @@ export function VideoActionsBar({
             </p>
           </div>
 
-          {/* Subscribe button */}
-          <Button
-            onClick={() => { lightTap(); onSubscribe(); }}
-            size="sm"
-            className={cn(
-              "rounded-full px-4 h-9 font-semibold transition-all duration-300",
-              isSubscribed
-                ? "bg-muted text-muted-foreground hover:bg-muted/80"
-                : "bg-gradient-to-r from-cosmic-cyan to-cosmic-sapphire text-white hover:opacity-90 shadow-[0_0_20px_rgba(0,255,255,0.3)]"
-            )}
-          >
-            {isSubscribed ? "Đã đăng ký" : "Đăng ký"}
-          </Button>
+          {/* Subscribe/Bell button - Logic mới */}
+          {isSubscribed ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => lightTap()}
+                  className="rounded-full h-9 px-3 bg-muted shrink-0 hover:bg-muted/80"
+                >
+                  <Bell className="h-5 w-5" />
+                  <ChevronDown className="h-3 w-3 ml-0.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48 bg-popover border border-border shadow-xl">
+                <DropdownMenuItem className="cursor-pointer">
+                  <Bell className="mr-2 h-4 w-4" />
+                  Tất cả thông báo
+                </DropdownMenuItem>
+                <DropdownMenuItem className="cursor-pointer">
+                  <BellRing className="mr-2 h-4 w-4" />
+                  Cá nhân hóa
+                </DropdownMenuItem>
+                <DropdownMenuItem className="cursor-pointer">
+                  <BellOff className="mr-2 h-4 w-4" />
+                  Không nhận
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem 
+                  onClick={() => { lightTap(); onSubscribe(); }}
+                  className="text-destructive cursor-pointer focus:text-destructive"
+                >
+                  Hủy đăng ký
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Button
+              onClick={() => { lightTap(); onSubscribe(); }}
+              size="sm"
+              className={cn(
+                "rounded-full px-4 h-9 font-semibold shrink-0 transition-all duration-300",
+                "bg-gradient-to-r from-cosmic-cyan to-cosmic-sapphire text-white",
+                "hover:opacity-90 shadow-[0_0_20px_rgba(0,255,255,0.3)]"
+              )}
+            >
+              Đăng ký
+            </Button>
+          )}
         </div>
 
-        {/* Actions row - ENHANCED */}
-        <div className="flex items-center gap-2 mt-3 overflow-x-auto pb-1 scrollbar-hide">
-          {/* Notification bell dropdown */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => lightTap()}
-            className="rounded-full bg-muted/80 h-10 px-3 shrink-0 hover:bg-muted"
-          >
-            <Bell className="h-5 w-5" />
-            <ChevronDown className="h-3 w-3 ml-0.5" />
-          </Button>
-
+        {/* Actions row - ENHANCED - Xóa nút Bell riêng, thêm pr-4 */}
+        <div className="flex items-center gap-2 mt-3 overflow-x-auto pb-1 pr-4 scrollbar-hide">
           {/* Like/Dislike pill - ENHANCED */}
           <div className="flex items-center bg-muted/80 rounded-full shrink-0">
             <Tooltip>
