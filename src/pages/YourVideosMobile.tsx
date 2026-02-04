@@ -38,7 +38,7 @@ interface Post {
 
 const YourVideosMobile = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { profile } = useProfile();
   
   const [videos, setVideos] = useState<Video[]>([]);
@@ -48,6 +48,7 @@ const YourVideosMobile = () => {
   const [filter, setFilter] = useState<"all" | "public" | "private">("all");
 
   useEffect(() => {
+    if (authLoading) return;
     if (!user) {
       navigate("/auth");
       return;
@@ -82,7 +83,7 @@ const YourVideosMobile = () => {
     };
 
     fetchContent();
-  }, [user, navigate]);
+  }, [user, authLoading, navigate]);
 
   const filteredVideos = videos.filter((video) => {
     if (filter === "all") return true;
@@ -103,6 +104,14 @@ const YourVideosMobile = () => {
     if (count >= 1000) return `${(count / 1000).toFixed(1)}K`;
     return count.toString();
   };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
 
   if (!user) return null;
 

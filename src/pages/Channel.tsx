@@ -425,7 +425,7 @@ export default function Channel() {
             )}
             <div className="flex-1">
               <h1 className="text-3xl font-bold text-foreground mb-1">
-                {channel.name}
+                {profile?.display_name || channel.name.replace("'s Channel", "").replace(" là", "")}
               </h1>
               <div className="flex items-center gap-4 mb-2">
                 <p className="text-muted-foreground font-semibold">
