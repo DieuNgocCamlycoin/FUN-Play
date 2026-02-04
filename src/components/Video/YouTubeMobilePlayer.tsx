@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
 import { PlayerSettingsDrawer } from "./PlayerSettingsDrawer";
 import { useHapticFeedback } from "@/hooks/useHapticFeedback";
+import { useAutoReward } from "@/hooks/useAutoReward";
+import { useAuth } from "@/hooks/useAuth";
 
 interface YouTubeMobilePlayerProps {
   videoUrl: string;
@@ -57,6 +59,13 @@ export function YouTubeMobilePlayer({
   const { lightTap } = useHapticFeedback();
   const navigate = useNavigate();
   
+  // Reward system integration
+  const { awardViewReward } = useAutoReward();
+  const { user } = useAuth();
+  const [viewRewarded, setViewRewarded] = useState(false);
+  const watchTimeRef = useRef(0);
+  const lastTimeRef = useRef(0);
+  
   const hideControlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const tapTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const tapCountRef = useRef(0);
@@ -64,6 +73,10 @@ export function YouTubeMobilePlayer({
 
   // Skip amount changed from 10s to 15s
   const SKIP_SECONDS = 15;
+  
+  // Reward thresholds
+  const SHORT_VIDEO_THRESHOLD = 5 * 60; // 5 minutes
+  const LONG_VIDEO_MIN_WATCH = 5 * 60; // 5 minutes for long videos
 
   // Format time
   const formatTime = (seconds: number) => {
@@ -287,6 +300,56 @@ export function YouTubeMobilePlayer({
   useEffect(() => {
     onTimeUpdate?.(currentTime, duration);
   }, [currentTime, duration, onTimeUpdate]);
+
+  // View reward tracking - Award CAMLY for watching videos
+  useEffect(() => {
+    const checkViewReward = async () => {
+      if (viewRewarded || !user || !videoId || duration <= 0) return;
+      
+      const isShortVideo = duration < SHORT_VIDEO_THRESHOLD;
+      
+      if (isShortVideo) {
+        // Short video: Must watch 90%+
+        if (currentTime >= duration * 0.9) {
+          setViewRewarded(true);
+          console.log('[Mobile Reward] Short video 90% reached, awarding view reward');
+          await awardViewReward(videoId);
+        }
+      } else {
+        // Long video: Must watch at least 5 minutes continuously
+        if (watchTimeRef.current >= LONG_VIDEO_MIN_WATCH) {
+          setViewRewarded(true);
+          console.log('[Mobile Reward] Long video 5min reached, awarding view reward');
+          await awardViewReward(videoId);
+        }
+      }
+    };
+    
+    if (isPlaying && duration > 0) {
+      const interval = setInterval(() => {
+        const video = videoRef.current;
+        if (!video) return;
+        
+        const current = video.currentTime;
+        // Only count time if watching continuously (not skipping)
+        if (Math.abs(current - lastTimeRef.current) < 2) {
+          watchTimeRef.current += 1;
+        }
+        lastTimeRef.current = current;
+        
+        checkViewReward();
+      }, 1000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [isPlaying, duration, currentTime, viewRewarded, user, videoId, awardViewReward]);
+
+  // Reset reward state when video changes
+  useEffect(() => {
+    setViewRewarded(false);
+    watchTimeRef.current = 0;
+    lastTimeRef.current = 0;
+  }, [videoId]);
 
   const opacity = isDragging ? Math.max(0.3, 1 - dragY / 300) : 1;
   const scale = isDragging ? Math.max(0.7, 1 - dragY / 600) : 1;

@@ -121,6 +121,58 @@ serve(async (req) => {
       );
     }
 
+    // Get claim config from database
+    console.log("Fetching claim config...");
+    const { data: configData } = await supabaseAdmin
+      .from('reward_config')
+      .select('config_key, config_value')
+      .in('config_key', ['MIN_CLAIM_AMOUNT', 'DAILY_CLAIM_LIMIT']);
+
+    const config: Record<string, number> = {
+      MIN_CLAIM_AMOUNT: 200000,
+      DAILY_CLAIM_LIMIT: 500000
+    };
+
+    configData?.forEach(c => {
+      config[c.config_key] = Number(c.config_value);
+    });
+    console.log("Claim config:", config);
+
+    // Check minimum claim amount
+    if (totalAmount < config.MIN_CLAIM_AMOUNT) {
+      console.log(`Total ${totalAmount} is less than minimum ${config.MIN_CLAIM_AMOUNT}`);
+      return new Response(
+        JSON.stringify({ 
+          error: `Cần ít nhất ${config.MIN_CLAIM_AMOUNT.toLocaleString()} CAMLY để rút. Bạn có ${totalAmount.toLocaleString()} CAMLY.` 
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Check daily claim limit
+    const today = new Date().toISOString().split('T')[0];
+    const { data: dailyClaim } = await supabaseAdmin
+      .from('daily_claim_records')
+      .select('total_claimed, claim_count')
+      .eq('user_id', user.id)
+      .eq('date', today)
+      .single();
+
+    const todayClaimed = Number(dailyClaim?.total_claimed) || 0;
+    const remainingLimit = config.DAILY_CLAIM_LIMIT - todayClaimed;
+    console.log(`Today claimed: ${todayClaimed}, Remaining limit: ${remainingLimit}`);
+
+    if (remainingLimit <= 0) {
+      return new Response(
+        JSON.stringify({ error: `Bạn đã đạt giới hạn rút ${config.DAILY_CLAIM_LIMIT.toLocaleString()} CAMLY hôm nay. Vui lòng quay lại ngày mai!` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Limit claim amount to remaining daily limit
+    const claimAmount = Math.min(totalAmount, remainingLimit);
+    console.log(`Claim amount (after limit): ${claimAmount} CAMLY`);
+
     // Check for pending claims (prevent double claiming)
     console.log("Checking for pending claims...");
     const { data: pendingClaims } = await supabaseAdmin
@@ -140,12 +192,12 @@ serve(async (req) => {
 
     console.log("No pending claims, proceeding to create claim request...");
 
-    // Create claim request record
+    // Create claim request record with clamped amount
     const { data: claimRequest, error: claimError } = await supabaseAdmin
       .from('claim_requests')
       .insert({
         user_id: user.id,
-        amount: totalAmount,
+        amount: claimAmount,
         wallet_address: walletAddress,
         status: 'pending'
       })
@@ -198,7 +250,7 @@ serve(async (req) => {
     }
 
     // Convert amount to token units (CAMLY has 18 decimals typically)
-    const amountInWei = ethers.parseUnits(totalAmount.toString(), decimals);
+    const amountInWei = ethers.parseUnits(claimAmount.toString(), decimals);
 
     // Check admin wallet balance
     const adminBalance = await camlyContract.balanceOf(adminWallet.address);
@@ -219,7 +271,7 @@ serve(async (req) => {
     }
 
     // Send CAMLY tokens
-    console.log(`Sending ${totalAmount} CAMLY to ${walletAddress}`);
+    console.log(`Sending ${claimAmount} CAMLY to ${walletAddress}`);
     const tx = await camlyContract.transfer(walletAddress, amountInWei);
     console.log('Transaction sent:', tx.hash);
 
@@ -237,7 +289,8 @@ serve(async (req) => {
       })
       .eq('id', claimRequest.id);
 
-    // Mark all rewards as claimed
+    // Mark rewards as claimed (only up to claimAmount)
+    // We claim ALL approved rewards since we're limited by daily limit
     const rewardIds = unclaimedRewards.map(r => r.id);
     await supabaseAdmin
       .from('reward_transactions')
@@ -248,12 +301,31 @@ serve(async (req) => {
       })
       .in('id', rewardIds);
 
-    console.log(`Successfully claimed ${totalAmount} CAMLY for user ${user.id}`);
+    // Update daily claim records
+    console.log("Updating daily claim records...");
+    const currentClaimCount = dailyClaim?.claim_count || 0;
+    await supabaseAdmin
+      .from('daily_claim_records')
+      .upsert({
+        user_id: user.id,
+        date: today,
+        total_claimed: todayClaimed + claimAmount,
+        claim_count: currentClaimCount + 1
+      }, { onConflict: 'user_id,date' });
+
+    // Reset approved_reward in profiles to 0 after successful claim
+    console.log("Resetting approved_reward to 0...");
+    await supabaseAdmin
+      .from('profiles')
+      .update({ approved_reward: 0 })
+      .eq('id', user.id);
+
+    console.log(`Successfully claimed ${claimAmount} CAMLY for user ${user.id}`);
 
     return new Response(
       JSON.stringify({
         success: true,
-        amount: totalAmount,
+        amount: claimAmount,
         txHash: receipt.hash,
         message: 'CAMLY tokens sent successfully!'
       }),
