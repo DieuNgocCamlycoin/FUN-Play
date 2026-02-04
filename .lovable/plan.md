@@ -1,51 +1,45 @@
 
-# Kế Hoạch Sửa Lỗi Upload Desktop
+# Kế Hoạch Sửa Lỗi Màn Hình Đen Khi Mở UploadWizard Desktop
 
-## Vấn Đề
+## Vấn Đề Phát Hiện
 
-Hệ thống upload có 2 giao diện tồn tại song song:
+Khi mở UploadWizard trên Desktop, màn hình bị **đen hoàn toàn** (black screen). Lỗi này xảy ra do:
 
-| Component | Vấn đề |
-|-----------|--------|
-| Upload.tsx (route /upload) | Giao diện cũ, không đẹp bằng wizard |
-| UploadWizard | Wizard 4 bước hiện đại, đẹp |
+1. **DialogOverlay có `bg-black/80`** che phủ gần như toàn bộ màn hình
+2. **DialogContent styling có thể bị conflict** khi các class CSS override nhau
+3. **Holographic border effect absolute** có thể che content vì không có proper z-index management
+4. **Gradients với CSS variables** có thể render sai trong một số trường hợp
 
-Một số vị trí đang navigate đến `/upload` route thay vì mở UploadWizard modal:
-- MobileHeader.tsx → "Upload Video" menu item
-- StudioContent.tsx → Nút "Tải video lên"
-- YourVideos.tsx → Nút "Tải video đầu tiên"
+---
+
+## Nguyên Nhân Gốc
+
+Trong file `src/components/Upload/UploadWizard.tsx`:
+
+```tsx
+// Line 410-411: Holographic effect với absolute positioning
+<div className="absolute inset-0 rounded-lg bg-gradient-to-r 
+  from-[hsl(var(--cosmic-cyan))] via-[hsl(var(--cosmic-magenta))] 
+  to-[hsl(var(--cosmic-gold))] opacity-10 pointer-events-none" />
+```
+
+Effect này có thể che phủ toàn bộ content nếu z-index không đúng. Đồng thời, phần content chính cần đảm bảo có **z-index cao hơn**.
 
 ---
 
 ## Giải Pháp
 
-Thống nhất sử dụng **UploadWizard modal** cho tất cả các điểm upload, thay vì navigate đến route `/upload`.
+### 1. Sửa z-index cho content area trong UploadWizard
 
----
+Đảm bảo tất cả các phần content chính có `relative z-10` hoặc cao hơn để nằm trên holographic effect.
 
-## Thay Đổi Chi Tiết
+### 2. Thêm background color rõ ràng cho DialogContent
 
-### 1. MobileHeader.tsx
-- Thêm state `uploadModalOpen`
-- Import UploadWizard hoặc MobileUploadFlow
-- Thay `navigate("/upload")` bằng `setUploadModalOpen(true)`
-- Render UploadWizard/MobileUploadFlow component
+Đảm bảo `bg-background` không bị override và luôn visible.
 
-### 2. StudioContent.tsx  
-- Thêm state `uploadModalOpen`
-- Import UploadWizard
-- Thay `navigate("/upload")` bằng `setUploadModalOpen(true)` (2 chỗ)
-- Render UploadWizard component
+### 3. Đơn giản hóa holographic effect
 
-### 3. YourVideos.tsx
-- Thêm state `uploadModalOpen`
-- Import UploadWizard
-- Thay `navigate("/upload")` bằng `setUploadModalOpen(true)`
-- Render UploadWizard component
-
-### 4. (Tùy chọn) Upload.tsx Route
-Giữ lại route `/upload` như một fallback nhưng redirect người dùng về home với modal mở:
-- Hoặc có thể xóa route hoàn toàn nếu không còn cần thiết
+Giảm bớt complexity để tránh render issues.
 
 ---
 
@@ -53,9 +47,49 @@ Giữ lại route `/upload` như một fallback nhưng redirect người dùng v
 
 | Action | File | Mô tả |
 |--------|------|-------|
-| EDIT | `src/components/Layout/MobileHeader.tsx` | Thêm UploadWizard modal thay navigate |
-| EDIT | `src/components/Studio/StudioContent.tsx` | Thêm UploadWizard modal thay navigate |
-| EDIT | `src/pages/YourVideos.tsx` | Thêm UploadWizard modal thay navigate |
+| EDIT | `src/components/Upload/UploadWizard.tsx` | Sửa z-index và background styling |
+| OPTIONAL | `src/components/ui/dialog.tsx` | Giảm opacity của overlay nếu cần |
+
+---
+
+## Chi Tiết Thay Đổi
+
+### UploadWizard.tsx
+
+```diff
+// DialogContent - đảm bảo bg-background rõ ràng
+- className={cn(
+-   "!flex !flex-col p-0 gap-0 overflow-hidden relative bg-background border-border",
++ className={cn(
++   "!flex !flex-col p-0 gap-0 overflow-hidden relative bg-background border-border shadow-2xl",
+
+// Holographic effect - thêm -z-10 để nằm dưới content
+- <div className="absolute inset-0 rounded-lg bg-gradient-to-r ... opacity-10 pointer-events-none" />
++ <div className="absolute inset-0 -z-10 rounded-lg bg-gradient-to-r ... opacity-10 pointer-events-none" />
+
+// Hoặc XÓA hoàn toàn holographic effect nếu gây vấn đề
+```
+
+### Backup Plan: Xóa hiệu ứng gradient phức tạp
+
+Nếu vẫn còn lỗi, sẽ xóa toàn bộ holographic border effect:
+
+```tsx
+{/* Holographic border effect - REMOVED */}
+{/* <div className="absolute inset-0 rounded-lg bg-gradient-to-r 
+    from-[hsl(var(--cosmic-cyan))] via-[hsl(var(--cosmic-magenta))] 
+    to-[hsl(var(--cosmic-gold))] opacity-10 pointer-events-none" /> */}
+```
+
+---
+
+## Giải Pháp Triệt Để (Nếu Cần)
+
+Nếu các sửa nhỏ không hiệu quả, sẽ **đơn giản hóa hoàn toàn UploadWizard** bằng cách:
+
+1. Xóa tất cả holographic/gradient effects
+2. Sử dụng styling đơn giản, clean
+3. Đảm bảo modal hoạt động ổn định trước, rồi mới thêm effects từ từ
 
 ---
 
@@ -63,33 +97,15 @@ Giữ lại route `/upload` như một fallback nhưng redirect người dùng v
 
 | Trước | Sau |
 |-------|-----|
-| Click "Upload" → Trang cũ kiểu mobile | Click "Upload" → UploadWizard đẹp |
-| Giao diện không nhất quán | UX thống nhất trên cả desktop/mobile |
-| Trang /upload hiển thị giao diện cũ | Tất cả đều mở modal wizard |
+| Màn hình đen khi mở modal | Modal hiển thị đúng với nội dung upload |
+| Desktop bị lỗi | Desktop + Mobile đều hoạt động tốt |
+| Không thể upload video | Users có thể upload video bình thường |
 
 ---
 
-## Chi Tiết Kỹ Thuật
+## Bước Test
 
-Mỗi file sẽ thêm logic tương tự:
-
-```typescript
-// Import
-import { UploadWizard } from "@/components/Upload/UploadWizard";
-import { MobileUploadFlow } from "@/components/Upload/Mobile/MobileUploadFlow";
-import { useIsMobile } from "@/hooks/use-mobile";
-
-// State
-const [uploadModalOpen, setUploadModalOpen] = useState(false);
-const isMobile = useIsMobile();
-
-// Thay navigate("/upload")
-onClick={() => setUploadModalOpen(true)}
-
-// Render modal (cuối component)
-{isMobile ? (
-  <MobileUploadFlow open={uploadModalOpen} onOpenChange={setUploadModalOpen} />
-) : (
-  <UploadWizard open={uploadModalOpen} onOpenChange={setUploadModalOpen} />
-)}
-```
+1. Mở FUN Play trên Desktop
+2. Click nút "Tạo" → "Tải video lên"
+3. Modal UploadWizard phải hiển thị với giao diện wizard 4 bước
+4. Có thể kéo-thả hoặc chọn video để upload
