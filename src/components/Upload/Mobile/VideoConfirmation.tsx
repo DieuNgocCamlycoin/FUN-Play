@@ -75,23 +75,25 @@ export function VideoConfirmation({
   return (
     <div className="flex flex-col h-full">
       {/* Video Player Section */}
-      <div className="relative flex-1 bg-black flex items-center justify-center">
+      <div className="relative flex-1 bg-black flex items-center justify-center touch-manipulation">
         <video
           ref={videoRef}
           src={videoPreviewUrl}
           className="max-w-full max-h-full object-contain"
           playsInline
+          preload="metadata"
           onClick={togglePlay}
         />
 
         {/* Play/Pause Overlay */}
         {!isPlaying && (
           <motion.button
-            initial={{ scale: 0.8, opacity: 0 }}
+            initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.15 }}
             whileTap={{ scale: 0.9 }}
             onClick={togglePlay}
-            className="absolute inset-0 flex items-center justify-center"
+            className="absolute inset-0 flex items-center justify-center touch-manipulation"
           >
             <div className="w-20 h-20 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
               <Play className="w-10 h-10 text-white fill-white ml-1" />
@@ -151,7 +153,7 @@ export function VideoConfirmation({
               mediumTap();
               onConvertToShort();
             }}
-            className="w-full py-3 px-4 rounded-xl border border-[hsl(var(--cosmic-magenta)/0.3)] text-[hsl(var(--cosmic-magenta))] font-medium flex items-center justify-center gap-2 hover:bg-[hsl(var(--cosmic-magenta)/0.1)] transition-colors min-h-[48px]"
+            className="w-full py-3 px-4 rounded-xl border border-[hsl(var(--cosmic-magenta)/0.3)] text-[hsl(var(--cosmic-magenta))] font-medium flex items-center justify-center gap-2 active:bg-[hsl(var(--cosmic-magenta)/0.1)] transition-colors min-h-[48px] touch-manipulation"
           >
             <Zap className="w-5 h-5" />
             Chỉnh sửa thành video Shorts
@@ -160,16 +162,15 @@ export function VideoConfirmation({
 
         {/* Next Button */}
         <motion.button
-          whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           onClick={() => {
             mediumTap();
             onNext();
           }}
           className={cn(
-            "w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 min-h-[56px] relative overflow-hidden",
+            "w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 min-h-[56px] relative overflow-hidden touch-manipulation",
             "bg-gradient-to-r from-[hsl(var(--cosmic-magenta))] via-[hsl(var(--cosmic-purple)/1)] to-[hsl(var(--cosmic-magenta))]",
-            "shadow-lg shadow-[hsl(var(--cosmic-magenta)/0.3)]"
+            "shadow-lg shadow-[hsl(var(--cosmic-magenta)/0.3)] active:opacity-90 transition-opacity"
           )}
         >
           {/* Pulse glow effect */}

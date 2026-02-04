@@ -115,7 +115,7 @@ export function ThumbnailPicker({
   );
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full touch-manipulation">
       {/* Current Thumbnail Preview */}
       <div className="p-4 border-b border-border">
         <p className="text-sm font-semibold mb-3 flex items-center gap-2">
@@ -124,7 +124,7 @@ export function ThumbnailPicker({
         </p>
         <motion.div
           className="relative w-full aspect-video rounded-xl overflow-hidden border-2 border-dashed group"
-          whileTap={{ scale: 0.98 }}
+          whileTap={{ scale: 0.99 }}
         >
           {/* Holographic border effect */}
           <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] via-[hsl(var(--cosmic-magenta))] to-[hsl(var(--cosmic-gold))] opacity-0 group-hover:opacity-50 transition-opacity -z-10 blur-sm" />
@@ -148,10 +148,10 @@ export function ThumbnailPicker({
           onClick={handleAutoGenerate}
           disabled={isGenerating}
           className={cn(
-            "w-full mt-4 py-3 rounded-xl border-2 border-[hsl(var(--cosmic-cyan)/0.4)] font-medium flex items-center justify-center gap-2 transition-all min-h-[48px]",
+            "w-full mt-4 py-3 rounded-xl border-2 border-[hsl(var(--cosmic-cyan)/0.4)] font-medium flex items-center justify-center gap-2 transition-colors min-h-[48px] touch-manipulation",
             isGenerating
               ? "border-[hsl(var(--cosmic-magenta))] bg-[hsl(var(--cosmic-magenta)/0.1)]"
-              : "hover:border-[hsl(var(--cosmic-cyan))] hover:bg-[hsl(var(--cosmic-cyan)/0.1)]"
+              : "active:border-[hsl(var(--cosmic-cyan))] active:bg-[hsl(var(--cosmic-cyan)/0.1)]"
           )}
         >
           <Wand2 className={cn("w-5 h-5", isGenerating && "animate-spin")} />
@@ -197,14 +197,14 @@ export function ThumbnailPicker({
             </TabsTrigger>
           </TabsList>
 
-          <AnimatePresence mode="wait">
+          <AnimatePresence mode="popLayout">
             <motion.div
               key={activeTab}
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: 5 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.2 }}
-              className="flex-1 p-4"
+              exit={{ opacity: 0, y: -5 }}
+              transition={{ duration: 0.15 }}
+              className="flex-1 p-4 will-change-transform"
             >
               <TabsContent value="upload" className="mt-0 h-full">
                 <ThumbnailUpload onUpload={handleUpload} />
@@ -223,15 +223,14 @@ export function ThumbnailPicker({
       </div>
 
       {/* Save Button */}
-      <div className="p-4 border-t border-border bg-background sticky bottom-0">
+      <div className="p-4 border-t border-border bg-background sticky bottom-0 pb-safe">
         <motion.button
-          whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           onClick={() => {
             mediumTap();
             onBack();
           }}
-          className="w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 min-h-[56px] bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] to-[hsl(var(--cosmic-magenta))] shadow-lg"
+          className="w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 min-h-[56px] bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] to-[hsl(var(--cosmic-magenta))] shadow-lg touch-manipulation active:opacity-90 transition-opacity"
         >
           <Check className="w-5 h-5" />
           Xong

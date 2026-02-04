@@ -146,15 +146,15 @@ export function VideoDetailsForm({
           return (
             <motion.button
               key={item.id}
-              initial={{ opacity: 0, x: 20 }}
+              initial={{ opacity: 0, x: 10 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.05 }}
-              whileTap={{ scale: 0.98, backgroundColor: "hsl(var(--muted)/0.5)" }}
+              transition={{ delay: index * 0.03, duration: 0.15 }}
+              whileTap={{ scale: 0.98 }}
               onClick={() => {
                 lightTap();
                 item.onClick();
               }}
-              className="w-full flex items-center gap-4 p-4 border-b border-border/50 hover:bg-muted/30 transition-colors min-h-[64px]"
+              className="w-full flex items-center gap-4 p-4 border-b border-border/50 active:bg-muted/50 transition-colors min-h-[64px] touch-manipulation"
             >
               {/* Icon */}
               <div className="w-10 h-10 rounded-full bg-muted/50 flex items-center justify-center">
@@ -184,16 +184,15 @@ export function VideoDetailsForm({
       </div>
 
       {/* Upload Button */}
-      <div className="p-4 border-t border-border bg-background sticky bottom-0">
+      <div className="p-4 border-t border-border bg-background sticky bottom-0 pb-safe">
         <motion.button
-          whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           onClick={handleUpload}
           disabled={!metadata.title.trim() || isUploading}
           className={cn(
-            "w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 min-h-[56px] relative overflow-hidden transition-all",
+            "w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 min-h-[56px] relative overflow-hidden transition-opacity touch-manipulation",
             metadata.title.trim() && !isUploading
-              ? "bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] to-[hsl(var(--cosmic-magenta))] shadow-lg shadow-[hsl(var(--cosmic-cyan)/0.3)]"
+              ? "bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] to-[hsl(var(--cosmic-magenta))] shadow-lg shadow-[hsl(var(--cosmic-cyan)/0.3)] active:opacity-90"
               : "bg-muted text-muted-foreground cursor-not-allowed"
           )}
         >

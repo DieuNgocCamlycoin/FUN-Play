@@ -10,28 +10,27 @@ interface MobileUploadProgressProps {
 export function MobileUploadProgress({ progress, stage }: MobileUploadProgressProps) {
   return (
     <div className="flex flex-col items-center justify-center min-h-full p-6 text-center">
-      {/* Animated Upload Icon */}
+      {/* Animated Upload Icon - Simplified for performance */}
       <motion.div
         animate={{
-          scale: [1, 1.1, 1],
-          rotate: [0, 5, -5, 0],
+          scale: [1, 1.05, 1],
         }}
         transition={{
-          duration: 2,
+          duration: 1.5,
           repeat: Infinity,
           ease: "easeInOut",
         }}
         className="relative mb-8"
       >
-        <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[hsl(var(--cosmic-cyan)/0.3)] via-[hsl(var(--cosmic-magenta)/0.3)] to-[hsl(var(--cosmic-gold)/0.3)] flex items-center justify-center">
+        <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[hsl(var(--cosmic-cyan)/0.3)] via-[hsl(var(--cosmic-magenta)/0.3)] to-[hsl(var(--cosmic-gold)/0.3)] flex items-center justify-center will-change-transform">
           <Upload className="w-12 h-12 text-[hsl(var(--cosmic-cyan))]" />
         </div>
 
-        {/* Orbiting sparkle */}
+        {/* Orbiting sparkle - simplified animation */}
         <motion.div
           animate={{ rotate: 360 }}
-          transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-          className="absolute inset-0"
+          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+          className="absolute inset-0 will-change-transform"
         >
           <Sparkles className="absolute -top-2 right-0 w-6 h-6 text-[hsl(var(--cosmic-gold))]" />
         </motion.div>
@@ -48,11 +47,12 @@ export function MobileUploadProgress({ progress, stage }: MobileUploadProgressPr
         </p>
       </div>
 
-      {/* Stage Text */}
+      {/* Stage Text - Faster transition */}
       <motion.p
         key={stage}
-        initial={{ opacity: 0, y: 10 }}
+        initial={{ opacity: 0, y: 5 }}
         animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.15 }}
         className="text-muted-foreground"
       >
         {stage}
