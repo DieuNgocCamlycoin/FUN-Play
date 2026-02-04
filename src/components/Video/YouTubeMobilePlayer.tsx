@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
+import { PlayerSettingsDrawer } from "./PlayerSettingsDrawer";
 
 interface YouTubeMobilePlayerProps {
   videoUrl: string;
@@ -45,6 +46,12 @@ export function YouTubeMobilePlayer({
   const [showSkipIndicator, setShowSkipIndicator] = useState<'left' | 'right' | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragY, setDragY] = useState(0);
+  
+  // Settings states
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [loopMode, setLoopMode] = useState<"off" | "all" | "one">("off");
+  
   const hideControlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const tapTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const tapCountRef = useRef(0);
@@ -64,6 +71,13 @@ export function YouTubeMobilePlayer({
     }
     return `${m}:${s.toString().padStart(2, "0")}`;
   };
+
+  // Apply playback speed
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.playbackRate = playbackSpeed;
+    }
+  }, [playbackSpeed]);
 
   // Auto-hide controls
   const resetControlsTimeout = useCallback(() => {
@@ -108,6 +122,20 @@ export function YouTubeMobilePlayer({
   const seekRelative = (seconds: number) => {
     if (videoRef.current) {
       videoRef.current.currentTime = Math.max(0, Math.min(videoRef.current.currentTime + seconds, duration));
+    }
+  };
+
+  // Handle video end with loop support
+  const handleVideoEnded = () => {
+    if (loopMode === "one") {
+      // Loop current video
+      if (videoRef.current) {
+        videoRef.current.currentTime = 0;
+        videoRef.current.play();
+      }
+    } else {
+      setIsPlaying(false);
+      onEnded?.();
     }
   };
 
@@ -225,6 +253,19 @@ export function YouTubeMobilePlayer({
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
   }, []);
 
+  // Handle orientation change in fullscreen
+  useEffect(() => {
+    const handleOrientation = () => {
+      if (isFullscreen && videoRef.current) {
+        // Force video to fill screen properly
+        videoRef.current.style.objectFit = 'contain';
+      }
+    };
+
+    window.addEventListener('orientationchange', handleOrientation);
+    return () => window.removeEventListener('orientationchange', handleOrientation);
+  }, [isFullscreen]);
+
   // Auto-play
   useEffect(() => {
     const video = videoRef.current;
@@ -243,180 +284,205 @@ export function YouTubeMobilePlayer({
 
   const opacity = isDragging ? Math.max(0.3, 1 - dragY / 300) : 1;
   const scale = isDragging ? Math.max(0.7, 1 - dragY / 600) : 1;
+  
+  // Calculate progress percentage
+  const progressPercentage = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
-    <motion.div
-      ref={containerRef}
-      drag="y"
-      dragConstraints={{ top: 0, bottom: 0 }}
-      dragElastic={0.2}
-      onDrag={handleDrag}
-      onDragStart={() => setIsDragging(true)}
-      onDragEnd={handleDragEnd}
-      style={{ opacity, scale }}
-      className={cn(
-        "relative bg-black overflow-hidden touch-none select-none",
-        isFullscreen ? "fixed inset-0 z-[100]" : "aspect-video w-full"
-      )}
-      onClick={handleTap}
-    >
-      {/* Video */}
-      <video
-        ref={videoRef}
-        src={videoUrl}
-        className="w-full h-full object-contain"
-        onTimeUpdate={() => setCurrentTime(videoRef.current?.currentTime || 0)}
-        onLoadedMetadata={() => setDuration(videoRef.current?.duration || 0)}
-        onEnded={() => {
-          setIsPlaying(false);
-          onEnded?.();
-        }}
-        onPlay={() => setIsPlaying(true)}
-        onPause={() => setIsPlaying(false)}
-        playsInline
-        webkit-playsinline="true"
-      />
-
-      {/* Skip Indicators */}
-      <AnimatePresence>
-        {showSkipIndicator && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.5 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.5 }}
-            className={cn(
-              "absolute top-1/2 -translate-y-1/2 w-24 h-24 rounded-full bg-black/60 flex items-center justify-center",
-              showSkipIndicator === 'left' ? "left-8" : "right-8"
-            )}
-          >
-            <div className="text-center">
-              <RotateCcw className={cn(
-                "h-10 w-10 text-white mx-auto",
-                showSkipIndicator === 'right' && "transform scale-x-[-1]"
-              )} />
-              <span className="text-white text-sm font-semibold">{SKIP_SECONDS}s</span>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Controls Overlay */}
+    <>
       <motion.div
-        initial={false}
-        animate={{ opacity: showControls ? 1 : 0 }}
+        ref={containerRef}
+        drag="y"
+        dragConstraints={{ top: 0, bottom: 0 }}
+        dragElastic={0.2}
+        onDrag={handleDrag}
+        onDragStart={() => setIsDragging(true)}
+        onDragEnd={handleDragEnd}
+        style={{ opacity, scale }}
         className={cn(
-          "absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/60 transition-opacity",
-          !showControls && "pointer-events-none"
+          "relative bg-black overflow-hidden touch-none select-none",
+          isFullscreen ? "fixed inset-0 z-[100]" : "aspect-video w-full"
         )}
+        onClick={handleTap}
       >
-        {/* Top bar - Minimize + Settings (no title) */}
-        <div className="absolute top-0 inset-x-0 p-3 flex items-center justify-between">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={(e) => { 
-              e.stopPropagation(); 
-              onMinimize?.(); 
-            }}
-            className="h-10 w-10 text-white hover:bg-white/20"
-          >
-            <ChevronDown className="h-6 w-6" />
-          </Button>
-          
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="text-white h-10 w-10 hover:bg-white/20"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <Settings className="h-5 w-5" />
-          </Button>
-        </div>
+        {/* Video */}
+        <video
+          ref={videoRef}
+          src={videoUrl}
+          className="w-full h-full object-contain"
+          onTimeUpdate={() => setCurrentTime(videoRef.current?.currentTime || 0)}
+          onLoadedMetadata={() => setDuration(videoRef.current?.duration || 0)}
+          onEnded={handleVideoEnded}
+          onPlay={() => setIsPlaying(true)}
+          onPause={() => setIsPlaying(false)}
+          playsInline
+          webkit-playsinline="true"
+        />
 
-        {/* Center controls - Prev | Play/Pause | Next */}
-        <div className="absolute inset-0 flex items-center justify-center gap-12">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={(e) => { e.stopPropagation(); onPrevious?.(); }}
-            disabled={!hasPrevious}
-            className={cn(
-              "h-14 w-14 text-white hover:bg-white/20 rounded-full",
-              !hasPrevious && "opacity-40"
-            )}
-          >
-            <SkipBack className="h-7 w-7" />
-          </Button>
-          
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={(e) => { e.stopPropagation(); togglePlay(); }}
-            className="h-18 w-18 text-white bg-black/30 hover:bg-black/50 rounded-full"
-          >
-            {isPlaying ? (
-              <Pause className="h-12 w-12" />
-            ) : (
-              <Play className="h-12 w-12 ml-1" />
-            )}
-          </Button>
-          
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={(e) => { e.stopPropagation(); onNext?.(); }}
-            disabled={!hasNext}
-            className={cn(
-              "h-14 w-14 text-white hover:bg-white/20 rounded-full",
-              !hasNext && "opacity-40"
-            )}
-          >
-            <SkipForward className="h-7 w-7" />
-          </Button>
-        </div>
-
-        {/* Bottom controls - Time + Progress + Fullscreen */}
-        <div className="absolute bottom-0 inset-x-0 p-3 space-y-2">
-          {/* Progress bar */}
-          <div className="px-2">
-            <Slider
-              value={[currentTime]}
-              max={duration || 100}
-              step={0.1}
-              onValueChange={([value]) => seekTo(value)}
-              className="cursor-pointer h-6"
-              onClick={(e) => e.stopPropagation()}
+        {/* Thin progress bar always visible at bottom edge (when controls hidden) */}
+        {!showControls && (
+          <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-white/20 z-30">
+            <div 
+              className="h-full bg-red-600 transition-all duration-100"
+              style={{ width: `${progressPercentage}%` }}
             />
           </div>
+        )}
 
-          {/* Time & Fullscreen */}
-          <div className="flex items-center justify-between px-2">
-            <span className="text-white text-sm font-medium">
-              {formatTime(currentTime)} / {formatTime(duration)}
-            </span>
+        {/* Skip Indicators */}
+        <AnimatePresence>
+          {showSkipIndicator && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.5 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.5 }}
+              className={cn(
+                "absolute top-1/2 -translate-y-1/2 w-24 h-24 rounded-full bg-black/60 flex items-center justify-center",
+                showSkipIndicator === 'left' ? "left-8" : "right-8"
+              )}
+            >
+              <div className="text-center">
+                <RotateCcw className={cn(
+                  "h-10 w-10 text-white mx-auto",
+                  showSkipIndicator === 'right' && "transform scale-x-[-1]"
+                )} />
+                <span className="text-white text-sm font-semibold">{SKIP_SECONDS}s</span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
+        {/* Controls Overlay */}
+        <motion.div
+          initial={false}
+          animate={{ opacity: showControls ? 1 : 0 }}
+          className={cn(
+            "absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/60 transition-opacity",
+            !showControls && "pointer-events-none"
+          )}
+        >
+          {/* Top bar - Minimize + Settings (no title) */}
+          <div className="absolute top-0 inset-x-0 p-3 flex items-center justify-between">
             <Button
               variant="ghost"
               size="icon"
-              onClick={(e) => { e.stopPropagation(); toggleFullscreen(); }}
+              onClick={(e) => { 
+                e.stopPropagation(); 
+                onMinimize?.(); 
+              }}
               className="h-10 w-10 text-white hover:bg-white/20"
             >
-              {isFullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
+              <ChevronDown className="h-6 w-6" />
+            </Button>
+            
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="text-white h-10 w-10 hover:bg-white/20"
+              onClick={(e) => {
+                e.stopPropagation();
+                setSettingsOpen(true);
+              }}
+            >
+              <Settings className="h-5 w-5" />
             </Button>
           </div>
-        </div>
+
+          {/* Center controls - Prev | Play/Pause | Next */}
+          <div className="absolute inset-0 flex items-center justify-center gap-12">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={(e) => { e.stopPropagation(); onPrevious?.(); }}
+              disabled={!hasPrevious}
+              className={cn(
+                "h-14 w-14 text-white hover:bg-white/20 rounded-full",
+                !hasPrevious && "opacity-40"
+              )}
+            >
+              <SkipBack className="h-7 w-7" />
+            </Button>
+            
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={(e) => { e.stopPropagation(); togglePlay(); }}
+              className="h-18 w-18 text-white bg-black/30 hover:bg-black/50 rounded-full"
+            >
+              {isPlaying ? (
+                <Pause className="h-12 w-12" />
+              ) : (
+                <Play className="h-12 w-12 ml-1" />
+              )}
+            </Button>
+            
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={(e) => { e.stopPropagation(); onNext?.(); }}
+              disabled={!hasNext}
+              className={cn(
+                "h-14 w-14 text-white hover:bg-white/20 rounded-full",
+                !hasNext && "opacity-40"
+              )}
+            >
+              <SkipForward className="h-7 w-7" />
+            </Button>
+          </div>
+
+          {/* Bottom controls - Time + Progress + Fullscreen */}
+          <div className="absolute bottom-0 inset-x-0 p-3 space-y-2">
+            {/* Progress bar */}
+            <div className="px-2">
+              <Slider
+                value={[currentTime]}
+                max={duration || 100}
+                step={0.1}
+                onValueChange={([value]) => seekTo(value)}
+                className="cursor-pointer h-6"
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+
+            {/* Time & Fullscreen */}
+            <div className="flex items-center justify-between px-2">
+              <span className="text-white text-sm font-medium">
+                {formatTime(currentTime)} / {formatTime(duration)}
+              </span>
+
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={(e) => { e.stopPropagation(); toggleFullscreen(); }}
+                className="h-10 w-10 text-white hover:bg-white/20"
+              >
+                {isFullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
+              </Button>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Drag indicator */}
+        {isDragging && (
+          <motion.div 
+            className="absolute top-4 left-1/2 -translate-x-1/2 bg-white/30 rounded-full px-4 py-2"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+          >
+            <span className="text-white text-sm">Kéo xuống để thu nhỏ</span>
+          </motion.div>
+        )}
       </motion.div>
 
-      {/* Drag indicator */}
-      {isDragging && (
-        <motion.div 
-          className="absolute top-4 left-1/2 -translate-x-1/2 bg-white/30 rounded-full px-4 py-2"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-        >
-          <span className="text-white text-sm">Kéo xuống để thu nhỏ</span>
-        </motion.div>
-      )}
-    </motion.div>
+      {/* Settings Drawer */}
+      <PlayerSettingsDrawer
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        playbackSpeed={playbackSpeed}
+        onSpeedChange={setPlaybackSpeed}
+        loopMode={loopMode}
+        onLoopChange={setLoopMode}
+      />
+    </>
   );
 }
