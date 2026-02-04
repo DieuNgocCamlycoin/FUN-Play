@@ -4,11 +4,10 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
-import { MultiTokenWallet } from "@/components/Web3/MultiTokenWallet";
 import { CAMLYMiniWidget } from "@/components/Web3/CAMLYMiniWidget";
 import { FunWalletMiniWidget } from "@/components/Web3/FunWalletMiniWidget";
 import { UploadWizard } from "@/components/Upload/UploadWizard";
-import { ClaimRewardsButton } from "@/components/Rewards/ClaimRewardsButton";
+import { UnifiedClaimButton } from "@/components/Rewards/UnifiedClaimButton";
 import { AngelChat } from "@/components/Mascot/AngelChat";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
@@ -181,8 +180,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
       <div className="flex items-center gap-2">
         <FunWalletMiniWidget />
         <CAMLYMiniWidget />
-        <ClaimRewardsButton />
-        <MultiTokenWallet />
+        <UnifiedClaimButton />
         
         {user && (
           <DropdownMenu>
