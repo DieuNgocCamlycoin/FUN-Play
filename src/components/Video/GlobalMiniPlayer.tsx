@@ -103,10 +103,10 @@ export function GlobalMiniPlayer() {
           "bottom-[76px] right-3",
           "w-44 rounded-xl overflow-hidden",
           "bg-background/95 backdrop-blur-lg",
-          "shadow-[0_8px_32px_rgba(0,0,0,0.3)]",
-          "border-2 border-cosmic-cyan/30",
+          "shadow-[0_8px_32px_rgba(0,0,0,0.4)]",
+          "border-2 border-cosmic-cyan/40",
           "cursor-pointer",
-          "animate-rainbow-border"
+          "animate-mini-player-border"
         )}
         onClick={handleExpand}
       >
@@ -134,10 +134,10 @@ export function GlobalMiniPlayer() {
           {/* Overlay gradient */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
           
-          {/* Progress bar - red like YouTube */}
+          {/* Progress bar - gradient theo Design System */}
           <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-white/20">
             <div 
-              className="h-full bg-red-500 transition-all duration-200"
+              className="h-full bg-gradient-to-r from-cosmic-magenta to-cosmic-cyan transition-all duration-200"
               style={{ width: `${progressPercentage}%` }}
             />
           </div>
