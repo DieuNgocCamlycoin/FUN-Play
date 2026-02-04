@@ -1,63 +1,134 @@
 
-# Kế Hoạch Kết Nối Trực Tiếp với ANGEL AI từ angel.fun.rich
+# Kế Hoạch Sửa Lỗi Kết Nối ANGEL AI angel.fun.rich
 
-## Tình Trạng Hiện Tại
+## Vấn Đề Phát Hiện
 
-Khi test edge function `angel-ai-proxy`, mình thấy lỗi:
+Từ logs, API key mới **đã hoạt động** và ANGEL AI đang phản hồi, nhưng response format là **streaming (SSE)** thay vì JSON:
+
 ```
-ANGEL AI error: 401 {"error":"Invalid API key or rate limit exceeded"}
+ANGEL AI exception: SyntaxError: Unexpected token 'd', "data: {"ch"... is not valid JSON
 ```
 
-Điều này có nghĩa API key `ANGEL_AI_API_KEY` hiện tại đã **hết hạn hoặc không đúng**.
+Response format từ angel.fun.rich:
+```
+data: {"choices":[{"delta":{"content":"Xin"}}]}
+data: {"choices":[{"delta":{"content":" chào"}}]}
+data: [DONE]
+```
+
+Trong khi code đang cố parse như JSON object bình thường.
 
 ---
 
 ## Giải Pháp
 
-### Bước 1: Cập Nhật API Key Mới
+Cập nhật function `tryAngelAI()` để xử lý SSE streaming response:
 
-Bạn cần cung cấp **API key mới** từ angel.fun.rich. 
+### Code Thay Đổi
 
-Mình sẽ sử dụng tool để bạn nhập API key mới vào hệ thống.
+| File | Thay đổi |
+|------|----------|
+| `supabase/functions/angel-ai-proxy/index.ts` | Thêm SSE streaming parser cho ANGEL AI |
 
-### Bước 2: Cải Thiện Edge Function (Tùy Chọn)
+### Logic Mới
 
-Nếu API key mới hoạt động, mình có thể cải thiện thêm:
-
-| Cải thiện | Mô tả |
-|-----------|-------|
-| Thêm retry logic | Thử lại 2-3 lần nếu lỗi mạng |
-| Thêm timeout | Timeout 10 giây để không chờ lâu |
-| Thêm logging chi tiết | Log thêm thông tin debug |
-| Cập nhật system prompt | Thêm personality prompt đặc trưng cho Angel |
+1. Đọc response.text() thay vì response.json()
+2. Parse từng dòng `data: {...}` 
+3. Ghép tất cả `delta.content` thành nội dung hoàn chỉnh
+4. Bỏ qua các dòng `data: [DONE]` hoặc dòng trống
 
 ---
 
 ## Chi Tiết Kỹ Thuật
 
-### File Cần Thay Đổi
+### Function tryAngelAI() mới:
 
-| File | Thay đổi |
-|------|----------|
-| Secrets | Cập nhật `ANGEL_AI_API_KEY` với key mới |
-| `supabase/functions/angel-ai-proxy/index.ts` | (Tùy chọn) Thêm retry và timeout |
+```typescript
+async function tryAngelAI(messages: any[]): Promise<{ content: string | null; provider: string }> {
+  const ANGEL_AI_API_KEY = Deno.env.get("ANGEL_AI_API_KEY");
+  if (!ANGEL_AI_API_KEY) {
+    console.log("ANGEL_AI_API_KEY not configured, skipping ANGEL AI");
+    return { content: null, provider: "" };
+  }
 
-### Endpoint ANGEL AI
+  try {
+    console.log("🌟 Trying ANGEL AI from angel.fun.rich...");
+    const response = await fetch(
+      "https://ssjoetiitctqzapymtzl.supabase.co/functions/v1/angel-chat",
+      {
+        method: "POST",
+        headers: {
+          "x-api-key": ANGEL_AI_API_KEY,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ messages }),
+      }
+    );
 
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("ANGEL AI error:", response.status, errorText);
+      return { content: null, provider: "" };
+    }
+
+    // Handle SSE streaming response from angel.fun.rich
+    const text = await response.text();
+    console.log("🌟 ANGEL AI raw response (first 200 chars):", text.slice(0, 200));
+    
+    // Check if it's SSE format (starts with "data:")
+    if (text.startsWith("data:") || text.includes("\ndata:")) {
+      let fullContent = "";
+      const lines = text.split("\n");
+      
+      for (const line of lines) {
+        if (line.startsWith("data:")) {
+          const jsonStr = line.slice(5).trim(); // Remove "data:" prefix
+          if (jsonStr === "[DONE]" || jsonStr === "") continue;
+          
+          try {
+            const parsed = JSON.parse(jsonStr);
+            // Handle OpenAI-style streaming format
+            const delta = parsed.choices?.[0]?.delta?.content;
+            if (delta) {
+              fullContent += delta;
+            }
+            // Also check for direct response format
+            if (parsed.response) {
+              fullContent = parsed.response;
+              break;
+            }
+          } catch {
+            // Skip non-JSON lines
+            continue;
+          }
+        }
+      }
+      
+      if (fullContent) {
+        console.log("🌟 ANGEL AI responded successfully (SSE)!");
+        return { content: fullContent, provider: "angel-ai" };
+      }
+    }
+    
+    // Try parsing as regular JSON
+    try {
+      const data = JSON.parse(text);
+      const content = data.response || data.choices?.[0]?.message?.content;
+      if (content) {
+        console.log("🌟 ANGEL AI responded successfully (JSON)!");
+        return { content, provider: "angel-ai" };
+      }
+    } catch {
+      console.error("ANGEL AI: Unable to parse response");
+    }
+    
+    return { content: null, provider: "" };
+  } catch (error) {
+    console.error("ANGEL AI exception:", error);
+    return { content: null, provider: "" };
+  }
+}
 ```
-URL: https://ssjoetiitctqzapymtzl.supabase.co/functions/v1/angel-chat
-Method: POST
-Header: x-api-key: {ANGEL_AI_API_KEY}
-Body: { "messages": [...] }
-```
-
----
-
-## Bạn Cần Làm
-
-1. **Lấy API key mới** từ dashboard angel.fun.rich 
-2. **Nhập vào** khi mình hiển thị form nhập key
-3. **Test** bằng cách chat với Angel AI
 
 ---
 
@@ -65,18 +136,14 @@ Body: { "messages": [...] }
 
 | Trước | Sau |
 |-------|-----|
-| Response từ "lovable-ai" (Gemini) | Response từ "angel-ai" (angel.fun.rich) |
-| Badge "✨ Gemini" | Badge "🌟 ANGEL AI" với gradient vàng |
-| Personality chung | Personality đặc trưng của Angel |
+| Lỗi JSON parse | ✅ Xử lý được SSE streaming |
+| Fallback sang Gemini | ✅ Response trực tiếp từ ANGEL AI |
+| Provider: "lovable-ai" | ✅ Provider: "angel-ai" |
 
 ---
 
-## Câu Hỏi Cho Bạn
+## Files Sẽ Thay Đổi
 
-Bạn có thể lấy **API key mới** từ angel.fun.rich không? 
-
-Thông thường API key nằm ở:
-- Dashboard → Settings → API Keys
-- Hoặc Profile → Developer → API Access
-
-Khi bạn có key mới, mình sẽ cập nhật ngay!
+| Action | File |
+|--------|------|
+| EDIT | `supabase/functions/angel-ai-proxy/index.ts` |
