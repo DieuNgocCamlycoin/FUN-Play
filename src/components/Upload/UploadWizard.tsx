@@ -401,14 +401,15 @@ export function UploadWizard({ open, onOpenChange }: UploadWizardProps) {
       <DialogContent 
         hideCloseButton
         className={cn(
-          "!flex !flex-col p-0 gap-0 overflow-hidden relative bg-background border-border",
+          "!flex !flex-col p-0 gap-0 overflow-hidden bg-background border-border",
           isMobile 
             ? "max-w-full w-full h-full max-h-full rounded-none" 
             : "max-w-4xl w-[90vw] h-[85vh] max-h-[85vh] rounded-2xl shadow-2xl"
         )}
+        style={{ backgroundColor: 'hsl(var(--background))' }}
       >
-        {/* Holographic border effect */}
-        <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] via-[hsl(var(--cosmic-magenta))] to-[hsl(var(--cosmic-gold))] opacity-10 pointer-events-none" />
+        {/* Holographic border effect - z-index thấp để không che content */}
+        <div className="absolute inset-0 -z-10 rounded-lg bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] via-[hsl(var(--cosmic-magenta))] to-[hsl(var(--cosmic-gold))] opacity-10 pointer-events-none" />
         
         {/* Header with gradient border */}
         <DialogHeader className="px-4 sm:px-6 pt-3 sm:pt-4 pb-3 border-b border-border/50 bg-gradient-to-r from-background via-background to-background relative z-10 flex-shrink-0">
