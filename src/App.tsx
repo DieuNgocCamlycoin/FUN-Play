@@ -48,6 +48,9 @@ import Shorts from "./pages/Shorts";
 import PlatformDocs from "./pages/PlatformDocs";
 import PostDetail from "./pages/PostDetail";
 import VideoRedirect from "./pages/VideoRedirect";
+import Profile from "./pages/Profile";
+import YourVideosMobile from "./pages/YourVideosMobile";
+import DownloadedVideos from "./pages/DownloadedVideos";
 import { wagmiConfig, initWeb3Modal } from '@/lib/web3Config';
 import { GlobalPaymentNotifications } from './components/Web3/GlobalPaymentNotifications';
 import { MusicPlayerProvider } from './contexts/MusicPlayerContext';
@@ -128,7 +131,10 @@ function AppContent() {
         <Route path="/liked" element={<LikedVideos />} />
         <Route path="/post/:id" element={<PostDetail />} />
         <Route path="/docs/platform" element={<PlatformDocs />} />
-        <Route path="/docs/platform" element={<PlatformDocs />} />
+        {/* Profile & Mobile-specific pages */}
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/your-videos-mobile" element={<YourVideosMobile />} />
+        <Route path="/downloads" element={<DownloadedVideos />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
