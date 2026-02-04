@@ -33,13 +33,57 @@ async function tryAngelAI(messages: any[]): Promise<{ content: string | null; pr
       return { content: null, provider: "" };
     }
 
-    const data = await response.json();
-    const content = data.response || data.choices?.[0]?.message?.content;
+    // Handle SSE streaming response from angel.fun.rich
+    const text = await response.text();
+    console.log("🌟 ANGEL AI raw response (first 200 chars):", text.slice(0, 200));
     
-    if (content) {
-      console.log("🌟 ANGEL AI responded successfully!");
-      return { content, provider: "angel-ai" };
+    // Check if it's SSE format (starts with "data:")
+    if (text.startsWith("data:") || text.includes("\ndata:")) {
+      let fullContent = "";
+      const lines = text.split("\n");
+      
+      for (const line of lines) {
+        if (line.startsWith("data:")) {
+          const jsonStr = line.slice(5).trim(); // Remove "data:" prefix
+          if (jsonStr === "[DONE]" || jsonStr === "") continue;
+          
+          try {
+            const parsed = JSON.parse(jsonStr);
+            // Handle OpenAI-style streaming format
+            const delta = parsed.choices?.[0]?.delta?.content;
+            if (delta) {
+              fullContent += delta;
+            }
+            // Also check for direct response format
+            if (parsed.response) {
+              fullContent = parsed.response;
+              break;
+            }
+          } catch {
+            // Skip non-JSON lines
+            continue;
+          }
+        }
+      }
+      
+      if (fullContent) {
+        console.log("🌟 ANGEL AI responded successfully (SSE)!");
+        return { content: fullContent, provider: "angel-ai" };
+      }
     }
+    
+    // Try parsing as regular JSON
+    try {
+      const data = JSON.parse(text);
+      const content = data.response || data.choices?.[0]?.message?.content;
+      if (content) {
+        console.log("🌟 ANGEL AI responded successfully (JSON)!");
+        return { content, provider: "angel-ai" };
+      }
+    } catch {
+      console.error("ANGEL AI: Unable to parse response");
+    }
+    
     return { content: null, provider: "" };
   } catch (error) {
     console.error("ANGEL AI exception:", error);
