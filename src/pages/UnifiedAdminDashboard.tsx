@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import { useSearchParams, Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ShieldX } from "lucide-react";
+import { ShieldX, Wifi, WifiOff } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 import { UnifiedAdminLayout, AdminSection } from "@/components/Admin/UnifiedAdminLayout";
 import { OverviewTab } from "@/components/Admin/tabs/OverviewTab";
@@ -14,6 +15,7 @@ import { VideosManagementTab } from "@/components/Admin/tabs/VideosManagementTab
 import { ConfigManagementTab } from "@/components/Admin/tabs/ConfigManagementTab";
 import AdminManagementTab from "@/components/Admin/tabs/AdminManagementTab";
 import { useAdminManage } from "@/hooks/useAdminManage";
+import { useAdminRealtime } from "@/hooks/useAdminRealtime";
 
 export default function UnifiedAdminDashboard() {
   const { user, loading: authLoading } = useAuth();
@@ -23,6 +25,7 @@ export default function UnifiedAdminDashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
   
   const { stats } = useAdminManage();
+  const { stats: realtimeStats, isConnected } = useAdminRealtime();
 
   // Get current section from URL or default to "overview"
   const currentSection = (searchParams.get("section") as AdminSection) || "overview";
@@ -95,6 +98,11 @@ export default function UnifiedAdminDashboard() {
     );
   }
 
+  // Use realtime pending count if available, otherwise fall back to static stats
+  const pendingCount = realtimeStats.pendingRewardsCount > 0 
+    ? realtimeStats.pendingRewardsCount 
+    : stats.pendingCount;
+
   // Render content based on current section
   const renderContent = () => {
     switch (currentSection) {
@@ -119,27 +127,49 @@ export default function UnifiedAdminDashboard() {
     <UnifiedAdminLayout
       currentSection={currentSection}
       onSectionChange={handleSectionChange}
-      pendingCount={stats.pendingCount}
+      pendingCount={pendingCount}
       isOwner={isOwner}
     >
       {/* Section Header */}
       <div className="mb-6">
-        <h1 className="text-3xl font-black bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] to-[#FF00E5] bg-clip-text text-transparent">
-          {currentSection === "overview" && "Tổng Quan Dashboard"}
-          {currentSection === "rewards" && "Quản Lý CAMLY Rewards"}
-          {currentSection === "users" && "Quản Lý Người Dùng"}
-          {currentSection === "videos" && "Quản Lý Video"}
-          {currentSection === "config" && "Cấu Hình Hệ Thống"}
-          {currentSection === "admin-team" && "Quản Lý Admin Team"}
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          {currentSection === "overview" && "Thống kê toàn nền tảng FUN Play"}
-          {currentSection === "rewards" && "Duyệt, theo dõi và quản lý phần thưởng CAMLY"}
-          {currentSection === "users" && "Quản lý tài khoản và quyền người dùng"}
-          {currentSection === "videos" && "Duyệt video và thống kê uploads"}
-          {currentSection === "config" && "Điều chỉnh mức thưởng và giới hạn hệ thống"}
-          {currentSection === "admin-team" && "Thêm/xóa quyền admin cho thành viên"}
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-black bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] to-[#FF00E5] bg-clip-text text-transparent">
+              {currentSection === "overview" && "Tổng Quan Dashboard"}
+              {currentSection === "rewards" && "Quản Lý CAMLY Rewards"}
+              {currentSection === "users" && "Quản Lý Người Dùng"}
+              {currentSection === "videos" && "Quản Lý Video"}
+              {currentSection === "config" && "Cấu Hình Hệ Thống"}
+              {currentSection === "admin-team" && "Quản Lý Admin Team"}
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              {currentSection === "overview" && "Thống kê toàn nền tảng FUN Play"}
+              {currentSection === "rewards" && "Duyệt, theo dõi và quản lý phần thưởng CAMLY"}
+              {currentSection === "users" && "Quản lý tài khoản và quyền người dùng"}
+              {currentSection === "videos" && "Duyệt video và thống kê uploads"}
+              {currentSection === "config" && "Điều chỉnh mức thưởng và giới hạn hệ thống"}
+              {currentSection === "admin-team" && "Thêm/xóa quyền admin cho thành viên"}
+            </p>
+          </div>
+          
+          {/* Realtime Connection Status */}
+          <Badge 
+            variant={isConnected ? "default" : "secondary"}
+            className={`gap-1 ${isConnected ? "bg-green-500/20 text-green-500 border-green-500/30" : ""}`}
+          >
+            {isConnected ? (
+              <>
+                <Wifi className="w-3 h-3" />
+                Realtime
+              </>
+            ) : (
+              <>
+                <WifiOff className="w-3 h-3" />
+                Offline
+              </>
+            )}
+          </Badge>
+        </div>
       </div>
 
       {/* Content */}

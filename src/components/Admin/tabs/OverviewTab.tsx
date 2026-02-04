@@ -3,18 +3,88 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, 
   ResponsiveContainer, BarChart, Bar, AreaChart, Area 
 } from "recharts";
 import { 
   Users, Video, Eye, MessageSquare, Coins, Activity, 
-  Crown, Award, TrendingUp 
+  Crown, Award, TrendingUp, Download 
 } from "lucide-react";
 import { format } from "date-fns";
+import { toast } from "sonner";
 
 export function OverviewTab() {
   const { platformStats, topCreators, topEarners, dailyStats, loading } = useAdminStatistics();
+
+  const exportRewardStatsToCSV = () => {
+    if (!dailyStats || dailyStats.length === 0) {
+      toast.error("Không có dữ liệu để xuất");
+      return;
+    }
+
+    const headers = ['Ngày', 'Người dùng hoạt động', 'CAMLY phân phối'];
+    const csvData = dailyStats.map(day => [
+      format(new Date(day.date), "dd/MM/yyyy"),
+      day.activeUsers,
+      day.rewardsDistributed,
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...csvData.map(row => row.join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `reward-stats-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    link.click();
+    toast.success("Đã xuất file CSV thành công!");
+  };
+
+  const exportTopUsersToCSV = () => {
+    if ((!topCreators || topCreators.length === 0) && (!topEarners || topEarners.length === 0)) {
+      toast.error("Không có dữ liệu để xuất");
+      return;
+    }
+
+    // Export Top Creators
+    const creatorsHeaders = ['Rank', 'Tên', 'Số Video', 'Lượt Xem', 'CAMLY Nhận'];
+    const creatorsData = topCreators.map((creator, index) => [
+      index + 1,
+      creator.displayName || 'N/A',
+      creator.videoCount,
+      creator.totalViews,
+      creator.totalRewards,
+    ]);
+
+    // Export Top Earners
+    const earnersHeaders = ['Rank', 'Tên', 'Tổng CAMLY'];
+    const earnersData = topEarners.map((earner, index) => [
+      index + 1,
+      earner.displayName || 'N/A',
+      earner.totalEarned,
+    ]);
+
+    const csvContent = [
+      '=== TOP CREATORS ===',
+      creatorsHeaders.join(','),
+      ...creatorsData.map(row => row.join(',')),
+      '',
+      '=== TOP EARNERS ===',
+      earnersHeaders.join(','),
+      ...earnersData.map(row => row.join(',')),
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `top-users-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    link.click();
+    toast.success("Đã xuất file CSV thành công!");
+  };
 
   if (loading) {
     return (
@@ -31,6 +101,18 @@ export function OverviewTab() {
 
   return (
     <div className="space-y-6">
+      {/* Export Buttons */}
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" size="sm" onClick={exportRewardStatsToCSV}>
+          <Download className="w-4 h-4 mr-2" />
+          Xuất Thống Kê Reward
+        </Button>
+        <Button variant="outline" size="sm" onClick={exportTopUsersToCSV}>
+          <Download className="w-4 h-4 mr-2" />
+          Xuất Top Users
+        </Button>
+      </div>
+
       {/* Platform Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <Card className="bg-gradient-to-br from-[#00E7FF]/10 to-[#00E7FF]/5 border-[#00E7FF]/30">
