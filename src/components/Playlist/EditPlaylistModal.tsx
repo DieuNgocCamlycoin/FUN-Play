@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Globe, Link, Lock, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -17,30 +18,48 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
-interface CreatePlaylistModalProps {
+interface EditPlaylistModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreated?: (playlistId: string) => void;
-  /** Optional: if provided, will auto-add this video to the new playlist */
-  videoIdToAdd?: string;
+  playlist: {
+    id: string;
+    name: string;
+    description: string | null;
+    is_public: boolean | null;
+  };
+  onUpdated?: () => void;
 }
 
-export function CreatePlaylistModal({
+export function EditPlaylistModal({
   open,
   onOpenChange,
-  onCreated,
-  videoIdToAdd,
-}: CreatePlaylistModalProps) {
+  playlist,
+  onUpdated,
+}: EditPlaylistModalProps) {
   const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
   const [visibility, setVisibility] = useState<"public" | "unlisted" | "private">("public");
   const [saving, setSaving] = useState(false);
-  const { user } = useAuth();
   const { toast } = useToast();
 
-  const handleCreate = async () => {
+  useEffect(() => {
+    if (open && playlist) {
+      setName(playlist.name);
+      setDescription(playlist.description || "");
+      // Map is_public to visibility
+      if (playlist.is_public === true) {
+        setVisibility("public");
+      } else if (playlist.is_public === false) {
+        setVisibility("private");
+      } else {
+        setVisibility("unlisted");
+      }
+    }
+  }, [open, playlist]);
+
+  const handleSave = async () => {
     if (!name.trim()) {
       toast({
         title: "Lỗi",
@@ -50,58 +69,35 @@ export function CreatePlaylistModal({
       return;
     }
 
-    if (!user) {
-      toast({
-        title: "Lỗi",
-        description: "Bạn cần đăng nhập để tạo danh sách phát",
-        variant: "destructive",
-      });
-      return;
-    }
-
     try {
       setSaving(true);
 
-      // Map visibility to is_public: public=true, private=false, unlisted=null
+      // Map visibility to is_public
       const is_public = visibility === "public" ? true : visibility === "private" ? false : null;
 
-      // Create the playlist
-      const { data: playlist, error } = await supabase
+      const { error } = await supabase
         .from("playlists")
-        .insert({
-          user_id: user.id,
+        .update({
           name: name.trim(),
+          description: description.trim() || null,
           is_public,
         })
-        .select("id")
-        .single();
+        .eq("id", playlist.id);
 
       if (error) throw error;
 
-      // If videoIdToAdd is provided, add the video to the new playlist
-      if (videoIdToAdd && playlist) {
-        await supabase.from("playlist_videos").insert({
-          playlist_id: playlist.id,
-          video_id: videoIdToAdd,
-          position: 0,
-        });
-      }
-
       toast({
         title: "Thành công",
-        description: "Danh sách phát đã được tạo",
+        description: "Đã cập nhật danh sách phát",
       });
 
-      // Reset form
-      setName("");
-      setVisibility("public");
       onOpenChange(false);
-      onCreated?.(playlist.id);
+      onUpdated?.();
     } catch (error: any) {
-      console.error("Error creating playlist:", error);
+      console.error("Error updating playlist:", error);
       toast({
         title: "Lỗi",
-        description: error.message || "Không thể tạo danh sách phát",
+        description: error.message || "Không thể cập nhật danh sách phát",
         variant: "destructive",
       });
     } finally {
@@ -109,31 +105,34 @@ export function CreatePlaylistModal({
     }
   };
 
-  const handleClose = () => {
-    if (!saving) {
-      setName("");
-      setVisibility("public");
-      onOpenChange(false);
-    }
-  };
-
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>Danh sách phát mới</DialogTitle>
+          <DialogTitle>Chỉnh sửa danh sách phát</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           {/* Title input */}
           <div className="space-y-2">
-            <Label htmlFor="playlist-name">Tiêu đề</Label>
+            <Label htmlFor="edit-playlist-name">Tiêu đề</Label>
             <Input
-              id="playlist-name"
+              id="edit-playlist-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Nhập tiêu đề..."
-              autoFocus
+            />
+          </div>
+
+          {/* Description input */}
+          <div className="space-y-2">
+            <Label htmlFor="edit-playlist-description">Mô tả</Label>
+            <Textarea
+              id="edit-playlist-description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Nhập mô tả..."
+              rows={3}
             />
           </div>
 
@@ -170,12 +169,12 @@ export function CreatePlaylistModal({
 
         {/* Footer buttons */}
         <div className="flex justify-end gap-2 pt-2">
-          <Button variant="ghost" onClick={handleClose} disabled={saving}>
+          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>
             Hủy
           </Button>
-          <Button onClick={handleCreate} disabled={saving || !name.trim()}>
+          <Button onClick={handleSave} disabled={saving || !name.trim()}>
             {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Tạo
+            Lưu
           </Button>
         </div>
       </DialogContent>
