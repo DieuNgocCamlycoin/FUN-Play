@@ -3,8 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import {
   Play, Pause, Maximize, Minimize,
-  SkipBack, SkipForward, RotateCcw, Settings, ChevronDown
+  SkipBack, SkipForward, RotateCcw, Settings, ChevronDown, X
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
 import { PlayerSettingsDrawer } from "./PlayerSettingsDrawer";
@@ -54,6 +55,7 @@ export function YouTubeMobilePlayer({
   const [loopMode, setLoopMode] = useState<"off" | "all" | "one">("off");
   
   const { lightTap } = useHapticFeedback();
+  const navigate = useNavigate();
   
   const hideControlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const tapTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -365,24 +367,42 @@ export function YouTubeMobilePlayer({
             !showControls && "pointer-events-none"
           )}
         >
-          {/* Top bar - Minimize + Settings (no title) */}
+          {/* Top bar - Close (X) + Minimize + Settings */}
           <div className="absolute top-0 inset-x-0 p-3 flex items-center justify-between">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={(e) => { 
-                e.stopPropagation(); 
-                onMinimize?.(); 
-              }}
-              className="h-10 w-10 text-white hover:bg-white/20"
-            >
-              <ChevronDown className="h-6 w-6" />
-            </Button>
+            <div className="flex items-center gap-1">
+              {/* Close button (X) - Đóng và quay về trang chủ */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={(e) => { 
+                  e.stopPropagation();
+                  lightTap();
+                  navigate('/');
+                }}
+                className="h-10 w-10 text-white hover:bg-red-500/30 rounded-full"
+              >
+                <X className="h-6 w-6" />
+              </Button>
+              
+              {/* Minimize button - Thu nhỏ thành mini-player */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={(e) => { 
+                  e.stopPropagation();
+                  lightTap();
+                  onMinimize?.(); 
+                }}
+                className="h-10 w-10 text-white hover:bg-white/20 rounded-full"
+              >
+                <ChevronDown className="h-6 w-6" />
+              </Button>
+            </div>
             
             <Button 
               variant="ghost" 
               size="icon" 
-              className="text-white h-10 w-10 hover:bg-white/20"
+              className="text-white h-10 w-10 hover:bg-white/20 rounded-full"
               onClick={(e) => {
                 e.stopPropagation();
                 setSettingsOpen(true);
