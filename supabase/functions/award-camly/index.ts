@@ -8,24 +8,42 @@ const corsHeaders = {
 
 // Default reward amounts (fallback if reward_config not available)
 const DEFAULT_REWARD_AMOUNTS: Record<string, number> = {
-  VIEW: 10000,
-  LIKE: 5000,
+  VIEW: 5000,
+  LIKE: 2000,
   COMMENT: 5000,
   SHARE: 5000,
-  UPLOAD: 100000,
+  SHORT_VIDEO_UPLOAD: 20000,
+  LONG_VIDEO_UPLOAD: 70000,
+  UPLOAD: 100000, // Legacy - will be deprecated
   FIRST_UPLOAD: 500000,
   SIGNUP: 50000,
+  WALLET_CONNECT: 50000,
 };
 
-// Default daily limits (fallback if reward_config not available)
+// Default daily limits (COUNT-based, not amount-based)
 const DEFAULT_DAILY_LIMITS: Record<string, number> = {
-  VIEW_REWARDS: 100000,
-  COMMENT_REWARDS: 50000,
-  UPLOAD_COUNT: 10,
+  VIEW_COUNT: 10,
+  LIKE_COUNT: 20,
+  SHARE_COUNT: 10,
+  COMMENT_COUNT: 10,
+  SHORT_VIDEO: 5,
+  LONG_VIDEO: 3,
+  UPLOAD_COUNT: 10, // Legacy
+};
+
+// Default validation config
+const DEFAULT_VALIDATION: Record<string, number> = {
+  MIN_COMMENT_LENGTH: 20,
+  MIN_WATCH_PERCENTAGE: 30,
+  AUTO_APPROVE_THRESHOLD: 3,
 };
 
 // Helper to get reward config from database
-async function getRewardConfig(adminSupabase: any): Promise<{ amounts: Record<string, number>; limits: Record<string, number> }> {
+async function getRewardConfig(adminSupabase: any): Promise<{
+  amounts: Record<string, number>;
+  limits: Record<string, number>;
+  validation: Record<string, number>;
+}> {
   try {
     const { data: configData, error } = await adminSupabase
       .from("reward_config")
@@ -33,11 +51,16 @@ async function getRewardConfig(adminSupabase: any): Promise<{ amounts: Record<st
 
     if (error || !configData || configData.length === 0) {
       console.log("Using default reward config");
-      return { amounts: DEFAULT_REWARD_AMOUNTS, limits: DEFAULT_DAILY_LIMITS };
+      return {
+        amounts: DEFAULT_REWARD_AMOUNTS,
+        limits: DEFAULT_DAILY_LIMITS,
+        validation: DEFAULT_VALIDATION,
+      };
     }
 
     const amounts: Record<string, number> = { ...DEFAULT_REWARD_AMOUNTS };
     const limits: Record<string, number> = { ...DEFAULT_DAILY_LIMITS };
+    const validation: Record<string, number> = { ...DEFAULT_VALIDATION };
 
     for (const config of configData) {
       const key = config.config_key;
@@ -49,19 +72,34 @@ async function getRewardConfig(adminSupabase: any): Promise<{ amounts: Record<st
       else if (key === 'COMMENT_REWARD') amounts.COMMENT = value;
       else if (key === 'SHARE_REWARD') amounts.SHARE = value;
       else if (key === 'UPLOAD_REWARD') amounts.UPLOAD = value;
+      else if (key === 'SHORT_VIDEO_REWARD') amounts.SHORT_VIDEO_UPLOAD = value;
+      else if (key === 'LONG_VIDEO_REWARD') amounts.LONG_VIDEO_UPLOAD = value;
       else if (key === 'FIRST_UPLOAD_REWARD') amounts.FIRST_UPLOAD = value;
       else if (key === 'SIGNUP_REWARD') amounts.SIGNUP = value;
-      // Map config keys to limits
-      else if (key === 'DAILY_VIEW_LIMIT') limits.VIEW_REWARDS = value;
-      else if (key === 'DAILY_COMMENT_LIMIT') limits.COMMENT_REWARDS = value;
+      else if (key === 'WALLET_CONNECT_REWARD') amounts.WALLET_CONNECT = value;
+      // Map config keys to count-based limits
+      else if (key === 'DAILY_VIEW_COUNT_LIMIT') limits.VIEW_COUNT = value;
+      else if (key === 'DAILY_LIKE_COUNT_LIMIT') limits.LIKE_COUNT = value;
+      else if (key === 'DAILY_SHARE_COUNT_LIMIT') limits.SHARE_COUNT = value;
+      else if (key === 'DAILY_COMMENT_COUNT_LIMIT') limits.COMMENT_COUNT = value;
+      else if (key === 'DAILY_SHORT_VIDEO_LIMIT') limits.SHORT_VIDEO = value;
+      else if (key === 'DAILY_LONG_VIDEO_LIMIT') limits.LONG_VIDEO = value;
       else if (key === 'DAILY_UPLOAD_LIMIT') limits.UPLOAD_COUNT = value;
+      // Map validation config
+      else if (key === 'MIN_COMMENT_LENGTH') validation.MIN_COMMENT_LENGTH = value;
+      else if (key === 'MIN_WATCH_PERCENTAGE') validation.MIN_WATCH_PERCENTAGE = value;
+      else if (key === 'AUTO_APPROVE_THRESHOLD') validation.AUTO_APPROVE_THRESHOLD = value;
     }
 
-    console.log("Loaded reward config from database:", { amounts, limits });
-    return { amounts, limits };
+    console.log("Loaded reward config from database");
+    return { amounts, limits, validation };
   } catch (err) {
     console.error("Error loading reward config:", err);
-    return { amounts: DEFAULT_REWARD_AMOUNTS, limits: DEFAULT_DAILY_LIMITS };
+    return {
+      amounts: DEFAULT_REWARD_AMOUNTS,
+      limits: DEFAULT_DAILY_LIMITS,
+      validation: DEFAULT_VALIDATION,
+    };
   }
 }
 
@@ -80,7 +118,7 @@ async function checkViewDedupe(adminSupabase: any, userId: string, videoId: stri
 
   if (error) {
     console.error("Error checking view dedupe:", error);
-    return false; // Allow on error to not block legitimate users
+    return false;
   }
 
   return !recentViews || recentViews.length === 0;
@@ -100,10 +138,33 @@ async function checkCommentSpam(adminSupabase: any, userId: string, contentHash:
 
   if (error) {
     console.error("Error checking comment spam:", error);
-    return false; // Allow on error
+    return false;
   }
 
   return !duplicateComments || duplicateComments.length === 0;
+}
+
+// Check if action already rewarded for this video (LIKE/SHARE only once per video)
+async function checkAlreadyRewarded(
+  adminSupabase: any,
+  userId: string,
+  videoId: string,
+  actionType: string
+): Promise<boolean> {
+  const { data: existingAction, error } = await adminSupabase
+    .from("reward_actions")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("video_id", videoId)
+    .eq("action_type", actionType)
+    .limit(1);
+
+  if (error) {
+    console.error("Error checking reward actions:", error);
+    return false; // Allow on error
+  }
+
+  return existingAction && existingAction.length > 0;
 }
 
 serve(async (req) => {
@@ -141,10 +202,14 @@ serve(async (req) => {
     }
 
     const userId = user.id;
-    const { type, videoId, contentHash, sessionId } = await req.json();
+    const { type, videoId, contentHash, commentLength, sessionId } = await req.json();
 
     // 4. Validate reward type
-    const validTypes = ['VIEW', 'LIKE', 'COMMENT', 'SHARE', 'UPLOAD', 'FIRST_UPLOAD', 'SIGNUP'];
+    const validTypes = [
+      'VIEW', 'LIKE', 'COMMENT', 'SHARE',
+      'UPLOAD', 'SHORT_VIDEO_UPLOAD', 'LONG_VIDEO_UPLOAD',
+      'FIRST_UPLOAD', 'SIGNUP', 'WALLET_CONNECT'
+    ];
     if (!validTypes.includes(type)) {
       return new Response(
         JSON.stringify({ success: false, error: 'Invalid reward type' }),
@@ -157,7 +222,7 @@ serve(async (req) => {
     const adminSupabase = createClient(supabaseUrl, serviceRoleKey);
 
     // 6. Load reward config from database
-    const { amounts: REWARD_AMOUNTS, limits: DAILY_LIMITS } = await getRewardConfig(adminSupabase);
+    const { amounts: REWARD_AMOUNTS, limits: DAILY_LIMITS, validation } = await getRewardConfig(adminSupabase);
 
     // 7. Get server-controlled reward amount
     const amount = REWARD_AMOUNTS[type] || 0;
@@ -169,6 +234,7 @@ serve(async (req) => {
     }
 
     // 8. Anti-fraud checks
+    // 8a. Duplicate view check
     if (type === "VIEW" && videoId) {
       const isUniqueView = await checkViewDedupe(adminSupabase, userId, videoId);
       if (!isUniqueView) {
@@ -177,16 +243,14 @@ serve(async (req) => {
           JSON.stringify({ 
             success: false, 
             reason: "Duplicate view detected. Please wait before watching again.",
-            milestone: null,
-            newTotal: 0,
-            amount: 0,
-            type
+            milestone: null, newTotal: 0, amount: 0, type
           }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
     }
 
+    // 8b. Comment spam check
     if (type === "COMMENT" && contentHash) {
       const isUniqueComment = await checkCommentSpam(adminSupabase, userId, contentHash);
       if (!isUniqueComment) {
@@ -195,10 +259,37 @@ serve(async (req) => {
           JSON.stringify({ 
             success: false, 
             reason: "Duplicate comment detected. Please write a unique comment.",
-            milestone: null,
-            newTotal: 0,
-            amount: 0,
-            type
+            milestone: null, newTotal: 0, amount: 0, type
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // 8c. Comment length check
+    if (type === "COMMENT" && commentLength !== undefined) {
+      if (commentLength < validation.MIN_COMMENT_LENGTH) {
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            reason: `Comment must be at least ${validation.MIN_COMMENT_LENGTH} characters`,
+            milestone: null, newTotal: 0, amount: 0, type
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // 8d. Already rewarded check for LIKE/SHARE (only once per video)
+    if ((type === "LIKE" || type === "SHARE") && videoId) {
+      const alreadyRewarded = await checkAlreadyRewarded(adminSupabase, userId, videoId, type);
+      if (alreadyRewarded) {
+        console.log(`User ${userId} already rewarded for ${type} on video ${videoId}`);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            reason: `You already received a ${type.toLowerCase()} reward for this video`,
+            milestone: null, newTotal: 0, amount: 0, type
           }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
@@ -238,17 +329,45 @@ serve(async (req) => {
       );
     }
 
-    // 10. Check daily limits (server-side enforcement)
-    if (type === "VIEW" || type === "LIKE" || type === "SHARE") {
-      if (Number(limits.view_rewards_earned) + amount > DAILY_LIMITS.VIEW_REWARDS) {
+    // 10. Check COUNT-BASED daily limits
+    const currentViewCount = limits?.view_count || 0;
+    const currentLikeCount = limits?.like_count || 0;
+    const currentShareCount = limits?.share_count || 0;
+    const currentCommentCount = limits?.comment_count || 0;
+
+    if (type === "VIEW") {
+      if (currentViewCount >= DAILY_LIMITS.VIEW_COUNT) {
         return new Response(
           JSON.stringify({ 
             success: false, 
-            reason: `Daily view reward limit reached (${DAILY_LIMITS.VIEW_REWARDS.toLocaleString()} CAMLY)`,
-            milestone: null,
-            newTotal: 0,
-            amount: 0,
-            type
+            reason: `Daily view reward limit reached (${DAILY_LIMITS.VIEW_COUNT} views)`,
+            milestone: null, newTotal: 0, amount: 0, type
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    if (type === "LIKE") {
+      if (currentLikeCount >= DAILY_LIMITS.LIKE_COUNT) {
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            reason: `Daily like reward limit reached (${DAILY_LIMITS.LIKE_COUNT} likes)`,
+            milestone: null, newTotal: 0, amount: 0, type
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    if (type === "SHARE") {
+      if (currentShareCount >= DAILY_LIMITS.SHARE_COUNT) {
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            reason: `Daily share reward limit reached (${DAILY_LIMITS.SHARE_COUNT} shares)`,
+            milestone: null, newTotal: 0, amount: 0, type
           }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
@@ -256,41 +375,22 @@ serve(async (req) => {
     }
 
     if (type === "COMMENT") {
-      if (Number(limits.comment_rewards_earned) + amount > DAILY_LIMITS.COMMENT_REWARDS) {
+      if (currentCommentCount >= DAILY_LIMITS.COMMENT_COUNT) {
         return new Response(
           JSON.stringify({ 
             success: false, 
-            reason: `Daily comment reward limit reached (${DAILY_LIMITS.COMMENT_REWARDS.toLocaleString()} CAMLY)`,
-            milestone: null,
-            newTotal: 0,
-            amount: 0,
-            type
+            reason: `Daily comment reward limit reached (${DAILY_LIMITS.COMMENT_COUNT} comments)`,
+            milestone: null, newTotal: 0, amount: 0, type
           }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
     }
 
-    if (type === "UPLOAD") {
-      if (Number(limits.uploads_count) >= DAILY_LIMITS.UPLOAD_COUNT) {
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            reason: `Daily upload limit reached (${DAILY_LIMITS.UPLOAD_COUNT} uploads)`,
-            milestone: null,
-            newTotal: 0,
-            amount: 0,
-            type
-          }),
-          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-    }
-
-    // 11. Get current total rewards
+    // 11. Get current user profile with suspicious score
     const { data: profileData, error: profileError } = await adminSupabase
       .from("profiles")
-      .select("total_camly_rewards, pending_rewards")
+      .select("total_camly_rewards, pending_rewards, approved_reward, suspicious_score")
       .eq("id", userId)
       .single();
 
@@ -302,17 +402,33 @@ serve(async (req) => {
       );
     }
 
+    // 12. Determine if auto-approve based on suspicious_score
+    const suspiciousScore = profileData?.suspicious_score || 0;
+    const canAutoApprove = suspiciousScore < validation.AUTO_APPROVE_THRESHOLD;
+
     const oldTotal = Number(profileData?.total_camly_rewards) || 0;
     const newTotal = oldTotal + amount;
     const oldPending = Number(profileData?.pending_rewards) || 0;
-    const newPending = oldPending + amount;
+    const oldApproved = Number(profileData?.approved_reward) || 0;
 
-    // 12. Update profile with new total and pending rewards (atomic operation)
+    let newPending = oldPending;
+    let newApproved = oldApproved;
+
+    if (canAutoApprove) {
+      // Auto-approve: add directly to approved_reward
+      newApproved = oldApproved + amount;
+    } else {
+      // Needs manual review: add to pending_rewards
+      newPending = oldPending + amount;
+    }
+
+    // 13. Update profile with new totals
     const { error: updateError } = await adminSupabase
       .from("profiles")
       .update({ 
         total_camly_rewards: newTotal,
-        pending_rewards: newPending 
+        pending_rewards: newPending,
+        approved_reward: newApproved
       })
       .eq("id", userId);
 
@@ -324,7 +440,7 @@ serve(async (req) => {
       );
     }
 
-    // 13. Create reward transaction record (approved = false - cần admin duyệt)
+    // 14. Create reward transaction record
     const txHash = `REWARD_${type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     await adminSupabase.from("reward_transactions").insert({
       user_id: userId,
@@ -333,40 +449,54 @@ serve(async (req) => {
       reward_type: type,
       status: "success",
       tx_hash: txHash,
-      approved: false, // Cần admin duyệt trước khi claim
+      approved: canAutoApprove,
+      approved_at: canAutoApprove ? new Date().toISOString() : null,
     });
 
-    // 14. Update daily limits
-    if (type === "VIEW" || type === "LIKE" || type === "SHARE") {
-      await adminSupabase
-        .from("daily_reward_limits")
-        .update({ view_rewards_earned: Number(limits.view_rewards_earned) + amount })
-        .eq("user_id", userId)
-        .eq("date", today);
+    // 15. Record reward action for LIKE/SHARE to prevent duplicates
+    if ((type === "LIKE" || type === "SHARE") && videoId) {
+      await adminSupabase.from("reward_actions").upsert({
+        user_id: userId,
+        video_id: videoId,
+        action_type: type,
+      }, { onConflict: 'user_id,video_id,action_type', ignoreDuplicates: true });
+    }
+
+    // 16. Update COUNT-BASED daily limits
+    const updateFields: Record<string, any> = {};
+    
+    if (type === "VIEW") {
+      updateFields.view_count = currentViewCount + 1;
+      updateFields.view_rewards_earned = (limits?.view_rewards_earned || 0) + amount;
+    } else if (type === "LIKE") {
+      updateFields.like_count = currentLikeCount + 1;
+      updateFields.view_rewards_earned = (limits?.view_rewards_earned || 0) + amount;
+    } else if (type === "SHARE") {
+      updateFields.share_count = currentShareCount + 1;
+      updateFields.view_rewards_earned = (limits?.view_rewards_earned || 0) + amount;
     } else if (type === "COMMENT") {
+      updateFields.comment_count = currentCommentCount + 1;
+      updateFields.comment_rewards_earned = (limits?.comment_rewards_earned || 0) + amount;
+    } else if (type === "UPLOAD" || type === "SHORT_VIDEO_UPLOAD" || type === "LONG_VIDEO_UPLOAD") {
+      updateFields.uploads_count = (limits?.uploads_count || 0) + 1;
+      updateFields.upload_rewards_earned = (limits?.upload_rewards_earned || 0) + amount;
+    }
+
+    if (Object.keys(updateFields).length > 0) {
       await adminSupabase
         .from("daily_reward_limits")
-        .update({ comment_rewards_earned: Number(limits.comment_rewards_earned) + amount })
-        .eq("user_id", userId)
-        .eq("date", today);
-    } else if (type === "UPLOAD") {
-      await adminSupabase
-        .from("daily_reward_limits")
-        .update({ 
-          upload_rewards_earned: Number(limits.upload_rewards_earned) + amount,
-          uploads_count: Number(limits.uploads_count) + 1
-        })
+        .update(updateFields)
         .eq("user_id", userId)
         .eq("date", today);
     }
 
-    // 15. Check for milestones
+    // 17. Check for milestones
     const MILESTONES = [10, 100, 1000, 10000, 100000, 500000, 1000000];
     const reachedMilestone = MILESTONES.find(
       milestone => oldTotal < milestone && newTotal >= milestone
     ) || null;
 
-    console.log(`Awarded ${amount} CAMLY to user ${userId} for ${type}. New total: ${newTotal}, Pending: ${newPending}`);
+    console.log(`Awarded ${amount} CAMLY to user ${userId} for ${type}. New total: ${newTotal}, AutoApproved: ${canAutoApprove}`);
 
     return new Response(
       JSON.stringify({ 
@@ -374,6 +504,8 @@ serve(async (req) => {
         milestone: reachedMilestone, 
         newTotal, 
         pendingRewards: newPending,
+        approvedRewards: newApproved,
+        autoApproved: canAutoApprove,
         amount, 
         type 
       }),

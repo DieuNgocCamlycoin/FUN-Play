@@ -26,7 +26,7 @@ import {
   Check,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
-import { awardShareReward } from "@/lib/enhancedRewards";
+import { useAutoReward } from "@/hooks/useAutoReward";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -120,15 +120,24 @@ export const ShareModal = ({
   };
 
   const awardShare = async () => {
-    if (!userId || hasShared) return;
+    if (!userId || !id || hasShared) return;
     setHasShared(true);
-    const result = await awardShareReward(userId, id);
-    if (result?.milestone) {
-      toast({
-        title: "🎉 Chúc mừng! Milestone đạt được!",
-        description: `Bạn đã đạt ${result.milestone} CAMLY tổng rewards!`,
-        duration: 5000,
-      });
+    // Use supabase functions invoke directly since we can't use hooks here
+    try {
+      const { data } = await import('@/integrations/supabase/client').then(m => 
+        m.supabase.functions.invoke('award-camly', {
+          body: { type: 'SHARE', videoId: id }
+        })
+      );
+      if (data?.milestone) {
+        toast({
+          title: "🎉 Chúc mừng! Milestone đạt được!",
+          description: `Bạn đã đạt ${data.milestone} CAMLY tổng rewards!`,
+          duration: 5000,
+        });
+      }
+    } catch (error) {
+      console.error('Share reward error:', error);
     }
   };
 

@@ -11,7 +11,7 @@ import { ThumbsUp, ThumbsDown, Share2, MoreHorizontal, Coins } from "lucide-reac
 import { TipModal } from "@/components/Tipping/TipModal";
 import { ShareModal } from "@/components/Video/ShareModal";
 import { MiniProfileCard } from "@/components/Video/MiniProfileCard";
-import { awardLikeReward } from "@/lib/enhancedRewards";
+
 import { useAutoReward } from "@/hooks/useAutoReward";
 import { RewardNotification } from "@/components/Rewards/RewardNotification";
 import { useVideoPlayback } from "@/contexts/VideoPlaybackContext";
@@ -93,7 +93,7 @@ export default function Watch() {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const { createSession, nextVideo, previousVideo, isAutoplayEnabled, session, getUpNext } = useVideoPlayback();
-  const { awardCommentReward } = useAutoReward();
+  const { awardCommentReward, awardLikeReward } = useAutoReward();
 
   // Swipe navigation for mobile
   const handleSwipeLeft = () => {
@@ -538,16 +538,9 @@ export default function Watch() {
         setHasLiked(true);
 
         // Award CAMLY for liking
-        const result = await awardLikeReward(user.id, id!);
+        const result = await awardLikeReward(id!);
         if (result) {
-          setRewardNotif({ amount: result.amount, type: result.type as any, show: true });
-          if (result.milestone) {
-            toast({
-              title: "🎉 Chúc mừng! Milestone đạt được!",
-              description: `Bạn đã đạt ${result.milestone} CAMLY tổng rewards!`,
-              duration: 5000,
-            });
-          }
+          setRewardNotif({ amount: 2000, type: 'LIKE', show: true });
         }
       }
 
