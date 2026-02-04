@@ -20,7 +20,7 @@ const navItems: NavItem[] = [
   { icon: Zap, label: "Shorts", href: "/shorts" },
   { icon: Plus, label: "Tạo", href: null, isCreate: true },
   { icon: Users, label: "Đăng ký", href: "/subscriptions" },
-  { icon: User, label: "Bạn", href: "/your-videos" },
+  { icon: User, label: "Bạn", href: "/profile" },
 ];
 
 export const MobileBottomNav = () => {
