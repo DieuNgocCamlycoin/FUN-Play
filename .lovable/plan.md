@@ -1,300 +1,286 @@
 
-# Kế Hoạch Thiết Kế Honor Board Mới cho FUN PLAY
+# Kế Hoạch Di Chuyển Honor Board vào Sidebar Menu với Popup Chi Tiết
 
 ## 1. Phân Tích Hiện Trạng
 
-### Hệ Thống Admin & CAMLY Claim Tự Động
+### ✅ Honor Board Đang Hoạt Động Real-time
 
 | Thành Phần | Trạng Thái | Chi Tiết |
 |------------|------------|----------|
-| Unified Admin Dashboard | ✅ Hoàn chỉnh | `/admin` với 6 sections |
-| claim-camly Edge Function | ✅ Hoạt động | MIN 200K, DAILY LIMIT 500K |
-| useHonobarStats Hook | ✅ Realtime | Subscribe 5 bảng: profiles, videos, comments, wallet_transactions, subscriptions |
-| Honobar Desktop | ✅ Có sẵn | 6 thống kê, gradient Turquoise/Gold |
-| CompactHonobar Mobile | ✅ Có sẵn | Compact version, top-right |
+| `useHonobarStats` Hook | ✅ Real-time | Subscribe 5 bảng: profiles, videos, comments, wallet_transactions, subscriptions |
+| `EnhancedHonobar.tsx` | ✅ Desktop | Fixed position `top-20 right-4 z-20`, 6 stat cards với animations |
+| `MobileHonobar.tsx` | ✅ Mobile | Collapsible 3x2 grid, `top-3 right-3 z-20` |
+| Brand Colors | ✅ Đúng | Cyan (#00E7FF), Gold (#FFD700), Purple (#7A2BFF) |
 
-### Vấn Đề Hiện Tại
+### ❌ Vấn Đề Hiện Tại
 
-1. **Honobar không được hiển thị trên trang chủ (Index.tsx)** - Cần tích hợp
-2. **Thiếu các trường phù hợp FUN PLAY** - Cần thêm: Total CAMLY Pool, Online Users, Creators
-3. **Màu sắc chưa đồng bộ với logo** - Logo FUN Play có: Cyan (#00E7FF), Gold (#FFD700), Purple (#7A2BFF)
+1. **Vị trí không tối ưu**: Honor Board ở góc phải che khuất nội dung video
+2. **Không tích hợp với navigation**: Người dùng không thấy nó như phần của menu
+3. **Mobile quá nhỏ**: Compact grid khó đọc trên màn hình nhỏ
+4. **Thiếu chi tiết**: Không có popup để xem thông tin mở rộng
 
 ---
 
-## 2. Thiết Kế Honor Board Mới
+## 2. Thiết Kế Mới
 
-### 2.1. Các Trường Thống Kê (Phù Hợp FUN PLAY)
-
-| Icon | Tên Trường | Nguồn Data | Mô Tả |
-|------|------------|------------|-------|
-| 👥 Users | Người dùng | `profiles` count | Tổng số tài khoản |
-| 🎬 Video | Video | `videos` count (approved) | Video đã duyệt |
-| 👁 Eye | Lượt xem | Sum `videos.view_count` | Tổng views |
-| 💬 MessageSquare | Bình luận | `comments` count | Tổng comments |
-| 🪙 Coins | CAMLY Pool | Sum `profiles.approved_reward` | Tổng CAMLY chờ rút |
-| 🎖 Trophy | Top Creator | Query top video uploader | Creator có nhiều video nhất |
-
-### 2.2. Bảng Màu Theo Logo FUN PLAY
+### 2.1. Cấu Trúc Mới
 
 ```text
-┌─────────────────────────────────────────────────┐
-│  FUN PLAY BRAND COLORS                          │
-├─────────────────────────────────────────────────┤
-│  Primary Cyan:    #00E7FF (rgb(0, 231, 255))    │
-│  Gold Accent:     #FFD700 (rgb(255, 215, 0))    │
-│  Purple Vibrant:  #7A2BFF (rgb(122, 43, 255))   │
-│  Magenta:         #FF00E5 (rgb(255, 0, 229))    │
-│  White Base:      #FFFFFF (background)          │
-└─────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│  DESKTOP SIDEBAR                                                        │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  ┌─────────────────────────────────────┐                               │
+│  │ 🏆 HONOR BOARD  [Click to expand]  │  ← NÚT NỔI BẬT TRÊN CÙNG      │
+│  │ 👥 1.2K  │  🎬 567  │  🪙 5.2M     │                                │
+│  └─────────────────────────────────────┘                               │
+│                                                                         │
+│  ── FUN ECOSYSTEM ─────────────────────                                │
+│  🌟 FUN.RICH                                                           │
+│  🌟 FUN FARM                                                           │
+│  🌟 FUN PLANET                                                         │
+│  🌟 FUN Wallet                                                         │
+│                                                                         │
+│  ────────────────────────────────────                                  │
+│  🏠 Home                                                               │
+│  ⚡ Shorts                                                              │
+│  👥 Subscriptions                                                      │
+│  ...                                                                    │
+└─────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│  HONOR BOARD POPUP (Khi click vào nút)                                 │
+├─────────────────────────────────────────────────────────────────────────┤
+│  ┌───────────────────────────────────────────────────────────────────┐ │
+│  │  👑 HONOR BOARD 👑                                          [X]  │ │
+│  │                                                                   │ │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐              │ │
+│  │  │ 👥 Users    │  │ 🎬 Videos   │  │ 👁 Views    │              │ │
+│  │  │   1,234     │  │    567      │  │   12.5K     │              │ │
+│  │  └─────────────┘  └─────────────┘  └─────────────┘              │ │
+│  │                                                                   │ │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐              │ │
+│  │  │ 💬 Comments │  │ 🪙 CAMLY    │  │ 🏆 Top      │              │ │
+│  │  │    890      │  │ Pool: 5.2M  │  │ @creator    │              │ │
+│  │  └─────────────┘  └─────────────┘  └─────────────┘              │ │
+│  │                                                                   │ │
+│  │  ────────────────────────────────────────────────────────────── │ │
+│  │  📊 Chi tiết thêm:                                               │ │
+│  │  • Total CAMLY Distributed: 125,000,000                          │ │
+│  │  • Total Subscriptions: 4,567                                    │ │
+│  │  • Top Creator Video Count: 45                                   │ │
+│  └───────────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 2.3. Layout Honor Board
+### 2.2. Mobile Layout
 
-**Desktop (>1024px):**
-```text
-┌────────────────────────────────────────────────────────────────────────────┐
-│  Header                                                    [HONOR BOARD]   │
-│                                                            ┌──────────────┐│
-│  Sidebar                 Main Content Area                 │ 👥 Users     ││
-│                                                            │ 1,234        ││
-│                                                            ├──────────────┤│
-│                                                            │ 🎬 Video     ││
-│                                                            │ 567          ││
-│                                                            ├──────────────┤│
-│                         Videos Grid                        │ 👁 Views     ││
-│                                                            │ 12.5K        ││
-│                                                            ├──────────────┤│
-│                                                            │ 💬 Comments  ││
-│                                                            │ 890          ││
-│                                                            ├──────────────┤│
-│                                                            │ 🪙 CAMLY Pool││
-│                                                            │ 5.2M         ││
-│                                                            ├──────────────┤│
-│                                                            │ 🎖 Top       ││
-│                                                            │ @creator     ││
-│                                                            └──────────────┘│
-└────────────────────────────────────────────────────────────────────────────┘
-```
-
-**Mobile (<1024px):**
 ```text
 ┌─────────────────────────────────────┐
-│  Mobile Header        [Compact HB]  │
-│                       ┌───────────┐ │
-│                       │👥 │🎬 │👁 │ │
-│                       │12K│567│45K│ │
-│                       ├───┼───┼───┤ │
-│                       │💬 │🪙 │🎖 │ │
-│                       │890│5M │Top│ │
-│                       └───────────┘ │
+│  MOBILE DRAWER                      │
+├─────────────────────────────────────┤
+│  FUN Play                    [X]    │
 │                                     │
-│     Video Cards (Full Width)        │
+│  ┌─────────────────────────────────┐│
+│  │ 🏆 HONOR BOARD           [→]   ││ ← NÚT NỔI BẬT
+│  │ 👥 1.2K │ 🎬 567 │ 🪙 5.2M     ││
+│  └─────────────────────────────────┘│
 │                                     │
-│  [Bottom Navigation]                │
+│  ── FUN ECOSYSTEM ─────────────────│
+│  🌟 FUN.RICH                       │
+│  ...                                │
+└─────────────────────────────────────┘
+
+When tapped → Full-screen Sheet/Drawer:
+
+┌─────────────────────────────────────┐
+│  👑 HONOR BOARD 👑           [X]   │
+├─────────────────────────────────────┤
+│                                     │
+│  ┌─────────┐ ┌─────────┐ ┌───────┐ │
+│  │👥 Users │ │🎬 Video │ │👁 View│ │
+│  │  1,234  │ │   567   │ │ 12.5K │ │
+│  └─────────┘ └─────────┘ └───────┘ │
+│                                     │
+│  ┌─────────┐ ┌─────────┐ ┌───────┐ │
+│  │💬 Cmts  │ │🪙 Pool  │ │🏆 Top │ │
+│  │   890   │ │  5.2M   │ │@user  │ │
+│  └─────────┘ └─────────┘ └───────┘ │
+│                                     │
+│  ──────────────────────────────── │
+│  📊 Total Distributed: 125M CAMLY  │
+│  📊 Total Subs: 4,567              │
+│  📊 Top Creator: 45 videos         │
+│                                     │
 └─────────────────────────────────────┘
 ```
 
 ---
 
-## 3. Chi Tiết Triển Khai
+## 3. Chi Tiết Components Cần Tạo/Sửa
 
-### 3.1. Cập Nhật useHonobarStats Hook
+### 3.1. Component Mới: `HonobarSidebarButton.tsx`
 
-**Thêm các trường mới:**
+**Chức năng:** Nút compact hiển thị trong Sidebar, có 3 stats chính, click để mở popup
 
+**Design:**
+- Background: Gradient Cyan → Gold với glow effect
+- Border: 2px solid Cyan với shadow
+- Stats: 3 compact values (Users, Videos, CAMLY Pool)
+- Animation: Shimmer effect chạy liên tục
+- Icon: Crown (👑) rotating animation
+
+**Code structure:**
 ```typescript
-export interface HonobarStats {
-  totalUsers: number;
-  totalVideos: number;
-  totalViews: number;
-  totalComments: number;
-  totalRewards: number;         // Total CAMLY ever earned
-  totalSubscriptions: number;
-  camlyPool: number;            // THÊM MỚI: Sum approved_reward (chờ rút)
-  topCreator: {                 // THÊM MỚI: Creator có nhiều video nhất
-    displayName: string;
-    videoCount: number;
-  } | null;
-}
+// Nút trong Sidebar với preview stats
+<button onClick={openPopup} className="...">
+  <div className="flex items-center gap-2">
+    <Crown className="animate-pulse" />
+    <span>HONOR BOARD</span>
+    <ChevronRight />
+  </div>
+  <div className="grid grid-cols-3 gap-1">
+    <StatMini icon={Users} value={stats.totalUsers} />
+    <StatMini icon={Video} value={stats.totalVideos} />
+    <StatMini icon={Coins} value={stats.camlyPool} />
+  </div>
+</button>
 ```
 
-### 3.2. Tạo Component EnhancedHonobar
+### 3.2. Component Mới: `HonobarDetailModal.tsx`
 
-**File mới:** `src/components/Layout/EnhancedHonobar.tsx`
+**Chức năng:** Popup/Dialog với đầy đủ thông tin
 
-**Tính năng:**
-- 6 stat cards với animation shimmer
-- Màu gradient Cyan → Gold theo logo
-- Glow effect khi hover
-- Crown icon cho header
-- Realtime updates
+**Design:**
+- Desktop: Dialog centered, max-width 600px
+- Mobile: Sheet từ dưới lên (Drawer)
+- 6 stat cards với full animations
+- Chi tiết mở rộng ở dưới
+- Real-time updates
 
-### 3.3. Tạo Component MobileHonobar
-
-**File mới:** `src/components/Layout/MobileHonobar.tsx`
-
-**Tính năng:**
-- Compact 3x2 grid
-- Touch-friendly (min 44px touch targets)
-- Không có hover effects (mobile)
-- Đóng mở bằng tap (collapsible)
-
-### 3.4. Tích Hợp vào Index.tsx
-
-**Vị trí:** Góc trên bên phải (`absolute top-4 right-4`)
-
+**Code structure:**
 ```typescript
-// Desktop: EnhancedHonobar với đầy đủ animation
-// Mobile: MobileHonobar compact, có thể thu gọn
-
-{!isMobile && <EnhancedHonobar />}
-{isMobile && <MobileHonobar />}
+<Dialog open={isOpen} onOpenChange={setIsOpen}>
+  <DialogContent className="...">
+    <DialogHeader>
+      <Crown /> HONOR BOARD <Crown />
+    </DialogHeader>
+    
+    {/* 6 Stat Cards */}
+    <div className="grid grid-cols-3 gap-4">
+      {statItems.map(stat => <StatCard key={stat.label} {...stat} />)}
+    </div>
+    
+    {/* Extended Details */}
+    <div className="border-t pt-4">
+      <p>Total CAMLY Distributed: {stats.totalRewards}</p>
+      <p>Total Subscriptions: {stats.totalSubscriptions}</p>
+      <p>Top Creator Videos: {stats.topCreator?.videoCount}</p>
+    </div>
+  </DialogContent>
+</Dialog>
 ```
+
+### 3.3. Sửa `Sidebar.tsx`
+
+**Thay đổi:**
+1. Import `HonobarSidebarButton`
+2. Thêm nút Honor Board **TRÊN CÙNG**, trước "FUN ECOSYSTEM"
+3. State để control popup open/close
+
+**Vị trí trong code:**
+```typescript
+// Line ~108: Sau <ScrollArea>
+<div className="py-2">
+  {/* HONOR BOARD - TRÊN CÙNG */}
+  <div className="px-3 py-2 mb-2">
+    <HonobarSidebarButton onOpenDetail={() => setShowHonobarDetail(true)} />
+  </div>
+  
+  <div className="h-px bg-border my-2" />
+  
+  {/* FUN ECOSYSTEM section */}
+  ...
+</div>
+```
+
+### 3.4. Sửa `MobileDrawer.tsx`
+
+**Thay đổi:**
+1. Import `HonobarSidebarButton`
+2. Thêm nút sau User Profile section, trước FUN ECOSYSTEM
+3. State để control Sheet popup
+
+### 3.5. Sửa `Index.tsx`
+
+**Thay đổi:**
+1. **XÓA** import `EnhancedHonobar` và `MobileHonobar`
+2. **XÓA** render của 2 components này
+3. Honor Board giờ được render trong Sidebar/MobileDrawer
 
 ---
 
-## 4. Thiết Kế Chi Tiết UI
+## 4. Bảng Màu Theo Logo FUN PLAY
 
-### 4.1. Desktop EnhancedHonobar
+| Element | Color | Hex | Usage |
+|---------|-------|-----|-------|
+| Primary Gradient Start | Cyan | #00E7FF | Border, glow, icons |
+| Primary Gradient End | Gold | #FFD700 | Accent, values, hover |
+| Secondary | Purple | #7A2BFF | Text gradient middle |
+| Background | White/95 | rgba(255,255,255,0.95) | Card background |
+| Glow | Cyan + Gold | Mixed | Shadow effects |
 
-**CSS/Tailwind Classes:**
-
+**CSS Applied:**
 ```css
-/* Container */
-.honobar-container {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  z-index: 20;
-  width: auto;
-  max-width: 280px;
-}
+/* Button Background */
+background: linear-gradient(135deg, rgba(0,231,255,0.1), rgba(255,215,0,0.1));
 
-/* Outer Glow */
-.honobar-glow {
-  background: linear-gradient(135deg, 
-    rgba(0, 231, 255, 0.3), 
-    rgba(255, 215, 0, 0.3)
-  );
-  filter: blur(20px);
-  position: absolute;
-  inset: 0;
-  border-radius: 1rem;
-}
+/* Border */
+border: 2px solid rgba(0,231,255,0.5);
 
-/* Main Card */
-.honobar-card {
-  background: linear-gradient(135deg,
-    rgba(0, 231, 255, 0.05),
-    rgba(255, 255, 255, 0.95),
-    rgba(255, 215, 0, 0.05)
-  );
-  backdrop-filter: blur(20px);
-  border: 2px solid rgba(0, 231, 255, 0.5);
-  border-radius: 1rem;
-  box-shadow: 
-    0 0 30px rgba(0, 231, 255, 0.3),
-    0 0 50px rgba(255, 215, 0, 0.2);
-}
+/* Shadow/Glow */
+box-shadow: 
+  0 0 20px rgba(0,231,255,0.3),
+  0 0 40px rgba(255,215,0,0.2);
 
-/* Header */
-.honobar-header {
-  background: linear-gradient(90deg, #00E7FF, #7A2BFF, #FFD700);
-  -webkit-background-clip: text;
-  color: transparent;
-  font-weight: 800;
-}
-
-/* Stat Item */
-.stat-item {
-  background: linear-gradient(135deg,
-    rgba(0, 231, 255, 0.1),
-    rgba(255, 215, 0, 0.1)
-  );
-  border: 1px solid rgba(0, 231, 255, 0.3);
-  border-radius: 0.75rem;
-  transition: all 0.3s ease;
-}
-
-.stat-item:hover {
-  border-color: rgba(255, 215, 0, 0.6);
-  box-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
-}
-
-/* Shimmer Animation */
-@keyframes shimmer {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(200%); }
-}
+/* Text Gradient */
+background: linear-gradient(90deg, #00E7FF, #7A2BFF, #FFD700);
+-webkit-background-clip: text;
+color: transparent;
 ```
-
-### 4.2. Mobile MobileHonobar
-
-**Đặc điểm:**
-- Width: 180px (compact)
-- Grid: 3 columns × 2 rows
-- Font size: 10px label, 12px value
-- Touch target: min 44px
-- Collapsible với icon chevron
 
 ---
 
-## 5. Danh Sách File Cần Thay Đổi
+## 5. Danh Sách File Thay Đổi
 
 | File | Loại | Mô Tả |
 |------|------|-------|
-| `src/hooks/useHonobarStats.tsx` | SỬA | Thêm camlyPool, topCreator |
-| `src/components/Layout/EnhancedHonobar.tsx` | TẠO MỚI | Desktop Honor Board với brand colors |
-| `src/components/Layout/MobileHonobar.tsx` | TẠO MỚI | Mobile compact version |
-| `src/pages/Index.tsx` | SỬA | Import và render Honobar |
-| `src/components/Layout/Honobar.tsx` | GIỮ NGUYÊN | Backup reference |
-| `src/components/Layout/CompactHonobar.tsx` | GIỮ NGUYÊN | Backup reference |
+| `src/components/Layout/HonobarSidebarButton.tsx` | **TẠO MỚI** | Compact button cho sidebar |
+| `src/components/Layout/HonobarDetailModal.tsx` | **TẠO MỚI** | Popup chi tiết với Dialog/Sheet |
+| `src/components/Layout/Sidebar.tsx` | SỬA | Thêm Honor Board button trên cùng |
+| `src/components/Layout/MobileDrawer.tsx` | SỬA | Thêm Honor Board button trong drawer |
+| `src/pages/Index.tsx` | SỬA | Xóa EnhancedHonobar và MobileHonobar khỏi trang chủ |
+| `src/components/Layout/EnhancedHonobar.tsx` | GIỮ NGUYÊN | Backup, có thể dùng trong modal |
+| `src/components/Layout/MobileHonobar.tsx` | GIỮ NGUYÊN | Backup reference |
 
 ---
 
-## 6. Animation & Effects
+## 6. Animations & Effects
 
-### 6.1. Entry Animation
-```typescript
-initial={{ scale: 0.8, opacity: 0, y: -20 }}
-animate={{ scale: 1, opacity: 1, y: 0 }}
-transition={{ duration: 0.5, type: "spring", stiffness: 120 }}
-```
+### 6.1. Sidebar Button
+- **Shimmer**: Chạy liên tục qua button
+- **Crown Rotate**: Icon xoay nhẹ 10° qua lại
+- **Hover**: Scale 1.02, glow tăng intensity
+- **Active**: Scale 0.98, glow pulse
 
-### 6.2. Shimmer Effect (mỗi stat card)
-```typescript
-<motion.div
-  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
-  animate={{ x: ["-100%", "200%"] }}
-  transition={{ duration: 3, repeat: Infinity, delay: index * 0.2 }}
-/>
-```
+### 6.2. Popup Entry
+- **Backdrop**: Fade in opacity 0 → 1
+- **Modal**: Scale 0.9 → 1, opacity 0 → 1
+- **Stats Cards**: Stagger animation, each card delays 0.05s
 
-### 6.3. Icon Pulse
-```typescript
-<motion.div
-  animate={{ scale: [1, 1.15, 1] }}
-  transition={{ duration: 2, repeat: Infinity, delay: index * 0.15 }}
->
-  <Icon className="w-4 h-4 text-[#00E7FF]" />
-</motion.div>
-```
-
-### 6.4. Number Glow
-```typescript
-<motion.span
-  animate={{
-    textShadow: [
-      "0 0 4px rgba(0,231,255,0.3)",
-      "0 0 8px rgba(255,215,0,0.5)",
-      "0 0 4px rgba(0,231,255,0.3)"
-    ]
-  }}
-  transition={{ duration: 2, repeat: Infinity }}
->
-  {value}
-</motion.span>
-```
+### 6.3. Numbers
+- **Counter Animation**: Sử dụng CounterAnimation component có sẵn
+- **Glow**: textShadow alternating Cyan ↔ Gold
 
 ---
 
@@ -302,20 +288,21 @@ transition={{ duration: 0.5, type: "spring", stiffness: 120 }}
 
 | Test | Mô Tả | Expected Result |
 |------|-------|-----------------|
-| Desktop Render | Mở trang chủ trên Desktop | Honor Board hiển thị góc trên phải với 6 stats |
-| Mobile Render | Mở trang chủ trên Mobile | Compact Honor Board 3x2 grid |
-| Realtime Update | User khác upload video | Số video tự động +1 |
-| CAMLY Pool | Admin approve reward | camlyPool tăng theo approved_reward |
-| Top Creator | User upload nhiều video nhất | Hiển thị đúng username |
-| Animation | Hover vào stat card | Glow effect xuất hiện |
-| Loading State | Page đang load | Skeleton loading animation |
+| Desktop Sidebar | Mở trang chủ Desktop | Thấy nút HONOR BOARD trên cùng sidebar |
+| Desktop Click | Click vào nút | Dialog popup mở với 6 stats + chi tiết |
+| Mobile Drawer | Mở drawer trên Mobile | Thấy nút HONOR BOARD ngay sau profile |
+| Mobile Click | Tap vào nút Mobile | Sheet mở từ dưới lên với đầy đủ thông tin |
+| Real-time | User khác upload video | Số video tự động +1 trong cả button và popup |
+| Animation | Hover/Focus button | Glow effect tăng, shimmer chạy |
+| Close Modal | Click X hoặc backdrop | Modal đóng smooth |
 
 ---
 
 ## 8. Ghi Chú Kỹ Thuật
 
-1. **Performance:** Chỉ fetch stats mới khi có realtime event, không polling
-2. **Z-index:** Honor Board z-20, thấp hơn Modal (z-50) nhưng cao hơn content
-3. **Responsive:** Sử dụng `useIsMobile()` hook để switch component
-4. **Accessibility:** Thêm aria-label cho screen readers
-5. **Dark Mode:** Sử dụng CSS variables để hỗ trợ cả light/dark theme
+1. **Reuse Hook**: Sử dụng `useHonobarStats` cho cả button preview và detail modal
+2. **Single Source of Truth**: Stats được fetch một lần, shared giữa components
+3. **Responsive**: Dialog trên Desktop, Sheet/Drawer trên Mobile (sử dụng `useIsMobile`)
+4. **Accessibility**: Focus trap trong modal, keyboard navigation, aria-labels
+5. **Performance**: Modal content lazy render (chỉ render khi open)
+6. **Z-index Strategy**: Button trong sidebar (z-40), Modal overlay (z-50)
