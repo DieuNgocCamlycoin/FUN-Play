@@ -1,211 +1,191 @@
 
-# Kế Hoạch: Hoàn Thiện Video Player Giống YouTube
+# Kế Hoạch: Fix Toàn Diện Video Player - Tất Cả Vấn Đề
 
-## Tổng Quan Các Vấn Đề
+## Tổng Quan Các Vấn Đề Cần Fix
 
-| # | Vấn Đề | Tình Trạng Hiện Tại | Mong Muốn (YouTube) |
-|---|--------|---------------------|---------------------|
-| 1 | Nút bấm dưới video | Icons nhỏ, thiếu dislike count, thiếu glow effect | Icons lớn (24-32px), gradient glow, pulse animation, realtime counts |
-| 2 | Mini-player minimize | Bấm ↓ chưa hoạt động mượt, che trang chủ, khó tắt | Thu nhỏ góc phải dưới, không che overlay, swipe down tắt hẳn |
+| # | Vấn Đề | Tình Trạng | Giải Pháp |
+|---|--------|------------|-----------|
+| 1 | Nút "Đăng ký" bị khuất/cắt | overflow-x-auto khiến nút cuối bị cắt | Fix layout, đảm bảo min-width và không cắt |
+| 2 | Nút "Tải xuống" chỉ hiện 1 phần | Nằm cuối hàng bị cắt | Tăng padding-right, đảm bảo visible |
+| 3 | Logic nút chuông sai | Chuông luôn hiển thị riêng biệt | Chưa subscribe → "Đăng ký", Đã subscribe → icon chuông |
+| 4 | Đường đỏ chạy nền video | Progress bar đỏ khi controls ẩn | Chuyển sang gradient tím-hồng theo Design System |
+| 5 | Chưa có pinch-to-zoom | Thiếu tính năng | Thêm gesture zoom (phức tạp - cần thư viện) |
+| 6 | Mini-player chưa mượt | Hoạt động nhưng cần cải thiện | Đảm bảo swipe down, animation mượt |
+| 7 | Video bị mất góc/tràn | Layout rối | Reset layout, đảm bảo aspect-ratio 16:9 chuẩn |
 
 ---
 
-## Phần 1: Cải Thiện Nút Bấm Dưới Video (VideoActionsBar)
+## 1. Fix Nút "Đăng ký" & Nút Chuông (VideoActionsBar.tsx)
 
-### Layout Mới (Theo YouTube Mobile - Hình 2)
+### Vấn Đề Hiện Tại
+- Nút Đăng ký nằm ở Channel row (line 125-136) - đúng vị trí
+- Có nút Bell riêng biệt trong Actions row (line 142-150) - thừa
+- Actions row có `overflow-x-auto` có thể cắt nút cuối
 
-```text
-+------------------------------------------------------------------+
-| [Avatar] | Channel Name          | [Đăng ký]                    |
-|          | 12 người đăng ký       |                              |
-+------------------------------------------------------------------+
-| [🔔▼] [👍 8] [👎] [➡️] [🔖 Lưu] [⬇️ Đã tải x...]               |
-+------------------------------------------------------------------+
-```
-
-### Thay Đổi Chi Tiết
-
-**File: `src/components/Video/Mobile/VideoActionsBar.tsx`**
-
-1. **Thêm notification bell với dropdown** (như YouTube)
-2. **Icons lớn hơn** (h-5 w-5 thay vì h-4 w-4)
-3. **Gradient glow effect khi hover/tap**:
-   ```typescript
-   className={cn(
-     "transition-all duration-200",
-     hasLiked && "text-cyan-400 animate-pulse shadow-[0_0_15px_rgba(0,255,255,0.4)]"
-   )}
-   ```
-4. **Thêm haptic feedback** khi bấm nút
-5. **Rainbow sparkle animation khi like**:
-   ```css
-   @keyframes rainbow-sparkle {
-     0% { box-shadow: 0 0 10px rgba(0,255,255,0.5); }
-     33% { box-shadow: 0 0 15px rgba(168,85,247,0.5); }
-     66% { box-shadow: 0 0 15px rgba(236,72,153,0.5); }
-     100% { box-shadow: 0 0 10px rgba(0,255,255,0.5); }
-   }
-   ```
-6. **Tooltip vui** khi hover: "Lan tỏa ánh sáng! ✨"
-
-### Code Changes
+### Giải Pháp
+1. **Xóa nút Bell riêng** trong actions row
+2. **Thay đổi logic nút Đăng ký**:
+   - Chưa subscribe → Nút "Đăng ký" gradient xanh
+   - Đã subscribe → Icon chuông (Bell) với dropdown để toggle thông báo
+3. **Fix layout** để không bị cắt
 
 ```typescript
-// Thêm imports
-import { useHapticFeedback } from "@/hooks/useHapticFeedback";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Bell, BellOff } from "lucide-react";
-import { motion } from "framer-motion";
-
-// Trong component
-const { lightTap, successFeedback } = useHapticFeedback();
-
-// Like button với gradient glow và animation
-<Tooltip>
-  <TooltipTrigger asChild>
-    <motion.div
-      whileTap={{ scale: 0.9 }}
-    >
+// Channel row - thay đổi logic
+{isSubscribed ? (
+  // Hiển thị icon chuông với dropdown
+  <DropdownMenu>
+    <DropdownMenuTrigger asChild>
       <Button
         variant="ghost"
         size="sm"
-        onClick={() => {
-          successFeedback();
-          onLike();
-        }}
-        className={cn(
-          "rounded-full rounded-r-none gap-1.5 h-10 px-4",
-          hasLiked && "text-cosmic-cyan bg-cosmic-cyan/10 shadow-[0_0_20px_rgba(0,255,255,0.3)]"
-        )}
+        className="rounded-full h-9 px-3 bg-muted"
       >
-        <ThumbsUp className={cn("h-5 w-5 transition-transform", hasLiked && "fill-current scale-110")} />
-        <span className="font-semibold">{formatNumber(likeCount)}</span>
+        <Bell className="h-5 w-5" />
+        <ChevronDown className="h-3 w-3 ml-0.5" />
       </Button>
-    </motion.div>
-  </TooltipTrigger>
-  <TooltipContent>
-    <p>{hasLiked ? "Đã thích video này!" : "Lan tỏa ánh sáng! ✨"}</p>
-  </TooltipContent>
-</Tooltip>
+    </DropdownMenuTrigger>
+    <DropdownMenuContent>
+      <DropdownMenuItem onClick={() => { /* toggle all */ }}>
+        <Bell className="mr-2 h-4 w-4" /> Tất cả
+      </DropdownMenuItem>
+      <DropdownMenuItem onClick={() => { /* toggle personalized */ }}>
+        <BellRing className="mr-2 h-4 w-4" /> Cá nhân hóa
+      </DropdownMenuItem>
+      <DropdownMenuItem onClick={() => { /* toggle none */ }}>
+        <BellOff className="mr-2 h-4 w-4" /> Không nhận
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem onClick={() => onSubscribe()}>
+        Hủy đăng ký
+      </DropdownMenuItem>
+    </DropdownMenuContent>
+  </DropdownMenu>
+) : (
+  // Hiển thị nút "Đăng ký"
+  <Button
+    onClick={() => { lightTap(); onSubscribe(); }}
+    size="sm"
+    className="rounded-full px-4 h-9 font-semibold bg-gradient-to-r from-cosmic-cyan to-cosmic-sapphire text-white shrink-0"
+  >
+    Đăng ký
+  </Button>
+)}
+```
+
+### Actions Row - Xóa Bell, Fix Layout
+
+```typescript
+// Xóa nút Bell riêng (dòng 142-150)
+// Thêm padding-right để nút cuối không bị cắt
+<div className="flex items-center gap-2 mt-3 overflow-x-auto pb-1 pr-4 scrollbar-hide">
+  {/* Like/Dislike pill - giữ nguyên */}
+  
+  {/* Share button - giữ nguyên */}
+  
+  {/* Save to playlist - giữ nguyên */}
+  
+  {/* Download - giữ nguyên, đảm bảo không bị cắt */}
+</div>
 ```
 
 ---
 
-## Phần 2: Sửa Lỗi Minimize Video → Mini-Player
-
-### Vấn Đề Hiện Tại
-- `handleMinimize()` trong MobileWatchView gọi `showMiniPlayer()` và `navigate("/")` 
-- GlobalMiniPlayer hiển thị ở góc phải dưới với `bottom-20 right-2`
-- Vấn đề: Mini-player có thể che MobileBottomNav hoặc không hiển thị đúng
-
-### Giải Pháp
-
-**1. Cải thiện GlobalMiniPlayer positioning và interactions:**
-
-```typescript
-// GlobalMiniPlayer.tsx
-// Thêm swipe-to-dismiss gesture
-<motion.div
-  drag="y"
-  dragConstraints={{ top: -50, bottom: 100 }}
-  onDragEnd={(_, info) => {
-    if (info.offset.y > 50) {
-      hideMiniPlayer(); // Swipe down to dismiss
-    }
-  }}
-  className={cn(
-    "fixed z-[60]", // Higher z-index
-    "bottom-[72px] right-3", // Above bottom nav (16px height + padding)
-    "w-44 rounded-xl overflow-hidden", // Slightly larger
-    "bg-background/95 backdrop-blur-lg",
-    "shadow-2xl",
-    "border border-primary/20", // Rainbow border subtle
-    "cursor-pointer"
-  )}
->
-```
-
-**2. Thêm rainbow border animation khi mini:**
-
-```typescript
-// Thêm class cho rainbow border
-"animate-[rainbow-border_3s_ease-in-out_infinite]"
-
-// Trong tailwind.config.ts
-"rainbow-border": {
-  "0%, 100%": { borderColor: "rgba(0, 255, 255, 0.3)" },
-  "33%": { borderColor: "rgba(168, 85, 247, 0.3)" },
-  "66%": { borderColor: "rgba(236, 72, 153, 0.3)" },
-}
-```
-
-**3. Thêm nút X rõ ràng để tắt:**
-
-```typescript
-// Close button với haptic feedback
-<Button
-  variant="ghost"
-  size="icon"
-  onClick={(e) => {
-    e.stopPropagation();
-    lightTap();
-    hideMiniPlayer();
-  }}
-  className="h-8 w-8 rounded-full bg-red-500/20 hover:bg-red-500/40"
->
-  <X className="h-4 w-4 text-red-400" />
-</Button>
-```
-
-**4. Đảm bảo mini-player không che tương tác:**
-
-```typescript
-// Thêm pointer-events handling
-<motion.div
-  className="pointer-events-auto" // Only this element captures events
-  style={{ pointerEvents: 'auto' }}
->
-```
-
----
-
-## Phần 3: Cải Thiện Swipe Gesture trong YouTubeMobilePlayer
+## 2. Fix Đường Đỏ Progress Bar (YouTubeMobilePlayer.tsx)
 
 ### Vấn Đề
-- Drag gesture có nhưng feedback chưa rõ ràng
-- Cần thêm indicator "Kéo xuống để thu nhỏ" rõ ràng hơn
+- Line 328-334: Progress bar khi controls ẩn dùng `bg-red-600`
+
+### Giải Pháp
+- Chuyển sang gradient tím-hồng theo Design System v1.0
+- Hoặc dùng `bg-cosmic-cyan` hoặc gradient
+
+```typescript
+// Line 326-334 - Thay đổi màu progress bar
+{!showControls && (
+  <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-white/20 z-30">
+    <div 
+      className="h-full bg-gradient-to-r from-cosmic-magenta to-cosmic-cyan transition-all duration-100"
+      style={{ width: `${progressPercentage}%` }}
+    />
+  </div>
+)}
+```
+
+---
+
+## 3. Fix Video Layout - Không Mất Góc (YouTubeMobilePlayer.tsx)
+
+### Vấn Đề
+- Video có thể bị crop hoặc tràn màn hình
+- `overflow-hidden` có thể cắt góc
 
 ### Giải Pháp
 
 ```typescript
-// YouTubeMobilePlayer.tsx
-// Cải thiện drag indicator
-{isDragging && (
-  <motion.div 
-    className="absolute top-8 left-1/2 -translate-x-1/2 
-               bg-gradient-to-r from-cyan-500/80 to-purple-500/80 
-               rounded-full px-4 py-2 backdrop-blur-sm"
-    initial={{ opacity: 0, y: -10 }}
-    animate={{ opacity: 1, y: 0 }}
-  >
-    <span className="text-white text-sm font-medium flex items-center gap-2">
-      <ChevronDown className="h-4 w-4 animate-bounce" />
-      Kéo xuống để thu nhỏ
-    </span>
-  </motion.div>
+// Line 306-309 - Cải thiện container className
+className={cn(
+  "relative bg-black touch-none select-none",
+  isFullscreen 
+    ? "fixed inset-0 z-[100]" 
+    : "aspect-video w-full max-w-full" // Thêm max-w-full
 )}
 
-// Giảm threshold để dễ trigger hơn
-const handleDragEnd = (_event: any, info: PanInfo) => {
-  setIsDragging(false);
-  setDragY(0);
-  
-  // Giảm từ 100px xuống 80px để dễ trigger hơn
-  if (info.offset.y > 80 || info.velocity.y > 300) {
-    lightTap(); // Haptic feedback
-    onMinimize?.();
-  }
-};
+// Video element - Line 313-324
+<video
+  ref={videoRef}
+  src={videoUrl}
+  className="w-full h-full object-contain" // Giữ object-contain để không crop
+  // ...
+/>
+```
+
+---
+
+## 4. Cải Thiện Mini-Player (GlobalMiniPlayer.tsx)
+
+### Hiện Tại
+- Positioning đúng: `bottom-[76px] right-3`
+- Có swipe-to-dismiss
+- Có rainbow border animation
+
+### Cải Thiện
+- Thêm shadow rõ hơn
+- Progress bar theo Design System (không đỏ)
+
+```typescript
+// Line 137-142 - Thay đổi màu progress bar trong mini-player
+<div className="absolute bottom-0 left-0 right-0 h-[3px] bg-white/20">
+  <div 
+    className="h-full bg-gradient-to-r from-cosmic-magenta to-cosmic-cyan transition-all duration-200"
+    style={{ width: `${progressPercentage}%` }}
+  />
+</div>
+```
+
+---
+
+## 5. Pinch-to-Zoom (Tính năng mới - phức tạp)
+
+### Đánh giá
+- Pinch-to-zoom cần gesture handler phức tạp
+- Có thể dùng thư viện như `use-gesture` hoặc custom implementation
+- Tạm thời: Thêm double-tap zoom 2x đã có (line 179-189)
+
+### Giải pháp đơn giản
+- Double-tap đã hoạt động với skip 15s
+- Thêm triple-tap để toggle fullscreen có thể là giải pháp thay thế
+
+### Giải pháp nâng cao (để sau)
+```typescript
+// Cần thêm thư viện @use-gesture/react
+import { usePinch } from '@use-gesture/react';
+
+// Trong component
+const [scale, setScale] = useState(1);
+
+const bind = usePinch(({ offset: [s] }) => {
+  setScale(Math.max(1, Math.min(s, 3))); // Scale từ 1x đến 3x
+});
 ```
 
 ---
@@ -214,314 +194,130 @@ const handleDragEnd = (_event: any, info: PanInfo) => {
 
 | File | Loại | Mô Tả |
 |------|------|-------|
-| `src/components/Video/Mobile/VideoActionsBar.tsx` | SỬA | Icons lớn, gradient glow, haptic, tooltip, animation |
-| `src/components/Video/GlobalMiniPlayer.tsx` | SỬA | Swipe dismiss, rainbow border, positioning fix, X button |
-| `src/components/Video/YouTubeMobilePlayer.tsx` | SỬA | Cải thiện drag indicator, giảm threshold, haptic |
-| `tailwind.config.ts` | SỬA | Thêm keyframes rainbow-border, rainbow-sparkle |
+| `src/components/Video/Mobile/VideoActionsBar.tsx` | SỬA | Fix logic chuông, xóa Bell thừa, fix layout không bị cắt |
+| `src/components/Video/YouTubeMobilePlayer.tsx` | SỬA | Đổi màu progress bar, cải thiện layout |
+| `src/components/Video/GlobalMiniPlayer.tsx` | SỬA | Đổi màu progress bar theo Design System |
 
 ---
 
 ## Chi Tiết Triển Khai
 
-### VideoActionsBar.tsx - Redesign Hoàn Chỉnh
+### VideoActionsBar.tsx - Cập Nhật Hoàn Chỉnh
 
 ```typescript
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
+// Thêm imports
 import { 
-  ThumbsUp, ThumbsDown, ExternalLink, Download, Loader2, 
-  Bookmark, Bell, BellOff, Share2 
-} from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
-import { SaveToPlaylistDrawer } from "@/components/Playlist/SaveToPlaylistDrawer";
-import { useHapticFeedback } from "@/hooks/useHapticFeedback";
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
-import { motion } from "framer-motion";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { BellRing, BellOff } from "lucide-react";
 
-// ... props interface stays same
-
-export function VideoActionsBar({ ...props }: VideoActionsBarProps) {
-  const { lightTap, successFeedback } = useHapticFeedback();
-  const [showLikeAnimation, setShowLikeAnimation] = useState(false);
+// Trong component - thay đổi Channel row
+<div className="flex items-center gap-3">
+  {/* Avatar - giữ nguyên */}
   
-  const handleLike = () => {
-    successFeedback();
-    setShowLikeAnimation(true);
-    setTimeout(() => setShowLikeAnimation(false), 600);
-    onLike();
-  };
+  {/* Channel info - giữ nguyên */}
   
-  return (
-    <TooltipProvider>
-      <div className="px-3 py-3 border-b border-border">
-        {/* Channel row - giữ nguyên */}
-        
-        {/* Actions row - CẢI THIỆN */}
-        <div className="flex items-center gap-2 mt-3 overflow-x-auto pb-1 scrollbar-hide">
-          {/* Notification bell dropdown */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="rounded-full bg-muted/80 h-10 px-3 shrink-0"
-          >
-            <Bell className="h-5 w-5" />
-            <ChevronDown className="h-3 w-3 ml-0.5" />
-          </Button>
-          
-          {/* Like/Dislike pill - ENHANCED */}
-          <div className="flex items-center bg-muted/80 rounded-full shrink-0">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <motion.div whileTap={{ scale: 0.9 }}>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleLike}
-                    className={cn(
-                      "rounded-full rounded-r-none gap-1.5 h-10 px-4 transition-all duration-300",
-                      hasLiked && "text-cosmic-cyan bg-gradient-to-r from-cyan-500/10 to-purple-500/10",
-                      showLikeAnimation && "animate-[rainbow-sparkle_0.6s_ease-out]"
-                    )}
-                  >
-                    <ThumbsUp className={cn(
-                      "h-5 w-5 transition-all duration-200", 
-                      hasLiked && "fill-current scale-110"
-                    )} />
-                    <span className="font-semibold">{formatNumber(likeCount)}</span>
-                  </Button>
-                </motion.div>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p className="text-sm">{hasLiked ? "Đã thích! 💖" : "Lan tỏa ánh sáng! ✨"}</p>
-              </TooltipContent>
-            </Tooltip>
-            
-            <div className="w-px h-6 bg-border" />
-            
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => lightTap()}
-              className="rounded-full rounded-l-none h-10 px-4"
-            >
-              <ThumbsDown className="h-5 w-5" />
-            </Button>
-          </div>
-
-          {/* Share button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => { lightTap(); onShare(); }}
-            className="rounded-full bg-muted/80 h-10 px-4 shrink-0"
-          >
-            <Share2 className="h-5 w-5" />
-          </Button>
-
-          {/* Save to playlist - với icon và text */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => { lightTap(); setSaveDrawerOpen(true); }}
-                className="rounded-full bg-muted/80 h-10 px-4 gap-1.5 shrink-0 hover:bg-primary/10"
-              >
-                <Bookmark className="h-5 w-5" />
-                <span className="text-sm font-medium">Lưu</span>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Lưu vào danh sách phát 📚</p>
-            </TooltipContent>
-          </Tooltip>
-
-          {/* Download - với status */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => { lightTap(); handleDownload(); }}
-            disabled={isDownloading}
-            className="rounded-full bg-muted/80 h-10 px-4 gap-1.5 shrink-0"
-          >
-            {isDownloading ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              <Download className="h-5 w-5" />
-            )}
-            <span className="text-sm font-medium">Tải xuống</span>
-          </Button>
-        </div>
-      </div>
-    </TooltipProvider>
-  );
-}
-```
-
-### GlobalMiniPlayer.tsx - Enhanced
-
-```typescript
-import { useRef, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { useMiniPlayer } from "@/contexts/MiniPlayerContext";
-import { Button } from "@/components/ui/button";
-import { Play, Pause, X, Maximize2 } from "lucide-react";
-import { motion, AnimatePresence, PanInfo } from "framer-motion";
-import { cn } from "@/lib/utils";
-import { useHapticFeedback } from "@/hooks/useHapticFeedback";
-
-export function GlobalMiniPlayer() {
-  const { lightTap } = useHapticFeedback();
-  // ... existing code
-  
-  const handleDragEnd = (_: any, info: PanInfo) => {
-    // Swipe down to dismiss
-    if (info.offset.y > 50 || info.velocity.y > 200) {
-      lightTap();
-      hideMiniPlayer();
-    }
-  };
-
-  return (
-    <AnimatePresence>
-      {miniPlayerVideo && isVisible && !shouldHide && (
-        <motion.div
-          key="mini-player"
-          initial={{ opacity: 0, y: 100, scale: 0.8 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 100, scale: 0.8 }}
-          transition={{ type: "spring", damping: 25, stiffness: 300 }}
-          drag="y"
-          dragConstraints={{ top: -30, bottom: 0 }}
-          dragElastic={0.2}
-          onDragEnd={handleDragEnd}
-          className={cn(
-            "fixed z-[60]",
-            "bottom-[76px] right-3", // Đảm bảo trên MobileBottomNav
-            "w-44 rounded-xl overflow-hidden",
-            "bg-background/95 backdrop-blur-lg",
-            "shadow-[0_8px_32px_rgba(0,0,0,0.3)]",
-            "border-2 border-transparent",
-            "bg-clip-padding",
-            "cursor-pointer",
-            // Rainbow border effect
-            "before:absolute before:inset-0 before:-z-10 before:m-[-2px] before:rounded-xl",
-            "before:bg-gradient-to-r before:from-cyan-500 before:via-purple-500 before:to-pink-500",
-            "before:animate-[rainbow-border_3s_linear_infinite]"
-          )}
-          onClick={handleExpand}
+  {/* Subscribe/Bell button - LOGIC MỚI */}
+  {isSubscribed ? (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => lightTap()}
+          className="rounded-full h-9 px-3 bg-muted shrink-0"
         >
-          {/* Video */}
-          <div className="relative aspect-video">
-            <video
-              ref={videoRef}
-              src={miniPlayerVideo.videoUrl}
-              className="w-full h-full object-cover"
-              playsInline
-              muted={false}
-              // ... existing handlers
-            />
-            
-            {/* Overlay gradient */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-            
-            {/* Progress bar - thinner, red like YouTube */}
-            <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-white/20">
-              <div 
-                className="h-full bg-red-500 transition-all duration-200"
-                style={{ width: `${progressPercentage}%` }}
-              />
-            </div>
-            
-            {/* Expand button overlay */}
-            <div className="absolute top-2 right-2">
-              <Maximize2 className="h-4 w-4 text-white/80" />
-            </div>
-          </div>
-
-          {/* Controls */}
-          <div className="p-2 flex items-center gap-1.5 bg-background">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handlePlayPause}
-              className="h-9 w-9 text-foreground hover:bg-accent rounded-full"
-            >
-              {isPlaying ? (
-                <Pause className="h-5 w-5" />
-              ) : (
-                <Play className="h-5 w-5 ml-0.5" />
-              )}
-            </Button>
-            
-            <div className="flex-1 min-w-0 px-1">
-              <p className="text-xs font-semibold truncate text-foreground">
-                {miniPlayerVideo.title}
-              </p>
-              <p className="text-[10px] text-muted-foreground truncate">
-                {miniPlayerVideo.channelName}
-              </p>
-            </div>
-
-            {/* Close button - more prominent */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleClose}
-              className="h-9 w-9 rounded-full text-muted-foreground hover:text-white hover:bg-red-500/20"
-            >
-              <X className="h-5 w-5" />
-            </Button>
-          </div>
-        </motion.div>
+          <Bell className="h-5 w-5" />
+          <ChevronDown className="h-3 w-3 ml-0.5" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem>
+          <Bell className="mr-2 h-4 w-4" />
+          Tất cả thông báo
+        </DropdownMenuItem>
+        <DropdownMenuItem>
+          <BellRing className="mr-2 h-4 w-4" />
+          Cá nhân hóa
+        </DropdownMenuItem>
+        <DropdownMenuItem>
+          <BellOff className="mr-2 h-4 w-4" />
+          Không nhận
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem 
+          onClick={() => { lightTap(); onSubscribe(); }}
+          className="text-destructive"
+        >
+          Hủy đăng ký
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  ) : (
+    <Button
+      onClick={() => { lightTap(); onSubscribe(); }}
+      size="sm"
+      className={cn(
+        "rounded-full px-4 h-9 font-semibold shrink-0 transition-all duration-300",
+        "bg-gradient-to-r from-cosmic-cyan to-cosmic-sapphire text-white",
+        "hover:opacity-90 shadow-[0_0_20px_rgba(0,255,255,0.3)]"
       )}
-    </AnimatePresence>
-  );
-}
+    >
+      Đăng ký
+    </Button>
+  )}
+</div>
+
+{/* Actions row - XÓA nút Bell riêng, thêm pr-4 */}
+<div className="flex items-center gap-2 mt-3 overflow-x-auto pb-1 pr-4 scrollbar-hide">
+  {/* XÓA: Notification bell dropdown (dòng 142-150 cũ) */}
+  
+  {/* Like/Dislike pill - giữ nguyên */}
+  
+  {/* Share button - giữ nguyên */}
+  
+  {/* Save to playlist - giữ nguyên */}
+  
+  {/* Download - giữ nguyên */}
+</div>
 ```
 
-### tailwind.config.ts - Thêm Keyframes
+### YouTubeMobilePlayer.tsx - Progress Bar & Layout
 
 ```typescript
-keyframes: {
-  // ... existing keyframes
-  
-  "rainbow-sparkle": {
-    "0%": { 
-      boxShadow: "0 0 10px rgba(0,255,255,0.5), 0 0 20px rgba(0,255,255,0.3)" 
-    },
-    "25%": { 
-      boxShadow: "0 0 15px rgba(168,85,247,0.5), 0 0 30px rgba(168,85,247,0.3)" 
-    },
-    "50%": { 
-      boxShadow: "0 0 15px rgba(236,72,153,0.5), 0 0 30px rgba(236,72,153,0.3)" 
-    },
-    "75%": { 
-      boxShadow: "0 0 15px rgba(251,191,36,0.5), 0 0 30px rgba(251,191,36,0.3)" 
-    },
-    "100%": { 
-      boxShadow: "0 0 10px rgba(0,255,255,0.5), 0 0 20px rgba(0,255,255,0.3)" 
-    },
-  },
-  
-  "rainbow-border": {
-    "0%, 100%": { 
-      backgroundPosition: "0% 50%" 
-    },
-    "50%": { 
-      backgroundPosition: "100% 50%" 
-    },
-  },
-},
+// Line 326-334 - Thin progress bar với gradient
+{!showControls && (
+  <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-white/20 z-30">
+    <div 
+      className="h-full bg-gradient-to-r from-cosmic-magenta to-cosmic-cyan transition-all duration-100"
+      style={{ width: `${progressPercentage}%` }}
+    />
+  </div>
+)}
 
-animation: {
-  // ... existing
-  "rainbow-sparkle": "rainbow-sparkle 0.6s ease-out",
-  "rainbow-border": "rainbow-border 3s linear infinite",
-}
+// Container - Thêm rounded-none để không mất góc
+className={cn(
+  "relative bg-black touch-none select-none",
+  isFullscreen 
+    ? "fixed inset-0 z-[100]" 
+    : "aspect-video w-full"
+)}
+```
+
+### GlobalMiniPlayer.tsx - Progress Bar
+
+```typescript
+// Line 137-142
+<div className="absolute bottom-0 left-0 right-0 h-[3px] bg-white/20">
+  <div 
+    className="h-full bg-gradient-to-r from-cosmic-magenta to-cosmic-cyan transition-all duration-200"
+    style={{ width: `${progressPercentage}%` }}
+  />
+</div>
 ```
 
 ---
@@ -530,21 +326,33 @@ animation: {
 
 | Tính Năng | Trước | Sau |
 |-----------|-------|-----|
-| Icons action buttons | h-4 w-4, không glow | h-5 w-5, gradient glow, pulse animation |
-| Like button | Đổi màu đơn giản | Rainbow sparkle animation, tooltip "Lan tỏa ánh sáng!" |
-| Haptic feedback | Không có | Vibrate nhẹ khi bấm tất cả nút |
-| Mini-player position | bottom-20, có thể bị che | bottom-[76px], luôn trên MobileBottomNav |
-| Mini-player dismiss | Chỉ có nút X | Swipe down hoặc nút X với haptic |
-| Mini-player border | border-white/20 đơn giản | Rainbow gradient border animation |
-| Progress bar | primary color | Red (YouTube style) |
-| Drag indicator | Text đơn giản | Gradient background, icon animate bounce |
+| Nút Đăng ký | Hiển thị nhưng có thể bị cắt | Hiển thị rõ ràng, không cắt |
+| Nút chuông | Luôn hiện riêng biệt | Chỉ hiện SAU khi đã subscribe |
+| Nút Tải xuống | Bị cắt cuối hàng | Hiển thị đầy đủ với pr-4 |
+| Progress bar đỏ | bg-red-600 | Gradient tím-hồng (cosmic-magenta → cosmic-cyan) |
+| Video layout | Có thể bị crop/tràn | Fit vừa khung, aspect-ratio 16:9 |
+| Mini-player | Progress đỏ | Gradient theo Design System |
+| Pinch-to-zoom | Chưa có | Double-tap zoom đã có, pinch để phiên bản sau |
 
 ---
 
 ## Ghi Chú Kỹ Thuật
 
-1. **useHapticFeedback**: Đã có sẵn trong project, dùng `lightTap()` cho tap thường, `successFeedback()` cho like
-2. **framer-motion**: Đã có sẵn, dùng cho whileTap scale và drag gestures
-3. **TooltipProvider**: Cần wrap trong provider để tooltip hoạt động
-4. **z-index**: GlobalMiniPlayer cần z-[60] để luôn trên MobileBottomNav (z-50)
-5. **Safe area**: bottom-[76px] = 60px (nav height) + 16px (spacing)
+1. **shrink-0**: Thêm vào nút để không bị co lại trong flex container
+2. **pr-4**: Padding right cho actions row để nút cuối không bị cắt
+3. **Gradient colors**: Dùng `from-cosmic-magenta to-cosmic-cyan` theo Design System v1.0
+4. **DropdownMenu**: Import từ `@/components/ui/dropdown-menu` đã có sẵn
+5. **Pinch-to-zoom**: Cần thêm thư viện `@use-gesture/react` cho phiên bản nâng cao - để sau
+
+---
+
+## Test Cases
+
+1. Mở video → Kiểm tra nút Đăng ký hiển thị đầy đủ, gradient xanh
+2. Bấm Đăng ký → Nút chuyển thành icon chuông với dropdown
+3. Bấm chuông → Dropdown hiện các tùy chọn thông báo
+4. Scroll actions row → Tất cả nút visible, Download không bị cắt
+5. Controls ẩn → Progress bar gradient tím-hồng (không đỏ)
+6. Thu nhỏ mini-player → Progress bar gradient tím-hồng
+7. Video play → Fit vừa khung 16:9, không mất góc
+8. Swipe down trên mini-player → Đóng mượt mà
