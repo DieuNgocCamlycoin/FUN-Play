@@ -68,7 +68,7 @@ export function VideoGalleryPicker({ onVideoSelect }: VideoGalleryPickerProps) {
         className="hidden"
       />
 
-      {/* Main Upload Area */}
+      {/* Main Upload Area - Full height clean design */}
       <motion.div
         whileTap={{ scale: 0.98 }}
         onClick={handleClick}
@@ -76,7 +76,7 @@ export function VideoGalleryPicker({ onVideoSelect }: VideoGalleryPickerProps) {
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         className={cn(
-          "relative flex flex-col items-center justify-center min-h-[50vh] rounded-2xl border-2 border-dashed cursor-pointer transition-colors duration-150 touch-manipulation",
+          "relative flex flex-col items-center justify-center min-h-[60vh] rounded-2xl border-2 border-dashed cursor-pointer transition-colors duration-150 touch-manipulation",
           isDragging
             ? "border-[hsl(var(--cosmic-cyan))] bg-[hsl(var(--cosmic-cyan)/0.1)]"
             : "border-border active:border-[hsl(var(--cosmic-cyan)/0.5)] active:bg-muted/30"
@@ -138,31 +138,6 @@ export function VideoGalleryPicker({ onVideoSelect }: VideoGalleryPickerProps) {
           </>
         )}
       </motion.div>
-
-      {/* Placeholder grid to mimic gallery (decorative) */}
-      <div className="mt-6">
-        <p className="text-sm text-muted-foreground mb-3 flex items-center gap-2">
-          <Video className="w-4 h-4" />
-          Video gần đây
-        </p>
-        <div className="grid grid-cols-3 gap-2">
-          {[...Array(6)].map((_, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.05 }}
-              onClick={handleClick}
-              className="aspect-video rounded-lg bg-muted/50 border border-border/50 flex items-center justify-center cursor-pointer hover:bg-muted transition-colors"
-            >
-              <Video className="w-6 h-6 text-muted-foreground/50" />
-            </motion.div>
-          ))}
-        </div>
-        <p className="text-xs text-muted-foreground text-center mt-3">
-          Chạm để chọn video từ thiết bị
-        </p>
-      </div>
     </div>
   );
 }

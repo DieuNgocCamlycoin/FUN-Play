@@ -53,9 +53,11 @@ import { GlobalPaymentNotifications } from './components/Web3/GlobalPaymentNotif
 import { MusicPlayerProvider } from './contexts/MusicPlayerContext';
 import { VideoPlaybackProvider } from './contexts/VideoPlaybackContext';
 import { MiniPlayerProvider } from './contexts/MiniPlayerContext';
+import { UploadProvider } from './contexts/UploadContext';
 import { EnhancedMusicPlayer } from './components/Video/EnhancedMusicPlayer';
 import { GlobalVideoPlayer } from './components/Video/GlobalVideoPlayer';
 import { GlobalMiniPlayer } from './components/Video/GlobalMiniPlayer';
+import { BackgroundUploadIndicator } from './components/Upload/BackgroundUploadIndicator';
 import { useRewardRealtimeNotification } from './hooks/useRewardRealtimeNotification';
 import { RecoveryModeGuard } from './components/Auth/RecoveryModeGuard';
 
@@ -133,6 +135,7 @@ function AppContent() {
         </div>
       </RecoveryModeGuard>
       <GlobalMiniPlayer />
+      <BackgroundUploadIndicator />
       <Toaster />
       <Sonner />
     </>
@@ -146,11 +149,13 @@ const App = () => (
         <MusicPlayerProvider>
           <VideoPlaybackProvider>
             <MiniPlayerProvider>
-              <BrowserRouter>
-                <AppContent />
-                <EnhancedMusicPlayer />
-                <GlobalVideoPlayer />
-              </BrowserRouter>
+              <UploadProvider>
+                <BrowserRouter>
+                  <AppContent />
+                  <EnhancedMusicPlayer />
+                  <GlobalVideoPlayer />
+                </BrowserRouter>
+              </UploadProvider>
             </MiniPlayerProvider>
           </VideoPlaybackProvider>
         </MusicPlayerProvider>
