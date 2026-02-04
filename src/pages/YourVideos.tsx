@@ -31,6 +31,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { UploadWizard } from "@/components/Upload/UploadWizard";
+import { MobileUploadFlow } from "@/components/Upload/Mobile/MobileUploadFlow";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Video {
   id: string;
@@ -49,9 +52,11 @@ const YourVideos = () => {
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteVideoId, setDeleteVideoId] = useState<string | null>(null);
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     if (!user) {
@@ -146,7 +151,7 @@ const YourVideos = () => {
             <div className="text-center py-12 bg-card rounded-lg border border-border">
               <Video className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
               <p className="text-muted-foreground mb-4 text-lg">Bạn chưa có video nào</p>
-              <Button onClick={() => navigate("/upload")} size="lg">
+              <Button onClick={() => setUploadModalOpen(true)} size="lg">
                 Tải video đầu tiên
               </Button>
             </div>
@@ -286,6 +291,13 @@ const YourVideos = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Upload Modal */}
+      {isMobile ? (
+        <MobileUploadFlow open={uploadModalOpen} onOpenChange={setUploadModalOpen} />
+      ) : (
+        <UploadWizard open={uploadModalOpen} onOpenChange={setUploadModalOpen} />
+      )}
     </div>
   );
 };

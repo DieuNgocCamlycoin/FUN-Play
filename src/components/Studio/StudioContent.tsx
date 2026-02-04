@@ -39,6 +39,9 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EditVideoModal } from "./EditVideoModal";
+import { UploadWizard } from "@/components/Upload/UploadWizard";
+import { MobileUploadFlow } from "@/components/Upload/Mobile/MobileUploadFlow";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Video {
   id: string;
@@ -59,10 +62,12 @@ export const StudioContent = () => {
   const [deleteVideoId, setDeleteVideoId] = useState<string | null>(null);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [editingVideo, setEditingVideo] = useState<Video | null>(null);
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     if (user?.id) {
@@ -264,7 +269,7 @@ export const StudioContent = () => {
             {videos.length} video • {selectedVideos.size} đã chọn
           </p>
         </div>
-        <Button onClick={() => navigate("/upload")} size="lg">
+        <Button onClick={() => setUploadModalOpen(true)} size="lg">
           <Upload className="mr-2 h-5 w-5" />
           Tải video lên
         </Button>
@@ -297,7 +302,7 @@ export const StudioContent = () => {
           <Video className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
           <h3 className="text-lg font-semibold mb-2">Chưa có video nào</h3>
           <p className="text-muted-foreground mb-6">Tải video đầu tiên của bạn lên để bắt đầu</p>
-          <Button onClick={() => navigate("/upload")} size="lg">
+          <Button onClick={() => setUploadModalOpen(true)} size="lg">
             <Upload className="mr-2 h-5 w-5" />
             Tải video lên
           </Button>
@@ -504,6 +509,13 @@ export const StudioContent = () => {
             setEditingVideo(null);
           }}
         />
+      )}
+
+      {/* Upload Modal */}
+      {isMobile ? (
+        <MobileUploadFlow open={uploadModalOpen} onOpenChange={setUploadModalOpen} />
+      ) : (
+        <UploadWizard open={uploadModalOpen} onOpenChange={setUploadModalOpen} />
       )}
     </div>
   );

@@ -27,6 +27,9 @@ import {
 } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { ClaimRewardsModal } from "@/components/Rewards/ClaimRewardsModal";
+import { UploadWizard } from "@/components/Upload/UploadWizard";
+import { MobileUploadFlow } from "@/components/Upload/Mobile/MobileUploadFlow";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface MobileHeaderProps {
   onMenuClick: () => void;
@@ -44,6 +47,8 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
   const [angelChatOpen, setAngelChatOpen] = useState(false);
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   // Check admin/owner role
   useEffect(() => {
@@ -220,7 +225,7 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-44 bg-background border-border">
-                    <DropdownMenuItem onClick={() => navigate("/upload")} className="gap-2">
+                    <DropdownMenuItem onClick={() => setUploadModalOpen(true)} className="gap-2">
                       <Upload className="h-4 w-4" />
                       Upload Video
                     </DropdownMenuItem>
@@ -384,6 +389,13 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
       
       {/* ANGEL AI Chat */}
       <AngelChat isOpen={angelChatOpen} onClose={() => setAngelChatOpen(false)} />
+
+      {/* Upload Modal */}
+      {isMobile ? (
+        <MobileUploadFlow open={uploadModalOpen} onOpenChange={setUploadModalOpen} />
+      ) : (
+        <UploadWizard open={uploadModalOpen} onOpenChange={setUploadModalOpen} />
+      )}
 
       {/* Search Mode */}
       <div
