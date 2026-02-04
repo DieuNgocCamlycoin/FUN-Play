@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { extractVideoThumbnail } from "@/lib/videoThumbnail";
+import { useUpload } from "@/contexts/UploadContext";
 
 // Sub-components
 import { VideoGalleryPicker } from "./VideoGalleryPicker";
@@ -54,6 +55,7 @@ export function MobileUploadFlow({ open, onOpenChange }: MobileUploadFlowProps) 
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { addUpload } = useUpload();
 
   // Navigation stack for back button
   const [navigationStack, setNavigationStack] = useState<MobileUploadStep[]>(["type-selector"]);
@@ -197,19 +199,12 @@ export function MobileUploadFlow({ open, onOpenChange }: MobileUploadFlowProps) 
     setThumbnailPreview(preview);
   }, []);
 
-  // Handle upload
+  // Handle upload - Now uses background upload system like YouTube
   const handleUpload = async () => {
     if (!user || !videoFile) return;
 
-    navigateTo("uploading");
-    setUploadProgress(0);
-    setUploadStage("Đang chuẩn bị...");
-
     try {
-      // Step 1: Get or create channel
-      setUploadStage("Đang kiểm tra kênh...");
-      setUploadProgress(5);
-
+      // Step 1: Get or create channel first (required for background upload)
       let channelId = null;
       const { data: channels } = await supabase
         .from("channels")
@@ -239,182 +234,35 @@ export function MobileUploadFlow({ open, onOpenChange }: MobileUploadFlowProps) 
         channelId = newChannel.id;
       }
 
-      // Step 2: Upload video to R2
-      const fileSizeMB = (videoFile.size / (1024 * 1024)).toFixed(1);
-      setUploadStage(`Đang tải video lên... (${fileSizeMB} MB)`);
-      setUploadProgress(10);
-
-      const sanitizedVideoName = videoFile.name.replace(/[^a-zA-Z0-9._-]/g, "_").substring(0, 100);
-      const videoFileName = `videos/${Date.now()}-${sanitizedVideoName}`;
-
-      let videoUrl: string;
-
-      if (videoFile.size > 100 * 1024 * 1024) {
-        // Multipart upload for large files
-        const { data: initData, error: initError } = await supabase.functions.invoke("r2-upload", {
-          body: {
-            action: "initiateMultipart",
-            fileName: videoFileName,
-            contentType: videoFile.type,
-            fileSize: videoFile.size,
-          },
-        });
-
-        if (initError || !initData?.uploadId) {
-          throw new Error("Không thể khởi tạo upload.");
-        }
-
-        const { uploadId, publicUrl } = initData;
-        const CHUNK_SIZE = 100 * 1024 * 1024;
-        const totalParts = Math.ceil(videoFile.size / CHUNK_SIZE);
-        const uploadedParts: { partNumber: number; etag: string }[] = [];
-
-        for (let partNumber = 1; partNumber <= totalParts; partNumber++) {
-          const start = (partNumber - 1) * CHUNK_SIZE;
-          const end = Math.min(start + CHUNK_SIZE, videoFile.size);
-          const chunk = videoFile.slice(start, end);
-
-          const { data: partData } = await supabase.functions.invoke("r2-upload", {
-            body: {
-              action: "getPartUrl",
-              fileName: videoFileName,
-              uploadId,
-              partNumber,
-            },
-          });
-
-          if (!partData?.presignedUrl) throw new Error(`Lỗi phần ${partNumber}`);
-
-          const partResponse = await new Promise<{ etag: string }>((resolve, reject) => {
-            const xhr = new XMLHttpRequest();
-            xhr.upload.onprogress = (e) => {
-              if (e.lengthComputable) {
-                const partProgress = (start + e.loaded) / videoFile.size;
-                setUploadProgress(10 + Math.round(partProgress * 70));
-                setUploadStage(`Đang tải phần ${partNumber}/${totalParts}...`);
-              }
-            };
-            xhr.onload = () => {
-              if (xhr.status >= 200 && xhr.status < 300) {
-                const etag = xhr.getResponseHeader("ETag") || `part-${partNumber}`;
-                resolve({ etag: etag.replace(/"/g, "") });
-              } else reject(new Error(`Part ${partNumber} failed`));
-            };
-            xhr.onerror = () => reject(new Error("Network error"));
-            xhr.open("PUT", partData.presignedUrl);
-            xhr.timeout = 10 * 60 * 1000;
-            xhr.send(chunk);
-          });
-
-          uploadedParts.push({ partNumber, etag: partResponse.etag });
-        }
-
-        await supabase.functions.invoke("r2-upload", {
-          body: {
-            action: "completeMultipart",
-            fileName: videoFileName,
-            uploadId,
-            parts: uploadedParts,
-          },
-        });
-
-        videoUrl = publicUrl;
-      } else {
-        // Simple upload for small files
-        const { data: presignData } = await supabase.functions.invoke("r2-upload", {
-          body: {
-            action: "getPresignedUrl",
-            fileName: videoFileName,
-            contentType: videoFile.type,
-            fileSize: videoFile.size,
-          },
-        });
-
-        if (!presignData?.presignedUrl) throw new Error("Không thể tạo link upload");
-
-        await new Promise<void>((resolve, reject) => {
-          const xhr = new XMLHttpRequest();
-          xhr.upload.onprogress = (e) => {
-            if (e.lengthComputable) {
-              setUploadProgress(10 + Math.round((e.loaded / e.total) * 70));
-            }
-          };
-          xhr.onload = () =>
-            xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error("Upload failed"));
-          xhr.onerror = () => reject(new Error("Lỗi mạng"));
-          xhr.open("PUT", presignData.presignedUrl);
-          xhr.timeout = 30 * 60 * 1000;
-          xhr.send(videoFile);
-        });
-
-        videoUrl = presignData.publicUrl;
-      }
-
-      setUploadProgress(80);
-
-      // Step 3: Upload thumbnail
-      let thumbnailUrl = null;
-      if (thumbnailBlob) {
-        setUploadStage("Đang tải thumbnail...");
-        const thumbnailFileName = `thumbnails/${Date.now()}-thumb.jpg`;
-
-        const { data: thumbPresign } = await supabase.functions.invoke("r2-upload", {
-          body: {
-            action: "getPresignedUrl",
-            fileName: thumbnailFileName,
-            contentType: "image/jpeg",
-            fileSize: thumbnailBlob.size,
-          },
-        });
-
-        if (thumbPresign?.presignedUrl) {
-          const thumbResponse = await fetch(thumbPresign.presignedUrl, {
-            method: "PUT",
-            body: thumbnailBlob,
-            headers: { "Content-Type": "image/jpeg" },
-          });
-          if (thumbResponse.ok) {
-            thumbnailUrl = thumbPresign.publicUrl;
-          }
-        }
-      }
-
-      setUploadProgress(90);
-      setUploadStage("Đang lưu thông tin...");
-
-      // Step 4: Create database record
-      const { data: videoData, error: videoError } = await supabase
-        .from("videos")
-        .insert({
-          user_id: user.id,
-          channel_id: channelId,
+      // Step 2: Add to background upload queue
+      addUpload(
+        videoFile,
+        {
           title: metadata.title,
           description: metadata.description,
-          video_url: videoUrl,
-          thumbnail_url: thumbnailUrl,
-          file_size: videoFile.size,
-          duration: Math.round(videoDuration),
-          is_public: metadata.visibility === "public",
-          category: isShort ? "shorts" : "general",
-          approval_status: "approved",
-        })
-        .select("id")
-        .single();
+          visibility: metadata.visibility,
+          isShort,
+          duration: videoDuration,
+          channelId,
+        },
+        thumbnailBlob,
+        thumbnailPreview
+      );
 
-      if (videoError) throw videoError;
+      // Step 3: Show toast and close modal immediately (like YouTube)
+      toast({
+        title: "Đang tải lên... 🚀",
+        description: "Video đang được tải lên ở chế độ nền. Bạn có thể tiếp tục sử dụng app.",
+      });
 
-      setUploadProgress(100);
-      setUploadedVideoId(videoData.id);
-      navigateTo("success");
+      handleClose();
     } catch (error: any) {
-      console.error("Upload error:", error);
+      console.error("Upload init error:", error);
       toast({
         title: "Ồ, có lỗi xảy ra!",
-        description: error.message || "Vui lòng thử lại sau nhé 💕",
+        description: error.message || "Không thể bắt đầu upload. Vui lòng thử lại.",
         variant: "destructive",
       });
-      // Go back to details
-      setNavigationStack(["type-selector", "video-gallery", "video-confirm", "video-details"]);
     }
   };
 
@@ -509,9 +357,9 @@ export function MobileUploadFlow({ open, onOpenChange }: MobileUploadFlowProps) 
                   {/* Video Gallery */}
                   <VideoGalleryPicker onVideoSelect={handleVideoSelect} />
 
-                  {/* Bottom Tabs */}
-                  <div className="sticky bottom-0 bg-background border-t border-border">
-                    <div className="flex items-center justify-center gap-1 py-3 px-4 overflow-x-auto scrollbar-hide">
+                  {/* Bottom Tabs - Centered with scroll snap */}
+                  <div className="sticky bottom-0 bg-background border-t border-border pb-safe">
+                    <div className="flex items-center justify-center gap-2 py-3 px-6 overflow-x-auto scrollbar-hide scroll-snap-x scroll-snap-mandatory">
                       {CONTENT_TYPES.map((type) => {
                         const Icon = type.icon;
                         const isActive = selectedType === type.id;
@@ -521,14 +369,14 @@ export function MobileUploadFlow({ open, onOpenChange }: MobileUploadFlowProps) 
                             whileTap={{ scale: 0.95 }}
                             onClick={() => setSelectedType(type.id)}
                             className={cn(
-                              "flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-medium whitespace-nowrap transition-all min-h-[44px]",
+                              "flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-medium whitespace-nowrap transition-all min-h-[44px] scroll-snap-start touch-manipulation",
                               isActive
                                 ? "bg-gradient-to-r from-[hsl(var(--cosmic-cyan)/0.2)] to-[hsl(var(--cosmic-magenta)/0.2)] text-foreground border border-[hsl(var(--cosmic-cyan)/0.3)]"
-                                : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                                : "bg-muted/50 text-muted-foreground active:bg-muted"
                             )}
                           >
-                            <Icon className="w-4 h-4" />
-                            {type.label}
+                            <Icon className="w-4 h-4 flex-shrink-0" />
+                            <span>{type.label}</span>
                           </motion.button>
                         );
                       })}
