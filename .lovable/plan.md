@@ -1,249 +1,218 @@
 
-# Kế Hoạch: Nâng Cấp Hệ Thống Thưởng Tự Động FUN PLAY
+# Kết Quả Kiểm Tra & Kế Hoạch Sửa Lỗi Hệ Thống Thưởng CAMLY
 
-## Tổng Quan Hiện Trạng
+## Tổng Kết Kiểm Tra
 
-### ✅ Đã Có Sẵn
-| Thành Phần | Trạng Thái |
-|------------|------------|
-| Edge Function `award-camly` | ✅ Có - cần cập nhật logic |
-| Edge Function `claim-camly` | ✅ Có - đầy đủ |
-| Edge Function `update-reward-config` | ✅ Có |
-| Bảng `reward_config` | ✅ Có - cần thêm configs |
-| Bảng `daily_reward_limits` | ✅ Có - cần thêm cột count |
-| Bảng `profiles` | ✅ Có - cần thêm `suspicious_score`, `signup_ip_hash` |
-| Hook `useAutoReward` | ✅ Có - cần thêm SHORT/LONG video |
-| Component `ClaimRewardsModal` | ✅ Có - đầy đủ |
+### ✅ Hoạt Động Tốt
 
-### ❌ Cần Bổ Sung
-| Thành Phần | Mô Tả |
-|------------|-------|
-| Edge Function `check-upload-reward` | Kiểm tra và trao thưởng creator khi đủ 3 views |
-| Edge Function `detect-abuse` | Tính suspicious_score |
-| Bảng `reward_actions` | Chống thưởng trùng lặp (LIKE/SHARE 1 lần/video) |
-| Bảng `ip_tracking` | Chống multi-account |
-| Bảng `daily_claim_records` | Giới hạn claim hàng ngày |
-| Cột mới trong `daily_reward_limits` | `view_count`, `like_count`, `share_count`, `comment_count`, `short_video_count`, `long_video_count` |
-| Cột mới trong `profiles` | `suspicious_score`, `signup_ip_hash` |
+| Thành Phần | Trạng Thái | Chi Tiết |
+|------------|------------|----------|
+| Database Schema | ✅ Hoàn chỉnh | Tất cả bảng cần thiết đã tồn tại: `reward_actions`, `ip_tracking`, `daily_claim_records`, `daily_reward_limits` với đầy đủ cột |
+| `profiles` columns | ✅ Đầy đủ | `suspicious_score`, `signup_ip_hash`, `pending_rewards`, `approved_reward` |
+| `reward_config` | ✅ Đầy đủ | 28 config keys bao gồm SHORT/LONG video rewards, daily limits, claim limits |
+| Edge Function `award-camly` | ✅ Hoạt động | Test thành công, trả về đúng logic anti-fraud |
+| Edge Function `check-upload-reward` | ✅ Hoạt động | Deployed và hoạt động đúng |
+| Edge Function `detect-abuse` | ✅ Hoạt động | Deployed và hoạt động đúng |
+| Edge Function `claim-camly` | ✅ Hoạt động | Blockchain transfer logic đầy đủ |
+| `useAutoReward` hook | ✅ Đầy đủ | Có tất cả hàm cần thiết |
+| `ClaimRewardsModal` | ✅ Hoạt động | Phân tách pending/approved rewards đúng |
+| Desktop View Reward | ✅ Hoạt động | `EnhancedVideoPlayer` có logic watch time tracking |
 
 ---
 
-## Chi Tiết Triển Khai
+### ❌ VẤN ĐỀ PHÁT HIỆN - CẦN SỬA
 
-### 1. Tạo Database Tables Mới
+## Vấn Đề 1: Mobile View Reward Không Hoạt Động
 
-#### Bảng `reward_actions` (Chống trùng lặp)
-```sql
-CREATE TABLE reward_actions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES profiles(id),
-  video_id UUID NOT NULL REFERENCES videos(id),
-  action_type TEXT NOT NULL CHECK (action_type IN ('VIEW', 'LIKE', 'SHARE')),
-  rewarded_at TIMESTAMPTZ DEFAULT now(),
-  UNIQUE (user_id, video_id, action_type)
-);
+**Mức độ nghiêm trọng: CAO**
 
-ALTER TABLE reward_actions ENABLE ROW LEVEL SECURITY;
+**Vấn đề**: Logic trao thưởng xem video (awardViewReward) **CHỈ CÓ** trong `EnhancedVideoPlayer.tsx` (Desktop), **KHÔNG CÓ** trong:
+- `YouTubeMobilePlayer.tsx` (Mobile player chính)
+- `MobileVideoPlayer.tsx` (Mobile player phụ)
 
-CREATE POLICY "Users can view own actions" ON reward_actions
-  FOR SELECT USING (auth.uid() = user_id);
+**Hậu quả**: Users xem video trên điện thoại **KHÔNG ĐƯỢC NHẬN THƯỞNG** 5,000 CAMLY
 
-CREATE POLICY "System can insert actions" ON reward_actions
-  FOR INSERT WITH CHECK (true);
-```
-
-#### Bảng `ip_tracking` (Chống multi-account)
-```sql
-CREATE TABLE ip_tracking (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  ip_hash TEXT NOT NULL,
-  user_id UUID REFERENCES profiles(id),
-  action_type TEXT NOT NULL CHECK (action_type IN ('signup', 'wallet_connect', 'claim')),
-  wallet_address TEXT,
-  device_fingerprint TEXT,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-
-CREATE INDEX idx_ip_tracking_hash ON ip_tracking(ip_hash);
-CREATE INDEX idx_ip_tracking_user ON ip_tracking(user_id);
-```
-
-#### Bảng `daily_claim_records` (Giới hạn claim)
-```sql
-CREATE TABLE daily_claim_records (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES profiles(id),
-  date DATE NOT NULL DEFAULT CURRENT_DATE,
-  total_claimed NUMERIC DEFAULT 0,
-  claim_count INTEGER DEFAULT 0,
-  UNIQUE (user_id, date)
-);
-
-ALTER TABLE daily_claim_records ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can view own claims" ON daily_claim_records
-  FOR SELECT USING (auth.uid() = user_id);
-```
+**File cần sửa**:
+- `src/components/Video/YouTubeMobilePlayer.tsx`
+- `src/components/Video/MobileVideoPlayer.tsx`
 
 ---
 
-### 2. Cập Nhật Tables Hiện Có
+## Vấn Đề 2: claim-camly Thiếu Logic MIN_CLAIM và DAILY_LIMIT
 
-#### Thêm cột vào `daily_reward_limits`
-```sql
-ALTER TABLE daily_reward_limits
-ADD COLUMN IF NOT EXISTS view_count INTEGER DEFAULT 0,
-ADD COLUMN IF NOT EXISTS like_count INTEGER DEFAULT 0,
-ADD COLUMN IF NOT EXISTS share_count INTEGER DEFAULT 0,
-ADD COLUMN IF NOT EXISTS comment_count INTEGER DEFAULT 0,
-ADD COLUMN IF NOT EXISTS short_video_count INTEGER DEFAULT 0,
-ADD COLUMN IF NOT EXISTS long_video_count INTEGER DEFAULT 0;
-```
+**Mức độ nghiêm trọng: TRUNG BÌNH**
 
-#### Thêm cột vào `profiles`
-```sql
-ALTER TABLE profiles
-ADD COLUMN IF NOT EXISTS suspicious_score INTEGER DEFAULT 0,
-ADD COLUMN IF NOT EXISTS signup_ip_hash TEXT;
-```
+**Vấn đề**: Edge function `claim-camly` chưa kiểm tra:
+- `MIN_CLAIM_AMOUNT` (200,000 CAMLY) - Tối thiểu để claim
+- `DAILY_CLAIM_LIMIT` (500,000 CAMLY) - Tối đa claim/ngày
+- Không ghi vào `daily_claim_records`
+- Không reset `approved_reward` về 0 sau khi claim
+
+**File cần sửa**: `supabase/functions/claim-camly/index.ts`
 
 ---
 
-### 3. Thêm Reward Config Mới
+## Vấn Đề 3: Constants Không Đồng Bộ
 
-```sql
-INSERT INTO reward_config (config_key, config_value, description) VALUES
-('SHORT_VIDEO_REWARD', 20000, 'CAMLY for short video (<3min)'),
-('LONG_VIDEO_REWARD', 70000, 'CAMLY for long video (>=3min)'),
-('DAILY_VIEW_COUNT_LIMIT', 10, 'Max view rewards per day'),
-('DAILY_LIKE_COUNT_LIMIT', 20, 'Max like rewards per day'),
-('DAILY_SHARE_COUNT_LIMIT', 10, 'Max share rewards per day'),
-('DAILY_COMMENT_COUNT_LIMIT', 10, 'Max comment rewards per day'),
-('DAILY_SHORT_VIDEO_LIMIT', 5, 'Max short video rewards per day'),
-('DAILY_LONG_VIDEO_LIMIT', 3, 'Max long video rewards per day'),
-('SHORT_VIDEO_MAX_DURATION', 180, 'Max seconds for short video (3 min)'),
-('MIN_VIEWS_FOR_UPLOAD_REWARD', 3, 'Views needed for creator upload reward'),
-('DAILY_CLAIM_LIMIT', 500000, 'Max CAMLY claim per day'),
-('MIN_CLAIM_AMOUNT', 200000, 'Min CAMLY to claim'),
-('AUTO_APPROVE_THRESHOLD', 3, 'Suspicious score threshold for auto-approve')
-ON CONFLICT (config_key) DO UPDATE SET config_value = EXCLUDED.config_value;
-```
+**Mức độ nghiêm trọng: THẤP**
+
+**Vấn đề**: Trong `enhancedRewards.ts` và `EnhancedVideoPlayer.tsx`:
+- VIEW_REWARD hiện là 5,000 CAMLY (frontend)
+- Nhưng DB config `VIEW_REWARD` = 10,000 CAMLY
+
+**Không cần sửa code** - Edge function đã lấy giá trị từ DB, frontend constants chỉ là fallback.
 
 ---
 
-### 4. Edge Function: `check-upload-reward`
+## Chi Tiết Triển Khai Sửa Lỗi
 
-**File:** `supabase/functions/check-upload-reward/index.ts`
+### 1. Thêm View Reward Logic vào Mobile Players
 
-Kiểm tra và trao thưởng creator khi video đạt đủ views:
-- Lấy video info (duration, view_count)
-- Kiểm tra video đã đạt MIN_VIEWS_FOR_UPLOAD_REWARD (3 views) chưa
-- Phân loại Short (<3 phút) hoặc Long (>=3 phút)
-- Trao thưởng 20K hoặc 70K CAMLY tương ứng
-- Ghi log vào reward_transactions
+**File: `src/components/Video/YouTubeMobilePlayer.tsx`**
 
----
-
-### 5. Edge Function: `detect-abuse`
-
-**File:** `supabase/functions/detect-abuse/index.ts`
-
-Tính suspicious_score dựa trên:
-- Số ví từ cùng IP (>=3 → +3 điểm)
-- Số tài khoản từ cùng IP (>2 → +2 điểm)
-- Không có avatar → +1 điểm
-- Tên quá ngắn (<=1 ký tự) → +1 điểm
-- Pattern tên đáng ngờ → +1 điểm
-- Claim >3 lần/ngày → +1 điểm
-
-Kết quả:
-- `suspicious_score < 3`: Auto-approve rewards
-- `suspicious_score >= 3`: Cần Admin duyệt
-
----
-
-### 6. Cập Nhật Edge Function: `award-camly`
-
-**Thay đổi chính:**
-
-1. **Thêm loại reward SHORT_VIDEO_UPLOAD và LONG_VIDEO_UPLOAD**
-2. **Count-based daily limits** thay vì amount-based
-3. **Kiểm tra reward_actions** cho LIKE/SHARE (1 lần/video)
-4. **Auto-approve logic** dựa trên suspicious_score
+Thêm logic tương tự `EnhancedVideoPlayer`:
 
 ```typescript
-// Mức thưởng mới
-const DEFAULT_REWARD_AMOUNTS = {
-  VIEW: 5000,
-  LIKE: 2000,
-  COMMENT: 5000,
-  SHARE: 5000,
-  SHORT_VIDEO_UPLOAD: 20000,
-  LONG_VIDEO_UPLOAD: 70000,
-  FIRST_UPLOAD: 500000,
-  SIGNUP: 50000,
-  WALLET_CONNECT: 50000,
+// Import thêm
+import { useAutoReward } from "@/hooks/useAutoReward";
+import { useAuth } from "@/hooks/useAuth";
+
+// Trong component, thêm:
+const { awardViewReward } = useAutoReward();
+const { user } = useAuth();
+const [viewRewarded, setViewRewarded] = useState(false);
+const watchTimeRef = useRef(0);
+
+// Constants
+const SHORT_VIDEO_THRESHOLD = 5 * 60; // 5 minutes
+const LONG_VIDEO_MIN_WATCH = 5 * 60; // 5 minutes for long videos
+
+// useEffect để track watch time và trao thưởng
+useEffect(() => {
+  let lastTime = 0;
+  
+  const checkViewReward = async () => {
+    if (viewRewarded || !user || !videoId) return;
+    
+    const isShortVideo = duration < SHORT_VIDEO_THRESHOLD;
+    
+    if (isShortVideo) {
+      // Short video: Must watch 90%+
+      if (currentTime >= duration * 0.9) {
+        setViewRewarded(true);
+        await awardViewReward(videoId);
+      }
+    } else {
+      // Long video: Must watch at least 5 minutes
+      if (watchTimeRef.current >= LONG_VIDEO_MIN_WATCH) {
+        setViewRewarded(true);
+        await awardViewReward(videoId);
+      }
+    }
+  };
+  
+  if (isPlaying && duration > 0) {
+    const interval = setInterval(() => {
+      const video = videoRef.current;
+      if (!video) return;
+      
+      const current = video.currentTime;
+      // Only count time if watching continuously
+      if (Math.abs(current - lastTime) < 2) {
+        watchTimeRef.current += 1;
+      }
+      lastTime = current;
+      
+      checkViewReward();
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }
+}, [isPlaying, duration, currentTime, viewRewarded, user, videoId, awardViewReward]);
+
+// Reset khi video thay đổi
+useEffect(() => {
+  setViewRewarded(false);
+  watchTimeRef.current = 0;
+}, [videoId]);
+```
+
+---
+
+### 2. Cập Nhật claim-camly với MIN/MAX Logic
+
+**File: `supabase/functions/claim-camly/index.ts`**
+
+Thêm logic kiểm tra:
+
+```typescript
+// Sau khi tính totalAmount, thêm:
+
+// Get claim config
+const { data: configData } = await supabaseAdmin
+  .from('reward_config')
+  .select('config_key, config_value')
+  .in('config_key', ['MIN_CLAIM_AMOUNT', 'DAILY_CLAIM_LIMIT']);
+
+const config: Record<string, number> = {
+  MIN_CLAIM_AMOUNT: 200000,
+  DAILY_CLAIM_LIMIT: 500000
 };
 
-// Giới hạn theo số lượng
-const DEFAULT_DAILY_LIMITS = {
-  VIEW_COUNT: 10,
-  LIKE_COUNT: 20,
-  SHARE_COUNT: 10,
-  COMMENT_COUNT: 10,
-  SHORT_VIDEO: 5,
-  LONG_VIDEO: 3,
-};
+configData?.forEach(c => {
+  config[c.config_key] = Number(c.config_value);
+});
 
-// Logic auto-approve
-const suspiciousScore = profileData?.suspicious_score || 0;
-const canAutoApprove = suspiciousScore < 3;
-
-if (canAutoApprove) {
-  newApproved = oldApproved + amount;
-} else {
-  newPending = oldPending + amount;
+// Check minimum claim amount
+if (totalAmount < config.MIN_CLAIM_AMOUNT) {
+  return new Response(
+    JSON.stringify({ 
+      error: `Cần ít nhất ${config.MIN_CLAIM_AMOUNT.toLocaleString()} CAMLY để rút. Bạn có ${totalAmount.toLocaleString()} CAMLY.` 
+    }),
+    { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  );
 }
+
+// Check daily claim limit
+const today = new Date().toISOString().split('T')[0];
+const { data: dailyClaim } = await supabaseAdmin
+  .from('daily_claim_records')
+  .select('total_claimed')
+  .eq('user_id', user.id)
+  .eq('date', today)
+  .single();
+
+const todayClaimed = Number(dailyClaim?.total_claimed) || 0;
+const remainingLimit = config.DAILY_CLAIM_LIMIT - todayClaimed;
+
+if (remainingLimit <= 0) {
+  return new Response(
+    JSON.stringify({ error: 'Bạn đã đạt giới hạn rút ${config.DAILY_CLAIM_LIMIT.toLocaleString()} CAMLY hôm nay. Vui lòng quay lại ngày mai!' }),
+    { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  );
+}
+
+// Limit claim amount to remaining daily limit
+const claimAmount = Math.min(totalAmount, remainingLimit);
+
+// ... sau khi claim thành công, thêm:
+
+// Update daily claim records
+await supabaseAdmin
+  .from('daily_claim_records')
+  .upsert({
+    user_id: user.id,
+    date: today,
+    total_claimed: todayClaimed + claimAmount,
+    claim_count: (dailyClaim?.claim_count || 0) + 1
+  }, { onConflict: 'user_id,date' });
+
+// Reset approved_reward về 0
+await supabaseAdmin
+  .from('profiles')
+  .update({ approved_reward: 0 })
+  .eq('id', user.id);
 ```
-
----
-
-### 7. Cập Nhật Frontend Hook: `useAutoReward`
-
-**Thay đổi chính:**
-
-1. **Thêm hàm cho SHORT/LONG video upload**
-2. **Thêm hàm checkUploadReward** để gọi edge function mới
-3. **Đồng bộ trên mobile** - hook đã dùng supabase functions nên hoạt động trên mọi platform
-
-```typescript
-// Thêm các hàm mới
-const awardShortVideoUpload = useCallback(async (videoId: string) => {
-  return awardCAMLY('SHORT_VIDEO_UPLOAD', videoId);
-}, [awardCAMLY]);
-
-const awardLongVideoUpload = useCallback(async (videoId: string) => {
-  return awardCAMLY('LONG_VIDEO_UPLOAD', videoId);
-}, [awardCAMLY]);
-
-const checkUploadReward = useCallback(async (videoId: string) => {
-  const { data, error } = await supabase.functions.invoke('check-upload-reward', {
-    body: { videoId }
-  });
-  return { success: !error && data?.success, data };
-}, []);
-```
-
----
-
-### 8. Cập Nhật `claim-camly`
-
-**Thêm logic:**
-
-1. **Kiểm tra MIN_CLAIM_AMOUNT** (200K CAMLY)
-2. **Kiểm tra DAILY_CLAIM_LIMIT** (500K/ngày)
-3. **Ghi vào daily_claim_records**
-4. **Reset approved_reward về 0** sau khi claim
 
 ---
 
@@ -251,106 +220,35 @@ const checkUploadReward = useCallback(async (videoId: string) => {
 
 | File | Loại | Mô Tả |
 |------|------|-------|
-| Database Migration | TẠO MỚI | Tạo tables và cột mới |
-| `supabase/functions/award-camly/index.ts` | SỬA | Thêm logic SHORT/LONG video, count-based limits, auto-approve |
-| `supabase/functions/check-upload-reward/index.ts` | TẠO MỚI | Kiểm tra và trao thưởng creator |
-| `supabase/functions/detect-abuse/index.ts` | TẠO MỚI | Tính suspicious_score |
-| `supabase/functions/claim-camly/index.ts` | SỬA | Thêm MIN/MAX claim logic |
-| `src/hooks/useAutoReward.ts` | SỬA | Thêm hàm cho SHORT/LONG video |
-| `src/lib/enhancedRewards.ts` | SỬA | Cập nhật constants |
-| `supabase/config.toml` | SỬA | Thêm config cho functions mới |
+| `src/components/Video/YouTubeMobilePlayer.tsx` | SỬA | Thêm view reward tracking logic |
+| `src/components/Video/MobileVideoPlayer.tsx` | SỬA | Thêm view reward tracking logic |
+| `supabase/functions/claim-camly/index.ts` | SỬA | Thêm MIN_CLAIM, DAILY_LIMIT logic |
 
 ---
 
-## Bảng Mức Thưởng Mới (Theo Tài Liệu)
+## Kết Quả Sau Sửa
 
-| Hành Động | Số CAMLY | Giới Hạn/Ngày | Điều Kiện |
-|-----------|----------|---------------|-----------|
-| 👁️ Xem Video | 5,000 | 10 lượt | Xem ≥30% hoặc 10 giây |
-| ❤️ Thích Video | 2,000 | 20 lượt | 1 lần/video |
-| 💬 Bình Luận | 5,000 | 10 lượt | ≥20 ký tự, không spam |
-| 📤 Chia Sẻ | 5,000 | 10 lượt | 1 lần/video |
-| 🎬 Video Ngắn (<3 phút) | 20,000 | 5 video | Cần 3 views thật |
-| 🎥 Video Dài (≥3 phút) | 70,000 | 3 video | Cần 3 views thật |
-| 🏆 Video Đầu Tiên | 500,000 | 1 lần | Một lần duy nhất |
-| 👤 Đăng Ký | 50,000 | 1 lần | Một lần duy nhất |
-| 👛 Kết Nối Ví | 50,000 | 3 ví/IP | Chống multi-account |
+| Tính Năng | Trước | Sau |
+|-----------|-------|-----|
+| View Reward Mobile | ❌ Không có | ✅ Hoạt động như Desktop |
+| MIN_CLAIM Check | ❌ Không có | ✅ Yêu cầu 200K CAMLY |
+| DAILY_LIMIT Check | ❌ Không có | ✅ Max 500K CAMLY/ngày |
+| Reset approved_reward | ❌ Không reset | ✅ Reset về 0 sau claim |
+| Daily Claim Records | ❌ Không ghi | ✅ Ghi đầy đủ |
 
 ---
 
-## Đồng Bộ Mobile
+## Test Cases Sau Sửa
 
-Hệ thống **đã đồng bộ trên mobile** vì:
-1. **Edge Functions** chạy server-side, không phụ thuộc platform
-2. **useAutoReward hook** dùng `supabase.functions.invoke()` - hoạt động trên mọi browser/app
-3. **ClaimRewardsModal** đã hỗ trợ mobile wallet deep links (MetaMask, Bitget, Trust)
-4. **Capacitor app** dùng cùng codebase React nên reward logic tự động hoạt động
-
----
-
-## Sơ Đồ Luồng Thưởng
-
-```text
-User Action (View/Like/Comment/Share/Upload)
-              │
-              ▼
-    ┌─────────────────────┐
-    │   Frontend Hook     │
-    │   useAutoReward     │
-    └─────────────────────┘
-              │
-              ▼
-    ┌─────────────────────┐
-    │  Edge Function      │
-    │  award-camly        │
-    └─────────────────────┘
-              │
-              ▼
-    ┌─────────────────────┐
-    │  Anti-Fraud Checks  │
-    │  - Duplicate view   │
-    │  - Spam comment     │
-    │  - Already rewarded │
-    │  - Daily limits     │
-    └─────────────────────┘
-              │
-              ▼
-    ┌─────────────────────┐
-    │  suspicious_score   │
-    │  < 3: Auto-approve  │
-    │  ≥ 3: Pending admin │
-    └─────────────────────┘
-              │
-              ▼
-    ┌─────────────────────────────────┐
-    │         reward_transactions     │
-    │  approved: true/false           │
-    │  pending_rewards / approved_reward │
-    └─────────────────────────────────┘
-              │
-              ▼
-    ┌─────────────────────┐
-    │  User Claims CAMLY  │
-    │  (approved only)    │
-    └─────────────────────┘
-              │
-              ▼
-    ┌─────────────────────┐
-    │  BSC Blockchain     │
-    │  CAMLY Token        │
-    │  Transfer           │
-    └─────────────────────┘
-```
+1. **Mobile View Reward**: Mở app trên điện thoại → Xem video ≥90% (ngắn) hoặc 5 phút (dài) → Nhận 5,000 CAMLY
+2. **MIN_CLAIM**: Có 100K CAMLY → Bấm Claim → Báo lỗi "Cần ít nhất 200K"
+3. **DAILY_LIMIT**: Đã claim 400K hôm nay → Claim 200K → Chỉ được claim 100K (còn lại)
+4. **approved_reward Reset**: Sau claim thành công → approved_reward = 0 trong profiles
 
 ---
 
-## Test Cases
+## Ghi Chú Kỹ Thuật
 
-1. **Xem video** → Nhận 5,000 CAMLY (max 10 lần/ngày)
-2. **Like video** → Nhận 2,000 CAMLY (max 20 lần/ngày, 1 lần/video)
-3. **Upload video ngắn** → Khi đạt 3 views → Nhận 20,000 CAMLY
-4. **Upload video dài** → Khi đạt 3 views → Nhận 70,000 CAMLY
-5. **User mới** (suspicious_score < 3) → Reward auto-approve
-6. **User đáng ngờ** (suspicious_score ≥ 3) → Reward pending admin
-7. **Claim** → Chỉ claim được reward đã approved, tối thiểu 200K, tối đa 500K/ngày
-8. **Mobile** → Tất cả flow hoạt động như desktop
+1. **Đồng bộ Mobile**: Sau khi sửa, cả Desktop và Mobile đều dùng cùng logic từ `useAutoReward` hook → server-side validation đảm bảo consistency
+2. **Anti-fraud**: Logic chống gian lận (duplicate view, daily limits) được xử lý ở edge function nên không cần thêm ở frontend
+3. **Progressive Enhancement**: Mobile players chỉ cần track watch time và gọi `awardViewReward()` - tất cả validation ở server
