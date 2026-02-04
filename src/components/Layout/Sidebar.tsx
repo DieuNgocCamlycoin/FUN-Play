@@ -1,8 +1,11 @@
+import { useState } from "react";
 import { Home, Zap, Users, Library, History, Video, Clock, ThumbsUp, Wallet, ListVideo, FileText, Tv, Trophy, Coins, UserPlus, Image, Sparkles, Music, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useNavigate, useLocation } from "react-router-dom";
+import { HonobarSidebarButton } from "./HonobarSidebarButton";
+import { HonobarDetailModal } from "./HonobarDetailModal";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -74,6 +77,7 @@ const manageItems = [
 export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [showHonobarDetail, setShowHonobarDetail] = useState(false);
 
   const handleNavigation = (href: string) => {
     navigate(href);
@@ -90,6 +94,12 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
 
   return (
     <>
+      {/* Honor Board Detail Modal */}
+      <HonobarDetailModal 
+        isOpen={showHonobarDetail} 
+        onClose={() => setShowHonobarDetail(false)} 
+      />
+
       {/* Mobile overlay */}
       {isOpen && (
         <div
@@ -107,7 +117,14 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       >
         <ScrollArea className="h-full">
           <div className="py-2">
-            {/* FUN ECOSYSTEM section - ĐẦU TIÊN */}
+            {/* HONOR BOARD - TRÊN CÙNG */}
+            <div className="px-3 py-2 mb-2">
+              <HonobarSidebarButton onOpenDetail={() => setShowHonobarDetail(true)} />
+            </div>
+
+            <div className="h-px bg-border my-2" />
+
+            {/* FUN ECOSYSTEM section */}
             <div className="px-3 py-2">
               <p className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 FUN ECOSYSTEM

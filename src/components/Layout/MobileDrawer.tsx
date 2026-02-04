@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { X, Home, Zap, Users, Library, History, Video, Clock, ThumbsUp, Wallet, ListVideo, FileText, Tv, Trophy, Coins, UserPlus, Image, Sparkles, Music, Settings, LogOut, Download, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -6,6 +7,8 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { motion, AnimatePresence } from "framer-motion";
+import { HonobarSidebarButton } from "./HonobarSidebarButton";
+import { HonobarDetailModal } from "./HonobarDetailModal";
 
 interface MobileDrawerProps {
   isOpen: boolean;
@@ -87,6 +90,7 @@ export const MobileDrawer = ({ isOpen, onClose }: MobileDrawerProps) => {
   const location = useLocation();
   const { user, signOut } = useAuth();
   const { profile } = useProfile();
+  const [showHonobarDetail, setShowHonobarDetail] = useState(false);
 
   const handleNavigation = (href: string) => {
     navigate(href);
@@ -104,6 +108,10 @@ export const MobileDrawer = ({ isOpen, onClose }: MobileDrawerProps) => {
   const handleSignOut = async () => {
     await signOut();
     onClose();
+  };
+
+  const handleOpenHonobar = () => {
+    setShowHonobarDetail(true);
   };
 
   const NavButton = ({ item }: { item: NavItem }) => (
@@ -151,70 +159,84 @@ export const MobileDrawer = ({ isOpen, onClose }: MobileDrawerProps) => {
   );
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[60] lg:hidden"
-            onClick={onClose}
-          />
+    <>
+      {/* Honor Board Detail Modal */}
+      <HonobarDetailModal 
+        isOpen={showHonobarDetail} 
+        onClose={() => setShowHonobarDetail(false)} 
+      />
 
-          {/* Drawer */}
-          <motion.aside
-            initial={{ x: "-100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "-100%" }}
-            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="fixed left-0 top-0 bottom-0 w-[280px] max-w-[85vw] bg-background border-r border-border z-[70] lg:hidden"
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-border">
-              <span className="text-lg font-bold bg-gradient-to-r from-[#00E7FF] to-[#00FFFF] bg-clip-text text-transparent">
-                FUN Play
-              </span>
-              <Button variant="ghost" size="icon" onClick={onClose} className="h-10 w-10">
-                <X className="h-5 w-5" />
-              </Button>
-            </div>
+      <AnimatePresence>
+        {isOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[60] lg:hidden"
+              onClick={onClose}
+            />
 
-            {/* User Profile Section */}
-            {user && (
-              <div className="p-4 border-b border-border">
-                <div className="flex items-center gap-3">
-                  {profile?.avatar_url ? (
-                    <img
-                      src={profile.avatar_url}
-                      alt="Profile"
-                      className="w-12 h-12 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-lg font-semibold">
-                      {user.email?.[0].toUpperCase()}
+            {/* Drawer */}
+            <motion.aside
+              initial={{ x: "-100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "-100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="fixed left-0 top-0 bottom-0 w-[280px] max-w-[85vw] bg-background border-r border-border z-[70] lg:hidden"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between p-4 border-b border-border">
+                <span className="text-lg font-bold bg-gradient-to-r from-[#00E7FF] to-[#00FFFF] bg-clip-text text-transparent">
+                  FUN Play
+                </span>
+                <Button variant="ghost" size="icon" onClick={onClose} className="h-10 w-10">
+                  <X className="h-5 w-5" />
+                </Button>
+              </div>
+
+              {/* User Profile Section */}
+              {user && (
+                <div className="p-4 border-b border-border">
+                  <div className="flex items-center gap-3">
+                    {profile?.avatar_url ? (
+                      <img
+                        src={profile.avatar_url}
+                        alt="Profile"
+                        className="w-12 h-12 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-lg font-semibold">
+                        {user.email?.[0].toUpperCase()}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold truncate">{profile?.display_name || profile?.username || "User"}</p>
+                      <p className="text-sm text-muted-foreground truncate">{user.email}</p>
                     </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold truncate">{profile?.display_name || profile?.username || "User"}</p>
-                    <p className="text-sm text-muted-foreground truncate">{user.email}</p>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Navigation */}
-            <ScrollArea className="h-[calc(100%-140px)]">
-              <div className="py-2">
-                {/* FUN ECOSYSTEM - ĐẦU TIÊN */}
-                <div className="px-2">
-                  <p className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                    FUN ECOSYSTEM
-                  </p>
-                  {funPlatformItems.map((item) => (
-                    <FunPlatformButton key={item.label} item={item} />
-                  ))}
+              {/* Navigation */}
+              <ScrollArea className="h-[calc(100%-140px)]">
+                <div className="py-2">
+                  {/* HONOR BOARD - TRÊN CÙNG */}
+                  <div className="px-2 mb-3">
+                    <HonobarSidebarButton onOpenDetail={handleOpenHonobar} />
+                  </div>
+
+                  <div className="h-px bg-border my-3 mx-4" />
+
+                  {/* FUN ECOSYSTEM */}
+                  <div className="px-2">
+                    <p className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      FUN ECOSYSTEM
+                    </p>
+                    {funPlatformItems.map((item) => (
+                      <FunPlatformButton key={item.label} item={item} />
+                    ))}
                 </div>
 
                 <div className="h-px bg-border my-3 mx-4" />
@@ -304,8 +326,9 @@ export const MobileDrawer = ({ isOpen, onClose }: MobileDrawerProps) => {
               </div>
             </ScrollArea>
           </motion.aside>
-        </>
-      )}
-    </AnimatePresence>
+          </>
+        )}
+      </AnimatePresence>
+    </>
   );
 };
