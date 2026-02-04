@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { motion, AnimatePresence } from "framer-motion";
@@ -87,7 +87,17 @@ export function MobileUploadFlow({ open, onOpenChange }: MobileUploadFlowProps) 
   // Confirmation dialog
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
 
+  // Track ObjectURLs for cleanup
+  const objectUrlsRef = useRef<string[]>([]);
+
   const hasUnsavedData = videoFile !== null || metadata.title.trim() !== "";
+
+  // Cleanup ObjectURLs on unmount
+  useEffect(() => {
+    return () => {
+      objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, []);
 
   // Navigation functions
   const navigateTo = useCallback((step: MobileUploadStep) => {
@@ -146,11 +156,13 @@ export function MobileUploadFlow({ open, onOpenChange }: MobileUploadFlowProps) 
     });
   }, []);
 
-  // Handle video selection
+  // Handle video selection with proper memory management
   const handleVideoSelect = useCallback(
     async (file: File) => {
       setVideoFile(file);
-      setVideoPreviewUrl(URL.createObjectURL(file));
+      const previewUrl = URL.createObjectURL(file);
+      objectUrlsRef.current.push(previewUrl);
+      setVideoPreviewUrl(previewUrl);
 
       const { isShort: short, duration } = await detectShort(file);
       setIsShort(short);
@@ -161,7 +173,9 @@ export function MobileUploadFlow({ open, onOpenChange }: MobileUploadFlowProps) 
         const autoThumb = await extractVideoThumbnail(file, 0.25);
         if (autoThumb) {
           setThumbnailBlob(autoThumb);
-          setThumbnailPreview(URL.createObjectURL(autoThumb));
+          const thumbUrl = URL.createObjectURL(autoThumb);
+          objectUrlsRef.current.push(thumbUrl);
+          setThumbnailPreview(thumbUrl);
         }
       } catch (err) {
         console.warn("Auto thumbnail failed:", err);
@@ -176,8 +190,9 @@ export function MobileUploadFlow({ open, onOpenChange }: MobileUploadFlowProps) 
     [detectShort, navigateTo]
   );
 
-  // Handle thumbnail change
+  // Handle thumbnail change with memory tracking
   const handleThumbnailChange = useCallback((blob: Blob, preview: string) => {
+    objectUrlsRef.current.push(preview);
     setThumbnailBlob(blob);
     setThumbnailPreview(preview);
   }, []);
@@ -441,7 +456,7 @@ export function MobileUploadFlow({ open, onOpenChange }: MobileUploadFlowProps) 
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="flex flex-col p-0 gap-0 max-w-full w-full h-full max-h-full rounded-none overflow-hidden bg-background">
+      <DialogContent className="flex flex-col p-0 gap-0 max-w-full w-full h-full max-h-full rounded-none overflow-hidden bg-background touch-manipulation overscroll-contain">
         {/* Header */}
         <motion.header
           initial={{ y: -20, opacity: 0 }}
@@ -478,15 +493,15 @@ export function MobileUploadFlow({ open, onOpenChange }: MobileUploadFlowProps) 
         </motion.header>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden">
-          <AnimatePresence mode="wait">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
+          <AnimatePresence mode="popLayout">
             <motion.div
               key={currentStep}
-              initial={{ opacity: 0, x: 20 }}
+              initial={{ opacity: 0, x: 10 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.2 }}
-              className="min-h-full"
+              exit={{ opacity: 0, x: -10 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+              className="min-h-full will-change-transform"
             >
               {/* Type Selector + Video Gallery */}
               {(currentStep === "type-selector" || currentStep === "video-gallery") && (

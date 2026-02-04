@@ -27,11 +27,11 @@ export function VideoGalleryPicker({ onVideoSelect }: VideoGalleryPickerProps) {
       setIsLoading(true);
       mediumTap();
 
-      // Small delay to show loading state
+      // Reduced delay for snappier feel
       setTimeout(() => {
         onVideoSelect(file);
         setIsLoading(false);
-      }, 300);
+      }, 100);
     },
     [onVideoSelect, mediumTap]
   );
@@ -76,10 +76,10 @@ export function VideoGalleryPicker({ onVideoSelect }: VideoGalleryPickerProps) {
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         className={cn(
-          "relative flex flex-col items-center justify-center min-h-[50vh] rounded-2xl border-2 border-dashed cursor-pointer transition-all duration-300",
+          "relative flex flex-col items-center justify-center min-h-[50vh] rounded-2xl border-2 border-dashed cursor-pointer transition-colors duration-150 touch-manipulation",
           isDragging
             ? "border-[hsl(var(--cosmic-cyan))] bg-[hsl(var(--cosmic-cyan)/0.1)]"
-            : "border-border hover:border-[hsl(var(--cosmic-cyan)/0.5)] hover:bg-muted/30"
+            : "border-border active:border-[hsl(var(--cosmic-cyan)/0.5)] active:bg-muted/30"
         )}
       >
         {/* Rainbow border effect on drag */}
@@ -103,8 +103,9 @@ export function VideoGalleryPicker({ onVideoSelect }: VideoGalleryPickerProps) {
           <>
             {/* Icon with gradient background */}
             <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
+              initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.15 }}
               className="relative mb-6"
             >
               <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[hsl(var(--cosmic-cyan)/0.2)] via-[hsl(var(--cosmic-magenta)/0.2)] to-[hsl(var(--cosmic-gold)/0.2)] flex items-center justify-center">
@@ -122,9 +123,8 @@ export function VideoGalleryPicker({ onVideoSelect }: VideoGalleryPickerProps) {
 
             {/* Upload button */}
             <motion.div
-              whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="px-8 py-4 rounded-full bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] to-[hsl(var(--cosmic-magenta))] text-white font-semibold shadow-lg flex items-center gap-2 min-h-[52px]"
+              className="px-8 py-4 rounded-full bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] to-[hsl(var(--cosmic-magenta))] text-white font-semibold shadow-lg flex items-center gap-2 min-h-[52px] touch-manipulation active:opacity-90 transition-opacity"
             >
               <Upload className="w-5 h-5" />
               Chọn video
