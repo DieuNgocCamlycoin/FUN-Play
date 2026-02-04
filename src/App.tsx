@@ -27,12 +27,7 @@ import Leaderboard from "./pages/Leaderboard";
 import RewardHistory from "./pages/RewardHistory";
 import Referral from "./pages/Referral";
 import UserDashboard from "./pages/UserDashboard";
-import AdminDashboard from "./pages/AdminDashboard";
-import AdminRewardConfig from "./pages/AdminRewardConfig";
-import AdminVideoStats from "./pages/AdminVideoStats";
-import AdminManage from "./pages/AdminManage";
-import AdminVideoApproval from "./pages/AdminVideoApproval";
-import AdminClaimHistory from "./pages/AdminClaimHistory";
+import UnifiedAdminDashboard from "./pages/UnifiedAdminDashboard";
 import NFTGallery from "./pages/NFTGallery";
 import FunWallet from "./pages/FunWallet";
 import Meditate from "./pages/Meditate";
@@ -102,15 +97,15 @@ function AppContent() {
         <Route path="/reward-history" element={<RewardHistory />} />
         <Route path="/referral" element={<Referral />} />
         <Route path="/user-dashboard" element={<UserDashboard />} />
-        <Route path="/admin" element={<AdminDashboard />} />
-        <Route path="/admin-dashboard" element={<AdminDashboard />} />
-        <Route path="/admin/video-stats" element={<AdminVideoStats />} />
-        <Route path="/admin/reward-config" element={<AdminRewardConfig />} />
-        <Route path="/admin/manage" element={<AdminManage />} />
-        <Route path="/admin-manage" element={<AdminManage />} />
-        <Route path="/admin/video-approval" element={<AdminVideoApproval />} />
-        <Route path="/admin/claim-history" element={<AdminClaimHistory />} />
-        <Route path="/admin/claim" element={<AdminClaimHistory />} />
+        <Route path="/admin" element={<UnifiedAdminDashboard />} />
+        <Route path="/admin-dashboard" element={<Navigate to="/admin" replace />} />
+        <Route path="/admin/video-stats" element={<Navigate to="/admin?section=videos" replace />} />
+        <Route path="/admin/reward-config" element={<Navigate to="/admin?section=config" replace />} />
+        <Route path="/admin/manage" element={<Navigate to="/admin?section=users" replace />} />
+        <Route path="/admin-manage" element={<Navigate to="/admin?section=users" replace />} />
+        <Route path="/admin/video-approval" element={<Navigate to="/admin?section=videos" replace />} />
+        <Route path="/admin/claim-history" element={<Navigate to="/admin?section=rewards" replace />} />
+        <Route path="/admin/claim" element={<Navigate to="/admin?section=rewards" replace />} />
         <Route path="/nft-gallery" element={<NFTGallery />} />
         <Route path="/fun-wallet" element={<FunWallet />} />
         <Route path="/meditate" element={<Meditate />} />
