@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ThumbsUp, ThumbsDown, Share2, Download, Loader2 } from "lucide-react";
+import { ThumbsUp, ThumbsDown, ExternalLink, Download, Loader2, Bookmark } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { SaveToPlaylistDrawer } from "@/components/Playlist/SaveToPlaylistDrawer";
 
 interface VideoActionsBarProps {
   channelId: string;
@@ -40,6 +41,7 @@ export function VideoActionsBar({
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isDownloading, setIsDownloading] = useState(false);
+  const [saveDrawerOpen, setSaveDrawerOpen] = useState(false);
 
   const formatNumber = (num: number) => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
@@ -153,10 +155,20 @@ export function VideoActionsBar({
           variant="ghost"
           size="sm"
           onClick={onShare}
+          className="rounded-full bg-muted/80 h-9 px-3 shrink-0"
+        >
+          <ExternalLink className="h-4 w-4" />
+        </Button>
+
+        {/* Save to playlist */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setSaveDrawerOpen(true)}
           className="rounded-full bg-muted/80 h-9 px-4 gap-1.5 shrink-0"
         >
-          <Share2 className="h-4 w-4" />
-          <span className="text-sm">Chia sẻ</span>
+          <Bookmark className="h-4 w-4" />
+          <span className="text-sm">Lưu</span>
         </Button>
 
         {/* Download */}
@@ -175,6 +187,14 @@ export function VideoActionsBar({
           <span className="text-sm">Tải xuống</span>
         </Button>
       </div>
+
+      {/* Save to playlist drawer */}
+      <SaveToPlaylistDrawer
+        open={saveDrawerOpen}
+        onOpenChange={setSaveDrawerOpen}
+        videoId={videoId}
+        videoTitle={videoTitle}
+      />
     </div>
   );
 }

@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { MobileBottomNav } from "@/components/Layout/MobileBottomNav";
+import { CreatePlaylistModal } from "@/components/Playlist/CreatePlaylistModal";
 
 interface ChannelInfo {
   id: string;
@@ -35,6 +36,62 @@ const Profile = () => {
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [watchLaterCount, setWatchLaterCount] = useState(0);
   const [offlineCount, setOfflineCount] = useState(0);
+  const [createPlaylistOpen, setCreatePlaylistOpen] = useState(false);
+
+  const fetchData = async () => {
+    if (!user) return;
+    
+    // Fetch channel info
+    const { data: channelData } = await supabase
+      .from("channels")
+      .select("id, subscriber_count")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (channelData) {
+      // Get video count
+      const { count: videoCount } = await supabase
+        .from("videos")
+        .select("*", { count: "exact", head: true })
+        .eq("channel_id", channelData.id);
+
+      setChannel({
+        id: channelData.id,
+        subscriber_count: channelData.subscriber_count || 0,
+        video_count: videoCount || 0,
+      });
+    }
+
+    // Fetch playlists with video counts
+    const { data: playlistData } = await supabase
+      .from("playlists")
+      .select(`
+        id,
+        name,
+        playlist_videos(count)
+      `)
+      .eq("user_id", user.id)
+      .order("updated_at", { ascending: false })
+      .limit(10);
+
+    if (playlistData) {
+      setPlaylists(
+        playlistData.map((p) => ({
+          id: p.id,
+          name: p.name,
+          video_count: (p.playlist_videos as any)?.[0]?.count || 0,
+        }))
+      );
+    }
+
+    // Fetch watch later count
+    const { count: wlCount } = await supabase
+      .from("watch_later")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id);
+
+    setWatchLaterCount(wlCount || 0);
+  };
 
   useEffect(() => {
     if (authLoading) return; // Đợi auth check xong
@@ -42,59 +99,6 @@ const Profile = () => {
       navigate("/auth");
       return;
     }
-
-    const fetchData = async () => {
-      // Fetch channel info
-      const { data: channelData } = await supabase
-        .from("channels")
-        .select("id, subscriber_count")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (channelData) {
-        // Get video count
-        const { count: videoCount } = await supabase
-          .from("videos")
-          .select("*", { count: "exact", head: true })
-          .eq("channel_id", channelData.id);
-
-        setChannel({
-          id: channelData.id,
-          subscriber_count: channelData.subscriber_count || 0,
-          video_count: videoCount || 0,
-        });
-      }
-
-      // Fetch playlists with video counts
-      const { data: playlistData } = await supabase
-        .from("playlists")
-        .select(`
-          id,
-          name,
-          playlist_videos(count)
-        `)
-        .eq("user_id", user.id)
-        .order("updated_at", { ascending: false })
-        .limit(10);
-
-      if (playlistData) {
-        setPlaylists(
-          playlistData.map((p) => ({
-            id: p.id,
-            name: p.name,
-            video_count: (p.playlist_videos as any)?.[0]?.count || 0,
-          }))
-        );
-      }
-
-      // Fetch watch later count
-      const { count: wlCount } = await supabase
-        .from("watch_later")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", user.id);
-
-      setWatchLaterCount(wlCount || 0);
-    };
 
     fetchData();
   }, [user, authLoading, navigate]);
@@ -234,7 +238,7 @@ const Profile = () => {
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-base font-semibold">Danh sách phát</h2>
           <div className="flex gap-1">
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate("/manage-playlists")}>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCreatePlaylistOpen(true)}>
               <Plus className="h-4 w-4" />
             </Button>
           </div>
@@ -279,7 +283,7 @@ const Profile = () => {
           {playlists.length === 0 && (
             <div
               className="flex-shrink-0 w-32 cursor-pointer"
-              onClick={() => navigate("/manage-playlists")}
+              onClick={() => setCreatePlaylistOpen(true)}
             >
               <div className="aspect-video rounded-lg border-2 border-dashed border-muted-foreground/30 mb-2 flex items-center justify-center">
                 <Plus className="h-6 w-6 text-muted-foreground" />
@@ -323,6 +327,13 @@ const Profile = () => {
           </div>
         </button>
       </div>
+
+      {/* Create Playlist Modal */}
+      <CreatePlaylistModal
+        open={createPlaylistOpen}
+        onOpenChange={setCreatePlaylistOpen}
+        onCreated={() => fetchData()}
+      />
 
       <MobileBottomNav />
     </div>
