@@ -1,11 +1,14 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ThumbsUp, ThumbsDown, ExternalLink, Download, Loader2, Bookmark } from "lucide-react";
+import { ThumbsUp, ThumbsDown, Download, Loader2, Bookmark, Bell, ChevronDown, Share2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { SaveToPlaylistDrawer } from "@/components/Playlist/SaveToPlaylistDrawer";
+import { useHapticFeedback } from "@/hooks/useHapticFeedback";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { motion } from "framer-motion";
 
 interface VideoActionsBarProps {
   channelId: string;
@@ -42,6 +45,8 @@ export function VideoActionsBar({
   const { toast } = useToast();
   const [isDownloading, setIsDownloading] = useState(false);
   const [saveDrawerOpen, setSaveDrawerOpen] = useState(false);
+  const { lightTap, successFeedback } = useHapticFeedback();
+  const [showLikeAnimation, setShowLikeAnimation] = useState(false);
 
   const formatNumber = (num: number) => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
@@ -49,14 +54,20 @@ export function VideoActionsBar({
     return num.toString();
   };
 
+  const handleLike = () => {
+    successFeedback();
+    setShowLikeAnimation(true);
+    setTimeout(() => setShowLikeAnimation(false), 600);
+    onLike();
+  };
+
   const handleDownload = async () => {
+    lightTap();
     setIsDownloading(true);
     try {
-      // Fetch video blob
       const response = await fetch(videoUrl);
       const blob = await response.blob();
 
-      // Save to IndexedDB for offline access
       const db = await openOfflineDB();
       await saveVideoToDB(db, {
         id: videoId,
@@ -82,120 +93,156 @@ export function VideoActionsBar({
   };
 
   return (
-    <div className="px-3 py-2 border-b border-border">
-      {/* Channel row */}
-      <div className="flex items-center gap-3">
-        {/* Avatar */}
-        <Avatar
-          className="h-10 w-10 cursor-pointer"
-          onClick={() => navigate(`/channel/${channelId}`)}
-        >
-          <AvatarImage src={channelAvatar || undefined} />
-          <AvatarFallback className="bg-gradient-to-br from-cosmic-sapphire to-cosmic-cyan text-white font-semibold">
-            {channelName[0]}
-          </AvatarFallback>
-        </Avatar>
+    <TooltipProvider>
+      <div className="px-3 py-3 border-b border-border">
+        {/* Channel row */}
+        <div className="flex items-center gap-3">
+          {/* Avatar */}
+          <Avatar
+            className="h-10 w-10 cursor-pointer ring-2 ring-transparent hover:ring-cosmic-cyan/30 transition-all"
+            onClick={() => navigate(`/channel/${channelId}`)}
+          >
+            <AvatarImage src={channelAvatar || undefined} />
+            <AvatarFallback className="bg-gradient-to-br from-cosmic-sapphire to-cosmic-cyan text-white font-semibold">
+              {channelName[0]}
+            </AvatarFallback>
+          </Avatar>
 
-        {/* Channel info */}
-        <div
-          className="flex-1 min-w-0 cursor-pointer"
-          onClick={() => navigate(`/channel/${channelId}`)}
-        >
-          <p className="text-sm font-semibold text-foreground truncate">
-            {channelName}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {formatNumber(subscriberCount)} người đăng ký
-          </p>
-        </div>
+          {/* Channel info */}
+          <div
+            className="flex-1 min-w-0 cursor-pointer"
+            onClick={() => navigate(`/channel/${channelId}`)}
+          >
+            <p className="text-sm font-semibold text-foreground truncate">
+              {channelName}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {formatNumber(subscriberCount)} người đăng ký
+            </p>
+          </div>
 
-        {/* Subscribe button */}
-        <Button
-          onClick={onSubscribe}
-          size="sm"
-          className={cn(
-            "rounded-full px-4 h-9 font-semibold",
-            isSubscribed
-              ? "bg-muted text-muted-foreground hover:bg-muted/80"
-              : "bg-gradient-to-r from-cosmic-cyan to-cosmic-sapphire text-white hover:opacity-90 shadow-[0_0_20px_rgba(0,255,255,0.3)]"
-          )}
-        >
-          {isSubscribed ? "Đã đăng ký" : "Đăng ký"}
-        </Button>
-      </div>
-
-      {/* Actions row */}
-      <div className="flex items-center gap-2 mt-3 overflow-x-auto pb-1 scrollbar-hide">
-        {/* Like/Dislike pill */}
-        <div className="flex items-center bg-muted/80 rounded-full shrink-0">
+          {/* Subscribe button */}
           <Button
-            variant="ghost"
+            onClick={() => { lightTap(); onSubscribe(); }}
             size="sm"
-            onClick={onLike}
             className={cn(
-              "rounded-full rounded-r-none gap-1.5 h-9 px-3",
-              hasLiked && "text-cosmic-cyan"
+              "rounded-full px-4 h-9 font-semibold transition-all duration-300",
+              isSubscribed
+                ? "bg-muted text-muted-foreground hover:bg-muted/80"
+                : "bg-gradient-to-r from-cosmic-cyan to-cosmic-sapphire text-white hover:opacity-90 shadow-[0_0_20px_rgba(0,255,255,0.3)]"
             )}
           >
-            <ThumbsUp className={cn("h-4 w-4", hasLiked && "fill-current")} />
-            <span className="font-semibold text-sm">{formatNumber(likeCount)}</span>
-          </Button>
-          <div className="w-px h-5 bg-border" />
-          <Button
-            variant="ghost"
-            size="sm"
-            className="rounded-full rounded-l-none h-9 px-3"
-          >
-            <ThumbsDown className="h-4 w-4" />
+            {isSubscribed ? "Đã đăng ký" : "Đăng ký"}
           </Button>
         </div>
 
-        {/* Share */}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onShare}
-          className="rounded-full bg-muted/80 h-9 px-3 shrink-0"
-        >
-          <ExternalLink className="h-4 w-4" />
-        </Button>
+        {/* Actions row - ENHANCED */}
+        <div className="flex items-center gap-2 mt-3 overflow-x-auto pb-1 scrollbar-hide">
+          {/* Notification bell dropdown */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => lightTap()}
+            className="rounded-full bg-muted/80 h-10 px-3 shrink-0 hover:bg-muted"
+          >
+            <Bell className="h-5 w-5" />
+            <ChevronDown className="h-3 w-3 ml-0.5" />
+          </Button>
 
-        {/* Save to playlist */}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setSaveDrawerOpen(true)}
-          className="rounded-full bg-muted/80 h-9 px-4 gap-1.5 shrink-0"
-        >
-          <Bookmark className="h-4 w-4" />
-          <span className="text-sm">Lưu</span>
-        </Button>
+          {/* Like/Dislike pill - ENHANCED */}
+          <div className="flex items-center bg-muted/80 rounded-full shrink-0">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <motion.div whileTap={{ scale: 0.9 }}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleLike}
+                    className={cn(
+                      "rounded-full rounded-r-none gap-1.5 h-10 px-4 transition-all duration-300",
+                      hasLiked && "text-cosmic-cyan bg-gradient-to-r from-cyan-500/10 to-purple-500/10",
+                      showLikeAnimation && "animate-rainbow-sparkle"
+                    )}
+                  >
+                    <ThumbsUp className={cn(
+                      "h-5 w-5 transition-all duration-200", 
+                      hasLiked && "fill-current scale-110"
+                    )} />
+                    <span className="font-semibold">{formatNumber(likeCount)}</span>
+                  </Button>
+                </motion.div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="text-sm">{hasLiked ? "Đã thích! 💖" : "Lan tỏa ánh sáng! ✨"}</p>
+              </TooltipContent>
+            </Tooltip>
+            
+            <div className="w-px h-6 bg-border" />
+            
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => lightTap()}
+              className="rounded-full rounded-l-none h-10 px-4 hover:bg-muted"
+            >
+              <ThumbsDown className="h-5 w-5" />
+            </Button>
+          </div>
 
-        {/* Download */}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleDownload}
-          disabled={isDownloading}
-          className="rounded-full bg-muted/80 h-9 px-4 gap-1.5 shrink-0"
-        >
-          {isDownloading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Download className="h-4 w-4" />
-          )}
-          <span className="text-sm">Tải xuống</span>
-        </Button>
+          {/* Share button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => { lightTap(); onShare(); }}
+            className="rounded-full bg-muted/80 h-10 px-4 shrink-0 hover:bg-muted"
+          >
+            <Share2 className="h-5 w-5" />
+          </Button>
+
+          {/* Save to playlist - với icon và text */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { lightTap(); setSaveDrawerOpen(true); }}
+                className="rounded-full bg-muted/80 h-10 px-4 gap-1.5 shrink-0 hover:bg-primary/10"
+              >
+                <Bookmark className="h-5 w-5" />
+                <span className="text-sm font-medium">Lưu</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Lưu vào danh sách phát 📚</p>
+            </TooltipContent>
+          </Tooltip>
+
+          {/* Download - với status */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleDownload}
+            disabled={isDownloading}
+            className="rounded-full bg-muted/80 h-10 px-4 gap-1.5 shrink-0 hover:bg-muted"
+          >
+            {isDownloading ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <Download className="h-5 w-5" />
+            )}
+            <span className="text-sm font-medium">Tải xuống</span>
+          </Button>
+        </div>
+
+        {/* Save to playlist drawer */}
+        <SaveToPlaylistDrawer
+          open={saveDrawerOpen}
+          onOpenChange={setSaveDrawerOpen}
+          videoId={videoId}
+          videoTitle={videoTitle}
+        />
       </div>
-
-      {/* Save to playlist drawer */}
-      <SaveToPlaylistDrawer
-        open={saveDrawerOpen}
-        onOpenChange={setSaveDrawerOpen}
-        videoId={videoId}
-        videoTitle={videoTitle}
-      />
-    </div>
+    </TooltipProvider>
   );
 }
 

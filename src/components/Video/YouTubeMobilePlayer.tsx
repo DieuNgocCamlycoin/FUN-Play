@@ -8,6 +8,7 @@ import {
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
 import { PlayerSettingsDrawer } from "./PlayerSettingsDrawer";
+import { useHapticFeedback } from "@/hooks/useHapticFeedback";
 
 interface YouTubeMobilePlayerProps {
   videoUrl: string;
@@ -51,6 +52,8 @@ export function YouTubeMobilePlayer({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [loopMode, setLoopMode] = useState<"off" | "all" | "one">("off");
+  
+  const { lightTap } = useHapticFeedback();
   
   const hideControlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const tapTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -189,13 +192,14 @@ export function YouTubeMobilePlayer({
     }, 250); // 250ms window để detect double-tap
   };
 
-  // Drag to minimize gesture
+  // Drag to minimize gesture - lowered threshold for easier triggering
   const handleDragEnd = (_event: any, info: PanInfo) => {
     setIsDragging(false);
     setDragY(0);
     
-    // If dragged down more than 100px, trigger minimize
-    if (info.offset.y > 100) {
+    // Lowered threshold from 100px to 80px and velocity to 300
+    if (info.offset.y > 80 || info.velocity.y > 300) {
+      lightTap();
       onMinimize?.();
     }
   };
@@ -462,14 +466,17 @@ export function YouTubeMobilePlayer({
           </div>
         </motion.div>
 
-        {/* Drag indicator */}
+        {/* Drag indicator - Enhanced with gradient */}
         {isDragging && (
           <motion.div 
-            className="absolute top-4 left-1/2 -translate-x-1/2 bg-white/30 rounded-full px-4 py-2"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+            className="absolute top-8 left-1/2 -translate-x-1/2 bg-gradient-to-r from-cyan-500/80 to-purple-500/80 rounded-full px-4 py-2 backdrop-blur-sm shadow-lg"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
           >
-            <span className="text-white text-sm">Kéo xuống để thu nhỏ</span>
+            <span className="text-white text-sm font-medium flex items-center gap-2">
+              <ChevronDown className="h-4 w-4 animate-bounce" />
+              Kéo xuống để thu nhỏ
+            </span>
           </motion.div>
         )}
       </motion.div>
