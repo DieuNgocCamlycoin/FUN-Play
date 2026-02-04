@@ -1,199 +1,238 @@
 
-# Kế Hoạch: Tối Ưu Modal Tạo Playlist & Nút Lưu Video
+# Kế Hoạch: Hoàn Thiện Trang Danh Sách Phát
 
 ## Tổng Quan
-Triển khai 2 tính năng theo mẫu YouTube:
-1. Modal "Tạo danh sách phát mới" gọn gàng khi bấm nút "+"
-2. Nút "Lưu" dưới mỗi video với bottom sheet hiển thị danh sách playlist
+Triển khai các cải tiến theo mẫu YouTube mobile:
+1. Thêm 3 chế độ hiển thị trong modal tạo playlist
+2. Cải thiện layout video list trong playlist page
+3. Thêm nút edit thumbnail trên ảnh đại diện
+4. Cải thiện action bar với các nút mới
 
 ---
 
-## Tính Năng 1: Modal Tạo Playlist Tối Ưu
+## Phần 1: Cập Nhật Chế Độ Hiển Thị
 
-### Mục tiêu
-Khi bấm nút "+" ở mục Danh sách phát trên trang Profile, hiển thị modal nhỏ gọn với:
-- Tiêu đề "Danh sách phát mới"
-- Ô nhập "Tiêu đề" 
-- Dropdown "Chế độ hiển thị" (Công khai / Riêng tư)
-- Nút "Hủy" và "Tạo"
-- Dấu X để đóng modal
+### Vấn đề hiện tại
+Modal CreatePlaylistModal chỉ có 2 tùy chọn: "Riêng tư" và "Công khai"
 
-### Thay đổi code
+### Giải pháp
+Thêm 3 chế độ hiển thị theo YouTube:
+- **Công khai** (mặc định): Mọi người đều có thể xem
+- **Không công khai**: Chỉ những người có link mới xem được  
+- **Riêng tư**: Chỉ bạn có thể xem
+
+### Thay đổi Database
+Cần thêm cột `visibility` hoặc sử dụng logic kết hợp `is_public` + cột mới
+
+| Giá trị | is_public | Ý nghĩa |
+|---------|-----------|---------|
+| public | true | Công khai - hiển thị trong tìm kiếm |
+| unlisted | null | Không công khai - chỉ xem qua link |
+| private | false | Riêng tư - chỉ chủ sở hữu xem |
+
+### File cần sửa
 
 | File | Thay đổi |
 |------|----------|
-| `src/components/Playlist/CreatePlaylistModal.tsx` | **TẠO MỚI** - Component modal nhỏ gọn |
-| `src/pages/Profile.tsx` | Thêm state và import modal mới |
-| `src/pages/ManagePlaylists.tsx` | Sử dụng modal mới thay cho dialog hiện tại |
+| `src/components/Playlist/CreatePlaylistModal.tsx` | Thêm option "Không công khai", đổi mặc định thành "public" |
+| `src/pages/Playlist.tsx` | Cập nhật hiển thị visibility text |
 
-### Component mới: CreatePlaylistModal
+---
+
+## Phần 2: Cải Thiện Layout Video List
+
+### Vấn đề hiện tại
+- Tiêu đề video bị tràn ra ngoài
+- Thiếu thông tin lượt xem và thời gian đăng
+
+### Thiết kế mới (theo YouTube mobile)
 
 ```text
-+----------------------------------+
-|  X     Danh sách phát mới        |
-+----------------------------------+
-|  ┌────────────────────────────┐  |
-|  │ Tiêu đề                    │  |
-|  │ [________________]         │  |
-|  └────────────────────────────┘  |
-|                                  |
-|  Chế độ hiển thị                 |
-|  ┌─────────────────────────┬──┐  |
-|  │ Riêng tư                │ ▼│  |
-|  └─────────────────────────┴──┘  |
-|                                  |
-|        [Hủy]     [Tạo]           |
-+----------------------------------+
++--------------------------------------------------+
+| [Thumb 16:9] | Tiêu đề video dài quá thì...      |
+| [  47:34   ] | Tên kênh                           |
+|              | 274 lượt xem • 2 ngày trước    [⋮] |
++--------------------------------------------------+
+```
+
+### Thay đổi code
+
+```typescript
+// Playlist.tsx - Video item layout
+<div className="flex gap-3 p-2">
+  {/* Thumbnail nhỏ bên trái */}
+  <div className="relative w-32 md:w-40 aspect-video flex-shrink-0">
+    <img src={thumbnail} className="rounded" />
+    <span className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1 rounded">
+      47:34
+    </span>
+  </div>
+  
+  {/* Info bên phải */}
+  <div className="flex-1 min-w-0">
+    <h3 className="font-medium line-clamp-2 text-sm">{title}</h3>
+    <p className="text-xs text-muted-foreground mt-1">{channelName}</p>
+    <p className="text-xs text-muted-foreground">
+      {viewCount} lượt xem • {timeAgo}
+    </p>
+  </div>
+</div>
 ```
 
 ---
 
-## Tính Năng 2: Nút "Lưu" Video + Bottom Sheet
+## Phần 3: Nút Edit Thumbnail trên Ảnh Đại Diện
 
-### Mục tiêu
-Thêm nút "Lưu" (bookmark icon) vào thanh actions dưới video, hiển thị bottom sheet với:
-- Tiêu đề "Lưu vào..."
-- Danh sách playlist với thumbnail, tên, trạng thái (Công khai/Riêng tư)
-- Icon bookmark để toggle lưu/bỏ lưu
-- Nút "+ Danh sách phát mới" ở cuối
+### Vị trí
+Góc dưới bên phải của thumbnail playlist (nút tròn nhỏ với icon bút)
+
+### Chức năng
+Khi bấm, mở modal chọn thumbnail với các tùy chọn:
+- Chọn từ video trong playlist
+- Upload ảnh tùy chỉnh (nếu cần)
 
 ### Thay đổi code
 
-| File | Thay đổi |
-|------|----------|
-| `src/components/Video/Mobile/VideoActionsBar.tsx` | Thêm nút "Lưu", đổi icon Share thành mũi tên |
-| `src/components/Playlist/SaveToPlaylistDrawer.tsx` | **TẠO MỚI** - Bottom sheet kiểu YouTube |
-
-### UI cập nhật VideoActionsBar
-
-```text
-Trước:  [Like/Dislike] [Chia sẻ] [Tải xuống]
-Sau:    [Like/Dislike] [↗ Share] [Lưu] [Tải xuống]
+```typescript
+// Playlist.tsx - Thumbnail section
+<div className="relative aspect-video rounded-lg overflow-hidden">
+  <img src={thumbnailUrl} />
+  
+  {/* Edit button - chỉ hiện cho owner */}
+  {isOwner && (
+    <button 
+      className="absolute bottom-3 right-3 h-10 w-10 rounded-full bg-background/90 shadow-lg flex items-center justify-center hover:bg-background"
+      onClick={() => setEditThumbnailOpen(true)}
+    >
+      <Pencil className="h-5 w-5" />
+    </button>
+  )}
+</div>
 ```
 
-### Component mới: SaveToPlaylistDrawer
+---
+
+## Phần 4: Cập Nhật Action Bar
+
+### Layout mới (theo YouTube mobile)
 
 ```text
-+----------------------------------+
-|        ═══════════               | <- Drag handle
-|  Lưu vào...                      |
-+----------------------------------+
-|  [thumbnail] Watch later         |
-|              Riêng tư       [📑] |
-+----------------------------------+
-|  [thumbnail] Love                |
-|              Công khai      [📑] |
-+----------------------------------+
-|  [thumbnail] Background & music  |
-|              Công khai      [📑] |
-+----------------------------------+
-|  ...more playlists...            |
-+----------------------------------+
-|  + Danh sách phát mới            |
-+----------------------------------+
+[▶ Phát tất cả] [+] [✏️] [↗] [⤓]
+     (nhỏ)     Thêm Edit Share Download
+               video
 ```
+
+### Các nút mới
+
+| Nút | Icon | Chức năng |
+|-----|------|-----------|
+| Phát tất cả | Play | Phát toàn bộ playlist (nhỏ hơn, không full width) |
+| + | Plus | Mở modal tìm và thêm video vào playlist |
+| ✏️ | Pencil | Chỉnh sửa thông tin playlist |
+| ↗ | ExternalLink | Chia sẻ link playlist |
+| ⤓ | Download | Tải xuống (nếu có) |
+
+### Thay đổi code
+
+```typescript
+// Playlist.tsx - Action buttons
+<div className="flex items-center gap-2 mt-4">
+  {/* Nút phát - nhỏ hơn */}
+  <Button 
+    onClick={() => handlePlayAll(false)}
+    className="flex-1 max-w-[200px]"
+    disabled={videos.length === 0}
+  >
+    <Play className="h-4 w-4 mr-2" />
+    Phát tất cả
+  </Button>
+  
+  {/* Các nút tròn */}
+  {isOwner && (
+    <>
+      <Button variant="outline" size="icon" className="rounded-full" onClick={() => setAddVideoOpen(true)}>
+        <Plus className="h-5 w-5" />
+      </Button>
+      <Button variant="outline" size="icon" className="rounded-full" onClick={() => setEditPlaylistOpen(true)}>
+        <Pencil className="h-5 w-5" />
+      </Button>
+    </>
+  )}
+  <Button variant="outline" size="icon" className="rounded-full" onClick={handleShare}>
+    <ExternalLink className="h-5 w-5" />
+  </Button>
+</div>
+```
+
+---
+
+## Danh Sách File Thay Đổi
+
+| File | Loại | Mô tả |
+|------|------|-------|
+| `src/components/Playlist/CreatePlaylistModal.tsx` | SỬA | Thêm 3 chế độ hiển thị, mặc định "Công khai" |
+| `src/pages/Playlist.tsx` | SỬA | Cập nhật layout video, thêm nút edit thumbnail, cải thiện action bar |
+| `src/components/Playlist/AddVideoToPlaylistModal.tsx` | TẠO MỚI | Modal tìm và thêm video |
+| `src/components/Playlist/EditPlaylistThumbnailModal.tsx` | TẠO MỚI | Modal chọn thumbnail |
 
 ---
 
 ## Chi Tiết Triển Khai
 
-### 1. CreatePlaylistModal.tsx (Component mới)
+### CreatePlaylistModal.tsx
 
 ```typescript
-// Props interface
-interface CreatePlaylistModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onCreated?: (playlistId: string) => void;
-}
+// Visibility state - đổi type
+const [visibility, setVisibility] = useState<"public" | "unlisted" | "private">("public");
 
-// State
-- name: string (tiêu đề playlist)
-- visibility: "public" | "private"
-- saving: boolean
+// Cập nhật Select
+<Select value={visibility} onValueChange={(v) => setVisibility(v as "public" | "unlisted" | "private")}>
+  <SelectContent>
+    <SelectItem value="public">
+      <div className="flex items-center gap-2">
+        <Globe className="h-4 w-4" />
+        <span>Công khai</span>
+      </div>
+    </SelectItem>
+    <SelectItem value="unlisted">
+      <div className="flex items-center gap-2">
+        <Link className="h-4 w-4" />
+        <span>Không công khai</span>
+      </div>
+    </SelectItem>
+    <SelectItem value="private">
+      <div className="flex items-center gap-2">
+        <Lock className="h-4 w-4" />
+        <span>Riêng tư</span>
+      </div>
+    </SelectItem>
+  </SelectContent>
+</Select>
 
-// UI Elements
-- Dialog với max-w-sm
-- Input cho tiêu đề
-- Select dropdown cho chế độ hiển thị
-- Button Hủy/Tạo
-- X button ở góc
+// Khi save - map visibility to is_public
+const is_public = visibility === "public" ? true : visibility === "private" ? false : null;
 ```
 
-### 2. SaveToPlaylistDrawer.tsx (Component mới)
+### Playlist.tsx - Visibility Display
 
 ```typescript
-// Props interface
-interface SaveToPlaylistDrawerProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  videoId: string;
-  videoTitle?: string;
-}
-
-// Features
-- Sử dụng Drawer component (vaul)
-- Fetch playlist với thumbnail đầu tiên
-- Toggle save/unsave với animation
-- Tích hợp CreatePlaylistModal khi bấm "+ Danh sách phát mới"
-```
-
-### 3. VideoActionsBar.tsx (Cập nhật)
-
-```typescript
-// Thêm imports
-import { Bookmark } from "lucide-react";
-import { SaveToPlaylistDrawer } from "@/components/Playlist/SaveToPlaylistDrawer";
-
-// Thêm state
-const [saveDrawerOpen, setSaveDrawerOpen] = useState(false);
-
-// Cập nhật UI
-// Share button: đổi từ <Share2> sang biểu tượng mũi tên ↗
-// Thêm nút Lưu trước nút Tải xuống
-```
-
-### 4. Profile.tsx (Cập nhật)
-
-```typescript
-// Thêm import
-import { CreatePlaylistModal } from "@/components/Playlist/CreatePlaylistModal";
-
-// Thêm state
-const [createPlaylistOpen, setCreatePlaylistOpen] = useState(false);
-
-// Cập nhật nút "+"
-<Button onClick={() => setCreatePlaylistOpen(true)}>
-  <Plus />
-</Button>
-
-// Thêm modal
-<CreatePlaylistModal 
-  open={createPlaylistOpen} 
-  onOpenChange={setCreatePlaylistOpen}
-  onCreated={() => fetchData()}
-/>
+// Helper function
+const getVisibilityText = (is_public: boolean | null) => {
+  if (is_public === true) return { icon: Globe, text: "Công khai" };
+  if (is_public === false) return { icon: Lock, text: "Riêng tư" };
+  return { icon: Link, text: "Không công khai" };
+};
 ```
 
 ---
 
-## Danh sách file thay đổi
-
-| File | Loại | Mô tả |
-|------|------|-------|
-| `src/components/Playlist/CreatePlaylistModal.tsx` | TẠO MỚI | Modal tạo playlist nhỏ gọn |
-| `src/components/Playlist/SaveToPlaylistDrawer.tsx` | TẠO MỚI | Bottom sheet lưu video |
-| `src/pages/Profile.tsx` | CẬP NHẬT | Sử dụng CreatePlaylistModal |
-| `src/pages/ManagePlaylists.tsx` | CẬP NHẬT | Sử dụng CreatePlaylistModal |
-| `src/components/Video/Mobile/VideoActionsBar.tsx` | CẬP NHẬT | Thêm nút Lưu, đổi icon Share |
-
----
-
-## Kết quả mong đợi
+## Kết Quả Mong Đợi
 
 | Trước | Sau |
 |-------|-----|
-| Bấm "+" → Chuyển trang ManagePlaylists | Bấm "+" → Hiện modal nhỏ gọn ngay tại chỗ |
-| Không có nút Lưu dưới video | Có nút "Lưu" với bottom sheet playlist |
-| Share hiển thị text "Chia sẻ" | Share hiển thị icon mũi tên ↗ |
-| Modal tạo playlist có nhiều field | Modal gọn: chỉ Tiêu đề + Chế độ hiển thị |
+| Chỉ có 2 chế độ: Riêng tư, Công khai | 3 chế độ: Công khai (mặc định), Không công khai, Riêng tư |
+| Mặc định là "Riêng tư" | Mặc định là "Công khai" |
+| Tiêu đề video bị tràn | Tiêu đề truncate với "..." |
+| Thiếu thông tin views/time | Hiển thị đầy đủ: views • thời gian đăng |
+| Không có nút edit thumbnail | Nút bút tròn ở góc thumbnail |
+| Nút "Phát tất cả" quá to | Nút nhỏ hơn + thêm các nút +, edit, share |
