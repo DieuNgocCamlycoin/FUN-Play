@@ -1,145 +1,164 @@
 
-# Phân Tích & Kế Hoạch Sửa Lỗi Modal Claim Rewards
+# Kế Hoạch Thêm Thông Báo Ngưỡng 200,000 CAMLY
 
-## 1. Tình Trạng Hiện Tại
+## Mục Tiêu
 
-### Kết Quả Kiểm Tra
+Thêm thông báo rõ ràng cho người dùng trong modal Claim Rewards:
+- Nếu đạt **≥ 200,000 CAMLY đã duyệt** → Có thể claim tự động
+- Nếu chưa đạt → Hiển thị tiến độ và số CAMLY còn cần để claim
 
-| Kiểm Tra | Kết Quả | Chi Tiết |
-|----------|---------|----------|
-| Nút Claim hoạt động | ✅ OK | Click → Modal mở |
-| Modal hiển thị | ✅ OK | Có tiêu đề "Claim CAMLY Rewards" |
-| Dữ liệu hiển thị | ✅ OK | Hiển thị đúng 50,000 CAMLY chờ duyệt |
-| Logic phân loại | ✅ OK | Phân biệt rõ approved vs pending |
+---
 
-### Lý Do Ban Đầu Hiển Thị Trống
+## Thiết Kế UI Mới
 
-1. **Thời gian loading**: Modal ban đầu hiển thị spinner trong khi fetch data từ Supabase
-2. **Delay render**: Có thể có độ trễ nhỏ giữa lúc modal mở và lúc content render
-3. **Network latency**: API request mất ~600-1000ms để trả về data
-
-### Dữ Liệu Trong Database
+### Trường Hợp 1: Đủ ngưỡng (≥ 200,000 CAMLY)
 
 ```text
-┌────────────────────────────────────────────────────────────────────┐
-│  reward_transactions (user: d06c21f9-a612-4d0e-8d22-05e89eb5120d) │
-├────────────────────────────────────────────────────────────────────┤
-│  reward_type: SIGNUP                                              │
-│  amount: 50,000 CAMLY                                             │
-│  claimed: false                                                   │
-│  approved: false  ← CHƯA ĐƯỢC ADMIN DUYỆT                        │
-│  status: success                                                  │
-│  created_at: 2026-01-29                                           │
-└────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────┐
+│  🎉 ĐỦ ĐIỀU KIỆN CLAIM!                           │
+│  ─────────────────────────────────────────────    │
+│  Bạn có 250,000 CAMLY đã duyệt.                  │
+│  Nhấn nút bên dưới để claim tự động về ví!       │
+└────────────────────────────────────────────────────┘
+```
+
+### Trường Hợp 2: Chưa đủ ngưỡng (< 200,000 CAMLY)
+
+```text
+┌────────────────────────────────────────────────────┐
+│  📊 TIẾN ĐỘ CLAIM                                 │
+│  ─────────────────────────────────────────────    │
+│  Hiện có: 50,000 / 200,000 CAMLY                 │
+│  ████████░░░░░░░░░░░░░░░░░░░░  25%               │
+│  ─────────────────────────────────────────────    │
+│  Còn cần: 150,000 CAMLY để claim tự động        │
+│  💡 Tiếp tục xem video, like, comment để tích   │
+│  lũy thêm phần thưởng!                           │
+└────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. Vấn Đề Tiềm Ẩn Cần Cải Thiện
+## Chi Tiết Thay Đổi
 
-Mặc dù hệ thống đang hoạt động đúng, có một số điểm có thể cải thiện để tránh hiện tượng "cửa sổ trống" trong tương lai:
+### File: `src/components/Rewards/ClaimRewardsModal.tsx`
 
-### 2.1. Loading State Quá Ngắn
+**1. Thêm constant cho ngưỡng claim:**
+```typescript
+const MIN_CLAIM_THRESHOLD = 200000; // 200,000 CAMLY
+```
 
-**Vấn Đề**: Spinner hiển thị rất nhỏ và có thể không thấy rõ khi loading nhanh
+**2. Tính toán logic ngưỡng:**
+```typescript
+const canClaim = totalUnclaimed >= MIN_CLAIM_THRESHOLD;
+const progressPercent = Math.min((totalUnclaimed / MIN_CLAIM_THRESHOLD) * 100, 100);
+const amountNeeded = Math.max(MIN_CLAIM_THRESHOLD - totalUnclaimed, 0);
+```
 
-**Giải Pháp**: Thêm skeleton loading thay vì chỉ spinner
+**3. Thêm component thông báo ngưỡng claim (sau phần Total Unclaimed):**
 
-### 2.2. Không Có Minimum Loading Time
+Nếu đủ ngưỡng:
+```typescript
+{totalUnclaimed >= MIN_CLAIM_THRESHOLD && (
+  <Alert className="border-green-500/30 bg-green-500/10">
+    <CheckCircle className="h-4 w-4 text-green-500" />
+    <AlertTitle className="text-green-600 font-semibold">
+      🎉 Đủ điều kiện claim!
+    </AlertTitle>
+    <AlertDescription className="text-sm text-muted-foreground">
+      Bạn có thể claim {formatNumber(totalUnclaimed)} CAMLY về ví ngay bây giờ!
+    </AlertDescription>
+  </Alert>
+)}
+```
 
-**Vấn Đề**: Nếu data trả về quá nhanh (cached), có thể gây hiệu ứng "nhấp nháy"
+Nếu chưa đủ ngưỡng (có phần thưởng nhưng dưới 200k):
+```typescript
+{totalUnclaimed > 0 && totalUnclaimed < MIN_CLAIM_THRESHOLD && (
+  <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 space-y-3">
+    <div className="flex items-center gap-2">
+      <Info className="h-4 w-4 text-blue-500" />
+      <span className="font-medium text-blue-600">Tiến độ đến ngưỡng claim</span>
+    </div>
+    
+    {/* Progress bar */}
+    <div className="space-y-1">
+      <div className="flex justify-between text-xs text-muted-foreground">
+        <span>{formatNumber(totalUnclaimed)} CAMLY</span>
+        <span>{formatNumber(MIN_CLAIM_THRESHOLD)} CAMLY</span>
+      </div>
+      <Progress value={progressPercent} className="h-2" />
+      <p className="text-xs text-center text-muted-foreground">
+        {progressPercent.toFixed(0)}% hoàn thành
+      </p>
+    </div>
+    
+    {/* Còn bao nhiêu */}
+    <p className="text-sm text-muted-foreground">
+      Còn cần thêm <span className="font-bold text-blue-500">{formatNumber(amountNeeded)}</span> CAMLY để claim tự động.
+    </p>
+    
+    {/* Gợi ý */}
+    <p className="text-xs text-muted-foreground italic">
+      💡 Tiếp tục xem video, like, comment để tích lũy thêm phần thưởng!
+    </p>
+  </div>
+)}
+```
 
-**Giải Pháp**: Thêm minimum 300ms delay để đảm bảo UX mượt mà
+**4. Cập nhật điều kiện nút Claim:**
+```typescript
+// Thay đổi từ:
+disabled={claiming || totalUnclaimed <= 0}
 
-### 2.3. Missing DialogDescription
+// Thành:
+disabled={claiming || totalUnclaimed < MIN_CLAIM_THRESHOLD}
 
-**Vấn Đề**: Console warning về missing `Description` cho DialogContent
-
-**Giải Pháp**: Thêm `<DialogDescription>` hoặc `aria-describedby={undefined}`
+// Và thay đổi text nút:
+{totalUnclaimed < MIN_CLAIM_THRESHOLD ? (
+  `Cần ${formatNumber(MIN_CLAIM_THRESHOLD - totalUnclaimed)} CAMLY nữa`
+) : (
+  <>
+    <Coins className="h-5 w-5 mr-2" />
+    Claim {formatNumber(totalUnclaimed)} CAMLY
+  </>
+)}
+```
 
 ---
 
-## 3. Kế Hoạch Cải Thiện
+## Cập Nhật Cho Mobile
 
-### File Cần Sửa
+Component này được sử dụng chung cho cả Desktop và Mobile (thông qua `UnifiedClaimButton`), nên các thay đổi sẽ tự động áp dụng cho mobile.
+
+**Responsive adjustments:**
+- Progress bar hiển thị đầy đủ trên mobile
+- Text size phù hợp với màn hình nhỏ
+- Các Alert/Card có padding phù hợp
+
+---
+
+## Import Cần Thêm
+
+```typescript
+import { Progress } from "@/components/ui/progress";
+import { Info } from "lucide-react";
+```
+
+---
+
+## Tóm Tắt Thay Đổi
 
 | File | Thay Đổi |
 |------|----------|
-| `ClaimRewardsModal.tsx` | Thêm DialogDescription, cải thiện loading UI |
-
-### Chi Tiết Thay Đổi
-
-**1. Thêm DialogDescription (Accessibility)**
-
-```typescript
-// Sau DialogTitle
-<DialogDescription className="sr-only">
-  Modal để claim phần thưởng CAMLY của bạn
-</DialogDescription>
-```
-
-**2. Cải Thiện Loading State**
-
-```typescript
-// Thay thế spinner đơn giản bằng skeleton UI
-{loading ? (
-  <div className="space-y-4 py-4">
-    {/* Skeleton cho reward card */}
-    <div className="p-6 rounded-2xl bg-muted/50 animate-pulse">
-      <div className="h-4 w-24 bg-muted rounded mb-2" />
-      <div className="h-8 w-32 bg-muted rounded" />
-    </div>
-    {/* Skeleton cho breakdown */}
-    <div className="space-y-2">
-      {[1, 2].map((i) => (
-        <div key={i} className="h-10 bg-muted rounded animate-pulse" />
-      ))}
-    </div>
-  </div>
-) : ( ... )}
-```
-
-**3. Thêm Minimum Loading Time**
-
-```typescript
-const fetchUnclaimedRewards = async () => {
-  setLoading(true);
-  const startTime = Date.now();
-  
-  try {
-    // ... fetch logic ...
-  } finally {
-    const elapsed = Date.now() - startTime;
-    const minDelay = 300;
-    if (elapsed < minDelay) {
-      await new Promise(r => setTimeout(r, minDelay - elapsed));
-    }
-    setLoading(false);
-  }
-};
-```
+| `src/components/Rewards/ClaimRewardsModal.tsx` | Thêm thông báo ngưỡng 200,000 CAMLY với progress bar, cập nhật điều kiện nút Claim |
 
 ---
 
-## 4. Kết Luận
+## Kết Quả Mong Đợi
 
-### Hiện Tại
-- ✅ **Hệ thống hoạt động đúng**: Modal hiển thị đúng thông tin
-- ✅ **Mobile đã cập nhật**: UnifiedClaimButton compact hoạt động tốt
-- ✅ **Đồng bộ với Admin system**: Phần thưởng đang chờ Admin duyệt
+1. **Người dùng đủ ngưỡng**: Thấy thông báo xanh "Đủ điều kiện claim!" và có thể nhấn nút claim ngay
+2. **Người dùng chưa đủ ngưỡng**: Thấy progress bar với phần trăm, biết còn cần bao nhiêu CAMLY, và được gợi ý cách kiếm thêm
+3. **Cập nhật real-time**: Khi Admin duyệt thêm rewards, progress bar sẽ tự động cập nhật (dựa trên realtime subscription đã có)
+4. **Mobile friendly**: Giao diện responsive, dễ đọc trên điện thoại
 
-### Phần Thưởng Của Bạn
-- **50,000 CAMLY** đang chờ Admin duyệt
-- Sau khi Admin approve, bạn có thể claim về ví
-
-### Đề Xuất
-Các cải thiện UX nhỏ ở trên sẽ giúp tránh hiện tượng "cửa sổ trống" trong tương lai và cải thiện trải nghiệm người dùng.
-
----
-
-## 5. Technical Notes
-
-- Modal đang hoạt động với real-time data từ Supabase
-- Query `reward_transactions` với `reward_type, amount, approved` đúng logic
-- Phân loại approved vs pending đúng theo thiết kế Admin system
-- Network latency ~600-1000ms là bình thường cho Supabase API
