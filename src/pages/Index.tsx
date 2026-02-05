@@ -1,15 +1,18 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/Layout/Header";
-import { Sidebar } from "@/components/Layout/Sidebar";
+import { CollapsibleSidebar } from "@/components/Layout/CollapsibleSidebar";
+import { HonoboardRightSidebar } from "@/components/Layout/HonoboardRightSidebar";
 import { MobileHeader } from "@/components/Layout/MobileHeader";
 import { MobileBottomNav } from "@/components/Layout/MobileBottomNav";
 import { MobileDrawer } from "@/components/Layout/MobileDrawer";
+import { MobileHonoboardCard } from "@/components/Layout/MobileHonoboardCard";
 import { CategoryChips } from "@/components/Layout/CategoryChips";
 import { VideoCard } from "@/components/Video/VideoCard";
 import { ContinueWatching } from "@/components/Video/ContinueWatching";
 import { BackgroundMusicPlayer } from "@/components/BackgroundMusicPlayer";
 import { PullToRefreshIndicator } from "@/components/Layout/PullToRefreshIndicator";
+import { HonobarDetailModal } from "@/components/Layout/HonobarDetailModal";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -17,7 +20,6 @@ import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useHapticFeedback } from "@/hooks/useHapticFeedback";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-
 
 interface Video {
   id: string;
@@ -38,8 +40,9 @@ interface Video {
 }
 
 const Index = () => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
+  const [showHonobarDetail, setShowHonobarDetail] = useState(false);
   const [videos, setVideos] = useState<Video[]>([]);
   const [loadingVideos, setLoadingVideos] = useState(true);
   const [currentMusicUrl, setCurrentMusicUrl] = useState<string | null>(null);
@@ -49,7 +52,16 @@ const Index = () => {
   const isMobile = useIsMobile();
   const { successFeedback } = useHapticFeedback();
 
-  // Fetch videos function (extracted for pull-to-refresh)
+  // Toggle sidebar expanded/collapsed
+  const handleMenuClick = () => {
+    if (isMobile) {
+      setIsMobileDrawerOpen(true);
+    } else {
+      setIsSidebarExpanded(!isSidebarExpanded);
+    }
+  };
+
+  // Fetch videos function
   const fetchVideos = useCallback(async () => {
     setLoadingVideos(true);
     try {
@@ -83,7 +95,6 @@ const Index = () => {
         return;
       }
 
-      // Fetch wallet addresses and avatars for all users
       if (data && data.length > 0) {
         const userIds = [...new Set(data.map(v => v.user_id))];
         const { data: profilesData } = await supabase
@@ -133,19 +144,12 @@ const Index = () => {
   useEffect(() => {
     fetchVideos();
 
-    // Real-time subscription for profile updates (avatars, etc.)
     const profileChannel = supabase
       .channel('profile-updates-homepage')
       .on(
         'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'profiles',
-        },
+        { event: 'UPDATE', schema: 'public', table: 'profiles' },
         (payload) => {
-          console.log('Profile updated in real-time:', payload);
-          // Update the specific user's profile in videos
           setVideos(prevVideos => 
             prevVideos.map(video => 
               video.user_id === payload.new.id
@@ -163,18 +167,12 @@ const Index = () => {
       )
       .subscribe();
 
-    // Real-time subscription for video updates (view counts, likes, etc.)
     const videoChannel = supabase
       .channel('video-updates-homepage')
       .on(
         'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'videos',
-        },
+        { event: 'UPDATE', schema: 'public', table: 'videos' },
         (payload) => {
-          console.log('Video updated in real-time:', payload);
           setVideos(prevVideos => 
             prevVideos.map(video => 
               video.id === payload.new.id
@@ -186,7 +184,6 @@ const Index = () => {
       )
       .subscribe();
 
-    // Listen for profile-updated event to refetch videos to get updated avatars
     const handleProfileUpdate = () => {
       fetchVideos();
     };
@@ -198,7 +195,7 @@ const Index = () => {
       supabase.removeChannel(videoChannel);
       window.removeEventListener('profile-updated', handleProfileUpdate);
     };
-  }, [toast]);
+  }, [fetchVideos, toast]);
 
   const handlePlayVideo = (videoId: string) => {
     navigate(`/watch/${videoId}`);
@@ -237,6 +234,12 @@ const Index = () => {
       className="min-h-screen bg-background relative overflow-hidden"
       {...(isMobile ? pullHandlers : {})}
     >
+      {/* Honor Board Detail Modal */}
+      <HonobarDetailModal 
+        isOpen={showHonobarDetail} 
+        onClose={() => setShowHonobarDetail(false)} 
+      />
+
       {/* Pull-to-refresh indicator */}
       {isMobile && (
         <PullToRefreshIndicator
@@ -247,10 +250,10 @@ const Index = () => {
         />
       )}
 
-      {/* Desktop Header & Sidebar */}
+      {/* Desktop Header & Collapsible Sidebar */}
       <div className="hidden lg:block">
-        <Header onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
-        <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+        <Header onMenuClick={handleMenuClick} />
+        <CollapsibleSidebar isExpanded={isSidebarExpanded} />
       </div>
 
       {/* Mobile Header & Drawer */}
@@ -260,58 +263,75 @@ const Index = () => {
         <MobileBottomNav />
       </div>
       
-      {/* Main content */}
-      <main className="pt-14 pb-20 lg:pb-0 lg:pl-64 relative z-10">
-        <CategoryChips />
-        {!user && (
-          <div className="glass-card mx-4 mt-4 rounded-xl border border-cosmic-magenta/50 p-4 shadow-[0_0_50px_rgba(217,0,255,0.5)]">
-            <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-              <p className="text-foreground font-medium text-center sm:text-left">
-                Join <span className="text-transparent bg-clip-text bg-gradient-to-r from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta font-bold">FUN Play</span> to upload videos, subscribe to channels, and tip creators!
-              </p>
-              <Button 
-                onClick={() => navigate("/auth")} 
-                className="bg-gradient-to-r from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta hover:shadow-[0_0_70px_rgba(0,255,255,1)] transition-all duration-500 border border-glow-cyan"
-              >
-                Sign In / Sign Up
-              </Button>
+      {/* Main content - 3 column layout */}
+      <main className={`pt-14 pb-20 lg:pb-0 transition-all duration-300 ${
+        isSidebarExpanded ? 'lg:pl-60' : 'lg:pl-16'
+      }`}>
+        <div className="flex">
+          {/* Center content area */}
+          <div className="flex-1 min-w-0">
+            <CategoryChips />
+            
+            {/* Mobile Honor Board Card */}
+            <div className="lg:hidden px-4 mb-4">
+              <MobileHonoboardCard onClick={() => setShowHonobarDetail(true)} />
+            </div>
+
+            {!user && (
+              <div className="glass-card mx-4 mt-4 rounded-xl border border-cosmic-magenta/50 p-4 shadow-[0_0_50px_rgba(217,0,255,0.5)]">
+                <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <p className="text-foreground font-medium text-center sm:text-left">
+                    Join <span className="text-transparent bg-clip-text bg-gradient-to-r from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta font-bold">FUN Play</span> to upload videos, subscribe to channels, and tip creators!
+                  </p>
+                  <Button 
+                    onClick={() => navigate("/auth")} 
+                    className="bg-gradient-to-r from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta hover:shadow-[0_0_70px_rgba(0,255,255,1)] transition-all duration-500 border border-glow-cyan"
+                  >
+                    Sign In / Sign Up
+                  </Button>
+                </div>
+              </div>
+            )}
+            
+            <div className="p-4 lg:p-6">
+              {/* Continue Watching Section */}
+              {user && <ContinueWatching />}
+              
+              {loadingVideos ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-6">
+                  {[...Array(6)].map((_, i) => (
+                    <VideoCard key={`skeleton-${i}`} isLoading={true} />
+                  ))}
+                </div>
+              ) : videos.length === 0 ? (
+                <div className="text-center py-20 glass-card rounded-2xl mx-auto max-w-2xl shadow-[0_0_60px_rgba(0,102,255,0.5)]">
+                  <p className="text-foreground text-2xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta">Chưa có video nào</p>
+                  <p className="text-sm text-muted-foreground mt-2">Hãy tải video đầu tiên lên và khám phá vũ trụ âm nhạc đầy năng lượng tình yêu!</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-6">
+                  {videos.map((video) => (
+                    <VideoCard
+                      key={video.id}
+                      videoId={video.id}
+                      userId={video.user_id}
+                      channelId={video.channels?.id}
+                      thumbnail={video.thumbnail_url || undefined}
+                      title={video.title}
+                      channel={video.channels?.name || "Unknown Channel"}
+                      avatarUrl={video.profiles?.avatar_url || undefined}
+                      views={formatViews(video.view_count)}
+                      timestamp={formatTimestamp(video.created_at)}
+                      onPlay={handlePlayVideo}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           </div>
-        )}
-        
-        <div className="p-6">
-          {/* Continue Watching Section */}
-          {user && <ContinueWatching />}
-          {loadingVideos ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {[...Array(8)].map((_, i) => (
-                <VideoCard key={`skeleton-${i}`} isLoading={true} />
-              ))}
-            </div>
-          ) : videos.length === 0 ? (
-            <div className="text-center py-20 glass-card rounded-2xl mx-auto max-w-2xl shadow-[0_0_60px_rgba(0,102,255,0.5)]">
-              <p className="text-foreground text-2xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta">Chưa có video nào</p>
-              <p className="text-sm text-muted-foreground mt-2">Hãy tải video đầu tiên lên và khám phá vũ trụ âm nhạc đầy năng lượng tình yêu!</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-              {videos.map((video) => (
-                <VideoCard
-                  key={video.id}
-                  videoId={video.id}
-                  userId={video.user_id}
-                  channelId={video.channels?.id}
-                  thumbnail={video.thumbnail_url || undefined}
-                  title={video.title}
-                  channel={video.channels?.name || "Unknown Channel"}
-                  avatarUrl={video.profiles?.avatar_url || undefined}
-                  views={formatViews(video.view_count)}
-                  timestamp={formatTimestamp(video.created_at)}
-                  onPlay={handlePlayVideo}
-                />
-              ))}
-            </div>
-          )}
+
+          {/* Right sidebar - Honor Board (desktop only) */}
+          <HonoboardRightSidebar />
         </div>
       </main>
 
