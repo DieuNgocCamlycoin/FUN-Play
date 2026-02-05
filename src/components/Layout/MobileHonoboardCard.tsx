@@ -80,20 +80,8 @@ export const MobileHonoboardCard = ({ onClick, className }: MobileHonoboardCardP
         />
       </div>
 
-      {/* Top Creator Preview + Live Indicator */}
-      <div className="mt-2 pt-2 border-t border-[#00E7FF]/20 flex items-center justify-between">
-        {stats.topCreator ? (
-          <div className="flex items-center gap-1.5 text-xs">
-            <span className="text-muted-foreground">🏆 Top:</span>
-            <span className="font-medium text-[#7A2BFF] truncate max-w-[120px]">
-              {stats.topCreator.displayName}
-            </span>
-          </div>
-        ) : (
-          <span className="text-xs text-muted-foreground">No creators yet</span>
-        )}
-        
-        {/* Realtime indicator */}
+      {/* Realtime indicator */}
+      <div className="mt-2 pt-2 border-t border-[#00E7FF]/20 flex items-center justify-center">
         <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
           <motion.span 
             className="relative flex h-1.5 w-1.5"
@@ -103,7 +91,7 @@ export const MobileHonoboardCard = ({ onClick, className }: MobileHonoboardCardP
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
             <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-500" />
           </motion.span>
-          <span>Live</span>
+          <span>Live • Tap for details</span>
         </div>
       </div>
     </motion.button>
