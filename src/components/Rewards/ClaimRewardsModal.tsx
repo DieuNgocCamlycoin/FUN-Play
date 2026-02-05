@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Coins, Sparkles, Gift, CheckCircle, Loader2, ExternalLink, Wallet, Smartphone, AlertCircle, HelpCircle, Clock, ShieldCheck, Info } from "lucide-react";
+import { Coins, Sparkles, Gift, CheckCircle, Loader2, ExternalLink, Wallet, Smartphone, AlertCircle, HelpCircle, Clock, ShieldCheck, Info, TrendingUp } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
@@ -67,6 +67,7 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
   const [inWalletApp, setInWalletApp] = useState(false);
   const [showWalletGuide, setShowWalletGuide] = useState(false);
   const [claimError, setClaimError] = useState<string | null>(null);
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     setIsMobile(isMobileBrowser());
@@ -103,10 +104,13 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
 
     return () => {
       supabase.removeChannel(channel);
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
     };
   }, [open, user?.id]);
 
-  const fetchUnclaimedRewards = async () => {
+  const fetchUnclaimedRewardsInternal = async () => {
     if (!user) return;
     
     setLoading(true);
@@ -174,6 +178,15 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
       setLoading(false);
     }
   };
+
+  const fetchUnclaimedRewards = useCallback(() => {
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+    debounceTimeoutRef.current = setTimeout(() => {
+      fetchUnclaimedRewardsInternal();
+    }, 300);
+  }, [user]);
 
   const handleClaim = async () => {
     if (!user || !isConnected || !address) {
@@ -301,19 +314,22 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
         <div className="space-y-6 py-4">
           {loading ? (
             <div className="space-y-4">
-              {/* Skeleton for reward card */}
+              {/* Skeleton for summary card */}
+              <div className="p-4 rounded-xl bg-muted/30 border border-border space-y-3">
+                <Skeleton className="h-4 w-40" />
+                <div className="grid grid-cols-2 gap-3">
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                </div>
+                <Skeleton className="h-10 w-full" />
+              </div>
+              {/* Skeleton for main reward card */}
               <div className="p-6 rounded-2xl bg-gradient-to-r from-yellow-500/10 via-cyan-500/10 to-yellow-500/10 border border-yellow-500/20">
                 <div className="text-center space-y-3">
                   <Skeleton className="h-4 w-32 mx-auto" />
                   <Skeleton className="h-10 w-40 mx-auto" />
                   <Skeleton className="h-3 w-16 mx-auto" />
                 </div>
-              </div>
-              {/* Skeleton for breakdown items */}
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-48" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
               </div>
               {/* Skeleton for button */}
               <Skeleton className="h-12 w-full rounded-lg" />
@@ -365,19 +381,66 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
             </motion.div>
           ) : (
             <>
+              {/* 📊 TỔNG QUAN PHẦN THƯỞNG - Summary Card */}
+              <motion.div
+                initial={{ y: -10, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                className="p-4 rounded-xl bg-gradient-to-br from-muted/50 to-muted/30 border border-border space-y-3"
+              >
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-primary" />
+                  <span className="font-semibold text-sm">Tổng quan phần thưởng</span>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Có thể claim ngay */}
+                  <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20 text-center">
+                    <div className="flex items-center justify-center gap-1 mb-1">
+                      <ShieldCheck className="h-3 w-3 text-green-500" />
+                      <span className="text-[10px] text-green-600 font-medium">Có thể claim</span>
+                    </div>
+                    <p className="text-lg font-bold text-green-500">
+                      {formatNumber(totalUnclaimed)}
+                    </p>
+                  </div>
+                  
+                  {/* Chờ duyệt */}
+                  <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-center">
+                    <div className="flex items-center justify-center gap-1 mb-1">
+                      <Clock className="h-3 w-3 text-yellow-500" />
+                      <span className="text-[10px] text-yellow-600 font-medium">Chờ duyệt</span>
+                    </div>
+                    <p className="text-lg font-bold text-yellow-500">
+                      {formatNumber(totalPending)}
+                    </p>
+                  </div>
+                </div>
+                
+                {/* Tổng cộng */}
+                <div className="p-3 rounded-lg bg-gradient-to-r from-yellow-500/10 via-cyan-500/10 to-yellow-500/10 border border-primary/20 text-center">
+                  <div className="flex items-center justify-center gap-1 mb-1">
+                    <Coins className="h-3 w-3 text-primary" />
+                    <span className="text-[10px] text-muted-foreground font-medium">TỔNG CỘNG</span>
+                  </div>
+                  <p className="text-xl font-bold bg-gradient-to-r from-yellow-500 to-cyan-500 bg-clip-text text-transparent">
+                    {formatNumber(totalUnclaimed + totalPending)} CAMLY
+                  </p>
+                </div>
+              </motion.div>
+
               {/* Total Unclaimed */}
               <motion.div
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
-                className="relative p-6 rounded-2xl bg-gradient-to-r from-yellow-500/20 via-cyan-500/20 to-yellow-500/20 border border-yellow-500/30"
+                className="relative p-6 rounded-2xl bg-gradient-to-r from-green-500/20 via-cyan-500/20 to-green-500/20 border border-green-500/30"
               >
                 <motion.div
                   className="absolute inset-0 rounded-2xl"
                   animate={{
                     boxShadow: [
-                      "0 0 20px rgba(255, 215, 0, 0.3)",
+                      "0 0 20px rgba(34, 197, 94, 0.3)",
                       "0 0 40px rgba(64, 224, 208, 0.3)",
-                      "0 0 20px rgba(255, 215, 0, 0.3)",
+                      "0 0 20px rgba(34, 197, 94, 0.3)",
                     ],
                   }}
                   transition={{ duration: 2, repeat: Infinity }}
@@ -389,13 +452,13 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
                       animate={{ rotate: 360 }}
                       transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
                     >
-                      <Coins className="h-8 w-8 text-yellow-500" />
+                      <Coins className="h-8 w-8 text-green-500" />
                     </motion.div>
-                    <span className="text-sm text-muted-foreground">Phần thưởng chờ claim</span>
+                    <span className="text-sm text-muted-foreground">✅ Có thể claim ngay (đã duyệt)</span>
                   </div>
                   
                   <motion.p
-                    className="text-4xl font-bold bg-gradient-to-r from-yellow-400 to-cyan-400 bg-clip-text text-transparent"
+                    className="text-4xl font-bold bg-gradient-to-r from-green-400 to-cyan-400 bg-clip-text text-transparent"
                     animate={{ scale: [1, 1.02, 1] }}
                     transition={{ duration: 2, repeat: Infinity }}
                   >
@@ -516,13 +579,26 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
 
               {/* Thông báo khi không có reward nào để claim */}
               {totalUnclaimed === 0 && totalPending > 0 && (
-                <Alert className="border-orange-500/30 bg-orange-500/10">
-                  <AlertCircle className="h-4 w-4 text-orange-500" />
-                  <AlertTitle className="text-orange-600 font-semibold">
-                    Chưa thể claim
+                <Alert className="border-cyan-500/30 bg-cyan-500/10">
+                  <Sparkles className="h-4 w-4 text-cyan-500" />
+                  <AlertTitle className="text-cyan-600 font-semibold">
+                    🎉 Bạn có {formatNumber(totalPending)} CAMLY đang chờ duyệt!
                   </AlertTitle>
                   <AlertDescription className="text-sm text-muted-foreground">
-                    Tất cả phần thưởng của bạn đang chờ Admin duyệt. Vui lòng quay lại sau khi nhận được thông báo duyệt!
+                    Phần thưởng của bạn đang được xem xét bởi Admin. Sau khi duyệt, bạn có thể claim ngay! Thời gian duyệt thường từ 1-24 giờ.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* Thông báo khi không có reward gì cả */}
+              {totalUnclaimed === 0 && totalPending === 0 && (
+                <Alert className="border-muted bg-muted/30">
+                  <Info className="h-4 w-4 text-muted-foreground" />
+                  <AlertTitle className="text-muted-foreground font-semibold">
+                    Chưa có phần thưởng
+                  </AlertTitle>
+                  <AlertDescription className="text-sm text-muted-foreground">
+                    Hãy xem video, like, comment để tích lũy CAMLY! 💡
                   </AlertDescription>
                 </Alert>
               )}
