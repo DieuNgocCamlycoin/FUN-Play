@@ -1,28 +1,15 @@
-import { Crown, Users, Video, Eye, MessageCircle, Coins, Trophy } from "lucide-react";
+import { Crown, Users, Video, Eye, MessageCircle, Coins } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useHonobarStats } from "@/hooks/useHonobarStats";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { CounterAnimation } from "@/components/Layout/CounterAnimation";
 import { TopRankingSection } from "@/components/Layout/TopRankingSection";
+import { TopSponsorSection } from "@/components/Layout/TopSponsorSection";
 
 interface HonoboardRightSidebarProps {
   className?: string;
 }
-
-const formatNumber = (num: number): string => {
-  if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
-  if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
-  return num.toLocaleString();
-};
-
-const getRankBadge = (rank: number): string => {
-  if (rank === 1) return "🥇";
-  if (rank === 2) return "🥈";
-  if (rank === 3) return "🥉";
-  return `${rank}.`;
-};
 
 interface StatPillProps {
   icon: React.ElementType;
@@ -144,91 +131,11 @@ export const HonoboardRightSidebar = ({ className }: HonoboardRightSidebarProps)
           ))}
         </motion.div>
 
-        {/* Top 10 Creators */}
-        <motion.div 
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="p-3 rounded-xl
-            bg-gradient-to-br from-[#F0FDFF] via-white to-[#FFF8F0]
-            border border-[#00E7FF]/25"
-        >
-          <h3 className="text-xs font-semibold text-muted-foreground mb-3 flex items-center gap-2 uppercase tracking-wide">
-            <Trophy className="h-4 w-4 text-[#FFD700]" />
-            Top 10 Creators
-          </h3>
-          
-          {loading ? (
-            <div className="space-y-2">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="flex items-center gap-2 p-2 animate-pulse">
-                  <div className="w-8 h-8 rounded-full bg-muted" />
-                  <div className="flex-1 space-y-1">
-                    <div className="h-3 bg-muted rounded w-24" />
-                    <div className="h-2 bg-muted rounded w-16" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : stats.topCreators.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">
-              No creators yet
-            </p>
-          ) : (
-            <div className="space-y-1">
-              {stats.topCreators.map((creator, index) => (
-                <motion.div 
-                  key={creator.userId}
-                  initial={{ opacity: 0, x: 10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  whileHover={{ scale: 1.02, x: 4 }}
-                  className={cn(
-                    "flex items-center gap-2 p-2 rounded-lg transition-all duration-200",
-                    "hover:bg-[#F0FDFF]",
-                    index === 0 && "bg-gradient-to-r from-[#FFF8E1] to-transparent border border-[#FFD700]/30",
-                    index === 1 && "bg-gradient-to-r from-gray-100/50 to-transparent",
-                    index === 2 && "bg-gradient-to-r from-orange-50/50 to-transparent"
-                  )}
-                >
-                  <span className="w-6 text-center font-medium text-sm">
-                    {getRankBadge(index + 1)}
-                  </span>
-                  <Avatar className={cn(
-                    "h-8 w-8 border-2",
-                    index === 0 && "border-[#FFD700] ring-2 ring-[rgba(255,215,0,0.3)] shadow-[0_0_15px_rgba(255,215,0,0.5),0_0_25px_rgba(0,231,255,0.3)]",
-                    index === 1 && "border-gray-400",
-                    index === 2 && "border-orange-400",
-                    index > 2 && "border-border"
-                  )}>
-                    <AvatarImage src={creator.avatarUrl || undefined} />
-                    <AvatarFallback className="text-xs bg-gradient-to-br from-[#F0FDFF] to-[#FFF8F0]">
-                      {creator.displayName.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate text-[#7A2BFF]">
-                      {creator.displayName}
-                    </p>
-                    <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                      <span className="flex items-center gap-0.5">
-                        <Video className="h-3 w-3" />
-                        {creator.videoCount}
-                      </span>
-                      <span className="flex items-center gap-0.5">
-                        <Eye className="h-3 w-3" />
-                        {formatNumber(creator.totalViews)}
-                      </span>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          )}
-        </motion.div>
-
-        {/* Top 5 Ranking Section */}
+        {/* Top 5 Ranking (CAMLY Rewards) */}
         <TopRankingSection />
+
+        {/* Top Sponsors + Donate Button */}
+        <TopSponsorSection />
 
         {/* FUN Play Branding */}
         <div className="mt-4 p-3 text-center">

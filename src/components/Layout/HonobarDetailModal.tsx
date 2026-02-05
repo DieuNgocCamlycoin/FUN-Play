@@ -1,9 +1,13 @@
-import { Crown, Users, Video, Eye, MessageSquare, Coins, Trophy, TrendingUp } from "lucide-react";
+import { Crown, Users, Video, Eye, MessageSquare, Coins, Gem, TrendingUp, Heart, Medal } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { useHonobarStats } from "@/hooks/useHonobarStats";
+import { useTopRanking } from "@/hooks/useTopRanking";
+import { useTopSponsors } from "@/hooks/useTopSponsors";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CounterAnimation } from "@/components/Layout/CounterAnimation";
 import { cn } from "@/lib/utils";
@@ -54,7 +58,17 @@ const StatPill = ({ icon: Icon, label, value, index }: StatPillProps) => (
   </motion.div>
 );
 
-const ModalContent = ({ stats, loading }: { stats: ReturnType<typeof useHonobarStats>['stats'], loading: boolean }) => {
+interface ModalContentProps {
+  stats: ReturnType<typeof useHonobarStats>['stats'];
+  loading: boolean;
+  ranking: ReturnType<typeof useTopRanking>['users'];
+  rankingLoading: boolean;
+  sponsors: ReturnType<typeof useTopSponsors>['sponsors'];
+  sponsorsLoading: boolean;
+  onDonate: () => void;
+}
+
+const ModalContent = ({ stats, loading, ranking, rankingLoading, sponsors, sponsorsLoading, onDonate }: ModalContentProps) => {
   const statItems = [
     { icon: Users, label: "TOTAL USERS", value: stats.totalUsers },
     { icon: MessageSquare, label: "TOTAL COMMENTS", value: stats.totalComments },
@@ -64,7 +78,7 @@ const ModalContent = ({ stats, loading }: { stats: ReturnType<typeof useHonobarS
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Header with Crown */}
       <div className="flex items-center justify-center gap-3">
         <motion.div
@@ -97,7 +111,7 @@ const ModalContent = ({ stats, loading }: { stats: ReturnType<typeof useHonobarS
         ))}
       </div>
 
-      {/* Top 10 Creators */}
+      {/* Top 5 Ranking */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -105,76 +119,117 @@ const ModalContent = ({ stats, loading }: { stats: ReturnType<typeof useHonobarS
         className="border-t border-[#00E7FF]/30 pt-4"
       >
         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
-          <Trophy className="w-4 h-4 text-[#FFD700]" />
-          <span className="font-semibold uppercase tracking-wide">Top 10 Creators</span>
+          <Medal className="w-4 h-4 text-[#FFD700]" />
+          <span className="font-semibold uppercase tracking-wide">Top 5 Ranking</span>
         </div>
         
-        {loading ? (
+        {rankingLoading ? (
           <div className="space-y-2">
-            {[...Array(5)].map((_, i) => (
+            {[...Array(3)].map((_, i) => (
               <div key={i} className="flex items-center gap-2 p-2 animate-pulse">
-                <div className="w-8 h-8 rounded-full bg-muted" />
-                <div className="flex-1 space-y-1">
-                  <div className="h-3 bg-muted rounded w-24" />
-                  <div className="h-2 bg-muted rounded w-16" />
-                </div>
+                <div className="w-6 h-6 rounded-full bg-muted" />
+                <div className="flex-1 h-3 bg-muted rounded w-24" />
               </div>
             ))}
           </div>
-        ) : stats.topCreators.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-4">
-            No creators yet
-          </p>
+        ) : ranking.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-2">No rankings yet</p>
         ) : (
-          <div className="space-y-1 max-h-[200px] overflow-y-auto">
-            {stats.topCreators.map((creator, index) => (
-              <motion.div 
-                key={creator.userId}
-                initial={{ opacity: 0, x: 10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.5 + index * 0.05 }}
+          <div className="space-y-1">
+            {ranking.slice(0, 5).map((user, index) => (
+              <div
+                key={user.id}
                 className={cn(
-                  "flex items-center gap-2 p-2 rounded-lg transition-all duration-200",
-                  "hover:bg-[#F0FDFF]",
+                  "flex items-center gap-2 p-2 rounded-lg",
                   index === 0 && "bg-gradient-to-r from-[#FFF8E1] to-transparent border border-[#FFD700]/30",
                   index === 1 && "bg-gradient-to-r from-gray-100/50 to-transparent",
                   index === 2 && "bg-gradient-to-r from-orange-50/50 to-transparent"
                 )}
               >
-                <span className="w-6 text-center font-medium text-sm">
-                  {getRankBadge(index + 1)}
-                </span>
-                <Avatar className={cn(
-                  "h-8 w-8 border-2",
-                  index === 0 && "border-[#FFD700] ring-2 ring-[rgba(255,215,0,0.3)]",
-                  index === 1 && "border-gray-400",
-                  index === 2 && "border-orange-400",
-                  index > 2 && "border-border"
-                )}>
-                  <AvatarImage src={creator.avatarUrl || undefined} />
-                  <AvatarFallback className="text-xs bg-gradient-to-br from-[#F0FDFF] to-[#FFF8F0]">
-                    {creator.displayName.charAt(0).toUpperCase()}
+                <span className="w-5 text-center text-sm">{getRankBadge(index + 1)}</span>
+                <Avatar className="h-6 w-6 border">
+                  <AvatarImage src={user.avatar_url || undefined} />
+                  <AvatarFallback className="text-[10px]">
+                    {(user.display_name || user.username).charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate text-[#7A2BFF]">
-                    {creator.displayName}
-                  </p>
-                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                    <span className="flex items-center gap-0.5">
-                      <Video className="h-3 w-3" />
-                      {creator.videoCount}
-                    </span>
-                    <span className="flex items-center gap-0.5">
-                      <Eye className="h-3 w-3" />
-                      {formatNumber(creator.totalViews)}
-                    </span>
-                  </div>
-                </div>
-              </motion.div>
+                <span className="flex-1 text-sm font-medium text-[#7A2BFF] truncate">
+                  {user.display_name || user.username}
+                </span>
+                <span className="text-xs font-bold text-[#FFD700]">
+                  {formatNumber(user.total_camly_rewards)} CAMLY
+                </span>
+              </div>
             ))}
           </div>
         )}
+      </motion.div>
+
+      {/* Top Sponsors */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+        className="border-t border-[#00E7FF]/30 pt-4"
+      >
+        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
+          <Gem className="w-4 h-4 text-[#FF00E5]" />
+          <span className="font-semibold uppercase tracking-wide">Top Sponsors</span>
+        </div>
+        
+        {sponsorsLoading ? (
+          <div className="space-y-2">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="flex items-center gap-2 p-2 animate-pulse">
+                <div className="w-6 h-6 rounded-full bg-muted" />
+                <div className="flex-1 h-3 bg-muted rounded w-24" />
+              </div>
+            ))}
+          </div>
+        ) : sponsors.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-2">No sponsors yet</p>
+        ) : (
+          <div className="space-y-1">
+            {sponsors.slice(0, 5).map((sponsor, index) => (
+              <div
+                key={sponsor.userId}
+                className={cn(
+                  "flex items-center gap-2 p-2 rounded-lg",
+                  index === 0 && "bg-gradient-to-r from-[#FFF8E1] to-transparent border border-[#FFD700]/30",
+                  index === 1 && "bg-gradient-to-r from-gray-100/50 to-transparent",
+                  index === 2 && "bg-gradient-to-r from-orange-50/50 to-transparent"
+                )}
+              >
+                <span className="w-5 text-center text-sm">{getRankBadge(index + 1)}</span>
+                <Avatar className="h-6 w-6 border">
+                  <AvatarImage src={sponsor.avatarUrl || undefined} />
+                  <AvatarFallback className="text-[10px]">
+                    {(sponsor.displayName || sponsor.username).charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="flex-1 text-sm font-medium text-[#7A2BFF] truncate">
+                  {sponsor.displayName || sponsor.username}
+                </span>
+                <span className="text-xs font-bold text-[#FFD700]">
+                  {formatNumber(sponsor.totalDonated)}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Donate Button */}
+        <Button
+          onClick={onDonate}
+          className="w-full mt-3 bg-gradient-to-r from-[#FF00E5] via-[#7A2BFF] to-[#00E7FF]
+            text-white font-bold text-sm
+            shadow-[0_0_15px_rgba(255,0,229,0.3)]
+            hover:shadow-[0_0_25px_rgba(122,43,255,0.5)]
+            border-0 rounded-full"
+        >
+          <Heart className="h-4 w-4 mr-2 fill-white" />
+          Donate to Project
+        </Button>
       </motion.div>
 
       {/* Extended Details */}
@@ -189,21 +244,15 @@ const ModalContent = ({ stats, loading }: { stats: ReturnType<typeof useHonobarS
           <span className="font-medium">Chi tiết thêm:</span>
         </div>
         
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+        <div className="grid grid-cols-2 gap-2 text-sm">
           <div className="flex justify-between items-center p-2 rounded-lg bg-gradient-to-r from-[#F0FDFF] to-[#FFF8F0]">
-            <span className="text-muted-foreground">Total CAMLY Distributed:</span>
+            <span className="text-muted-foreground text-xs">CAMLY Distributed:</span>
             <span className="font-bold text-[#7A2BFF]">{formatNumber(stats.totalRewards)}</span>
           </div>
           <div className="flex justify-between items-center p-2 rounded-lg bg-gradient-to-r from-[#F0FDFF] to-[#FFF8F0]">
-            <span className="text-muted-foreground">Total Subscriptions:</span>
+            <span className="text-muted-foreground text-xs">Subscriptions:</span>
             <span className="font-bold text-[#7A2BFF]">{formatNumber(stats.totalSubscriptions)}</span>
           </div>
-          {stats.topCreator && (
-            <div className="flex justify-between items-center p-2 rounded-lg bg-gradient-to-r from-[#F0FDFF] to-[#FFF8F0] sm:col-span-2">
-              <span className="text-muted-foreground">Top Creator Video Count:</span>
-              <span className="font-bold text-[#7A2BFF]">{stats.topCreator.videoCount} videos</span>
-            </div>
-          )}
         </div>
       </motion.div>
 
@@ -222,7 +271,15 @@ const ModalContent = ({ stats, loading }: { stats: ReturnType<typeof useHonobarS
 
 export const HonobarDetailModal = ({ isOpen, onClose }: HonobarDetailModalProps) => {
   const { stats, loading } = useHonobarStats();
+  const { users: ranking, loading: rankingLoading } = useTopRanking(5);
+  const { sponsors, loading: sponsorsLoading } = useTopSponsors(5);
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
+
+  const handleDonate = () => {
+    onClose();
+    navigate("/wallet");
+  };
 
   // Mobile: Use Sheet (bottom drawer)
   if (isMobile) {
@@ -230,13 +287,21 @@ export const HonobarDetailModal = ({ isOpen, onClose }: HonobarDetailModalProps)
       <Sheet open={isOpen} onOpenChange={onClose}>
         <SheetContent 
           side="bottom" 
-          className="h-[85vh] rounded-t-3xl bg-gradient-to-b from-white to-[#F0FDFF] border-t-2 border-[#00E7FF]/50"
+          className="h-[90vh] rounded-t-3xl bg-gradient-to-b from-white to-[#F0FDFF] border-t-2 border-[#00E7FF]/50"
         >
           <SheetHeader className="sr-only">
             <SheetTitle>Honor Board</SheetTitle>
           </SheetHeader>
           <div className="pt-4 pb-8 overflow-y-auto max-h-full">
-            <ModalContent stats={stats} loading={loading} />
+            <ModalContent 
+              stats={stats} 
+              loading={loading} 
+              ranking={ranking}
+              rankingLoading={rankingLoading}
+              sponsors={sponsors}
+              sponsorsLoading={sponsorsLoading}
+              onDonate={handleDonate}
+            />
           </div>
         </SheetContent>
       </Sheet>
@@ -247,14 +312,22 @@ export const HonobarDetailModal = ({ isOpen, onClose }: HonobarDetailModalProps)
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent 
-        className="max-w-lg bg-gradient-to-br from-white via-[#F0FDFF] to-[#FFF8F0] 
+        className="max-w-lg max-h-[90vh] overflow-y-auto bg-gradient-to-br from-white via-[#F0FDFF] to-[#FFF8F0] 
           border-2 border-[#00E7FF]/50
           shadow-[0_0_40px_rgba(0,231,255,0.3),0_0_80px_rgba(122,43,255,0.2)]"
       >
         <DialogHeader className="sr-only">
           <DialogTitle>Honor Board</DialogTitle>
         </DialogHeader>
-        <ModalContent stats={stats} loading={loading} />
+        <ModalContent 
+          stats={stats} 
+          loading={loading} 
+          ranking={ranking}
+          rankingLoading={rankingLoading}
+          sponsors={sponsors}
+          sponsorsLoading={sponsorsLoading}
+          onDonate={handleDonate}
+        />
       </DialogContent>
     </Dialog>
   );
