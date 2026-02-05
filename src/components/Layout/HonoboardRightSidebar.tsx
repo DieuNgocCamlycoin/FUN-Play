@@ -3,6 +3,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useHonobarStats } from "@/hooks/useHonobarStats";
 import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
+import { CounterAnimation } from "@/components/Layout/CounterAnimation";
 
 interface HonoboardRightSidebarProps {
   className?: string;
@@ -21,73 +23,151 @@ const getRankBadge = (rank: number): string => {
   return `${rank}.`;
 };
 
+interface StatItemProps {
+  icon: React.ElementType;
+  label: string;
+  value: number;
+  loading: boolean;
+}
+
+const StatItem = ({ icon: Icon, label, value, loading }: StatItemProps) => (
+  <motion.div
+    whileHover={{ scale: 1.02, borderColor: "rgba(255,215,0,0.6)" }}
+    className="flex-1 flex items-center gap-2 p-2.5 rounded-xl
+      bg-gradient-to-br from-[rgba(0,231,255,0.08)] to-[rgba(255,215,0,0.08)]
+      border border-[rgba(0,231,255,0.3)]
+      hover:shadow-[0_0_15px_rgba(0,231,255,0.3)]
+      transition-all duration-200"
+  >
+    <Icon className="h-4 w-4 text-[#00E7FF] shrink-0" />
+    <div className="flex flex-col min-w-0">
+      <span className="text-[10px] text-muted-foreground uppercase tracking-wide">{label}</span>
+      <span className="text-sm font-bold text-sky-700">
+        {loading ? "..." : <CounterAnimation value={value} duration={800} />}
+      </span>
+    </div>
+  </motion.div>
+);
+
 export const HonoboardRightSidebar = ({ className }: HonoboardRightSidebarProps) => {
   const { stats, loading } = useHonobarStats();
 
-  const statItems = [
-    { icon: Users, label: "Users", value: stats.totalUsers, color: "text-sky-500" },
-    { icon: Video, label: "Videos", value: stats.totalVideos, color: "text-purple-500" },
-    { icon: Eye, label: "Views", value: stats.totalViews, color: "text-cyan-500" },
-    { icon: MessageCircle, label: "Comments", value: stats.totalComments, color: "text-green-500" },
-    { icon: Bell, label: "Subscriptions", value: stats.totalSubscriptions, color: "text-orange-500" },
-    { icon: Coins, label: "CAMLY Pool", value: stats.camlyPool, color: "text-yellow-500" },
+  // Stats organized in rows (2 items per row)
+  const statRows = [
+    [
+      { icon: Users, label: "Users", value: stats.totalUsers },
+      { icon: Video, label: "Videos", value: stats.totalVideos },
+    ],
+    [
+      { icon: Eye, label: "Views", value: stats.totalViews },
+      { icon: MessageCircle, label: "Comments", value: stats.totalComments },
+    ],
+    [
+      { icon: Coins, label: "CAMLY Pool", value: stats.camlyPool },
+      { icon: Bell, label: "Subs", value: stats.totalSubscriptions },
+    ],
   ];
 
   return (
     <aside 
       className={cn(
-        "hidden xl:flex flex-col w-72 shrink-0 h-[calc(100vh-3.5rem)] sticky top-14",
+        "hidden xl:flex flex-col w-72 shrink-0 h-[calc(100vh-3.5rem)]",
+        "fixed right-0 top-14 z-40",
+        "bg-gradient-to-b from-white via-white to-[rgba(0,231,255,0.02)]",
+        "border-l-2 border-[rgba(0,231,255,0.3)]",
+        "shadow-[-10px_0_30px_rgba(0,231,255,0.1)]",
         className
       )}
     >
       <ScrollArea className="flex-1 px-3 py-4">
-        {/* Header */}
-        <div className="relative mb-4 p-4 rounded-xl bg-gradient-to-br from-yellow-50 via-white to-cyan-50 border-2 border-yellow-400/30 shadow-[0_0_20px_rgba(250,204,21,0.2)]">
-          <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-yellow-400/10 via-transparent to-cyan-400/10 animate-pulse" />
+        {/* Header with Aurora gradient */}
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative mb-4 p-4 rounded-xl overflow-hidden
+            bg-gradient-to-br from-white via-[rgba(0,231,255,0.05)] to-[rgba(255,215,0,0.1)]
+            border-2 border-[rgba(0,231,255,0.4)]
+            shadow-[0_0_25px_rgba(0,231,255,0.2)]"
+        >
+          {/* Shimmer effect */}
+          <motion.div
+            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -skew-x-12"
+            animate={{ x: ["-200%", "200%"] }}
+            transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+          />
+          
           <div className="relative flex items-center justify-center gap-2">
-            <Crown className="h-6 w-6 text-yellow-500 animate-bounce" />
-            <h2 className="text-lg font-bold bg-gradient-to-r from-yellow-600 via-orange-500 to-yellow-600 bg-clip-text text-transparent">
+            <motion.div
+              animate={{ rotate: [-5, 5, -5] }}
+              transition={{ duration: 2, repeat: Infinity }}
+            >
+              <Crown className="h-6 w-6 text-[#FFD700] drop-shadow-[0_0_8px_rgba(255,215,0,0.8)]" />
+            </motion.div>
+            <h2 className="text-lg font-black bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] to-[#FFD700] bg-clip-text text-transparent">
               HONOR BOARD
             </h2>
-            <Crown className="h-6 w-6 text-yellow-500 animate-bounce" />
+            <motion.div
+              animate={{ rotate: [5, -5, 5] }}
+              transition={{ duration: 2, repeat: Infinity }}
+            >
+              <Crown className="h-6 w-6 text-[#FFD700] drop-shadow-[0_0_8px_rgba(255,215,0,0.8)]" />
+            </motion.div>
           </div>
+          
           {/* Realtime indicator */}
-          <div className="flex items-center justify-center gap-1.5 mt-2 text-xs text-muted-foreground">
-            <span className="relative flex h-2 w-2">
+          <div className="relative flex items-center justify-center gap-1.5 mt-2 text-xs text-muted-foreground">
+            <motion.span 
+              className="relative flex h-2 w-2"
+              animate={{ scale: [1, 1.2, 1] }}
+              transition={{ duration: 1.5, repeat: Infinity }}
+            >
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
-            </span>
+            </motion.span>
             <span>Realtime</span>
           </div>
-        </div>
+        </motion.div>
 
-        {/* Platform Stats */}
-        <div className="mb-4 p-3 rounded-lg bg-muted/50 border border-border/50">
-          <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
+        {/* Platform Stats - Horizontal Stacked Rows */}
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="mb-4 p-3 rounded-xl
+            bg-gradient-to-br from-[rgba(0,231,255,0.05)] to-[rgba(255,215,0,0.05)]
+            border border-[rgba(0,231,255,0.25)]"
+        >
+          <h3 className="text-xs font-semibold text-muted-foreground mb-3 flex items-center gap-2 uppercase tracking-wide">
             📊 Platform Stats
           </h3>
-          <div className="grid grid-cols-2 gap-2">
-            {statItems.map((item) => (
-              <div 
-                key={item.label}
-                className="flex items-center gap-2 p-2 rounded-md bg-background/80 hover:bg-background transition-colors"
-              >
-                <item.icon className={cn("h-4 w-4", item.color)} />
-                <div className="flex flex-col">
-                  <span className="text-xs text-muted-foreground">{item.label}</span>
-                  <span className="text-sm font-semibold">
-                    {loading ? "..." : formatNumber(item.value)}
-                  </span>
-                </div>
+          <div className="space-y-2">
+            {statRows.map((row, rowIndex) => (
+              <div key={rowIndex} className="flex gap-2">
+                {row.map((stat) => (
+                  <StatItem
+                    key={stat.label}
+                    icon={stat.icon}
+                    label={stat.label}
+                    value={stat.value}
+                    loading={loading}
+                  />
+                ))}
               </div>
             ))}
           </div>
-        </div>
+        </motion.div>
 
         {/* Top 10 Creators */}
-        <div className="p-3 rounded-lg bg-gradient-to-br from-purple-50/50 via-white to-cyan-50/50 border border-purple-200/30">
-          <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
-            <Trophy className="h-4 w-4 text-yellow-500" />
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="p-3 rounded-xl
+            bg-gradient-to-br from-[rgba(0,231,255,0.03)] via-white to-[rgba(255,215,0,0.05)]
+            border border-[rgba(0,231,255,0.25)]"
+        >
+          <h3 className="text-xs font-semibold text-muted-foreground mb-3 flex items-center gap-2 uppercase tracking-wide">
+            <Trophy className="h-4 w-4 text-[#FFD700]" />
             Top 10 Creators
           </h3>
           
@@ -110,12 +190,18 @@ export const HonoboardRightSidebar = ({ className }: HonoboardRightSidebarProps)
           ) : (
             <div className="space-y-1">
               {stats.topCreators.map((creator, index) => (
-                <div 
+                <motion.div 
                   key={creator.userId}
+                  initial={{ opacity: 0, x: 10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  whileHover={{ scale: 1.02, x: 4 }}
                   className={cn(
                     "flex items-center gap-2 p-2 rounded-lg transition-all duration-200",
-                    "hover:bg-primary/5 hover:scale-[1.02]",
-                    index < 3 && "bg-gradient-to-r from-yellow-50/50 to-transparent"
+                    "hover:bg-[rgba(0,231,255,0.08)]",
+                    index === 0 && "bg-gradient-to-r from-[rgba(255,215,0,0.1)] to-transparent border border-[rgba(255,215,0,0.3)]",
+                    index === 1 && "bg-gradient-to-r from-gray-100/50 to-transparent",
+                    index === 2 && "bg-gradient-to-r from-orange-50/50 to-transparent"
                   )}
                 >
                   <span className="w-6 text-center font-medium text-sm">
@@ -123,13 +209,13 @@ export const HonoboardRightSidebar = ({ className }: HonoboardRightSidebarProps)
                   </span>
                   <Avatar className={cn(
                     "h-8 w-8 border-2",
-                    index === 0 && "border-yellow-400 ring-2 ring-yellow-200",
+                    index === 0 && "border-[#FFD700] ring-2 ring-[rgba(255,215,0,0.3)] shadow-[0_0_10px_rgba(255,215,0,0.4)]",
                     index === 1 && "border-gray-400",
                     index === 2 && "border-orange-400",
                     index > 2 && "border-border"
                   )}>
                     <AvatarImage src={creator.avatarUrl || undefined} />
-                    <AvatarFallback className="text-xs bg-primary/10">
+                    <AvatarFallback className="text-xs bg-gradient-to-br from-[rgba(0,231,255,0.2)] to-[rgba(255,215,0,0.2)]">
                       {creator.displayName.charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
@@ -137,7 +223,7 @@ export const HonoboardRightSidebar = ({ className }: HonoboardRightSidebarProps)
                     <p className="text-sm font-medium truncate text-sky-700">
                       {creator.displayName}
                     </p>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
                       <span className="flex items-center gap-0.5">
                         <Video className="h-3 w-3" />
                         {creator.videoCount}
@@ -148,16 +234,16 @@ export const HonoboardRightSidebar = ({ className }: HonoboardRightSidebarProps)
                       </span>
                     </div>
                   </div>
-                </div>
+                </motion.div>
               ))}
             </div>
           )}
-        </div>
+        </motion.div>
 
         {/* FUN Play Branding */}
         <div className="mt-4 p-3 text-center">
           <p className="text-xs text-muted-foreground">
-            Powered by <span className="font-semibold text-sky-600">FUN Play</span>
+            Powered by <span className="font-semibold bg-gradient-to-r from-[#00E7FF] to-[#FFD700] bg-clip-text text-transparent">FUN Play</span>
           </p>
         </div>
       </ScrollArea>
