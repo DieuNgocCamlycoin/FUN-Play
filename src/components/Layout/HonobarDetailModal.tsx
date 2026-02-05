@@ -1,10 +1,12 @@
-import { Crown, Users, Video, Eye, MessageSquare, Coins, Trophy, X, TrendingUp } from "lucide-react";
+import { Crown, Users, Video, Eye, MessageSquare, Coins, Trophy, TrendingUp, Wifi, WifiOff } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { useHonobarStats } from "@/hooks/useHonobarStats";
+import { useHonobarStats, TopCreator } from "@/hooks/useHonobarStats";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CounterAnimation } from "@/components/Layout/CounterAnimation";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface HonobarDetailModalProps {
   isOpen: boolean;
@@ -77,7 +79,85 @@ const StatCard = ({ icon: Icon, label, value, index, isString }: StatCardProps) 
   </motion.div>
 );
 
-const ModalContent = ({ stats, loading }: { stats: ReturnType<typeof useHonobarStats>['stats'], loading: boolean }) => {
+const TopCreatorsList = ({ creators }: { creators: TopCreator[] }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ delay: 0.5 }}
+    className="mt-4"
+  >
+    <div className="flex items-center gap-2 mb-3">
+      <Crown className="w-5 h-5 text-[#FFD700]" />
+      <h3 className="font-bold text-sm bg-gradient-to-r from-[#FFD700] to-[#FF9500] bg-clip-text text-transparent">
+        TOP 10 CREATORS
+      </h3>
+    </div>
+    
+    <ScrollArea className="h-[240px] pr-2">
+      <div className="space-y-2">
+        {creators.map((creator, index) => (
+          <motion.div
+            key={creator.userId}
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.1 * index }}
+            className="flex items-center gap-3 p-2 rounded-lg 
+              bg-gradient-to-r from-[rgba(0,231,255,0.05)] to-[rgba(255,215,0,0.05)]
+              hover:from-[rgba(0,231,255,0.1)] hover:to-[rgba(255,215,0,0.1)]
+              border border-transparent hover:border-[rgba(255,215,0,0.3)]
+              transition-all duration-200"
+          >
+            {/* Rank Badge */}
+            <div className={`flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold
+              ${index === 0 ? 'bg-gradient-to-r from-[#FFD700] to-[#FF9500] text-black' :
+                index === 1 ? 'bg-gradient-to-r from-[#C0C0C0] to-[#A0A0A0] text-black' :
+                index === 2 ? 'bg-gradient-to-r from-[#CD7F32] to-[#A0522D] text-white' :
+                'bg-muted text-muted-foreground'}`}
+            >
+              {index + 1}
+            </div>
+
+            {/* Avatar */}
+            <Avatar className="w-8 h-8 border-2 border-[rgba(0,231,255,0.3)]">
+              <AvatarImage src={creator.avatarUrl || undefined} />
+              <AvatarFallback className="bg-gradient-to-br from-[#00E7FF] to-[#7A2BFF] text-white text-xs">
+                {creator.displayName?.[0]?.toUpperCase() || '?'}
+              </AvatarFallback>
+            </Avatar>
+
+            {/* Info */}
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-sm truncate">{creator.displayName}</p>
+              <p className="text-xs text-muted-foreground">
+                {creator.videoCount} videos
+              </p>
+            </div>
+
+            {/* Views */}
+            <div className="text-right">
+              <p className="text-sm font-bold text-[#00E7FF]">
+                {formatNumber(creator.totalViews)}
+              </p>
+              <p className="text-[10px] text-muted-foreground">views</p>
+            </div>
+          </motion.div>
+        ))}
+        
+        {creators.length === 0 && (
+          <p className="text-center text-muted-foreground py-4 text-sm">
+            Chưa có dữ liệu creator
+          </p>
+        )}
+      </div>
+    </ScrollArea>
+  </motion.div>
+);
+
+const ModalContent = ({ stats, loading, isConnected }: { 
+  stats: ReturnType<typeof useHonobarStats>['stats']; 
+  loading: boolean;
+  isConnected: boolean;
+}) => {
   const statItems = [
     { icon: Users, label: "Người dùng", value: stats.totalUsers },
     { icon: Video, label: "Video", value: stats.totalVideos },
@@ -152,21 +232,34 @@ const ModalContent = ({ stats, loading }: { stats: ReturnType<typeof useHonobarS
         </div>
       </motion.div>
 
+      {/* Top 10 Creators List */}
+      <TopCreatorsList creators={stats.topCreators} />
+
       {/* Real-time indicator */}
       <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-        <motion.div
-          className="w-2 h-2 rounded-full bg-green-500"
-          animate={{ scale: [1, 1.2, 1], opacity: [1, 0.7, 1] }}
-          transition={{ duration: 1.5, repeat: Infinity }}
-        />
-        <span>Cập nhật realtime</span>
+        {isConnected ? (
+          <>
+            <motion.div
+              className="w-2 h-2 rounded-full bg-green-500"
+              animate={{ scale: [1, 1.2, 1], opacity: [1, 0.7, 1] }}
+              transition={{ duration: 1.5, repeat: Infinity }}
+            />
+            <Wifi className="w-3 h-3 text-green-500" />
+            <span className="text-green-600">Đang cập nhật realtime</span>
+          </>
+        ) : (
+          <>
+            <WifiOff className="w-3 h-3" />
+            <span>Đang kết nối...</span>
+          </>
+        )}
       </div>
     </div>
   );
 };
 
 export const HonobarDetailModal = ({ isOpen, onClose }: HonobarDetailModalProps) => {
-  const { stats, loading } = useHonobarStats();
+  const { stats, loading, isConnected } = useHonobarStats();
   const isMobile = useIsMobile();
 
   // Mobile: Use Sheet (bottom drawer)
@@ -181,7 +274,7 @@ export const HonobarDetailModal = ({ isOpen, onClose }: HonobarDetailModalProps)
             <SheetTitle>Honor Board</SheetTitle>
           </SheetHeader>
           <div className="pt-4 pb-8 overflow-y-auto max-h-full">
-            <ModalContent stats={stats} loading={loading} />
+            <ModalContent stats={stats} loading={loading} isConnected={isConnected} />
           </div>
         </SheetContent>
       </Sheet>
@@ -199,7 +292,7 @@ export const HonobarDetailModal = ({ isOpen, onClose }: HonobarDetailModalProps)
         <DialogHeader className="sr-only">
           <DialogTitle>Honor Board</DialogTitle>
         </DialogHeader>
-        <ModalContent stats={stats} loading={loading} />
+        <ModalContent stats={stats} loading={loading} isConnected={isConnected} />
       </DialogContent>
     </Dialog>
   );

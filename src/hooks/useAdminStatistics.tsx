@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface PlatformStats {
@@ -10,7 +10,7 @@ interface PlatformStats {
   activeUsersToday: number;
 }
 
-interface TopCreator {
+export interface TopCreator {
   userId: string;
   displayName: string;
   avatarUrl: string | null;
@@ -19,7 +19,7 @@ interface TopCreator {
   totalRewards: number;
 }
 
-interface TopEarner {
+export interface TopEarner {
   userId: string;
   displayName: string;
   avatarUrl: string | null;
@@ -40,9 +40,10 @@ export const useAdminStatistics = () => {
   const [topEarners, setTopEarners] = useState<TopEarner[]>([]);
   const [dailyStats, setDailyStats] = useState<DailyStats[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isConnected, setIsConnected] = useState(false);
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
-    const fetchAdminStats = async () => {
+  const fetchAdminStats = useCallback(async () => {
       try {
         // Get total users
         const { count: userCount } = await supabase
@@ -224,10 +225,40 @@ export const useAdminStatistics = () => {
       } finally {
         setLoading(false);
       }
-    };
-
-    fetchAdminStats();
   }, []);
 
-  return { platformStats, topCreators, topEarners, dailyStats, loading };
+  // Debounced fetch for realtime updates
+  const debouncedFetch = useCallback(() => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+    debounceRef.current = setTimeout(() => {
+      fetchAdminStats();
+    }, 300);
+  }, [fetchAdminStats]);
+
+  useEffect(() => {
+    fetchAdminStats();
+
+    // Set up realtime subscriptions for all relevant tables
+    const channel = supabase
+      .channel('admin-realtime-stats')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, debouncedFetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'videos' }, debouncedFetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, debouncedFetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reward_transactions' }, debouncedFetch)
+      .subscribe((status) => {
+        setIsConnected(status === 'SUBSCRIBED');
+        console.log('[Admin Stats] Realtime status:', status);
+      });
+
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+      supabase.removeChannel(channel);
+    };
+  }, [fetchAdminStats, debouncedFetch]);
+
+  return { platformStats, topCreators, topEarners, dailyStats, loading, isConnected };
 };
