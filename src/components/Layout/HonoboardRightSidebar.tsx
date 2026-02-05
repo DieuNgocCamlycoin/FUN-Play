@@ -1,4 +1,4 @@
-import { Crown, Users, Video, Eye, MessageCircle, Coins, Bell, Trophy } from "lucide-react";
+import { Crown, Users, Video, Eye, MessageCircle, Coins, Trophy } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useHonobarStats } from "@/hooks/useHonobarStats";
@@ -23,49 +23,45 @@ const getRankBadge = (rank: number): string => {
   return `${rank}.`;
 };
 
-interface StatItemProps {
+interface StatPillProps {
   icon: React.ElementType;
   label: string;
   value: number;
   loading: boolean;
+  index: number;
 }
 
-const StatItem = ({ icon: Icon, label, value, loading }: StatItemProps) => (
+const StatPill = ({ icon: Icon, label, value, loading, index }: StatPillProps) => (
   <motion.div
-    whileHover={{ scale: 1.02, borderColor: "rgba(255,215,0,0.6)" }}
-    className="flex-1 flex items-center gap-2 p-2.5 rounded-xl
-      bg-gradient-to-br from-[rgba(0,231,255,0.08)] to-[rgba(255,215,0,0.08)]
-      border border-[rgba(0,231,255,0.3)]
-      hover:shadow-[0_0_15px_rgba(0,231,255,0.3)]
-      transition-all duration-200"
+    initial={{ opacity: 0, x: -20 }}
+    animate={{ opacity: 1, x: 0 }}
+    transition={{ delay: index * 0.1, type: "spring", stiffness: 200 }}
+    whileHover={{ x: 4, scale: 1.02 }}
+    className="flex items-center justify-between px-4 py-3 rounded-full
+      bg-gradient-to-r from-[#1B5E20] via-[#2E7D32] to-[#4CAF50]
+      shadow-md hover:shadow-lg transition-all duration-200"
   >
-    <Icon className="h-4 w-4 text-[#00E7FF] shrink-0" />
-    <div className="flex flex-col min-w-0">
-      <span className="text-[10px] text-muted-foreground uppercase tracking-wide">{label}</span>
-      <span className="text-sm font-bold text-sky-700">
-        {loading ? "..." : <CounterAnimation value={value} duration={800} />}
+    <div className="flex items-center gap-2">
+      <Icon className="h-5 w-5 text-white" />
+      <span className="text-sm font-medium text-white uppercase tracking-wide">
+        {label}
       </span>
     </div>
+    <span className="text-lg font-bold text-[#FFD700] drop-shadow-[0_0_4px_rgba(255,215,0,0.5)]">
+      {loading ? "..." : <CounterAnimation value={value} duration={800} />}
+    </span>
   </motion.div>
 );
 
 export const HonoboardRightSidebar = ({ className }: HonoboardRightSidebarProps) => {
   const { stats, loading } = useHonobarStats();
 
-  // Stats organized in rows (2 items per row)
-  const statRows = [
-    [
-      { icon: Users, label: "Users", value: stats.totalUsers },
-      { icon: Video, label: "Videos", value: stats.totalVideos },
-    ],
-    [
-      { icon: Eye, label: "Views", value: stats.totalViews },
-      { icon: MessageCircle, label: "Comments", value: stats.totalComments },
-    ],
-    [
-      { icon: Coins, label: "CAMLY Pool", value: stats.camlyPool },
-      { icon: Bell, label: "Subs", value: stats.totalSubscriptions },
-    ],
+  const statItems = [
+    { icon: Users, label: "TOTAL USERS", value: stats.totalUsers },
+    { icon: MessageCircle, label: "TOTAL COMMENTS", value: stats.totalComments },
+    { icon: Eye, label: "TOTAL VIEWS", value: stats.totalViews },
+    { icon: Video, label: "TOTAL VIDEOS", value: stats.totalVideos },
+    { icon: Coins, label: "CAMLY POOL", value: stats.camlyPool },
   ];
 
   return (
@@ -73,21 +69,21 @@ export const HonoboardRightSidebar = ({ className }: HonoboardRightSidebarProps)
       className={cn(
         "hidden xl:flex flex-col w-72 shrink-0 h-[calc(100vh-3.5rem)]",
         "fixed right-0 top-14 z-40",
-        "bg-gradient-to-b from-white via-white to-[rgba(0,231,255,0.02)]",
-        "border-l-2 border-[rgba(0,231,255,0.3)]",
-        "shadow-[-10px_0_30px_rgba(0,231,255,0.1)]",
+        "bg-gradient-to-b from-white via-white to-[#E8F5E9]",
+        "border-l-2 border-[#4CAF50]/30",
+        "shadow-[-10px_0_30px_rgba(76,175,80,0.1)]",
         className
       )}
     >
       <ScrollArea className="flex-1 px-3 py-4">
-        {/* Header with Aurora gradient */}
+        {/* Header with Crown and Title */}
         <motion.div 
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           className="relative mb-4 p-4 rounded-xl overflow-hidden
-            bg-gradient-to-br from-white via-[rgba(0,231,255,0.05)] to-[rgba(255,215,0,0.1)]
-            border-2 border-[rgba(0,231,255,0.4)]
-            shadow-[0_0_25px_rgba(0,231,255,0.2)]"
+            bg-gradient-to-br from-white via-[#E8F5E9] to-[#C8E6C9]
+            border-2 border-[#4CAF50]/40
+            shadow-[0_0_25px_rgba(76,175,80,0.2)]"
         >
           {/* Shimmer effect */}
           <motion.div
@@ -103,7 +99,7 @@ export const HonoboardRightSidebar = ({ className }: HonoboardRightSidebarProps)
             >
               <Crown className="h-6 w-6 text-[#FFD700] drop-shadow-[0_0_8px_rgba(255,215,0,0.8)]" />
             </motion.div>
-            <h2 className="text-lg font-black bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] to-[#FFD700] bg-clip-text text-transparent">
+            <h2 className="text-xl font-black italic bg-gradient-to-r from-[#2E7D32] to-[#FFD700] bg-clip-text text-transparent">
               HONOR BOARD
             </h2>
             <motion.div
@@ -128,33 +124,23 @@ export const HonoboardRightSidebar = ({ className }: HonoboardRightSidebarProps)
           </div>
         </motion.div>
 
-        {/* Platform Stats - Horizontal Stacked Rows */}
+        {/* Platform Stats - Vertical Pill Layout */}
         <motion.div 
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="mb-4 p-3 rounded-xl
-            bg-gradient-to-br from-[rgba(0,231,255,0.05)] to-[rgba(255,215,0,0.05)]
-            border border-[rgba(0,231,255,0.25)]"
+          className="mb-4 space-y-2"
         >
-          <h3 className="text-xs font-semibold text-muted-foreground mb-3 flex items-center gap-2 uppercase tracking-wide">
-            📊 Platform Stats
-          </h3>
-          <div className="space-y-2">
-            {statRows.map((row, rowIndex) => (
-              <div key={rowIndex} className="flex gap-2">
-                {row.map((stat) => (
-                  <StatItem
-                    key={stat.label}
-                    icon={stat.icon}
-                    label={stat.label}
-                    value={stat.value}
-                    loading={loading}
-                  />
-                ))}
-              </div>
-            ))}
-          </div>
+          {statItems.map((stat, index) => (
+            <StatPill
+              key={stat.label}
+              icon={stat.icon}
+              label={stat.label}
+              value={stat.value}
+              loading={loading}
+              index={index}
+            />
+          ))}
         </motion.div>
 
         {/* Top 10 Creators */}
@@ -163,8 +149,8 @@ export const HonoboardRightSidebar = ({ className }: HonoboardRightSidebarProps)
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
           className="p-3 rounded-xl
-            bg-gradient-to-br from-[rgba(0,231,255,0.03)] via-white to-[rgba(255,215,0,0.05)]
-            border border-[rgba(0,231,255,0.25)]"
+            bg-gradient-to-br from-[#E8F5E9] via-white to-[#FFF8E1]
+            border border-[#4CAF50]/25"
         >
           <h3 className="text-xs font-semibold text-muted-foreground mb-3 flex items-center gap-2 uppercase tracking-wide">
             <Trophy className="h-4 w-4 text-[#FFD700]" />
@@ -198,8 +184,8 @@ export const HonoboardRightSidebar = ({ className }: HonoboardRightSidebarProps)
                   whileHover={{ scale: 1.02, x: 4 }}
                   className={cn(
                     "flex items-center gap-2 p-2 rounded-lg transition-all duration-200",
-                    "hover:bg-[rgba(0,231,255,0.08)]",
-                    index === 0 && "bg-gradient-to-r from-[rgba(255,215,0,0.1)] to-transparent border border-[rgba(255,215,0,0.3)]",
+                    "hover:bg-[#E8F5E9]",
+                    index === 0 && "bg-gradient-to-r from-[#FFF8E1] to-transparent border border-[#FFD700]/30",
                     index === 1 && "bg-gradient-to-r from-gray-100/50 to-transparent",
                     index === 2 && "bg-gradient-to-r from-orange-50/50 to-transparent"
                   )}
@@ -215,12 +201,12 @@ export const HonoboardRightSidebar = ({ className }: HonoboardRightSidebarProps)
                     index > 2 && "border-border"
                   )}>
                     <AvatarImage src={creator.avatarUrl || undefined} />
-                    <AvatarFallback className="text-xs bg-gradient-to-br from-[rgba(0,231,255,0.2)] to-[rgba(255,215,0,0.2)]">
+                    <AvatarFallback className="text-xs bg-gradient-to-br from-[#E8F5E9] to-[#FFF8E1]">
                       {creator.displayName.charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate text-sky-700">
+                    <p className="text-sm font-medium truncate text-[#1B5E20]">
                       {creator.displayName}
                     </p>
                     <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
@@ -243,7 +229,7 @@ export const HonoboardRightSidebar = ({ className }: HonoboardRightSidebarProps)
         {/* FUN Play Branding */}
         <div className="mt-4 p-3 text-center">
           <p className="text-xs text-muted-foreground">
-            Powered by <span className="font-semibold bg-gradient-to-r from-[#00E7FF] to-[#FFD700] bg-clip-text text-transparent">FUN Play</span>
+            Powered by <span className="font-semibold bg-gradient-to-r from-[#2E7D32] to-[#FFD700] bg-clip-text text-transparent">FUN Play</span>
           </p>
         </div>
       </ScrollArea>
