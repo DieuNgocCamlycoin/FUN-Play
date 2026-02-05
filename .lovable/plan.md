@@ -1,177 +1,153 @@
 
-# Kế Hoạch Thay Đổi Kích Thước và Layout 2 Cột Cho Claim Modal
 
-## Mục Tiêu
+# Kế Hoạch Tối Ưu Pop-up Claim Rewards
 
-1. **Mở rộng popup** từ `sm:max-w-md` (448px) lên `sm:max-w-2xl` (672px) hoặc `sm:max-w-3xl` (768px)
-2. **Chia layout thành 2 cột** trên desktop để tận dụng không gian rộng hơn
-3. **Giữ layout 1 cột trên mobile** để đảm bảo trải nghiệm tối ưu cho màn hình nhỏ
+## 1. Đánh Giá Tốc Độ Loading
+
+### Kết Quả Kiểm Tra
+| Tiêu chí | Trạng thái | Ghi chú |
+|----------|------------|---------|
+| Network request | ✅ 200 OK | Truy vấn reward_transactions thành công |
+| Console errors | ✅ Không có lỗi | Không phát hiện lỗi trong logs |
+| Min loading delay | ✅ 300ms | Đảm bảo skeleton không flicker |
+| Debounce | ✅ 300ms | Tránh gọi API quá nhiều lần |
+
+**Kết luận**: Tốc độ loading hiện tại đã tối ưu, không có lỗi cần sửa.
 
 ---
 
-## Thiết Kế Layout Mới
+## 2. Sắp Xếp Lại Layout Mới
 
-### Desktop (>= 768px) - Layout 2 Cột
+### Layout Hiện Tại
 
 ```text
-┌─────────────────────────────────────────────────────────────────────────┐
-│  🎁 Claim CAMLY Rewards ✨                                              │
-├─────────────────────────────────────────────────────────────────────────┤
-│  ┌───────────────────────────┐    ┌───────────────────────────────────┐ │
-│  │  📊 TỔNG QUAN             │    │  ✅ CÓ THỂ CLAIM NGAY            │ │
-│  │  ┌─────────┬─────────┐    │    │  ─────────────────────────────    │ │
-│  │  │Có thể   │Chờ duyệt│    │    │      💰 250,000 CAMLY            │ │
-│  │  │ 250,000 │  50,000 │    │    │  ─────────────────────────────    │ │
-│  │  └─────────┴─────────┘    │    │  🎉 Đủ điều kiện claim!          │ │
-│  │  ─────────────────────    │    │  ─────────────────────────────    │ │
-│  │  TỔNG: 300,000 CAMLY      │    │  [Ví nhận: 0x1234...5678]        │ │
-│  │  ─────────────────────    │    │  ─────────────────────────────    │ │
-│  │  ⏳ Chi tiết chờ duyệt    │    │  ┌─────────────────────────────┐  │ │
-│  │  • View (10x): +30,000    │    │  │  🚀 Claim 250,000 CAMLY     │  │ │
-│  │  • Like (5x): +20,000     │    │  └─────────────────────────────┘  │ │
-│  └───────────────────────────┘    └───────────────────────────────────┘ │
-│  ─────────────────────────────────────────────────────────────────────  │
-│        ✨ Angel says: "Rich Rich Rich rewards waiting for you!" ✨      │
-└─────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                    🎁 Claim CAMLY Rewards                    │
+├───────────────────────────┬─────────────────────────────────┤
+│   📊 TỔNG QUAN            │   ✅ CÓ THỂ CLAIM NGAY          │
+│   [Có thể] [Chờ duyệt]   │      💰 250,000 CAMLY           │
+│   TỔNG: 300,000 CAMLY    │   🎉 Đủ điều kiện!              │
+│   ─────────────────       │   ─────────────────────          │
+│   ⏳ CHI TIẾT CHỜ DUYỆT   │   ✅ CHI TIẾT ĐÃ DUYỆT          │
+│   • View (10x): +30k     │   • Upload: +100k               │
+│                          │   ─────────────────────          │
+│                          │   [Ví nhận: 0x1234...]          │
+│                          │   [🚀 CLAIM BUTTON]              │
+└───────────────────────────┴─────────────────────────────────┘
 ```
 
-### Mobile (< 768px) - Layout 1 Cột (Giữ Nguyên Như Hiện Tại)
+### Layout Mới (Đề Xuất)
 
 ```text
-┌───────────────────────────────┐
-│  🎁 Claim CAMLY Rewards ✨    │
-├───────────────────────────────┤
-│  📊 TỔNG QUAN PHẦN THƯỞNG    │
-│  [Có thể claim] [Chờ duyệt]  │
-│  ─────────────────────────    │
-│  TỔNG: 300,000 CAMLY          │
-├───────────────────────────────┤
-│  ✅ CÓ THỂ CLAIM NGAY        │
-│  💰 250,000 CAMLY             │
-├───────────────────────────────┤
-│  🎉 Đủ điều kiện claim!       │
-├───────────────────────────────┤
-│  [Ví nhận: 0x1234...5678]     │
-│  ┌───────────────────────┐    │
-│  │ 🚀 Claim 250,000 CAMLY│    │
-│  └───────────────────────┘    │
-├───────────────────────────────┤
-│  ⏳ Phần thưởng chờ duyệt     │
-│  • View (10x): +30,000        │
-│  • Like (5x): +20,000         │
-├───────────────────────────────┤
-│        ✨ Angel says... ✨     │
-└───────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                    🎁 Claim CAMLY Rewards                    │
+├───────────────────────────┬─────────────────────────────────┤
+│   💼 VÍ NHẬN THƯỞNG       │   📊 TỔNG QUAN PHẦN THƯỞNG      │
+│   [0xa2e24F1...BfCC59]   │   ─────────────────────          │
+│   ─────────────────       │   [Có thể claim] [Chờ duyệt]    │
+│   ✅ CÓ THỂ CLAIM NGAY    │       250,000       50,000      │
+│      💰 250,000 CAMLY     │   ─────────────────────          │
+│   ─────────────────       │   TỔNG CỘNG: 300,000 CAMLY      │
+│   [🚀 CLAIM 250,000]      │   ─────────────────────          │
+│   ─────────────────       │   ⏳ CHI TIẾT CHỜ DUYỆT          │
+│   ✅ CHI TIẾT ĐÃ DUYỆT    │   • View (10x): +30,000         │
+│   • Upload: +100,000     │   • Like (5x): +20,000          │
+│   • Signup: +50,000      │                                  │
+└───────────────────────────┴─────────────────────────────────┘
+                            ✨ Angel says: "Rich Rich Rich!" ✨
 ```
 
 ---
 
-## Chi Tiết Thay Đổi
+## 3. Thay Đổi Chi Tiết
 
 ### File: `src/components/Rewards/ClaimRewardsModal.tsx`
 
-**1. Import thêm useIsMobile hook:**
+#### A) Đổi Vị Trí 2 Cột
+
+**Cột TRÁI (Mới)** - Ưu tiên Action:
+1. **💼 Ví nhận thưởng** (di chuyển từ cột phải)
+2. **✅ Số CAMLY có thể claim** với animation
+3. **🚀 Nút CLAIM** (hoặc nút kết nối ví nếu chưa kết nối)
+4. **Chi tiết đã duyệt** - danh sách rewards sẵn sàng claim
+
+**Cột PHẢI (Mới)** - Thông tin tổng quan:
+1. **📊 Tổng quan phần thưởng** (Summary Card)
+2. **⏳ Phần thưởng chờ duyệt** với chi tiết
+3. **Tiến độ đến ngưỡng claim** (nếu chưa đủ 200k)
+
+#### B) Thêm Card "Ví Nhận Thưởng" Đặc Biệt
+
 ```typescript
-import { useIsMobile } from "@/hooks/use-mobile";
-```
-
-**2. Thêm responsive breakpoint check:**
-```typescript
-const isMobileLayout = useIsMobile();
-```
-
-**3. Thay đổi DialogContent class:**
-```typescript
-// Từ:
-className="sm:max-w-md bg-gradient-to-br from-background via-background to-primary/5 border-primary/20"
-
-// Thành:
-className="sm:max-w-md md:max-w-2xl lg:max-w-3xl bg-gradient-to-br from-background via-background to-primary/5 border-primary/20 max-h-[90vh] overflow-y-auto"
-```
-
-**4. Tạo layout container 2 cột cho desktop:**
-```typescript
-{/* Main content wrapper - 2 columns on desktop */}
-<div className={cn(
-  "space-y-6 py-4",
-  !isMobileLayout && "md:grid md:grid-cols-2 md:gap-6 md:space-y-0"
-)}>
-  {/* CỘT TRÁI - Tổng quan & Pending */}
-  <div className="space-y-4">
-    {/* Summary Card */}
-    {/* Pending rewards Alert */}
-    {/* Pending breakdown list */}
-  </div>
-
-  {/* CỘT PHẢI - Claimable & Action */}
-  <div className="space-y-4">
-    {/* Total Unclaimed Card */}
-    {/* Threshold Alert (đủ/chưa đủ điều kiện) */}
-    {/* Approved breakdown list */}
-    {/* Wallet Connection / Claim Button */}
-  </div>
-</div>
-
-{/* Angel hint - Full width at bottom */}
-<motion.p className="text-center ...">
-  ✨ Angel says...
-</motion.p>
-```
-
-**5. Điều chỉnh các component cho layout mới:**
-
-- **Summary Card**: Giữ grid 2 cols bên trong, nhưng đặt trong cột trái
-- **Total Unclaimed Card**: Đặt trong cột phải, giảm padding cho phù hợp
-- **Breakdown lists**: Giữ nguyên style nhưng tối ưu max-height
-- **Wallet/Claim section**: Đặt ở cuối cột phải
-
-**6. Thêm ScrollArea cho mobile để tránh overflow:**
-```typescript
-import { ScrollArea } from "@/components/ui/scroll-area";
-
-// Wrap content trong ScrollArea trên mobile
-{isMobileLayout ? (
-  <ScrollArea className="max-h-[70vh]">
-    {/* Content */}
-  </ScrollArea>
-) : (
-  /* Content without ScrollArea */
+{/* 💼 Ví nhận thưởng - Đầu tiên bên trái */}
+{isConnected && address && (
+  <motion.div
+    initial={{ y: -10, opacity: 0 }}
+    animate={{ y: 0, opacity: 1 }}
+    className="p-4 rounded-xl bg-gradient-to-br from-primary/10 to-cyan-500/10 border border-primary/30"
+  >
+    <div className="flex items-center gap-2 mb-2">
+      <Wallet className="h-4 w-4 text-primary" />
+      <span className="font-semibold text-sm">💼 Ví nhận thưởng</span>
+    </div>
+    <div className="p-2 rounded-lg bg-background/80 border border-border">
+      <p className="font-mono text-xs truncate text-foreground">
+        {address}
+      </p>
+    </div>
+    <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
+      <CheckCircle className="h-3 w-3 text-green-500" />
+      Đã kết nối - Sẵn sàng nhận CAMLY
+    </p>
+  </motion.div>
 )}
 ```
 
----
+#### C) Cập Nhật Skeleton Loading
 
-## Responsive Breakpoints
-
-| Breakpoint | Kích thước Modal | Layout |
-|------------|------------------|--------|
-| < 640px (Mobile) | Full width - 16px padding | 1 cột, scroll nếu cần |
-| 640px - 768px (Tablet) | max-w-md (448px) | 1 cột |
-| 768px - 1024px (Small Desktop) | max-w-2xl (672px) | 2 cột |
-| >= 1024px (Desktop) | max-w-3xl (768px) | 2 cột |
+Skeleton cũng cần phản ánh layout mới - cột trái có ví + nút, cột phải có tổng quan.
 
 ---
 
-## Tóm Tắt Files Thay Đổi
+## 4. Tối Ưu Mobile
+
+### Thứ Tự Hiển Thị Trên Mobile (1 cột)
+
+1. **💼 Ví nhận thưởng** ← QUAN TRỌNG NHẤT, đặt đầu tiên
+2. **✅ Số CAMLY có thể claim**
+3. **🚀 Nút CLAIM / Kết nối ví**
+4. **📊 Tổng quan phần thưởng**
+5. **⏳ Chi tiết chờ duyệt**
+6. **Chi tiết đã duyệt**
+7. **Angel hint**
+
+---
+
+## 5. Tóm Tắt Files Thay Đổi
 
 | File | Thay Đổi |
 |------|----------|
-| `src/components/Rewards/ClaimRewardsModal.tsx` | Mở rộng modal, thêm layout 2 cột responsive, tối ưu UX mobile |
+| `src/components/Rewards/ClaimRewardsModal.tsx` | Sắp xếp lại layout 2 cột, di chuyển ví nhận lên đầu cột trái, tối ưu UX mobile |
 
 ---
 
-## Kết Quả Mong Đợi
+## 6. Kết Quả Mong Đợi
 
-1. **Desktop**: Modal rộng hơn với 2 cột - cột trái hiển thị tổng quan + pending, cột phải hiển thị claimable + action buttons
-2. **Mobile**: Giữ layout 1 cột cuộn dọc như cũ, nhưng thêm ScrollArea để không bị overflow
-3. **Transition mượt**: Sử dụng Tailwind responsive classes để chuyển đổi layout tự động
-4. **Touch-friendly**: Tất cả buttons vẫn >= 48px trên mobile
+**Desktop:**
+- Cột TRÁI: Ví → Số claim → Nút → Chi tiết đã duyệt
+- Cột PHẢI: Tổng quan → Chi tiết chờ duyệt → Progress bar
+
+**Mobile:**
+- Ví nhận hiển thị đầu tiên (quan trọng nhất)
+- Nút claim nằm ở vị trí dễ bấm (sau thông tin ví)
+- Thông tin phụ (tổng quan, chờ duyệt) ở dưới
 
 ---
 
-## Technical Notes
+## 7. Technical Notes
 
-- Sử dụng `useIsMobile()` hook đã có sẵn để detect mobile
-- Sử dụng Tailwind `md:grid md:grid-cols-2` cho 2 cột
-- Thêm `max-h-[90vh] overflow-y-auto` để đảm bảo modal không vượt quá viewport
-- Sử dụng `cn()` utility để conditional classes
+- Không có lỗi nào cần sửa (đã kiểm tra console logs và network requests)
+- Loading speed đã tối ưu với 300ms minimum delay + debounce
+- Realtime subscription hoạt động bình thường
+- Chỉ thay đổi thứ tự các elements, không thay đổi logic
+
