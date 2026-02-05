@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Coins, Sparkles, Gift, CheckCircle, Loader2, ExternalLink, Wallet, Smartphone, AlertCircle, HelpCircle, Clock, ShieldCheck } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useWalletConnectionWithRetry } from "@/hooks/useWalletConnectionWithRetry";
@@ -83,6 +84,7 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
     if (!user) return;
     
     setLoading(true);
+    const startTime = Date.now();
     try {
       // Lấy tất cả reward chưa claim
       const { data: rewards, error } = await supabase
@@ -137,6 +139,12 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
     } catch (error) {
       console.error("Error fetching unclaimed rewards:", error);
     } finally {
+      // Ensure minimum loading time for smooth UX
+      const elapsed = Date.now() - startTime;
+      const minDelay = 300;
+      if (elapsed < minDelay) {
+        await new Promise(r => setTimeout(r, minDelay - elapsed));
+      }
       setLoading(false);
     }
   };
@@ -251,12 +259,30 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
             Claim CAMLY Rewards
             <Sparkles className="h-5 w-5 text-cyan-400" />
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            Modal để claim phần thưởng CAMLY của bạn
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
           {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <div className="space-y-4">
+              {/* Skeleton for reward card */}
+              <div className="p-6 rounded-2xl bg-gradient-to-r from-yellow-500/10 via-cyan-500/10 to-yellow-500/10 border border-yellow-500/20">
+                <div className="text-center space-y-3">
+                  <Skeleton className="h-4 w-32 mx-auto" />
+                  <Skeleton className="h-10 w-40 mx-auto" />
+                  <Skeleton className="h-3 w-16 mx-auto" />
+                </div>
+              </div>
+              {/* Skeleton for breakdown items */}
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-48" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+              {/* Skeleton for button */}
+              <Skeleton className="h-12 w-full rounded-lg" />
             </div>
           ) : claimSuccess ? (
             <motion.div
