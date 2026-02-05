@@ -1,295 +1,201 @@
 
-# Kế Hoạch Cải Tiến Honor Board - Layout Cố Định & Horizontal Stats
 
-## Tổng Quan Yêu Cầu
+# Kế Hoạch Thiết Kế Lại Honor Board Theo Hình Mẫu
 
-1. **Cột phải (Honor Board) cố định** - Chỉ phần giữa (video grid) cuộn
-2. **Stats xếp hàng ngang** - Thống kê hiển thị theo hàng ngang, xếp chồng
-3. **Màu sắc & thiết kế phù hợp** - Theo design system "Heavenly Aurora Bliss"
-4. **Cập nhật cho mobile** - Responsive phù hợp
+## Phân Tích Hình Mẫu
 
----
-
-## 1. Layout Mới
-
-### Desktop (Cấu Trúc Scroll)
-
-```text
-┌──────────────────────────────────────────────────────────────────────┐
-│                    HEADER (fixed - top: 0)                           │
-├─────────────┬─────────────────────────────────┬──────────────────────┤
-│             │                                 │                      │
-│  SIDEBAR    │     MIDDLE CONTENT              │   HONOR BOARD        │
-│  (fixed)    │     (SCROLLABLE)                │   (fixed)            │
-│             │                                 │                      │
-│             │  ┌─────────────────────────┐    │  ┌────────────────┐  │
-│             │  │ Category Chips          │    │  │ 👑 HONOR BOARD │  │
-│             │  ├─────────────────────────┤    │  ├────────────────┤  │
-│             │  │                         │    │  │ Users   Videos │  │
-│             │  │  VIDEO GRID             │    │  │ Views Comments │  │
-│             │  │  (scrolls here)         │    │  │ Pool   Subs    │  │
-│             │  │                         │    │  ├────────────────┤  │
-│             │  │  ┌───────┐ ┌───────┐    │    │  │ TOP CREATORS   │  │
-│             │  │  │Video 1│ │Video 2│    │    │  │ 1. Creator A   │  │
-│             │  │  └───────┘ └───────┘    │    │  │ 2. Creator B   │  │
-│             │  │  ┌───────┐ ┌───────┐    │    │  │ 3. Creator C   │  │
-│             │  │  │Video 3│ │Video 4│    │    │  │ ...            │  │
-│             │  │  └───────┘ └───────┘    │    │  └────────────────┘  │
-│             │  └─────────────────────────┘    │                      │
-└─────────────┴─────────────────────────────────┴──────────────────────┘
-```
-
-### Stats Layout Mới (Horizontal Stacked)
+Từ hình ảnh tham khảo, Honor Board có thiết kế:
 
 ```text
 ┌─────────────────────────────────┐
-│       👑 HONOR BOARD 👑         │
-│          ⚡ Realtime            │
+│     HONOR BOARD (italic)        │  ← Tiêu đề gradient xanh lá/vàng
 ├─────────────────────────────────┤
-│ 👥 Users     │ 🎬 Videos        │  ← Row 1
+│ 👥 TOTAL USERS           77     │  ← Pill xanh lá, text trắng, value vàng
 ├─────────────────────────────────┤
-│ 👁 Views     │ 💬 Comments      │  ← Row 2
+│ 📝 TOTAL POSTS        1.101     │  ← Mỗi stat một dòng riêng
 ├─────────────────────────────────┤
-│ 💰 Pool      │ 📡 Subs          │  ← Row 3
+│ 📷 TOTAL PHOTOS         947     │
 ├─────────────────────────────────┤
-│      🏆 TOP 10 CREATORS         │
-│  ┌─────────────────────────┐    │
-│  │ 🥇 Creator Name  12.5K  │    │
-│  │ 🥈 Creator Name  8.2K   │    │
-│  │ 🥉 Creator Name  5.1K   │    │
-│  └─────────────────────────┘    │
+│ 🎬 TOTAL VIDEOS          40     │
+├─────────────────────────────────┤
+│ 💰 TOTAL REWARD    39.500.000   │  ← Pill với coin icon
 └─────────────────────────────────┘
 ```
 
+### Đặc Điểm Thiết Kế Chính
+
+| Yếu Tố | Chi Tiết |
+|--------|----------|
+| **Title** | Chữ italic, gradient xanh lá sang vàng |
+| **Layout** | Vertical stacked - mỗi stat một hàng riêng (không 2 cột) |
+| **Shape** | Pill/capsule với bo góc lớn (full rounded) |
+| **Background** | Gradient xanh lá đậm (#1B5E20 → #4CAF50) |
+| **Icon + Label** | Bên trái, text trắng |
+| **Value** | Bên phải, text vàng/gold (#FFD700) |
+| **Spacing** | Gap nhỏ giữa các pill |
+
 ---
 
-## 2. Thay Đổi Files
+## Mapping Stats Cho FUN Play
 
-### File 1: `src/components/Layout/HonoboardRightSidebar.tsx`
+| Hình Mẫu | FUN Play Tương Ứng |
+|----------|-------------------|
+| TOTAL USERS | Total Users (giữ nguyên) |
+| TOTAL POSTS | Total Comments (số bình luận) |
+| TOTAL PHOTOS | Total Views (lượt xem) |
+| TOTAL VIDEOS | Total Videos (giữ nguyên) |
+| TOTAL REWARD | CAMLY Pool (reward pool) |
 
-**Thay đổi chính:**
+---
 
-| Thuộc Tính | Hiện Tại | Mới |
-|------------|----------|-----|
-| Position | `sticky top-14` | `fixed right-0 top-14` |
-| Scroll | `ScrollArea` bên trong | Không cần scroll (nội dung gọn) |
-| Stats Grid | `grid-cols-2` (6 items) | `grid-rows-3` với 2 items mỗi hàng |
-| Colors | Gradient pastel | Aurora colors (#00E7FF, #FFD700, #7A2BFF) |
-| Border | Simple border | Gradient border với glow effect |
+## Thay Đổi Cần Thực Hiện
 
-**Stats Layout mới:**
+### 1. File: `src/components/Layout/HonoboardRightSidebar.tsx`
+
+**Thay đổi layout:**
+- Từ: Grid 2 cột horizontal
+- Thành: Stack vertical 1 cột (mỗi stat một pill)
+
+**Thay đổi style:**
+- Background: `bg-gradient-to-r from-[#1B5E20] to-[#4CAF50]` (xanh lá)
+- Shape: `rounded-full` (pill shape)
+- Label text: `text-white`
+- Value text: `text-[#FFD700]` (vàng gold)
+- Title: Italic với gradient xanh lá/vàng
+
+**Code mới cho StatPill:**
 ```tsx
-// Row-based layout thay vì grid-cols-2
-<div className="space-y-2">
-  {/* Row 1: Users + Videos */}
-  <div className="flex gap-2">
-    <StatItem icon={Users} label="Users" value={...} />
-    <StatItem icon={Video} label="Videos" value={...} />
-  </div>
-  {/* Row 2: Views + Comments */}
-  <div className="flex gap-2">
-    <StatItem icon={Eye} label="Views" value={...} />
-    <StatItem icon={MessageCircle} label="Comments" value={...} />
-  </div>
-  {/* Row 3: Pool + Subscriptions */}
-  <div className="flex gap-2">
-    <StatItem icon={Coins} label="CAMLY Pool" value={...} />
-    <StatItem icon={Bell} label="Subs" value={...} />
-  </div>
-</div>
+const StatPill = ({ icon: Icon, label, value, loading }) => (
+  <motion.div
+    className="flex items-center justify-between px-4 py-3 rounded-full
+      bg-gradient-to-r from-[#1B5E20] via-[#2E7D32] to-[#4CAF50]
+      shadow-md hover:shadow-lg transition-all duration-200"
+  >
+    <div className="flex items-center gap-2">
+      <Icon className="h-5 w-5 text-white" />
+      <span className="text-sm font-medium text-white uppercase tracking-wide">
+        {label}
+      </span>
+    </div>
+    <span className="text-lg font-bold text-[#FFD700]">
+      {loading ? "..." : formatNumber(value)}
+    </span>
+  </motion.div>
+);
 ```
 
-**Màu sắc mới:**
-- Header: Gradient `from-[#00E7FF] via-[#7A2BFF] to-[#FFD700]`
-- Stats: Background `bg-gradient-to-br from-[#00E7FF]/10 to-[#FFD700]/10`
-- Border: `border-[#00E7FF]/40` với hover `border-[#FFD700]/60`
-- Text values: `text-sky-700` (matching project text color)
-- Glow: `shadow-[0_0_20px_rgba(0,231,255,0.3)]`
-
----
-
-### File 2: `src/pages/Index.tsx`
-
-**Thay đổi chính:**
-
-| Thuộc Tính | Hiện Tại | Mới |
-|------------|----------|-----|
-| Right sidebar | Inside flex container | Fixed position với margin-right cho main |
-| Main content | No right padding | `pr-72 xl:pr-80` khi có Honor Board |
-| Scroll behavior | Entire page scrolls | Chỉ middle section scroll |
-
-**Layout structure mới:**
+**Stats mới (vertical stack):**
 ```tsx
-<main className={`pt-14 pb-20 lg:pb-0 transition-all duration-300 
-  ${isSidebarExpanded ? 'lg:pl-60' : 'lg:pl-16'}
-  xl:pr-72`}>  {/* Thêm padding-right cho Honor Board cố định */}
-  
-  {/* Middle content - scrollable */}
-  <div className="h-[calc(100vh-3.5rem)] overflow-y-auto">
-    <CategoryChips />
-    <MobileHonoboardCard /> {/* Mobile only */}
-    <VideoGrid />
-  </div>
-</main>
-
-{/* Honor Board - fixed position */}
-<HonoboardRightSidebar className="fixed right-0 top-14" />
+const stats = [
+  { icon: Users, label: "TOTAL USERS", value: stats.totalUsers },
+  { icon: MessageCircle, label: "TOTAL COMMENTS", value: stats.totalComments },
+  { icon: Eye, label: "TOTAL VIEWS", value: stats.totalViews },
+  { icon: Video, label: "TOTAL VIDEOS", value: stats.totalVideos },
+  { icon: Coins, label: "CAMLY POOL", value: stats.camlyPool },
+];
 ```
 
 ---
 
-### File 3: `src/components/Layout/MobileHonoboardCard.tsx`
+### 2. File: `src/components/Layout/MobileHonoboardCard.tsx`
 
-**Thay đổi chính:**
+**Thay đổi:**
+- Redesign theo style pill xanh lá
+- Compact 2-3 stats preview trên một dòng
+- Tap để mở full detail modal
 
-| Thuộc Tính | Hiện Tại | Mới |
-|------------|----------|-----|
-| Stats preview | Inline (Users, Videos, Pool) | Row layout tương tự desktop |
-| Colors | Yellow-based | Aurora gradient (#00E7FF → #FFD700) |
-| Layout | Single row | Compact 2-row layout |
-
-**Mobile card layout mới:**
+**Layout mobile card:**
 ```text
 ┌─────────────────────────────────────────┐
-│ 👑 Honor Board                    [→]   │
+│ 👑 HONOR BOARD                    [→]   │
 ├─────────────────────────────────────────┤
-│ 👥 150   🎬 85   👁 10K   💰 50M        │ ← Compact stats row
-├─────────────────────────────────────────┤
-│ 🏆 Top: Creator Name          ⚡Live    │
+│ [👥 77] [🎬 85] [💰 50M]                │  ← Mini pills
 └─────────────────────────────────────────┘
 ```
 
-**Màu sắc mới:**
-- Background: `bg-gradient-to-r from-white via-[#00E7FF]/5 to-[#FFD700]/10`
-- Border: `border-[#00E7FF]/40`
-- Glow: `shadow-[0_0_15px_rgba(0,231,255,0.2)]`
-- Text: Stats dùng `text-sky-700`, labels dùng `text-muted-foreground`
+---
+
+### 3. File: `src/components/Layout/HonobarDetailModal.tsx`
+
+**Thay đổi:**
+- Full vertical pill layout như desktop
+- Giữ Top 10 Creators section
+- Áp dụng color scheme xanh lá/vàng
 
 ---
 
-### File 4: `src/components/Layout/HonobarDetailModal.tsx`
+## Visual Design Chi Tiết
 
-**Thay đổi chính:**
-
-| Thuộc Tính | Hiện Tại | Mới |
-|------------|----------|-----|
-| Stats layout | 3x2 grid | Row-based (2 items/row) |
-| Colors | Mix of colors | Unified Aurora gradient |
-| Top Creators | Not shown | Full Top 10 list with avatars |
-
-**Stats section mới:**
-```tsx
-<div className="space-y-3">
-  {/* Row-based stats như desktop */}
-  {statRows.map((row, i) => (
-    <div key={i} className="flex gap-3">
-      {row.map(stat => <StatCard {...stat} />)}
-    </div>
-  ))}
-</div>
-```
-
----
-
-## 3. Visual Design Chi Tiết
-
-### Color Palette (Aurora Theme)
+### Color Palette (Forest Green Theme)
 
 | Element | Color | HEX |
 |---------|-------|-----|
-| Primary Cyan | `#00E7FF` | Cosmic Cyan |
-| Primary Gold | `#FFD700` | Cosmic Gold |
-| Accent Purple | `#7A2BFF` | Cosmic Purple |
-| Text Primary | `text-sky-700` | #0369A1 |
-| Text Muted | `text-muted-foreground` | System |
-| Background | White với gradient overlay | #FFFFFF |
+| Pill Dark Green | `from-[#1B5E20]` | #1B5E20 |
+| Pill Mid Green | `via-[#2E7D32]` | #2E7D32 |
+| Pill Light Green | `to-[#4CAF50]` | #4CAF50 |
+| Value Gold | `text-[#FFD700]` | #FFD700 |
+| Label White | `text-white` | #FFFFFF |
+| Title Gradient | `from-[#2E7D32] to-[#FFD700]` | Green → Gold |
 
-### Stat Item Component
+### Title Design
 
-```text
-┌───────────────────────┐
-│  [Icon]  Label        │
-│          ━━━━━        │ ← Value với gradient text
-│          12.5K        │
-└───────────────────────┘
-```
-
-CSS:
 ```css
-.stat-item {
-  background: linear-gradient(135deg, rgba(0,231,255,0.08), rgba(255,215,0,0.08));
-  border: 1px solid rgba(0,231,255,0.3);
-  border-radius: 12px;
-  padding: 12px;
-  flex: 1;
-  transition: all 0.2s;
-}
-
-.stat-item:hover {
-  border-color: rgba(255,215,0,0.6);
-  box-shadow: 0 0 20px rgba(0,231,255,0.3);
-}
-
-.stat-value {
-  background: linear-gradient(to right, #00E7FF, #FFD700);
+.honor-board-title {
+  font-style: italic;
+  font-weight: 900;
+  background: linear-gradient(to right, #2E7D32, #FFD700);
   -webkit-background-clip: text;
   color: transparent;
-  font-weight: 700;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
 }
 ```
 
-### Top Creators List
+### Pill Item Design
 
-```text
-┌─────────────────────────────────┐
-│ 🥇 [Avatar] Creator Name        │
-│            📹 25  👁 12.5K      │
-├─────────────────────────────────┤
-│ 🥈 [Avatar] Creator Name        │
-│            📹 18  👁 8.2K       │
-└─────────────────────────────────┘
+```css
+.stat-pill {
+  background: linear-gradient(to right, #1B5E20, #2E7D32, #4CAF50);
+  border-radius: 9999px; /* full rounded */
+  padding: 12px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.stat-pill:hover {
+  transform: translateX(4px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
 ```
 
-- Rank 1: Border `border-[#FFD700]` với glow
-- Rank 2: Border `border-gray-400`
-- Rank 3: Border `border-orange-400`
-- Rank 4+: Border `border-border`
+---
+
+## Files Cần Thay Đổi
+
+| File | Thay Đổi |
+|------|----------|
+| `src/components/Layout/HonoboardRightSidebar.tsx` | Redesign hoàn toàn theo pill layout |
+| `src/components/Layout/MobileHonoboardCard.tsx` | Cập nhật style xanh lá/vàng |
+| `src/components/Layout/HonobarDetailModal.tsx` | Full pill layout trong modal |
 
 ---
 
-## 4. Thứ Tự Triển Khai
+## Kết Quả Mong Đợi
 
-1. **Cập nhật `HonoboardRightSidebar.tsx`**
-   - Đổi sang fixed position
-   - Redesign stats layout theo hàng ngang
-   - Cập nhật màu sắc Aurora theme
-   - Giữ Top 10 Creators với thiết kế mới
+1. **Desktop Right Sidebar:**
+   - Title "HONOR BOARD" italic với gradient xanh/vàng
+   - 5 stat pills xếp dọc với gradient xanh lá
+   - Icon + label trắng bên trái, value vàng bên phải
+   - Top 10 Creators giữ nguyên bên dưới
 
-2. **Cập nhật `Index.tsx`**
-   - Thêm padding-right cho main content
-   - Đảm bảo middle section có overflow-y-auto
-   - Honor Board ở ngoài flex container
+2. **Mobile Card:**
+   - Header với style tương tự
+   - Mini pills preview
+   - Tap để mở full detail
 
-3. **Cập nhật `MobileHonoboardCard.tsx`**
-   - Redesign theo Aurora theme
-   - Compact stats row
-   - Matching style với desktop
+3. **Mobile/Desktop Modal:**
+   - Full vertical pill layout
+   - Cùng color scheme xanh lá/vàng
+   - Real-time updates indicator
 
-4. **Cập nhật `HonobarDetailModal.tsx`**
-   - Row-based stats layout
-   - Thêm Top 10 Creators list đầy đủ
-   - Aurora gradient styling
-
----
-
-## 5. Kết Quả Mong Đợi
-
-| Tính năng | Mô tả |
-|-----------|-------|
-| Fixed Right Column | Honor Board cố định, không cuộn khi scroll video |
-| Middle Section Scrollable | Chỉ video grid và category chips cuộn |
-| Horizontal Stats | Stats xếp theo hàng ngang (2 items/row × 3 rows) |
-| Aurora Theme | Màu sắc Cyan (#00E7FF) + Gold (#FFD700) xuyên suốt |
-| Mobile Responsive | Card compact với cùng color scheme |
-| Smooth Transitions | Hover effects, glow animations |
-| Realtime Updates | Stats tự động cập nhật |
