@@ -1,201 +1,376 @@
 
 
-# Kế Hoạch Thiết Kế Lại Honor Board Theo Hình Mẫu
+# Kế Hoạch Cập Nhật Honor Board Theo Design System "Heavenly Aurora Bliss"
 
-## Phân Tích Hình Mẫu
+## Tổng Quan
 
-Từ hình ảnh tham khảo, Honor Board có thiết kế:
+Cập nhật Honor Board để phù hợp với design system chính thức của FUN Play, sử dụng bảng màu Aurora (Cyan/Purple/Magenta/Gold) thay vì màu xanh lá hiện tại.
+
+---
+
+## 1. Phân Tích Vấn Đề Hiện Tại
+
+### Màu sắc hiện tại (không phù hợp)
+
+| Component | Màu hiện tại | Vấn đề |
+|-----------|--------------|--------|
+| StatPill background | `from-[#1B5E20] via-[#2E7D32] to-[#4CAF50]` (Xanh lá) | Không khớp design system |
+| Title gradient | `from-[#2E7D32] to-[#FFD700]` | Chỉ dùng 2 màu, thiếu Aurora gradient |
+| Card background | `from-white via-[#E8F5E9] to-[#C8E6C9]` | Xanh lá nhạt, không phải Aurora |
+| Border | `border-[#4CAF50]` | Xanh lá đậm |
+
+### Màu sắc theo Design System (cần thay đổi)
+
+| Element | Design System Color | HEX |
+|---------|---------------------|-----|
+| **Cosmic Cyan** | Primary energy | `#00E7FF` / `#00FFFF` |
+| **Cosmic Purple** | Deep accent | `#7A2BFF` / `#1A0D52` |
+| **Cosmic Magenta** | Main accent | `#FF00E5` / `#FF00FF` |
+| **Cosmic Gold** | Highlight | `#FFD700` |
+| **Cosmic Sapphire** | Primary button | `#0066FF` |
+
+---
+
+## 2. Thay Đổi Chi Tiết
+
+### File 1: `src/components/Layout/HonoboardRightSidebar.tsx`
+
+**A) StatPill Component - Cập nhật màu sắc:**
+
+Hiện tại:
+```tsx
+bg-gradient-to-r from-[#1B5E20] via-[#2E7D32] to-[#4CAF50]
+```
+
+Mới (Aurora theme):
+```tsx
+bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] to-[#FF00E5]
+// Text values giữ gold: text-[#FFD700]
+// Icon và label: text-white
+// Shadow: shadow-[0_4px_15px_rgba(0,231,255,0.3)]
+// Hover shadow: shadow-[0_6px_25px_rgba(122,43,255,0.4)]
+```
+
+**B) Header Card - Aurora gradient:**
+
+Hiện tại:
+```tsx
+bg-gradient-to-br from-white via-[#E8F5E9] to-[#C8E6C9]
+border-2 border-[#4CAF50]/40
+```
+
+Mới:
+```tsx
+bg-gradient-to-br from-white via-[#F0F9FF] to-[#FDF4FF]
+border-2 border-[#00E7FF]/40
+shadow-[0_0_25px_rgba(0,231,255,0.2)]
+// Hover: border-[#FF00E5]/50
+```
+
+**C) Title - Full Aurora gradient:**
+
+Hiện tại:
+```tsx
+bg-gradient-to-r from-[#2E7D32] to-[#FFD700] bg-clip-text text-transparent
+```
+
+Mới:
+```tsx
+bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] to-[#FFD700] bg-clip-text text-transparent
+```
+
+**D) Sidebar Container:**
+
+Hiện tại:
+```tsx
+bg-gradient-to-b from-white via-white to-[#E8F5E9]
+border-l-2 border-[#4CAF50]/30
+shadow-[-10px_0_30px_rgba(76,175,80,0.1)]
+```
+
+Mới:
+```tsx
+bg-gradient-to-b from-white via-white to-[#F0FDFF]
+border-l-2 border-[#00E7FF]/30
+shadow-[-10px_0_30px_rgba(0,231,255,0.1)]
+```
+
+**E) Top 10 Creators Section:**
+
+Hiện tại:
+```tsx
+bg-gradient-to-br from-[#E8F5E9] via-white to-[#FFF8E1]
+border border-[#4CAF50]/25
+```
+
+Mới:
+```tsx
+bg-gradient-to-br from-[#F0FDFF] via-white to-[#FFF8F0]
+border border-[#00E7FF]/25
+// Top creator text: text-[#7A2BFF] thay vì text-[#1B5E20]
+```
+
+**F) Rank 1 Creator:**
+
+Hiện tại:
+```tsx
+border-[#FFD700] ring-2 ring-[rgba(255,215,0,0.3)] shadow-[0_0_10px_rgba(255,215,0,0.4)]
+```
+
+Mới (thêm Aurora glow):
+```tsx
+border-[#FFD700] ring-2 ring-[rgba(255,215,0,0.3)] 
+shadow-[0_0_15px_rgba(255,215,0,0.5),0_0_25px_rgba(0,231,255,0.3)]
+```
+
+---
+
+### File 2: `src/components/Layout/MobileHonoboardCard.tsx`
+
+**A) MiniPill Component:**
+
+Hiện tại:
+```tsx
+bg-gradient-to-r from-[#1B5E20] via-[#2E7D32] to-[#4CAF50]
+```
+
+Mới:
+```tsx
+bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] to-[#FF00E5]
+```
+
+**B) Card Container:**
+
+Hiện tại:
+```tsx
+bg-gradient-to-r from-white via-[#E8F5E9] to-[#FFF8E1]
+border border-[#4CAF50]/40
+shadow-[0_0_20px_rgba(76,175,80,0.15)]
+hover:shadow-[0_0_25px_rgba(76,175,80,0.25)]
+hover:border-[#FFD700]/50
+```
+
+Mới:
+```tsx
+bg-gradient-to-r from-white via-[#F0FDFF] to-[#FFF8F0]
+border border-[#00E7FF]/40
+shadow-[0_0_20px_rgba(0,231,255,0.15)]
+hover:shadow-[0_0_25px_rgba(122,43,255,0.25)]
+hover:border-[#FF00E5]/50
+```
+
+**C) Title gradient:**
+
+Hiện tại:
+```tsx
+bg-gradient-to-r from-[#2E7D32] to-[#FFD700]
+```
+
+Mới:
+```tsx
+bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] to-[#FFD700]
+```
+
+**D) Top Creator Text:**
+
+Hiện tại:
+```tsx
+text-[#1B5E20]
+```
+
+Mới:
+```tsx
+text-[#7A2BFF]
+```
+
+**E) Border divider:**
+
+Hiện tại:
+```tsx
+border-t border-[#4CAF50]/20
+```
+
+Mới:
+```tsx
+border-t border-[#00E7FF]/20
+```
+
+---
+
+### File 3: `src/components/Layout/HonobarDetailModal.tsx`
+
+**A) StatPill - Aurora gradient:**
+
+Cập nhật giống `HonoboardRightSidebar.tsx`:
+```tsx
+bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] to-[#FF00E5]
+```
+
+**B) Sheet/Dialog styling:**
+
+Hiện tại (Sheet):
+```tsx
+bg-gradient-to-b from-white to-[#E8F5E9] border-t-2 border-[#4CAF50]/50
+```
+
+Mới:
+```tsx
+bg-gradient-to-b from-white to-[#F0FDFF] border-t-2 border-[#00E7FF]/50
+```
+
+Hiện tại (Dialog):
+```tsx
+bg-gradient-to-br from-white via-[#E8F5E9] to-[#FFF8E1]
+border-2 border-[#4CAF50]/50
+shadow-[0_0_40px_rgba(76,175,80,0.3),0_0_80px_rgba(255,215,0,0.2)]
+```
+
+Mới:
+```tsx
+bg-gradient-to-br from-white via-[#F0FDFF] to-[#FFF8F0]
+border-2 border-[#00E7FF]/50
+shadow-[0_0_40px_rgba(0,231,255,0.3),0_0_80px_rgba(122,43,255,0.2)]
+```
+
+**C) Section borders và text:**
+
+Thay tất cả:
+- `border-[#4CAF50]` → `border-[#00E7FF]`
+- `text-[#4CAF50]` → `text-[#00E7FF]`
+- `text-[#1B5E20]` → `text-[#7A2BFF]`
+
+**D) Extended Details cards:**
+
+Hiện tại:
+```tsx
+bg-gradient-to-r from-[#E8F5E9] to-[#FFF8E1]
+```
+
+Mới:
+```tsx
+bg-gradient-to-r from-[#F0FDFF] to-[#FFF8F0]
+// Hoặc glassmorphism: bg-white/80 backdrop-blur-sm border border-[#00E7FF]/20
+```
+
+---
+
+## 3. Color Palette Reference
+
+### Thay thế hoàn toàn
+
+| Màu cũ (Green) | Màu mới (Aurora) | Sử dụng |
+|----------------|------------------|---------|
+| `#1B5E20` | `#00E7FF` | Gradient start |
+| `#2E7D32` | `#7A2BFF` | Gradient middle |
+| `#4CAF50` | `#FF00E5` | Gradient end |
+| `#E8F5E9` | `#F0FDFF` | Light cyan background |
+| `#C8E6C9` | `#FDF4FF` | Light purple background |
+
+### Giữ nguyên
+
+| Màu | HEX | Lý do |
+|-----|-----|-------|
+| Gold | `#FFD700` | Vẫn phù hợp design system |
+| White | `#FFFFFF` | Background chính |
+| Muted text | System | Không thay đổi |
+
+---
+
+## 4. Visual Preview
+
+### StatPill mới
 
 ```text
-┌─────────────────────────────────┐
-│     HONOR BOARD (italic)        │  ← Tiêu đề gradient xanh lá/vàng
-├─────────────────────────────────┤
-│ 👥 TOTAL USERS           77     │  ← Pill xanh lá, text trắng, value vàng
-├─────────────────────────────────┤
-│ 📝 TOTAL POSTS        1.101     │  ← Mỗi stat một dòng riêng
-├─────────────────────────────────┤
-│ 📷 TOTAL PHOTOS         947     │
-├─────────────────────────────────┤
-│ 🎬 TOTAL VIDEOS          40     │
-├─────────────────────────────────┤
-│ 💰 TOTAL REWARD    39.500.000   │  ← Pill với coin icon
-└─────────────────────────────────┘
+┌────────────────────────────────────────────────────┐
+│  [Cyan ━━━━ Purple ━━━━ Magenta gradient]          │
+│  👥 TOTAL USERS                              150   │ ← Gold value
+│  [Glow: cyan/purple shadow]                        │
+└────────────────────────────────────────────────────┘
 ```
 
-### Đặc Điểm Thiết Kế Chính
+### Card Container mới
 
-| Yếu Tố | Chi Tiết |
-|--------|----------|
-| **Title** | Chữ italic, gradient xanh lá sang vàng |
-| **Layout** | Vertical stacked - mỗi stat một hàng riêng (không 2 cột) |
-| **Shape** | Pill/capsule với bo góc lớn (full rounded) |
-| **Background** | Gradient xanh lá đậm (#1B5E20 → #4CAF50) |
-| **Icon + Label** | Bên trái, text trắng |
-| **Value** | Bên phải, text vàng/gold (#FFD700) |
-| **Spacing** | Gap nhỏ giữa các pill |
-
----
-
-## Mapping Stats Cho FUN Play
-
-| Hình Mẫu | FUN Play Tương Ứng |
-|----------|-------------------|
-| TOTAL USERS | Total Users (giữ nguyên) |
-| TOTAL POSTS | Total Comments (số bình luận) |
-| TOTAL PHOTOS | Total Views (lượt xem) |
-| TOTAL VIDEOS | Total Videos (giữ nguyên) |
-| TOTAL REWARD | CAMLY Pool (reward pool) |
-
----
-
-## Thay Đổi Cần Thực Hiện
-
-### 1. File: `src/components/Layout/HonoboardRightSidebar.tsx`
-
-**Thay đổi layout:**
-- Từ: Grid 2 cột horizontal
-- Thành: Stack vertical 1 cột (mỗi stat một pill)
-
-**Thay đổi style:**
-- Background: `bg-gradient-to-r from-[#1B5E20] to-[#4CAF50]` (xanh lá)
-- Shape: `rounded-full` (pill shape)
-- Label text: `text-white`
-- Value text: `text-[#FFD700]` (vàng gold)
-- Title: Italic với gradient xanh lá/vàng
-
-**Code mới cho StatPill:**
-```tsx
-const StatPill = ({ icon: Icon, label, value, loading }) => (
-  <motion.div
-    className="flex items-center justify-between px-4 py-3 rounded-full
-      bg-gradient-to-r from-[#1B5E20] via-[#2E7D32] to-[#4CAF50]
-      shadow-md hover:shadow-lg transition-all duration-200"
-  >
-    <div className="flex items-center gap-2">
-      <Icon className="h-5 w-5 text-white" />
-      <span className="text-sm font-medium text-white uppercase tracking-wide">
-        {label}
-      </span>
-    </div>
-    <span className="text-lg font-bold text-[#FFD700]">
-      {loading ? "..." : formatNumber(value)}
-    </span>
-  </motion.div>
-);
-```
-
-**Stats mới (vertical stack):**
-```tsx
-const stats = [
-  { icon: Users, label: "TOTAL USERS", value: stats.totalUsers },
-  { icon: MessageCircle, label: "TOTAL COMMENTS", value: stats.totalComments },
-  { icon: Eye, label: "TOTAL VIEWS", value: stats.totalViews },
-  { icon: Video, label: "TOTAL VIDEOS", value: stats.totalVideos },
-  { icon: Coins, label: "CAMLY POOL", value: stats.camlyPool },
-];
-```
-
----
-
-### 2. File: `src/components/Layout/MobileHonoboardCard.tsx`
-
-**Thay đổi:**
-- Redesign theo style pill xanh lá
-- Compact 2-3 stats preview trên một dòng
-- Tap để mở full detail modal
-
-**Layout mobile card:**
 ```text
-┌─────────────────────────────────────────┐
-│ 👑 HONOR BOARD                    [→]   │
-├─────────────────────────────────────────┤
-│ [👥 77] [🎬 85] [💰 50M]                │  ← Mini pills
-└─────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────┐
+│  Background: White → Light Cyan → Light Purple      │
+│  Border: 2px solid rgba(0,231,255,0.4)              │
+│  Shadow: 0 0 25px rgba(0,231,255,0.2)               │
+│                                                     │
+│      👑 HONOR BOARD 👑                              │ ← Aurora gradient text
+│         ⚡ Realtime                                 │
+│                                                     │
+│  ┌───────────────────────────────────────────────┐  │
+│  │ [Aurora Pill] TOTAL USERS              150    │  │
+│  │ [Aurora Pill] TOTAL COMMENTS          1.2K    │  │
+│  │ [Aurora Pill] TOTAL VIEWS             25K     │  │
+│  │ [Aurora Pill] TOTAL VIDEOS             85     │  │
+│  │ [Aurora Pill] CAMLY POOL              50M     │  │
+│  └───────────────────────────────────────────────┘  │
+│                                                     │
+│  🏆 TOP 10 CREATORS                                 │
+│  ┌───────────────────────────────────────────────┐  │
+│  │ 🥇 [Avatar] Creator Name  [Purple text]       │  │
+│  │     📹 25   👁 12.5K  [Gold glow for #1]      │  │
+│  └───────────────────────────────────────────────┘  │
+│                                                     │
+│  Powered by FUN Play [Aurora gradient text]         │
+└─────────────────────────────────────────────────────┘
 ```
 
 ---
 
-### 3. File: `src/components/Layout/HonobarDetailModal.tsx`
+## 5. Mobile Responsive
 
-**Thay đổi:**
-- Full vertical pill layout như desktop
-- Giữ Top 10 Creators section
-- Áp dụng color scheme xanh lá/vàng
+### MobileHonoboardCard
 
----
-
-## Visual Design Chi Tiết
-
-### Color Palette (Forest Green Theme)
-
-| Element | Color | HEX |
-|---------|-------|-----|
-| Pill Dark Green | `from-[#1B5E20]` | #1B5E20 |
-| Pill Mid Green | `via-[#2E7D32]` | #2E7D32 |
-| Pill Light Green | `to-[#4CAF50]` | #4CAF50 |
-| Value Gold | `text-[#FFD700]` | #FFD700 |
-| Label White | `text-white` | #FFFFFF |
-| Title Gradient | `from-[#2E7D32] to-[#FFD700]` | Green → Gold |
-
-### Title Design
-
-```css
-.honor-board-title {
-  font-style: italic;
-  font-weight: 900;
-  background: linear-gradient(to right, #2E7D32, #FFD700);
-  -webkit-background-clip: text;
-  color: transparent;
-  text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
-}
-```
-
-### Pill Item Design
-
-```css
-.stat-pill {
-  background: linear-gradient(to right, #1B5E20, #2E7D32, #4CAF50);
-  border-radius: 9999px; /* full rounded */
-  padding: 12px 20px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.stat-pill:hover {
-  transform: translateX(4px);
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-}
-```
+- **Background**: White → Light Cyan → Light Orange (subtle)
+- **Border**: Cyan với hover chuyển thành Magenta
+- **Mini Pills**: Aurora gradient thay vì Green gradient
+- **Title**: Full Aurora gradient (Cyan → Purple → Gold)
+- **Glow effects**: Cyan/Purple thay vì Green
 
 ---
 
-## Files Cần Thay Đổi
+## 6. Files Cần Thay Đổi
 
 | File | Thay Đổi |
 |------|----------|
-| `src/components/Layout/HonoboardRightSidebar.tsx` | Redesign hoàn toàn theo pill layout |
-| `src/components/Layout/MobileHonoboardCard.tsx` | Cập nhật style xanh lá/vàng |
-| `src/components/Layout/HonobarDetailModal.tsx` | Full pill layout trong modal |
+| `HonoboardRightSidebar.tsx` | Toàn bộ color scheme sang Aurora |
+| `MobileHonoboardCard.tsx` | Cập nhật MiniPill và card colors |
+| `HonobarDetailModal.tsx` | StatPill, dialog/sheet styling, section colors |
 
 ---
 
-## Kết Quả Mong Đợi
+## 7. Thứ Tự Triển Khai
 
-1. **Desktop Right Sidebar:**
-   - Title "HONOR BOARD" italic với gradient xanh/vàng
-   - 5 stat pills xếp dọc với gradient xanh lá
-   - Icon + label trắng bên trái, value vàng bên phải
-   - Top 10 Creators giữ nguyên bên dưới
+1. **HonoboardRightSidebar.tsx** - Desktop Honor Board
+   - StatPill gradient colors
+   - Header card background và border
+   - Title Aurora gradient
+   - Container border và shadow
+   - Top Creators section
 
-2. **Mobile Card:**
-   - Header với style tương tự
-   - Mini pills preview
-   - Tap để mở full detail
+2. **MobileHonoboardCard.tsx** - Mobile compact card
+   - MiniPill Aurora gradient
+   - Card container colors
+   - Title gradient
+   - Divider và text colors
 
-3. **Mobile/Desktop Modal:**
-   - Full vertical pill layout
-   - Cùng color scheme xanh lá/vàng
-   - Real-time updates indicator
+3. **HonobarDetailModal.tsx** - Detail modal/sheet
+   - StatPill matching desktop
+   - Sheet/Dialog backgrounds
+   - All section borders và text
+
+---
+
+## 8. Kết Quả Mong Đợi
+
+| Tính năng | Mô tả |
+|-----------|-------|
+| Aurora Theme | Cyan → Purple → Magenta gradient cho pills |
+| Glassmorphism | White backgrounds với subtle cyan/purple tints |
+| Gold Highlights | Values và rank #1 vẫn dùng gold |
+| Cosmic Glow | Shadows dùng cyan/purple thay vì green |
+| Consistent | Desktop, Mobile Card, Modal đều cùng color scheme |
+| Real-time | Giữ nguyên realtime indicator (green dot) |
 
