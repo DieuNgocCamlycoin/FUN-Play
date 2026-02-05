@@ -3,8 +3,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Coins, Sparkles, Gift, CheckCircle, Loader2, ExternalLink, Wallet, Smartphone, AlertCircle, HelpCircle, Clock, ShieldCheck } from "lucide-react";
+import { Coins, Sparkles, Gift, CheckCircle, Loader2, ExternalLink, Wallet, Smartphone, AlertCircle, HelpCircle, Clock, ShieldCheck, Info } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useWalletConnectionWithRetry } from "@/hooks/useWalletConnectionWithRetry";
@@ -14,6 +15,8 @@ import { MobileWalletGuide } from "@/components/Web3/MobileWalletGuide";
 import { toast } from "@/hooks/use-toast";
 import confetti from "canvas-confetti";
 import { isMobileBrowser, isInWalletBrowser, getWalletDeepLink, logWalletDebug, REWARD_WALLET_ADDRESS } from "@/lib/web3Config";
+
+const MIN_CLAIM_THRESHOLD = 200000; // 200,000 CAMLY minimum to claim
 
 interface ClaimRewardsModalProps {
   open: boolean;
@@ -372,6 +375,50 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
               </motion.div>
 
               {/* Breakdown - Rewards đã duyệt */}
+              {/* Thông báo ngưỡng claim */}
+              {totalUnclaimed >= MIN_CLAIM_THRESHOLD && (
+                <Alert className="border-green-500/30 bg-green-500/10">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  <AlertTitle className="text-green-600 font-semibold">
+                    🎉 Đủ điều kiện claim!
+                  </AlertTitle>
+                  <AlertDescription className="text-sm text-muted-foreground">
+                    Bạn có thể claim {formatNumber(totalUnclaimed)} CAMLY về ví ngay bây giờ!
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {totalUnclaimed > 0 && totalUnclaimed < MIN_CLAIM_THRESHOLD && (
+                <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Info className="h-4 w-4 text-blue-500" />
+                    <span className="font-medium text-blue-600">Tiến độ đến ngưỡng claim</span>
+                  </div>
+                  
+                  {/* Progress bar */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>{formatNumber(totalUnclaimed)} CAMLY</span>
+                      <span>{formatNumber(MIN_CLAIM_THRESHOLD)} CAMLY</span>
+                    </div>
+                    <Progress value={Math.min((totalUnclaimed / MIN_CLAIM_THRESHOLD) * 100, 100)} className="h-2" />
+                    <p className="text-xs text-center text-muted-foreground">
+                      {((totalUnclaimed / MIN_CLAIM_THRESHOLD) * 100).toFixed(0)}% hoàn thành
+                    </p>
+                  </div>
+                  
+                  {/* Còn bao nhiêu */}
+                  <p className="text-sm text-muted-foreground">
+                    Còn cần thêm <span className="font-bold text-blue-500">{formatNumber(MIN_CLAIM_THRESHOLD - totalUnclaimed)}</span> CAMLY để claim tự động.
+                  </p>
+                  
+                  {/* Gợi ý */}
+                  <p className="text-xs text-muted-foreground italic">
+                    💡 Tiếp tục xem video, like, comment để tích lũy thêm phần thưởng!
+                  </p>
+                </div>
+              )}
+
               {breakdown.length > 0 && (
                 <div className="space-y-2">
                   <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -547,7 +594,7 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
 
                   <Button
                     onClick={handleClaim}
-                    disabled={claiming || totalUnclaimed <= 0}
+                    disabled={claiming || totalUnclaimed < MIN_CLAIM_THRESHOLD}
                     className="w-full bg-gradient-to-r from-yellow-500 to-cyan-500 hover:from-yellow-600 hover:to-cyan-600 text-white font-bold py-6"
                   >
                     {claiming ? (
@@ -555,8 +602,8 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
                         <Loader2 className="h-5 w-5 mr-2 animate-spin" />
                         Đang gửi CAMLY...
                       </>
-                    ) : totalUnclaimed <= 0 ? (
-                      "Không có phần thưởng để claim"
+                    ) : totalUnclaimed < MIN_CLAIM_THRESHOLD ? (
+                      `Cần ${formatNumber(Math.max(MIN_CLAIM_THRESHOLD - totalUnclaimed, 0))} CAMLY nữa`
                     ) : (
                       <>
                         <motion.div
