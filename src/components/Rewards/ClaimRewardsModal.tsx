@@ -6,8 +6,10 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Coins, Sparkles, Gift, CheckCircle, Loader2, ExternalLink, Wallet, Smartphone, AlertCircle, HelpCircle, Clock, ShieldCheck, Info, TrendingUp } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useWalletConnectionWithRetry } from "@/hooks/useWalletConnectionWithRetry";
 import { useClaimNotificationSound } from "@/hooks/useClaimNotificationSound";
 import { WalletConnectionProgress } from "@/components/Web3/WalletConnectionProgress";
@@ -15,6 +17,7 @@ import { MobileWalletGuide } from "@/components/Web3/MobileWalletGuide";
 import { toast } from "@/hooks/use-toast";
 import confetti from "canvas-confetti";
 import { isMobileBrowser, isInWalletBrowser, getWalletDeepLink, logWalletDebug, REWARD_WALLET_ADDRESS } from "@/lib/web3Config";
+import { cn } from "@/lib/utils";
 
 const MIN_CLAIM_THRESHOLD = 200000; // 200,000 CAMLY minimum to claim
 
@@ -42,6 +45,7 @@ const REWARD_TYPE_LABELS: Record<string, string> = {
 
 export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps) => {
   const { user } = useAuth();
+  const isMobileLayout = useIsMobile();
   const { 
     isConnected, 
     address, 
@@ -294,7 +298,7 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md bg-gradient-to-br from-background via-background to-primary/5 border-primary/20">
+      <DialogContent className="sm:max-w-md md:max-w-2xl lg:max-w-3xl bg-gradient-to-br from-background via-background to-primary/5 border-primary/20 max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
             <motion.div
@@ -311,28 +315,36 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
+        <div className="py-4">
           {loading ? (
-            <div className="space-y-4">
+            <div className={cn(
+              "space-y-4",
+              !isMobileLayout && "md:grid md:grid-cols-2 md:gap-6 md:space-y-0"
+            )}>
               {/* Skeleton for summary card */}
-              <div className="p-4 rounded-xl bg-muted/30 border border-border space-y-3">
-                <Skeleton className="h-4 w-40" />
-                <div className="grid grid-cols-2 gap-3">
-                  <Skeleton className="h-12 w-full" />
-                  <Skeleton className="h-12 w-full" />
+              <div className="space-y-4">
+                <div className="p-4 rounded-xl bg-muted/30 border border-border space-y-3">
+                  <Skeleton className="h-4 w-40" />
+                  <div className="grid grid-cols-2 gap-3">
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                  </div>
+                  <Skeleton className="h-10 w-full" />
                 </div>
-                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-20 w-full rounded-lg" />
               </div>
               {/* Skeleton for main reward card */}
-              <div className="p-6 rounded-2xl bg-gradient-to-r from-yellow-500/10 via-cyan-500/10 to-yellow-500/10 border border-yellow-500/20">
-                <div className="text-center space-y-3">
-                  <Skeleton className="h-4 w-32 mx-auto" />
-                  <Skeleton className="h-10 w-40 mx-auto" />
-                  <Skeleton className="h-3 w-16 mx-auto" />
+              <div className="space-y-4">
+                <div className="p-6 rounded-2xl bg-gradient-to-r from-yellow-500/10 via-cyan-500/10 to-yellow-500/10 border border-yellow-500/20">
+                  <div className="text-center space-y-3">
+                    <Skeleton className="h-4 w-32 mx-auto" />
+                    <Skeleton className="h-10 w-40 mx-auto" />
+                    <Skeleton className="h-3 w-16 mx-auto" />
+                  </div>
                 </div>
+                {/* Skeleton for button */}
+                <Skeleton className="h-12 w-full rounded-lg" />
               </div>
-              {/* Skeleton for button */}
-              <Skeleton className="h-12 w-full rounded-lg" />
             </div>
           ) : claimSuccess ? (
             <motion.div
@@ -380,361 +392,379 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
               </Button>
             </motion.div>
           ) : (
-            <>
-              {/* 📊 TỔNG QUAN PHẦN THƯỞNG - Summary Card */}
-              <motion.div
-                initial={{ y: -10, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                className="p-4 rounded-xl bg-gradient-to-br from-muted/50 to-muted/30 border border-border space-y-3"
-              >
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-primary" />
-                  <span className="font-semibold text-sm">Tổng quan phần thưởng</span>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-3">
-                  {/* Có thể claim ngay */}
-                  <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20 text-center">
-                    <div className="flex items-center justify-center gap-1 mb-1">
-                      <ShieldCheck className="h-3 w-3 text-green-500" />
-                      <span className="text-[10px] text-green-600 font-medium">Có thể claim</span>
-                    </div>
-                    <p className="text-lg font-bold text-green-500">
-                      {formatNumber(totalUnclaimed)}
-                    </p>
-                  </div>
-                  
-                  {/* Chờ duyệt */}
-                  <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-center">
-                    <div className="flex items-center justify-center gap-1 mb-1">
-                      <Clock className="h-3 w-3 text-yellow-500" />
-                      <span className="text-[10px] text-yellow-600 font-medium">Chờ duyệt</span>
-                    </div>
-                    <p className="text-lg font-bold text-yellow-500">
-                      {formatNumber(totalPending)}
-                    </p>
-                  </div>
-                </div>
-                
-                {/* Tổng cộng */}
-                <div className="p-3 rounded-lg bg-gradient-to-r from-yellow-500/10 via-cyan-500/10 to-yellow-500/10 border border-primary/20 text-center">
-                  <div className="flex items-center justify-center gap-1 mb-1">
-                    <Coins className="h-3 w-3 text-primary" />
-                    <span className="text-[10px] text-muted-foreground font-medium">TỔNG CỘNG</span>
-                  </div>
-                  <p className="text-xl font-bold bg-gradient-to-r from-yellow-500 to-cyan-500 bg-clip-text text-transparent">
-                    {formatNumber(totalUnclaimed + totalPending)} CAMLY
-                  </p>
-                </div>
-              </motion.div>
-
-              {/* Total Unclaimed */}
-              <motion.div
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                className="relative p-6 rounded-2xl bg-gradient-to-r from-green-500/20 via-cyan-500/20 to-green-500/20 border border-green-500/30"
-              >
+            <div className={cn(
+              "space-y-6",
+              !isMobileLayout && "md:grid md:grid-cols-2 md:gap-6 md:space-y-0"
+            )}>
+              {/* CỘT TRÁI - Tổng quan & Pending */}
+              <div className="space-y-4">
+                {/* 📊 TỔNG QUAN PHẦN THƯỞNG - Summary Card */}
                 <motion.div
-                  className="absolute inset-0 rounded-2xl"
-                  animate={{
-                    boxShadow: [
-                      "0 0 20px rgba(34, 197, 94, 0.3)",
-                      "0 0 40px rgba(64, 224, 208, 0.3)",
-                      "0 0 20px rgba(34, 197, 94, 0.3)",
-                    ],
-                  }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                />
-                
-                <div className="relative text-center">
-                  <div className="flex items-center justify-center gap-2 mb-2">
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-                    >
-                      <Coins className="h-8 w-8 text-green-500" />
-                    </motion.div>
-                    <span className="text-sm text-muted-foreground">✅ Có thể claim ngay (đã duyệt)</span>
-                  </div>
-                  
-                  <motion.p
-                    className="text-4xl font-bold bg-gradient-to-r from-green-400 to-cyan-400 bg-clip-text text-transparent"
-                    animate={{ scale: [1, 1.02, 1] }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                  >
-                    {formatNumber(totalUnclaimed)}
-                  </motion.p>
-                  <p className="text-sm text-muted-foreground">CAMLY</p>
-                </div>
-              </motion.div>
-
-              {/* Breakdown - Rewards đã duyệt */}
-              {/* Thông báo ngưỡng claim */}
-              {totalUnclaimed >= MIN_CLAIM_THRESHOLD && (
-                <Alert className="border-green-500/30 bg-green-500/10">
-                  <CheckCircle className="h-4 w-4 text-green-500" />
-                  <AlertTitle className="text-green-600 font-semibold">
-                    🎉 Đủ điều kiện claim!
-                  </AlertTitle>
-                  <AlertDescription className="text-sm text-muted-foreground">
-                    Bạn có thể claim {formatNumber(totalUnclaimed)} CAMLY về ví ngay bây giờ!
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {totalUnclaimed > 0 && totalUnclaimed < MIN_CLAIM_THRESHOLD && (
-                <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 space-y-3">
+                  initial={{ y: -10, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  className="p-4 rounded-xl bg-gradient-to-br from-muted/50 to-muted/30 border border-border space-y-3"
+                >
                   <div className="flex items-center gap-2">
-                    <Info className="h-4 w-4 text-blue-500" />
-                    <span className="font-medium text-blue-600">Tiến độ đến ngưỡng claim</span>
+                    <TrendingUp className="h-4 w-4 text-primary" />
+                    <span className="font-semibold text-sm">Tổng quan phần thưởng</span>
                   </div>
                   
-                  {/* Progress bar */}
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>{formatNumber(totalUnclaimed)} CAMLY</span>
-                      <span>{formatNumber(MIN_CLAIM_THRESHOLD)} CAMLY</span>
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* Có thể claim ngay */}
+                    <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20 text-center">
+                      <div className="flex items-center justify-center gap-1 mb-1">
+                        <ShieldCheck className="h-3 w-3 text-green-500" />
+                        <span className="text-[10px] text-green-600 font-medium">Có thể claim</span>
+                      </div>
+                      <p className="text-lg font-bold text-green-500">
+                        {formatNumber(totalUnclaimed)}
+                      </p>
                     </div>
-                    <Progress value={Math.min((totalUnclaimed / MIN_CLAIM_THRESHOLD) * 100, 100)} className="h-2" />
-                    <p className="text-xs text-center text-muted-foreground">
-                      {((totalUnclaimed / MIN_CLAIM_THRESHOLD) * 100).toFixed(0)}% hoàn thành
-                    </p>
-                  </div>
-                  
-                  {/* Còn bao nhiêu */}
-                  <p className="text-sm text-muted-foreground">
-                    Còn cần thêm <span className="font-bold text-blue-500">{formatNumber(MIN_CLAIM_THRESHOLD - totalUnclaimed)}</span> CAMLY để claim tự động.
-                  </p>
-                  
-                  {/* Gợi ý */}
-                  <p className="text-xs text-muted-foreground italic">
-                    💡 Tiếp tục xem video, like, comment để tích lũy thêm phần thưởng!
-                  </p>
-                </div>
-              )}
-
-              {breakdown.length > 0 && (
-                <div className="space-y-2">
-                  <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                    <ShieldCheck className="h-4 w-4 text-green-500" />
-                    Phần thưởng đã duyệt (có thể claim)
-                  </h4>
-                  <div className="space-y-1.5 max-h-32 overflow-y-auto">
-                    {breakdown.map((item, index) => (
-                      <motion.div
-                        key={item.type}
-                        initial={{ x: -20, opacity: 0 }}
-                        animate={{ x: 0, opacity: 1 }}
-                        transition={{ delay: index * 0.1 }}
-                        className="flex items-center justify-between p-2 rounded-lg bg-green-500/10 border border-green-500/20"
-                      >
-                        <span className="text-sm">
-                          {REWARD_TYPE_LABELS[item.type] || item.type} ({item.count}x)
-                        </span>
-                        <span className="font-medium text-green-500">
-                          +{formatNumber(item.amount)}
-                        </span>
-                      </motion.div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Thông báo pending rewards - CHỜ DUYỆT */}
-              {totalPending > 0 && (
-                <Alert className="border-yellow-500/30 bg-yellow-500/10">
-                  <Clock className="h-4 w-4 text-yellow-500" />
-                  <AlertTitle className="text-yellow-600 font-semibold">
-                    Phần thưởng đang chờ duyệt
-                  </AlertTitle>
-                  <AlertDescription className="text-sm space-y-2">
-                    <p className="text-muted-foreground">
-                      Bạn có <span className="font-bold text-yellow-500">{formatNumber(totalPending)} CAMLY</span> đang chờ Admin duyệt.
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      💡 Sau khi Admin duyệt, bạn có thể claim phần thưởng này. Thời gian duyệt thường từ 1-24 giờ.
-                    </p>
                     
-                    {/* Chi tiết pending */}
-                    {pendingBreakdown.length > 0 && (
-                      <div className="mt-2 space-y-1 max-h-24 overflow-y-auto">
-                        {pendingBreakdown.map((item, index) => (
-                          <div
+                    {/* Chờ duyệt */}
+                    <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-center">
+                      <div className="flex items-center justify-center gap-1 mb-1">
+                        <Clock className="h-3 w-3 text-yellow-500" />
+                        <span className="text-[10px] text-yellow-600 font-medium">Chờ duyệt</span>
+                      </div>
+                      <p className="text-lg font-bold text-yellow-500">
+                        {formatNumber(totalPending)}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Tổng cộng */}
+                  <div className="p-3 rounded-lg bg-gradient-to-r from-yellow-500/10 via-cyan-500/10 to-yellow-500/10 border border-primary/20 text-center">
+                    <div className="flex items-center justify-center gap-1 mb-1">
+                      <Coins className="h-3 w-3 text-primary" />
+                      <span className="text-[10px] text-muted-foreground font-medium">TỔNG CỘNG</span>
+                    </div>
+                    <p className="text-xl font-bold bg-gradient-to-r from-yellow-500 to-cyan-500 bg-clip-text text-transparent">
+                      {formatNumber(totalUnclaimed + totalPending)} CAMLY
+                    </p>
+                  </div>
+                </motion.div>
+
+                {/* Thông báo pending rewards - CHỜ DUYỆT */}
+                {totalPending > 0 && (
+                  <Alert className="border-yellow-500/30 bg-yellow-500/10">
+                    <Clock className="h-4 w-4 text-yellow-500" />
+                    <AlertTitle className="text-yellow-600 font-semibold">
+                      ⏳ Phần thưởng đang chờ duyệt
+                    </AlertTitle>
+                    <AlertDescription className="text-sm space-y-2">
+                      <p className="text-muted-foreground">
+                        Bạn có <span className="font-bold text-yellow-500">{formatNumber(totalPending)} CAMLY</span> đang chờ Admin duyệt.
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        💡 Thời gian duyệt thường từ 1-24 giờ.
+                      </p>
+                      
+                      {/* Chi tiết pending */}
+                      {pendingBreakdown.length > 0 && (
+                        <ScrollArea className="max-h-24 mt-2">
+                          <div className="space-y-1">
+                            {pendingBreakdown.map((item) => (
+                              <div
+                                key={item.type}
+                                className="flex items-center justify-between p-1.5 rounded bg-yellow-500/5 text-xs"
+                              >
+                                <span className="text-muted-foreground">
+                                  {REWARD_TYPE_LABELS[item.type] || item.type} ({item.count}x)
+                                </span>
+                                <span className="text-yellow-500">
+                                  +{formatNumber(item.amount)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </ScrollArea>
+                      )}
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {/* Thông báo khi không có reward gì cả - MOBILE ONLY */}
+                {isMobileLayout && totalUnclaimed === 0 && totalPending === 0 && (
+                  <Alert className="border-muted bg-muted/30">
+                    <Info className="h-4 w-4 text-muted-foreground" />
+                    <AlertTitle className="text-muted-foreground font-semibold">
+                      Chưa có phần thưởng
+                    </AlertTitle>
+                    <AlertDescription className="text-sm text-muted-foreground">
+                      Hãy xem video, like, comment để tích lũy CAMLY! 💡
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+
+              {/* CỘT PHẢI - Claimable & Action */}
+              <div className="space-y-4">
+                {/* Total Unclaimed */}
+                <motion.div
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  className="relative p-5 rounded-2xl bg-gradient-to-r from-green-500/20 via-cyan-500/20 to-green-500/20 border border-green-500/30"
+                >
+                  <motion.div
+                    className="absolute inset-0 rounded-2xl"
+                    animate={{
+                      boxShadow: [
+                        "0 0 20px rgba(34, 197, 94, 0.3)",
+                        "0 0 40px rgba(64, 224, 208, 0.3)",
+                        "0 0 20px rgba(34, 197, 94, 0.3)",
+                      ],
+                    }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  />
+                  
+                  <div className="relative text-center">
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                      >
+                        <Coins className="h-7 w-7 text-green-500" />
+                      </motion.div>
+                      <span className="text-xs text-muted-foreground">✅ Có thể claim ngay</span>
+                    </div>
+                    
+                    <motion.p
+                      className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-green-400 to-cyan-400 bg-clip-text text-transparent"
+                      animate={{ scale: [1, 1.02, 1] }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                    >
+                      {formatNumber(totalUnclaimed)}
+                    </motion.p>
+                    <p className="text-sm text-muted-foreground">CAMLY</p>
+                  </div>
+                </motion.div>
+
+                {/* Thông báo ngưỡng claim */}
+                {totalUnclaimed >= MIN_CLAIM_THRESHOLD && (
+                  <Alert className="border-green-500/30 bg-green-500/10">
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    <AlertTitle className="text-green-600 font-semibold">
+                      🎉 Đủ điều kiện claim!
+                    </AlertTitle>
+                    <AlertDescription className="text-sm text-muted-foreground">
+                      Bạn có thể claim {formatNumber(totalUnclaimed)} CAMLY về ví ngay bây giờ!
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {totalUnclaimed > 0 && totalUnclaimed < MIN_CLAIM_THRESHOLD && (
+                  <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Info className="h-4 w-4 text-blue-500" />
+                      <span className="font-medium text-sm text-blue-600">Tiến độ đến ngưỡng claim</span>
+                    </div>
+                    
+                    {/* Progress bar */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>{formatNumber(totalUnclaimed)}</span>
+                        <span>{formatNumber(MIN_CLAIM_THRESHOLD)}</span>
+                      </div>
+                      <Progress value={Math.min((totalUnclaimed / MIN_CLAIM_THRESHOLD) * 100, 100)} className="h-2" />
+                      <p className="text-xs text-center text-muted-foreground">
+                        {((totalUnclaimed / MIN_CLAIM_THRESHOLD) * 100).toFixed(0)}% - Còn cần <span className="font-bold text-blue-500">{formatNumber(MIN_CLAIM_THRESHOLD - totalUnclaimed)}</span>
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Breakdown - Rewards đã duyệt */}
+                {breakdown.length > 0 && (
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                      <ShieldCheck className="h-4 w-4 text-green-500" />
+                      Phần thưởng đã duyệt
+                    </h4>
+                    <ScrollArea className="max-h-28">
+                      <div className="space-y-1.5">
+                        {breakdown.map((item, index) => (
+                          <motion.div
                             key={item.type}
-                            className="flex items-center justify-between p-1.5 rounded bg-yellow-500/5 text-xs"
+                            initial={{ x: -20, opacity: 0 }}
+                            animate={{ x: 0, opacity: 1 }}
+                            transition={{ delay: index * 0.1 }}
+                            className="flex items-center justify-between p-2 rounded-lg bg-green-500/10 border border-green-500/20"
                           >
-                            <span className="text-muted-foreground">
+                            <span className="text-sm">
                               {REWARD_TYPE_LABELS[item.type] || item.type} ({item.count}x)
                             </span>
-                            <span className="text-yellow-500">
+                            <span className="font-medium text-green-500">
                               +{formatNumber(item.amount)}
                             </span>
-                          </div>
+                          </motion.div>
                         ))}
                       </div>
-                    )}
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {/* Thông báo khi không có reward nào để claim */}
-              {totalUnclaimed === 0 && totalPending > 0 && (
-                <Alert className="border-cyan-500/30 bg-cyan-500/10">
-                  <Sparkles className="h-4 w-4 text-cyan-500" />
-                  <AlertTitle className="text-cyan-600 font-semibold">
-                    🎉 Bạn có {formatNumber(totalPending)} CAMLY đang chờ duyệt!
-                  </AlertTitle>
-                  <AlertDescription className="text-sm text-muted-foreground">
-                    Phần thưởng của bạn đang được xem xét bởi Admin. Sau khi duyệt, bạn có thể claim ngay! Thời gian duyệt thường từ 1-24 giờ.
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {/* Thông báo khi không có reward gì cả */}
-              {totalUnclaimed === 0 && totalPending === 0 && (
-                <Alert className="border-muted bg-muted/30">
-                  <Info className="h-4 w-4 text-muted-foreground" />
-                  <AlertTitle className="text-muted-foreground font-semibold">
-                    Chưa có phần thưởng
-                  </AlertTitle>
-                  <AlertDescription className="text-sm text-muted-foreground">
-                    Hãy xem video, like, comment để tích lũy CAMLY! 💡
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {/* Connection Progress Indicator */}
-              <AnimatePresence>
-                {(isConnecting || connectionStep === 'error' || connectionStep === 'connected') && (
-                  <WalletConnectionProgress
-                    step={connectionStep}
-                    progress={connectionProgress}
-                    error={connectionError}
-                    onRetry={retry}
-                    onCancel={cancel}
-                  />
+                    </ScrollArea>
+                  </div>
                 )}
-              </AnimatePresence>
 
-              {/* Wallet Connection */}
-              {!isConnected && connectionStep === 'idle' ? (
-                <div className="space-y-3">
-                  <Button
-                    onClick={handleConnect}
-                    disabled={isConnecting}
-                    className="w-full bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600"
-                  >
-                    {isConnecting ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <Wallet className="h-4 w-4 mr-2" />
-                    )}
-                    Kết nối ví để claim
-                  </Button>
-                  
-                  {/* Mobile deep link buttons */}
-                  {isMobile && !inWalletApp && (
-                    <div className="space-y-2">
-                      <p className="text-xs text-center text-muted-foreground">
-                        <Smartphone className="h-3 w-3 inline mr-1" />
-                        Hoặc mở trực tiếp trong ứng dụng ví:
-                      </p>
-                      <div className="flex gap-2">
+                {/* Thông báo khi không có reward nào để claim */}
+                {totalUnclaimed === 0 && totalPending > 0 && (
+                  <Alert className="border-cyan-500/30 bg-cyan-500/10">
+                    <Sparkles className="h-4 w-4 text-cyan-500" />
+                    <AlertTitle className="text-cyan-600 font-semibold">
+                      🎉 {formatNumber(totalPending)} CAMLY đang chờ duyệt!
+                    </AlertTitle>
+                    <AlertDescription className="text-sm text-muted-foreground">
+                      Sau khi Admin duyệt, bạn có thể claim ngay!
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {/* Thông báo khi không có reward gì cả - DESKTOP ONLY */}
+                {!isMobileLayout && totalUnclaimed === 0 && totalPending === 0 && (
+                  <Alert className="border-muted bg-muted/30">
+                    <Info className="h-4 w-4 text-muted-foreground" />
+                    <AlertTitle className="text-muted-foreground font-semibold">
+                      Chưa có phần thưởng
+                    </AlertTitle>
+                    <AlertDescription className="text-sm text-muted-foreground">
+                      Hãy xem video, like, comment để tích lũy CAMLY! 💡
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {/* Connection Progress Indicator */}
+                <AnimatePresence>
+                  {(isConnecting || connectionStep === 'error' || connectionStep === 'connected') && (
+                    <WalletConnectionProgress
+                      step={connectionStep}
+                      progress={connectionProgress}
+                      error={connectionError}
+                      onRetry={retry}
+                      onCancel={cancel}
+                    />
+                  )}
+                </AnimatePresence>
+
+                {/* Wallet Connection */}
+                {!isConnected && connectionStep === 'idle' ? (
+                  <div className="space-y-3">
+                    <Button
+                      onClick={handleConnect}
+                      disabled={isConnecting}
+                      className="w-full bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600"
+                    >
+                      {isConnecting ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Wallet className="h-4 w-4 mr-2" />
+                      )}
+                      Kết nối ví để claim
+                    </Button>
+                    
+                    {/* Mobile deep link buttons */}
+                    {isMobile && !inWalletApp && (
+                      <div className="space-y-2">
+                        <p className="text-xs text-center text-muted-foreground">
+                          <Smartphone className="h-3 w-3 inline mr-1" />
+                          Hoặc mở trực tiếp trong ứng dụng ví:
+                        </p>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openWalletApp('metamask')}
+                            className="flex-1 text-xs"
+                          >
+                            🦊 MetaMask
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openWalletApp('bitget')}
+                            className="flex-1 text-xs"
+                          >
+                            💎 Bitget
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openWalletApp('trust')}
+                            className="flex-1 text-xs"
+                          >
+                            🛡️ Trust
+                          </Button>
+                        </div>
+                        
+                        {/* Help button */}
                         <Button
-                          variant="outline"
+                          variant="ghost"
                           size="sm"
-                          onClick={() => openWalletApp('metamask')}
-                          className="flex-1 text-xs"
+                          onClick={() => setShowWalletGuide(true)}
+                          className="w-full text-xs text-muted-foreground"
                         >
-                          🦊 MetaMask
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openWalletApp('bitget')}
-                          className="flex-1 text-xs"
-                        >
-                          💎 Bitget
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openWalletApp('trust')}
-                          className="flex-1 text-xs"
-                        >
-                          🛡️ Trust
+                          <HelpCircle className="h-3 w-3 mr-1" />
+                          Hướng dẫn cài đặt ví
                         </Button>
                       </div>
-                      
-                      {/* Help button */}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setShowWalletGuide(true)}
-                        className="w-full text-xs text-muted-foreground"
-                      >
-                        <HelpCircle className="h-3 w-3 mr-1" />
-                        Hướng dẫn cài đặt ví
-                      </Button>
-                    </div>
-                  )}
-                  
-                  {/* Show error if any */}
-                  {claimError && (
-                    <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30 text-sm">
-                      <div className="flex items-start gap-2">
-                        <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
-                        <div>
-                          <p className="text-destructive font-medium">Lỗi</p>
-                          <p className="text-muted-foreground text-xs">{claimError}</p>
+                    )}
+                    
+                    {/* Show error if any */}
+                    {claimError && (
+                      <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30 text-sm">
+                        <div className="flex items-start gap-2">
+                          <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-destructive font-medium">Lỗi</p>
+                            <p className="text-muted-foreground text-xs">{claimError}</p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-              ) : isConnected ? (
-                <div className="space-y-3">
-                  <div className="p-3 rounded-lg bg-muted/50 text-sm">
-                    <span className="text-muted-foreground">Ví nhận:</span>
-                    <p className="font-mono text-xs truncate">{address}</p>
-                  </div>
-
-                  <Button
-                    onClick={handleClaim}
-                    disabled={claiming || totalUnclaimed < MIN_CLAIM_THRESHOLD}
-                    className="w-full bg-gradient-to-r from-yellow-500 to-cyan-500 hover:from-yellow-600 hover:to-cyan-600 text-white font-bold py-6"
-                  >
-                    {claiming ? (
-                      <>
-                        <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                        Đang gửi CAMLY...
-                      </>
-                    ) : totalUnclaimed < MIN_CLAIM_THRESHOLD ? (
-                      `Cần ${formatNumber(Math.max(MIN_CLAIM_THRESHOLD - totalUnclaimed, 0))} CAMLY nữa`
-                    ) : (
-                      <>
-                        <motion.div
-                          animate={{ scale: [1, 1.2, 1] }}
-                          transition={{ duration: 0.5, repeat: Infinity }}
-                        >
-                          <Coins className="h-5 w-5 mr-2" />
-                        </motion.div>
-                        Claim {formatNumber(totalUnclaimed)} CAMLY
-                      </>
                     )}
-                  </Button>
-                </div>
-              ) : null}
+                  </div>
+                ) : isConnected ? (
+                  <div className="space-y-3">
+                    <div className="p-3 rounded-lg bg-muted/50 text-sm">
+                      <span className="text-muted-foreground">Ví nhận:</span>
+                      <p className="font-mono text-xs truncate">{address}</p>
+                    </div>
 
-              {/* Angel hint */}
-              <motion.p
-                className="text-center text-xs text-muted-foreground italic"
-                animate={{ opacity: [0.5, 1, 0.5] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              >
-                ✨ Angel says: "Rich Rich Rich rewards waiting for you!" ✨
-              </motion.p>
-            </>
+                    <Button
+                      onClick={handleClaim}
+                      disabled={claiming || totalUnclaimed < MIN_CLAIM_THRESHOLD}
+                      className="w-full bg-gradient-to-r from-yellow-500 to-cyan-500 hover:from-yellow-600 hover:to-cyan-600 text-white font-bold py-5"
+                    >
+                      {claiming ? (
+                        <>
+                          <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                          Đang gửi CAMLY...
+                        </>
+                      ) : totalUnclaimed < MIN_CLAIM_THRESHOLD ? (
+                        `Cần ${formatNumber(Math.max(MIN_CLAIM_THRESHOLD - totalUnclaimed, 0))} CAMLY nữa`
+                      ) : (
+                        <>
+                          <motion.div
+                            animate={{ scale: [1, 1.2, 1] }}
+                            transition={{ duration: 0.5, repeat: Infinity }}
+                          >
+                            <Coins className="h-5 w-5 mr-2" />
+                          </motion.div>
+                          Claim {formatNumber(totalUnclaimed)} CAMLY
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          )}
+          
+          {/* Angel hint - Full width at bottom */}
+          {!loading && !claimSuccess && (
+            <motion.p
+              className="text-center text-xs text-muted-foreground italic mt-4"
+              animate={{ opacity: [0.5, 1, 0.5] }}
+              transition={{ duration: 2, repeat: Infinity }}
+            >
+              ✨ Angel says: "Rich Rich Rich rewards waiting for you!" ✨
+            </motion.p>
           )}
         </div>
         
