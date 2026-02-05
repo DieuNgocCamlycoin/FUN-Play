@@ -10,13 +10,14 @@ import {
 } from "recharts";
 import { 
   Users, Video, Eye, MessageSquare, Coins, Activity, 
-  Crown, Award, TrendingUp, Download 
+  Crown, Award, TrendingUp, Download, Wifi, WifiOff 
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { motion } from "framer-motion";
 
 export function OverviewTab() {
-  const { platformStats, topCreators, topEarners, dailyStats, loading } = useAdminStatistics();
+  const { platformStats, topCreators, topEarners, dailyStats, loading, isConnected } = useAdminStatistics();
 
   const exportRewardStatsToCSV = () => {
     if (!dailyStats || dailyStats.length === 0) {
@@ -101,16 +102,42 @@ export function OverviewTab() {
 
   return (
     <div className="space-y-6">
-      {/* Export Buttons */}
-      <div className="flex flex-wrap gap-2">
-        <Button variant="outline" size="sm" onClick={exportRewardStatsToCSV}>
-          <Download className="w-4 h-4 mr-2" />
-          Xuất Thống Kê Reward
-        </Button>
-        <Button variant="outline" size="sm" onClick={exportTopUsersToCSV}>
-          <Download className="w-4 h-4 mr-2" />
-          Xuất Top Users
-        </Button>
+      {/* Realtime Connection Status */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {isConnected ? (
+            <motion.div
+              className="flex items-center gap-2 text-green-600"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+            >
+              <motion.div
+                animate={{ scale: [1, 1.2, 1] }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+              >
+                <Wifi className="w-4 h-4" />
+              </motion.div>
+              <span className="text-sm font-medium">Realtime Connected</span>
+            </motion.div>
+          ) : (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <WifiOff className="w-4 h-4" />
+              <span className="text-sm">Connecting...</span>
+            </div>
+          )}
+        </div>
+        
+        {/* Export Buttons */}
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={exportRewardStatsToCSV}>
+            <Download className="w-4 h-4 mr-2" />
+            Xuất Thống Kê Reward
+          </Button>
+          <Button variant="outline" size="sm" onClick={exportTopUsersToCSV}>
+            <Download className="w-4 h-4 mr-2" />
+            Xuất Top Users
+          </Button>
+        </div>
       </div>
 
       {/* Platform Stats Cards */}
