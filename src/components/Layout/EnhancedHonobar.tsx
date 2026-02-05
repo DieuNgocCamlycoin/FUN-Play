@@ -1,4 +1,4 @@
-import { Users, Video, Eye, MessageSquare, Coins, Trophy, Crown } from "lucide-react";
+import { Users, Video, Eye, MessageSquare, Coins, Crown } from "lucide-react";
 import { useHonobarStats } from "@/hooks/useHonobarStats";
 import { CounterAnimation } from "./CounterAnimation";
 import { motion } from "framer-motion";
@@ -12,7 +12,6 @@ export const EnhancedHonobar = () => {
     { icon: Eye, label: "Lượt xem", value: stats.totalViews, type: "number" },
     { icon: MessageSquare, label: "Bình luận", value: stats.totalComments, type: "number" },
     { icon: Coins, label: "CAMLY Pool", value: stats.camlyPool, decimals: 0, type: "camly" },
-    { icon: Trophy, label: "Top Creator", value: stats.topCreator?.displayName || "---", type: "text" },
   ];
 
   if (loading) {

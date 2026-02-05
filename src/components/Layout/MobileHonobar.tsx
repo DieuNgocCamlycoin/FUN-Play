@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Users, Video, Eye, MessageSquare, Coins, Trophy, Crown, ChevronDown, ChevronUp } from "lucide-react";
+import { Users, Video, Eye, MessageSquare, Coins, Crown, ChevronDown, ChevronUp } from "lucide-react";
 import { useHonobarStats } from "@/hooks/useHonobarStats";
 import { CounterAnimation } from "./CounterAnimation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -14,7 +14,6 @@ export const MobileHonobar = () => {
     { icon: Eye, label: "Views", value: stats.totalViews, type: "number" },
     { icon: MessageSquare, label: "Comments", value: stats.totalComments, type: "number" },
     { icon: Coins, label: "Pool", value: stats.camlyPool, type: "camly" },
-    { icon: Trophy, label: "Top", value: stats.topCreator?.displayName?.slice(0, 8) || "---", type: "text" },
   ];
 
   const formatCompact = (value: number) => {
