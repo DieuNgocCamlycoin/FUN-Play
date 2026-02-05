@@ -1,203 +1,305 @@
 
+# Kế Hoạch Thiết Kế Lại Trang Chủ FUN Play
 
-# Kế Hoạch Sửa Lỗi Real-time Top 10 Creators & Honorboard
+## Tổng Quan
 
-## Vấn Đề Đã Xác Định
-
-### 1. Database KHÔNG được cấu hình cho Realtime
-Khi kiểm tra `pg_publication_tables`, kết quả trả về **RỖNG** - nghĩa là **KHÔNG CÓ** bảng nào được publish cho Supabase Realtime. Đây là nguyên nhân chính khiến mọi realtime subscription đều không hoạt động.
-
-### 2. `useAdminStatistics` KHÔNG có Realtime Subscriptions
-Hook này chỉ fetch dữ liệu **MỘT LẦN** khi component mount và không bao giờ cập nhật cho đến khi refresh trang.
-
-```typescript
-// Hiện tại - CHỈ FETCH MỘT LẦN
-useEffect(() => {
-  fetchAdminStats();
-}, []);  // Empty dependency - không có realtime
-```
-
-### 3. `useHonobarStats` chỉ hiển thị TOP 1 Creator
-Hook này chỉ tính và hiển thị **MỘT** top creator duy nhất thay vì danh sách 10 người. Và logic khác với Admin (đếm số video thay vì lượt xem).
-
-### 4. Không có Sync giữa Admin và Honorboard
-- **Admin**: Sắp xếp theo `totalViews` 
-- **Honorboard**: Sắp xếp theo `videoCount` từ 1000 video gần nhất
+Thiết kế lại layout trang chủ theo mô hình 3 cột (desktop) giống YouTube 2025:
+- **Cột trái**: Sidebar thu gọn/mở rộng với FUN ECOSYSTEM luôn cố định
+- **Cột giữa**: Grid 2 cột hiển thị video  
+- **Cột phải**: Honor Board với thông tin chi tiết
 
 ---
 
-## Giải Pháp
+## 1. Kiến Trúc Layout Mới
 
-### Bước 1: Publish Tables cho Supabase Realtime
+### Desktop (≥1024px)
 
-Cần tạo migration để enable realtime cho các bảng cần thiết:
-
-```sql
--- Enable realtime for core tables
-ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.videos;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.comments;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.subscriptions;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.reward_transactions;
+```text
+┌────────────────────────────────────────────────────────────────────────┐
+│                           HEADER (fixed)                               │
+├──────────┬─────────────────────────────────────────┬───────────────────┤
+│          │                                         │                   │
+│  SIDEBAR │           VIDEO GRID (2 cột)            │   HONOR BOARD     │
+│  (240px) │           (flex-grow)                   │     (280px)       │
+│          │                                         │                   │
+│  ───────────                                       │   ┌───────────┐   │
+│  FUN ECOSYSTEM                                     │   │ 👑 HONOR  │   │
+│  (luôn hiển thị)                                   │   │   BOARD   │   │
+│  ───────────                                       │   ├───────────┤   │
+│  [≡] Toggle                                        │   │ Users: 150│   │
+│  ───────────                                       │   │ Videos: 85│   │
+│  Home                                              │   │ Views: 10K│   │
+│  Shorts                                            │   │ Pool: 50M │   │
+│  Subscriptions                                     │   ├───────────┤   │
+│  ...                                               │   │TOP CREATORS│  │
+│                                                    │   │ 1. User A │   │
+│                                                    │   │ 2. User B │   │
+│                                                    │   │ 3. User C │   │
+│                                                    │   │ ...       │   │
+│                                                    │   └───────────┘   │
+├──────────┴─────────────────────────────────────────┴───────────────────┤
 ```
 
-### Bước 2: Thêm Realtime Subscriptions cho `useAdminStatistics`
+### Mobile (<1024px)
 
-Cập nhật hook để có realtime listeners:
-
-```typescript
-// Thêm realtime subscriptions
-useEffect(() => {
-  fetchAdminStats();
-
-  // Realtime channels
-  const videosChannel = supabase
-    .channel('admin-videos')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'videos' }, fetchAdminStats)
-    .subscribe();
-
-  const profilesChannel = supabase
-    .channel('admin-profiles')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, fetchAdminStats)
-    .subscribe();
-
-  // ... thêm các channel khác
-
-  return () => {
-    supabase.removeChannel(videosChannel);
-    supabase.removeChannel(profilesChannel);
-    // cleanup...
-  };
-}, []);
+```text
+┌─────────────────────────┐
+│      MOBILE HEADER      │
+├─────────────────────────┤
+│    CATEGORY CHIPS       │
+├─────────────────────────┤
+│   HONOR BOARD (card)    │  ← Hiển thị compact, tap để mở detail
+├─────────────────────────┤
+│                         │
+│    VIDEO GRID (1 cột)   │
+│                         │
+│    ┌─────────────────┐  │
+│    │   Video Card    │  │
+│    └─────────────────┘  │
+│    ┌─────────────────┐  │
+│    │   Video Card    │  │
+│    └─────────────────┘  │
+│                         │
+├─────────────────────────┤
+│    BOTTOM NAV BAR       │
+└─────────────────────────┘
 ```
 
-### Bước 3: Mở Rộng `useHonobarStats` để Hỗ Trợ Top 10 Creators
+---
 
-Thêm state và logic để fetch danh sách Top 10:
+## 2. Cột Trái: Sidebar Thu Gọn/Mở Rộng
+
+### Tính Năng Mới
+
+| Tính năng | Mô tả |
+|-----------|-------|
+| **FUN ECOSYSTEM cố định** | Section này LUÔN hiển thị dù sidebar thu gọn hay mở rộng |
+| **Toggle collapse** | Nhấn menu icon gần logo header để ẩn/hiện các sections còn lại |
+| **Mini mode** | Khi thu gọn: chỉ hiển thị icons (64px width) |
+| **Full mode** | Khi mở rộng: hiển thị icons + text (240px width) |
+
+### State Management
 
 ```typescript
-interface HonobarStats {
-  // ... existing fields
-  topCreator: {...} | null;
-  topCreators: TopCreator[];  // NEW: Danh sách đầy đủ Top 10
+// Trong Index.tsx hoặc Context
+const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+// Toggle khi click menu button
+const handleMenuClick = () => {
+  setIsSidebarCollapsed(!isSidebarCollapsed);
+};
+```
+
+### Sidebar Modes
+
+**Thu gọn (Mini mode - 64px):**
+- Chỉ icons, không text
+- FUN ECOSYSTEM vẫn hiển thị đầy đủ
+- Tooltip khi hover icon
+
+**Mở rộng (Full mode - 240px):**
+- Icons + labels
+- Tất cả sections hiển thị
+
+---
+
+## 3. Cột Phải: Honor Board Sidebar
+
+### Component Mới: `HonoboardRightSidebar.tsx`
+
+Đây là phiên bản đầy đủ của Honor Board hiển thị bên phải màn hình.
+
+### Nội Dung Hiển Thị
+
+```text
+┌─────────────────────────────┐
+│  👑 HONOR BOARD 👑          │
+│  ─────────────────          │
+│  📊 THỐNG KÊ NỀN TẢNG       │
+│  ├─ 👥 Users: 150           │
+│  ├─ 🎬 Videos: 85           │
+│  ├─ 👁 Views: 10,234        │
+│  ├─ 💬 Comments: 892        │
+│  ├─ 💰 CAMLY Pool: 50M      │
+│  └─ 📡 Subscriptions: 1.2K  │
+│  ─────────────────          │
+│  🏆 TOP 10 CREATORS         │
+│  ┌─────────────────────┐    │
+│  │ 1. 🥇 UserName      │    │
+│  │    📹 25 videos     │    │
+│  │    👁 12.5K views   │    │
+│  ├─────────────────────┤    │
+│  │ 2. 🥈 UserName2     │    │
+│  │    📹 18 videos     │    │
+│  │    👁 8.2K views    │    │
+│  ├─────────────────────┤    │
+│  │ 3. 🥉 UserName3     │    │
+│  │    ...              │    │
+│  └─────────────────────┘    │
+│  ─────────────────          │
+│  ⚡ Realtime Updates ●      │
+└─────────────────────────────┘
+```
+
+### Props Interface
+
+```typescript
+interface HonoboardRightSidebarProps {
+  className?: string;
 }
-
-// Fetch top 10 creators với logic giống Admin (theo views)
-const { data: topCreatorData } = await supabase
-  .from("videos")
-  .select("user_id, view_count, profiles!inner(display_name, avatar_url)")
-  .eq("approval_status", "approved");
-
-// Aggregate và sort theo totalViews
-const creatorMap = new Map();
-topCreatorData?.forEach(video => {
-  const existing = creatorMap.get(video.user_id) || {...};
-  creatorMap.set(video.user_id, {
-    ...existing,
-    videoCount: existing.videoCount + 1,
-    totalViews: existing.totalViews + (video.view_count || 0),
-  });
-});
-
-const sortedCreators = Array.from(creatorMap.values())
-  .sort((a, b) => b.totalViews - a.totalViews)
-  .slice(0, 10);
 ```
-
-### Bước 4: Cập Nhật UI Components
-
-**Desktop Honobar (`EnhancedHonobar.tsx`):**
-- Giữ nguyên hiển thị compact với Top 1
-
-**Mobile Honobar (`MobileHonobar.tsx`):**
-- Giữ nguyên hiển thị compact với Top 1
-
-**Honobar Detail Modal (`HonobarDetailModal.tsx`):**
-- Thêm section hiển thị Top 10 Creators đầy đủ khi mở popup
-
-**Admin Overview (`OverviewTab.tsx`):**
-- Thêm indicator realtime connection status
-- Tự động cập nhật khi dữ liệu thay đổi
 
 ---
 
-## Files Cần Thay Đổi
+## 4. Cột Giữa: Video Grid 2 Cột
 
-| File | Thay Đổi |
-|------|----------|
-| `supabase/migrations/` | Tạo migration mới để publish tables cho realtime |
-| `src/hooks/useAdminStatistics.tsx` | Thêm Supabase realtime subscriptions |
-| `src/hooks/useHonobarStats.tsx` | Thêm topCreators array, thống nhất logic với Admin |
-| `src/components/Layout/HonobarDetailModal.tsx` | Hiển thị Top 10 Creators trong popup |
-| `src/components/Admin/tabs/OverviewTab.tsx` | Thêm realtime connection indicator |
+### Thay Đổi Grid
+
+**Hiện tại:**
+```typescript
+// 1 → 2 → 3 → 4 cột responsive
+grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4
+```
+
+**Mới:**
+```typescript
+// Fixed 2 cột trên desktop (khi có right sidebar)
+grid grid-cols-1 sm:grid-cols-2
+
+// Khi không có right sidebar (màn hình nhỏ hơn)
+grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3
+```
+
+### Responsive Breakpoints
+
+| Kích thước | Layout |
+|------------|--------|
+| < 640px (mobile) | 1 cột video, sidebar drawer, no right panel |
+| 640-1023px (tablet) | 2 cột video, sidebar drawer, no right panel |
+| ≥1024px (desktop) | Left sidebar + 2 cột video + Right Honor Board |
 
 ---
 
-## Chi Tiết Kỹ Thuật
+## 5. Mobile Responsive
 
-### Migration SQL
+### Thay Đổi Chính
 
-```sql
--- 001_enable_realtime_tables.sql
+1. **Honor Board Mobile Card**: Compact card nằm dưới category chips, tap để mở Sheet detail
+2. **Video Grid**: 1 cột trên mobile
+3. **Sidebar**: Sử dụng MobileDrawer như hiện tại
 
--- Enable realtime for tables used in Admin and Honorboard
-DO $$
-BEGIN
-  -- Only add if not already in publication
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_publication_tables 
-    WHERE pubname = 'supabase_realtime' 
-    AND tablename = 'profiles'
-  ) THEN
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles;
-  END IF;
-  
-  -- Repeat for other tables...
-END $$;
-```
-
-### Debounce cho Realtime Updates
-
-Để tránh quá nhiều re-fetch khi có nhiều thay đổi liên tục:
+### Honor Board Mobile Card
 
 ```typescript
-import { useCallback, useRef } from "react";
-
-const fetchAdminStats = useCallback(() => {
-  // Clear any pending timeout
-  if (debounceRef.current) clearTimeout(debounceRef.current);
-  
-  debounceRef.current = setTimeout(async () => {
-    // Actual fetch logic here
-  }, 300); // 300ms debounce
-}, []);
+// Compact card hiển thị 3 stats chính
+<div className="mx-4 mb-4">
+  <MobileHonoboardCard onClick={() => setShowHonobarDetail(true)} />
+</div>
 ```
 
-### Connection Status Indicator
+---
+
+## 6. Files Cần Thay Đổi/Tạo Mới
+
+| File | Thao Tác | Mô Tả |
+|------|----------|-------|
+| `src/components/Layout/HonoboardRightSidebar.tsx` | **TẠO MỚI** | Component Honor Board cột phải |
+| `src/components/Layout/MobileHonoboardCard.tsx` | **TẠO MỚI** | Honor Board card cho mobile |
+| `src/components/Layout/CollapsibleSidebar.tsx` | **TẠO MỚI** | Sidebar mới với tính năng thu gọn |
+| `src/pages/Index.tsx` | **SỬA** | Tích hợp layout 3 cột mới |
+| `src/components/Layout/Sidebar.tsx` | **SỬA** | Thêm collapsed state, FUN ECOSYSTEM fixed |
+| `src/hooks/useHonobarStats.tsx` | **SỬA** | Thêm topCreators array (Top 10) |
+
+---
+
+## 7. Chi Tiết Kỹ Thuật
+
+### A) HonoboardRightSidebar Component
 
 ```typescript
-const [isConnected, setIsConnected] = useState(false);
+// Tính năng:
+// - Fixed position bên phải
+// - Scroll riêng biệt (ScrollArea)
+// - Real-time updates với useHonobarStats
+// - Top 10 Creators với avatar, video count, views
+// - Animations với framer-motion
+```
 
-channel.subscribe((status) => {
-  setIsConnected(status === 'SUBSCRIBED');
-});
+### B) Collapsible Sidebar Logic
+
+```typescript
+// FUN ECOSYSTEM section
+<div className="sticky top-0 z-10 bg-background">
+  <FunEcosystemSection /> {/* Luôn hiển thị */}
+</div>
+
+{!isCollapsed && (
+  <div className="animate-in slide-in-from-left">
+    {/* Các sections còn lại */}
+    <MainNavSection />
+    <LibrarySection />
+    <RewardSection />
+    <ManageSection />
+  </div>
+)}
+```
+
+### C) useHonobarStats Enhancement
+
+```typescript
+// Thêm vào interface
+interface HonobarStats {
+  // ...existing fields
+  topCreators: Array<{
+    userId: string;
+    displayName: string;
+    avatarUrl: string | null;
+    videoCount: number;
+    totalViews: number;
+  }>;
+}
 ```
 
 ---
 
-## Kết Quả Mong Đợi
+## 8. Visual Design
 
-1. **Admin Panel**: Top 10 Creators và Top 10 Earners tự động cập nhật realtime khi có video mới, views mới, hoặc rewards mới
-2. **Honorboard Desktop/Mobile**: Stats cập nhật realtime (đã có subscriptions, chỉ cần publish tables)
-3. **Honorboard Popup**: Hiển thị danh sách Top 10 Creators đầy đủ với avatar, tên, số video, views
-4. **Đồng bộ Logic**: Cả Admin và Honorboard sử dụng cùng tiêu chí xếp hạng (theo totalViews)
+### Honor Board Right Sidebar
+
+- **Border**: 2px gradient border (cyan → gold)
+- **Background**: Glassmorphism white/95 with blur
+- **Shadow**: Soft glow effect matching brand colors
+- **Animations**:
+  - Entry: Slide in from right
+  - Stats: Counter animation
+  - Shimmer: Subtle background shimmer
+  - Realtime indicator: Pulsing green dot
+
+### Top Creators List
+
+- **Rank badges**: 🥇🥈🥉 for top 3, numbers for rest
+- **Avatar**: 32x32px rounded with ring
+- **Stats**: Video count + Total views
+- **Hover**: Scale + glow effect
 
 ---
 
-## Thứ Tự Triển Khai
+## 9. Kết Quả Mong Đợi
 
-1. **Database Migration** (bắt buộc làm trước) - Không có bước này thì realtime sẽ không hoạt động
-2. **Update useHonobarStats** - Thêm topCreators array và thống nhất logic
-3. **Update useAdminStatistics** - Thêm realtime subscriptions
-4. **Update UI Components** - HonobarDetailModal, OverviewTab
+1. **Desktop**: Layout 3 cột cân đối, Honor Board luôn hiển thị bên phải
+2. **Tablet**: 2 cột video, sidebar thu gọn, Honor Board ẩn (có thể tap để mở modal)
+3. **Mobile**: 1 cột video, Honor Board card compact, tap mở detail sheet
+4. **Sidebar Toggle**: FUN ECOSYSTEM luôn cố định, các mục khác ẩn/hiện mượt mà
+5. **Real-time**: Tất cả stats tự động cập nhật khi có thay đổi
+6. **YouTube-like**: Trải nghiệm giống YouTube 2025
 
+---
+
+## 10. Thứ Tự Triển Khai
+
+1. **Cập nhật useHonobarStats** - Thêm topCreators array
+2. **Tạo HonoboardRightSidebar** - Component cột phải mới
+3. **Tạo MobileHonoboardCard** - Card compact cho mobile
+4. **Sửa Sidebar** - Thêm collapsed logic, FUN ECOSYSTEM fixed
+5. **Sửa Index.tsx** - Tích hợp layout 3 cột
+6. **Test responsive** - Kiểm tra tất cả breakpoints
