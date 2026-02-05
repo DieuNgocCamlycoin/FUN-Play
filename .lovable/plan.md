@@ -1,305 +1,295 @@
 
-# Kế Hoạch Thiết Kế Lại Trang Chủ FUN Play
+# Kế Hoạch Cải Tiến Honor Board - Layout Cố Định & Horizontal Stats
 
-## Tổng Quan
+## Tổng Quan Yêu Cầu
 
-Thiết kế lại layout trang chủ theo mô hình 3 cột (desktop) giống YouTube 2025:
-- **Cột trái**: Sidebar thu gọn/mở rộng với FUN ECOSYSTEM luôn cố định
-- **Cột giữa**: Grid 2 cột hiển thị video  
-- **Cột phải**: Honor Board với thông tin chi tiết
+1. **Cột phải (Honor Board) cố định** - Chỉ phần giữa (video grid) cuộn
+2. **Stats xếp hàng ngang** - Thống kê hiển thị theo hàng ngang, xếp chồng
+3. **Màu sắc & thiết kế phù hợp** - Theo design system "Heavenly Aurora Bliss"
+4. **Cập nhật cho mobile** - Responsive phù hợp
 
 ---
 
-## 1. Kiến Trúc Layout Mới
+## 1. Layout Mới
 
-### Desktop (≥1024px)
+### Desktop (Cấu Trúc Scroll)
 
 ```text
-┌────────────────────────────────────────────────────────────────────────┐
-│                           HEADER (fixed)                               │
-├──────────┬─────────────────────────────────────────┬───────────────────┤
-│          │                                         │                   │
-│  SIDEBAR │           VIDEO GRID (2 cột)            │   HONOR BOARD     │
-│  (240px) │           (flex-grow)                   │     (280px)       │
-│          │                                         │                   │
-│  ───────────                                       │   ┌───────────┐   │
-│  FUN ECOSYSTEM                                     │   │ 👑 HONOR  │   │
-│  (luôn hiển thị)                                   │   │   BOARD   │   │
-│  ───────────                                       │   ├───────────┤   │
-│  [≡] Toggle                                        │   │ Users: 150│   │
-│  ───────────                                       │   │ Videos: 85│   │
-│  Home                                              │   │ Views: 10K│   │
-│  Shorts                                            │   │ Pool: 50M │   │
-│  Subscriptions                                     │   ├───────────┤   │
-│  ...                                               │   │TOP CREATORS│  │
-│                                                    │   │ 1. User A │   │
-│                                                    │   │ 2. User B │   │
-│                                                    │   │ 3. User C │   │
-│                                                    │   │ ...       │   │
-│                                                    │   └───────────┘   │
-├──────────┴─────────────────────────────────────────┴───────────────────┤
+┌──────────────────────────────────────────────────────────────────────┐
+│                    HEADER (fixed - top: 0)                           │
+├─────────────┬─────────────────────────────────┬──────────────────────┤
+│             │                                 │                      │
+│  SIDEBAR    │     MIDDLE CONTENT              │   HONOR BOARD        │
+│  (fixed)    │     (SCROLLABLE)                │   (fixed)            │
+│             │                                 │                      │
+│             │  ┌─────────────────────────┐    │  ┌────────────────┐  │
+│             │  │ Category Chips          │    │  │ 👑 HONOR BOARD │  │
+│             │  ├─────────────────────────┤    │  ├────────────────┤  │
+│             │  │                         │    │  │ Users   Videos │  │
+│             │  │  VIDEO GRID             │    │  │ Views Comments │  │
+│             │  │  (scrolls here)         │    │  │ Pool   Subs    │  │
+│             │  │                         │    │  ├────────────────┤  │
+│             │  │  ┌───────┐ ┌───────┐    │    │  │ TOP CREATORS   │  │
+│             │  │  │Video 1│ │Video 2│    │    │  │ 1. Creator A   │  │
+│             │  │  └───────┘ └───────┘    │    │  │ 2. Creator B   │  │
+│             │  │  ┌───────┐ ┌───────┐    │    │  │ 3. Creator C   │  │
+│             │  │  │Video 3│ │Video 4│    │    │  │ ...            │  │
+│             │  │  └───────┘ └───────┘    │    │  └────────────────┘  │
+│             │  └─────────────────────────┘    │                      │
+└─────────────┴─────────────────────────────────┴──────────────────────┘
 ```
 
-### Mobile (<1024px)
+### Stats Layout Mới (Horizontal Stacked)
 
 ```text
-┌─────────────────────────┐
-│      MOBILE HEADER      │
-├─────────────────────────┤
-│    CATEGORY CHIPS       │
-├─────────────────────────┤
-│   HONOR BOARD (card)    │  ← Hiển thị compact, tap để mở detail
-├─────────────────────────┤
-│                         │
-│    VIDEO GRID (1 cột)   │
-│                         │
-│    ┌─────────────────┐  │
-│    │   Video Card    │  │
-│    └─────────────────┘  │
-│    ┌─────────────────┐  │
-│    │   Video Card    │  │
-│    └─────────────────┘  │
-│                         │
-├─────────────────────────┤
-│    BOTTOM NAV BAR       │
-└─────────────────────────┘
+┌─────────────────────────────────┐
+│       👑 HONOR BOARD 👑         │
+│          ⚡ Realtime            │
+├─────────────────────────────────┤
+│ 👥 Users     │ 🎬 Videos        │  ← Row 1
+├─────────────────────────────────┤
+│ 👁 Views     │ 💬 Comments      │  ← Row 2
+├─────────────────────────────────┤
+│ 💰 Pool      │ 📡 Subs          │  ← Row 3
+├─────────────────────────────────┤
+│      🏆 TOP 10 CREATORS         │
+│  ┌─────────────────────────┐    │
+│  │ 🥇 Creator Name  12.5K  │    │
+│  │ 🥈 Creator Name  8.2K   │    │
+│  │ 🥉 Creator Name  5.1K   │    │
+│  └─────────────────────────┘    │
+└─────────────────────────────────┘
 ```
 
 ---
 
-## 2. Cột Trái: Sidebar Thu Gọn/Mở Rộng
+## 2. Thay Đổi Files
 
-### Tính Năng Mới
+### File 1: `src/components/Layout/HonoboardRightSidebar.tsx`
 
-| Tính năng | Mô tả |
-|-----------|-------|
-| **FUN ECOSYSTEM cố định** | Section này LUÔN hiển thị dù sidebar thu gọn hay mở rộng |
-| **Toggle collapse** | Nhấn menu icon gần logo header để ẩn/hiện các sections còn lại |
-| **Mini mode** | Khi thu gọn: chỉ hiển thị icons (64px width) |
-| **Full mode** | Khi mở rộng: hiển thị icons + text (240px width) |
+**Thay đổi chính:**
 
-### State Management
+| Thuộc Tính | Hiện Tại | Mới |
+|------------|----------|-----|
+| Position | `sticky top-14` | `fixed right-0 top-14` |
+| Scroll | `ScrollArea` bên trong | Không cần scroll (nội dung gọn) |
+| Stats Grid | `grid-cols-2` (6 items) | `grid-rows-3` với 2 items mỗi hàng |
+| Colors | Gradient pastel | Aurora colors (#00E7FF, #FFD700, #7A2BFF) |
+| Border | Simple border | Gradient border với glow effect |
 
-```typescript
-// Trong Index.tsx hoặc Context
-const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-
-// Toggle khi click menu button
-const handleMenuClick = () => {
-  setIsSidebarCollapsed(!isSidebarCollapsed);
-};
-```
-
-### Sidebar Modes
-
-**Thu gọn (Mini mode - 64px):**
-- Chỉ icons, không text
-- FUN ECOSYSTEM vẫn hiển thị đầy đủ
-- Tooltip khi hover icon
-
-**Mở rộng (Full mode - 240px):**
-- Icons + labels
-- Tất cả sections hiển thị
-
----
-
-## 3. Cột Phải: Honor Board Sidebar
-
-### Component Mới: `HonoboardRightSidebar.tsx`
-
-Đây là phiên bản đầy đủ của Honor Board hiển thị bên phải màn hình.
-
-### Nội Dung Hiển Thị
-
-```text
-┌─────────────────────────────┐
-│  👑 HONOR BOARD 👑          │
-│  ─────────────────          │
-│  📊 THỐNG KÊ NỀN TẢNG       │
-│  ├─ 👥 Users: 150           │
-│  ├─ 🎬 Videos: 85           │
-│  ├─ 👁 Views: 10,234        │
-│  ├─ 💬 Comments: 892        │
-│  ├─ 💰 CAMLY Pool: 50M      │
-│  └─ 📡 Subscriptions: 1.2K  │
-│  ─────────────────          │
-│  🏆 TOP 10 CREATORS         │
-│  ┌─────────────────────┐    │
-│  │ 1. 🥇 UserName      │    │
-│  │    📹 25 videos     │    │
-│  │    👁 12.5K views   │    │
-│  ├─────────────────────┤    │
-│  │ 2. 🥈 UserName2     │    │
-│  │    📹 18 videos     │    │
-│  │    👁 8.2K views    │    │
-│  ├─────────────────────┤    │
-│  │ 3. 🥉 UserName3     │    │
-│  │    ...              │    │
-│  └─────────────────────┘    │
-│  ─────────────────          │
-│  ⚡ Realtime Updates ●      │
-└─────────────────────────────┘
-```
-
-### Props Interface
-
-```typescript
-interface HonoboardRightSidebarProps {
-  className?: string;
-}
-```
-
----
-
-## 4. Cột Giữa: Video Grid 2 Cột
-
-### Thay Đổi Grid
-
-**Hiện tại:**
-```typescript
-// 1 → 2 → 3 → 4 cột responsive
-grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4
-```
-
-**Mới:**
-```typescript
-// Fixed 2 cột trên desktop (khi có right sidebar)
-grid grid-cols-1 sm:grid-cols-2
-
-// Khi không có right sidebar (màn hình nhỏ hơn)
-grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3
-```
-
-### Responsive Breakpoints
-
-| Kích thước | Layout |
-|------------|--------|
-| < 640px (mobile) | 1 cột video, sidebar drawer, no right panel |
-| 640-1023px (tablet) | 2 cột video, sidebar drawer, no right panel |
-| ≥1024px (desktop) | Left sidebar + 2 cột video + Right Honor Board |
-
----
-
-## 5. Mobile Responsive
-
-### Thay Đổi Chính
-
-1. **Honor Board Mobile Card**: Compact card nằm dưới category chips, tap để mở Sheet detail
-2. **Video Grid**: 1 cột trên mobile
-3. **Sidebar**: Sử dụng MobileDrawer như hiện tại
-
-### Honor Board Mobile Card
-
-```typescript
-// Compact card hiển thị 3 stats chính
-<div className="mx-4 mb-4">
-  <MobileHonoboardCard onClick={() => setShowHonobarDetail(true)} />
-</div>
-```
-
----
-
-## 6. Files Cần Thay Đổi/Tạo Mới
-
-| File | Thao Tác | Mô Tả |
-|------|----------|-------|
-| `src/components/Layout/HonoboardRightSidebar.tsx` | **TẠO MỚI** | Component Honor Board cột phải |
-| `src/components/Layout/MobileHonoboardCard.tsx` | **TẠO MỚI** | Honor Board card cho mobile |
-| `src/components/Layout/CollapsibleSidebar.tsx` | **TẠO MỚI** | Sidebar mới với tính năng thu gọn |
-| `src/pages/Index.tsx` | **SỬA** | Tích hợp layout 3 cột mới |
-| `src/components/Layout/Sidebar.tsx` | **SỬA** | Thêm collapsed state, FUN ECOSYSTEM fixed |
-| `src/hooks/useHonobarStats.tsx` | **SỬA** | Thêm topCreators array (Top 10) |
-
----
-
-## 7. Chi Tiết Kỹ Thuật
-
-### A) HonoboardRightSidebar Component
-
-```typescript
-// Tính năng:
-// - Fixed position bên phải
-// - Scroll riêng biệt (ScrollArea)
-// - Real-time updates với useHonobarStats
-// - Top 10 Creators với avatar, video count, views
-// - Animations với framer-motion
-```
-
-### B) Collapsible Sidebar Logic
-
-```typescript
-// FUN ECOSYSTEM section
-<div className="sticky top-0 z-10 bg-background">
-  <FunEcosystemSection /> {/* Luôn hiển thị */}
-</div>
-
-{!isCollapsed && (
-  <div className="animate-in slide-in-from-left">
-    {/* Các sections còn lại */}
-    <MainNavSection />
-    <LibrarySection />
-    <RewardSection />
-    <ManageSection />
+**Stats Layout mới:**
+```tsx
+// Row-based layout thay vì grid-cols-2
+<div className="space-y-2">
+  {/* Row 1: Users + Videos */}
+  <div className="flex gap-2">
+    <StatItem icon={Users} label="Users" value={...} />
+    <StatItem icon={Video} label="Videos" value={...} />
   </div>
-)}
+  {/* Row 2: Views + Comments */}
+  <div className="flex gap-2">
+    <StatItem icon={Eye} label="Views" value={...} />
+    <StatItem icon={MessageCircle} label="Comments" value={...} />
+  </div>
+  {/* Row 3: Pool + Subscriptions */}
+  <div className="flex gap-2">
+    <StatItem icon={Coins} label="CAMLY Pool" value={...} />
+    <StatItem icon={Bell} label="Subs" value={...} />
+  </div>
+</div>
 ```
 
-### C) useHonobarStats Enhancement
+**Màu sắc mới:**
+- Header: Gradient `from-[#00E7FF] via-[#7A2BFF] to-[#FFD700]`
+- Stats: Background `bg-gradient-to-br from-[#00E7FF]/10 to-[#FFD700]/10`
+- Border: `border-[#00E7FF]/40` với hover `border-[#FFD700]/60`
+- Text values: `text-sky-700` (matching project text color)
+- Glow: `shadow-[0_0_20px_rgba(0,231,255,0.3)]`
 
-```typescript
-// Thêm vào interface
-interface HonobarStats {
-  // ...existing fields
-  topCreators: Array<{
-    userId: string;
-    displayName: string;
-    avatarUrl: string | null;
-    videoCount: number;
-    totalViews: number;
-  }>;
-}
+---
+
+### File 2: `src/pages/Index.tsx`
+
+**Thay đổi chính:**
+
+| Thuộc Tính | Hiện Tại | Mới |
+|------------|----------|-----|
+| Right sidebar | Inside flex container | Fixed position với margin-right cho main |
+| Main content | No right padding | `pr-72 xl:pr-80` khi có Honor Board |
+| Scroll behavior | Entire page scrolls | Chỉ middle section scroll |
+
+**Layout structure mới:**
+```tsx
+<main className={`pt-14 pb-20 lg:pb-0 transition-all duration-300 
+  ${isSidebarExpanded ? 'lg:pl-60' : 'lg:pl-16'}
+  xl:pr-72`}>  {/* Thêm padding-right cho Honor Board cố định */}
+  
+  {/* Middle content - scrollable */}
+  <div className="h-[calc(100vh-3.5rem)] overflow-y-auto">
+    <CategoryChips />
+    <MobileHonoboardCard /> {/* Mobile only */}
+    <VideoGrid />
+  </div>
+</main>
+
+{/* Honor Board - fixed position */}
+<HonoboardRightSidebar className="fixed right-0 top-14" />
 ```
 
 ---
 
-## 8. Visual Design
+### File 3: `src/components/Layout/MobileHonoboardCard.tsx`
 
-### Honor Board Right Sidebar
+**Thay đổi chính:**
 
-- **Border**: 2px gradient border (cyan → gold)
-- **Background**: Glassmorphism white/95 with blur
-- **Shadow**: Soft glow effect matching brand colors
-- **Animations**:
-  - Entry: Slide in from right
-  - Stats: Counter animation
-  - Shimmer: Subtle background shimmer
-  - Realtime indicator: Pulsing green dot
+| Thuộc Tính | Hiện Tại | Mới |
+|------------|----------|-----|
+| Stats preview | Inline (Users, Videos, Pool) | Row layout tương tự desktop |
+| Colors | Yellow-based | Aurora gradient (#00E7FF → #FFD700) |
+| Layout | Single row | Compact 2-row layout |
+
+**Mobile card layout mới:**
+```text
+┌─────────────────────────────────────────┐
+│ 👑 Honor Board                    [→]   │
+├─────────────────────────────────────────┤
+│ 👥 150   🎬 85   👁 10K   💰 50M        │ ← Compact stats row
+├─────────────────────────────────────────┤
+│ 🏆 Top: Creator Name          ⚡Live    │
+└─────────────────────────────────────────┘
+```
+
+**Màu sắc mới:**
+- Background: `bg-gradient-to-r from-white via-[#00E7FF]/5 to-[#FFD700]/10`
+- Border: `border-[#00E7FF]/40`
+- Glow: `shadow-[0_0_15px_rgba(0,231,255,0.2)]`
+- Text: Stats dùng `text-sky-700`, labels dùng `text-muted-foreground`
+
+---
+
+### File 4: `src/components/Layout/HonobarDetailModal.tsx`
+
+**Thay đổi chính:**
+
+| Thuộc Tính | Hiện Tại | Mới |
+|------------|----------|-----|
+| Stats layout | 3x2 grid | Row-based (2 items/row) |
+| Colors | Mix of colors | Unified Aurora gradient |
+| Top Creators | Not shown | Full Top 10 list with avatars |
+
+**Stats section mới:**
+```tsx
+<div className="space-y-3">
+  {/* Row-based stats như desktop */}
+  {statRows.map((row, i) => (
+    <div key={i} className="flex gap-3">
+      {row.map(stat => <StatCard {...stat} />)}
+    </div>
+  ))}
+</div>
+```
+
+---
+
+## 3. Visual Design Chi Tiết
+
+### Color Palette (Aurora Theme)
+
+| Element | Color | HEX |
+|---------|-------|-----|
+| Primary Cyan | `#00E7FF` | Cosmic Cyan |
+| Primary Gold | `#FFD700` | Cosmic Gold |
+| Accent Purple | `#7A2BFF` | Cosmic Purple |
+| Text Primary | `text-sky-700` | #0369A1 |
+| Text Muted | `text-muted-foreground` | System |
+| Background | White với gradient overlay | #FFFFFF |
+
+### Stat Item Component
+
+```text
+┌───────────────────────┐
+│  [Icon]  Label        │
+│          ━━━━━        │ ← Value với gradient text
+│          12.5K        │
+└───────────────────────┘
+```
+
+CSS:
+```css
+.stat-item {
+  background: linear-gradient(135deg, rgba(0,231,255,0.08), rgba(255,215,0,0.08));
+  border: 1px solid rgba(0,231,255,0.3);
+  border-radius: 12px;
+  padding: 12px;
+  flex: 1;
+  transition: all 0.2s;
+}
+
+.stat-item:hover {
+  border-color: rgba(255,215,0,0.6);
+  box-shadow: 0 0 20px rgba(0,231,255,0.3);
+}
+
+.stat-value {
+  background: linear-gradient(to right, #00E7FF, #FFD700);
+  -webkit-background-clip: text;
+  color: transparent;
+  font-weight: 700;
+}
+```
 
 ### Top Creators List
 
-- **Rank badges**: 🥇🥈🥉 for top 3, numbers for rest
-- **Avatar**: 32x32px rounded with ring
-- **Stats**: Video count + Total views
-- **Hover**: Scale + glow effect
+```text
+┌─────────────────────────────────┐
+│ 🥇 [Avatar] Creator Name        │
+│            📹 25  👁 12.5K      │
+├─────────────────────────────────┤
+│ 🥈 [Avatar] Creator Name        │
+│            📹 18  👁 8.2K       │
+└─────────────────────────────────┘
+```
+
+- Rank 1: Border `border-[#FFD700]` với glow
+- Rank 2: Border `border-gray-400`
+- Rank 3: Border `border-orange-400`
+- Rank 4+: Border `border-border`
 
 ---
 
-## 9. Kết Quả Mong Đợi
+## 4. Thứ Tự Triển Khai
 
-1. **Desktop**: Layout 3 cột cân đối, Honor Board luôn hiển thị bên phải
-2. **Tablet**: 2 cột video, sidebar thu gọn, Honor Board ẩn (có thể tap để mở modal)
-3. **Mobile**: 1 cột video, Honor Board card compact, tap mở detail sheet
-4. **Sidebar Toggle**: FUN ECOSYSTEM luôn cố định, các mục khác ẩn/hiện mượt mà
-5. **Real-time**: Tất cả stats tự động cập nhật khi có thay đổi
-6. **YouTube-like**: Trải nghiệm giống YouTube 2025
+1. **Cập nhật `HonoboardRightSidebar.tsx`**
+   - Đổi sang fixed position
+   - Redesign stats layout theo hàng ngang
+   - Cập nhật màu sắc Aurora theme
+   - Giữ Top 10 Creators với thiết kế mới
+
+2. **Cập nhật `Index.tsx`**
+   - Thêm padding-right cho main content
+   - Đảm bảo middle section có overflow-y-auto
+   - Honor Board ở ngoài flex container
+
+3. **Cập nhật `MobileHonoboardCard.tsx`**
+   - Redesign theo Aurora theme
+   - Compact stats row
+   - Matching style với desktop
+
+4. **Cập nhật `HonobarDetailModal.tsx`**
+   - Row-based stats layout
+   - Thêm Top 10 Creators list đầy đủ
+   - Aurora gradient styling
 
 ---
 
-## 10. Thứ Tự Triển Khai
+## 5. Kết Quả Mong Đợi
 
-1. **Cập nhật useHonobarStats** - Thêm topCreators array
-2. **Tạo HonoboardRightSidebar** - Component cột phải mới
-3. **Tạo MobileHonoboardCard** - Card compact cho mobile
-4. **Sửa Sidebar** - Thêm collapsed logic, FUN ECOSYSTEM fixed
-5. **Sửa Index.tsx** - Tích hợp layout 3 cột
-6. **Test responsive** - Kiểm tra tất cả breakpoints
+| Tính năng | Mô tả |
+|-----------|-------|
+| Fixed Right Column | Honor Board cố định, không cuộn khi scroll video |
+| Middle Section Scrollable | Chỉ video grid và category chips cuộn |
+| Horizontal Stats | Stats xếp theo hàng ngang (2 items/row × 3 rows) |
+| Aurora Theme | Màu sắc Cyan (#00E7FF) + Gold (#FFD700) xuyên suốt |
+| Mobile Responsive | Card compact với cùng color scheme |
+| Smooth Transitions | Hover effects, glow animations |
+| Realtime Updates | Stats tự động cập nhật |
