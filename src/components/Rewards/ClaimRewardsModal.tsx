@@ -83,6 +83,29 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
     }
   }, [open, user]);
 
+  // Supabase Realtime subscription for real-time updates when modal is open
+  useEffect(() => {
+    if (!open || !user?.id) return;
+
+    const channel = supabase
+      .channel('claim-modal-rewards')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'reward_transactions',
+          filter: `user_id=eq.${user.id}`
+        },
+        () => fetchUnclaimedRewards()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [open, user?.id]);
+
   const fetchUnclaimedRewards = async () => {
     if (!user) return;
     
@@ -187,6 +210,14 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
       if (data.success) {
         setClaimSuccess(true);
         setTxHash(data.txHash);
+
+        // Dispatch event để cập nhật UI khắp nơi
+        window.dispatchEvent(new CustomEvent("reward-claimed", { 
+          detail: { 
+            txHash: data.txHash, 
+            amount: data.amount 
+          } 
+        }));
 
         // 🔔 PHÁT NHẠC CHUÔNG CỐ ĐỊNH KHI CLAIM THÀNH CÔNG
         playClaimSound({ volume: 0.7 });
