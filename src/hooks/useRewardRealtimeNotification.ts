@@ -62,6 +62,14 @@ export const useRewardRealtimeNotification = () => {
                 requireInteraction: true,
               }
             );
+
+            // Dispatch event để UI cập nhật ngay lập tức
+            window.dispatchEvent(new CustomEvent("camly-reward", { 
+              detail: { 
+                approved: true, 
+                amount 
+              } 
+            }));
           }
         }
       )

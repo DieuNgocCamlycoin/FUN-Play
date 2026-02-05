@@ -53,6 +53,15 @@ export const useAutoReward = () => {
         // Rewards are processed silently in the background
         console.log(`[Reward] ${data.amount} CAMLY for ${type}, auto-approved: ${data.autoApproved}`);
 
+        // Dispatch event để UI cập nhật ngay lập tức
+        window.dispatchEvent(new CustomEvent("camly-reward", { 
+          detail: { 
+            type, 
+            amount: data.amount, 
+            autoApproved: data.autoApproved 
+          } 
+        }));
+
         return {
           success: true,
           amount: data.amount,

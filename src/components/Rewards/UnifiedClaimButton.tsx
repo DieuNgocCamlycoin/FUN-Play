@@ -51,45 +51,46 @@ export const UnifiedClaimButton = ({ compact = false }: UnifiedClaimButtonProps)
   const [balances, setBalances] = useState<TokenBalance[]>([]);
   const [isFetchingBalances, setIsFetchingBalances] = useState(false);
 
-  // Fetch unclaimed rewards
-  useEffect(() => {
-    if (!user) {
+  // Fetch rewards function
+  const fetchRewards = useCallback(async () => {
+    if (!user?.id) {
       setUnclaimedCount(0);
       setTotalUnclaimed(0);
       setApprovedAmount(0);
       return;
     }
 
-    const fetchRewards = async () => {
-      try {
-        // Fetch unclaimed reward transactions
-        const { data: transactions } = await supabase
-          .from("reward_transactions")
-          .select("amount")
-          .eq("user_id", user.id)
-          .eq("claimed", false)
-          .eq("status", "success");
+    try {
+      // Fetch unclaimed reward transactions
+      const { data: transactions } = await supabase
+        .from("reward_transactions")
+        .select("amount")
+        .eq("user_id", user.id)
+        .eq("claimed", false)
+        .eq("status", "success");
 
-        if (transactions) {
-          setUnclaimedCount(transactions.length);
-          setTotalUnclaimed(transactions.reduce((sum, r) => sum + Number(r.amount), 0));
-        }
-
-        // Fetch approved rewards from profile
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("approved_reward")
-          .eq("id", user.id)
-          .single();
-
-        if (profile) {
-          setApprovedAmount(profile.approved_reward || 0);
-        }
-      } catch (error) {
-        console.error("Error fetching rewards:", error);
+      if (transactions) {
+        setUnclaimedCount(transactions.length);
+        setTotalUnclaimed(transactions.reduce((sum, r) => sum + Number(r.amount), 0));
       }
-    };
 
+      // Fetch approved rewards from profile
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("approved_reward")
+        .eq("id", user.id)
+        .single();
+
+      if (profile) {
+        setApprovedAmount(profile.approved_reward || 0);
+      }
+    } catch (error) {
+      console.error("Error fetching rewards:", error);
+    }
+  }, [user?.id]);
+
+  // Initial fetch and window event listeners
+  useEffect(() => {
     fetchRewards();
 
     // Listen for reward events
@@ -101,7 +102,40 @@ export const UnifiedClaimButton = ({ compact = false }: UnifiedClaimButtonProps)
       window.removeEventListener("camly-reward", handleReward);
       window.removeEventListener("reward-claimed", handleReward);
     };
-  }, [user]);
+  }, [fetchRewards]);
+
+  // Supabase Realtime subscription for real-time updates
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel('unified-claim-rewards')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'reward_transactions',
+          filter: `user_id=eq.${user.id}`
+        },
+        () => fetchRewards()
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${user.id}`
+        },
+        () => fetchRewards()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, fetchRewards]);
 
   // Fetch token balances when connected
   const fetchBalances = useCallback(async (userAddress: string) => {
