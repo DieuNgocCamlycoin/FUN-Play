@@ -7,6 +7,7 @@ import { MobileHeader } from "@/components/Layout/MobileHeader";
 import { MobileBottomNav } from "@/components/Layout/MobileBottomNav";
 import { MobileDrawer } from "@/components/Layout/MobileDrawer";
 import { MobileHonoboardCard } from "@/components/Layout/MobileHonoboardCard";
+import { MobileTopRankingCard } from "@/components/Layout/MobileTopRankingCard";
 import { CategoryChips } from "@/components/Layout/CategoryChips";
 import { VideoCard } from "@/components/Video/VideoCard";
 import { ContinueWatching } from "@/components/Video/ContinueWatching";
@@ -272,8 +273,9 @@ const Index = () => {
           <CategoryChips />
           
           {/* Mobile Honor Board Card */}
-          <div className="xl:hidden px-4 mb-4">
+          <div className="xl:hidden px-4 mb-4 space-y-3">
             <MobileHonoboardCard onClick={() => setShowHonobarDetail(true)} />
+            <MobileTopRankingCard />
           </div>
 
           {!user && (
