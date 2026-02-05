@@ -39,8 +39,8 @@ const StatPill = ({ icon: Icon, label, value, index }: StatPillProps) => (
     animate={{ opacity: 1, x: 0 }}
     transition={{ delay: index * 0.08, type: "spring", stiffness: 200 }}
     className="flex items-center justify-between px-4 py-3 rounded-full
-      bg-gradient-to-r from-[#1B5E20] via-[#2E7D32] to-[#4CAF50]
-      shadow-md"
+      bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] to-[#FF00E5]
+      shadow-[0_4px_15px_rgba(0,231,255,0.3)]"
   >
     <div className="flex items-center gap-2">
       <Icon className="h-5 w-5 text-white" />
@@ -73,7 +73,7 @@ const ModalContent = ({ stats, loading }: { stats: ReturnType<typeof useHonobarS
         >
           <Crown className="w-8 h-8 text-[#FFD700] drop-shadow-[0_0_12px_rgba(255,215,0,0.8)]" />
         </motion.div>
-        <h2 className="text-2xl font-black italic bg-gradient-to-r from-[#2E7D32] to-[#FFD700] bg-clip-text text-transparent">
+        <h2 className="text-2xl font-black italic bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] to-[#FFD700] bg-clip-text text-transparent">
           HONOR BOARD
         </h2>
         <motion.div
@@ -102,7 +102,7 @@ const ModalContent = ({ stats, loading }: { stats: ReturnType<typeof useHonobarS
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
-        className="border-t border-[#4CAF50]/30 pt-4"
+        className="border-t border-[#00E7FF]/30 pt-4"
       >
         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
           <Trophy className="w-4 h-4 text-[#FFD700]" />
@@ -135,7 +135,7 @@ const ModalContent = ({ stats, loading }: { stats: ReturnType<typeof useHonobarS
                 transition={{ delay: 0.5 + index * 0.05 }}
                 className={cn(
                   "flex items-center gap-2 p-2 rounded-lg transition-all duration-200",
-                  "hover:bg-[#E8F5E9]",
+                  "hover:bg-[#F0FDFF]",
                   index === 0 && "bg-gradient-to-r from-[#FFF8E1] to-transparent border border-[#FFD700]/30",
                   index === 1 && "bg-gradient-to-r from-gray-100/50 to-transparent",
                   index === 2 && "bg-gradient-to-r from-orange-50/50 to-transparent"
@@ -152,12 +152,12 @@ const ModalContent = ({ stats, loading }: { stats: ReturnType<typeof useHonobarS
                   index > 2 && "border-border"
                 )}>
                   <AvatarImage src={creator.avatarUrl || undefined} />
-                  <AvatarFallback className="text-xs bg-gradient-to-br from-[#E8F5E9] to-[#FFF8E1]">
+                  <AvatarFallback className="text-xs bg-gradient-to-br from-[#F0FDFF] to-[#FFF8F0]">
                     {creator.displayName.charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate text-[#1B5E20]">
+                  <p className="text-sm font-medium truncate text-[#7A2BFF]">
                     {creator.displayName}
                   </p>
                   <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
@@ -182,26 +182,26 @@ const ModalContent = ({ stats, loading }: { stats: ReturnType<typeof useHonobarS
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.6 }}
-        className="border-t border-[#4CAF50]/30 pt-4 space-y-3"
+        className="border-t border-[#00E7FF]/30 pt-4 space-y-3"
       >
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <TrendingUp className="w-4 h-4 text-[#4CAF50]" />
+          <TrendingUp className="w-4 h-4 text-[#00E7FF]" />
           <span className="font-medium">Chi tiết thêm:</span>
         </div>
         
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-          <div className="flex justify-between items-center p-2 rounded-lg bg-gradient-to-r from-[#E8F5E9] to-[#FFF8E1]">
+          <div className="flex justify-between items-center p-2 rounded-lg bg-gradient-to-r from-[#F0FDFF] to-[#FFF8F0]">
             <span className="text-muted-foreground">Total CAMLY Distributed:</span>
-            <span className="font-bold text-[#1B5E20]">{formatNumber(stats.totalRewards)}</span>
+            <span className="font-bold text-[#7A2BFF]">{formatNumber(stats.totalRewards)}</span>
           </div>
-          <div className="flex justify-between items-center p-2 rounded-lg bg-gradient-to-r from-[#E8F5E9] to-[#FFF8E1]">
+          <div className="flex justify-between items-center p-2 rounded-lg bg-gradient-to-r from-[#F0FDFF] to-[#FFF8F0]">
             <span className="text-muted-foreground">Total Subscriptions:</span>
-            <span className="font-bold text-[#1B5E20]">{formatNumber(stats.totalSubscriptions)}</span>
+            <span className="font-bold text-[#7A2BFF]">{formatNumber(stats.totalSubscriptions)}</span>
           </div>
           {stats.topCreator && (
-            <div className="flex justify-between items-center p-2 rounded-lg bg-gradient-to-r from-[#E8F5E9] to-[#FFF8E1] sm:col-span-2">
+            <div className="flex justify-between items-center p-2 rounded-lg bg-gradient-to-r from-[#F0FDFF] to-[#FFF8F0] sm:col-span-2">
               <span className="text-muted-foreground">Top Creator Video Count:</span>
-              <span className="font-bold text-[#1B5E20]">{stats.topCreator.videoCount} videos</span>
+              <span className="font-bold text-[#7A2BFF]">{stats.topCreator.videoCount} videos</span>
             </div>
           )}
         </div>
@@ -230,7 +230,7 @@ export const HonobarDetailModal = ({ isOpen, onClose }: HonobarDetailModalProps)
       <Sheet open={isOpen} onOpenChange={onClose}>
         <SheetContent 
           side="bottom" 
-          className="h-[85vh] rounded-t-3xl bg-gradient-to-b from-white to-[#E8F5E9] border-t-2 border-[#4CAF50]/50"
+          className="h-[85vh] rounded-t-3xl bg-gradient-to-b from-white to-[#F0FDFF] border-t-2 border-[#00E7FF]/50"
         >
           <SheetHeader className="sr-only">
             <SheetTitle>Honor Board</SheetTitle>
@@ -247,9 +247,9 @@ export const HonobarDetailModal = ({ isOpen, onClose }: HonobarDetailModalProps)
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent 
-        className="max-w-lg bg-gradient-to-br from-white via-[#E8F5E9] to-[#FFF8E1] 
-          border-2 border-[#4CAF50]/50
-          shadow-[0_0_40px_rgba(76,175,80,0.3),0_0_80px_rgba(255,215,0,0.2)]"
+        className="max-w-lg bg-gradient-to-br from-white via-[#F0FDFF] to-[#FFF8F0] 
+          border-2 border-[#00E7FF]/50
+          shadow-[0_0_40px_rgba(0,231,255,0.3),0_0_80px_rgba(122,43,255,0.2)]"
       >
         <DialogHeader className="sr-only">
           <DialogTitle>Honor Board</DialogTitle>

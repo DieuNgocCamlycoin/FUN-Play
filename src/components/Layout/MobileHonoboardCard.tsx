@@ -20,7 +20,7 @@ interface MiniPillProps {
 }
 
 const MiniPill = ({ icon: Icon, value }: MiniPillProps) => (
-  <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-gradient-to-r from-[#1B5E20] via-[#2E7D32] to-[#4CAF50]">
+  <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] to-[#FF00E5] shadow-[0_2px_8px_rgba(0,231,255,0.3)]">
     <Icon className="h-3 w-3 text-white" />
     <span className="text-xs font-bold text-[#FFD700]">{value}</span>
   </div>
@@ -35,11 +35,11 @@ export const MobileHonoboardCard = ({ onClick, className }: MobileHonoboardCardP
       whileTap={{ scale: 0.98 }}
       className={cn(
         "w-full p-3 rounded-xl",
-        "bg-gradient-to-r from-white via-[#E8F5E9] to-[#FFF8E1]",
-        "border border-[#4CAF50]/40",
-        "shadow-[0_0_20px_rgba(76,175,80,0.15)]",
-        "hover:shadow-[0_0_25px_rgba(76,175,80,0.25)]",
-        "hover:border-[#FFD700]/50",
+        "bg-gradient-to-r from-white via-[#F0FDFF] to-[#FFF8F0]",
+        "border border-[#00E7FF]/40",
+        "shadow-[0_0_20px_rgba(0,231,255,0.15)]",
+        "hover:shadow-[0_0_25px_rgba(122,43,255,0.25)]",
+        "hover:border-[#FF00E5]/50",
         "transition-all duration-300",
         className
       )}
@@ -53,7 +53,7 @@ export const MobileHonoboardCard = ({ onClick, className }: MobileHonoboardCardP
           >
             <Crown className="h-5 w-5 text-[#FFD700] drop-shadow-[0_0_6px_rgba(255,215,0,0.6)]" />
           </motion.div>
-          <span className="font-black text-sm italic bg-gradient-to-r from-[#2E7D32] to-[#FFD700] bg-clip-text text-transparent">
+          <span className="font-black text-sm italic bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] to-[#FFD700] bg-clip-text text-transparent">
             HONOR BOARD
           </span>
         </div>
@@ -81,11 +81,11 @@ export const MobileHonoboardCard = ({ onClick, className }: MobileHonoboardCardP
       </div>
 
       {/* Top Creator Preview + Live Indicator */}
-      <div className="mt-2 pt-2 border-t border-[#4CAF50]/20 flex items-center justify-between">
+      <div className="mt-2 pt-2 border-t border-[#00E7FF]/20 flex items-center justify-between">
         {stats.topCreator ? (
           <div className="flex items-center gap-1.5 text-xs">
             <span className="text-muted-foreground">🏆 Top:</span>
-            <span className="font-medium text-[#1B5E20] truncate max-w-[120px]">
+            <span className="font-medium text-[#7A2BFF] truncate max-w-[120px]">
               {stats.topCreator.displayName}
             </span>
           </div>
