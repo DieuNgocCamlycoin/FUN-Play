@@ -1,164 +1,212 @@
 
-# Kế Hoạch Thêm Thông Báo Ngưỡng 200,000 CAMLY
 
-## Mục Tiêu
+# Kế Hoạch Sửa Lỗi "Phần Thưởng Chờ Claim = 0" và Cập Nhật Real-Time
 
-Thêm thông báo rõ ràng cho người dùng trong modal Claim Rewards:
-- Nếu đạt **≥ 200,000 CAMLY đã duyệt** → Có thể claim tự động
-- Nếu chưa đạt → Hiển thị tiến độ và số CAMLY còn cần để claim
+## 1. Chẩn Đoán Vấn Đề
 
----
+### Dữ Liệu Hiện Tại Của Bạn
 
-## Thiết Kế UI Mới
+| Trường | Giá Trị |
+|--------|---------|
+| `pending_rewards` | 50,000 CAMLY |
+| `approved_reward` | 0 |
+| Trạng thái reward | `approved: false` (chưa được Admin duyệt) |
 
-### Trường Hợp 1: Đủ ngưỡng (≥ 200,000 CAMLY)
+### Nguyên Nhân Hiển Thị "0"
 
-```text
-┌────────────────────────────────────────────────────┐
-│  🎉 ĐỦ ĐIỀU KIỆN CLAIM!                           │
-│  ─────────────────────────────────────────────    │
-│  Bạn có 250,000 CAMLY đã duyệt.                  │
-│  Nhấn nút bên dưới để claim tự động về ví!       │
-└────────────────────────────────────────────────────┘
-```
+**Trong `UnifiedClaimButton.tsx`:**
+- **Line 66-71**: Đang fetch `reward_transactions` với điều kiện `claimed=false` và `status=success`
+- **KHÔNG lọc theo `approved`** → nên `totalUnclaimed` đúng ra phải là 50,000
+- **NHƯNG** component chỉ fetch 1 lần khi mount, không có real-time subscription
 
-### Trường Hợp 2: Chưa đủ ngưỡng (< 200,000 CAMLY)
+**Trong `ClaimRewardsModal.tsx`:**
+- **Line 93-98**: Cũng fetch với điều kiện tương tự
+- **Line 108-123**: Phân tách đúng `approved` vs `pending`
+- **NHƯNG** chỉ fetch khi modal mở, không có real-time subscription
 
-```text
-┌────────────────────────────────────────────────────┐
-│  📊 TIẾN ĐỘ CLAIM                                 │
-│  ─────────────────────────────────────────────    │
-│  Hiện có: 50,000 / 200,000 CAMLY                 │
-│  ████████░░░░░░░░░░░░░░░░░░░░  25%               │
-│  ─────────────────────────────────────────────    │
-│  Còn cần: 150,000 CAMLY để claim tự động        │
-│  💡 Tiếp tục xem video, like, comment để tích   │
-│  lũy thêm phần thưởng!                           │
-└────────────────────────────────────────────────────┘
-```
+### Vấn Đề Real-Time
+
+1. **`UnifiedClaimButton`**: Chỉ lắng nghe window events `camly-reward` và `reward-claimed`
+2. **Không ai dispatch events đó**: `useAutoReward.ts` không dispatch event sau khi award thành công
+3. **Không có Supabase Realtime subscription**: UI không tự động refresh khi database thay đổi
 
 ---
 
-## Chi Tiết Thay Đổi
+## 2. Giải Pháp Chi Tiết
 
-### File: `src/components/Rewards/ClaimRewardsModal.tsx`
+### A) Thêm Supabase Realtime Subscription vào `UnifiedClaimButton.tsx`
 
-**1. Thêm constant cho ngưỡng claim:**
 ```typescript
-const MIN_CLAIM_THRESHOLD = 200000; // 200,000 CAMLY
+// Thêm subscription realtime cho reward_transactions và profiles
+useEffect(() => {
+  if (!user) return;
+
+  const channel = supabase
+    .channel('unified-claim-rewards')
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'reward_transactions',
+        filter: `user_id=eq.${user.id}`
+      },
+      () => fetchRewards()
+    )
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'profiles',
+        filter: `id=eq.${user.id}`
+      },
+      () => fetchRewards()
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}, [user?.id, fetchRewards]);
 ```
 
-**2. Tính toán logic ngưỡng:**
+### B) Thêm Supabase Realtime Subscription vào `ClaimRewardsModal.tsx`
+
 ```typescript
-const canClaim = totalUnclaimed >= MIN_CLAIM_THRESHOLD;
-const progressPercent = Math.min((totalUnclaimed / MIN_CLAIM_THRESHOLD) * 100, 100);
-const amountNeeded = Math.max(MIN_CLAIM_THRESHOLD - totalUnclaimed, 0);
+// Subscribe realtime khi modal mở
+useEffect(() => {
+  if (!open || !user?.id) return;
+
+  const channel = supabase
+    .channel('claim-modal-rewards')
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'reward_transactions',
+        filter: `user_id=eq.${user.id}`
+      },
+      () => fetchUnclaimedRewards()
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}, [open, user?.id]);
 ```
 
-**3. Thêm component thông báo ngưỡng claim (sau phần Total Unclaimed):**
+### C) Dispatch `camly-reward` Event Sau Khi Award Thành Công
 
-Nếu đủ ngưỡng:
+**Trong `useAutoReward.ts` (line 51-61):**
+
 ```typescript
-{totalUnclaimed >= MIN_CLAIM_THRESHOLD && (
-  <Alert className="border-green-500/30 bg-green-500/10">
-    <CheckCircle className="h-4 w-4 text-green-500" />
-    <AlertTitle className="text-green-600 font-semibold">
-      🎉 Đủ điều kiện claim!
-    </AlertTitle>
-    <AlertDescription className="text-sm text-muted-foreground">
-      Bạn có thể claim {formatNumber(totalUnclaimed)} CAMLY về ví ngay bây giờ!
-    </AlertDescription>
-  </Alert>
-)}
+if (data?.success) {
+  console.log(`[Reward] ${data.amount} CAMLY for ${type}`);
+
+  // THÊM: Dispatch event để UI cập nhật ngay lập tức
+  window.dispatchEvent(new CustomEvent("camly-reward", { 
+    detail: { 
+      type, 
+      amount: data.amount, 
+      autoApproved: data.autoApproved 
+    } 
+  }));
+
+  return { success: true, ... };
+}
 ```
 
-Nếu chưa đủ ngưỡng (có phần thưởng nhưng dưới 200k):
+### D) Dispatch Event Khi Admin Duyệt Reward
+
+**Trong `useRewardRealtimeNotification.ts` (line 38-65):**
+
 ```typescript
-{totalUnclaimed > 0 && totalUnclaimed < MIN_CLAIM_THRESHOLD && (
-  <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 space-y-3">
-    <div className="flex items-center gap-2">
-      <Info className="h-4 w-4 text-blue-500" />
-      <span className="font-medium text-blue-600">Tiến độ đến ngưỡng claim</span>
-    </div>
-    
-    {/* Progress bar */}
-    <div className="space-y-1">
-      <div className="flex justify-between text-xs text-muted-foreground">
-        <span>{formatNumber(totalUnclaimed)} CAMLY</span>
-        <span>{formatNumber(MIN_CLAIM_THRESHOLD)} CAMLY</span>
-      </div>
-      <Progress value={progressPercent} className="h-2" />
-      <p className="text-xs text-center text-muted-foreground">
-        {progressPercent.toFixed(0)}% hoàn thành
-      </p>
-    </div>
-    
-    {/* Còn bao nhiêu */}
-    <p className="text-sm text-muted-foreground">
-      Còn cần thêm <span className="font-bold text-blue-500">{formatNumber(amountNeeded)}</span> CAMLY để claim tự động.
-    </p>
-    
-    {/* Gợi ý */}
-    <p className="text-xs text-muted-foreground italic">
-      💡 Tiếp tục xem video, like, comment để tích lũy thêm phần thưởng!
-    </p>
-  </div>
-)}
+// Sau khi hiển thị toast, dispatch event để UI cập nhật
+if (newData.approved === true && oldData.approved === false) {
+  // ... existing code (confetti, toast) ...
+
+  // THÊM: Dispatch event để UnifiedClaimButton cập nhật
+  window.dispatchEvent(new CustomEvent("camly-reward", { 
+    detail: { 
+      approved: true, 
+      amount 
+    } 
+  }));
+}
 ```
 
-**4. Cập nhật điều kiện nút Claim:**
+### E) Dispatch `reward-claimed` Event Sau Khi Claim Thành Công
+
+**Trong `ClaimRewardsModal.tsx` (sau line 200):**
+
 ```typescript
-// Thay đổi từ:
-disabled={claiming || totalUnclaimed <= 0}
+if (data.success) {
+  setClaimSuccess(true);
+  setTxHash(data.txHash);
+  
+  // THÊM: Dispatch event để cập nhật UI
+  window.dispatchEvent(new CustomEvent("reward-claimed", { 
+    detail: { 
+      txHash: data.txHash, 
+      amount: data.amount 
+    } 
+  }));
 
-// Thành:
-disabled={claiming || totalUnclaimed < MIN_CLAIM_THRESHOLD}
-
-// Và thay đổi text nút:
-{totalUnclaimed < MIN_CLAIM_THRESHOLD ? (
-  `Cần ${formatNumber(MIN_CLAIM_THRESHOLD - totalUnclaimed)} CAMLY nữa`
-) : (
-  <>
-    <Coins className="h-5 w-5 mr-2" />
-    Claim {formatNumber(totalUnclaimed)} CAMLY
-  </>
-)}
+  // ... existing confetti + toast code ...
+}
 ```
 
 ---
 
-## Cập Nhật Cho Mobile
-
-Component này được sử dụng chung cho cả Desktop và Mobile (thông qua `UnifiedClaimButton`), nên các thay đổi sẽ tự động áp dụng cho mobile.
-
-**Responsive adjustments:**
-- Progress bar hiển thị đầy đủ trên mobile
-- Text size phù hợp với màn hình nhỏ
-- Các Alert/Card có padding phù hợp
-
----
-
-## Import Cần Thêm
-
-```typescript
-import { Progress } from "@/components/ui/progress";
-import { Info } from "lucide-react";
-```
-
----
-
-## Tóm Tắt Thay Đổi
+## 3. Tóm Tắt Các File Cần Thay Đổi
 
 | File | Thay Đổi |
 |------|----------|
-| `src/components/Rewards/ClaimRewardsModal.tsx` | Thêm thông báo ngưỡng 200,000 CAMLY với progress bar, cập nhật điều kiện nút Claim |
+| `src/components/Rewards/UnifiedClaimButton.tsx` | Thêm Supabase realtime subscription cho `reward_transactions` và `profiles` |
+| `src/components/Rewards/ClaimRewardsModal.tsx` | Thêm realtime subscription khi modal mở + dispatch `reward-claimed` event |
+| `src/hooks/useAutoReward.ts` | Dispatch `camly-reward` event sau khi award thành công |
+| `src/hooks/useRewardRealtimeNotification.ts` | Dispatch `camly-reward` event khi admin duyệt reward |
 
 ---
 
-## Kết Quả Mong Đợi
+## 4. Kết Quả Mong Đợi
 
-1. **Người dùng đủ ngưỡng**: Thấy thông báo xanh "Đủ điều kiện claim!" và có thể nhấn nút claim ngay
-2. **Người dùng chưa đủ ngưỡng**: Thấy progress bar với phần trăm, biết còn cần bao nhiêu CAMLY, và được gợi ý cách kiếm thêm
-3. **Cập nhật real-time**: Khi Admin duyệt thêm rewards, progress bar sẽ tự động cập nhật (dựa trên realtime subscription đã có)
-4. **Mobile friendly**: Giao diện responsive, dễ đọc trên điện thoại
+Sau khi sửa:
+
+1. **Nút Claim Button trên Header/Mobile** sẽ cập nhật ngay lập tức khi:
+   - Nhận reward mới (xem video, like, comment, etc.)
+   - Admin duyệt reward
+   - User claim reward
+
+2. **Modal Claim Rewards** sẽ cập nhật real-time khi đang mở:
+   - Số liệu "Phần thưởng đã duyệt" và "Chờ duyệt" refresh tự động
+   - Progress bar cập nhật ngay khi admin duyệt thêm reward
+
+3. **Đặc biệt trên Mobile**:
+   - Badge số lượng reward trên nút Claim cập nhật real-time
+   - Không cần refresh trang để thấy thay đổi
+
+---
+
+## 5. Technical Details
+
+### Realtime Publication
+
+Các bảng `reward_transactions` và `profiles` đã được publish cho Supabase Realtime (đã kiểm tra trong console logs - thấy profile updates đang được nhận).
+
+### Cleanup
+
+Tất cả realtime channels sẽ được cleanup đúng cách khi:
+- User logout
+- Component unmount  
+- Modal đóng
+
+Điều này tránh memory leak và tiết kiệm battery trên mobile.
+
+### Debounce
+
+Có thể cân nhắc thêm debounce 200-300ms nếu có nhiều events liên tiếp, nhưng hiện tại chưa cần thiết vì các updates thường cách nhau vài giây.
 
