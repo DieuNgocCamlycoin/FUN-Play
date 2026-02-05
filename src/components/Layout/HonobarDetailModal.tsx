@@ -78,13 +78,20 @@ const StatCard = ({ icon: Icon, label, value, index, isString }: StatCardProps) 
 );
 
 const ModalContent = ({ stats, loading }: { stats: ReturnType<typeof useHonobarStats>['stats'], loading: boolean }) => {
-  const statItems = [
-    { icon: Users, label: "Người dùng", value: stats.totalUsers },
-    { icon: Video, label: "Video", value: stats.totalVideos },
-    { icon: Eye, label: "Lượt xem", value: stats.totalViews },
-    { icon: MessageSquare, label: "Bình luận", value: stats.totalComments },
-    { icon: Coins, label: "CAMLY Pool", value: stats.camlyPool },
-    { icon: Trophy, label: "Top Creator", value: stats.topCreator?.displayName || "N/A", isString: true },
+  // Stats organized in horizontal rows (2 items per row)
+  const statRows = [
+    [
+      { icon: Users, label: "Người dùng", value: stats.totalUsers },
+      { icon: Video, label: "Video", value: stats.totalVideos },
+    ],
+    [
+      { icon: Eye, label: "Lượt xem", value: stats.totalViews },
+      { icon: MessageSquare, label: "Bình luận", value: stats.totalComments },
+    ],
+    [
+      { icon: Coins, label: "CAMLY Pool", value: stats.camlyPool },
+      { icon: Trophy, label: "Subscriptions", value: stats.totalSubscriptions },
+    ],
   ];
 
   return (
@@ -108,17 +115,20 @@ const ModalContent = ({ stats, loading }: { stats: ReturnType<typeof useHonobarS
         </motion.div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-3 gap-3">
-        {statItems.map((stat, index) => (
-          <StatCard
-            key={stat.label}
-            icon={stat.icon}
-            label={stat.label}
-            value={stat.value}
-            index={index}
-            isString={stat.isString}
-          />
+      {/* Stats - Horizontal Stacked Rows */}
+      <div className="space-y-3">
+        {statRows.map((row, rowIndex) => (
+          <div key={rowIndex} className="flex gap-3">
+            {row.map((stat, index) => (
+              <StatCard
+                key={stat.label}
+                icon={stat.icon}
+                label={stat.label}
+                value={stat.value}
+                index={rowIndex * 2 + index}
+              />
+            ))}
+          </div>
         ))}
       </div>
 

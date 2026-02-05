@@ -263,77 +263,75 @@ const Index = () => {
         <MobileBottomNav />
       </div>
       
-      {/* Main content - 3 column layout */}
+      {/* Main content - 3 column layout with fixed right sidebar */}
       <main className={`pt-14 pb-20 lg:pb-0 transition-all duration-300 ${
         isSidebarExpanded ? 'lg:pl-60' : 'lg:pl-16'
-      }`}>
-        <div className="flex">
-          {/* Center content area */}
-          <div className="flex-1 min-w-0">
-            <CategoryChips />
-            
-            {/* Mobile Honor Board Card */}
-            <div className="lg:hidden px-4 mb-4">
-              <MobileHonoboardCard onClick={() => setShowHonobarDetail(true)} />
-            </div>
-
-            {!user && (
-              <div className="glass-card mx-4 mt-4 rounded-xl border border-cosmic-magenta/50 p-4 shadow-[0_0_50px_rgba(217,0,255,0.5)]">
-                <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-                  <p className="text-foreground font-medium text-center sm:text-left">
-                    Join <span className="text-transparent bg-clip-text bg-gradient-to-r from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta font-bold">FUN Play</span> to upload videos, subscribe to channels, and tip creators!
-                  </p>
-                  <Button 
-                    onClick={() => navigate("/auth")} 
-                    className="bg-gradient-to-r from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta hover:shadow-[0_0_70px_rgba(0,255,255,1)] transition-all duration-500 border border-glow-cyan"
-                  >
-                    Sign In / Sign Up
-                  </Button>
-                </div>
-              </div>
-            )}
-            
-            <div className="p-4 lg:p-6">
-              {/* Continue Watching Section */}
-              {user && <ContinueWatching />}
-              
-              {loadingVideos ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-6">
-                  {[...Array(6)].map((_, i) => (
-                    <VideoCard key={`skeleton-${i}`} isLoading={true} />
-                  ))}
-                </div>
-              ) : videos.length === 0 ? (
-                <div className="text-center py-20 glass-card rounded-2xl mx-auto max-w-2xl shadow-[0_0_60px_rgba(0,102,255,0.5)]">
-                  <p className="text-foreground text-2xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta">Chưa có video nào</p>
-                  <p className="text-sm text-muted-foreground mt-2">Hãy tải video đầu tiên lên và khám phá vũ trụ âm nhạc đầy năng lượng tình yêu!</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-6">
-                  {videos.map((video) => (
-                    <VideoCard
-                      key={video.id}
-                      videoId={video.id}
-                      userId={video.user_id}
-                      channelId={video.channels?.id}
-                      thumbnail={video.thumbnail_url || undefined}
-                      title={video.title}
-                      channel={video.channels?.name || "Unknown Channel"}
-                      avatarUrl={video.profiles?.avatar_url || undefined}
-                      views={formatViews(video.view_count)}
-                      timestamp={formatTimestamp(video.created_at)}
-                      onPlay={handlePlayVideo}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
+      } xl:pr-72`}>
+        {/* Center content area - SCROLLABLE */}
+        <div className="h-[calc(100vh-3.5rem)] overflow-y-auto lg:h-auto lg:overflow-visible">
+          <CategoryChips />
+          
+          {/* Mobile Honor Board Card */}
+          <div className="xl:hidden px-4 mb-4">
+            <MobileHonoboardCard onClick={() => setShowHonobarDetail(true)} />
           </div>
 
-          {/* Right sidebar - Honor Board (desktop only) */}
-          <HonoboardRightSidebar />
+          {!user && (
+            <div className="glass-card mx-4 mt-4 rounded-xl border border-cosmic-magenta/50 p-4 shadow-[0_0_50px_rgba(217,0,255,0.5)]">
+              <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+                <p className="text-foreground font-medium text-center sm:text-left">
+                  Join <span className="text-transparent bg-clip-text bg-gradient-to-r from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta font-bold">FUN Play</span> to upload videos, subscribe to channels, and tip creators!
+                </p>
+                <Button 
+                  onClick={() => navigate("/auth")} 
+                  className="bg-gradient-to-r from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta hover:shadow-[0_0_70px_rgba(0,255,255,1)] transition-all duration-500 border border-glow-cyan"
+                >
+                  Sign In / Sign Up
+                </Button>
+              </div>
+            </div>
+          )}
+          
+          <div className="p-4 lg:p-6">
+            {/* Continue Watching Section */}
+            {user && <ContinueWatching />}
+            
+            {loadingVideos ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-6">
+                {[...Array(6)].map((_, i) => (
+                  <VideoCard key={`skeleton-${i}`} isLoading={true} />
+                ))}
+              </div>
+            ) : videos.length === 0 ? (
+              <div className="text-center py-20 glass-card rounded-2xl mx-auto max-w-2xl shadow-[0_0_60px_rgba(0,102,255,0.5)]">
+                <p className="text-foreground text-2xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta">Chưa có video nào</p>
+                <p className="text-sm text-muted-foreground mt-2">Hãy tải video đầu tiên lên và khám phá vũ trụ âm nhạc đầy năng lượng tình yêu!</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-6">
+                {videos.map((video) => (
+                  <VideoCard
+                    key={video.id}
+                    videoId={video.id}
+                    userId={video.user_id}
+                    channelId={video.channels?.id}
+                    thumbnail={video.thumbnail_url || undefined}
+                    title={video.title}
+                    channel={video.channels?.name || "Unknown Channel"}
+                    avatarUrl={video.profiles?.avatar_url || undefined}
+                    views={formatViews(video.view_count)}
+                    timestamp={formatTimestamp(video.created_at)}
+                    onPlay={handlePlayVideo}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </main>
+
+      {/* Right sidebar - Honor Board (desktop only) - FIXED POSITION */}
+      <HonoboardRightSidebar />
 
       {/* Background Music Player */}
       {user && (
