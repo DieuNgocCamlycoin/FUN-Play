@@ -5,6 +5,7 @@ import { useHonobarStats } from "@/hooks/useHonobarStats";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { CounterAnimation } from "@/components/Layout/CounterAnimation";
+import { TopRankingSection } from "@/components/Layout/TopRankingSection";
 
 interface HonoboardRightSidebarProps {
   className?: string;
@@ -225,6 +226,9 @@ export const HonoboardRightSidebar = ({ className }: HonoboardRightSidebarProps)
             </div>
           )}
         </motion.div>
+
+        {/* Top 5 Ranking Section */}
+        <TopRankingSection />
 
         {/* FUN Play Branding */}
         <div className="mt-4 p-3 text-center">
