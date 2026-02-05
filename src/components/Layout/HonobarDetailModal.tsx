@@ -1,10 +1,12 @@
-import { Crown, Users, Video, Eye, MessageSquare, Coins, Trophy, X, TrendingUp } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { Crown, Users, Video, Eye, MessageSquare, Coins, Trophy, TrendingUp } from "lucide-react";
+import { motion } from "framer-motion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useHonobarStats } from "@/hooks/useHonobarStats";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CounterAnimation } from "@/components/Layout/CounterAnimation";
+import { cn } from "@/lib/utils";
 
 interface HonobarDetailModalProps {
   isOpen: boolean;
@@ -17,81 +19,48 @@ const formatNumber = (num: number): string => {
   return num.toLocaleString();
 };
 
-interface StatCardProps {
+const getRankBadge = (rank: number): string => {
+  if (rank === 1) return "🥇";
+  if (rank === 2) return "🥈";
+  if (rank === 3) return "🥉";
+  return `${rank}.`;
+};
+
+interface StatPillProps {
   icon: React.ElementType;
   label: string;
-  value: number | string;
+  value: number;
   index: number;
-  isString?: boolean;
 }
 
-const StatCard = ({ icon: Icon, label, value, index, isString }: StatCardProps) => (
+const StatPill = ({ icon: Icon, label, value, index }: StatPillProps) => (
   <motion.div
-    initial={{ opacity: 0, scale: 0.8, y: 20 }}
-    animate={{ opacity: 1, scale: 1, y: 0 }}
-    transition={{ delay: index * 0.05, type: "spring", stiffness: 200 }}
-    className="relative overflow-hidden rounded-xl p-4
-      bg-gradient-to-br from-[rgba(0,231,255,0.1)] via-white/95 to-[rgba(255,215,0,0.1)]
-      border border-[rgba(0,231,255,0.3)]
-      hover:border-[rgba(255,215,0,0.6)]
-      hover:shadow-[0_0_20px_rgba(255,215,0,0.4)]
-      transition-all duration-300"
+    initial={{ opacity: 0, x: -20 }}
+    animate={{ opacity: 1, x: 0 }}
+    transition={{ delay: index * 0.08, type: "spring", stiffness: 200 }}
+    className="flex items-center justify-between px-4 py-3 rounded-full
+      bg-gradient-to-r from-[#1B5E20] via-[#2E7D32] to-[#4CAF50]
+      shadow-md"
   >
-    {/* Shimmer */}
-    <motion.div
-      className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12"
-      animate={{ x: ["-100%", "200%"] }}
-      transition={{ duration: 3, repeat: Infinity, delay: index * 0.2 }}
-    />
-
-    <div className="relative flex flex-col items-center gap-2">
-      <motion.div
-        animate={{ scale: [1, 1.15, 1] }}
-        transition={{ duration: 2, repeat: Infinity, delay: index * 0.15 }}
-      >
-        <Icon className="w-6 h-6 text-[#00E7FF] drop-shadow-[0_0_8px_rgba(0,231,255,0.6)]" />
-      </motion.div>
-      
-      <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+    <div className="flex items-center gap-2">
+      <Icon className="h-5 w-5 text-white" />
+      <span className="text-sm font-medium text-white uppercase tracking-wide">
         {label}
       </span>
-      
-      <motion.div
-        animate={{
-          textShadow: [
-            "0 0 4px rgba(0,231,255,0.3)",
-            "0 0 8px rgba(255,215,0,0.5)",
-            "0 0 4px rgba(0,231,255,0.3)",
-          ],
-        }}
-        transition={{ duration: 2, repeat: Infinity }}
-        className="text-lg font-bold text-sky-700"
-      >
-        {isString ? (
-          <span className="text-sm">{value}</span>
-        ) : (
-          <CounterAnimation value={Number(value)} duration={1000} />
-        )}
-      </motion.div>
     </div>
+    <span className="text-lg font-bold text-[#FFD700] drop-shadow-[0_0_4px_rgba(255,215,0,0.5)]">
+      <CounterAnimation value={value} duration={1000} />
+    </span>
   </motion.div>
 );
 
 const ModalContent = ({ stats, loading }: { stats: ReturnType<typeof useHonobarStats>['stats'], loading: boolean }) => {
-  // Stats organized in horizontal rows (2 items per row)
-  const statRows = [
-    [
-      { icon: Users, label: "Người dùng", value: stats.totalUsers },
-      { icon: Video, label: "Video", value: stats.totalVideos },
-    ],
-    [
-      { icon: Eye, label: "Lượt xem", value: stats.totalViews },
-      { icon: MessageSquare, label: "Bình luận", value: stats.totalComments },
-    ],
-    [
-      { icon: Coins, label: "CAMLY Pool", value: stats.camlyPool },
-      { icon: Trophy, label: "Subscriptions", value: stats.totalSubscriptions },
-    ],
+  const statItems = [
+    { icon: Users, label: "TOTAL USERS", value: stats.totalUsers },
+    { icon: MessageSquare, label: "TOTAL COMMENTS", value: stats.totalComments },
+    { icon: Eye, label: "TOTAL VIEWS", value: stats.totalViews },
+    { icon: Video, label: "TOTAL VIDEOS", value: stats.totalVideos },
+    { icon: Coins, label: "CAMLY POOL", value: stats.camlyPool },
   ];
 
   return (
@@ -104,7 +73,7 @@ const ModalContent = ({ stats, loading }: { stats: ReturnType<typeof useHonobarS
         >
           <Crown className="w-8 h-8 text-[#FFD700] drop-shadow-[0_0_12px_rgba(255,215,0,0.8)]" />
         </motion.div>
-        <h2 className="text-2xl font-black bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] to-[#FFD700] bg-clip-text text-transparent">
+        <h2 className="text-2xl font-black italic bg-gradient-to-r from-[#2E7D32] to-[#FFD700] bg-clip-text text-transparent">
           HONOR BOARD
         </h2>
         <motion.div
@@ -115,48 +84,124 @@ const ModalContent = ({ stats, loading }: { stats: ReturnType<typeof useHonobarS
         </motion.div>
       </div>
 
-      {/* Stats - Horizontal Stacked Rows */}
-      <div className="space-y-3">
-        {statRows.map((row, rowIndex) => (
-          <div key={rowIndex} className="flex gap-3">
-            {row.map((stat, index) => (
-              <StatCard
-                key={stat.label}
-                icon={stat.icon}
-                label={stat.label}
-                value={stat.value}
-                index={rowIndex * 2 + index}
-              />
-            ))}
-          </div>
+      {/* Stats - Vertical Pill Layout */}
+      <div className="space-y-2">
+        {statItems.map((stat, index) => (
+          <StatPill
+            key={stat.label}
+            icon={stat.icon}
+            label={stat.label}
+            value={stat.value}
+            index={index}
+          />
         ))}
       </div>
+
+      {/* Top 10 Creators */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+        className="border-t border-[#4CAF50]/30 pt-4"
+      >
+        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
+          <Trophy className="w-4 h-4 text-[#FFD700]" />
+          <span className="font-semibold uppercase tracking-wide">Top 10 Creators</span>
+        </div>
+        
+        {loading ? (
+          <div className="space-y-2">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="flex items-center gap-2 p-2 animate-pulse">
+                <div className="w-8 h-8 rounded-full bg-muted" />
+                <div className="flex-1 space-y-1">
+                  <div className="h-3 bg-muted rounded w-24" />
+                  <div className="h-2 bg-muted rounded w-16" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : stats.topCreators.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-4">
+            No creators yet
+          </p>
+        ) : (
+          <div className="space-y-1 max-h-[200px] overflow-y-auto">
+            {stats.topCreators.map((creator, index) => (
+              <motion.div 
+                key={creator.userId}
+                initial={{ opacity: 0, x: 10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.5 + index * 0.05 }}
+                className={cn(
+                  "flex items-center gap-2 p-2 rounded-lg transition-all duration-200",
+                  "hover:bg-[#E8F5E9]",
+                  index === 0 && "bg-gradient-to-r from-[#FFF8E1] to-transparent border border-[#FFD700]/30",
+                  index === 1 && "bg-gradient-to-r from-gray-100/50 to-transparent",
+                  index === 2 && "bg-gradient-to-r from-orange-50/50 to-transparent"
+                )}
+              >
+                <span className="w-6 text-center font-medium text-sm">
+                  {getRankBadge(index + 1)}
+                </span>
+                <Avatar className={cn(
+                  "h-8 w-8 border-2",
+                  index === 0 && "border-[#FFD700] ring-2 ring-[rgba(255,215,0,0.3)]",
+                  index === 1 && "border-gray-400",
+                  index === 2 && "border-orange-400",
+                  index > 2 && "border-border"
+                )}>
+                  <AvatarImage src={creator.avatarUrl || undefined} />
+                  <AvatarFallback className="text-xs bg-gradient-to-br from-[#E8F5E9] to-[#FFF8E1]">
+                    {creator.displayName.charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate text-[#1B5E20]">
+                    {creator.displayName}
+                  </p>
+                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                    <span className="flex items-center gap-0.5">
+                      <Video className="h-3 w-3" />
+                      {creator.videoCount}
+                    </span>
+                    <span className="flex items-center gap-0.5">
+                      <Eye className="h-3 w-3" />
+                      {formatNumber(creator.totalViews)}
+                    </span>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
+      </motion.div>
 
       {/* Extended Details */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-        className="border-t border-[rgba(0,231,255,0.3)] pt-4 space-y-3"
+        transition={{ delay: 0.6 }}
+        className="border-t border-[#4CAF50]/30 pt-4 space-y-3"
       >
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <TrendingUp className="w-4 h-4 text-[#00E7FF]" />
+          <TrendingUp className="w-4 h-4 text-[#4CAF50]" />
           <span className="font-medium">Chi tiết thêm:</span>
         </div>
         
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-          <div className="flex justify-between items-center p-2 rounded-lg bg-gradient-to-r from-[rgba(0,231,255,0.05)] to-[rgba(255,215,0,0.05)]">
+          <div className="flex justify-between items-center p-2 rounded-lg bg-gradient-to-r from-[#E8F5E9] to-[#FFF8E1]">
             <span className="text-muted-foreground">Total CAMLY Distributed:</span>
-            <span className="font-bold text-sky-700">{formatNumber(stats.totalRewards)}</span>
+            <span className="font-bold text-[#1B5E20]">{formatNumber(stats.totalRewards)}</span>
           </div>
-          <div className="flex justify-between items-center p-2 rounded-lg bg-gradient-to-r from-[rgba(0,231,255,0.05)] to-[rgba(255,215,0,0.05)]">
+          <div className="flex justify-between items-center p-2 rounded-lg bg-gradient-to-r from-[#E8F5E9] to-[#FFF8E1]">
             <span className="text-muted-foreground">Total Subscriptions:</span>
-            <span className="font-bold text-sky-700">{formatNumber(stats.totalSubscriptions)}</span>
+            <span className="font-bold text-[#1B5E20]">{formatNumber(stats.totalSubscriptions)}</span>
           </div>
           {stats.topCreator && (
-            <div className="flex justify-between items-center p-2 rounded-lg bg-gradient-to-r from-[rgba(0,231,255,0.05)] to-[rgba(255,215,0,0.05)] sm:col-span-2">
+            <div className="flex justify-between items-center p-2 rounded-lg bg-gradient-to-r from-[#E8F5E9] to-[#FFF8E1] sm:col-span-2">
               <span className="text-muted-foreground">Top Creator Video Count:</span>
-              <span className="font-bold text-sky-700">{stats.topCreator.videoCount} videos</span>
+              <span className="font-bold text-[#1B5E20]">{stats.topCreator.videoCount} videos</span>
             </div>
           )}
         </div>
@@ -185,7 +230,7 @@ export const HonobarDetailModal = ({ isOpen, onClose }: HonobarDetailModalProps)
       <Sheet open={isOpen} onOpenChange={onClose}>
         <SheetContent 
           side="bottom" 
-          className="h-[85vh] rounded-t-3xl bg-gradient-to-b from-white to-[rgba(0,231,255,0.05)] border-t-2 border-[rgba(0,231,255,0.5)]"
+          className="h-[85vh] rounded-t-3xl bg-gradient-to-b from-white to-[#E8F5E9] border-t-2 border-[#4CAF50]/50"
         >
           <SheetHeader className="sr-only">
             <SheetTitle>Honor Board</SheetTitle>
@@ -202,9 +247,9 @@ export const HonobarDetailModal = ({ isOpen, onClose }: HonobarDetailModalProps)
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent 
-        className="max-w-lg bg-gradient-to-br from-white via-[rgba(0,231,255,0.02)] to-[rgba(255,215,0,0.05)] 
-          border-2 border-[rgba(0,231,255,0.5)]
-          shadow-[0_0_40px_rgba(0,231,255,0.3),0_0_80px_rgba(255,215,0,0.2)]"
+        className="max-w-lg bg-gradient-to-br from-white via-[#E8F5E9] to-[#FFF8E1] 
+          border-2 border-[#4CAF50]/50
+          shadow-[0_0_40px_rgba(76,175,80,0.3),0_0_80px_rgba(255,215,0,0.2)]"
       >
         <DialogHeader className="sr-only">
           <DialogTitle>Honor Board</DialogTitle>
