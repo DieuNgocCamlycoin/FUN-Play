@@ -1,180 +1,72 @@
 
+# Plan: Fix Display Issues & Add Sponsors to Mobile
 
-# Plan: Font System Upgrade & Right Sidebar Layout Fix
+## Issues Found
 
-## Overview
+### 1. Right Sidebar Stat Pills Overflow
+The stat pill labels ("TOTAL COMMENTS", "TOTAL USERS") combined with large formatted values (e.g., "5.991,00" for CAMLY Pool) overflow beyond the `w-80` sidebar width. The `CounterAnimation` component does not use compact mode, so numbers like 5991 are displayed as "5.991,00" (Vietnamese locale) instead of "5.99K".
 
-This plan addresses three key areas:
-1. **Font system upgrade** -- Making text larger and clearer like YouTube 2025, across web and mobile
-2. **Right sidebar width & content fix** -- Ensuring all content fits and displays properly
-3. **Move Top Sponsor into the same section as Top Ranking** -- Combining them into one unified card
+### 2. Mobile Top Ranking Card Missing Sponsors
+The `MobileTopRankingCard` only shows the Top 3 ranking users but does not display any sponsor information or a "Donate to Project" button -- even though the desktop sidebar has both merged into one card via `showSponsors` prop.
 
----
-
-## 1. Current Font Analysis
-
-### Current Setup
-- **Font family**: Inter (loaded via Google Fonts in `index.html`)
-- **Roboto** is also loaded but not used in the config
-- **Base font size**: Browser default 16px (no custom `font-size` on `html` or `body`)
-
-### Problem Areas Found
-
-| Location | Current Size | YouTube Reference | Issue |
-|----------|-------------|-------------------|-------|
-| Video title (VideoCard) | `text-sm` (14px) | ~16px bold | Too small |
-| Channel name (VideoCard) | `text-xs` (12px) | ~14px | Too small |
-| Views/timestamp (VideoCard) | `text-xs` (12px) | ~13px | Acceptable but tight |
-| Sidebar nav labels | `text-sky-700 font-medium` (14px) | ~14px medium | OK |
-| Category chips | `text-sm` (14px) | ~14px | OK |
-| Honor Board stat labels | `text-sm` (14px) | - | OK |
-| Honor Board stat values | `text-lg` (18px) | - | OK |
-| Top Ranking names | `text-sm` (14px) | - | Slightly small |
-| Top Ranking CAMLY values | `text-xs` (12px) | - | Too small |
-| Top Sponsor names | `text-xs` (12px) | - | Too small |
-| Top Sponsor values | `text-[10px]` (10px) | - | Way too small |
-| Mobile bottom nav labels | `text-[10px]` (10px) | ~10px | OK (YouTube-like) |
-| Mobile header height | `h-12` (48px) | ~48px | OK |
-| Mobile "Sign In" button | `text-[9px]` | ~12px | Way too small |
-| MobileTopRanking pill text | `text-[10px]` | - | Too small for readability |
-
-### YouTube 2025 Font Reference
-
-YouTube uses **Roboto** with these typical sizes:
-- Video title in feed: **16px bold** (font-weight 600-700)
-- Channel name: **14px medium**
-- View count + date: **13-14px regular**, muted color
-- Sidebar items: **14px medium**
-- Category chips: **14px medium**
+### 3. CoinGecko API Error (Not Critical)
+A "Failed to fetch" error from `useCryptoPrices.tsx` when calling the CoinGecko API. This is a CORS/network issue in the preview environment and is not related to the layout changes.
 
 ---
 
-## 2. Font Changes Plan
+## Fix Plan
 
-### Global Level (`index.css` and `tailwind.config.ts`)
+### Fix 1: Right Sidebar Stat Pills -- Prevent Overflow
 
-- Add **Roboto** as primary font alongside Inter for YouTube parity
-- Set base `font-size: 15px` on body for slightly larger default
+**File: `src/components/Layout/HonoboardRightSidebar.tsx`**
 
-### Component-Level Font Size Upgrades
+- Shorten stat labels to fit better:
+  - "TOTAL USERS" --> "USERS"
+  - "TOTAL COMMENTS" --> "COMMENTS"
+  - "TOTAL VIEWS" --> "VIEWS"
+  - "TOTAL VIDEOS" --> "VIDEOS"
+  - "CAMLY POOL" --> "CAMLY POOL" (keep)
+- Reduce label font from `text-sm` to `text-xs`
+- Enable `compact` mode on CounterAnimation for large numbers
+- Add `overflow-hidden` and `min-w-0` to prevent visual overflow
+- Reduce pill padding from `px-4` to `px-3`
 
-| Component | Element | Before | After |
-|-----------|---------|--------|-------|
-| **VideoCard** | Title | `text-sm` (14px) | `text-[15px]` or `text-base` (16px) |
-| **VideoCard** | Channel name | `text-xs` (12px) | `text-sm` (14px) |
-| **VideoCard** | Views/timestamp | `text-xs` (12px) | `text-[13px]` |
-| **TopRankingSection** | User name | `text-sm` (14px) | `text-sm font-semibold` |
-| **TopRankingSection** | CAMLY value | `text-xs` (12px) | `text-sm` (14px) |
-| **TopRankingSection** | "CAMLY" label | `text-[10px]` | `text-xs` (12px) |
-| **TopSponsorSection** | User name | `text-xs` (12px) | `text-sm` (14px) |
-| **TopSponsorSection** | Donation value | `text-[10px]` | `text-xs font-bold` |
-| **MobileHeader** | Sign In button | `text-[9px]` | `text-xs` (12px) |
-| **MobileTopRankingCard** | Rank pill value | `text-[10px]` | `text-xs` (12px) |
-| **MobileTopRankingCard** | Avatar fallback | `text-[8px]` | `text-[10px]` |
-| **MobileHonoboardCard** | Realtime text | `text-[10px]` | `text-xs` |
-| **CategoryChips** | Chip text | `text-sm` (14px) | Keep (matches YouTube) |
+### Fix 2: Merge Sponsors into Mobile Top Ranking Card
 
----
+**File: `src/components/Layout/MobileTopRankingCard.tsx`**
 
-## 3. Right Sidebar Width & Content Fix
+- Import `useTopSponsors` hook
+- Add a "Top Sponsors" section below the ranking pills, separated by a divider
+- Show top 3 sponsors as compact pills (similar to ranking pills)
+- Add a small "Donate to Project" button at the bottom with Aurora gradient
+- Keep the card clickable for leaderboard navigation, but make the Donate button a separate action
 
-### Current Issue
-- Sidebar width: `w-72` (288px) -- content is cramped
-- Main content area uses `xl:pr-72` padding to make room
+### Fix 3: Minor Font/Display Consistency
 
-### Solution
-- Increase sidebar to `w-80` (320px) -- matches YouTube's right sidebar width
-- Update `xl:pr-80` on main content
-- Increase internal padding from `px-3` to `px-4`
-- Adjust StatPill padding for better readability
+**File: `src/components/Layout/HonoboardRightSidebar.tsx`**
+- Ensure StatPill uses `text-base` for values instead of `text-lg` to prevent overflow
+- Add `whitespace-nowrap` to value display
 
-### Files Changed
-- `HonoboardRightSidebar.tsx`: `w-72` to `w-80`, `px-3` to `px-4`
-- `Index.tsx`: `xl:pr-72` to `xl:pr-80`
+**File: `src/components/Layout/TopRankingSection.tsx`**
+- Increase sponsor value font from `text-xs` to `text-sm` for consistency with ranking values
 
 ---
 
-## 4. Merge Top Sponsor INTO Top Ranking Section
-
-### Current Layout (Separate Cards)
-```text
-[Top 5 Ranking Card]     <-- separate card
-[Top Sponsors Card]       <-- separate card with Donate button
-```
-
-### New Layout (Combined Card)
-```text
-┌──────────────────────────────────────┐
-│ 🏅 TOP 5 RANKING       CAMLY Rewards │
-│ ┌────────────────────────────────────┐│
-│ │ 🥇 User A              1.25M CAMLY ││
-│ │ 🥈 User B              980K CAMLY  ││
-│ │ 🥉 User C              750K CAMLY  ││
-│ │ #4 User D              500K CAMLY  ││
-│ │ #5 User E              350K CAMLY  ││
-│ └────────────────────────────────────┘│
-│ [View All Ranking ->]                 │
-├──────────────────────────────────────┤
-│ 💎 TOP SPONSORS          Donations   │
-│ ┌────────────────────────────────────┐│
-│ │ 🥇 Sponsor A            500 CAMLY  ││
-│ │ 🥈 Sponsor B            350 CAMLY  ││
-│ │ 🥉 Sponsor C            200 CAMLY  ││
-│ └────────────────────────────────────┘│
-│ [ 💖 Donate to Project ]             │
-└──────────────────────────────────────┘
-```
-
-### Implementation
-- Modify `TopRankingSection.tsx` to accept and render sponsors data internally
-- Remove standalone `TopSponsorSection` import from `HonoboardRightSidebar.tsx`
-- Combine both sections into a single bordered card in `TopRankingSection.tsx`
-- The "View All Ranking" button separates the two sections
-- The Donate button stays at the bottom of the combined card
-
----
-
-## 5. Mobile Interface Updates
-
-### MobileTopRankingCard
-- Increase font sizes for better readability
-- MiniRankPill: Avatar `h-5 w-5` (from `h-4 w-4`), value text `text-xs` (from `text-[10px]`)
-
-### MobileHonoboardCard
-- Increase MiniPill value text to `text-xs`
-- Better touch target sizes
-
-### HonobarDetailModal
-- Increase ranking/sponsor name text to `text-sm font-semibold`
-- Increase value text to `text-sm` from `text-xs`
-
----
-
-## 6. Files Summary
+## Files to Change
 
 | File | Action | Description |
 |------|--------|-------------|
-| `tailwind.config.ts` | Edit | Add Roboto to font family |
-| `index.html` | Already has Roboto | No change needed |
-| `src/index.css` | Edit | Add base font-size rule |
-| `src/components/Video/VideoCard.tsx` | Edit | Increase title, channel, metadata font sizes |
-| `src/components/Layout/HonoboardRightSidebar.tsx` | Edit | Width `w-80`, remove TopSponsorSection import, increase padding |
-| `src/components/Layout/TopRankingSection.tsx` | Edit | Combine with sponsors, increase font sizes |
-| `src/components/Layout/TopSponsorSection.tsx` | Edit | Keep as standalone for mobile modal, increase font sizes |
-| `src/components/Layout/MobileTopRankingCard.tsx` | Edit | Increase font sizes for readability |
-| `src/components/Layout/MobileHonoboardCard.tsx` | Edit | Increase font sizes |
-| `src/components/Layout/MobileHeader.tsx` | Edit | Fix Sign In button size |
-| `src/components/Layout/HonobarDetailModal.tsx` | Edit | Increase ranking/sponsor text sizes |
-| `src/pages/Index.tsx` | Edit | Update `xl:pr-80` |
+| `src/components/Layout/HonoboardRightSidebar.tsx` | Edit | Fix stat pill overflow: shorter labels, compact counter, smaller text |
+| `src/components/Layout/MobileTopRankingCard.tsx` | Edit | Add Top Sponsors section + Donate button |
+| `src/components/Layout/TopRankingSection.tsx` | Edit | Fix sponsor value font size consistency |
 
 ---
 
-## 7. Implementation Order
+## Expected Results
 
-1. **Font system** -- `tailwind.config.ts`, `index.css`
-2. **VideoCard** -- Title and metadata font sizes
-3. **Right sidebar width** -- `HonoboardRightSidebar.tsx` + `Index.tsx`
-4. **Merge Ranking + Sponsors** -- `TopRankingSection.tsx` combined card
-5. **Sidebar font updates** -- All text size increases
-6. **Mobile updates** -- MobileTopRankingCard, MobileHonoboardCard, MobileHeader, HonobarDetailModal
-
+| Before | After |
+|--------|-------|
+| Stat pill values overflow sidebar edge | Values use compact format (K/M) and fit within sidebar |
+| Mobile shows only Top 3 ranking | Mobile shows Top 3 ranking + Top 3 sponsors + Donate button |
+| Sponsor values use `text-xs` (too small) | Sponsor values use `text-sm` (consistent with ranking) |
+| Long labels push values off-screen | Shorter labels keep everything visible |
