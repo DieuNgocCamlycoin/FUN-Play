@@ -72,11 +72,10 @@ const RankingItem = ({ user, rank }: RankingItemProps) => {
       </div>
 
       {/* CAMLY Value */}
-      <div className="text-right flex items-center gap-1">
+      <div className="text-right shrink-0">
         <span className="text-sm font-bold text-[#FFD700] drop-shadow-[0_0_4px_rgba(255,215,0,0.4)]">
           {formatRewards(user.total_camly_rewards)}
         </span>
-        <span className="text-xs text-muted-foreground">CAMLY</span>
       </div>
     </motion.div>
   );
@@ -106,7 +105,7 @@ export const TopRankingSection = ({ showSponsors = false }: TopRankingSectionPro
         </h3>
         <div className="flex items-center gap-1 text-xs text-muted-foreground">
           <Coins className="h-3 w-3 text-[#FFD700]" />
-          CAMLY Rewards
+          CAMLY
         </div>
       </div>
 
@@ -160,7 +159,7 @@ export const TopRankingSection = ({ showSponsors = false }: TopRankingSectionPro
               </h3>
               <div className="flex items-center gap-1 text-xs text-muted-foreground">
                 <Coins className="h-3 w-3 text-[#FFD700]" />
-                Donations
+                Tips
               </div>
             </div>
 
