@@ -6,7 +6,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { getLightStyleGradient } from "@/lib/musicGradients";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { ShareModal } from "@/components/Video/ShareModal";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -26,6 +25,7 @@ export default function AIMusicDetail() {
   const [currentTime, setCurrentTime] = useState(0);
   const [audioDuration, setAudioDuration] = useState(0);
   const [shareOpen, setShareOpen] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const listenerCount = useMusicListeners(id || null, true);
 
@@ -50,23 +50,47 @@ export default function AIMusicDetail() {
   };
 
   const handleDownload = async () => {
-    if (!music) return;
+    if (!music || isDownloading) return;
+    setIsDownloading(true);
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData?.session?.access_token;
-      if (!token) { toast.error("Vui lòng đăng nhập"); return; }
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/download-ai-music?musicId=${music.id}`;
-      const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-      if (!resp.ok) throw new Error("Download failed");
-      const blob = await resp.blob();
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = `${music.title}.mp3`;
-      a.click();
-      URL.revokeObjectURL(a.href);
-      toast.success("Đang tải nhạc xuống...");
-    } catch {
-      toast.error("Không thể tải nhạc");
+      // Try using supabase.functions.invoke for better compatibility
+      const { data, error } = await supabase.functions.invoke('download-ai-music', {
+        body: { musicId: music.id },
+      });
+
+      if (error) throw error;
+
+      // If we got blob data back, trigger download
+      if (data instanceof Blob) {
+        const url = URL.createObjectURL(data);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${music.title}.mp3`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        toast.success("Đang tải nhạc xuống...");
+      } else {
+        // Fallback: open audio URL directly in new tab
+        if (music.audio_url) {
+          window.open(music.audio_url, '_blank');
+          toast.success("Đang mở link tải nhạc...");
+        } else {
+          toast.error("Không tìm thấy file nhạc");
+        }
+      }
+    } catch (err) {
+      console.error('Download error:', err);
+      // Fallback: open audio URL directly
+      if (music.audio_url) {
+        window.open(music.audio_url, '_blank');
+        toast.success("Đang mở link tải nhạc...");
+      } else {
+        toast.error("Không thể tải nhạc");
+      }
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -210,8 +234,9 @@ export default function AIMusicDetail() {
           {/* Action Buttons */}
           <div className="flex items-center justify-center gap-3 mt-6">
             {isOwner && (
-              <Button variant="outline" size="sm" onClick={handleDownload} className="text-gray-700 border-gray-300">
-                <Download className="w-4 h-4 mr-1" /> Tải về
+              <Button variant="outline" size="sm" onClick={handleDownload} disabled={isDownloading} className="text-gray-700 border-gray-300">
+                {isDownloading ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Download className="w-4 h-4 mr-1" />}
+                {isDownloading ? "Đang tải..." : "Tải về"}
               </Button>
             )}
             <Button variant="outline" size="sm" onClick={() => setShareOpen(true)} className="text-gray-700 border-gray-300">
@@ -256,7 +281,7 @@ export default function AIMusicDetail() {
       <ShareModal
         isOpen={shareOpen}
         onClose={() => setShareOpen(false)}
-        contentType="music"
+        contentType="ai-music"
         contentId={music.id}
         contentTitle={music.title}
         thumbnailUrl={music.thumbnail_url || "/images/camly-coin.png"}

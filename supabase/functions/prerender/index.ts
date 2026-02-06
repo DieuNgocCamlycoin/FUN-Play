@@ -81,7 +81,26 @@ Deno.serve(async (req) => {
     let audioUrl = "";
     let videoUrl = "";
 
-    if (type === "music" || type === "video") {
+    if (type === "ai-music") {
+      console.log(`[Prerender] Fetching AI music data for id: ${id}`);
+      
+      const { data: aiMusic, error } = await supabase
+        .from("ai_generated_music")
+        .select("id, title, style, thumbnail_url, audio_url, play_count, lyrics")
+        .eq("id", id)
+        .single();
+
+      if (!error && aiMusic) {
+        title = `${aiMusic.title} - Fun Music AI`;
+        description = `🎵 Nghe bài hát AI "${aiMusic.title}" (${aiMusic.style || 'Music'}) trên FUN Play. ${aiMusic.play_count || 0} lượt nghe.`;
+        image = aiMusic.thumbnail_url || image;
+        ogType = "music.song";
+        audioUrl = aiMusic.audio_url || "";
+        console.log(`[Prerender] Found AI music: ${aiMusic.title}`);
+      } else {
+        console.log(`[Prerender] Error fetching AI music: ${error?.message}`);
+      }
+    } else if (type === "music" || type === "video") {
       console.log(`[Prerender] Fetching ${type} data for id: ${id}`);
       
       const { data: video, error } = await supabase
