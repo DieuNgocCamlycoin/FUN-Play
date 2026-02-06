@@ -42,18 +42,6 @@ interface Video {
   };
 }
 
-interface Comment {
-  id: string;
-  content: string;
-  created_at: string;
-  like_count: number;
-  user_id: string;
-  profiles: {
-    display_name: string;
-    avatar_url: string;
-  };
-}
-
 interface RecommendedVideo {
   id: string;
   title: string;
