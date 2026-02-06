@@ -9,6 +9,8 @@ export interface HonobarStats {
   totalRewards: number;
   totalSubscriptions: number;
   camlyPool: number;
+  totalPosts: number;
+  totalPhotos: number;
 }
 
 export const useHonobarStats = () => {
@@ -20,6 +22,8 @@ export const useHonobarStats = () => {
     totalRewards: 0,
     totalSubscriptions: 0,
     camlyPool: 0,
+    totalPosts: 0,
+    totalPhotos: 0,
   });
   const [loading, setLoading] = useState(true);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
@@ -40,6 +44,8 @@ export const useHonobarStats = () => {
           { count: commentsCount },
           { data: profilesData },
           { count: subscriptionsCount },
+          { count: postsCount },
+          { count: photosCount },
         ] = await Promise.all([
           supabase.from("profiles").select("*", { count: "exact", head: true }),
           supabase.from("videos").select("*", { count: "exact", head: true }).eq("approval_status", "approved"),
@@ -47,6 +53,8 @@ export const useHonobarStats = () => {
           supabase.from("comments").select("*", { count: "exact", head: true }),
           supabase.from("profiles").select("total_camly_rewards, approved_reward"),
           supabase.from("subscriptions").select("*", { count: "exact", head: true }),
+          supabase.from("posts").select("*", { count: "exact", head: true }),
+          supabase.from("videos").select("*", { count: "exact", head: true }).eq("category", "photo"),
         ]);
 
         // Calculate total views
@@ -66,6 +74,8 @@ export const useHonobarStats = () => {
           totalRewards,
           totalSubscriptions: subscriptionsCount || 0,
           camlyPool,
+          totalPosts: postsCount || 0,
+          totalPhotos: photosCount || 0,
         });
         setLoading(false);
       } catch (error) {
