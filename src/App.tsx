@@ -131,7 +131,8 @@ function AppContent() {
         <Route path="/profile" element={<Profile />} />
         <Route path="/your-videos-mobile" element={<YourVideosMobile />} />
         <Route path="/downloads" element={<DownloadedVideos />} />
-        <Route path="/bounty" element={<Bounty />} />
+        <Route path="/build-bounty" element={<Bounty />} />
+        <Route path="/bounty" element={<Navigate to="/build-bounty" replace />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
