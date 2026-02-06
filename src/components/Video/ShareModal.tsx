@@ -83,19 +83,20 @@ export const ShareModal = ({
   const id = contentId || videoId || '';
   const title = contentTitle || videoTitle || '';
   
-  // Generate share URL based on content type
+  // Generate share URL based on content type - always use production URL for sharing
   const getShareUrl = () => {
+    const baseUrl = 'https://official-funplay.lovable.app';
     switch (contentType) {
       case 'video':
-        return `${window.location.origin}/watch/${id}`;
+        return `${baseUrl}/watch/${id}`;
       case 'music':
-        return `${window.location.origin}/music/${id}`;
+        return `${baseUrl}/music/${id}`;
       case 'ai-music':
-        return `${window.location.origin}/ai-music/${id}`;
+        return `${baseUrl}/ai-music/${id}`;
       case 'channel':
-        return `${window.location.origin}/channel/${id}`;
+        return `${baseUrl}/channel/${id}`;
       default:
-        return `${window.location.origin}/watch/${id}`;
+        return `${baseUrl}/watch/${id}`;
     }
   };
 
@@ -220,9 +221,9 @@ export const ShareModal = ({
 
   const handleShare = async (platform: string) => {
     awardShare();
-    // Use prerender URL for social media platforms (for proper OG meta tags)
-    // Use regular shareUrl for other platforms
-    const usePrerenderUrl = ['facebook', 'twitter', 'linkedin', 'messenger'].includes(platform);
+    // Use prerender URL for ALL social media platforms (for proper OG meta tags)
+    // Bots from Telegram, WhatsApp, Zalo, Facebook, etc. all need OG tags
+    const usePrerenderUrl = ['facebook', 'twitter', 'linkedin', 'messenger', 'telegram', 'whatsapp', 'zalo'].includes(platform);
     const urlToShare = usePrerenderUrl ? prerenderUrl : shareUrl;
     const encodedUrl = encodeURIComponent(urlToShare);
     const encodedTitle = encodeURIComponent(title);
@@ -237,13 +238,13 @@ export const ShareModal = ({
         shareLink = `https://twitter.com/intent/tweet?url=${encodedUrl}&text=${encodedTitle}`;
         break;
       case "telegram":
-        shareLink = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodedTitle}`;
+        shareLink = `https://t.me/share/url?url=${encodedUrl}&text=${encodedTitle}`;
         break;
       case "whatsapp":
-        shareLink = `https://wa.me/?text=${encodedTitle}%20${encodeURIComponent(shareUrl)}`;
+        shareLink = `https://wa.me/?text=${encodedTitle}%20${encodedUrl}`;
         break;
       case "zalo":
-        shareLink = `https://zalo.me/share?url=${encodeURIComponent(shareUrl)}`;
+        shareLink = `https://zalo.me/share?url=${encodedUrl}`;
         break;
       case "tiktok":
         // TikTok doesn't have a direct share URL, copy link instead
