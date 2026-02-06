@@ -322,46 +322,6 @@ export default function Watch() {
     return `${Math.floor(diffDays / 365)} năm trước`;
   };
 
-  const handleAddComment = async () => {
-    if (!user) {
-      navigate("/auth");
-      return;
-    }
-
-    const wordCount = newComment.trim().split(/\s+/).filter(w => w.length > 0).length;
-    if (wordCount < 5) {
-      toast({
-        title: "Bình luận quá ngắn",
-        description: "Bình luận phải có ít nhất 5 từ để nhận thưởng CAMLY",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const { error } = await supabase.from("comments").insert({
-        video_id: id,
-        user_id: user.id,
-        content: newComment,
-      });
-
-      if (error) throw error;
-
-      const commentContent = newComment;
-      setNewComment("");
-      fetchComments();
-
-      // Award CAMLY for commenting using useAutoReward
-      await awardCommentReward(id!, commentContent);
-    } catch (error: any) {
-      toast({
-        title: "Lỗi đăng bình luận",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
-
   const checkSubscription = async () => {
     if (!user || !video) return;
 
