@@ -40,10 +40,13 @@ Deno.serve(async (req) => {
     console.log(`[Prerender] Request for path: ${path}, User-Agent: ${userAgent}`);
 
     // Parse the path to extract type and id
-    let type: "music" | "video" | "channel" | null = null;
+    let type: "music" | "video" | "channel" | "ai-music" | null = null;
     let id: string | null = null;
 
-    if (path.startsWith("/music/")) {
+    if (path.startsWith("/ai-music/")) {
+      type = "ai-music";
+      id = path.replace("/ai-music/", "").split("?")[0];
+    } else if (path.startsWith("/music/")) {
       type = "music";
       id = path.replace("/music/", "").split("?")[0];
     } else if (path.startsWith("/watch/")) {

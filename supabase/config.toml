@@ -53,3 +53,15 @@ verify_jwt = false
 
 [functions.search-users-by-email]
 verify_jwt = false
+
+[functions.generate-suno-music]
+verify_jwt = false
+
+[functions.generate-suno-music-callback]
+verify_jwt = false
+
+[functions.generate-lyrics]
+verify_jwt = false
+
+[functions.download-ai-music]
+verify_jwt = false
