@@ -1,159 +1,95 @@
 
-# Plan: Triển Khai Hệ Thống "Tạo Nhạc Ánh Sáng" (Fun Music AI V3)
+# Plan: Fix "Tai ve" (Download) & "Chia se" (Share) cho AI Music
 
-## Tổng Quan
+## Van de phat hien
 
-Triển khai package "Fun Music AI V3" hoàn chỉnh - hệ thống tạo nhạc AI sử dụng Suno API với giao diện "Nhạc Ánh Sáng" (nền sáng, tràn đầy năng lượng).
+### 1. Download - Loi blob download trong iframe
+- Edge function `download-ai-music` hoat dong tot (Status 200, tra ve MP3 data)
+- Nhung cach tao blob URL + click `<a>` de download co the khong hoat dong dung trong preview iframe
+- Can chuyen sang dung `supabase.functions.invoke` voi `responseType` phu hop, kem fallback mo tab moi
 
-## Hiện Trạng vs Yêu Cầu
+### 2. Share - URL sai duong dan
+- `ShareModal` tao link `/music/{id}` cho `contentType="music"` 
+- Nhung route that su la `/ai-music/:id`
+- Ket qua: link chia se dan den trang 404
 
-| Thành phần | Hiện tại | Cần làm |
-|------------|----------|---------|
-| Bảng `ai_generated_music` | Chưa có | Tạo mới + RLS + Realtime |
-| Bảng `ai_music_likes` | Chưa có | Tạo mới + RLS + Trigger |
-| Edge Function `generate-suno-music` | Chưa có | Tạo mới (gọi Suno API) |
-| Edge Function `generate-suno-music-callback` | Chưa có | Tạo mới (webhook nhận kết quả) |
-| Edge Function `generate-lyrics` | Chưa có | Tạo mới (Lovable AI tạo lời) |
-| Edge Function `download-ai-music` | Chưa có | Tạo mới (tải nhạc có auth) |
-| Edge Function `prerender` | Có (videos only) | Cập nhật thêm `/ai-music/` path |
-| Hook `useAIMusic.ts` | Chưa có | Tạo mới |
-| Hook `useMusicCompletionNotification.ts` | Chưa có | Tạo mới |
-| Hook `useAIMusicDetail.ts` | Chưa có | Tạo mới |
-| Hook `useMusicListeners.ts` | Chưa có | Tạo mới |
-| Component `SunoModeForm.tsx` | Chưa có | Tạo mới |
-| Utility `musicGradients.ts` | Chưa có | Tạo mới (Dark + Light gradients) |
-| Page `CreateMusic.tsx` | Có (dùng ElevenLabs cũ) | Cập nhật tích hợp SunoModeForm |
-| Page `MyAIMusic.tsx` | Chưa có | Tạo mới |
-| Page `AIMusicDetail.tsx` | Chưa có | Tạo mới (giao diện Nhạc Ánh Sáng) |
-| CSS animations | Chưa có | Thêm `bg-gradient-radial`, `animate-light-pulse` |
-| Routes | Chỉ có `/create-music` | Thêm `/my-ai-music`, `/ai-music/:id` |
-| Secret `SUNO_API_KEY` | Chưa có | Cần yêu cầu nhập |
+### 3. Prerender - Thieu handler cho AI Music
+- Prerender function nhan dien path `/ai-music/` nhung khong fetch du lieu tu bang `ai_generated_music`
+- Chi co handler cho `music`/`video` (fetch tu bang `videos`) va `channel`
+- Ket qua: khi share len mang xa hoi, OG meta tags hien thi thong tin mac dinh thay vi thong tin bai hat
 
-## Các Bước Triển Khai
+## Giai phap
 
-### Bước 1: Database Migration
+### Buoc 1: Fix ShareModal - Them content type "ai-music"
 
-Tạo 2 bảng mới với RLS policies, triggers, và enable Realtime:
+**File**: `src/components/Video/ShareModal.tsx`
 
-- **`ai_generated_music`**: Lưu trữ bài hát AI (id, user_id, title, prompt, lyrics, style, voice_type, instrumental, audio_url, thumbnail_url, duration, status, is_public, play_count, like_count...)
-- **`ai_music_likes`**: Bảng like với trigger tự động cập nhật `like_count`
-- Enable Realtime cho notifications khi bài hát hoàn thành
+- Them `'ai-music'` vao `ShareContentType`
+- Sua `getShareUrl()`: khi `contentType === 'ai-music'` tra ve `/ai-music/${id}`
+- Sua `getPrerenderUrl()`: khi `contentType === 'ai-music'` tra ve path `/ai-music/${id}`
+- Sua `getContentTypeLabel()`: tra ve `'bai hat AI'` cho `ai-music`
 
-### Bước 2: Yêu cầu SUNO_API_KEY
+### Buoc 2: Fix AIMusicDetail - Sua contentType va Download
 
-Hỏi người dùng nhập API key từ sunoapi.org (bắt buộc để tạo nhạc AI).
+**File**: `src/pages/AIMusicDetail.tsx`
 
-### Bước 3: Tạo Edge Functions (4 mới)
+- Doi `contentType="music"` thanh `contentType="ai-music"` trong ShareModal
+- Cai thien `handleDownload`:
+  - Dung `supabase.functions.invoke('download-ai-music', ...)` thay vi raw `fetch`
+  - Them fallback: neu blob download that bai, mo URL truc tiep trong tab moi
+  - Them loading state (spinner) khi dang tai
 
-| Edge Function | Chức năng |
-|---------------|-----------|
-| `generate-suno-music` | Gọi Suno API V4.5, set callbackUrl, cập nhật status |
-| `generate-suno-music-callback` | Nhận webhook khi nhạc xong, update DB |
-| `generate-lyrics` | Dùng Lovable AI (Gemini) tạo lời bài hát |
-| `download-ai-music` | Proxy download có xác thực user |
+### Buoc 3: Fix Prerender - Them handler cho ai-music
 
-### Bước 4: Cập nhật Edge Function `prerender`
+**File**: `supabase/functions/prerender/index.ts`
 
-Thêm xử lý path `/ai-music/:id` để share link AI Music trên social media.
+- Them handler cho `type === "ai-music"`:
+  - Fetch tu bang `ai_generated_music` (id, title, style, thumbnail_url, audio_url, play_count)
+  - Set OG type = `music.song`
+  - Set OG audio = `audio_url`
+  - Tao title va description phu hop: `"{title}" - Fun Music AI`
 
-### Bước 5: Tạo Utility - musicGradients.ts
+## Chi tiet ky thuat
 
-Hệ thống gradient theo thể loại nhạc:
-- **Dark gradients** (`styleGradients`): Cho modal, mini player
-- **Light gradients** (`lightStyleGradients`): Cho trang chi tiết Nhạc Ánh Sáng
-- Utility functions: `detectMusicStyle()`, `getMusicGradient()`, `getGradientFromId()`
-
-### Bước 6: Tạo Frontend Hooks (4 hooks)
-
-| Hook | Chức năng |
-|------|-----------|
-| `useAIMusic` | CRUD, mutations, polling khi pending, like/unlike |
-| `useMusicCompletionNotification` | Realtime toast khi bài hát hoàn thành |
-| `useAIMusicDetail` | Fetch chi tiết 1 bài hát |
-| `useMusicListeners` | Realtime Presence đếm người đang nghe |
-
-### Bước 7: Tạo Components
-
-- **`SunoModeForm.tsx`**: Form tạo nhạc với title, prompt, style, lyrics (AI generate), instrumental toggle, public toggle, metatag hints
-
-### Bước 8: Tạo/Cập nhật Pages
-
-| Page | Loại | Mô tả |
-|------|------|-------|
-| `CreateMusic.tsx` | Cập nhật | Tích hợp SunoModeForm thay thế logic ElevenLabs cũ |
-| `MyAIMusic.tsx` | Tạo mới | Grid quản lý bài hát + LyricsModal + status indicator |
-| `AIMusicDetail.tsx` | Tạo mới | Full-screen player với giao diện Nhạc Ánh Sáng (nền sáng) |
-
-### Bước 9: Cập nhật App.tsx
-
-- Thêm routes: `/my-ai-music`, `/ai-music/:id`
-- Thêm `useMusicCompletionNotification()` hook
-
-### Bước 10: Thêm CSS Animations
-
-Thêm vào `index.css`:
-- `.bg-gradient-radial`: Radial gradient cho hiệu ứng ánh sáng tỏa
-- `.animate-light-pulse`: Animation nhịp thở ánh sáng
-
-### Bước 11: Cập nhật config.toml
-
-Thêm cấu hình cho 4 edge functions mới.
-
-## Chi tiết kỹ thuật
-
-### Luồng tạo nhạc
-
+### ShareModal type update
 ```text
-User -> SunoModeForm -> Insert DB (status: pending)
-                            |
-                            v
-              generate-suno-music (Edge Function)
-              -> Update status: "processing"
-              -> Call Suno API v4.5 with callbackUrl
-              -> Return taskId
-                            |
-                            v (1-3 phut)
-              Suno API -> Webhook ->
-              generate-suno-music-callback
-              -> Update DB: audio_url, thumbnail_url, duration
-              -> Set status: "completed"
-                            |
-                            v
-              Supabase Realtime
-              -> useMusicCompletionNotification
-              -> Toast: "Bai hat da xong!"
+ShareContentType = 'video' | 'music' | 'channel' | 'ai-music'
+
+getShareUrl():
+  'ai-music' -> /ai-music/{id}
+
+getPrerenderUrl():
+  'ai-music' -> /ai-music/{id}
 ```
 
-### Giao dien "Nhac Anh Sang" (V3)
-
+### Download flow cai tien
 ```text
-+-----------------------------------------------+
-| Nen sang voi Light Gradients                   |
-| (from-pink-200 via-rose-100 to-white)          |
-|                                                 |
-|   [Radial glow tu trung tam]                   |
-|   [animate-light-pulse]                         |
-|                                                 |
-|   Text: text-gray-800 (dam tren nen sang)      |
-|   Buttons: bg-gray-900/10                       |
-|   Progress: bg-gray-300                         |
-|   Playing bars: bg-gray-700                     |
-+-----------------------------------------------+
+User click "Tai ve"
+  -> Set isDownloading = true
+  -> supabase.functions.invoke('download-ai-music', { musicId })
+  -> Convert response to blob
+  -> Create blob URL + trigger download
+  -> Fallback: window.open(audio_url) neu blob that bai
+  -> Set isDownloading = false
 ```
 
-## Tom tat file thay doi
+### Prerender ai-music handler
+```text
+if (type === "ai-music")
+  -> SELECT from ai_generated_music WHERE id = :id
+  -> title = "{music.title} - Fun Music AI"
+  -> description = "Nghe bai hat AI \"{music.title}\" tren FUN Play"
+  -> image = music.thumbnail_url
+  -> ogType = "music.song"
+  -> audioUrl = music.audio_url
+```
 
-| Loai | So luong | Files |
-|------|----------|-------|
-| Database migration | 1 | 2 bang + RLS + triggers + realtime |
-| Edge Functions moi | 4 | generate-suno-music, callback, lyrics, download |
-| Edge Function cap nhat | 1 | prerender |
-| Hooks moi | 4 | useAIMusic, useMusicCompletionNotification, useAIMusicDetail, useMusicListeners |
-| Component moi | 1 | SunoModeForm.tsx |
-| Utility moi | 1 | musicGradients.ts |
-| Page moi | 2 | MyAIMusic.tsx, AIMusicDetail.tsx |
-| Page cap nhat | 1 | CreateMusic.tsx |
-| Config cap nhat | 2 | App.tsx, supabase/config.toml |
-| CSS cap nhat | 1 | index.css |
+## Tom tat thay doi
 
-**Tong cong**: 8 files moi + 5 files cap nhat + 1 migration + 1 secret can nhap
+| File | Thay doi |
+|------|----------|
+| `src/components/Video/ShareModal.tsx` | Them 'ai-music' content type + URL mapping |
+| `src/pages/AIMusicDetail.tsx` | Doi contentType, cai thien handleDownload |
+| `supabase/functions/prerender/index.ts` | Them ai-music handler fetch tu ai_generated_music |
+
+**Tong cong**: 3 files can cap nhat
