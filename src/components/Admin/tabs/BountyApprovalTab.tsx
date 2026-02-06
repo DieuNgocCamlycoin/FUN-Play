@@ -13,11 +13,17 @@ import { toast } from "@/hooks/use-toast";
 import {
   Bug, Lightbulb, FileText, Languages, HelpCircle,
   Search, Gift, Clock, CheckCircle, XCircle, Award,
-  AlertTriangle, Coins, Users, TrendingUp,
+  AlertTriangle, Coins, Users, TrendingUp, MessageSquare, Sparkles,
+  ChevronUp, ExternalLink, ImageIcon,
 } from "lucide-react";
 import { format } from "date-fns";
 
 const CATEGORIES: Record<string, { label: string; icon: typeof Bug; color: string }> = {
+  idea: { label: "Ý tưởng", icon: Lightbulb, color: "text-yellow-500" },
+  bug: { label: "Báo lỗi", icon: Bug, color: "text-red-500" },
+  feedback: { label: "Phản hồi", icon: MessageSquare, color: "text-blue-500" },
+  feature: { label: "Tính năng", icon: Sparkles, color: "text-purple-500" },
+  // Legacy categories
   bug_report: { label: "Báo Lỗi", icon: Bug, color: "text-red-500" },
   feature_request: { label: "Đề Xuất", icon: Lightbulb, color: "text-yellow-500" },
   content: { label: "Nội Dung", icon: FileText, color: "text-blue-500" },
@@ -252,7 +258,8 @@ export default function BountyApprovalTab() {
       ) : (
         <div className="space-y-3">
           {filtered.map((sub: any) => {
-            const catInfo = CATEGORIES[sub.category] || CATEGORIES.other;
+            const typeKey = sub.contribution_type || sub.category;
+            const catInfo = CATEGORIES[typeKey] || CATEGORIES.other;
             const CatIcon = catInfo.icon;
             const profileData = sub.profiles;
 
@@ -271,8 +278,14 @@ export default function BountyApprovalTab() {
                           </div>
                         )}
                         <span className="text-sm font-medium">
-                          {profileData?.display_name || profileData?.username || "Ẩn danh"}
+                          {sub.name || profileData?.display_name || profileData?.username || "Ẩn danh"}
                         </span>
+                        {sub.upvote_count > 0 && (
+                          <Badge variant="outline" className="gap-1 text-xs ml-auto">
+                            <ChevronUp className="w-3 h-3" />
+                            {sub.upvote_count}
+                          </Badge>
+                        )}
                         <span className="text-xs text-muted-foreground">
                           · {format(new Date(sub.created_at), "dd/MM/yyyy HH:mm")}
                         </span>
@@ -304,6 +317,17 @@ export default function BountyApprovalTab() {
 
                       <h3 className="font-semibold">{sub.title}</h3>
                       <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{sub.description}</p>
+
+                      {sub.image_url && (
+                        <a
+                          href={sub.image_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 mt-2 text-xs text-primary hover:underline"
+                        >
+                          <ImageIcon className="w-3 h-3" /> Xem ảnh đính kèm
+                        </a>
+                      )}
 
                       {sub.admin_note && (
                         <p className="text-sm mt-2 p-2 bg-muted rounded">💬 {sub.admin_note}</p>

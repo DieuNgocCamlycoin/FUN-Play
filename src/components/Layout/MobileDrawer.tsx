@@ -74,7 +74,7 @@ const rewardItems: NavItem[] = [
   { icon: Trophy, label: "Bảng Xếp Hạng", href: "/leaderboard" },
   { icon: Coins, label: "Lịch Sử Phần Thưởng", href: "/reward-history" },
   { icon: UserPlus, label: "Giới Thiệu Bạn Bè", href: "/referral" },
-  { icon: Award, label: "Build & Bounty", href: "/bounty", special: true },
+  { icon: Award, label: "Build & Bounty", href: "/build-bounty", special: true },
   { icon: Wallet, label: "Ví của tôi", href: "/wallet" },
   { icon: Download, label: "Cài đặt App", href: "/install", special: true },
 ];

@@ -110,13 +110,17 @@ export type Database = {
           approved_by: string | null
           category: string
           contact_info: string | null
+          contribution_type: string
           created_at: string
           description: string
           id: string
+          image_url: string | null
+          name: string | null
           reward_amount: number
           status: string
           title: string
           updated_at: string
+          upvote_count: number
           user_id: string | null
         }
         Insert: {
@@ -125,13 +129,17 @@ export type Database = {
           approved_by?: string | null
           category?: string
           contact_info?: string | null
+          contribution_type?: string
           created_at?: string
           description: string
           id?: string
+          image_url?: string | null
+          name?: string | null
           reward_amount?: number
           status?: string
           title: string
           updated_at?: string
+          upvote_count?: number
           user_id?: string | null
         }
         Update: {
@@ -140,13 +148,17 @@ export type Database = {
           approved_by?: string | null
           category?: string
           contact_info?: string | null
+          contribution_type?: string
           created_at?: string
           description?: string
           id?: string
+          image_url?: string | null
+          name?: string | null
           reward_amount?: number
           status?: string
           title?: string
           updated_at?: string
+          upvote_count?: number
           user_id?: string | null
         }
         Relationships: [
@@ -162,6 +174,35 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bounty_upvotes: {
+        Row: {
+          created_at: string
+          id: string
+          submission_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          submission_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          submission_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bounty_upvotes_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "bounty_submissions"
             referencedColumns: ["id"]
           },
         ]
