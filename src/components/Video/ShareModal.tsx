@@ -44,7 +44,7 @@ const LinkedInIcon = () => (
   </svg>
 );
 
-export type ShareContentType = 'video' | 'music' | 'channel';
+export type ShareContentType = 'video' | 'music' | 'channel' | 'ai-music';
 
 interface ShareModalProps {
   isOpen: boolean;
@@ -90,6 +90,8 @@ export const ShareModal = ({
         return `${window.location.origin}/watch/${id}`;
       case 'music':
         return `${window.location.origin}/music/${id}`;
+      case 'ai-music':
+        return `${window.location.origin}/ai-music/${id}`;
       case 'channel':
         return `${window.location.origin}/channel/${id}`;
       default:
@@ -101,6 +103,7 @@ export const ShareModal = ({
   const getPrerenderUrl = () => {
     const path = contentType === 'video' ? `/watch/${id}` 
       : contentType === 'music' ? `/music/${id}` 
+      : contentType === 'ai-music' ? `/ai-music/${id}`
       : contentType === 'channel' ? `/channel/${id}` 
       : `/watch/${id}`;
     
@@ -114,6 +117,7 @@ export const ShareModal = ({
     switch (contentType) {
       case 'video': return 'video';
       case 'music': return 'bài hát';
+      case 'ai-music': return 'bài hát AI';
       case 'channel': return 'kênh';
       default: return 'nội dung';
     }
@@ -278,7 +282,7 @@ export const ShareModal = ({
     }
   };
 
-  const ContentTypeIcon = contentType === 'music' ? Music : contentType === 'channel' ? User : Video;
+  const ContentTypeIcon = (contentType === 'music' || contentType === 'ai-music') ? Music : contentType === 'channel' ? User : Video;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
