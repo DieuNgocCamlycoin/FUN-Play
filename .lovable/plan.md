@@ -1,197 +1,328 @@
 
-# Cap nhat he thong binh luan tu COMMENT-SYSTEM-FULL-PACKAGE
+# Thiet ke lai trang chu FUN PLAY - 5D Light Economy Style
 
 ## Tong quan
 
-File package chua phien ban 1.1.0 cua he thong binh luan voi nhieu tinh nang nang cap so voi code hien tai. Sau khi so sanh chi tiet tung file, day la nhung thay doi can thuc hien:
+Thiet ke lai hoan toan right sidebar de tach thanh 3 card RIENG BIET (Honor Board, Top Ranking, Top Sponsors) theo phong cach glassmorphism + hologram UI cao cap, dong nhat voi Design System hien tai.
 
-## Phan 1: Database Migration
+---
 
-### 1.1 Them cot moi vao bang `comments`
-Bang hien tai thieu cac cot quan trong cho tinh nang moi:
+## Phan 1: Cau truc Layout
 
-| Cot moi | Kieu | Muc dich |
-|---------|------|----------|
-| dislike_count | INTEGER DEFAULT 0 | Dem so dislike |
-| is_pinned | BOOLEAN DEFAULT FALSE | Ghim binh luan |
-| is_hearted | BOOLEAN DEFAULT FALSE | Tim tu creator |
-| hearted_by | UUID | Ai da tha tim |
-| hearted_at | TIMESTAMPTZ | Khi nao tha tim |
-| is_edited | BOOLEAN DEFAULT FALSE | Da chinh sua chua |
-| edited_at | TIMESTAMPTZ | Khi nao chinh sua |
-| is_deleted | BOOLEAN DEFAULT FALSE | Soft delete |
-
-### 1.2 Tao bang `comment_likes`
-Hien tai dung bang `likes` chung cho ca video va comment. Package yeu cau bang rieng `comment_likes`:
-- comment_id, user_id, is_dislike
-- UNIQUE(comment_id, user_id)
-- RLS policies cho SELECT/INSERT/UPDATE/DELETE
-
-### 1.3 Tao trigger auto-update like_count
-- Trigger `update_comment_like_counts` tu dong cap nhat like_count va dislike_count khi INSERT/UPDATE/DELETE tren `comment_likes`
-
-## Phan 2: Hook Updates (3 files)
-
-### 2.1 `src/hooks/useVideoComments.ts` - VIET LAI HOAN TOAN
-Day la thay doi lon nhat. Hook hien tai va package khac nhau hoan toan:
-
-**Hien tai:**
-- Nhan `videoId: string | undefined`
-- Tra ve `userLikes`, `userDislikes` (Set)
-- Dung bang `likes` cho like/dislike
-- Khong co edit, heart, pin
-
-**Package moi:**
-- Nhan `{ videoId, videoOwnerId, onCommentCountChange }`
-- Tra ve `addComment`, `editComment`, `deleteComment`, `heartComment`, `pinComment`, `isVideoOwner`
-- Dung bang `comment_likes` rieng
-- Like/dislike state nam trong tung comment object (`hasLiked`, `hasDisliked`)
-- Tich hop CAMLY rewards truc tiep
-- Filter is_deleted comments
-- Fetch channels cho creator badge
-
-### 2.2 `src/hooks/useMentionSearch.ts` - Cap nhat API
-- Doi `results` -> `users`
-- Doi `clearResults` -> `clearUsers`
-- Bo debounce (package don gian hon)
-- Giam min query length tu 2 -> 1
-
-### 2.3 `src/hooks/usePostComments.ts` - GIU NGUYEN
-File nay giong nhau giua current va package, khong can thay doi.
-
-## Phan 3: Video Comment Components (7 files)
-
-### 3.1 `src/components/Video/Comments/index.ts` - Cap nhat exports
-- Them re-export types: `VideoComment`, `SortType`
-
-### 3.2 `src/components/Video/Comments/VideoCommentList.tsx` - VIET LAI
-**Hien tai:** Hook chay ben trong component, interface don gian `{ videoId, onSeek }`
-**Package moi:** Nhan tat ca props tu ben ngoai (comments, loading, sortBy, onAddComment, onLike, onDislike, onReply, onEdit, onDelete, onHeart, onPin, videoOwnerId, channelName, isVideoOwner, onTimestampClick...)
-- Them animation voi framer-motion
-- Them empty state voi icon MessageCircle
-- Skeleton loading cai thien
-
-### 3.3 `src/components/Video/Comments/VideoCommentItem.tsx` - VIET LAI
-**Them tinh nang:**
-- Creator badge (hien ten kenh)
-- Pinned comment badge
-- Hearted by creator indicator
-- Edit inline (textarea + Luu/Huy)
-- Heart button cho video owner
-- Pin option trong dropdown menu
-- Report option
-- Navigate to channel khi click avatar/name
-- Doi `onSeek` -> `onTimestampClick`
-- Doi `isLiked/isDisliked` boolean -> doc tu `comment.hasLiked/hasDisliked`
-- Them `onEdit`, `onHeart`, `onPin` props
-
-### 3.4 `src/components/Video/Comments/VideoCommentInput.tsx` - Cap nhat
-- Doi tu `Textarea` component sang plain `<textarea>` voi auto-resize
-- Them ky tu dem (maxLength counter)
-- Them `showCancel` prop
-- Cap nhat mention API: `users`/`clearUsers` thay vi `results`/`clearResults`
-- Emoji picker di chuyen vao trong textarea area
-- Ctrl+Enter de gui
-
-### 3.5 `src/components/Video/Comments/CommentContent.tsx` - Cap nhat nhe
-- Doi `onSeek` prop -> `onTimestampClick`
-- Cap nhat regex pattern
-- Mention click: navigate truc tiep thay vi query supabase
-
-### 3.6 `src/components/Video/Comments/CommentSortDropdown.tsx` - Cap nhat
-- Them `commentCount` prop
-- Hien thi so binh luan trong header
-- Doi `value`/`onChange` -> `sortBy`/`onSortChange`
-- Them Check icon cho selected option
-- Doi type `SortBy` -> `SortType`
-
-### 3.7 `src/components/Video/Comments/EmojiPicker.tsx` - Cap nhat
-- Doi tu object-based categories sang array-based
-- 5 categories (them "Tim & Yeu thuong")
-- Them tab selector cho categories
-- Grid layout 8 cot
-
-### 3.8 `src/components/Video/Comments/MentionAutocomplete.tsx` - Cap nhat
-- Them `visible` prop de control hien thi
-- Cap nhat fallback styling
-- Them loading spinner icon (Loader2)
-
-## Phan 4: Mobile Components (2 files)
-
-### 4.1 `src/components/Video/Mobile/CommentsDrawer.tsx` - VIET LAI
-**Hien tai:** Dung `VideoCommentList` component (hook chay ben trong)
-**Package moi:** Dung `useVideoComments` hook truc tiep, render comments inline voi:
-- Sort dropdown trong header
-- VideoCommentItem voi day du tinh nang (edit, heart, pin)
-- Comment input fixed o bottom
-- Skeleton loading
-- Empty state voi animation
-- Nhan them props: `videoOwnerId`, `channelName`
-
-### 4.2 `src/components/Video/Mobile/CommentsCard.tsx` - GIU NGUYEN
-Giong nhau, khong can thay doi.
-
-## Phan 5: Consumer Updates (2 files)
-
-### 5.1 `src/pages/Watch.tsx` - Cap nhat cach dung VideoCommentList
-- `VideoCommentList` moi nhan props tu ben ngoai
-- Phai goi `useVideoComments` hook trong Watch page
-- Truyen `video.user_id` lam `videoOwnerId`
-- Truyen channel name
-
-### 5.2 `src/components/Video/Mobile/MobileWatchView.tsx` - Cap nhat
-- `useVideoComments` moi nhan object thay vi string
-- Cap nhat latestComment mapping (profile -> profiles)
-
-## Phan 6: Files KHONG thay doi
-- `src/hooks/usePostComments.ts` - Giong nhau
-- `src/components/Post/*` - Giong nhau  
-- `src/components/Video/ShortsCommentSheet.tsx` - Giong nhau
-- `src/components/Music/MusicComments.tsx` - Giong nhau
-
-## Thu tu thuc hien
-
-1. Database migration (them cot, tao bang, tao trigger)
-2. `useMentionSearch.ts` (vi hooks khac phu thuoc)
-3. `useVideoComments.ts` (hook chinh)
-4. Cac comment components (VideoCommentList, Item, Input, Content, SortDropdown, EmojiPicker, MentionAutocomplete, index.ts)
-5. Mobile components (CommentsDrawer)
-6. Consumer updates (Watch.tsx, MobileWatchView.tsx)
-
-## Chi tiet ky thuat - Database
+### 1.1 Layout 3 cot (Desktop)
 
 ```text
--- Them cot vao bang comments
-ALTER TABLE comments ADD COLUMN dislike_count INTEGER DEFAULT 0;
-ALTER TABLE comments ADD COLUMN is_pinned BOOLEAN DEFAULT FALSE;
-ALTER TABLE comments ADD COLUMN is_hearted BOOLEAN DEFAULT FALSE;
-ALTER TABLE comments ADD COLUMN hearted_by UUID REFERENCES auth.users(id);
-ALTER TABLE comments ADD COLUMN hearted_at TIMESTAMPTZ;
-ALTER TABLE comments ADD COLUMN is_edited BOOLEAN DEFAULT FALSE;
-ALTER TABLE comments ADD COLUMN edited_at TIMESTAMPTZ;
-ALTER TABLE comments ADD COLUMN is_deleted BOOLEAN DEFAULT FALSE;
-
--- Tao bang comment_likes
-CREATE TABLE comment_likes (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  comment_id UUID NOT NULL REFERENCES comments(id) ON DELETE CASCADE,
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  is_dislike BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  UNIQUE(comment_id, user_id)
-);
-
--- RLS + Indexes + Trigger
++------------------+------------------------+-------------------+
+|   Left Sidebar   |      Video Feed        |   Right Sidebar   |
+|   FUN ECOSYSTEM  |      (70-75%)          |   (320-400px)     |
+|   (64px/240px)   |                        |   FIXED/STICKY    |
++------------------+------------------------+-------------------+
+                   |                        | 1. HONOR BOARD    |
+                   |                        | 2. TOP RANKING    |
+                   |                        | 3. TOP SPONSORS   |
+                   |                        +-------------------+
 ```
 
-## Tom tat
+### 1.2 Layout Mobile
 
-| Loai | So file | Chi tiet |
-|------|---------|----------|
-| Database migration | 1 | Them cot + tao bang + trigger |
-| Hooks | 2 | useVideoComments (viet lai), useMentionSearch (cap nhat) |
-| Video Comments | 7 | Tat ca 7 components trong Video/Comments/ |
-| Mobile | 1 | CommentsDrawer (viet lai) |
-| Consumers | 2 | Watch.tsx, MobileWatchView.tsx |
-| Khong doi | 7+ | PostComments, ShortsCommentSheet, MusicComments... |
-| **Tong cong** | **~13 files** | |
+```text
++----------------------------------+
+|          Video Feed              |
++----------------------------------+
+|   HONOR BOARD (card rieng)       |
++----------------------------------+
+|   TOP RANKING (card rieng)       |
++----------------------------------+
+|   TOP SPONSORS (card rieng)      |
++----------------------------------+
+```
+
+---
+
+## Phan 2: Thiet ke chi tiet cac Card
+
+### 2.1 HONOR BOARD Card
+
+**Style Card:**
+- Nen glass: `bg-white/85 backdrop-blur-lg`
+- Bo goc lon: `rounded-2xl`
+- Vien hologram gradient: `border-2 border-transparent` voi `background-clip: border-box` gradient cyan -> magenta
+- Shadow glow: `shadow-[0_0_30px_rgba(0,231,255,0.3)]`
+
+**Tieu de:**
+- Text: "HONOR BOARD" (viet hoa, font black, italic)
+- Can giua
+- Gradient text: `from-[#00E7FF] via-[#7A2BFF] to-[#FF00E5]`
+
+**Noi dung Stats (5 muc):**
+| Chi so | Icon | Du lieu |
+|--------|------|---------|
+| TOTAL USERS | Users | `stats.totalUsers` |
+| TOTAL POSTS | FileText | Tu bang `posts` (them query) |
+| TOTAL PHOTOS | Image | Tu `videos` category='photo' (neu co) hoac de trong |
+| TOTAL VIDEOS | Video | `stats.totalVideos` |
+| TOTAL REWARD | Coins | `stats.totalRewards` |
+
+**Style moi stat pill:**
+- Gradient TIM-HONG (giong tab "Tat ca"): `from-[#7A2BFF] via-[#FF00E5] to-[#FFD700]`
+- Bo tron: `rounded-full`
+- Padding: `px-3 py-2.5`
+- Icon + Label ben trai (mau trang)
+- So lon, dam, mau vang #FFD700 ben phai
+
+**Interaction:**
+- Hover: `hover:shadow-[0_0_40px_rgba(122,43,255,0.5)]` + rainbow shimmer
+- Realtime update: pulse effect khi so thay doi
+
+---
+
+### 2.2 TOP RANKING Card
+
+**Style Card:**
+- Dong bo voi Honor Board (glass + hologram border)
+- `bg-white/85 backdrop-blur-lg rounded-2xl`
+- Vien gradient: `border-2` hologram
+
+**Tieu de:**
+- Text: "TOP RANKING" (viet hoa, font black, italic)
+- Gradient hologram: `from-[#00E7FF] via-[#7A2BFF] to-[#FF00E5]`
+- Icon Trophy ben trai
+
+**Noi dung:**
+- Danh sach 5 nguoi dung xep hang DOC
+- Moi nguoi la mini-card voi:
+  - Avatar tron ben trai (vien glow cho top 3)
+  - Ten o giua (mau `#7A2BFF`)
+  - Diem CAMLY ben phai (mau vang `#FFD700`)
+- Top 1-3: glow noi bat hon, background gradient nhe
+
+**Ranking icons:**
+- #1: Huy chuong vang
+- #2: Huy chuong bac
+- #3: Huy chuong dong
+- #4-5: So thu tu
+
+**Interaction:**
+- Hover item: `hover:scale-[1.02] hover:x-4` + glow nhe
+- Click: chuyen huong den `/channel/{userId}`
+- Nut "View All Ranking" -> `/leaderboard`
+
+---
+
+### 2.3 TOP SPONSORS Card
+
+**Style Card:**
+- Dong bo voi 2 card tren
+- Glass + hologram border
+
+**Tieu de:**
+- Text: "TOP SPONSORS" (viet hoa)
+- Icon Gem mau magenta `#FF00E5`
+
+**Noi dung:**
+- Danh sach sponsor (avatar + ten + so tien)
+- Neu chua co: "No sponsors yet"
+
+**Nut Donate:**
+- Gradient: `from-[#FF00E5] via-[#7A2BFF] to-[#00E7FF]`
+- Bo tron: `rounded-full`
+- Glow nhe: `shadow-[0_0_15px_rgba(255,0,229,0.3)]`
+- Hover: tang glow len
+- Icon Heart + text "Donate to Project"
+
+---
+
+## Phan 3: Cap nhat Hook useHonobarStats
+
+Them du lieu moi:
+
+```text
+- totalPosts: dem tu bang `posts`
+- totalPhotos: dem tu videos co category photo (hoac dat 0 neu khong co)
+```
+
+---
+
+## Phan 4: Chi tiet file can thay doi
+
+### 4.1 src/components/Layout/HonoboardRightSidebar.tsx - VIET LAI
+
+**Thay doi:**
+- Tach thanh 3 component con rieng biet: `HonorBoardCard`, `TopRankingCard`, `TopSponsorsCard`
+- Xep doc trong ScrollArea
+- Ap dung glassmorphism + hologram border cho moi card
+- Doi stat pills tu gradient xanh sang gradient TIM-HONG
+
+### 4.2 src/components/Layout/HonorBoardCard.tsx - TAO MOI
+
+**Tinh nang:**
+- Card glass cao cap voi hologram border
+- Tieu de "HONOR BOARD" gradient
+- 5 stat pills (Users, Posts, Photos, Videos, Rewards)
+- Realtime indicator
+- Shimmer animation khi hover
+
+### 4.3 src/components/Layout/TopRankingCard.tsx - TAO MOI
+
+**Tinh nang:**
+- Card glass dong bo
+- Danh sach 5 nguoi dung xep hang
+- Mini-card cho moi nguoi voi avatar, ten, diem
+- Glow dac biet cho top 3
+- Nut "View All Ranking"
+
+### 4.4 src/components/Layout/TopSponsorsCard.tsx - TAO MOI
+
+**Tinh nang:**
+- Card glass dong bo
+- Danh sach sponsor hoac "No sponsors yet"
+- Nut "Donate to Project" gradient hong-tim
+
+### 4.5 src/components/Layout/MobileHonoboardCard.tsx - CAP NHAT
+
+**Thay doi:**
+- Ap dung style glass moi
+- Them POSTS va PHOTOS vao mini pills
+- Giu layout compact cho mobile
+
+### 4.6 src/components/Layout/MobileTopRankingCard.tsx - TACH LAM 2 FILE
+
+**Thay doi:**
+- Tach MobileTopRankingCard va MobileTopSponsorsCard rieng
+- Moi file la 1 card doc lap
+- Style dong bo voi desktop
+
+### 4.7 src/hooks/useHonobarStats.tsx - CAP NHAT
+
+**Them:**
+```text
+totalPosts: number;
+totalPhotos: number;
+```
+
+**Query moi:**
+- Fetch count tu bang `posts`
+- Dem videos co category = 'photo' (neu co)
+
+### 4.8 src/pages/Index.tsx - CAP NHAT
+
+**Thay doi:**
+- Trong mobile section: render 3 card rieng biet (HonorBoard, TopRanking, TopSponsors)
+- Giu nguyen logic scroll va pull-to-refresh
+
+---
+
+## Phan 5: CSS/Tailwind moi can them
+
+### 5.1 Hologram Border Gradient
+
+```css
+.hologram-border {
+  background: linear-gradient(white, white) padding-box,
+              linear-gradient(135deg, #00E7FF, #7A2BFF, #FF00E5) border-box;
+  border: 2px solid transparent;
+}
+```
+
+### 5.2 Glass Card
+
+```css
+.glass-card-premium {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+```
+
+### 5.3 Shimmer Animation
+
+```css
+@keyframes hologram-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+```
+
+---
+
+## Phan 6: Responsive Breakpoints
+
+| Breakpoint | Hien thi |
+|------------|----------|
+| xl (1280px+) | Right sidebar fixed, 3 cards xep doc |
+| lg (1024-1279px) | Right sidebar an, cards trong main content |
+| md (768-1023px) | 3 cards xep doc trong main content |
+| sm (<768px) | 3 cards compact, stack doc |
+
+---
+
+## Phan 7: Animation va Interaction
+
+### 7.1 Card Entrance
+
+- `initial={{ opacity: 0, y: 20 }}`
+- `animate={{ opacity: 1, y: 0 }}`
+- Delay stagger: Honor Board (0s) -> Ranking (0.1s) -> Sponsors (0.2s)
+
+### 7.2 Stat Update
+
+- Khi so thay doi: `pulse` animation nhe tren so
+- CounterAnimation da co san
+
+### 7.3 Hover Effects
+
+- Card: tang shadow, nhe nang card len (`translateY(-2px)`)
+- Ranking items: truot sang phai, glow vien
+
+---
+
+## Phan 8: Tom tat file thay doi
+
+| File | Hanh dong |
+|------|-----------|
+| `src/components/Layout/HonoboardRightSidebar.tsx` | Viet lai, dung 3 card con |
+| `src/components/Layout/HonorBoardCard.tsx` | Tao moi |
+| `src/components/Layout/TopRankingCard.tsx` | Tao moi |
+| `src/components/Layout/TopSponsorsCard.tsx` | Tao moi |
+| `src/components/Layout/MobileHonoboardCard.tsx` | Cap nhat style |
+| `src/components/Layout/MobileTopRankingCard.tsx` | Cap nhat, chi giu ranking |
+| `src/components/Layout/MobileTopSponsorsCard.tsx` | Tao moi |
+| `src/hooks/useHonobarStats.tsx` | Them totalPosts, totalPhotos |
+| `src/pages/Index.tsx` | Cap nhat mobile section render 3 cards |
+| **Tong cong** | **9 files** |
+
+---
+
+## Phan 9: Preview giao dien
+
+### Desktop Right Sidebar
+
+```text
++------------------------------------------+
+|            HONOR BOARD                   |
+|    👑 (gradient title + crowns)          |
+|    🟣 TOTAL USERS      1.2K              |
+|    🟣 TOTAL POSTS      350               |
+|    🟣 TOTAL PHOTOS     89                |
+|    🟣 TOTAL VIDEOS     567               |
+|    🟣 TOTAL REWARD     45.6K             |
+|    ● Realtime                            |
++------------------------------------------+
+|            TOP RANKING                   |
+|    🏆 (gradient title)                   |
+|    🥇 [avatar] Camly        4.5M         |
+|    🥈 [avatar] M            4.3M         |
+|    🥉 [avatar] L            3.2M         |
+|    #4 [avatar] User4        2.8M         |
+|    #5 [avatar] User5        2.1M         |
+|    [ View All Ranking → ]                |
++------------------------------------------+
+|            TOP SPONSORS                  |
+|    💎 (gradient title)                   |
+|    🥇 [avatar] Sponsor1     10K          |
+|    🥈 [avatar] Sponsor2     8K           |
+|    🥉 [avatar] Sponsor3     5K           |
+|    [ ❤️ Donate to Project ]              |
++------------------------------------------+
+```
+
