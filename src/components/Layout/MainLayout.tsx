@@ -1,9 +1,10 @@
 import { useState, ReactNode } from "react";
 import { Header } from "./Header";
-import { Sidebar } from "./Sidebar";
+import { CollapsibleSidebar } from "./CollapsibleSidebar";
 import { MobileHeader } from "./MobileHeader";
 import { MobileDrawer } from "./MobileDrawer";
 import { MobileBottomNav } from "./MobileBottomNav";
+import { cn } from "@/lib/utils";
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -16,15 +17,15 @@ export const MainLayout = ({
   className = "",
   showBottomNav = true 
 }: MainLayoutProps) => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-background">
       {/* Desktop Header & Sidebar */}
       <div className="hidden lg:block">
-        <Header onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
-        <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+        <Header onMenuClick={() => setIsSidebarExpanded(prev => !prev)} />
+        <CollapsibleSidebar isExpanded={isSidebarExpanded} />
       </div>
 
       {/* Mobile Header & Drawer */}
@@ -34,7 +35,11 @@ export const MainLayout = ({
         {showBottomNav && <MobileBottomNav />}
       </div>
 
-      <main className={`pt-14 pb-20 lg:pb-0 lg:pl-64 ${className}`}>
+      <main className={cn(
+        "pt-14 pb-20 lg:pb-0 transition-all duration-300",
+        isSidebarExpanded ? "lg:pl-60" : "lg:pl-16",
+        className
+      )}>
         {children}
       </main>
     </div>
