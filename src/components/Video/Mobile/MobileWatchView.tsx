@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { YouTubeMobilePlayer } from "../YouTubeMobilePlayer";
 import { VideoInfoSection } from "./VideoInfoSection";
@@ -9,6 +9,7 @@ import { UpNextSidebar } from "../UpNextSidebar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useVideoPlayback } from "@/contexts/VideoPlaybackContext";
 import { useMiniPlayer } from "@/contexts/MiniPlayerContext";
+import { useVideoComments } from "@/hooks/useVideoComments";
 
 interface Video {
   id: string;
@@ -28,21 +29,8 @@ interface Video {
   };
 }
 
-interface Comment {
-  id: string;
-  content: string;
-  created_at: string;
-  like_count: number;
-  user_id: string;
-  profiles: {
-    display_name: string;
-    avatar_url: string | null;
-  };
-}
-
 interface MobileWatchViewProps {
   video: Video;
-  comments: Comment[];
   isSubscribed: boolean;
   hasLiked: boolean;
   onSubscribe: () => void;
@@ -53,7 +41,6 @@ interface MobileWatchViewProps {
 
 export function MobileWatchView({
   video,
-  comments,
   isSubscribed,
   hasLiked,
   onSubscribe,
@@ -68,8 +55,10 @@ export function MobileWatchView({
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [liveCommentCount, setLiveCommentCount] = useState(comments.length);
   const playerRef = useRef<HTMLDivElement>(null);
+
+  // Use new hook for comments
+  const { comments, totalCount } = useVideoComments(video.id);
 
   // Handle minimize - show mini player and navigate to home
   const handleMinimize = () => {
@@ -100,7 +89,13 @@ export function MobileWatchView({
   };
 
   // Get latest comment for preview
-  const latestComment = comments.length > 0 ? comments[0] : null;
+  const latestComment = comments.length > 0 ? {
+    profiles: {
+      display_name: comments[0].profile.display_name,
+      avatar_url: comments[0].profile.avatar_url,
+    },
+    content: comments[0].content,
+  } : null;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -152,9 +147,9 @@ export function MobileWatchView({
           videoId={video.id}
         />
 
-        {/* Comments Card - Sử dụng liveCommentCount thay vì comments.length */}
+        {/* Comments Card */}
         <CommentsCard
-          commentCount={liveCommentCount}
+          commentCount={totalCount}
           latestComment={latestComment}
           onClick={() => setShowCommentsDrawer(true)}
         />
@@ -165,13 +160,11 @@ export function MobileWatchView({
         </div>
       </ScrollArea>
 
-      {/* Comments Drawer - Với callback cập nhật số comment */}
+      {/* Comments Drawer */}
       <CommentsDrawer
         isOpen={showCommentsDrawer}
         onClose={() => setShowCommentsDrawer(false)}
         videoId={video.id}
-        commentCount={comments.length}
-        onCommentCountChange={setLiveCommentCount}
       />
     </div>
   );
