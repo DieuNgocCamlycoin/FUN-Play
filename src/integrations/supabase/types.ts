@@ -14,6 +14,107 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_generated_music: {
+        Row: {
+          audio_url: string | null
+          created_at: string
+          duration: number | null
+          error_message: string | null
+          id: string
+          instrumental: boolean | null
+          is_public: boolean | null
+          like_count: number | null
+          lyrics: string | null
+          metadata: Json | null
+          play_count: number | null
+          prompt: string | null
+          status: string
+          style: string | null
+          suno_song_id: string | null
+          suno_task_id: string | null
+          thumbnail_url: string | null
+          title: string
+          updated_at: string
+          user_id: string
+          voice_type: string | null
+        }
+        Insert: {
+          audio_url?: string | null
+          created_at?: string
+          duration?: number | null
+          error_message?: string | null
+          id?: string
+          instrumental?: boolean | null
+          is_public?: boolean | null
+          like_count?: number | null
+          lyrics?: string | null
+          metadata?: Json | null
+          play_count?: number | null
+          prompt?: string | null
+          status?: string
+          style?: string | null
+          suno_song_id?: string | null
+          suno_task_id?: string | null
+          thumbnail_url?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+          voice_type?: string | null
+        }
+        Update: {
+          audio_url?: string | null
+          created_at?: string
+          duration?: number | null
+          error_message?: string | null
+          id?: string
+          instrumental?: boolean | null
+          is_public?: boolean | null
+          like_count?: number | null
+          lyrics?: string | null
+          metadata?: Json | null
+          play_count?: number | null
+          prompt?: string | null
+          status?: string
+          style?: string | null
+          suno_song_id?: string | null
+          suno_task_id?: string | null
+          thumbnail_url?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+          voice_type?: string | null
+        }
+        Relationships: []
+      }
+      ai_music_likes: {
+        Row: {
+          created_at: string
+          id: string
+          music_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          music_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          music_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_music_likes_music_id_fkey"
+            columns: ["music_id"]
+            isOneToOne: false
+            referencedRelation: "ai_generated_music"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       angel_chat_messages: {
         Row: {
           content: string
