@@ -62,7 +62,7 @@ export const HonoboardRightSidebar = ({ className }: HonoboardRightSidebarProps)
         className
       )}
     >
-      <ScrollArea className="flex-1 px-4 py-4">
+      <ScrollArea className="flex-1 px-4 py-4 overflow-x-hidden">
         {/* Header with Crown and Title */}
         <motion.div 
           initial={{ opacity: 0, y: -10 }}

@@ -158,7 +158,7 @@ export const MobileTopRankingCard = () => {
           </div>
           <div className="flex items-center gap-1">
             <Coins className="h-3 w-3 text-[#FFD700]" />
-            <span className="text-xs text-muted-foreground">Donations</span>
+            <span className="text-xs text-muted-foreground">Tips</span>
           </div>
         </div>
 

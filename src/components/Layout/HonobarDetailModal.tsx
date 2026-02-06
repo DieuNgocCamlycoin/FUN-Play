@@ -70,10 +70,10 @@ interface ModalContentProps {
 
 const ModalContent = ({ stats, loading, ranking, rankingLoading, sponsors, sponsorsLoading, onDonate }: ModalContentProps) => {
   const statItems = [
-    { icon: Users, label: "TOTAL USERS", value: stats.totalUsers },
-    { icon: MessageSquare, label: "TOTAL COMMENTS", value: stats.totalComments },
-    { icon: Eye, label: "TOTAL VIEWS", value: stats.totalViews },
-    { icon: Video, label: "TOTAL VIDEOS", value: stats.totalVideos },
+    { icon: Users, label: "USERS", value: stats.totalUsers },
+    { icon: MessageSquare, label: "COMMENTS", value: stats.totalComments },
+    { icon: Eye, label: "VIEWS", value: stats.totalViews },
+    { icon: Video, label: "VIDEOS", value: stats.totalVideos },
     { icon: Coins, label: "CAMLY POOL", value: stats.camlyPool },
   ];
 
