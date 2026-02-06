@@ -383,6 +383,38 @@ export type Database = {
         }
         Relationships: []
       }
+      comment_likes: {
+        Row: {
+          comment_id: string
+          created_at: string | null
+          id: string
+          is_dislike: boolean | null
+          user_id: string
+        }
+        Insert: {
+          comment_id: string
+          created_at?: string | null
+          id?: string
+          is_dislike?: boolean | null
+          user_id: string
+        }
+        Update: {
+          comment_id?: string
+          created_at?: string | null
+          id?: string
+          is_dislike?: boolean | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comment_likes_comment_id_fkey"
+            columns: ["comment_id"]
+            isOneToOne: false
+            referencedRelation: "comments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       comment_logs: {
         Row: {
           comment_id: string
@@ -445,7 +477,15 @@ export type Database = {
         Row: {
           content: string
           created_at: string
+          dislike_count: number | null
+          edited_at: string | null
+          hearted_at: string | null
+          hearted_by: string | null
           id: string
+          is_deleted: boolean | null
+          is_edited: boolean | null
+          is_hearted: boolean | null
+          is_pinned: boolean | null
           like_count: number | null
           parent_comment_id: string | null
           updated_at: string
@@ -455,7 +495,15 @@ export type Database = {
         Insert: {
           content: string
           created_at?: string
+          dislike_count?: number | null
+          edited_at?: string | null
+          hearted_at?: string | null
+          hearted_by?: string | null
           id?: string
+          is_deleted?: boolean | null
+          is_edited?: boolean | null
+          is_hearted?: boolean | null
+          is_pinned?: boolean | null
           like_count?: number | null
           parent_comment_id?: string | null
           updated_at?: string
@@ -465,7 +513,15 @@ export type Database = {
         Update: {
           content?: string
           created_at?: string
+          dislike_count?: number | null
+          edited_at?: string | null
+          hearted_at?: string | null
+          hearted_by?: string | null
           id?: string
+          is_deleted?: boolean | null
+          is_edited?: boolean | null
+          is_hearted?: boolean | null
+          is_pinned?: boolean | null
           like_count?: number | null
           parent_comment_id?: string | null
           updated_at?: string

@@ -692,7 +692,11 @@ export default function Watch() {
 
               {/* Comments Section - New Component */}
               <div className="mt-6">
-                <VideoCommentList videoId={id!} />
+              <VideoCommentList
+                  videoId={id!}
+                  videoOwnerId={video.user_id}
+                  channelName={video.channels.name}
+                />
               </div>
             </div>
 

@@ -58,7 +58,7 @@ export function MobileWatchView({
   const playerRef = useRef<HTMLDivElement>(null);
 
   // Use new hook for comments
-  const { comments, totalCount } = useVideoComments(video.id);
+  const { comments, totalCount } = useVideoComments({ videoId: video.id, videoOwnerId: video.user_id });
 
   // Handle minimize - show mini player and navigate to home
   const handleMinimize = () => {
@@ -91,8 +91,8 @@ export function MobileWatchView({
   // Get latest comment for preview
   const latestComment = comments.length > 0 ? {
     profiles: {
-      display_name: comments[0].profile.display_name,
-      avatar_url: comments[0].profile.avatar_url,
+      display_name: comments[0].profiles.display_name,
+      avatar_url: comments[0].profiles.avatar_url,
     },
     content: comments[0].content,
   } : null;
@@ -165,6 +165,8 @@ export function MobileWatchView({
         isOpen={showCommentsDrawer}
         onClose={() => setShowCommentsDrawer(false)}
         videoId={video.id}
+        videoOwnerId={video.user_id}
+        channelName={video.channels.name}
       />
     </div>
   );

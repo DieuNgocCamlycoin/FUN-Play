@@ -12,6 +12,8 @@ interface CommentsDrawerProps {
   commentCount?: number;
   onCommentCountChange?: (count: number) => void;
   onSeek?: (seconds: number) => void;
+  videoOwnerId?: string;
+  channelName?: string;
 }
 
 export function CommentsDrawer({
@@ -20,13 +22,14 @@ export function CommentsDrawer({
   videoId,
   onCommentCountChange,
   onSeek,
+  videoOwnerId,
+  channelName,
 }: CommentsDrawerProps) {
-  const { totalCount } = useVideoComments(videoId);
-
-  // Update parent when count changes
-  if (onCommentCountChange && totalCount > 0) {
-    onCommentCountChange(totalCount);
-  }
+  const {
+    comments, loading, sortBy, setSortBy, totalCount, submitting,
+    addComment, toggleLike, toggleDislike, editComment, deleteComment,
+    heartComment, pinComment, isVideoOwner,
+  } = useVideoComments({ videoId, videoOwnerId, onCommentCountChange });
 
   return (
     <AnimatePresence>
@@ -69,10 +72,29 @@ export function CommentsDrawer({
               </Button>
             </div>
 
-            {/* Comments List with new component */}
+            {/* Comments List */}
             <ScrollArea className="flex-1 px-4">
               <div className="py-4">
-                <VideoCommentList videoId={videoId} onSeek={onSeek} />
+                <VideoCommentList
+                  comments={comments}
+                  loading={loading}
+                  sortBy={sortBy}
+                  onSortChange={setSortBy}
+                  totalCount={totalCount}
+                  videoOwnerId={videoOwnerId}
+                  channelName={channelName}
+                  isVideoOwner={isVideoOwner}
+                  onAddComment={addComment}
+                  onLike={toggleLike}
+                  onDislike={toggleDislike}
+                  onReply={(content, parentId) => addComment(content, parentId)}
+                  onEdit={editComment}
+                  onDelete={(id) => { deleteComment(id); }}
+                  onHeart={heartComment}
+                  onPin={pinComment}
+                  onTimestampClick={onSeek}
+                  submitting={submitting}
+                />
               </div>
             </ScrollArea>
           </motion.div>

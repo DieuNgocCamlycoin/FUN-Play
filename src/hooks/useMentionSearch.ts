@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface MentionUser {
@@ -8,66 +8,37 @@ export interface MentionUser {
   avatar_url: string | null;
 }
 
-interface UseMentionSearchReturn {
-  results: MentionUser[];
-  loading: boolean;
-  searchUsers: (query: string) => void;
-  clearResults: () => void;
-}
-
-export function useMentionSearch(): UseMentionSearchReturn {
-  const [results, setResults] = useState<MentionUser[]>([]);
+export function useMentionSearch() {
+  const [users, setUsers] = useState<MentionUser[]>([]);
   const [loading, setLoading] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
-  const searchUsers = useCallback((query: string) => {
-    // Clear previous debounce
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
-
-    // Clear results if query is empty or too short
-    if (!query || query.length < 2) {
-      setResults([]);
-      setLoading(false);
+  const searchUsers = useCallback(async (query: string) => {
+    if (!query || query.length < 1) {
+      setUsers([]);
       return;
     }
 
     setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, username, display_name, avatar_url")
+        .or(`username.ilike.%${query}%,display_name.ilike.%${query}%`)
+        .limit(8);
 
-    // Debounce search by 300ms
-    debounceRef.current = setTimeout(async () => {
-      try {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("id, username, display_name, avatar_url")
-          .or(`username.ilike.%${query}%,display_name.ilike.%${query}%`)
-          .limit(8);
-
-        if (error) throw error;
-
-        setResults(data || []);
-      } catch (error) {
-        console.error("Error searching users:", error);
-        setResults([]);
-      } finally {
-        setLoading(false);
-      }
-    }, 300);
-  }, []);
-
-  const clearResults = useCallback(() => {
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
+      if (error) throw error;
+      setUsers(data || []);
+    } catch (error) {
+      console.error("Error searching users:", error);
+      setUsers([]);
+    } finally {
+      setLoading(false);
     }
-    setResults([]);
-    setLoading(false);
   }, []);
 
-  return {
-    results,
-    loading,
-    searchUsers,
-    clearResults,
-  };
+  const clearUsers = useCallback(() => {
+    setUsers([]);
+  }, []);
+
+  return { users, loading, searchUsers, clearUsers };
 }

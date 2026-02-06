@@ -1,5 +1,6 @@
 import { useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Loader2 } from "lucide-react";
 import type { MentionUser } from "@/hooks/useMentionSearch";
 import { cn } from "@/lib/utils";
 
@@ -8,6 +9,7 @@ interface MentionAutocompleteProps {
   loading: boolean;
   selectedIndex: number;
   onSelect: (user: MentionUser) => void;
+  visible?: boolean;
   position?: { top: number; left: number };
 }
 
@@ -16,7 +18,7 @@ export interface MentionAutocompleteRef {
 }
 
 export const MentionAutocomplete = forwardRef<MentionAutocompleteRef, MentionAutocompleteProps>(
-  ({ results, loading, selectedIndex, onSelect, position }, ref) => {
+  ({ results, loading, selectedIndex, onSelect, visible, position }, ref) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
@@ -33,7 +35,9 @@ export const MentionAutocomplete = forwardRef<MentionAutocompleteRef, MentionAut
       itemRefs.current[selectedIndex]?.scrollIntoView({ block: "nearest" });
     }, [selectedIndex]);
 
-    if (!results.length && !loading) return null;
+    // Support both old (no visible prop) and new API
+    const shouldShow = visible !== undefined ? visible : (results.length > 0 || loading);
+    if (!shouldShow) return null;
 
     const style = position
       ? { top: position.top, left: position.left }
@@ -46,8 +50,13 @@ export const MentionAutocomplete = forwardRef<MentionAutocompleteRef, MentionAut
         style={style}
       >
         {loading ? (
-          <div className="p-3 text-center text-sm text-muted-foreground">
+          <div className="p-3 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
             Đang tìm kiếm...
+          </div>
+        ) : results.length === 0 ? (
+          <div className="p-3 text-center text-sm text-muted-foreground">
+            Không tìm thấy người dùng
           </div>
         ) : (
           <div className="py-1">
