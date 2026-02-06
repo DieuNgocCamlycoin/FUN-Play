@@ -190,9 +190,7 @@ export default function AIMusicDetail() {
           {/* Title & Info */}
           <div className="text-center max-w-md">
             <h1 className="text-2xl font-bold text-gray-800">{music.title}</h1>
-            <p className="text-gray-600 text-sm mt-1">
-              {music.style} • {music.instrumental ? "Instrumental" : music.voice_type}
-            </p>
+            
             <div className="flex items-center justify-center gap-4 mt-2 text-xs text-gray-500">
               <span className="flex items-center gap-1"><Heart className="w-3 h-3" /> {music.like_count}</span>
               <span className="flex items-center gap-1"><Play className="w-3 h-3" /> {music.play_count} lượt nghe</span>
@@ -242,6 +240,19 @@ export default function AIMusicDetail() {
             <Button variant="outline" size="sm" onClick={() => setShareOpen(true)} className="text-gray-700 border-gray-300">
               <Share2 className="w-4 h-4 mr-1" /> Chia sẻ
             </Button>
+          </div>
+        </div>
+
+        {/* Music Style Section */}
+        <div className="px-6 pb-4 max-w-md mx-auto w-full">
+          <div className="bg-white/50 backdrop-blur-sm rounded-2xl p-5">
+            <h2 className="font-semibold text-gray-800 flex items-center gap-2 mb-3">
+              <Music className="w-4 h-4" /> Phong cách nhạc
+            </h2>
+            <div className="text-sm text-gray-700 space-y-1">
+              <p>{music.style}</p>
+              <p className="text-gray-500">Loại: {music.instrumental ? "Instrumental" : music.voice_type || "Vocal"}</p>
+            </div>
           </div>
         </div>
 
