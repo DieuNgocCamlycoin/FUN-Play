@@ -1,124 +1,159 @@
 
-# Plan: Triển Khai Hệ Thống Bình Luận Hoàn Chỉnh Fun.play.rich
+# Plan: Triển Khai Hệ Thống "Tạo Nhạc Ánh Sáng" (Fun Music AI V3)
 
 ## Tổng Quan
 
-Dựa trên file package được cung cấp, con sẽ triển khai hệ thống bình luận hoàn chỉnh với các tính năng nâng cao:
-- **@Mention autocomplete** với keyboard navigation (↑↓ Enter Esc)
-- **Timestamp links** (click 2:30 để seek video)
-- **Emoji picker** popover
-- **Sort dropdown** (Top/Newest)
-- **Like/Dislike** với optimistic UI
-- **Nested replies** với expand/collapse animation
-- **Soft delete** và **Realtime updates**
+Triển khai package "Fun Music AI V3" hoàn chỉnh - hệ thống tạo nhạc AI sử dụng Suno API với giao diện "Nhạc Ánh Sáng" (nền sáng, tràn đầy năng lượng).
 
-## Hiện Trạng vs Package Yêu Cầu
+## Hiện Trạng vs Yêu Cầu
 
-| Component | Hiện tại | Package yêu cầu |
-|-----------|----------|-----------------|
-| useVideoComments.ts | Không có | ~655 dòng với full CRUD, like/dislike, realtime |
-| useMentionSearch.ts | Không có | Hook tìm kiếm @mention |
-| Video/Comments/ folder | Không có | 8 components mới |
-| CommentsDrawer.tsx | Có (basic) | Cần tích hợp hook mới |
-| usePostComments.ts | Có | Giữ nguyên |
-| Post components | Có | Giữ nguyên |
+| Thành phần | Hiện tại | Cần làm |
+|------------|----------|---------|
+| Bảng `ai_generated_music` | Chưa có | Tạo mới + RLS + Realtime |
+| Bảng `ai_music_likes` | Chưa có | Tạo mới + RLS + Trigger |
+| Edge Function `generate-suno-music` | Chưa có | Tạo mới (gọi Suno API) |
+| Edge Function `generate-suno-music-callback` | Chưa có | Tạo mới (webhook nhận kết quả) |
+| Edge Function `generate-lyrics` | Chưa có | Tạo mới (Lovable AI tạo lời) |
+| Edge Function `download-ai-music` | Chưa có | Tạo mới (tải nhạc có auth) |
+| Edge Function `prerender` | Có (videos only) | Cập nhật thêm `/ai-music/` path |
+| Hook `useAIMusic.ts` | Chưa có | Tạo mới |
+| Hook `useMusicCompletionNotification.ts` | Chưa có | Tạo mới |
+| Hook `useAIMusicDetail.ts` | Chưa có | Tạo mới |
+| Hook `useMusicListeners.ts` | Chưa có | Tạo mới |
+| Component `SunoModeForm.tsx` | Chưa có | Tạo mới |
+| Utility `musicGradients.ts` | Chưa có | Tạo mới (Dark + Light gradients) |
+| Page `CreateMusic.tsx` | Có (dùng ElevenLabs cũ) | Cập nhật tích hợp SunoModeForm |
+| Page `MyAIMusic.tsx` | Chưa có | Tạo mới |
+| Page `AIMusicDetail.tsx` | Chưa có | Tạo mới (giao diện Nhạc Ánh Sáng) |
+| CSS animations | Chưa có | Thêm `bg-gradient-radial`, `animate-light-pulse` |
+| Routes | Chỉ có `/create-music` | Thêm `/my-ai-music`, `/ai-music/:id` |
+| Secret `SUNO_API_KEY` | Chưa có | Cần yêu cầu nhập |
 
-## Các File Sẽ Tạo Mới
+## Các Bước Triển Khai
 
-### 1. Hooks (2 files)
+### Bước 1: Database Migration
 
-| File | Mô tả |
-|------|-------|
-| `src/hooks/useVideoComments.ts` | Hook chính: CRUD, like/dislike, sort, realtime subscription |
-| `src/hooks/useMentionSearch.ts` | Tìm kiếm user cho @mention autocomplete |
+Tạo 2 bảng mới với RLS policies, triggers, và enable Realtime:
 
-### 2. Video Comments Components (8 files)
+- **`ai_generated_music`**: Lưu trữ bài hát AI (id, user_id, title, prompt, lyrics, style, voice_type, instrumental, audio_url, thumbnail_url, duration, status, is_public, play_count, like_count...)
+- **`ai_music_likes`**: Bảng like với trigger tự động cập nhật `like_count`
+- Enable Realtime cho notifications khi bài hát hoàn thành
 
-| File | Mô tả |
-|------|-------|
-| `src/components/Video/Comments/index.ts` | Export tập trung tất cả components |
-| `src/components/Video/Comments/VideoCommentList.tsx` | Danh sách comments + skeleton + sort integration |
-| `src/components/Video/Comments/VideoCommentItem.tsx` | Từng comment + replies + actions (like, reply, delete) |
-| `src/components/Video/Comments/VideoCommentInput.tsx` | Input với @mention + emoji picker |
-| `src/components/Video/Comments/CommentContent.tsx` | Parse và render timestamp links + @mentions |
-| `src/components/Video/Comments/CommentSortDropdown.tsx` | Dropdown sort (Top/Newest) |
-| `src/components/Video/Comments/EmojiPicker.tsx` | Emoji picker popover |
-| `src/components/Video/Comments/MentionAutocomplete.tsx` | Autocomplete dropdown cho @mentions |
+### Bước 2: Yêu cầu SUNO_API_KEY
 
-### 3. Files Cần Cập Nhật
+Hỏi người dùng nhập API key từ sunoapi.org (bắt buộc để tạo nhạc AI).
 
-| File | Thay đổi |
-|------|----------|
-| `src/components/Video/Mobile/CommentsDrawer.tsx` | Tích hợp useVideoComments hook |
-| `src/pages/Watch.tsx` | Tích hợp VideoCommentList component |
+### Bước 3: Tạo Edge Functions (4 mới)
 
-## Kiến Trúc Kỹ Thuật
+| Edge Function | Chức năng |
+|---------------|-----------|
+| `generate-suno-music` | Gọi Suno API V4.5, set callbackUrl, cập nhật status |
+| `generate-suno-music-callback` | Nhận webhook khi nhạc xong, update DB |
+| `generate-lyrics` | Dùng Lovable AI (Gemini) tạo lời bài hát |
+| `download-ai-music` | Proxy download có xác thực user |
 
-### useVideoComments Hook
+### Bước 4: Cập nhật Edge Function `prerender`
+
+Thêm xử lý path `/ai-music/:id` để share link AI Music trên social media.
+
+### Bước 5: Tạo Utility - musicGradients.ts
+
+Hệ thống gradient theo thể loại nhạc:
+- **Dark gradients** (`styleGradients`): Cho modal, mini player
+- **Light gradients** (`lightStyleGradients`): Cho trang chi tiết Nhạc Ánh Sáng
+- Utility functions: `detectMusicStyle()`, `getMusicGradient()`, `getGradientFromId()`
+
+### Bước 6: Tạo Frontend Hooks (4 hooks)
+
+| Hook | Chức năng |
+|------|-----------|
+| `useAIMusic` | CRUD, mutations, polling khi pending, like/unlike |
+| `useMusicCompletionNotification` | Realtime toast khi bài hát hoàn thành |
+| `useAIMusicDetail` | Fetch chi tiết 1 bài hát |
+| `useMusicListeners` | Realtime Presence đếm người đang nghe |
+
+### Bước 7: Tạo Components
+
+- **`SunoModeForm.tsx`**: Form tạo nhạc với title, prompt, style, lyrics (AI generate), instrumental toggle, public toggle, metatag hints
+
+### Bước 8: Tạo/Cập nhật Pages
+
+| Page | Loại | Mô tả |
+|------|------|-------|
+| `CreateMusic.tsx` | Cập nhật | Tích hợp SunoModeForm thay thế logic ElevenLabs cũ |
+| `MyAIMusic.tsx` | Tạo mới | Grid quản lý bài hát + LyricsModal + status indicator |
+| `AIMusicDetail.tsx` | Tạo mới | Full-screen player với giao diện Nhạc Ánh Sáng (nền sáng) |
+
+### Bước 9: Cập nhật App.tsx
+
+- Thêm routes: `/my-ai-music`, `/ai-music/:id`
+- Thêm `useMusicCompletionNotification()` hook
+
+### Bước 10: Thêm CSS Animations
+
+Thêm vào `index.css`:
+- `.bg-gradient-radial`: Radial gradient cho hiệu ứng ánh sáng tỏa
+- `.animate-light-pulse`: Animation nhịp thở ánh sáng
+
+### Bước 11: Cập nhật config.toml
+
+Thêm cấu hình cho 4 edge functions mới.
+
+## Chi tiết kỹ thuật
+
+### Luồng tạo nhạc
 
 ```text
-Cung cấp:
-├── comments[] - Danh sách với nested replies
-├── loading, submitting states
-├── sortBy ('top' | 'newest')
-├── setSortBy() - Thay đổi sort
-├── userLikes/userDislikes Sets - Track like status
-├── createComment(content, parentId?) - Tạo comment/reply
-├── updateComment(id, content) - Sửa comment
-├── softDeleteComment(id) - Soft delete
-├── toggleLike(id) - Toggle like
-├── toggleDislike(id) - Toggle dislike
-└── Realtime subscription tự động
+User -> SunoModeForm -> Insert DB (status: pending)
+                            |
+                            v
+              generate-suno-music (Edge Function)
+              -> Update status: "processing"
+              -> Call Suno API v4.5 with callbackUrl
+              -> Return taskId
+                            |
+                            v (1-3 phut)
+              Suno API -> Webhook ->
+              generate-suno-music-callback
+              -> Update DB: audio_url, thumbnail_url, duration
+              -> Set status: "completed"
+                            |
+                            v
+              Supabase Realtime
+              -> useMusicCompletionNotification
+              -> Toast: "Bai hat da xong!"
 ```
 
-### useMentionSearch Hook
+### Giao dien "Nhac Anh Sang" (V3)
 
 ```text
-Cung cấp:
-├── searchUsers(query) - Tìm user theo username/display_name
-├── results[] - Kết quả tìm kiếm
-├── loading state
-└── Debounced search (300ms)
++-----------------------------------------------+
+| Nen sang voi Light Gradients                   |
+| (from-pink-200 via-rose-100 to-white)          |
+|                                                 |
+|   [Radial glow tu trung tam]                   |
+|   [animate-light-pulse]                         |
+|                                                 |
+|   Text: text-gray-800 (dam tren nen sang)      |
+|   Buttons: bg-gray-900/10                       |
+|   Progress: bg-gray-300                         |
+|   Playing bars: bg-gray-700                     |
++-----------------------------------------------+
 ```
 
-### VideoCommentInput Flow
+## Tom tat file thay doi
 
-```text
-User gõ "@" → Trigger MentionAutocomplete
-    ↓
-Keyboard Navigation:
-- ↑↓ : Di chuyển selection
-- Enter : Chọn user
-- Esc : Đóng autocomplete
-    ↓
-Insert @username vào nội dung
-```
+| Loai | So luong | Files |
+|------|----------|-------|
+| Database migration | 1 | 2 bang + RLS + triggers + realtime |
+| Edge Functions moi | 4 | generate-suno-music, callback, lyrics, download |
+| Edge Function cap nhat | 1 | prerender |
+| Hooks moi | 4 | useAIMusic, useMusicCompletionNotification, useAIMusicDetail, useMusicListeners |
+| Component moi | 1 | SunoModeForm.tsx |
+| Utility moi | 1 | musicGradients.ts |
+| Page moi | 2 | MyAIMusic.tsx, AIMusicDetail.tsx |
+| Page cap nhat | 1 | CreateMusic.tsx |
+| Config cap nhat | 2 | App.tsx, supabase/config.toml |
+| CSS cap nhat | 1 | index.css |
 
-### CommentContent Parser
-
-```text
-Input: "Xem tại 2:30 @username hay quá!"
-    ↓
-Parse:
-- Timestamp: 2:30 → onClick seek to 150s
-- Mention: @username → Link to channel
-    ↓
-Output: React elements với click handlers
-```
-
-## Database
-
-**Không cần migration** - Bảng `comments` và `likes` đã có đầy đủ cấu trúc:
-- `comments`: id, video_id, user_id, parent_comment_id, content, like_count
-- `likes`: id, user_id, video_id, comment_id, is_dislike
-
-## Tóm Tắt Công Việc
-
-| Bước | Mô tả | Files |
-|------|-------|-------|
-| 1 | Tạo hooks mới | 2 files |
-| 2 | Tạo Video Comments components | 8 files |
-| 3 | Cập nhật CommentsDrawer | 1 file |
-| 4 | Tích hợp vào Watch page | 1 file |
-
-**Tổng cộng**: 10 files mới + 2 files cập nhật
+**Tong cong**: 8 files moi + 5 files cap nhat + 1 migration + 1 secret can nhap
