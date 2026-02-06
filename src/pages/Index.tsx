@@ -8,6 +8,7 @@ import { MobileBottomNav } from "@/components/Layout/MobileBottomNav";
 import { MobileDrawer } from "@/components/Layout/MobileDrawer";
 import { MobileHonoboardCard } from "@/components/Layout/MobileHonoboardCard";
 import { MobileTopRankingCard } from "@/components/Layout/MobileTopRankingCard";
+import { MobileTopSponsorsCard } from "@/components/Layout/MobileTopSponsorsCard";
 import { CategoryChips } from "@/components/Layout/CategoryChips";
 import { VideoCard } from "@/components/Video/VideoCard";
 import { ContinueWatching } from "@/components/Video/ContinueWatching";
@@ -272,10 +273,11 @@ const Index = () => {
         <div className="h-[calc(100vh-3.5rem)] overflow-y-auto lg:h-auto lg:overflow-visible">
           <CategoryChips />
           
-          {/* Mobile Honor Board Card */}
+          {/* Mobile 3-Card Layout */}
           <div className="xl:hidden px-4 mb-4 space-y-3">
             <MobileHonoboardCard onClick={() => setShowHonobarDetail(true)} />
             <MobileTopRankingCard />
+            <MobileTopSponsorsCard />
           </div>
 
           {!user && (

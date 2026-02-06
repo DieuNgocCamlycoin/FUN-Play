@@ -1,4 +1,4 @@
-import { Crown, Users, Video, Coins, ChevronRight, Eye } from "lucide-react";
+import { Crown, Users, FileText, Image, Video, Coins, ChevronRight } from "lucide-react";
 import { useHonobarStats } from "@/hooks/useHonobarStats";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
@@ -20,9 +20,9 @@ interface MiniPillProps {
 }
 
 const MiniPill = ({ icon: Icon, value }: MiniPillProps) => (
-  <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] to-[#FF00E5] shadow-[0_2px_8px_rgba(0,231,255,0.3)]">
-    <Icon className="h-3.5 w-3.5 text-white" />
-    <span className="text-sm font-bold text-[#FFD700]">{value}</span>
+  <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-gradient-to-r from-[#7A2BFF] via-[#FF00E5] to-[#FFD700] shadow-[0_2px_8px_rgba(122,43,255,0.3)]">
+    <Icon className="h-3 w-3 text-white" />
+    <span className="text-xs font-bold text-[#FFD700]">{value}</span>
   </div>
 );
 
@@ -35,14 +35,16 @@ export const MobileHonoboardCard = ({ onClick, className }: MobileHonoboardCardP
       whileTap={{ scale: 0.98 }}
       className={cn(
         "w-full p-3 rounded-xl",
-        "bg-gradient-to-r from-white via-[#F0FDFF] to-[#FFF8F0]",
-        "border border-[#00E7FF]/40",
-        "shadow-[0_0_20px_rgba(0,231,255,0.15)]",
-        "hover:shadow-[0_0_25px_rgba(122,43,255,0.25)]",
-        "hover:border-[#FF00E5]/50",
+        "bg-white/85 backdrop-blur-lg",
+        "border-2 border-transparent",
+        "shadow-[0_0_20px_rgba(0,231,255,0.2)]",
+        "hover:shadow-[0_0_30px_rgba(122,43,255,0.3)]",
         "transition-all duration-300",
         className
       )}
+      style={{
+        background: "linear-gradient(white, white) padding-box, linear-gradient(135deg, #00E7FF, #7A2BFF, #FF00E5) border-box",
+      }}
     >
       {/* Header Row */}
       <div className="flex items-center justify-between mb-2">
@@ -60,28 +62,32 @@ export const MobileHonoboardCard = ({ onClick, className }: MobileHonoboardCardP
         <ChevronRight className="h-4 w-4 text-muted-foreground" />
       </div>
 
-      {/* Mini Pills Row */}
-      <div className="flex items-center justify-between gap-2 py-2">
+      {/* Mini Pills Row - 5 stats */}
+      <div className="flex items-center justify-between gap-1.5 py-2 overflow-x-auto scrollbar-hide">
         <MiniPill 
           icon={Users} 
           value={loading ? "..." : formatNumber(stats.totalUsers)} 
+        />
+        <MiniPill 
+          icon={FileText} 
+          value={loading ? "..." : formatNumber(stats.totalPosts)} 
+        />
+        <MiniPill 
+          icon={Image} 
+          value={loading ? "..." : formatNumber(stats.totalPhotos)} 
         />
         <MiniPill 
           icon={Video} 
           value={loading ? "..." : formatNumber(stats.totalVideos)} 
         />
         <MiniPill 
-          icon={Eye} 
-          value={loading ? "..." : formatNumber(stats.totalViews)} 
-        />
-        <MiniPill 
           icon={Coins} 
-          value={loading ? "..." : formatNumber(stats.camlyPool)} 
+          value={loading ? "..." : formatNumber(stats.totalRewards)} 
         />
       </div>
 
       {/* Realtime indicator */}
-      <div className="mt-2 pt-2 border-t border-[#00E7FF]/20 flex items-center justify-center">
+      <div className="mt-2 pt-2 border-t border-[#7A2BFF]/20 flex items-center justify-center">
         <div className="flex items-center gap-1 text-xs text-muted-foreground">
           <motion.span
             className="relative flex h-1.5 w-1.5"
