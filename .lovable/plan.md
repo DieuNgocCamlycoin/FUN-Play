@@ -1,183 +1,180 @@
 
 
-# Kế Hoạch Sửa Lỗi và Cải Thiện Honor Board
+# Plan: Font System Upgrade & Right Sidebar Layout Fix
 
-## Tổng Quan Kiểm Tra
+## Overview
 
-Sau khi kiểm tra kỹ lưỡng cả desktop và mobile, tôi xác nhận:
-
-### Các Tính Năng Đang Hoạt Động Tốt
-
-| Tính năng | Trạng thái | Ghi chú |
-|-----------|-----------|---------|
-| Honor Board Card (Mobile) | ✅ Hoạt động | Hiển thị 166 users, 359 videos, 4.5K views, 5.8M CAMLY |
-| Top Ranking Card (Mobile) | ✅ Hoạt động | Hiển thị Top 3 với badges 🥇🥈🥉 và CAMLY values |
-| Honor Board Detail Modal | ✅ Hoạt động | Mở lên từ mobile với full Aurora styling |
-| Video Grid 3 Columns | ✅ Hoạt động | Videos hiển thị đúng layout |
-| Navigate to Leaderboard | ✅ Hoạt động | Click Top Ranking → /leaderboard |
-| Aurora Theme | ✅ Hoạt động | Colors nhất quán |
-
-### Lỗi Cần Sửa
-
-| # | Vấn đề | Mức độ | File |
-|---|--------|--------|------|
-| 1 | Database Error 400: `profiles!inner` join fails | Trung bình | `useHonobarStats.tsx` |
-| 2 | Top Creators code vẫn còn trong hook (không cần thiết) | Nhẹ | `useHonobarStats.tsx` |
+This plan addresses three key areas:
+1. **Font system upgrade** -- Making text larger and clearer like YouTube 2025, across web and mobile
+2. **Right sidebar width & content fix** -- Ensuring all content fits and displays properly
+3. **Move Top Sponsor into the same section as Top Ranking** -- Combining them into one unified card
 
 ---
 
-## 1. Sửa Database Error 400
+## 1. Current Font Analysis
 
-### Vấn đề
+### Current Setup
+- **Font family**: Inter (loaded via Google Fonts in `index.html`)
+- **Roboto** is also loaded but not used in the config
+- **Base font size**: Browser default 16px (no custom `font-size` on `html` or `body`)
 
-Query hiện tại đang cố sử dụng:
-```tsx
-supabase.from("videos")
-  .select("user_id, view_count, profiles!inner(display_name, username, avatar_url)")
-```
+### Problem Areas Found
 
-Lỗi: `Could not find a relationship between 'videos' and 'profiles' in the schema cache`
+| Location | Current Size | YouTube Reference | Issue |
+|----------|-------------|-------------------|-------|
+| Video title (VideoCard) | `text-sm` (14px) | ~16px bold | Too small |
+| Channel name (VideoCard) | `text-xs` (12px) | ~14px | Too small |
+| Views/timestamp (VideoCard) | `text-xs` (12px) | ~13px | Acceptable but tight |
+| Sidebar nav labels | `text-sky-700 font-medium` (14px) | ~14px medium | OK |
+| Category chips | `text-sm` (14px) | ~14px | OK |
+| Honor Board stat labels | `text-sm` (14px) | - | OK |
+| Honor Board stat values | `text-lg` (18px) | - | OK |
+| Top Ranking names | `text-sm` (14px) | - | Slightly small |
+| Top Ranking CAMLY values | `text-xs` (12px) | - | Too small |
+| Top Sponsor names | `text-xs` (12px) | - | Too small |
+| Top Sponsor values | `text-[10px]` (10px) | - | Way too small |
+| Mobile bottom nav labels | `text-[10px]` (10px) | ~10px | OK (YouTube-like) |
+| Mobile header height | `h-12` (48px) | ~48px | OK |
+| Mobile "Sign In" button | `text-[9px]` | ~12px | Way too small |
+| MobileTopRanking pill text | `text-[10px]` | - | Too small for readability |
 
-**Nguyên nhân**: Không có foreign key relationship giữa `videos.user_id` và `profiles.id` trong database.
+### YouTube 2025 Font Reference
 
-### Giải pháp
-
-Thay đổi cách fetch data - sử dụng 2 queries riêng biệt thay vì join:
-
-```tsx
-// Bước 1: Fetch videos
-const { data: videosData } = await supabase
-  .from("videos")
-  .select("user_id, view_count")
-  .eq("approval_status", "approved");
-
-// Bước 2: Fetch profiles cho các user_ids
-const userIds = [...new Set(videosData?.map(v => v.user_id))];
-const { data: profilesData } = await supabase
-  .from("profiles")
-  .select("id, display_name, username, avatar_url")
-  .in("id", userIds);
-
-// Bước 3: Map profiles to videos
-```
-
----
-
-## 2. Xóa Code Top Creators (Không Cần Thiết)
-
-### Vấn đề
-
-Hook `useHonobarStats` vẫn chứa code cho `topCreator` và `topCreators`, nhưng chúng ta đã xóa Top Creators section khỏi UI.
-
-### Giải pháp
-
-Xóa các phần không cần thiết trong hook:
-- Interface `TopCreator`
-- State `topCreator` và `topCreators`
-- Code build top creators list (lines 84-124)
-- Return values `topCreator` và `topCreators`
-
-Điều này cũng sẽ loại bỏ query lỗi 400.
+YouTube uses **Roboto** with these typical sizes:
+- Video title in feed: **16px bold** (font-weight 600-700)
+- Channel name: **14px medium**
+- View count + date: **13-14px regular**, muted color
+- Sidebar items: **14px medium**
+- Category chips: **14px medium**
 
 ---
 
-## 3. Files Cần Chỉnh Sửa
+## 2. Font Changes Plan
 
-| File | Thay đổi |
-|------|----------|
-| `src/hooks/useHonobarStats.tsx` | Xóa topCreator/topCreators logic, sửa lỗi 400 |
+### Global Level (`index.css` and `tailwind.config.ts`)
 
----
+- Add **Roboto** as primary font alongside Inter for YouTube parity
+- Set base `font-size: 15px` on body for slightly larger default
 
-## 4. Thay Đổi Chi Tiết
+### Component-Level Font Size Upgrades
 
-### useHonobarStats.tsx
-
-**Xóa interface TopCreator (lines 4-10):**
-```tsx
-// XÓA HOÀN TOÀN
-export interface TopCreator {
-  userId: string;
-  displayName: string;
-  avatarUrl: string | null;
-  videoCount: number;
-  totalViews: number;
-}
-```
-
-**Cập nhật HonobarStats interface:**
-```tsx
-export interface HonobarStats {
-  totalUsers: number;
-  totalVideos: number;
-  totalViews: number;
-  totalComments: number;
-  totalRewards: number;
-  totalSubscriptions: number;
-  camlyPool: number;
-  // XÓA: topCreator và topCreators
-}
-```
-
-**Cập nhật initial state:**
-```tsx
-const [stats, setStats] = useState<HonobarStats>({
-  totalUsers: 0,
-  totalVideos: 0,
-  totalViews: 0,
-  totalComments: 0,
-  totalRewards: 0,
-  totalSubscriptions: 0,
-  camlyPool: 0,
-  // XÓA: topCreator: null, topCreators: []
-});
-```
-
-**Xóa query topCreatorData (line 68-71):**
-```tsx
-// XÓA query này hoàn toàn
-supabase.from("videos")
-  .select("user_id, view_count, profiles!inner(display_name, username, avatar_url)")
-  .eq("approval_status", "approved")
-  .limit(1000),
-```
-
-**Xóa code build topCreators (lines 84-124):**
-Xóa toàn bộ block xử lý topCreatorData.
-
-**Cập nhật setStats:**
-```tsx
-setStats({
-  totalUsers: usersCount || 0,
-  totalVideos: videosCount || 0,
-  totalViews,
-  totalComments: commentsCount || 0,
-  totalRewards,
-  totalSubscriptions: subscriptionsCount || 0,
-  camlyPool,
-  // XÓA: topCreator, topCreators
-});
-```
+| Component | Element | Before | After |
+|-----------|---------|--------|-------|
+| **VideoCard** | Title | `text-sm` (14px) | `text-[15px]` or `text-base` (16px) |
+| **VideoCard** | Channel name | `text-xs` (12px) | `text-sm` (14px) |
+| **VideoCard** | Views/timestamp | `text-xs` (12px) | `text-[13px]` |
+| **TopRankingSection** | User name | `text-sm` (14px) | `text-sm font-semibold` |
+| **TopRankingSection** | CAMLY value | `text-xs` (12px) | `text-sm` (14px) |
+| **TopRankingSection** | "CAMLY" label | `text-[10px]` | `text-xs` (12px) |
+| **TopSponsorSection** | User name | `text-xs` (12px) | `text-sm` (14px) |
+| **TopSponsorSection** | Donation value | `text-[10px]` | `text-xs font-bold` |
+| **MobileHeader** | Sign In button | `text-[9px]` | `text-xs` (12px) |
+| **MobileTopRankingCard** | Rank pill value | `text-[10px]` | `text-xs` (12px) |
+| **MobileTopRankingCard** | Avatar fallback | `text-[8px]` | `text-[10px]` |
+| **MobileHonoboardCard** | Realtime text | `text-[10px]` | `text-xs` |
+| **CategoryChips** | Chip text | `text-sm` (14px) | Keep (matches YouTube) |
 
 ---
 
-## 5. Kiểm Tra Lại Sau Sửa
+## 3. Right Sidebar Width & Content Fix
 
-| Test case | Expected |
-|-----------|----------|
-| Homepage load | Không còn error 400 |
-| Honor Board stats | Hiển thị đúng |
-| Mobile view | Cards hoạt động bình thường |
-| Console logs | Không có errors |
+### Current Issue
+- Sidebar width: `w-72` (288px) -- content is cramped
+- Main content area uses `xl:pr-72` padding to make room
+
+### Solution
+- Increase sidebar to `w-80` (320px) -- matches YouTube's right sidebar width
+- Update `xl:pr-80` on main content
+- Increase internal padding from `px-3` to `px-4`
+- Adjust StatPill padding for better readability
+
+### Files Changed
+- `HonoboardRightSidebar.tsx`: `w-72` to `w-80`, `px-3` to `px-4`
+- `Index.tsx`: `xl:pr-72` to `xl:pr-80`
 
 ---
 
-## 6. Kết Quả Mong Đợi
+## 4. Merge Top Sponsor INTO Top Ranking Section
 
-| Metric | Trước | Sau |
-|--------|-------|-----|
-| Network errors | 1 (400 status) | 0 |
-| Console errors | Có warning | Clean |
-| Features working | 95% | 100% |
-| Code cleanliness | Có dead code | Sạch |
+### Current Layout (Separate Cards)
+```text
+[Top 5 Ranking Card]     <-- separate card
+[Top Sponsors Card]       <-- separate card with Donate button
+```
+
+### New Layout (Combined Card)
+```text
+┌──────────────────────────────────────┐
+│ 🏅 TOP 5 RANKING       CAMLY Rewards │
+│ ┌────────────────────────────────────┐│
+│ │ 🥇 User A              1.25M CAMLY ││
+│ │ 🥈 User B              980K CAMLY  ││
+│ │ 🥉 User C              750K CAMLY  ││
+│ │ #4 User D              500K CAMLY  ││
+│ │ #5 User E              350K CAMLY  ││
+│ └────────────────────────────────────┘│
+│ [View All Ranking ->]                 │
+├──────────────────────────────────────┤
+│ 💎 TOP SPONSORS          Donations   │
+│ ┌────────────────────────────────────┐│
+│ │ 🥇 Sponsor A            500 CAMLY  ││
+│ │ 🥈 Sponsor B            350 CAMLY  ││
+│ │ 🥉 Sponsor C            200 CAMLY  ││
+│ └────────────────────────────────────┘│
+│ [ 💖 Donate to Project ]             │
+└──────────────────────────────────────┘
+```
+
+### Implementation
+- Modify `TopRankingSection.tsx` to accept and render sponsors data internally
+- Remove standalone `TopSponsorSection` import from `HonoboardRightSidebar.tsx`
+- Combine both sections into a single bordered card in `TopRankingSection.tsx`
+- The "View All Ranking" button separates the two sections
+- The Donate button stays at the bottom of the combined card
+
+---
+
+## 5. Mobile Interface Updates
+
+### MobileTopRankingCard
+- Increase font sizes for better readability
+- MiniRankPill: Avatar `h-5 w-5` (from `h-4 w-4`), value text `text-xs` (from `text-[10px]`)
+
+### MobileHonoboardCard
+- Increase MiniPill value text to `text-xs`
+- Better touch target sizes
+
+### HonobarDetailModal
+- Increase ranking/sponsor name text to `text-sm font-semibold`
+- Increase value text to `text-sm` from `text-xs`
+
+---
+
+## 6. Files Summary
+
+| File | Action | Description |
+|------|--------|-------------|
+| `tailwind.config.ts` | Edit | Add Roboto to font family |
+| `index.html` | Already has Roboto | No change needed |
+| `src/index.css` | Edit | Add base font-size rule |
+| `src/components/Video/VideoCard.tsx` | Edit | Increase title, channel, metadata font sizes |
+| `src/components/Layout/HonoboardRightSidebar.tsx` | Edit | Width `w-80`, remove TopSponsorSection import, increase padding |
+| `src/components/Layout/TopRankingSection.tsx` | Edit | Combine with sponsors, increase font sizes |
+| `src/components/Layout/TopSponsorSection.tsx` | Edit | Keep as standalone for mobile modal, increase font sizes |
+| `src/components/Layout/MobileTopRankingCard.tsx` | Edit | Increase font sizes for readability |
+| `src/components/Layout/MobileHonoboardCard.tsx` | Edit | Increase font sizes |
+| `src/components/Layout/MobileHeader.tsx` | Edit | Fix Sign In button size |
+| `src/components/Layout/HonobarDetailModal.tsx` | Edit | Increase ranking/sponsor text sizes |
+| `src/pages/Index.tsx` | Edit | Update `xl:pr-80` |
+
+---
+
+## 7. Implementation Order
+
+1. **Font system** -- `tailwind.config.ts`, `index.css`
+2. **VideoCard** -- Title and metadata font sizes
+3. **Right sidebar width** -- `HonoboardRightSidebar.tsx` + `Index.tsx`
+4. **Merge Ranking + Sponsors** -- `TopRankingSection.tsx` combined card
+5. **Sidebar font updates** -- All text size increases
+6. **Mobile updates** -- MobileTopRankingCard, MobileHonoboardCard, MobileHeader, HonobarDetailModal
 
