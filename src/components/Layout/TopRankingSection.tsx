@@ -217,7 +217,7 @@ export const TopRankingSection = ({ showSponsors = false }: TopRankingSectionPro
                       </p>
                     </div>
                     <div className="text-right">
-                      <span className="text-xs font-bold text-[#FFD700] drop-shadow-[0_0_3px_rgba(255,215,0,0.4)]">
+                      <span className="text-sm font-bold text-[#FFD700] drop-shadow-[0_0_3px_rgba(255,215,0,0.4)]">
                         {formatRewards(sponsor.totalDonated)}
                       </span>
                     </div>
