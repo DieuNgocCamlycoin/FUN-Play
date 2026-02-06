@@ -103,6 +103,69 @@ export type Database = {
         }
         Relationships: []
       }
+      bounty_submissions: {
+        Row: {
+          admin_note: string | null
+          approved_at: string | null
+          approved_by: string | null
+          category: string
+          contact_info: string | null
+          created_at: string
+          description: string
+          id: string
+          reward_amount: number
+          status: string
+          title: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          admin_note?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          category?: string
+          contact_info?: string | null
+          created_at?: string
+          description: string
+          id?: string
+          reward_amount?: number
+          status?: string
+          title: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          admin_note?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          category?: string
+          contact_info?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          reward_amount?: number
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bounty_submissions_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bounty_submissions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       channels: {
         Row: {
           banner_url: string | null

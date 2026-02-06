@@ -46,6 +46,7 @@ import VideoRedirect from "./pages/VideoRedirect";
 import Profile from "./pages/Profile";
 import YourVideosMobile from "./pages/YourVideosMobile";
 import DownloadedVideos from "./pages/DownloadedVideos";
+import Bounty from "./pages/Bounty";
 import { wagmiConfig, initWeb3Modal } from '@/lib/web3Config';
 import { GlobalPaymentNotifications } from './components/Web3/GlobalPaymentNotifications';
 import { MusicPlayerProvider } from './contexts/MusicPlayerContext';
@@ -130,6 +131,7 @@ function AppContent() {
         <Route path="/profile" element={<Profile />} />
         <Route path="/your-videos-mobile" element={<YourVideosMobile />} />
         <Route path="/downloads" element={<DownloadedVideos />} />
+        <Route path="/bounty" element={<Bounty />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
