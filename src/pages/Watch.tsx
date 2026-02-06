@@ -490,7 +490,6 @@ export default function Watch() {
         />
         <MobileWatchView
           video={video}
-          comments={comments}
           isSubscribed={isSubscribed}
           hasLiked={hasLiked}
           onSubscribe={handleSubscribe}
