@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAdminManage } from "@/hooks/useAdminManage";
-import { Gift, CheckCircle, Download, Blocks, Coins, AlertTriangle, Search } from "lucide-react";
+import { Gift, CheckCircle, Download, Blocks, Coins, AlertTriangle, Search, Award } from "lucide-react";
 
 import RewardPoolTab from "./RewardPoolTab";
 import RewardApprovalTab from "./RewardApprovalTab";
@@ -10,6 +10,7 @@ import ClaimedListTab from "./ClaimedListTab";
 import BlockchainTab from "./BlockchainTab";
 import WalletAbuseTab from "./WalletAbuseTab";
 import UserReviewTab from "./UserReviewTab";
+import BountyApprovalTab from "./BountyApprovalTab";
 
 export function RewardsManagementTab() {
   const {
@@ -49,6 +50,9 @@ export function RewardsManagementTab() {
         </TabsTrigger>
         <TabsTrigger value="blockchain" className="gap-1 text-xs">
           <Blocks className="w-3 h-3" /> BSC
+        </TabsTrigger>
+        <TabsTrigger value="bounty" className="gap-1 text-xs">
+          <Award className="w-3 h-3" /> Bounty
         </TabsTrigger>
       </TabsList>
 
@@ -98,6 +102,10 @@ export function RewardsManagementTab() {
 
       <TabsContent value="blockchain">
         <BlockchainTab />
+      </TabsContent>
+
+      <TabsContent value="bounty">
+        <BountyApprovalTab />
       </TabsContent>
     </Tabs>
   );
