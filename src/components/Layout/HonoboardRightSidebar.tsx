@@ -5,7 +5,6 @@ import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { CounterAnimation } from "@/components/Layout/CounterAnimation";
 import { TopRankingSection } from "@/components/Layout/TopRankingSection";
-import { TopSponsorSection } from "@/components/Layout/TopSponsorSection";
 
 interface HonoboardRightSidebarProps {
   className?: string;
@@ -55,7 +54,7 @@ export const HonoboardRightSidebar = ({ className }: HonoboardRightSidebarProps)
   return (
     <aside 
       className={cn(
-        "hidden xl:flex flex-col w-72 shrink-0 h-[calc(100vh-3.5rem)]",
+        "hidden xl:flex flex-col w-80 shrink-0 h-[calc(100vh-3.5rem)]",
         "fixed right-0 top-14 z-40",
         "bg-gradient-to-b from-white via-white to-[#F0FDFF]",
         "border-l-2 border-[#00E7FF]/30",
@@ -63,7 +62,7 @@ export const HonoboardRightSidebar = ({ className }: HonoboardRightSidebarProps)
         className
       )}
     >
-      <ScrollArea className="flex-1 px-3 py-4">
+      <ScrollArea className="flex-1 px-4 py-4">
         {/* Header with Crown and Title */}
         <motion.div 
           initial={{ opacity: 0, y: -10 }}
@@ -131,11 +130,8 @@ export const HonoboardRightSidebar = ({ className }: HonoboardRightSidebarProps)
           ))}
         </motion.div>
 
-        {/* Top 5 Ranking (CAMLY Rewards) */}
-        <TopRankingSection />
-
-        {/* Top Sponsors + Donate Button */}
-        <TopSponsorSection />
+        {/* Top 5 Ranking + Top Sponsors (Combined) */}
+        <TopRankingSection showSponsors />
 
         {/* FUN Play Branding */}
         <div className="mt-4 p-3 text-center">

@@ -201,16 +201,16 @@ export const VideoCard = ({
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="font-bold text-sm line-clamp-2 mb-1 text-gray-900 group-hover:text-cosmic-cyan transition-colors duration-300">
+          <h3 className="font-semibold text-[15px] leading-snug line-clamp-2 mb-1 text-gray-900 group-hover:text-cosmic-cyan transition-colors duration-300">
             {title}
           </h3>
           <p 
-            className="text-xs text-gray-600 group-hover:text-divine-rose-gold transition-colors duration-300 cursor-pointer hover:underline"
+            className="text-sm text-gray-600 group-hover:text-divine-rose-gold transition-colors duration-300 cursor-pointer hover:underline"
             onClick={handleChannelClick}
           >
             {channel}
           </p>
-          <div className="flex items-center gap-2 text-xs text-gray-500 group-hover:text-cosmic-magenta mt-1 transition-colors duration-300">
+          <div className="flex items-center gap-2 text-[13px] text-gray-500 group-hover:text-cosmic-magenta mt-1 transition-colors duration-300">
             <span>{views}</span>
             <span className="text-cosmic-sapphire">•</span>
             <span>{timestamp}</span>

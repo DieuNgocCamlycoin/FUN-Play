@@ -36,13 +36,13 @@ const MiniRankPill = ({ rank, user }: MiniRankPillProps) => {
       )}
     >
       <span className="text-xs">{getRankBadge(rank)}</span>
-      <Avatar className="h-4 w-4 border border-[#7A2BFF]/30">
+      <Avatar className="h-5 w-5 border border-[#7A2BFF]/30">
         <AvatarImage src={user.avatar_url || undefined} />
-        <AvatarFallback className="text-[8px]">
+        <AvatarFallback className="text-[10px]">
           {(user.display_name || user.username).charAt(0).toUpperCase()}
         </AvatarFallback>
       </Avatar>
-      <span className="text-[10px] font-bold text-[#FFD700]">
+      <span className="text-xs font-bold text-[#FFD700]">
         {formatRewards(user.total_camly_rewards)}
       </span>
     </div>
@@ -80,7 +80,7 @@ export const MobileTopRankingCard = () => {
         </div>
         <div className="flex items-center gap-1">
           <Coins className="h-3 w-3 text-[#FFD700]" />
-          <span className="text-[10px] text-muted-foreground">CAMLY</span>
+          <span className="text-xs text-muted-foreground">CAMLY</span>
           <ChevronRight className="h-4 w-4 text-muted-foreground" />
         </div>
       </div>

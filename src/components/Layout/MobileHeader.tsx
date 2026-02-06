@@ -334,7 +334,7 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
                   <Button
                     onClick={() => navigate("/auth")}
                     size="sm"
-                    className="h-6 text-[9px] px-1.5 font-medium"
+                    className="h-7 text-xs px-2 font-medium"
                   >
                     Sign In
                   </Button>

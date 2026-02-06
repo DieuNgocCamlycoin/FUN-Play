@@ -156,6 +156,7 @@ All colors MUST be HSL.
   body {
     @apply bg-background text-foreground;
     background: #FFFFFF;
+    font-size: 15px;
   }
   
   body > * {

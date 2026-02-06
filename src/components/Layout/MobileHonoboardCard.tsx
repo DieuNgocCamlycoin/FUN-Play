@@ -21,8 +21,8 @@ interface MiniPillProps {
 
 const MiniPill = ({ icon: Icon, value }: MiniPillProps) => (
   <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] to-[#FF00E5] shadow-[0_2px_8px_rgba(0,231,255,0.3)]">
-    <Icon className="h-3 w-3 text-white" />
-    <span className="text-xs font-bold text-[#FFD700]">{value}</span>
+    <Icon className="h-3.5 w-3.5 text-white" />
+    <span className="text-sm font-bold text-[#FFD700]">{value}</span>
   </div>
 );
 
@@ -82,8 +82,8 @@ export const MobileHonoboardCard = ({ onClick, className }: MobileHonoboardCardP
 
       {/* Realtime indicator */}
       <div className="mt-2 pt-2 border-t border-[#00E7FF]/20 flex items-center justify-center">
-        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-          <motion.span 
+        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+          <motion.span
             className="relative flex h-1.5 w-1.5"
             animate={{ scale: [1, 1.3, 1] }}
             transition={{ duration: 1.5, repeat: Infinity }}

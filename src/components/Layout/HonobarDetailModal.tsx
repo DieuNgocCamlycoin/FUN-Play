@@ -147,16 +147,16 @@ const ModalContent = ({ stats, loading, ranking, rankingLoading, sponsors, spons
                 )}
               >
                 <span className="w-5 text-center text-sm">{getRankBadge(index + 1)}</span>
-                <Avatar className="h-6 w-6 border">
+                <Avatar className="h-7 w-7 border">
                   <AvatarImage src={user.avatar_url || undefined} />
-                  <AvatarFallback className="text-[10px]">
+                  <AvatarFallback className="text-xs">
                     {(user.display_name || user.username).charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
-                <span className="flex-1 text-sm font-medium text-[#7A2BFF] truncate">
+                <span className="flex-1 text-sm font-semibold text-[#7A2BFF] truncate">
                   {user.display_name || user.username}
                 </span>
-                <span className="text-xs font-bold text-[#FFD700]">
+                <span className="text-sm font-bold text-[#FFD700]">
                   {formatNumber(user.total_camly_rewards)} CAMLY
                 </span>
               </div>
@@ -201,16 +201,16 @@ const ModalContent = ({ stats, loading, ranking, rankingLoading, sponsors, spons
                 )}
               >
                 <span className="w-5 text-center text-sm">{getRankBadge(index + 1)}</span>
-                <Avatar className="h-6 w-6 border">
+                <Avatar className="h-7 w-7 border">
                   <AvatarImage src={sponsor.avatarUrl || undefined} />
-                  <AvatarFallback className="text-[10px]">
+                  <AvatarFallback className="text-xs">
                     {(sponsor.displayName || sponsor.username).charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
-                <span className="flex-1 text-sm font-medium text-[#7A2BFF] truncate">
+                <span className="flex-1 text-sm font-semibold text-[#7A2BFF] truncate">
                   {sponsor.displayName || sponsor.username}
                 </span>
-                <span className="text-xs font-bold text-[#FFD700]">
+                <span className="text-sm font-bold text-[#FFD700]">
                   {formatNumber(sponsor.totalDonated)}
                 </span>
               </div>
