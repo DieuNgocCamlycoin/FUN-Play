@@ -404,3 +404,18 @@ body > [data-w3m-modal] {
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+/* Light Music Backgrounds - Nhạc Ánh Sáng */
+.bg-gradient-radial {
+  background: radial-gradient(ellipse at center, var(--tw-gradient-stops));
+}
+
+/* Animated glow effect for light music */
+@keyframes light-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 0.9; }
+}
+
+.animate-light-pulse {
+  animation: light-pulse 3s ease-in-out infinite;
+}

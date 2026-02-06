@@ -47,6 +47,8 @@ import Profile from "./pages/Profile";
 import YourVideosMobile from "./pages/YourVideosMobile";
 import DownloadedVideos from "./pages/DownloadedVideos";
 import Bounty from "./pages/Bounty";
+import MyAIMusic from "./pages/MyAIMusic";
+import AIMusicDetail from "./pages/AIMusicDetail";
 import { wagmiConfig, initWeb3Modal } from '@/lib/web3Config';
 import { GlobalPaymentNotifications } from './components/Web3/GlobalPaymentNotifications';
 import { MusicPlayerProvider } from './contexts/MusicPlayerContext';
@@ -58,6 +60,7 @@ import { GlobalVideoPlayer } from './components/Video/GlobalVideoPlayer';
 import { GlobalMiniPlayer } from './components/Video/GlobalMiniPlayer';
 import { BackgroundUploadIndicator } from './components/Upload/BackgroundUploadIndicator';
 import { useRewardRealtimeNotification } from './hooks/useRewardRealtimeNotification';
+import { useMusicCompletionNotification } from './hooks/useMusicCompletionNotification';
 import { RecoveryModeGuard } from './components/Auth/RecoveryModeGuard';
 
 const queryClient = new QueryClient();
@@ -67,6 +70,7 @@ initWeb3Modal();
 
 function AppContent() {
   useRewardRealtimeNotification();
+  useMusicCompletionNotification();
   
   return (
     <>
@@ -133,6 +137,8 @@ function AppContent() {
         <Route path="/downloads" element={<DownloadedVideos />} />
         <Route path="/build-bounty" element={<Bounty />} />
         <Route path="/bounty" element={<Navigate to="/build-bounty" replace />} />
+        <Route path="/my-ai-music" element={<MyAIMusic />} />
+        <Route path="/ai-music/:id" element={<AIMusicDetail />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
