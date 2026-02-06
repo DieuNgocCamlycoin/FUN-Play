@@ -59,7 +59,6 @@ export default function Watch() {
   const [video, setVideo] = useState<Video | null>(null);
   const [recommendedVideos, setRecommendedVideos] = useState<RecommendedVideo[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loading, setLoading] = useState(true);
   const [tipModalOpen, setTipModalOpen] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [rewardNotif, setRewardNotif] = useState<{ amount: number; type: "VIEW" | "LIKE" | "COMMENT" | "SHARE"; show: boolean }>({ 
