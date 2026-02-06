@@ -690,94 +690,9 @@ export default function Watch() {
                 </p>
               </div>
 
-              {/* Comments Section */}
+              {/* Comments Section - New Component */}
               <div className="mt-6">
-                <h2 className="text-xl font-semibold mb-6 text-foreground">
-                  {comments.length} bình luận
-                </h2>
-
-                {/* Add Comment */}
-                {user ? (
-                  <div className="flex gap-3 mb-8">
-                    <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-semibold flex-shrink-0">
-                      {user.email?.[0].toUpperCase()}
-                    </div>
-                    <div className="flex-1">
-                      <Textarea
-                        placeholder="Viết bình luận..."
-                        value={newComment}
-                        onChange={(e) => setNewComment(e.target.value)}
-                        className="border-0 border-b border-border rounded-none px-0 focus-visible:ring-0 focus-visible:border-foreground resize-none"
-                      />
-                      <div className="flex gap-2 mt-2 justify-end">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setNewComment("")}
-                        >
-                          Hủy
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          onClick={handleAddComment}
-                          disabled={!newComment.trim()}
-                        >
-                          Bình luận
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-4 text-muted-foreground">
-                    <Button onClick={() => navigate("/auth")}>Đăng nhập để bình luận</Button>
-                  </div>
-                )}
-
-                {/* Comments List */}
-                <div className="space-y-6">
-                  {comments.map((comment) => (
-                    <div key={comment.id} className="flex gap-3">
-                      <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-semibold flex-shrink-0">
-                        {comment.profiles.display_name?.[0] || "U"}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span 
-                            className="font-semibold text-sm text-foreground cursor-pointer hover:text-cosmic-cyan transition-colors"
-                            onClick={() => {
-                              // Navigate to user's channel - we need to fetch channel ID from user_id
-                              supabase
-                                .from("channels")
-                                .select("id")
-                                .eq("user_id", comment.user_id)
-                                .maybeSingle()
-                                .then(({ data }) => {
-                                  if (data) navigate(`/channel/${data.id}`);
-                                });
-                            }}
-                          >
-                            {comment.profiles.display_name || "User"}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {new Date(comment.created_at).toLocaleDateString("vi-VN")}
-                          </span>
-                        </div>
-                        <p className="text-sm text-foreground mb-2">
-                          {comment.content}
-                        </p>
-                        <div className="flex items-center gap-2">
-                          <Button variant="ghost" size="sm" className="h-8 px-2 rounded-full">
-                            <ThumbsUp className="h-3 w-3 mr-1" />
-                            {comment.like_count || 0}
-                          </Button>
-                          <Button variant="ghost" size="sm" className="h-8 px-2 rounded-full">
-                            <ThumbsDown className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <VideoCommentList videoId={id!} />
               </div>
             </div>
 

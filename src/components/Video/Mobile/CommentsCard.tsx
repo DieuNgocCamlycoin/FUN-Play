@@ -1,19 +1,17 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ChevronRight } from "lucide-react";
 
-interface Comment {
-  id: string;
-  content: string;
-  created_at: string;
+interface LatestCommentPreview {
   profiles: {
-    display_name: string;
+    display_name: string | null;
     avatar_url: string | null;
   };
+  content: string;
 }
 
 interface CommentsCardProps {
   commentCount: number;
-  latestComment?: Comment | null;
+  latestComment?: LatestCommentPreview | null;
   onClick: () => void;
 }
 
