@@ -69,9 +69,8 @@ export default function Watch() {
   const { id } = useParams();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [video, setVideo] = useState<Video | null>(null);
-  const [comments, setComments] = useState<Comment[]>([]);
   const [recommendedVideos, setRecommendedVideos] = useState<RecommendedVideo[]>([]);
-  const [newComment, setNewComment] = useState("");
+  const [loading, setLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const [tipModalOpen, setTipModalOpen] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
