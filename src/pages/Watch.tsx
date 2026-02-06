@@ -125,7 +125,6 @@ export default function Watch() {
   useEffect(() => {
     if (id) {
       fetchVideo();
-      fetchComments();
       fetchRecommendedVideos();
     }
   }, [id]);
