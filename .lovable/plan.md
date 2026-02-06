@@ -1,64 +1,87 @@
 
-# Plan: Fix Display Issues & Add Sponsors to Mobile
+# Plan: Fix Sidebar Overflow & Display Issues
 
-## Issues Found
+## Issues Found (from Desktop Screenshot)
 
-### 1. Right Sidebar Stat Pills Overflow
-The stat pill labels ("TOTAL COMMENTS", "TOTAL USERS") combined with large formatted values (e.g., "5.991,00" for CAMLY Pool) overflow beyond the `w-80` sidebar width. The `CounterAnimation` component does not use compact mode, so numbers like 5991 are displayed as "5.991,00" (Vietnamese locale) instead of "5.99K".
+The right sidebar content is **overflowing/clipping** on the right edge. Here's what I found:
 
-### 2. Mobile Top Ranking Card Missing Sponsors
-The `MobileTopRankingCard` only shows the Top 3 ranking users but does not display any sponsor information or a "Donate to Project" button -- even though the desktop sidebar has both merged into one card via `showSponsors` prop.
+| Element | Current Display | Problem |
+|---------|----------------|---------|
+| USERS stat pill value | "1..." (clipped) | Value cut off at edge |
+| COMMENTS stat pill value | "3.2..." (clipped) | Number "3.200" too wide |
+| VIEWS stat pill value | "4.4..." (clipped) | Number "4.500" too wide |
+| VIDEOS stat pill value | "3..." (clipped) | Value cut off |
+| CAMLY POOL value | "5.99..." (clipped) | Value partially visible |
+| "CAMLY Rewards" header | "CAMLY Rewar..." | Text truncated |
+| "Donations" header | "Donatio..." | Text truncated |
+| Ranking "CAMLY" labels | "CAML..." | Label cut off next to values |
 
-### 3. CoinGecko API Error (Not Critical)
-A "Failed to fetch" error from `useCryptoPrices.tsx` when calling the CoinGecko API. This is a CORS/network issue in the preview environment and is not related to the layout changes.
+## Root Causes
+
+### 1. CounterAnimation compact threshold too high
+The `compact` mode only kicks in at `>= 10,000`. Numbers between 1,000-9,999 fall through to `toLocaleString('vi-VN')` which formats as "3.200" (with period separator), making values wider than necessary.
+
+### 2. ScrollArea horizontal overflow
+The `ScrollArea` component does not restrict horizontal overflow. Content within the `w-80` (320px) sidebar with `px-4` (16px each side) leaves only 288px for content, which is not enough for the stat pills and ranking items.
+
+### 3. Ranking items too wide
+Each ranking row shows: badge + avatar + name + value + "CAMLY" text label. The "CAMLY" suffix makes each row too wide for the sidebar.
 
 ---
 
 ## Fix Plan
 
-### Fix 1: Right Sidebar Stat Pills -- Prevent Overflow
+### Fix 1: Lower CounterAnimation compact threshold (1000 instead of 10000)
+
+**File: `src/components/Layout/CounterAnimation.tsx`**
+
+Change the compact threshold from `>= 10000` to `>= 1000`:
+- 166 users stays as "166"
+- 3,200 comments becomes "3.2K" instead of "3.200"  
+- 4,500 views becomes "4.5K" instead of "4.500"
+- 359 videos stays as "359"
+- 5,991,000 CAMLY stays as "5.99M"
+
+### Fix 2: Add horizontal overflow protection to ScrollArea
 
 **File: `src/components/Layout/HonoboardRightSidebar.tsx`**
 
-- Shorten stat labels to fit better:
-  - "TOTAL USERS" --> "USERS"
-  - "TOTAL COMMENTS" --> "COMMENTS"
-  - "TOTAL VIEWS" --> "VIEWS"
-  - "TOTAL VIDEOS" --> "VIDEOS"
-  - "CAMLY POOL" --> "CAMLY POOL" (keep)
-- Reduce label font from `text-sm` to `text-xs`
-- Enable `compact` mode on CounterAnimation for large numbers
-- Add `overflow-hidden` and `min-w-0` to prevent visual overflow
-- Reduce pill padding from `px-4` to `px-3`
+- Add `overflow-x-hidden` to the ScrollArea wrapper
+- Ensure all content respects the sidebar bounds
 
-### Fix 2: Merge Sponsors into Mobile Top Ranking Card
+### Fix 3: Fix TopRankingSection text overflow
+
+**File: `src/components/Layout/TopRankingSection.tsx`**
+
+- Remove the "CAMLY" suffix text from ranking items (the values already use formatted K/M notation)
+- Shorten "CAMLY Rewards" header to just "CAMLY" 
+- Shorten "Donations" to "Tips"
+- Add `truncate` to sponsor/user names to prevent overflow
+
+### Fix 4: Fix HonobarDetailModal stat labels
+
+**File: `src/components/Layout/HonobarDetailModal.tsx`**
+
+- Shorten "TOTAL USERS/COMMENTS/VIEWS/VIDEOS" to "USERS/COMMENTS/VIEWS/VIDEOS" to match the sidebar
+- Add compact mode to CounterAnimation in the modal
+
+### Fix 5: Verify Mobile TopRankingCard is complete
 
 **File: `src/components/Layout/MobileTopRankingCard.tsx`**
 
-- Import `useTopSponsors` hook
-- Add a "Top Sponsors" section below the ranking pills, separated by a divider
-- Show top 3 sponsors as compact pills (similar to ranking pills)
-- Add a small "Donate to Project" button at the bottom with Aurora gradient
-- Keep the card clickable for leaderboard navigation, but make the Donate button a separate action
-
-### Fix 3: Minor Font/Display Consistency
-
-**File: `src/components/Layout/HonoboardRightSidebar.tsx`**
-- Ensure StatPill uses `text-base` for values instead of `text-lg` to prevent overflow
-- Add `whitespace-nowrap` to value display
-
-**File: `src/components/Layout/TopRankingSection.tsx`**
-- Increase sponsor value font from `text-xs` to `text-sm` for consistency with ranking values
+- Already has sponsors section merged -- verify it works
+- No changes needed if display is correct
 
 ---
 
 ## Files to Change
 
-| File | Action | Description |
-|------|--------|-------------|
-| `src/components/Layout/HonoboardRightSidebar.tsx` | Edit | Fix stat pill overflow: shorter labels, compact counter, smaller text |
-| `src/components/Layout/MobileTopRankingCard.tsx` | Edit | Add Top Sponsors section + Donate button |
-| `src/components/Layout/TopRankingSection.tsx` | Edit | Fix sponsor value font size consistency |
+| File | Changes |
+|------|---------|
+| `src/components/Layout/CounterAnimation.tsx` | Lower compact threshold from 10000 to 1000 |
+| `src/components/Layout/HonoboardRightSidebar.tsx` | Add `overflow-x-hidden` to ScrollArea |
+| `src/components/Layout/TopRankingSection.tsx` | Remove "CAMLY" suffix, shorten headers, add truncation |
+| `src/components/Layout/HonobarDetailModal.tsx` | Shorten stat labels, add compact CounterAnimation |
 
 ---
 
@@ -66,7 +89,8 @@ A "Failed to fetch" error from `useCryptoPrices.tsx` when calling the CoinGecko 
 
 | Before | After |
 |--------|-------|
-| Stat pill values overflow sidebar edge | Values use compact format (K/M) and fit within sidebar |
-| Mobile shows only Top 3 ranking | Mobile shows Top 3 ranking + Top 3 sponsors + Donate button |
-| Sponsor values use `text-xs` (too small) | Sponsor values use `text-sm` (consistent with ranking) |
-| Long labels push values off-screen | Shorter labels keep everything visible |
+| Values clipped: "3.2...", "4.4..." | Values fit: "3.2K", "4.5K" |
+| "CAMLY Rewards" truncated | "CAMLY" fits cleanly |
+| "Donations" truncated | "Tips" fits cleanly |
+| Ranking shows "4.3M CAML..." | Ranking shows "4.3M" (no suffix) |
+| Horizontal overflow visible | All content within sidebar bounds |
