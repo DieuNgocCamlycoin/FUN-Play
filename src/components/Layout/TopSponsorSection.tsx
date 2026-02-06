@@ -44,7 +44,7 @@ export const TopSponsorSection = () => {
           <Gem className="h-4 w-4 text-[#FF00E5]" />
           Top Sponsors
         </h3>
-        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+        <div className="flex items-center gap-1 text-xs text-muted-foreground">
           <Coins className="h-3 w-3 text-[#FFD700]" />
           Donations
         </div>
@@ -96,17 +96,17 @@ export const TopSponsorSection = () => {
                 index > 2 && "border-border"
               )}>
                 <AvatarImage src={sponsor.avatarUrl || undefined} />
-                <AvatarFallback className="text-[10px] bg-gradient-to-br from-[#F0FDFF] to-[#FFF8F0]">
+                <AvatarFallback className="text-xs bg-gradient-to-br from-[#F0FDFF] to-[#FFF8F0]">
                   {(sponsor.displayName || sponsor.username).charAt(0).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium truncate text-[#7A2BFF]">
+                <p className="text-sm font-semibold truncate text-[#7A2BFF]">
                   {sponsor.displayName || sponsor.username}
                 </p>
               </div>
               <div className="text-right">
-                <span className="text-[10px] font-bold text-[#FFD700] drop-shadow-[0_0_3px_rgba(255,215,0,0.4)]">
+                <span className="text-xs font-bold text-[#FFD700] drop-shadow-[0_0_3px_rgba(255,215,0,0.4)]">
                   {formatNumber(sponsor.totalDonated)}
                 </span>
               </div>
