@@ -24,18 +24,18 @@ const StatPill = ({ icon: Icon, label, value, loading, index }: StatPillProps) =
     animate={{ opacity: 1, x: 0 }}
     transition={{ delay: index * 0.1, type: "spring", stiffness: 200 }}
     whileHover={{ x: 4, scale: 1.02 }}
-    className="flex items-center justify-between px-4 py-3 rounded-full
+    className="flex items-center justify-between px-3 py-2.5 rounded-full overflow-hidden
       bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] to-[#FF00E5]
       shadow-[0_4px_15px_rgba(0,231,255,0.3)] hover:shadow-[0_6px_25px_rgba(122,43,255,0.4)] transition-all duration-200"
   >
-    <div className="flex items-center gap-2">
-      <Icon className="h-5 w-5 text-white" />
-      <span className="text-sm font-medium text-white uppercase tracking-wide">
+    <div className="flex items-center gap-1.5 min-w-0">
+      <Icon className="h-4 w-4 text-white shrink-0" />
+      <span className="text-xs font-medium text-white uppercase tracking-wide truncate">
         {label}
       </span>
     </div>
-    <span className="text-lg font-bold text-[#FFD700] drop-shadow-[0_0_4px_rgba(255,215,0,0.5)]">
-      {loading ? "..." : <CounterAnimation value={value} duration={800} />}
+    <span className="text-base font-bold text-[#FFD700] drop-shadow-[0_0_4px_rgba(255,215,0,0.5)] whitespace-nowrap ml-2">
+      {loading ? "..." : <CounterAnimation value={value} duration={800} compact />}
     </span>
   </motion.div>
 );
@@ -44,10 +44,10 @@ export const HonoboardRightSidebar = ({ className }: HonoboardRightSidebarProps)
   const { stats, loading } = useHonobarStats();
 
   const statItems = [
-    { icon: Users, label: "TOTAL USERS", value: stats.totalUsers },
-    { icon: MessageCircle, label: "TOTAL COMMENTS", value: stats.totalComments },
-    { icon: Eye, label: "TOTAL VIEWS", value: stats.totalViews },
-    { icon: Video, label: "TOTAL VIDEOS", value: stats.totalVideos },
+    { icon: Users, label: "USERS", value: stats.totalUsers },
+    { icon: MessageCircle, label: "COMMENTS", value: stats.totalComments },
+    { icon: Eye, label: "VIEWS", value: stats.totalViews },
+    { icon: Video, label: "VIDEOS", value: stats.totalVideos },
     { icon: Coins, label: "CAMLY POOL", value: stats.camlyPool },
   ];
 
