@@ -1,95 +1,94 @@
 
-# Plan: Fix "Tai ve" (Download) & "Chia se" (Share) cho AI Music
 
-## Van de phat hien
+# Plan: Hoan Thien Tinh Nang Chia Se Bai Hat AI Music
 
-### 1. Download - Loi blob download trong iframe
-- Edge function `download-ai-music` hoat dong tot (Status 200, tra ve MP3 data)
-- Nhung cach tao blob URL + click `<a>` de download co the khong hoat dong dung trong preview iframe
-- Can chuyen sang dung `supabase.functions.invoke` voi `responseType` phu hop, kem fallback mo tab moi
+## Van de da xac nhan
 
-### 2. Share - URL sai duong dan
-- `ShareModal` tao link `/music/{id}` cho `contentType="music"` 
-- Nhung route that su la `/ai-music/:id`
-- Ket qua: link chia se dan den trang 404
+### 1. Prerender Edge Function chua duoc deploy (LOI CHINH)
+- Test truc tiep tra ve **HTTP 404** - function khong ton tai tren server
+- Khong co logs nao tu function nay
+- Code va config.toml deu dung nhung function chua duoc deploy len server
 
-### 3. Prerender - Thieu handler cho AI Music
-- Prerender function nhan dien path `/ai-music/` nhung khong fetch du lieu tu bang `ai_generated_music`
-- Chi co handler cho `music`/`video` (fetch tu bang `videos`) va `channel`
-- Ket qua: khi share len mang xa hoi, OG meta tags hien thi thong tin mac dinh thay vi thong tin bai hat
+**Hau qua**: Khi chia se len Facebook, Twitter, LinkedIn - bot cua mang xa hoi khong doc duoc thong tin bai hat (tieu de, hinh anh, mo ta) nen hien thi trang/loi.
+
+### 2. Share URL su dung URL preview thay vi URL production
+- `window.location.origin` trong moi truong preview tra ve URL noi bo cua Lovable
+- Link chia se can dung URL chinh thuc (published URL) de nguoi nhan co the truy cap
+
+### 3. Telegram/WhatsApp/Zalo dung direct URL
+- Cac nen tang nay su dung shareUrl truc tiep (khong qua prerender)
+- Nhung SPA (Single Page App) khong co OG tags cho bot doc -> preview ngheo nan
 
 ## Giai phap
 
-### Buoc 1: Fix ShareModal - Them content type "ai-music"
+### Buoc 1: Deploy lai Prerender Edge Function
+- Su dung tool deploy de push function len server
+- Verify bang cach goi truc tiep URL voi path `/ai-music/{id}`
+- Dam bao tra ve HTML voi day du OG tags
+
+### Buoc 2: Fix Share URL trong ShareModal
+- Thay `window.location.origin` bang URL production cho chia se ra ngoai
+- Su dung bien moi truong `VITE_SUPABASE_PROJECT_ID` hoac hardcode published URL
+- Dam bao link chia se luon la URL chinh thuc ma nguoi dung co the truy cap
 
 **File**: `src/components/Video/ShareModal.tsx`
 
-- Them `'ai-music'` vao `ShareContentType`
-- Sua `getShareUrl()`: khi `contentType === 'ai-music'` tra ve `/ai-music/${id}`
-- Sua `getPrerenderUrl()`: khi `contentType === 'ai-music'` tra ve path `/ai-music/${id}`
-- Sua `getContentTypeLabel()`: tra ve `'bai hat AI'` cho `ai-music`
+Thay doi `getShareUrl()`:
+- Su dung published URL (`https://official-funplay.lovable.app`) lam base URL cho chia se
+- Giu `window.location.origin` cho truong hop fallback khi khong co published URL
 
-### Buoc 2: Fix AIMusicDetail - Sua contentType va Download
+### Buoc 3: Dung Prerender URL cho tat ca cac nen tang mang xa hoi
+- Hien tai chi Facebook, Twitter, LinkedIn, Messenger dung prerenderUrl
+- Them Telegram, WhatsApp, Zalo vao danh sach dung prerenderUrl
+- Vì bot cua Telegram/Zalo cung can doc OG tags tu prerender
 
-**File**: `src/pages/AIMusicDetail.tsx`
+**File**: `src/components/Video/ShareModal.tsx`
 
-- Doi `contentType="music"` thanh `contentType="ai-music"` trong ShareModal
-- Cai thien `handleDownload`:
-  - Dung `supabase.functions.invoke('download-ai-music', ...)` thay vi raw `fetch`
-  - Them fallback: neu blob download that bai, mo URL truc tiep trong tab moi
-  - Them loading state (spinner) khi dang tai
+Cap nhat `handleShare()`:
+- Telegram: dung prerenderUrl thay vi shareUrl
+- Zalo: dung prerenderUrl thay vi shareUrl  
+- WhatsApp: dung prerenderUrl thay vi shareUrl
 
-### Buoc 3: Fix Prerender - Them handler cho ai-music
-
-**File**: `supabase/functions/prerender/index.ts`
-
-- Them handler cho `type === "ai-music"`:
-  - Fetch tu bang `ai_generated_music` (id, title, style, thumbnail_url, audio_url, play_count)
-  - Set OG type = `music.song`
-  - Set OG audio = `audio_url`
-  - Tao title va description phu hop: `"{title}" - Fun Music AI`
+### Buoc 4: Test end-to-end
+- Goi prerender function voi path ai-music de verify OG tags
+- Test copy link
+- Test chia se len Telegram, Facebook
 
 ## Chi tiet ky thuat
 
-### ShareModal type update
+### Deploy prerender
+- Function da co code dung (xu ly `/ai-music/` path, fetch tu bang `ai_generated_music`)
+- Chi can deploy lai len server
+
+### Share URL fix
 ```text
-ShareContentType = 'video' | 'music' | 'channel' | 'ai-music'
+// Hien tai (SAI trong preview):
+shareUrl = "https://id-preview--53abc96f...lovable.app/ai-music/xxx"
 
-getShareUrl():
-  'ai-music' -> /ai-music/{id}
-
-getPrerenderUrl():
-  'ai-music' -> /ai-music/{id}
+// Sau fix (DUNG):
+shareUrl = "https://official-funplay.lovable.app/ai-music/xxx"
 ```
 
-### Download flow cai tien
+### Prerender URL cho social platforms
 ```text
-User click "Tai ve"
-  -> Set isDownloading = true
-  -> supabase.functions.invoke('download-ai-music', { musicId })
-  -> Convert response to blob
-  -> Create blob URL + trigger download
-  -> Fallback: window.open(audio_url) neu blob that bai
-  -> Set isDownloading = false
-```
+// Hien tai:
+Telegram -> shareUrl (bot khong doc duoc OG tags)
+WhatsApp -> shareUrl (bot khong doc duoc OG tags)
+Zalo -> shareUrl (bot khong doc duoc OG tags)
 
-### Prerender ai-music handler
-```text
-if (type === "ai-music")
-  -> SELECT from ai_generated_music WHERE id = :id
-  -> title = "{music.title} - Fun Music AI"
-  -> description = "Nghe bai hat AI \"{music.title}\" tren FUN Play"
-  -> image = music.thumbnail_url
-  -> ogType = "music.song"
-  -> audioUrl = music.audio_url
+// Sau fix:
+Telegram -> prerenderUrl (bot doc duoc OG tags day du)
+WhatsApp -> prerenderUrl (bot doc duoc OG tags day du)  
+Zalo -> prerenderUrl (bot doc duoc OG tags day du)
 ```
 
 ## Tom tat thay doi
 
-| File | Thay doi |
-|------|----------|
-| `src/components/Video/ShareModal.tsx` | Them 'ai-music' content type + URL mapping |
-| `src/pages/AIMusicDetail.tsx` | Doi contentType, cai thien handleDownload |
-| `supabase/functions/prerender/index.ts` | Them ai-music handler fetch tu ai_generated_music |
+| Hanh dong | Chi tiet |
+|-----------|----------|
+| Deploy edge function | `prerender` - deploy lai len server |
+| Cap nhat ShareModal | Fix base URL + dung prerenderUrl cho moi nen tang |
+| Test | Verify prerender function + test chia se |
 
-**Tong cong**: 3 files can cap nhat
+**Tong cong**: 1 function deploy + 1 file cap nhat + testing
+
