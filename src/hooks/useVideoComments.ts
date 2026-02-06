@@ -222,24 +222,20 @@ export function useVideoComments(videoId: string | undefined): UseVideoCommentsR
 
       if (error) throw error;
 
-      // Update video comment count
+      // Update video comment count manually
       if (!parentId) {
-        await supabase.rpc('increment_comment_count', { vid: videoId }).catch(() => {
-          // Fallback: manual update
-          supabase
+        const { data: videoData } = await supabase
+          .from("videos")
+          .select("comment_count")
+          .eq("id", videoId)
+          .single();
+
+        if (videoData) {
+          await supabase
             .from("videos")
-            .select("comment_count")
-            .eq("id", videoId)
-            .single()
-            .then(({ data }) => {
-              if (data) {
-                supabase
-                  .from("videos")
-                  .update({ comment_count: (data.comment_count || 0) + 1 })
-                  .eq("id", videoId);
-              }
-            });
-        });
+            .update({ comment_count: (videoData.comment_count || 0) + 1 })
+            .eq("id", videoId);
+        }
       }
 
       toast({

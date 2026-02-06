@@ -120,7 +120,7 @@ export function CommentContent({ content, onSeek }: CommentContentProps) {
             <button
               key={index}
               onClick={() => handleMentionClick(part.username!)}
-              className="text-blue-500 hover:text-blue-400 font-medium hover:underline"
+              className="text-primary hover:text-primary/80 font-medium hover:underline transition-colors"
             >
               {part.value}
             </button>
