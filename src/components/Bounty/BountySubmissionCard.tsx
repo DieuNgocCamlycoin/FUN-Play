@@ -1,21 +1,21 @@
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ChevronUp, Lightbulb, Bug, MessageSquare, Sparkles, Award, ExternalLink } from "lucide-react";
-import { format } from "date-fns";
+import { Heart, User } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { vi } from "date-fns/locale";
 import type { BountySubmission } from "@/hooks/useBountySubmissions";
 
-const TYPE_CONFIG: Record<string, { label: string; icon: any; color: string }> = {
-  idea: { label: "Ý tưởng", icon: Lightbulb, color: "text-yellow-500" },
-  bug: { label: "Báo lỗi", icon: Bug, color: "text-red-500" },
-  feedback: { label: "Phản hồi", icon: MessageSquare, color: "text-blue-500" },
-  feature: { label: "Tính năng", icon: Sparkles, color: "text-purple-500" },
-  // Fallbacks for old categories
-  bug_report: { label: "Báo Lỗi", icon: Bug, color: "text-red-500" },
-  feature_request: { label: "Đề Xuất", icon: Lightbulb, color: "text-yellow-500" },
-  content: { label: "Nội Dung", icon: MessageSquare, color: "text-blue-500" },
-  translation: { label: "Dịch Thuật", icon: MessageSquare, color: "text-green-500" },
-  other: { label: "Khác", icon: MessageSquare, color: "text-muted-foreground" },
+const TYPE_CONFIG: Record<string, { label: string; bgColor: string; textColor: string }> = {
+  idea: { label: "💡 Ý tưởng", bgColor: "bg-yellow-100", textColor: "text-yellow-700" },
+  bug: { label: "🐛 Báo lỗi", bgColor: "bg-red-100", textColor: "text-red-600" },
+  feedback: { label: "💬 Feedback", bgColor: "bg-blue-100", textColor: "text-blue-600" },
+  feature: { label: "✨ Đề xuất tính năng", bgColor: "bg-green-100", textColor: "text-green-600" },
+  // Fallbacks
+  bug_report: { label: "🐛 Báo Lỗi", bgColor: "bg-red-100", textColor: "text-red-600" },
+  feature_request: { label: "💡 Đề Xuất", bgColor: "bg-yellow-100", textColor: "text-yellow-700" },
+  content: { label: "💬 Nội Dung", bgColor: "bg-blue-100", textColor: "text-blue-600" },
+  translation: { label: "🌐 Dịch Thuật", bgColor: "bg-emerald-100", textColor: "text-emerald-600" },
+  other: { label: "📝 Khác", bgColor: "bg-gray-100", textColor: "text-gray-600" },
 };
 
 interface BountySubmissionCardProps {
@@ -33,67 +33,71 @@ export function BountySubmissionCard({
 }: BountySubmissionCardProps) {
   const typeKey = submission.contribution_type || submission.category;
   const typeInfo = TYPE_CONFIG[typeKey] || TYPE_CONFIG.other;
-  const TypeIcon = typeInfo.icon;
+
+  const isRewarded = submission.status === "rewarded" && submission.reward_amount > 0;
+  const timeAgo = formatDistanceToNow(new Date(submission.created_at), {
+    addSuffix: true,
+    locale: vi,
+  });
 
   return (
-    <Card className="border-border/50 bg-card/80 backdrop-blur-sm hover:shadow-md transition-shadow">
-      <CardContent className="p-4">
-        <div className="flex gap-3">
-          {/* Upvote button */}
-          <div className="flex flex-col items-center gap-0.5">
-            <Button
-              variant="ghost"
-              size="sm"
-              className={`h-8 w-8 p-0 rounded-full ${
-                hasUpvoted
-                  ? "bg-primary/20 text-primary hover:bg-primary/30"
-                  : "hover:bg-muted text-muted-foreground"
-              }`}
-              onClick={() => onToggleUpvote(submission.id)}
-              disabled={isTogglingUpvote}
-            >
-              <ChevronUp className="w-5 h-5" />
-            </Button>
-            <span className={`text-sm font-bold ${hasUpvoted ? "text-primary" : "text-muted-foreground"}`}>
-              {submission.upvote_count || 0}
-            </span>
-          </div>
+    <Card className="border border-border/50 shadow-sm hover:shadow-md transition-shadow">
+      <CardContent className="p-4 space-y-2.5">
+        {/* Top: Type badge + Rewarded badge */}
+        <div className="flex items-center justify-between">
+          <Badge
+            variant="outline"
+            className={`text-[11px] font-medium border-0 ${typeInfo.bgColor} ${typeInfo.textColor} rounded-full px-2.5 py-0.5`}
+          >
+            {typeInfo.label}
+          </Badge>
+          {isRewarded && (
+            <Badge className="text-[11px] font-medium bg-green-100 text-green-600 border-0 rounded-full px-2.5 py-0.5">
+              ✅ Rewarded
+            </Badge>
+          )}
+        </div>
 
-          {/* Content */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap mb-1">
-              <Badge variant="outline" className="gap-1 text-xs">
-                <TypeIcon className={`w-3 h-3 ${typeInfo.color}`} />
-                {typeInfo.label}
-              </Badge>
-              {submission.status === "rewarded" && submission.reward_amount > 0 && (
-                <Badge className="bg-yellow-500/20 text-yellow-600 border-yellow-500/30 gap-1 text-xs">
-                  <Award className="w-3 h-3" />
-                  {submission.reward_amount} CAMLY
-                </Badge>
-              )}
-            </div>
+        {/* Title */}
+        <h3 className="font-bold text-sm leading-snug text-foreground">
+          {submission.title}
+        </h3>
 
-            <h3 className="font-semibold text-sm leading-tight">{submission.title}</h3>
-            <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{submission.description}</p>
+        {/* Description */}
+        <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+          {submission.description}
+        </p>
 
-            {submission.image_url && (
-              <a
-                href={submission.image_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-1"
-              >
-                <ExternalLink className="w-3 h-3" /> Xem ảnh
-              </a>
-            )}
+        {/* Author + Date */}
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <User className="w-3 h-3" />
+          <span>{submission.name || "Ẩn danh"}</span>
+          <span className="mx-0.5">·</span>
+          <span>{timeAgo}</span>
+        </div>
 
-            <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-              <span>{submission.name || "Ẩn danh"}</span>
-              <span>·</span>
-              <span>{format(new Date(submission.created_at), "dd/MM/yyyy")}</span>
-            </div>
-          </div>
+        {/* Bottom: Upvote + Reward amount */}
+        <div className="flex items-center justify-between pt-1">
+          <button
+            onClick={() => onToggleUpvote(submission.id)}
+            disabled={isTogglingUpvote}
+            className={`flex items-center gap-1.5 text-xs transition-colors ${
+              hasUpvoted
+                ? "text-pink-500"
+                : "text-muted-foreground hover:text-pink-400"
+            }`}
+          >
+            <Heart
+              className={`w-4 h-4 ${hasUpvoted ? "fill-pink-500" : ""}`}
+            />
+            <span>{submission.upvote_count || 0}</span>
+          </button>
+
+          {isRewarded && (
+            <Badge className="text-[11px] font-bold bg-amber-50 text-amber-600 border border-amber-200 rounded-full px-2.5 py-0.5">
+              ✨ {submission.reward_amount.toLocaleString()} CAMLY
+            </Badge>
+          )}
         </div>
       </CardContent>
     </Card>
