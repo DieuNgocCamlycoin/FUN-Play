@@ -1,9 +1,10 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 
 interface CommentContentProps {
   content: string;
+  onTimestampClick?: (seconds: number) => void;
+  /** @deprecated Use onTimestampClick instead */
   onSeek?: (seconds: number) => void;
 }
 
@@ -14,22 +15,33 @@ type ContentPart = {
   username?: string;
 };
 
-export function CommentContent({ content, onSeek }: CommentContentProps) {
+// Parse timestamp string to seconds
+function parseTimestamp(timestamp: string): number {
+  const parts = timestamp.split(":").map(Number);
+  
+  if (parts.length === 3) {
+    return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  } else if (parts.length === 2) {
+    return parts[0] * 60 + parts[1];
+  }
+  
+  return 0;
+}
+
+export function CommentContent({ content, onTimestampClick, onSeek }: CommentContentProps) {
   const navigate = useNavigate();
+  const handleTimestamp = onTimestampClick || onSeek;
 
   const parts = useMemo(() => {
     const result: ContentPart[] = [];
     
     // Combined regex for timestamps and mentions
-    // Timestamps: 0:00, 1:23, 12:34, 1:23:45
-    // Mentions: @username
     const regex = /(@\w+)|(\d{1,2}:\d{2}(?::\d{2})?)/g;
     
     let lastIndex = 0;
     let match;
 
     while ((match = regex.exec(content)) !== null) {
-      // Add text before match
       if (match.index > lastIndex) {
         result.push({
           type: "text",
@@ -39,7 +51,7 @@ export function CommentContent({ content, onSeek }: CommentContentProps) {
 
       if (match[1]) {
         // Mention
-        const username = match[1].slice(1); // Remove @
+        const username = match[1].slice(1);
         result.push({
           type: "mention",
           value: match[1],
@@ -58,7 +70,6 @@ export function CommentContent({ content, onSeek }: CommentContentProps) {
       lastIndex = match.index + match[0].length;
     }
 
-    // Add remaining text
     if (lastIndex < content.length) {
       result.push({
         type: "text",
@@ -69,45 +80,18 @@ export function CommentContent({ content, onSeek }: CommentContentProps) {
     return result;
   }, [content]);
 
-  const handleMentionClick = async (username: string) => {
-    try {
-      // Find user by username and navigate to their channel
-      const { data } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("username", username)
-        .maybeSingle();
-
-      if (data) {
-        const { data: channel } = await supabase
-          .from("channels")
-          .select("id")
-          .eq("user_id", data.id)
-          .maybeSingle();
-
-        if (channel) {
-          navigate(`/channel/${channel.id}`);
-        }
-      }
-    } catch (error) {
-      console.error("Error finding user channel:", error);
-    }
-  };
-
-  const handleTimestampClick = (seconds: number) => {
-    if (onSeek) {
-      onSeek(seconds);
-    }
+  const handleMentionClick = (username: string) => {
+    navigate(`/channel?search=${username}`);
   };
 
   return (
     <span className="whitespace-pre-wrap break-words">
       {parts.map((part, index) => {
-        if (part.type === "timestamp") {
+        if (part.type === "timestamp" && handleTimestamp) {
           return (
             <button
               key={index}
-              onClick={() => handleTimestampClick(part.seconds!)}
+              onClick={() => handleTimestamp(part.seconds!)}
               className="text-primary hover:text-primary/80 font-medium hover:underline transition-colors"
             >
               {part.value}
@@ -131,19 +115,4 @@ export function CommentContent({ content, onSeek }: CommentContentProps) {
       })}
     </span>
   );
-}
-
-// Parse timestamp string to seconds
-function parseTimestamp(timestamp: string): number {
-  const parts = timestamp.split(":").map(Number);
-  
-  if (parts.length === 3) {
-    // HH:MM:SS
-    return parts[0] * 3600 + parts[1] * 60 + parts[2];
-  } else if (parts.length === 2) {
-    // MM:SS
-    return parts[0] * 60 + parts[1];
-  }
-  
-  return 0;
 }
