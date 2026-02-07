@@ -177,6 +177,30 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
 
       <div className="flex items-center gap-2">
         <GlobalDonateButton />
+        
+        {/* MINT FUN MONEY Button */}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                onClick={() => navigate("/fun-money")}
+                className="hidden md:flex items-center gap-2 px-3 py-2 h-auto rounded-full bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-primary/10 hover:from-cyan-500/20 hover:via-blue-500/20 hover:to-primary/20 border border-cyan-400/30 hover:border-cyan-400/50 transition-all duration-300"
+              >
+                <img 
+                  src="/images/fun-money-coin.png" 
+                  alt="FUN Money" 
+                  className="h-6 w-6 rounded-full object-cover ring-2 ring-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.4)]"
+                />
+                <span className="text-sm font-semibold bg-gradient-to-r from-cyan-500 to-blue-500 bg-clip-text text-transparent">
+                  MINT
+                </span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Mint FUN Money - PPLP Protocol</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        
         <WalletButton />
         
         {user && (
