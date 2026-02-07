@@ -193,16 +193,14 @@ serve(async (req) => {
         status: transactionStatus,
         chain: tokenData.chain,
         metadata: {
-          sender_ip_hash: null, // Could be hashed from request
+          sender_ip_hash: null,
           user_agent: req.headers.get("user-agent"),
           created_at_ms: Date.now(),
         },
       })
       .select(`
         *,
-        token:donate_tokens(symbol, name, icon_url, chain),
-        sender:profiles!donation_transactions_sender_id_fkey(username, display_name, avatar_url),
-        receiver:profiles!donation_transactions_receiver_id_fkey(username, display_name, avatar_url)
+        token:donate_tokens(symbol, name, icon_url, chain)
       `)
       .single();
 
@@ -213,6 +211,24 @@ serve(async (req) => {
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Fetch sender and receiver profiles separately (no FK constraint)
+    const { data: senderProfile } = await supabase
+      .from("profiles")
+      .select("username, display_name, avatar_url")
+      .eq("id", user.id)
+      .single();
+
+    // Build complete transaction object
+    const completeTransaction = {
+      ...transaction,
+      sender: senderProfile,
+      receiver: {
+        username: receiver.username,
+        display_name: receiver.display_name,
+        avatar_url: null,
+      },
+    };
 
     // Create chat message for donation notification
     try {
@@ -241,8 +257,8 @@ serve(async (req) => {
           sender_id: user.id,
           message_type: "donation",
           content: `🎁 Đã tặng ${amount} ${tokenData.symbol}${message ? `: "${message}"` : ""}`,
-          donation_transaction_id: transaction.id,
-          deep_link: `/receipt/${transaction.receipt_public_id}`,
+          donation_transaction_id: completeTransaction.id,
+          deep_link: `/receipt/${completeTransaction.receipt_public_id}`,
         });
       }
     } catch (chatError) {
@@ -253,8 +269,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        transaction,
-        receipt_url: `/receipt/${transaction.receipt_public_id}`,
+        transaction: completeTransaction,
+        receipt_url: `/receipt/${completeTransaction.receipt_public_id}`,
         requires_wallet: tokenData.chain === "bsc",
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
