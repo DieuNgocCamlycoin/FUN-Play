@@ -19,6 +19,7 @@ interface NavItem {
   href: string;
   special?: boolean;
   isWallet?: boolean;
+  isFunMoney?: boolean;
   external?: boolean;
 }
 
@@ -57,10 +58,10 @@ const funPlatformItems: NavItem[] = [
     isWallet: true
   },
   { 
-    icon: Coins,
+    customIcon: '/images/fun-money-coin.png',
     label: "FUN Money", 
     href: "/fun-money",
-    special: true
+    isFunMoney: true
   },
 ];
 
@@ -143,14 +144,20 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                   className={cn(
                     "w-full justify-start gap-6 px-3 py-2.5 h-auto hover:bg-primary/10 hover:text-primary transition-all duration-300",
                     !item.external && location.pathname === item.href && "bg-primary/10 text-primary font-semibold",
-                    item.isWallet && "bg-gradient-to-r from-yellow-500/10 via-orange-500/10 to-yellow-600/10 hover:from-yellow-500/20 hover:via-orange-500/20 hover:to-yellow-600/20 border border-yellow-500/20"
+                    item.isWallet && "bg-gradient-to-r from-yellow-500/10 via-orange-500/10 to-yellow-600/10 hover:from-yellow-500/20 hover:via-orange-500/20 hover:to-yellow-600/20 border border-yellow-500/20",
+                    item.isFunMoney && "bg-gradient-to-r from-primary/10 via-cyan-500/10 to-blue-500/10 hover:from-primary/20 hover:via-cyan-500/20 hover:to-blue-500/20 border border-primary/20"
                   )}
                 >
                   {item.customIcon && (
                     <img 
                       src={item.customIcon} 
                       alt={item.label} 
-                      className="h-6 w-6 rounded-full shadow-md object-cover ring-2 ring-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.4)]"
+                      className={cn(
+                        "h-6 w-6 rounded-full shadow-md object-cover ring-2",
+                        item.isFunMoney 
+                          ? "ring-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.4)]" 
+                          : "ring-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.4)]"
+                      )}
                     />
                   )}
                   <span className="text-sky-700 font-semibold">
