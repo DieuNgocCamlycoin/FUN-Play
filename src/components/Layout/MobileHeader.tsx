@@ -3,13 +3,13 @@ import funplayLogo from "@/assets/funplay-logo.jpg";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CAMLYMiniWidget } from "@/components/Web3/CAMLYMiniWidget";
-import { FunWalletMiniWidget } from "@/components/Web3/FunWalletMiniWidget";
+import { WalletButton } from "@/components/Wallet/WalletButton";
 import { AngelChat } from "@/components/Mascot/AngelChat";
-import { UnifiedClaimButton } from "@/components/Rewards/UnifiedClaimButton";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { useNavigate } from "react-router-dom";
+import { cn } from "@/lib/utils";
+import {
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -149,11 +149,8 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
         {/* Right - Actions */}
         <TooltipProvider delayDuration={300}>
           <div className="flex items-center gap-px shrink-0">
-            {/* FUN Wallet Widget */}
-            <FunWalletMiniWidget compact className="mr-0.5" />
-            
-            {/* CAMLY Price Widget */}
-            <CAMLYMiniWidget compact className="mr-1" />
+            {/* WALLET Button - Replaces 3 old widgets */}
+            <WalletButton compact />
             
             {/* Search */}
             <Tooltip>
@@ -171,9 +168,6 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
                 Tìm kiếm
               </TooltipContent>
             </Tooltip>
-
-            {/* Unified Claim Button - Replaces separate Coins + Wallet buttons */}
-            <UnifiedClaimButton compact />
 
             {/* Create Button */}
             <Tooltip>
