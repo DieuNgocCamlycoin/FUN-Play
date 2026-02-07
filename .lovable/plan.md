@@ -1,221 +1,239 @@
 
-# FUN PLAY WALLET - Hợp Nhất Trung Tâm Tài Chính
+# TỔNG KIỂM TRA – TỐI ƯU – LÀM SẠCH HỆ THỐNG FUN PLAY
 
-## Tổng Quan
+## Tổng Quan Phát Hiện
 
-Refactor và hợp nhất 3 components riêng lẻ trên Header (Kết nối ví, Giá CAMLY, Claim) thành 1 nút **"WALLET"** duy nhất, dẫn đến trang **FUN PLAY WALLET** - Trung tâm Tài chính cho toàn bộ hệ sinh thái FUN PLAY.
-
----
-
-## 1. Thay Đổi Header
-
-### 1.1 Xóa/Thay Thế Components
-
-| Hiện Tại | Sau Khi Refactor |
-|----------|------------------|
-| `<FunWalletMiniWidget />` | ❌ Xóa |
-| `<CAMLYMiniWidget />` | ❌ Xóa |
-| `<UnifiedClaimButton />` | ❌ Xóa |
-| (không có) | ✅ `<WalletButton />` mới |
-
-### 1.2 WalletButton Component Mới
-
-- **Icon**: Sử dụng ảnh FUN Wallet được cung cấp (sẽ copy vào `public/images/fun-play-wallet-icon.png`)
-- **Label**: "WALLET"
-- **Style**: Giữ nguyên vị trí, gradient pastel, glow effect như nút Claim hiện tại
-- **Logic**:
-  - Nếu chưa đăng nhập → Redirect `/auth`
-  - Nếu đã đăng nhập → Navigate `/wallet`
-  - Hiển thị badge số pending rewards (nếu có)
+Sau khi rà soát toàn bộ codebase, tôi đã xác định được các vấn đề cần xử lý để hệ thống chạy **mượt – nhẹ – ổn định – dễ mở rộng**.
 
 ---
 
-## 2. Trang FUN PLAY WALLET (`/wallet`)
+## PHẦN 1: KIỂM TRA KIẾN TRÚC & CODEBASE
 
-### Layout Tổng Thể
+### 1.1 Console.log Cần Xóa (495 matches trong 30 files)
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│ HEADER: FUN PLAY WALLET                    [Kết nối ví] [Back] │
-├─────────────────────────────────────────────────────────────────┤
-│ SECTION 1: TỔNG QUAN & GIÁ CAMLY                               │
-│ ┌───────────────────────────────────────────────────────────┐  │
-│ │ Giá: $0.00000123  (+5.2% 24h)  [DexScreener] [BSCScan]    │  │
-│ │ Chart với timeframe: 5p | 15p | 1h | 1d                   │  │
-│ └───────────────────────────────────────────────────────────┘  │
-├─────────────────────────────────────────────────────────────────┤
-│ SECTION 2: CLAIM REWARDS                                        │
-│ ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐    │
-│ │ Tổng CAMLY      │ │ Có thể Claim    │ │ Đang chờ duyệt │    │
-│ │ 391,000         │ │ 214,000 ✅      │ │ 177,000 ⏳     │    │
-│ └─────────────────┘ └─────────────────┘ └─────────────────┘    │
-│ [==========Threshold Progress 200K==========]                   │
-│ [                  CLAIM CAMLY                   ]              │
-├─────────────────────────────────────────────────────────────────┤
-│ SECTION 3: TOP SPONSOR (MẠNH THƯỜNG QUÂN)                      │
-│ Avatar | Username | Total Donated | Token                       │
-├─────────────────────────────────────────────────────────────────┤
-│ SECTION 4: LỊCH SỬ GIAO DỊCH                                   │
-│ Filter: [Token ▾] [Thời gian ▾] [Gửi/Nhận ▾] [Search]          │
-│ Table: Thời gian | Gửi | Nhận | Token | Số tiền | Trạng thái  │
-├─────────────────────────────────────────────────────────────────┤
-│ SECTION 5: EXPORT                                               │
-│ [Export CSV] [Export PDF]                                       │
-└─────────────────────────────────────────────────────────────────┘
+**Ưu tiên cao - Files cần làm sạch:**
+
+| File | Số lượng | Hành động |
+|------|----------|-----------|
+| `src/hooks/useCryptoPrices.tsx` | 8 logs | Xóa hoặc chuyển thành debug mode |
+| `src/hooks/useR2Upload.ts` | 6 logs | Giữ cho debugging upload |
+| `src/components/VersionCheck.tsx` | 5 logs | Chuyển thành debug flag |
+| `src/pages/Watch.tsx` | 3 logs | Xóa |
+| `src/lib/enhancedRewards.ts` | 1 log | Xóa (âm thanh play) |
+| `src/lib/web3Config.ts` | 1 log | Giữ (debug logger) |
+
+**Giải pháp:** Tạo utility `debugLog()` chỉ log khi `DEBUG=true` thay vì console.log trực tiếp.
+
+### 1.2 Components/Hooks Trùng Lặp Chức Năng
+
+**Phát hiện trùng lặp nghiêm trọng:**
+
+| Component Cũ | Component Mới | Hành động |
+|--------------|---------------|-----------|
+| `UnifiedClaimButton` (456 dòng) | `WalletButton` (240 dòng) | **XÓA** `UnifiedClaimButton` - đã được thay thế bởi WALLET button |
+| `FunWalletMiniWidget` | `WalletButton` | **XÓA** - đã gộp vào WALLET |
+| `CAMLYMiniWidget` | `CAMLYPriceSection` | **XÓA** - đã gộp vào trang Wallet |
+
+**Lợi ích:** Giảm ~700 dòng code, giảm số lượng realtime subscriptions trùng.
+
+### 1.3 Realtime Subscriptions - VẤN ĐỀ LỚN
+
+**Phát hiện 23 files đang tạo realtime channels riêng lẻ:**
+
+Các channels đang subscribe cùng một bảng `profiles`:
+- `wallet-button-rewards`
+- `unified-claim-rewards` 
+- `claim-section-updates`
+- `claim-modal-rewards`
+- `profile-updates-homepage`
+- `reward-approval-notification`
+- `honobar-profiles`
+
+**Vấn đề:** Mỗi khi profile cập nhật, 7+ channels đều nhận event → gây re-render không cần thiết.
+
+**Giải pháp:** Tạo **Global Profile Subscription Hook** duy nhất:
+
+```typescript
+// src/hooks/useGlobalRealtimeProfile.ts
+// Single subscription, broadcast via window events
+```
+
+### 1.4 useEffect Dependencies Cần Tối Ưu
+
+**File `useTopSponsors.ts`:**
+- Không có cleanup delay/debounce khi realtime event xảy ra
+- Mỗi transaction update sẽ trigger fetch toàn bộ
+
+**File `useTopRanking.ts`:**
+- Subscribe tất cả events (*) trên bảng profiles → quá rộng
+- Chỉ cần UPDATE event và lọc theo `total_camly_rewards`
+
+---
+
+## PHẦN 2: UI/UX & INTERACTIVITY
+
+### 2.1 Z-Index System - Đã Ổn Định
+
+Hệ thống z-index hiện tại đã được chuẩn hóa:
+- Modal/Dialog: `z-[10002]`
+- Select/Dropdown/Popover: `z-[10003]`
+- Web3Modal: `z-[99999]`
+
+**Không cần thay đổi.**
+
+### 2.2 Hologram Input - Đã Có Guard
+
+File `src/index.css` đã định nghĩa `.hologram-input` với:
+- `pointer-events: auto !important`
+- `isolation: isolate`
+
+**Đã ổn định.**
+
+### 2.3 Modal Reset Loop - Đã Fix
+
+`EnhancedDonateModal` đã sử dụng pattern `didInitRef` đúng cách (line 86).
+
+**Đã ổn định.**
+
+---
+
+## PHẦN 3: DATABASE & BACKEND (SUPABASE)
+
+### 3.1 Linter Warnings (2 issues)
+
+| Issue | Mức độ | Hành động |
+|-------|--------|-----------|
+| RLS Policy Always True | WARN | Kiểm tra bảng nào đang dùng `USING (true)` cho UPDATE/DELETE |
+| Leaked Password Protection Disabled | WARN | Enable trong Supabase Auth settings |
+
+### 3.2 Query Optimization Cần Thiết
+
+**`TransactionHistorySection.tsx` (lines 64-138):**
+```typescript
+// Hiện tại: 3 queries riêng lẻ
+// 1. reward_transactions (limit 100)
+// 2. donation_transactions sent (limit 50) 
+// 3. donation_transactions received (limit 50)
+```
+
+**Tối ưu:** Gom thành 1-2 queries với union hoặc sử dụng database function.
+
+**`useTopSponsors.ts`:**
+- Fetch TẤT CẢ wallet_transactions rồi aggregate trong JS
+- Nên tạo DB function `get_top_sponsors(limit)` để aggregate server-side
+
+### 3.3 Indexes Cần Thêm
+
+```sql
+-- Tối ưu transaction history queries
+CREATE INDEX idx_reward_transactions_user_created 
+ON reward_transactions(user_id, created_at DESC);
+
+CREATE INDEX idx_donation_transactions_sender_created 
+ON donation_transactions(sender_id, created_at DESC);
+
+CREATE INDEX idx_donation_transactions_receiver_created 
+ON donation_transactions(receiver_id, created_at DESC);
 ```
 
 ---
 
-## 3. Chi Tiết Các Section
+## PHẦN 4: FILES CẦN XÓA/SỬA
 
-### Section 1: Giá CAMLY & Chart
+### 4.1 Files Cần Xóa (Code Chết)
 
-- **Data Source**: 
-  - Giá CAMLY từ `useCryptoPrices` hook
-  - Chart: Embed DexScreener iframe hoặc fetch từ API
-- **Contract**: `0x0910320181889fefde0bb1ca63962b0a8882e413`
-- **Buttons**:
-  - "View on DexScreener" → `https://dexscreener.com/bsc/0x0910320181889fefde0bb1ca63962b0a8882e413`
-  - "View on BSCScan" → `https://bscscan.com/token/0x0910320181889fefde0bb1ca63962b0a8882e413`
-- **Timeframes**: 5p, 15p, 1h, 1d tabs
+| File | Lý do |
+|------|-------|
+| `src/components/Rewards/UnifiedClaimButton.tsx` | Đã thay bằng WalletButton |
+| `src/components/Web3/FunWalletMiniWidget.tsx` | Đã gộp vào WALLET page |
+| `src/components/Web3/CAMLYMiniWidget.tsx` | Đã gộp vào WALLET page |
 
-### Section 2: Claim Rewards
+### 4.2 Files Cần Sửa
 
-- **Cards**:
-  1. **Tổng CAMLY đang có**: Tổng từ `profiles.total_camly_rewards`
-  2. **Có thể Claim (đã duyệt)**: Từ `profiles.approved_reward`
-  3. **Đang chờ duyệt**: Từ `profiles.pending_rewards`
-  4. **Đã Claim**: Tổng từ `claim_requests` where status = 'success'
-- **Progress Bar**: Hiển thị tiến độ đến ngưỡng 200,000 CAMLY
-- **Claim Button**: Logic từ `ClaimRewardsModal` component, mở modal khi click
-- **Wallet Connection**: Nếu chưa kết nối ví → Hiển thị nút "Kết nối ví để claim"
-
-### Section 3: Top Sponsor
-
-- **Data**: Từ `useTopSponsors` hook (đã có sẵn)
-- **Display**: Avatar, Username (link profile), Tổng đã donate, Token
-- **Style**: Glassmorphism cards
-
-### Section 4: Lịch Sử Giao Dịch
-
-- **Data Sources**:
-  - `reward_transactions` (rewards nhận được)
-  - `donation_transactions` (donations gửi/nhận)
-  - `wallet_transactions` (on-chain transactions)
-- **Columns**:
-  - Thời gian
-  - Người gửi (username + avatar, link profile)
-  - Người nhận (username + avatar, link profile)
-  - Token (CAMLY, FUN MONEY, etc.)
-  - Số tiền
-  - Trạng thái (badge: Thành công, Đang xử lý, Thất bại)
-  - Link BSC (nếu có tx_hash)
-- **Filters**:
-  - Token dropdown
-  - Thời gian (7d, 30d, All)
-  - Gửi/Nhận toggle
-- **Search**: By username, address, tx_hash
-
-### Section 5: Export
-
-- **CSV Export**: Logic đã có trong Wallet.tsx hiện tại
-- **PDF Export**: Sử dụng jsPDF + autoTable
-- **Data Included**: Thời gian, Gửi, Nhận, Token, Số tiền, Trạng thái, Tx hash, Link BSC, Link Profile
-
----
-
-## 4. Files Cần Tạo/Sửa
-
-| File | Thay Đổi |
+| File | Thay đổi |
 |------|----------|
-| **Mới** `public/images/fun-play-wallet-icon.png` | Copy từ user-uploads://3.png |
-| **Mới** `src/components/Wallet/WalletButton.tsx` | Nút WALLET mới cho header |
-| **Mới** `src/components/Wallet/WalletPageHeader.tsx` | Header cho trang Wallet |
-| **Mới** `src/components/Wallet/CAMLYPriceSection.tsx` | Section 1: Giá & Chart |
-| **Mới** `src/components/Wallet/ClaimRewardsSection.tsx` | Section 2: Claim |
-| **Mới** `src/components/Wallet/TopSponsorsSection.tsx` | Section 3: Top Sponsors |
-| **Mới** `src/components/Wallet/TransactionHistorySection.tsx` | Section 4: Lịch sử |
-| **Mới** `src/components/Wallet/ExportSection.tsx` | Section 5: Export |
-| **Mới** `src/hooks/useWalletTransactions.ts` | Hook tổng hợp giao dịch |
-| **Sửa** `src/pages/Wallet.tsx` | **Refactor hoàn toàn** - Layout mới với 5 sections |
-| **Sửa** `src/components/Layout/Header.tsx` | Thay thế 3 widgets bằng WalletButton |
-| **Sửa** `src/components/Layout/MobileHeader.tsx` | Thay thế widgets bằng WalletButton |
-| **Giữ** `src/components/Rewards/ClaimRewardsModal.tsx` | Vẫn dùng làm modal khi click Claim |
-| **Giữ** `src/hooks/useTopSponsors.ts` | Dùng cho Section 3 |
-| **Giữ** `src/hooks/useCryptoPrices.tsx` | Dùng cho giá CAMLY |
+| `src/hooks/useCryptoPrices.tsx` | Xóa 8 console.log, thêm debug flag |
+| `src/hooks/useTopSponsors.ts` | Thêm debounce 500ms cho realtime |
+| `src/hooks/useTopRanking.ts` | Chỉ subscribe UPDATE event |
+| `src/hooks/useHonobarStats.tsx` | Gộp 5 channels thành 1 với debounce |
+| `src/components/Wallet/ClaimRewardsSection.tsx` | Xóa subscription trùng |
+
+### 4.3 Files Mới Cần Tạo
+
+| File | Mục đích |
+|------|----------|
+| `src/lib/debugLog.ts` | Utility log với debug flag |
+| `src/hooks/useDebounce.ts` | Hook debounce dùng chung |
 
 ---
 
-## 5. Responsive Design
+## PHẦN 5: PERFORMANCE & CLEANUP
 
-### Desktop (lg+)
+### 5.1 Bundle Size Analysis
 
-- 2 cột layout cho Section 2 (Claim + Stats)
-- Full-width chart
-- Table với đầy đủ columns
+**Potential lazy load candidates:**
+- `UnifiedAdminDashboard` - chỉ admin truy cập
+- `Meditate` - feature phụ
+- `NFTGallery` - feature phụ  
+- `PlatformDocs` - ít dùng
 
-### Tablet (md)
+**Thêm lazy loading:**
+```typescript
+const UnifiedAdminDashboard = lazy(() => import('./pages/UnifiedAdminDashboard'));
+```
 
-- 2 cột cho claim stats
-- Table responsive
+### 5.2 Memory Leak Prevention
 
-### Mobile
+**Các pattern cần kiểm tra:**
+- Tất cả `supabase.channel()` đều có `removeChannel()` trong cleanup ✓
+- Các `window.addEventListener` đều có `removeEventListener` ✓
 
-- Stack layout
-- Horizontal scroll cho table
-- Bottom sheet cho filters
+### 5.3 Polling Optimization
 
----
-
-## 6. Realtime Updates
-
-- **Rewards**: Subscribe `reward_transactions`, `profiles`
-- **Donations**: Subscribe `donation_transactions`
-- **Wallet**: Subscribe `wallet_transactions`
-- **Prices**: Polling mỗi 30s từ `useCryptoPrices`
-
----
-
-## 7. Styling - Design System FUN PLAY
-
-- **Background**: Glassmorphism với gradient cyan-purple-pink
-- **Cards**: `bg-white/90 backdrop-blur-xl border border-white/20`
-- **Glow Effects**: `shadow-[0_0_30px_rgba(0,231,255,0.3)]`
-- **Buttons**: Gradient pastel với shimmer animation
-- **Badge Colors**:
-  - Thành công: Green gradient
-  - Đang xử lý: Yellow/Amber
-  - Thất bại: Red
+**`useCryptoPrices.tsx`:**
+- Hiện tại: 60 giây polling
+- Đề xuất: 120 giây (giá không cần update quá thường xuyên)
 
 ---
 
-## 8. Testing Checklist
+## PHẦN 6: KẾ HOẠCH THỰC HIỆN
 
-- [ ] Click nút WALLET trên header → Navigate đến `/wallet`
-- [ ] Trang Wallet hiển thị đầy đủ 5 sections
-- [ ] Giá CAMLY hiển thị realtime với % thay đổi 24h
-- [ ] Chart hoạt động với các timeframe
-- [ ] Claim section hiển thị đúng số liệu từ profile
-- [ ] Click "Claim" → Mở modal claim (nếu đủ ngưỡng)
-- [ ] Top Sponsors hiển thị đúng ranking
-- [ ] Lịch sử giao dịch load đầy đủ với filters
-- [ ] Click username → Navigate đến profile
-- [ ] Click tx hash → Mở BSCScan
-- [ ] Export CSV/PDF hoạt động
-- [ ] Responsive trên mobile
-- [ ] Badge số rewards hiển thị trên nút WALLET
-- [ ] Header desktop không còn 3 widgets cũ
-- [ ] Header mobile không còn 3 widgets cũ
+### Phase 1: Cleanup (Ưu tiên cao)
+1. Xóa 3 files component trùng lặp
+2. Xóa console.log không cần thiết  
+3. Tạo `debugLog.ts` utility
+
+### Phase 2: Performance (Ưu tiên cao)
+1. Gộp realtime subscriptions trong `useHonobarStats`
+2. Thêm debounce cho `useTopSponsors` và `useTopRanking`
+3. Tăng polling interval của crypto prices
+
+### Phase 3: Database (Ưu tiên trung bình)
+1. Thêm indexes cho transaction queries
+2. Enable leaked password protection
+3. Review RLS policies với `USING (true)`
+
+### Phase 4: Bundle Optimization (Ưu tiên thấp)
+1. Lazy load admin pages
+2. Lazy load feature pages ít dùng
 
 ---
 
-## 9. Kết Quả Mong Đợi
+## KẾT QUẢ MONG ĐỢI
 
-| Trước | Sau |
-|-------|-----|
-| 3 widgets riêng lẻ (FunWallet, CAMLY, Claim) | 1 nút WALLET duy nhất |
-| Trang Wallet cũ với nhiều tabs | Trang Wallet mới với 5 sections rõ ràng |
-| Phải navigate nhiều nơi | Tất cả trong 1 trang |
-| Không có Top Sponsors | Có bảng Top Sponsor |
-| Export cơ bản | Export đầy đủ với profile links |
-| Không embed DexScreener | Có chart với timeframes |
+| Metric | Trước | Sau |
+|--------|-------|-----|
+| Số lượng console.log | 495 | <50 (debug only) |
+| Realtime channels trùng | 7+ cho profiles | 1 global |
+| Components trùng | 3 | 0 |
+| Bundle size | 100% | ~90% (lazy load) |
+| Query efficiency | 3 queries/page | 1-2 queries |
+
+---
+
+## LƯU Ý CHO GIAI ĐOẠN MỞ RỘNG
+
+1. **Global State Management:** Khi scale thêm features, cân nhắc Zustand/Jotai thay vì window events
+2. **API Layer:** Tạo abstraction layer cho Supabase queries để dễ cache/optimize
+3. **Monitoring:** Thêm error tracking (Sentry) và performance monitoring
+4. **Testing:** Thêm unit tests cho hooks critical (useDonation, useChats)
