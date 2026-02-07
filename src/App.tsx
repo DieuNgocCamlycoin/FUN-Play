@@ -48,6 +48,7 @@ import YourVideosMobile from "./pages/YourVideosMobile";
 import DownloadedVideos from "./pages/DownloadedVideos";
 import Bounty from "./pages/Bounty";
 import MyAIMusic from "./pages/MyAIMusic";
+import Receipt from "./pages/Receipt";
 import AIMusicDetail from "./pages/AIMusicDetail";
 import { wagmiConfig, initWeb3Modal } from '@/lib/web3Config';
 import { GlobalPaymentNotifications } from './components/Web3/GlobalPaymentNotifications';
@@ -139,6 +140,8 @@ function AppContent() {
         <Route path="/bounty" element={<Navigate to="/build-bounty" replace />} />
         <Route path="/my-ai-music" element={<MyAIMusic />} />
         <Route path="/ai-music/:id" element={<AIMusicDetail />} />
+        {/* Donation Receipt Page */}
+        <Route path="/receipt/:receiptPublicId" element={<Receipt />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

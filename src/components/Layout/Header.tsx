@@ -9,6 +9,7 @@ import { FunWalletMiniWidget } from "@/components/Web3/FunWalletMiniWidget";
 import { UploadWizard } from "@/components/Upload/UploadWizard";
 import { UnifiedClaimButton } from "@/components/Rewards/UnifiedClaimButton";
 import { AngelChat } from "@/components/Mascot/AngelChat";
+import { GlobalDonateButton } from "@/components/Donate/GlobalDonateButton";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { useNavigate } from "react-router-dom";
@@ -178,6 +179,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
 
       {/* Right section */}
       <div className="flex items-center gap-2">
+        <GlobalDonateButton />
         <FunWalletMiniWidget />
         <CAMLYMiniWidget />
         <UnifiedClaimButton />
