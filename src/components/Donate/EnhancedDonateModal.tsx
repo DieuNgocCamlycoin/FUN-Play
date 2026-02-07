@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Gift, Search, Loader2, X, Smile } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -82,6 +82,9 @@ export const EnhancedDonateModal = ({
   // Emoji picker
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
+  // Track if modal has been initialized this session
+  const didInitRef = useRef(false);
+
   const quickAmounts = [10, 50, 100, 500];
 
   // Fetch sender profile
@@ -98,38 +101,47 @@ export const EnhancedDonateModal = ({
     if (open && user) fetchSender();
   }, [open, user]);
 
-  // Initialize on open
+  // Initialize on open - only run once when modal opens
   useEffect(() => {
-    if (open) {
-      fetchTokens().then((fetchedTokens) => {
-        if (fetchedTokens && fetchedTokens.length > 0) {
-          // Sort by priority (FUN MONEY first)
-          const sorted = [...fetchedTokens].sort((a, b) => a.priority - b.priority);
-          setSelectedToken(sorted[0]);
-        }
-      });
-
-      // Set default receiver if provided
-      if (defaultReceiverId) {
-        setSelectedReceiver({
-          id: defaultReceiverId,
-          username: defaultReceiverName || "",
-          display_name: defaultReceiverName || null,
-          avatar_url: defaultReceiverAvatar || null,
-          wallet_address: defaultReceiverWallet || null,
-        });
-        setShowSearch(false);
-      } else {
-        setSelectedReceiver(null);
-        setShowSearch(true);
-      }
-
-      // Reset form
-      setAmount("");
-      setMessage("");
-      setShowSuccess(false);
-      setCompletedTransaction(null);
+    // Khi modal đóng, reset flag để lần mở tiếp theo sẽ init lại
+    if (!open) {
+      didInitRef.current = false;
+      return;
     }
+    
+    // Đã init rồi thì không chạy lại
+    if (didInitRef.current) return;
+    didInitRef.current = true;
+
+    // Chỉ init 1 lần duy nhất khi modal vừa mở
+    fetchTokens().then((fetchedTokens) => {
+      if (fetchedTokens && fetchedTokens.length > 0) {
+        // Sort by priority (FUN MONEY first)
+        const sorted = [...fetchedTokens].sort((a, b) => a.priority - b.priority);
+        setSelectedToken(sorted[0]);
+      }
+    });
+
+    // Set default receiver if provided
+    if (defaultReceiverId) {
+      setSelectedReceiver({
+        id: defaultReceiverId,
+        username: defaultReceiverName || "",
+        display_name: defaultReceiverName || null,
+        avatar_url: defaultReceiverAvatar || null,
+        wallet_address: defaultReceiverWallet || null,
+      });
+      setShowSearch(false);
+    } else {
+      setSelectedReceiver(null);
+      setShowSearch(true);
+    }
+
+    // Reset form
+    setAmount("");
+    setMessage("");
+    setShowSuccess(false);
+    setCompletedTransaction(null);
   }, [open, defaultReceiverId, defaultReceiverName, defaultReceiverAvatar, defaultReceiverWallet, fetchTokens]);
 
   // Search users
@@ -247,7 +259,7 @@ export const EnhancedDonateModal = ({
   const sortedTokens = [...tokens].sort((a, b) => a.priority - b.priority);
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen) handleClose(); }}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-lg">
