@@ -174,13 +174,13 @@ export const WalletButton = ({ compact = false, className }: WalletButtonProps) 
         className={cn(
           "relative gap-2 font-bold transition-all duration-300 overflow-hidden",
           hasRewards
-            ? "bg-gradient-to-b from-[#FFEA00] via-[#FFD700] to-[#E5A800] text-[#7C5800] hover:from-[#FFF200] hover:via-[#FFEA00] hover:to-[#FFD700]"
-            : "bg-gradient-to-b from-[#FFEA00]/80 via-[#FFD700]/80 to-[#E5A800]/80 text-[#7C5800] hover:from-[#FFEA00] hover:via-[#FFD700] hover:to-[#E5A800] border border-yellow-400/50"
+            ? "bg-gradient-to-r from-green-400 via-yellow-400 via-orange-400 via-pink-400 via-purple-400 to-cyan-400 text-white hover:opacity-90"
+            : "bg-gradient-to-r from-green-400/70 via-yellow-400/70 via-pink-400/70 to-cyan-400/70 text-white/90 border border-white/20"
         )}
         style={{
           boxShadow: hasRewards 
-            ? "0 0 20px rgba(255, 215, 0, 0.4), inset 0 2px 4px rgba(255, 255, 255, 0.6), inset 0 -2px 4px rgba(0, 0, 0, 0.1)"
-            : "inset 0 2px 4px rgba(255, 255, 255, 0.4), inset 0 -1px 2px rgba(0, 0, 0, 0.05)"
+            ? "0 0 20px rgba(168, 85, 247, 0.4), 0 0 40px rgba(236, 72, 153, 0.2)"
+            : "0 0 10px rgba(168, 85, 247, 0.2)"
         }}
       >
         {/* Continuous Mirror Shimmer Effect - Premium 5D */}
