@@ -135,21 +135,34 @@ export const EnhancedDonateModal = ({
   // Search users
   useEffect(() => {
     const searchUsers = async () => {
+      // Khi query quá ngắn, reset cả results và searching state
       if (searchQuery.length < 2) {
         setSearchResults([]);
+        setSearching(false);
         return;
       }
 
       setSearching(true);
-      const { data } = await supabase
-        .from("profiles")
-        .select("id, username, display_name, avatar_url, wallet_address")
-        .or(`username.ilike.%${searchQuery}%,display_name.ilike.%${searchQuery}%`)
-        .neq("id", user?.id || "")
-        .limit(8);
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("id, username, display_name, avatar_url, wallet_address")
+          .or(`username.ilike.%${searchQuery}%,display_name.ilike.%${searchQuery}%`)
+          .neq("id", user?.id || "")
+          .limit(8);
 
-      setSearchResults(data || []);
-      setSearching(false);
+        if (error) {
+          console.error("Search error:", error);
+          setSearchResults([]);
+        } else {
+          setSearchResults(data || []);
+        }
+      } catch (err) {
+        console.error("Search error:", err);
+        setSearchResults([]);
+      } finally {
+        setSearching(false);
+      }
     };
 
     const debounce = setTimeout(searchUsers, 300);
@@ -332,7 +345,7 @@ export const EnhancedDonateModal = ({
                       placeholder="Tìm kiếm người nhận..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-9 hologram-input"
+                      className="pl-9 hologram-input pointer-events-auto"
                     />
 
                     {/* Search results dropdown */}

@@ -432,6 +432,8 @@ body > [data-w3m-modal] {
       hsl(var(--cosmic-gold))
     ) border-box !important;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: auto !important;
+  isolation: isolate;
 }
 
 .hologram-input:focus,
