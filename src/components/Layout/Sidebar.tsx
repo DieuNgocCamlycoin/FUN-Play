@@ -57,12 +57,6 @@ const funPlatformItems: NavItem[] = [
     href: "/fun-wallet",
     isWallet: true
   },
-  { 
-    customIcon: '/images/fun-money-coin.png',
-    label: "FUN Money", 
-    href: "/fun-money",
-    isFunMoney: true
-  },
 ];
 
 const libraryItems = [
