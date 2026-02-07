@@ -995,6 +995,111 @@ export type Database = {
         }
         Relationships: []
       }
+      mint_requests: {
+        Row: {
+          action_evidence: Json
+          action_hash: string | null
+          action_type: string
+          attester_address: string | null
+          base_reward_atomic: string
+          block_number: number | null
+          calculated_amount_atomic: string
+          calculated_amount_formatted: string | null
+          chain_id: number | null
+          contract_address: string | null
+          created_at: string | null
+          decision_reason: string | null
+          evidence_hash: string | null
+          id: string
+          light_score: number
+          minted_at: string | null
+          multiplier_i: number
+          multiplier_k: number
+          multiplier_q: number
+          multiplier_ux: number
+          nonce_used: number | null
+          pillar_scores: Json
+          platform_id: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string | null
+          tx_hash: string | null
+          unity_score: number
+          unity_signals: Json | null
+          updated_at: string | null
+          user_id: string
+          user_wallet_address: string
+        }
+        Insert: {
+          action_evidence: Json
+          action_hash?: string | null
+          action_type: string
+          attester_address?: string | null
+          base_reward_atomic: string
+          block_number?: number | null
+          calculated_amount_atomic: string
+          calculated_amount_formatted?: string | null
+          chain_id?: number | null
+          contract_address?: string | null
+          created_at?: string | null
+          decision_reason?: string | null
+          evidence_hash?: string | null
+          id?: string
+          light_score: number
+          minted_at?: string | null
+          multiplier_i: number
+          multiplier_k: number
+          multiplier_q: number
+          multiplier_ux: number
+          nonce_used?: number | null
+          pillar_scores: Json
+          platform_id: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string | null
+          tx_hash?: string | null
+          unity_score: number
+          unity_signals?: Json | null
+          updated_at?: string | null
+          user_id: string
+          user_wallet_address: string
+        }
+        Update: {
+          action_evidence?: Json
+          action_hash?: string | null
+          action_type?: string
+          attester_address?: string | null
+          base_reward_atomic?: string
+          block_number?: number | null
+          calculated_amount_atomic?: string
+          calculated_amount_formatted?: string | null
+          chain_id?: number | null
+          contract_address?: string | null
+          created_at?: string | null
+          decision_reason?: string | null
+          evidence_hash?: string | null
+          id?: string
+          light_score?: number
+          minted_at?: string | null
+          multiplier_i?: number
+          multiplier_k?: number
+          multiplier_q?: number
+          multiplier_ux?: number
+          nonce_used?: number | null
+          pillar_scores?: Json
+          platform_id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string | null
+          tx_hash?: string | null
+          unity_score?: number
+          unity_signals?: Json | null
+          updated_at?: string | null
+          user_id?: string
+          user_wallet_address?: string
+        }
+        Relationships: []
+      }
       platform_statistics: {
         Row: {
           active_users: number
