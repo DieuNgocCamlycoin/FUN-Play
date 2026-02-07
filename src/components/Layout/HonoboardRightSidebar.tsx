@@ -15,7 +15,7 @@ export const HonoboardRightSidebar = ({ className }: HonoboardRightSidebarProps)
   return (
     <aside 
       className={cn(
-        "hidden xl:flex flex-col w-80 shrink-0 h-[calc(100vh-3.5rem)]",
+        "hidden lg:flex flex-col w-80 shrink-0 h-[calc(100vh-3.5rem)]",
         "fixed right-0 top-14 z-40",
         "bg-gradient-to-b from-white via-white to-[#F0FDFF]",
         "border-l border-border/50",
