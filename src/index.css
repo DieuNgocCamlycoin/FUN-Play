@@ -395,6 +395,16 @@ body > [data-w3m-modal] {
   animation: shimmer 2s ease-in-out infinite;
 }
 
+/* Mirror shimmer effect - Continuous back and forth for gold metallic buttons */
+@keyframes mirror-shimmer {
+  0%, 100% { transform: translateX(-100%); }
+  50% { transform: translateX(100%); }
+}
+
+.animate-mirror-shimmer {
+  animation: mirror-shimmer 3s ease-in-out infinite;
+}
+
 /* Scrollbar hide utility */
 .scrollbar-hide {
   -ms-overflow-style: none;

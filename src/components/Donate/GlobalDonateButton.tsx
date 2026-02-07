@@ -41,7 +41,9 @@ export const GlobalDonateButton = ({ variant = "default", className }: GlobalDon
                      border border-[#FFEA00]/50
                      transition-all duration-300 hover:scale-110"
         >
-          <Gift className="h-5 w-5 text-[#7C5800]" />
+          <Gift className="h-5 w-5 text-[#7C5800] relative z-10" />
+          {/* Mirror shimmer effect */}
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-mirror-shimmer rounded-full" />
         </Button>
         <EnhancedDonateModal
           open={modalOpen}
@@ -64,10 +66,10 @@ export const GlobalDonateButton = ({ variant = "default", className }: GlobalDon
                    border border-[#FFEA00]/60 
                    transition-all duration-300 hover:scale-105 ${className}`}
       >
-        <Gift className="h-4 w-4" />
-        <span className="text-sm font-bold hidden md:inline">Thưởng & Tặng</span>
-        {/* Shimmer effect */}
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+        <Gift className="h-4 w-4 relative z-10" />
+        <span className="text-sm font-bold hidden md:inline relative z-10">Thưởng & Tặng</span>
+        {/* Mirror shimmer effect - continuous */}
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-mirror-shimmer" />
       </Button>
       <EnhancedDonateModal
         open={modalOpen}
