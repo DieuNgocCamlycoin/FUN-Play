@@ -337,7 +337,7 @@ export const EnhancedDonateModal = ({
 
                     {/* Search results dropdown */}
                     {(searchResults.length > 0 || searching) && (
-                      <div className="absolute z-50 w-full mt-1 bg-background border rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                      <div className="absolute z-[10003] w-full mt-1 bg-white dark:bg-gray-900 border border-cosmic-cyan/30 rounded-xl shadow-lg shadow-cyan-500/10 max-h-48 overflow-y-auto">
                         {searching ? (
                           <div className="flex justify-center py-4">
                             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -346,8 +346,9 @@ export const EnhancedDonateModal = ({
                           searchResults.map((result) => (
                             <button
                               key={result.id}
+                              type="button"
                               onClick={() => handleSelectReceiver(result)}
-                              className="w-full flex items-center gap-3 p-3 hover:bg-accent transition-colors"
+                              className="w-full flex items-center gap-3 p-3 hover:bg-accent transition-colors cursor-pointer"
                             >
                               <Avatar className="h-8 w-8">
                                 <AvatarImage src={result.avatar_url || ""} />
@@ -426,11 +427,12 @@ export const EnhancedDonateModal = ({
                   {quickAmounts.map((qa) => (
                     <Button
                       key={qa}
+                      type="button"
                       variant={amount === qa.toString() ? "default" : "outline"}
                       size="sm"
                       className={`flex-1 ${amount === qa.toString() ? "bg-gradient-to-r from-purple-500 to-pink-500" : "hologram-input-trigger"}`}
                       onClick={() => setAmount(qa.toString())}
-                      disabled={currentBalance !== null && qa > currentBalance}
+                      disabled={selectedToken?.chain === "internal" && currentBalance !== null && currentBalance > 0 && qa > currentBalance}
                     >
                       {qa}
                     </Button>
@@ -444,7 +446,7 @@ export const EnhancedDonateModal = ({
                   placeholder="Hoặc nhập số tùy chọn..."
                   value={amount}
                   onChange={(e) => handleAmountChange(e.target.value)}
-                  className="text-lg font-bold text-center hologram-input"
+                  className="text-lg font-bold text-center hologram-input pointer-events-auto"
                 />
 
                 {/* Slider */}
@@ -477,7 +479,7 @@ export const EnhancedDonateModal = ({
                     onChange={(e) => setMessage(e.target.value)}
                     maxLength={200}
                     rows={3}
-                    className="hologram-input pr-10 resize-none"
+                    className="hologram-input pr-10 resize-none pointer-events-auto"
                   />
 
                   {/* Emoji picker button */}
