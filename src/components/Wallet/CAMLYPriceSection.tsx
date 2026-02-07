@@ -2,28 +2,36 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ExternalLink, TrendingUp, TrendingDown, Minus } from "lucide-react";
-import { useCryptoPrices } from "@/hooks/useCryptoPrices";
+import { ExternalLink, TrendingUp, TrendingDown, Minus, RefreshCw, Copy, Check } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { useCAMLYPriceHistory, TimePeriod } from "@/hooks/useCAMLYPriceHistory";
+import { toast } from "sonner";
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  CartesianGrid,
+} from "recharts";
 
 const CAMLY_CONTRACT = "0x0910320181889fefde0bb1ca63962b0a8882e413";
+const COINMARKETCAP_URL = "https://coinmarketcap.com/currencies/camly-coin/";
 const DEXSCREENER_URL = `https://dexscreener.com/bsc/${CAMLY_CONTRACT}`;
 const BSCSCAN_URL = `https://bscscan.com/token/${CAMLY_CONTRACT}`;
 
-type TimeFrame = "5m" | "15m" | "1h" | "1d";
-
 export const CAMLYPriceSection = () => {
-  const { prices, loading } = useCryptoPrices();
-  const [timeframe, setTimeframe] = useState<TimeFrame>("1h");
-  
-  const camlyPrice = prices["CAMLY"] || 0;
-  
-  // Mock 24h change - in production, this would come from API
-  const [priceChange24h] = useState(() => (Math.random() - 0.3) * 10); // Random change for demo
-  const isPositive = priceChange24h >= 0;
-  const TrendIcon = Math.abs(priceChange24h) < 0.1 ? Minus : isPositive ? TrendingUp : TrendingDown;
-  const trendColor = priceChange24h === 0 ? "text-muted-foreground" : isPositive ? "text-green-500" : "text-red-500";
+  const [period, setPeriod] = useState<TimePeriod>("24h");
+  const [copied, setCopied] = useState(false);
+  const { priceHistory, loading, currentPrice, priceChange, refetch } = useCAMLYPriceHistory(period);
+
+  const isPositive = priceChange >= 0;
+  const TrendIcon = Math.abs(priceChange) < 0.1 ? Minus : isPositive ? TrendingUp : TrendingDown;
+  const trendColor = Math.abs(priceChange) < 0.1 ? "text-muted-foreground" : isPositive ? "text-green-500" : "text-red-500";
+  const chartColor = isPositive ? "#22c55e" : "#ef4444";
+  const gradientId = isPositive ? "greenGradient" : "redGradient";
 
   const formatPrice = (price: number): string => {
     if (price === 0) return "$0.00";
@@ -33,117 +41,230 @@ export const CAMLYPriceSection = () => {
     return `$${price.toFixed(2)}`;
   };
 
-  // DexScreener embed URL with timeframe
-  const getEmbedUrl = () => {
-    const intervals: Record<TimeFrame, string> = {
-      "5m": "5",
-      "15m": "15",
-      "1h": "60",
-      "1d": "1440"
-    };
-    return `https://dexscreener.com/bsc/${CAMLY_CONTRACT}?embed=1&theme=light&trades=0&info=0&interval=${intervals[timeframe]}`;
+  const formatTime = (timestamp: number) => {
+    const date = new Date(timestamp);
+    if (period === "24h") {
+      return date.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+    }
+    return date.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" });
+  };
+
+  const handleCopyContract = async () => {
+    await navigator.clipboard.writeText(CAMLY_CONTRACT);
+    setCopied(true);
+    toast.success("Đã sao chép địa chỉ contract!");
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
     <Card className="bg-white backdrop-blur-xl border border-gray-100 shadow-lg overflow-hidden">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between flex-wrap gap-4">
+          {/* Logo & Price */}
           <div className="flex items-center gap-4">
-            <motion.div 
+            <motion.div
               className="relative"
-              animate={{ 
+              animate={{
                 boxShadow: [
                   "0 0 20px rgba(255, 215, 0, 0.4)",
                   "0 0 40px rgba(255, 215, 0, 0.6)",
-                  "0 0 20px rgba(255, 215, 0, 0.4)"
-                ]
+                  "0 0 20px rgba(255, 215, 0, 0.4)",
+                ],
               }}
               transition={{ duration: 2, repeat: Infinity }}
             >
-              <img 
-                src="/images/camly-coin.png" 
-                alt="CAMLY" 
+              <img
+                src="/images/camly-coin.png"
+                alt="CAMLY"
                 className="h-14 w-14 rounded-full"
               />
             </motion.div>
             <div>
               <CardTitle className="text-xl flex items-center gap-2">
                 CAMLY Token
-                <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">BSC</span>
+                <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                  BSC
+                </span>
               </CardTitle>
               <div className="flex items-center gap-3 mt-1">
-                {loading ? (
-                  <span className="text-2xl font-bold text-muted-foreground animate-pulse">Loading...</span>
+                {loading && priceHistory.length === 0 ? (
+                  <span className="text-2xl font-bold text-gray-400 animate-pulse">
+                    Loading...
+                  </span>
                 ) : (
                   <>
                     <span className="text-2xl font-bold bg-gradient-to-r from-yellow-500 to-orange-500 bg-clip-text text-transparent">
-                      {formatPrice(camlyPrice)}
+                      {formatPrice(currentPrice)}
                     </span>
                     <div className={cn("flex items-center gap-1 text-sm font-medium", trendColor)}>
                       <TrendIcon className="h-4 w-4" />
-                      <span>{isPositive ? "+" : ""}{priceChange24h.toFixed(2)}%</span>
-                      <span className="text-muted-foreground text-xs">24h</span>
+                      <span>
+                        {isPositive ? "+" : ""}
+                        {priceChange.toFixed(2)}%
+                      </span>
+                      <span className="text-muted-foreground text-xs">{period}</span>
                     </div>
                   </>
                 )}
               </div>
             </div>
           </div>
-          
-          <div className="flex gap-2">
-            <Button 
-              variant="outline" 
+
+          {/* Action Buttons */}
+          <div className="flex gap-2 flex-wrap">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={refetch}
+              disabled={loading}
+              className="h-8 w-8"
+            >
+              <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.open(COINMARKETCAP_URL, "_blank")}
+              className="gap-2"
+            >
+              <img
+                src="https://coinmarketcap.com/favicon.ico"
+                alt="CMC"
+                className="h-4 w-4"
+              />
+              CoinMarketCap
+              <ExternalLink className="h-3 w-3" />
+            </Button>
+            <Button
+              variant="outline"
               size="sm"
               onClick={() => window.open(DEXSCREENER_URL, "_blank")}
               className="gap-2"
             >
-              <img src="https://dexscreener.com/favicon.ico" alt="DexScreener" className="h-4 w-4" />
               DexScreener
               <ExternalLink className="h-3 w-3" />
             </Button>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               onClick={() => window.open(BSCSCAN_URL, "_blank")}
               className="gap-2"
             >
-              <img src="https://bscscan.com/images/favicon.ico" alt="BSCScan" className="h-4 w-4" />
               BSCScan
               <ExternalLink className="h-3 w-3" />
             </Button>
           </div>
         </div>
       </CardHeader>
-      
+
       <CardContent className="pt-4">
         {/* Timeframe Tabs */}
-        <Tabs value={timeframe} onValueChange={(v) => setTimeframe(v as TimeFrame)} className="mb-4">
-          <TabsList className="grid grid-cols-4 w-full max-w-xs">
-            <TabsTrigger value="5m">5 phút</TabsTrigger>
-            <TabsTrigger value="15m">15 phút</TabsTrigger>
-            <TabsTrigger value="1h">1 giờ</TabsTrigger>
-            <TabsTrigger value="1d">1 ngày</TabsTrigger>
+        <Tabs
+          value={period}
+          onValueChange={(v) => setPeriod(v as TimePeriod)}
+          className="mb-4"
+        >
+          <TabsList className="grid grid-cols-3 w-full max-w-xs bg-gray-100">
+            <TabsTrigger value="24h">24 giờ</TabsTrigger>
+            <TabsTrigger value="7d">7 ngày</TabsTrigger>
+            <TabsTrigger value="30d">30 ngày</TabsTrigger>
           </TabsList>
         </Tabs>
-        
-        {/* DexScreener Chart Embed */}
-        <div className="w-full h-[400px] rounded-xl overflow-hidden border border-gray-200 bg-white shadow-sm">
-          <iframe
-            src={getEmbedUrl()}
-            className="w-full h-full border-0"
-            title="CAMLY Price Chart"
-            allow="clipboard-write"
-          />
+
+        {/* Custom Chart - White Background */}
+        <div className="w-full h-[400px] rounded-xl overflow-hidden border border-gray-200 bg-white p-4">
+          {loading && priceHistory.length === 0 ? (
+            <div className="h-full flex items-center justify-center">
+              <RefreshCw className="h-8 w-8 animate-spin text-gray-400" />
+            </div>
+          ) : priceHistory.length === 0 ? (
+            <div className="h-full flex items-center justify-center text-gray-400">
+              Không có dữ liệu giá
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={priceHistory}>
+                <defs>
+                  <linearGradient id="greenGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="redGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="#E5E7EB"
+                  vertical={false}
+                />
+                <XAxis
+                  dataKey="timestamp"
+                  tickFormatter={formatTime}
+                  stroke="#9CA3AF"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={{ stroke: "#E5E7EB" }}
+                  interval="preserveStartEnd"
+                  minTickGap={50}
+                />
+                <YAxis
+                  tickFormatter={(v) => formatPrice(v)}
+                  stroke="#9CA3AF"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                  width={80}
+                  domain={["dataMin", "dataMax"]}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "white",
+                    border: "1px solid #E5E7EB",
+                    borderRadius: "8px",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                  }}
+                  formatter={(value: number) => [formatPrice(value), "Giá"]}
+                  labelFormatter={(ts) =>
+                    new Date(ts).toLocaleString("vi-VN")
+                  }
+                />
+                <Area
+                  type="monotone"
+                  dataKey="price"
+                  stroke={chartColor}
+                  strokeWidth={2}
+                  fill={`url(#${gradientId})`}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
         </div>
-        
+
         {/* Contract Info */}
         <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-100">
-          <p className="text-xs text-muted-foreground">
-            <span className="font-medium">Contract Address:</span>{" "}
-            <code className="bg-background px-1 py-0.5 rounded text-[10px]">
-              {CAMLY_CONTRACT}
-            </code>
-          </p>
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <p className="text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">Contract Address:</span>{" "}
+              <code className="bg-white px-2 py-0.5 rounded text-[10px] border border-gray-200">
+                {CAMLY_CONTRACT}
+              </code>
+            </p>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleCopyContract}
+              className="h-7 gap-1 text-xs"
+            >
+              {copied ? (
+                <Check className="h-3 w-3 text-green-500" />
+              ) : (
+                <Copy className="h-3 w-3" />
+              )}
+              {copied ? "Đã sao chép" : "Sao chép"}
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>
