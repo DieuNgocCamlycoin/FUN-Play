@@ -420,6 +420,16 @@ body > [data-w3m-modal] {
   animation: light-pulse 3s ease-in-out infinite;
 }
 
+/* Rainbow text shift animation */
+@keyframes rainbow-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+.animate-rainbow-shift {
+  animation: rainbow-shift 3s ease-in-out infinite;
+}
+
 /* Hologram Input Border - Applied globally */
 .hologram-input {
   position: relative;

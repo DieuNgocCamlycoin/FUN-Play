@@ -424,8 +424,8 @@ export default function Channel() {
               </div>
             )}
             <div className="flex-1">
-              <h1 className="text-3xl font-bold text-foreground mb-1">
-                {profile?.display_name || channel.name.replace("'s Channel", "").replace(" là", "")}
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-[#FF0000] via-[#FF7F00] via-[#FFFF00] via-[#00FF00] via-[#0000FF] via-[#4B0082] to-[#9400D3] bg-clip-text text-transparent mb-1 animate-rainbow-shift bg-[length:200%_auto]">
+                {(profile?.display_name || channel.name).replace("'s Channel", "").replace(" là", "").replace(" is", "")}
               </h1>
               <div className="flex items-center gap-4 mb-2">
                 <p className="text-muted-foreground font-semibold">

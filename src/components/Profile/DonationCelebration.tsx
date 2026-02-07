@@ -14,6 +14,11 @@ export const DonationCelebration = ({ amount, senderName, onClose }: DonationCel
   const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {
+    // Play "Rich rich rich" celebration sound
+    const audio = new Audio('/audio/rich-celebration.mp3');
+    audio.volume = 0.7;
+    audio.play().catch(console.error);
+
     // Trigger confetti
     const duration = 3000;
     const animationEnd = Date.now() + duration;
