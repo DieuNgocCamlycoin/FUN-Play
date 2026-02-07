@@ -20,10 +20,11 @@ export const HonoboardRightSidebar = ({ className }: HonoboardRightSidebarProps)
         "bg-gradient-to-b from-white via-white to-[#F0FDFF]",
         "border-l border-border/50",
         "shadow-[-10px_0_40px_rgba(0,231,255,0.1)]",
+        "overflow-hidden",
         className
       )}
     >
-      <ScrollArea className="flex-1 px-3 py-3 overflow-x-hidden">
+      <ScrollArea className="flex-1 px-2 py-3 overflow-x-hidden">
         {/* 3 Separate Cards stacked vertically */}
         <div className="space-y-3">
           {/* 1. Honor Board Card */}

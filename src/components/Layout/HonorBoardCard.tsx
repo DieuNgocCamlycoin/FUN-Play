@@ -18,18 +18,18 @@ const StatPill = ({ icon: Icon, label, value, loading, index }: StatPillProps) =
     animate={{ opacity: 1, x: 0 }}
     transition={{ delay: index * 0.08, type: "spring", stiffness: 200 }}
     whileHover={{ x: 4, scale: 1.02 }}
-    className="flex items-center justify-between px-3 py-2 rounded-full overflow-hidden
+    className="flex items-center justify-between gap-1 px-2 py-1.5 rounded-full overflow-hidden
       bg-gradient-to-r from-[#7A2BFF] via-[#FF00E5] to-[#FFD700]
       shadow-[0_4px_20px_rgba(122,43,255,0.4)] hover:shadow-[0_6px_30px_rgba(255,0,229,0.5)] 
       transition-all duration-300"
   >
-    <div className="flex items-center gap-1.5 min-w-0">
+    <div className="flex items-center gap-1 min-w-0">
       <Icon className="h-3.5 w-3.5 text-white shrink-0" />
       <span className="text-[10px] font-semibold text-white uppercase tracking-wider truncate">
         {label}
       </span>
     </div>
-    <span className="text-base font-black text-[#FFD700] drop-shadow-[0_0_8px_rgba(255,215,0,0.7)] whitespace-nowrap ml-2">
+    <span className="text-base font-black text-[#FFD700] drop-shadow-[0_0_8px_rgba(255,215,0,0.7)] whitespace-nowrap shrink-0 ml-1">
       {loading ? "..." : <CounterAnimation value={value} duration={800} compact />}
     </span>
   </motion.div>
