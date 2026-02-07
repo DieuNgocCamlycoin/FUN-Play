@@ -1,76 +1,84 @@
 
-# 🌟 Thiết Kế Lại Honor Board - Phiên Bản Premium 5D
 
-## Tổng Quan Vấn Đề
+# 🎯 Thu Nhỏ Honor Board - Phiên Bản Compact Premium 5D
 
-Nhìn vào screenshot, bảng Honor Board hiện tại có các vấn đề:
-- **Kích thước nhỏ**: Chỉ khoảng 180px width, ở góc phải
-- **Text quá nhỏ**: text-[8px] cho label, text-xs cho value
-- **Icon bé tí**: w-3 h-3 (12px)
-- **Grid chật**: grid-cols-2 với 10 mục → phải scroll
-- **Tiêu đề mất nổi bật**: text-xs, khó đọc
+## Phân Tích Vấn Đề
+
+Nhìn vào **Hình 1 (hiện tại)**, bảng Honor Board:
+- **Width**: 90% của cover (~750px max) → Quá to
+- **Grid**: 5 cột, mỗi ô là card lớn với icon + label + value
+- **Vị trí**: Trải dài gần hết cover → Che mất avatar
+- **Height**: ~180px → Bị crop cạnh trên/dưới
+
+**Hình 2 (reference FUN FARM)** cho thấy layout compact:
+- Bảng nhỏ gọn, nằm góc phải
+- 2 cột dạng row (label + value trên cùng hàng)
+- Không che avatar (avatar nằm trái)
+- Có viền vàng kim premium
 
 ---
 
-## Giải Pháp: Honor Board Premium Full-Width
+## Giải Pháp: Compact Honor Board
 
-### 1. Kích Thước & Vị Trí Mới
+### 1. Kích Thước Mới
 
-| Thuộc tính | Desktop (lg+) | Tablet (md) | Mobile |
-|------------|---------------|-------------|--------|
-| Width | 90% của cover (max 750px) | 85% của cover | 95% của cover |
-| Height | Auto (~180px) | Auto (~160px) | Auto (~200px) |
-| Vị trí | Center-right trên cover, top-6 | Center | Center, top-4 |
-| Columns | 5 cột | 3 cột | 2 cột |
+| Thuộc tính | Hiện tại | Mới (Desktop) | Mới (Mobile) |
+|------------|----------|---------------|--------------|
+| Width | 90% / 750px max | **280-320px** (cố định) | 85% max-w-[280px] |
+| Height | ~180px auto | **Auto ~220px** | Auto |
+| Vị trí | Center hoặc center-right | **Top-right, cách 16px** | Top-right, cách 8px |
+| Grid | 5 cột (card vuông) | **2 cột (row compact)** | 2 cột |
 
-### 2. Thiết Kế Card Mới
+### 2. Thiết Kế Layout Mới
 
-**Glass Container:**
-- Nền: `bg-white/20 backdrop-blur-xl`
-- Viền: Rainbow hologram gradient border với glow
-- Shadow: `shadow-[0_8px_60px_rgba(0,231,255,0.4),0_0_100px_rgba(255,0,229,0.3)]`
-- Border-radius: `rounded-2xl`
+Lấy cảm hứng từ FUN FARM nhưng giữ Premium 5D:
 
-**Tiêu đề "HONOR BOARD":**
-- Font: `text-2xl lg:text-3xl font-extrabold`
-- Color: Rainbow gradient (pink → purple → cyan)
-- Icons: Crown w-6 h-6 ở 2 bên, animated rotate
-- Tracking: `tracking-wider`
-
-**Các Mục Stats:**
-- Font label: `text-sm font-medium` (thay vì text-[8px])
-- Font value: `text-xl lg:text-2xl font-bold` (thay vì text-xs)
-- Icon: `w-6 h-6 lg:w-7 lg:h-7` (thay vì w-3 h-3)
-- Pill background: `bg-gradient-to-br from-pink-400/10 via-purple-500/10 to-cyan-400/10`
-- Border: `border border-white/30`
-- Hover: `scale-105`, stronger glow
-
-### 3. Hiệu Ứng Animations
-
-**Rainbow Border Shimmer:**
-```css
-/* Viền hologram cầu vồng liên tục */
-background: linear-gradient(
-  90deg, 
-  #FF6B9D, /* pink */
-  #C084FC, /* purple */
-  #00E7FF, /* cyan */
-  #4ADE80, /* green */
-  #FFD700, /* gold */
-  #FF6B9D  /* back to pink */
-);
-background-size: 300% 100%;
-animation: rainbow-slide 4s linear infinite;
+```text
+┌─────────────────────────────────┐
+│   ♦ HONOR BOARD ♦              │  ← Header với viền vàng kim
+├─────────────────────────────────┤
+│ 📝 POSTS         4  │ 👥 FRIENDS     16 │
+│ ❤️ REACTIONS    ↑6  │ 🖼️ NFTs         0 │
+│ 💬 COMMENTS    ↓18  │ 🔗 SHARES      ↓21 │
+│ 🎁 CLAIMABLE  177K  │ ✅ CLAIMED    214K │
+├─────────────────────────────────┤
+│ 💰 TOTAL REWARD              391,000 │
+│    Chờ: 177K + Số dư: 214K          │
+├─────────────────────────────────┤
+│ 💎 TOTAL MONEY              $521.00 │
+│    Gửi: 80K + Nhận: 441K            │
+└─────────────────────────────────┘
 ```
 
-**Mirror Shimmer Effect:**
-- Ánh sáng trắng chạy qua card mỗi 3-4s
-- `animate-mirror-shimmer` đã có sẵn
+### 3. Thiết Kế Chi Tiết
 
-**Hover Glow:**
-- Mỗi stat item: `hover:shadow-[0_0_30px_rgba(0,231,255,0.6)]`
-- Scale: `hover:scale-105`
-- Tooltip với chi tiết
+**Container chính:**
+- Width: `w-[300px]` cố định (desktop), `w-[85%] max-w-[280px]` (mobile)
+- Position: `absolute top-4 right-4` (luôn góc phải)
+- Background: `bg-white/85 backdrop-blur-xl`
+- Border: Viền vàng kim gradient với glow
+
+**Header "HONOR BOARD":**
+- Font: `text-sm font-bold uppercase tracking-wider`
+- Color: Gradient vàng kim (amber-400 → yellow-500)
+- Icon: ♦ diamond hoặc ✨ sparkles ở 2 bên
+
+**Stats Grid:**
+- 2 cột, mỗi item là row ngang: `[Icon] [Label].........[Value]`
+- Font label: `text-[11px] uppercase font-medium`
+- Font value: `text-sm font-bold`
+- Màu: Các sắc thái pastel cầu vồng nhẹ
+
+**Bottom Section (Total Reward & Total Money):**
+- Full-width cards với value to hơn
+- Có breakdown chi tiết bên dưới
+
+### 4. Hiệu Ứng Premium 5D
+
+- **Viền**: Gradient vàng kim với glow (`border-2 border-amber-400/60`)
+- **Shadow**: `shadow-[0_4px_30px_rgba(255,215,0,0.3)]`
+- **Shimmer**: Ánh sáng chạy qua nhẹ mỗi 4s
+- **Hover**: Glow intensify nhẹ
 
 ---
 
@@ -78,89 +86,91 @@ animation: rainbow-slide 4s linear infinite;
 
 | File | Thay Đổi |
 |------|----------|
-| `src/components/Profile/ProfileHonorBoard.tsx` | **Viết lại hoàn toàn** - Kích thước lớn hơn, grid 5 cột, text to, effects mới |
-| `src/index.css` | Thêm keyframe `rainbow-slide` cho viền hologram |
+| `src/components/Profile/ProfileHonorBoard.tsx` | **Viết lại hoàn toàn** - Layout compact 2 cột, kích thước nhỏ, vị trí góc phải |
+| `src/index.css` | Cập nhật `.honor-board-border` với viền vàng kim thay vì rainbow |
+
+---
+
+## So Sánh Trước/Sau
+
+| Tiêu chí | Hiện tại | Sau khi sửa |
+|----------|----------|-------------|
+| Width | 750px (90% cover) | **300px** (cố định góc phải) |
+| Grid | 5 cột card vuông | **2 cột row compact** |
+| Che avatar? | ✅ Che | ❌ Không che |
+| Bị crop? | ✅ Bị cắt | ❌ Hiển thị đầy đủ |
+| Viền | Rainbow cầu vồng | **Vàng kim premium** |
+| Font size | text-xl/2xl | **text-xs/sm** (compact) |
+| Mobile | Quá to | **Gọn gàng, đọc được** |
 
 ---
 
 ## Code Structure Mới
 
-```text
-ProfileHonorBoard
-├── Outer Glow Layer (blur rainbow)
-├── Rainbow Border Container (animated gradient border)
-│   └── Glass Card
-│       ├── Header
-│       │   ├── Crown Icon (animated)
-│       │   ├── "HONOR BOARD" title (text-2xl gradient)
-│       │   └── Crown Icon (animated)
-│       └── Stats Grid (5 cols desktop, 3 cols tablet, 2 cols mobile)
-│           └── Stat Item (x10)
-│               ├── Icon (w-6 h-6)
-│               ├── Label (text-sm)
-│               └── Value (text-xl bold gradient)
-└── Shimmer Overlay (subtle continuous)
-```
-
----
-
-## Responsive Breakpoints
-
-**Desktop (lg: 1024px+):**
-- Grid 5 cột (2 hàng cho 10 mục)
-- Text-2xl cho values
-- Nằm center-right trên cover
-
-**Tablet (md: 768px - 1023px):**
-- Grid 3 cột + 1 hàng overflow
-- Text-xl cho values
-- Center trên cover
-
-**Mobile (< 768px):**
-- Grid 2 cột (5 hàng)
-- Text-lg cho values
-- Full-width, dưới cover (không overlay)
-
----
-
-## Vị Trí Mới
-
-Thay vì:
 ```tsx
-className="absolute top-4 right-4 z-20 hidden lg:block"
+<div className="absolute top-4 right-4 z-20 w-[300px]">
+  {/* Gold Border Container */}
+  <div className="honor-board-compact rounded-xl p-[2px] bg-gradient-to-br from-amber-300 via-yellow-400 to-amber-500 shadow-[0_4px_30px_rgba(255,215,0,0.4)]">
+    
+    {/* Glass Inner */}
+    <div className="bg-white/90 backdrop-blur-xl rounded-[10px] p-3">
+      
+      {/* Header */}
+      <div className="text-center mb-2">
+        <span className="text-sm font-bold text-amber-600">
+          ♦ HONOR BOARD ♦
+        </span>
+      </div>
+      
+      {/* 2-Column Stats Grid */}
+      <div className="grid grid-cols-2 gap-1.5">
+        {/* Stat rows */}
+      </div>
+      
+      {/* Total Reward */}
+      <div className="mt-2 p-2 rounded-lg bg-gradient-to-r from-amber-50 to-yellow-50">
+        ...
+      </div>
+      
+      {/* Total Money */}
+      <div className="mt-1.5 p-2 rounded-lg bg-gradient-to-r from-emerald-50 to-cyan-50">
+        ...
+      </div>
+      
+    </div>
+  </div>
+</div>
 ```
-
-Đổi thành:
-```tsx
-className="absolute top-4 left-1/2 -translate-x-1/2 lg:left-auto lg:translate-x-0 lg:right-6 z-20 w-[95%] lg:w-[90%] max-w-[750px]"
-```
-
-Và show trên cả mobile với layout khác.
 
 ---
 
-## Kết Quả Mong Đợi
+## Responsive
 
-| Trước | Sau |
-|-------|-----|
-| Bảng nhỏ góc phải, 180px | Bảng lớn 600-750px, center-right |
-| Text bé tí (8px label) | Text to rõ (14px label, 24px value) |
-| Icon 12px | Icon 24-28px |
-| Grid 2 cột, phải scroll | Grid 5 cột, thấy hết 1 lần |
-| Tiêu đề mờ nhạt | Tiêu đề rainbow gradient nổi bật |
-| Không có trên mobile | Có responsive layout cho mobile |
-| Hover đơn giản | Hover glow + scale + tooltip |
+**Desktop (lg+):**
+- Width: 300px cố định
+- Vị trí: absolute top-4 right-4
+- Tất cả stats visible
+
+**Tablet (md):**
+- Width: 280px
+- Vị trí: top-3 right-3
+
+**Mobile (<768px):**
+- Width: 85% max-w-[260px]
+- Vị trí: top-2 right-2
+- Font size giảm 1 cấp
 
 ---
 
 ## Testing Checklist
 
-- [ ] Vào profile → Thấy Honor Board lớn, nổi bật ngay trên cover
-- [ ] Tiêu đề "HONOR BOARD" to, gradient cầu vồng sáng bóng
-- [ ] 10 mục hiển thị đầy đủ, không cần scroll
-- [ ] Text đọc được rõ ràng (label 14px, value 20-24px)
-- [ ] Viền hologram rainbow chạy animation
-- [ ] Hover từng mục → Glow + scale
-- [ ] Mobile: Layout 2 cột responsive
-- [ ] Tablet: Layout 3 cột
-- [ ] Desktop: Layout 5 cột
+- [ ] Honor Board nhỏ gọn, nằm góc phải cover
+- [ ] KHÔNG che avatar (avatar bên trái hoặc giữa-trái)
+- [ ] KHÔNG bị crop cạnh trên/dưới
+- [ ] Tiêu đề "HONOR BOARD" hiển thị rõ với viền vàng kim
+- [ ] Tất cả 10 stats hiển thị đầy đủ, dạng compact 2 cột
+- [ ] Total Reward & Total Money có breakdown chi tiết
+- [ ] Viền vàng kim với glow premium
+- [ ] Responsive: Mobile vẫn gọn gàng, đọc được
+- [ ] Hover có hiệu ứng glow nhẹ
+
