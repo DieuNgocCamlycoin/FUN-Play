@@ -1369,6 +1369,7 @@ export type Database = {
           first_upload_rewarded: boolean | null
           id: string
           last_claim_at: string | null
+          last_fun_mint_at: string | null
           music_enabled: boolean | null
           music_url: string | null
           pending_rewards: number | null
@@ -1376,6 +1377,7 @@ export type Database = {
           signup_rewarded: boolean | null
           suspicious_score: number | null
           total_camly_rewards: number
+          total_fun_minted: number | null
           updated_at: string
           username: string
           violation_level: number | null
@@ -1397,6 +1399,7 @@ export type Database = {
           first_upload_rewarded?: boolean | null
           id: string
           last_claim_at?: string | null
+          last_fun_mint_at?: string | null
           music_enabled?: boolean | null
           music_url?: string | null
           pending_rewards?: number | null
@@ -1404,6 +1407,7 @@ export type Database = {
           signup_rewarded?: boolean | null
           suspicious_score?: number | null
           total_camly_rewards?: number
+          total_fun_minted?: number | null
           updated_at?: string
           username: string
           violation_level?: number | null
@@ -1425,6 +1429,7 @@ export type Database = {
           first_upload_rewarded?: boolean | null
           id?: string
           last_claim_at?: string | null
+          last_fun_mint_at?: string | null
           music_enabled?: boolean | null
           music_url?: string | null
           pending_rewards?: number | null
@@ -1432,6 +1437,7 @@ export type Database = {
           signup_rewarded?: boolean | null
           suspicious_score?: number | null
           total_camly_rewards?: number
+          total_fun_minted?: number | null
           updated_at?: string
           username?: string
           violation_level?: number | null
