@@ -1,107 +1,78 @@
 
-# Sửa Lỗi Tên User Có Chữ "là" - Giải Pháp Toàn Diện
+# Chuyển Chart CAMLY sang Light Mode (Nền Trắng)
 
-## Vấn Đề
+## Phân Tích Hiện Trạng
 
-Tên user đang hiển thị sai với hậu tố "là" (ví dụ: "Angel Diệu Ngọc là ") do:
-1. **Database**: Có record lưu sai `display_name = "Angel Diệu Ngọc là "`
-2. **Code**: 38 files đang dùng `display_name || username` mà không sanitize
+Từ screenshot và code, Cha thấy:
+- **File:** `src/components/Wallet/CAMLYPriceSection.tsx`
+- **Dòng 44:** DexScreener embed đang dùng `theme=dark`
+- Chart hiện tại có nền đen, không đồng bộ với UI sáng của FUN PLAY
 
 ## Giải Pháp
 
-### Bước 1: Tạo Utility Function (Reusable)
+### Thay đổi chính trong `CAMLYPriceSection.tsx`
 
-**File mới:** `src/lib/userUtils.ts`
-
+**1. URL DexScreener - Chuyển sang Light Theme**
 ```typescript
-/**
- * Sanitize display name - loại bỏ các hậu tố tự động
- */
-export function sanitizeDisplayName(name: string | null | undefined): string {
-  if (!name) return "User";
-  return name
-    .replace(/ là$/i, "")
-    .replace(/ là /gi, "")
-    .replace(/ is$/i, "")
-    .replace(/ is /gi, "")
-    .replace(/'s Channel$/i, "")
-    .trim();
-}
+// Từ (line 44):
+return `https://dexscreener.com/bsc/${CAMLY_CONTRACT}?embed=1&theme=dark&trades=0&info=0&interval=${intervals[timeframe]}`;
 
-/**
- * Lấy display name đã sanitize từ profile
- */
-export function getDisplayName(
-  displayName: string | null | undefined, 
-  username: string | null | undefined,
-  fallback: string = "User"
-): string {
-  const name = displayName || username || fallback;
-  return sanitizeDisplayName(name);
-}
+// Sang:
+return `https://dexscreener.com/bsc/${CAMLY_CONTRACT}?embed=1&theme=light&trades=0&info=0&interval=${intervals[timeframe]}`;
 ```
 
-### Bước 2: Sửa Database (Chỉ 1 Record)
-
-```sql
-UPDATE profiles 
-SET display_name = TRIM(
-  REGEXP_REPLACE(
-    REGEXP_REPLACE(display_name, ' là$', ''),
-    ' là ', ''
-  )
-)
-WHERE display_name LIKE '% là%' OR display_name LIKE '%là ';
-```
-
-### Bước 3: Cập Nhật Các Components Chính
-
-| File | Thay đổi |
-|------|----------|
-| `src/components/Donate/EnhancedDonateModal.tsx` | Import và dùng `getDisplayName()` |
-| `src/components/Chat/ChatHeader.tsx` | Import và dùng `getDisplayName()` |
-| `src/pages/Profile.tsx` | Import và dùng `getDisplayName()` |
-| `src/pages/UserProfile.tsx` | Import và dùng `getDisplayName()` |
-| `src/pages/Channel.tsx` | Import và dùng `getDisplayName()` |
-| `src/components/Layout/HonobarDetailModal.tsx` | Import và dùng `getDisplayName()` |
-| `src/components/Video/ShortsCommentSheet.tsx` | Import và dùng `getDisplayName()` |
-| `src/components/Admin/tabs/RewardApprovalTab.tsx` | Import và dùng `getDisplayName()` |
-| `src/components/Admin/tabs/BannedUsersTab.tsx` | Import và dùng `getDisplayName()` |
-| *... và các files khác* | Tương tự |
-
-### Ví Dụ Cập Nhật Code
-
-**Trước:**
+**2. Container Chart - Styling Nền Trắng**
 ```typescript
-<p>{senderProfile.display_name || senderProfile.username}</p>
+// Từ (line 130):
+<div className="w-full h-[400px] rounded-lg overflow-hidden border border-border bg-background">
+
+// Sang (thêm light theme styling):
+<div className="w-full h-[400px] rounded-xl overflow-hidden border border-gray-200 bg-white shadow-sm">
 ```
 
-**Sau:**
+**3. Card Container - Đồng bộ Glassmorphism**
 ```typescript
-import { getDisplayName } from "@/lib/userUtils";
+// Từ (line 48):
+<Card className="bg-white/90 backdrop-blur-xl border border-white/20 shadow-xl overflow-hidden">
 
-<p>{getDisplayName(senderProfile.display_name, senderProfile.username)}</p>
+// Giữ nguyên hoặc tăng độ trắng:
+<Card className="bg-white backdrop-blur-xl border border-gray-100 shadow-lg overflow-hidden">
 ```
+
+**4. Contract Info Section - Nền sáng hơn**
+```typescript
+// Từ (line 140):
+<div className="mt-4 p-3 bg-muted/50 rounded-lg">
+
+// Sang:
+<div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-100">
+```
+
+---
+
+## Tóm Tắt Thay Đổi
+
+| Vị trí | Thay đổi |
+|--------|----------|
+| **DexScreener URL** | `theme=dark` → `theme=light` |
+| **Chart container** | `bg-background` → `bg-white shadow-sm border-gray-200` |
+| **Card wrapper** | Tăng độ trắng, bỏ transparency |
+| **Contract info** | `bg-muted/50` → `bg-gray-50 border-gray-100` |
+
+---
 
 ## Kết Quả Mong Đợi
 
-- Tất cả tên user hiển thị sạch, không còn hậu tố "là", "is", hoặc "'s Channel"
-- Code dễ maintain với utility function tập trung
-- Database đã được clean up
+- Chart CAMLY hiển thị **nền trắng sáng** giống CoinMarketCap Light Mode
+- Nến xanh/đỏ rõ ràng trên nền trắng
+- Grid line xám nhạt, dễ nhìn
+- Đồng bộ với tổng thể UI glassmorphism của FUN PLAY Wallet
+- Trải nghiệm chuyên nghiệp, quen thuộc với user crypto
 
-## Files Sẽ Thay Đổi
+---
+
+## File Cần Thay Đổi
 
 | File | Hành động |
 |------|-----------|
-| `src/lib/userUtils.ts` | **Tạo mới** - Utility functions |
-| `src/components/Donate/EnhancedDonateModal.tsx` | Cập nhật |
-| `src/components/Chat/ChatHeader.tsx` | Cập nhật |
-| `src/pages/Profile.tsx` | Cập nhật |
-| `src/pages/UserProfile.tsx` | Cập nhật |
-| `src/pages/Channel.tsx` | Cập nhật |
-| `src/components/Layout/HonobarDetailModal.tsx` | Cập nhật |
-| `src/components/Video/ShortsCommentSheet.tsx` | Cập nhật |
-| `src/components/Admin/tabs/RewardApprovalTab.tsx` | Cập nhật |
-| `src/components/Admin/tabs/BannedUsersTab.tsx` | Cập nhật |
-| `src/components/Profile/ProfileInfo.tsx` | Cập nhật để dùng utility |
-| **Database Migration** | Sửa display_name có "là" |
+| `src/components/Wallet/CAMLYPriceSection.tsx` | Cập nhật theme + styling |
