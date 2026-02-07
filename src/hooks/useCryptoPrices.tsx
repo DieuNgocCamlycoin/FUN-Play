@@ -8,6 +8,7 @@ import {
   USDT_ADDRESS,
   WBNB_ADDRESS
 } from "@/config/tokens";
+import { debugLog, debugError } from "@/lib/debugLog";
 
 interface CryptoPrices {
   [key: string]: number;
@@ -16,6 +17,9 @@ interface CryptoPrices {
 const ROUTER_ABI = [
   "function getAmountsOut(uint amountIn, address[] memory path) public view returns (uint[] memory amounts)"
 ];
+
+// Polling interval - 120s for better performance
+const POLLING_INTERVAL = 120000;
 
 export const useCryptoPrices = () => {
   const [prices, setPrices] = useState<CryptoPrices>({});
@@ -43,10 +47,9 @@ export const useCryptoPrices = () => {
           const provider = new ethers.JsonRpcProvider("https://bsc-dataseed.binance.org/");
           const router = new ethers.Contract(PANCAKESWAP_ROUTER, ROUTER_ABI, provider);
           
-          const amountIn = ethers.parseUnits("1", CAMLY_DECIMALS); // 1 CAMLY
+          const amountIn = ethers.parseUnits("1", CAMLY_DECIMALS);
           
-          console.log("[CAMLY Price] Fetching price for token:", CAMLY_TOKEN_ADDRESS);
-          console.log("[CAMLY Price] Using decimals:", CAMLY_DECIMALS);
+          debugLog('CryptoPrices', 'Fetching CAMLY price', { token: CAMLY_TOKEN_ADDRESS });
           
           let camlyPrice = 0;
           
@@ -54,37 +57,33 @@ export const useCryptoPrices = () => {
           try {
             const directPath = [CAMLY_TOKEN_ADDRESS, USDT_ADDRESS];
             const amounts = await router.getAmountsOut(amountIn, directPath);
-            const usdtOut = ethers.formatUnits(amounts[1], 18); // USDT has 18 decimals on BSC
+            const usdtOut = ethers.formatUnits(amounts[1], 18);
             camlyPrice = parseFloat(usdtOut);
-            console.log("[CAMLY Price] Direct path success, price:", camlyPrice);
-          } catch (directError) {
-            console.log("[CAMLY Price] Direct path failed, trying WBNB path...");
-            
+            debugLog('CryptoPrices', 'Direct path price', camlyPrice);
+          } catch {
             // Try path via WBNB: CAMLY -> WBNB -> USDT
             try {
               const wbnbPath = [CAMLY_TOKEN_ADDRESS, WBNB_ADDRESS, USDT_ADDRESS];
               const amounts = await router.getAmountsOut(amountIn, wbnbPath);
               const usdtOut = ethers.formatUnits(amounts[2], 18);
               camlyPrice = parseFloat(usdtOut);
-              console.log("[CAMLY Price] WBNB path success, price:", camlyPrice);
-            } catch (wbnbError) {
-              console.log("[CAMLY Price] WBNB path also failed:", wbnbError);
-              // Use a reasonable fallback price
+              debugLog('CryptoPrices', 'WBNB path price', camlyPrice);
+            } catch {
+              // Use fallback price
               camlyPrice = 0.0001;
-              console.log("[CAMLY Price] Using fallback price:", camlyPrice);
+              debugLog('CryptoPrices', 'Using fallback price', camlyPrice);
             }
           }
           
           newPrices["CAMLY"] = camlyPrice;
         } catch (error) {
-          console.error("[CAMLY Price] Error fetching from PancakeSwap:", error);
-          // Fallback price if PancakeSwap fails completely
+          debugError('CryptoPrices', 'Error fetching CAMLY price', error);
           newPrices["CAMLY"] = 0.0001;
         }
 
         setPrices(newPrices);
       } catch (error) {
-        console.error("Error fetching crypto prices:", error);
+        debugError('CryptoPrices', 'Error fetching crypto prices', error);
       } finally {
         setLoading(false);
       }
@@ -92,8 +91,8 @@ export const useCryptoPrices = () => {
 
     fetchPrices();
     
-    // Refresh prices every 60 seconds
-    const interval = setInterval(fetchPrices, 60000);
+    // Refresh prices every 120 seconds (optimized from 60s)
+    const interval = setInterval(fetchPrices, POLLING_INTERVAL);
     
     return () => clearInterval(interval);
   }, []);
