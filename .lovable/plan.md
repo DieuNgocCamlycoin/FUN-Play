@@ -1,123 +1,352 @@
 
-# Kế Hoạch Đồng Bộ 3 Nút Header
 
-## Tổng Quan
+# Kế Hoạch: FUN Money Auto-Mint từ Light Activity
 
-Điều chỉnh 3 nút "Thưởng & Tặng", "MINT FUN MONEY" và "WALLET" để có kích thước đồng nhất, và nút MINT có style vàng kim loại sang trọng giống nút "Thưởng & Tặng".
+## Phần I: Hiểu Yêu Cầu Mới
 
----
-
-## Phần I: So Sánh Hiện Tại vs Mới
-
-| Thuộc tính | Thưởng & Tặng | MINT (Hiện tại) | MINT (Mới) | WALLET |
-|------------|---------------|-----------------|------------|--------|
-| **Background** | Vàng kim loại gradient | Cyan-blue opacity 10% | Vàng kim loại gradient ✨ | Cyan-teal-blue |
-| **Text Color** | #7C5800 (nâu vàng) | Cyan gradient | #7C5800 (nâu vàng) ✨ | Trắng |
-| **Border** | #FFEA00/60 | cyan-400/30 | #FFEA00/60 ✨ | Không |
-| **Effect** | Mirror Shimmer | Không | Mirror Shimmer ✨ | Mirror Shimmer |
-| **Padding** | px-4 py-2 | px-3 py-2 | px-4 py-2 ✨ | px-5 py-2 |
-| **Font Size** | text-base font-extrabold | text-sm font-semibold | text-base font-extrabold ✨ | text-lg font-bold |
-
----
-
-## Phần II: Layout Mới
+### Flow Mới (Đơn Giản Hóa)
 
 ```text
-┌──────────────────────────────────────────────────────────────────────────────────────┐
-│                                                                                      │
-│  [🎁 THƯỞNG & TẶNG]   [🪙 MINT]   [💎 WALLET]                                       │
-│   ↑ Vàng kim loại      ↑ Vàng kim loại   ↑ Cyan-teal-blue                           │
-│   (giữ nguyên)         (ĐỔI MỚI)         (giữ nguyên)                               │
-│                                                                                      │
-└──────────────────────────────────────────────────────────────────────────────────────┘
+TRƯỚC (Phức tạp - User phải điền form):
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│ User làm activity → User mở FUN Money → User điền form (pillars, evidence, v.v.)   │
+│                                       → Submit → Pending → Admin approve → Mint    │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+
+SAU (Tự động - User chỉ cần bấm MINT):
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│ User làm activity → Hệ thống tự động track & tính điểm → Hiển thị "Mintable FUN"   │
+│                   → User bấm MINT → Pending → Admin approve → Mint                  │
+└─────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Phần III: File Cần Thay Đổi
+## Phần II: Nguồn Dữ Liệu Light Activity
 
-| File | Hành động |
-|------|-----------|
-| `src/components/Layout/Header.tsx` | Cập nhật styling nút MINT FUN MONEY |
+### Dữ Liệu Đã Có (reward_transactions + daily_reward_limits)
+
+| Activity Type | Bảng | Đã Track |
+|---------------|------|----------|
+| VIEW | reward_transactions | View video |
+| LIKE | reward_transactions | Like video |
+| COMMENT | reward_transactions | Comment chất lượng |
+| SHARE | reward_transactions | Share video |
+| UPLOAD | reward_transactions | Upload video |
+| SIGNUP | reward_transactions | Đăng ký tài khoản |
+| WALLET_CONNECT | reward_transactions | Kết nối ví |
+
+### Thống Kê Mẫu (Từ Database)
+
+| Type | Total CAMLY | Activity Count |
+|------|-------------|----------------|
+| LIKE | 73,161,000 | 14,640 |
+| COMMENT | 13,770,000 | 2,754 |
+| SIGNUP | 8,450,000 | 169 |
+| UPLOAD | 4,300,000 | 43 |
+| VIEW | 3,888,000 | 423 |
 
 ---
 
-## Phần IV: Chi Tiết Styling Mới Cho MINT Button
+## Phần III: Công Thức Tính Mintable FUN
 
-### Code mới:
+### Logic Chuyển Đổi CAMLY → FUN
+
+```text
+Mintable FUN = f(User's Light Activities)
+
+Dựa trên:
+1. Tổng CAMLY đã earn (approved + pending)
+2. Số lượng activities theo loại (view, like, comment, upload, share)
+3. Chất lượng activities (comment length, video duration)
+4. Anti-sybil score (suspicious_score từ profiles)
+5. Account age & verification status
+
+Công thức đề xuất:
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│                                                                                     │
+│  Base FUN = (Total CAMLY × Conversion Rate) / 1000                                 │
+│                                                                                     │
+│  Light Score = Tự động tính từ activity breakdown:                                 │
+│    - S (Service): Dựa trên uploads, helpful comments                               │
+│    - T (Truth): Dựa trên verified status, unique content                           │
+│    - H (Healing): Dựa trên positive interactions                                   │
+│    - C (Contribution): Dựa trên total engagement                                   │
+│    - U (Unity): Dựa trên community interactions                                    │
+│                                                                                     │
+│  Final Mintable = Base FUN × (Light Score / 100) × K (Integrity)                   │
+│                                                                                     │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Phần IV: UI/UX Mới - Light Activity Dashboard
+
+### Thiết Kế Trang /fun-money
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│                           FUN MONEY                                                  │
+│                   Proof of Pure Love Protocol                                        │
+├─────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                      │
+│  ┌────────────────────────────────────────────────────────────────────────────────┐ │
+│  │                    💎 YOUR MINTABLE FUN                                        │ │
+│  │  ───────────────────────────────────────────────────────────────────────────── │ │
+│  │                                                                                 │ │
+│  │                          ✨ 1,250 FUN ✨                                       │ │
+│  │                    (≈ $125.00 USD estimated)                                    │ │
+│  │                                                                                 │ │
+│  │   Light Score: 78/100  ████████████████████░░░░░                               │ │
+│  │                                                                                 │ │
+│  │           ┌──────────────────────────────────────────────┐                     │ │
+│  │           │         🌟 MINT NOW 🌟                       │                     │ │
+│  │           │    (Tạo yêu cầu mint FUN)                    │                     │ │
+│  │           └──────────────────────────────────────────────┘                     │ │
+│  │                                                                                 │ │
+│  └────────────────────────────────────────────────────────────────────────────────┘ │
+│                                                                                      │
+│  ┌────────────────────────────────────────────────────────────────────────────────┐ │
+│  │                 📊 LIGHT ACTIVITY BREAKDOWN                                    │ │
+│  │  ───────────────────────────────────────────────────────────────────────────── │ │
+│  │                                                                                 │ │
+│  │   🙏 Service (S)        ████████████████░░░░  85    Uploads: 5, Helps: 12      │ │
+│  │   💎 Truth (T)          ████████████████░░░░  82    Verified: Yes              │ │
+│  │   💚 Healing (H)        ██████████████░░░░░░  70    Positive: 89%              │ │
+│  │   🎁 Contribution (C)   ████████████████████  95    Total: 1,250 activities    │ │
+│  │   🤝 Unity (U)          ██████████░░░░░░░░░░  50    Collabs: 3                 │ │
+│  │                                                                                 │ │
+│  │   ─────────────────────────────────────────────────────────────────────────── │ │
+│  │   Total Light Score:    ████████████████░░░░  78                               │ │
+│  │                                                                                 │ │
+│  └────────────────────────────────────────────────────────────────────────────────┘ │
+│                                                                                      │
+│  ┌────────────────────────────────────────────────────────────────────────────────┐ │
+│  │                 📈 ACTIVITY SUMMARY                                            │ │
+│  │  ───────────────────────────────────────────────────────────────────────────── │ │
+│  │                                                                                 │ │
+│  │   Views: 423      Likes: 1,250     Comments: 89     Shares: 17                 │ │
+│  │   Uploads: 5      CAMLY Earned: 95,000                                         │ │
+│  │                                                                                 │ │
+│  └────────────────────────────────────────────────────────────────────────────────┘ │
+│                                                                                      │
+│  [Pending Requests]  [Mint History]                                                  │
+│                                                                                      │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Phần V: Files Cần Tạo/Sửa
+
+### 5.1. Files Mới
+
+| File | Mục đích |
+|------|----------|
+| `src/hooks/useLightActivity.ts` | Hook tính toán light activity & mintable FUN |
+| `src/components/FunMoney/MintableCard.tsx` | Card hiển thị mintable FUN với nút MINT |
+| `src/components/FunMoney/LightActivityBreakdown.tsx` | Breakdown 5 pillars từ activities |
+| `src/components/FunMoney/ActivitySummary.tsx` | Tóm tắt activities của user |
+
+### 5.2. Files Cập Nhật
+
+| File | Thay đổi |
+|------|----------|
+| `src/pages/FunMoneyPage.tsx` | Thay MintRequestForm bằng MintableCard + Breakdown |
+| `src/hooks/useFunMoneyMintRequest.ts` | Thêm submitAutoRequest (không cần form input) |
+| `src/lib/fun-money/pplp-engine.ts` | Thêm calculatePillarsFromActivity() |
+
+---
+
+## Phần VI: Chi Tiết Technical
+
+### 6.1. useLightActivity Hook
 
 ```typescript
-{/* MINT FUN MONEY Button */}
-<TooltipProvider>
-  <Tooltip>
-    <TooltipTrigger asChild>
-      <Button
-        variant="ghost"
-        onClick={() => navigate("/fun-money")}
-        className="relative hidden md:flex items-center gap-2 overflow-hidden
-                   bg-gradient-to-b from-[#FFEA00] via-[#FFD700] to-[#E5A800] 
-                   text-[#7C5800] font-extrabold rounded-full px-4 py-2
-                   shadow-[0_0_15px_rgba(255,215,0,0.4),inset_0_2px_4px_rgba(255,255,255,0.6),inset_0_-1px_2px_rgba(0,0,0,0.1)] 
-                   hover:shadow-[0_0_25px_rgba(255,234,0,0.6),0_0_40px_rgba(255,215,0,0.3)] 
-                   border border-[#FFEA00]/60 
-                   transition-all duration-300 hover:scale-105"
-      >
-        <img 
-          src="/images/fun-money-coin.png" 
-          alt="FUN Money" 
-          className="h-5 w-5 rounded-full object-cover ring-1 ring-[#7C5800]/30 relative z-10"
-        />
-        <span className="text-base font-extrabold relative z-10 tracking-wide">
-          MINT
-        </span>
-        {/* Mirror shimmer effect */}
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-mirror-shimmer" />
-      </Button>
-    </TooltipTrigger>
-    <TooltipContent>Mint FUN Money - PPLP Protocol</TooltipContent>
-  </Tooltip>
-</TooltipProvider>
+interface LightActivity {
+  // Activity counts
+  totalViews: number;
+  totalLikes: number;
+  totalComments: number;
+  totalShares: number;
+  totalUploads: number;
+  
+  // CAMLY earned
+  totalCamlyEarned: number;
+  pendingCamly: number;
+  approvedCamly: number;
+  
+  // Calculated pillars (auto từ activities)
+  pillars: {
+    S: number; // Service - từ uploads, helpful comments
+    T: number; // Truth - từ verified, unique content
+    H: number; // Healing - từ positive ratio
+    C: number; // Contribution - từ total activities
+    U: number; // Unity - từ collaborations
+  };
+  
+  // Light score
+  lightScore: number;
+  
+  // Mintable FUN
+  mintableFun: string; // formatted
+  mintableFunAtomic: string;
+  
+  // Status
+  canMint: boolean;
+  mintBlockReason?: string; // "Insufficient activity", "Already pending", etc.
+}
+
+export function useLightActivity(userId: string): {
+  activity: LightActivity | null;
+  loading: boolean;
+  refetch: () => Promise<void>;
+}
+```
+
+### 6.2. Công Thức Tính Pillars Tự Động
+
+```typescript
+function calculatePillarsFromActivity(activity: ActivityData): PillarScores {
+  // S (Service): Uploads + helpful comments
+  const S = Math.min(100, 
+    (activity.uploads * 15) + 
+    (activity.qualityComments * 2) + 
+    30 // base
+  );
+  
+  // T (Truth): Verified + unique content + account age
+  const T = Math.min(100,
+    (activity.isVerified ? 30 : 0) +
+    (activity.uniqueContentRatio * 40) +
+    (Math.min(activity.accountAgeDays, 365) / 365 * 30)
+  );
+  
+  // H (Healing): Positive interaction ratio
+  const H = Math.min(100,
+    (activity.positiveRatio * 70) +
+    (activity.noReports ? 30 : 0)
+  );
+  
+  // C (Contribution): Total engagement
+  const C = Math.min(100,
+    Math.log10(activity.totalEngagement + 1) * 20 +
+    30 // base
+  );
+  
+  // U (Unity): Collaborations + community
+  const U = Math.min(100,
+    (activity.collaborations * 20) +
+    (activity.communityInteractions * 5) +
+    20 // base
+  );
+  
+  return { S, T, H, C, U };
+}
+```
+
+### 6.3. MintableCard Component
+
+```typescript
+// Key features:
+// - Hiển thị số FUN có thể mint (lớn, nổi bật)
+// - Progress bar Light Score
+// - Nút MINT lớn với hiệu ứng vàng kim loại
+// - Disabled nếu đã có pending request hoặc không đủ điều kiện
+// - Tooltip giải thích tại sao không thể mint
+```
+
+### 6.4. Quick Mint Flow (1 Click)
+
+```typescript
+const handleQuickMint = async () => {
+  if (!activity || !canMint) return;
+  
+  // Tự động submit với dữ liệu đã tính sẵn
+  const result = await submitAutoRequest({
+    userWalletAddress: address,
+    calculatedPillars: activity.pillars,
+    calculatedLightScore: activity.lightScore,
+    mintableFunAtomic: activity.mintableFunAtomic,
+    activitySummary: {
+      views: activity.totalViews,
+      likes: activity.totalLikes,
+      comments: activity.totalComments,
+      uploads: activity.totalUploads
+    }
+  });
+  
+  if (result) {
+    toast.success("Mint request created!");
+    // Navigate to history or show pending card
+  }
+};
 ```
 
 ---
 
-## Phần V: Giải Thích Style Vàng Kim Loại
+## Phần VII: Database Updates
 
-| Thuộc tính | Giá trị | Mục đích |
-|------------|---------|----------|
-| `bg-gradient-to-b` | `#FFEA00 → #FFD700 → #E5A800` | Gradient vàng từ sáng xuống tối |
-| `text-[#7C5800]` | Nâu vàng đậm | Tương phản tốt trên nền vàng |
-| `inset shadow top` | `rgba(255,255,255,0.6)` | Hiệu ứng ánh sáng phản chiếu 3D |
-| `inset shadow bottom` | `rgba(0,0,0,0.1)` | Chiều sâu |
-| `border` | `#FFEA00/60` | Viền vàng nhẹ |
-| `animate-mirror-shimmer` | CSS animation | Hiệu ứng gương lấp lánh liên tục |
+### 7.1. Thêm Cột Tracking Cho Auto-Mint
+
+```sql
+-- Thêm cột để track khi nào user đã mint từ activities
+ALTER TABLE profiles
+ADD COLUMN IF NOT EXISTS last_fun_mint_at TIMESTAMP WITH TIME ZONE,
+ADD COLUMN IF NOT EXISTS total_fun_minted NUMERIC DEFAULT 0;
+
+-- Thêm index cho query activities nhanh hơn
+CREATE INDEX IF NOT EXISTS idx_reward_transactions_user_type 
+ON reward_transactions(user_id, reward_type);
+```
 
 ---
 
-## Phần VI: Kết Quả Mong Đợi
+## Phần VIII: Thứ Tự Triển Khai
+
+| Phase | Công việc | Thời gian |
+|-------|-----------|-----------|
+| **Phase 1** | useLightActivity hook (fetch + calculate) | 25 phút |
+| **Phase 2** | calculatePillarsFromActivity trong pplp-engine | 15 phút |
+| **Phase 3** | MintableCard component | 20 phút |
+| **Phase 4** | LightActivityBreakdown component | 15 phút |
+| **Phase 5** | ActivitySummary component | 10 phút |
+| **Phase 6** | Update FunMoneyPage layout | 15 phút |
+| **Phase 7** | submitAutoRequest trong useMintRequest | 15 phút |
+| **Phase 8** | Database migration | 5 phút |
+| **Phase 9** | Testing + refinements | 20 phút |
+
+**Tổng thời gian ước tính:** 2-2.5 giờ
+
+---
+
+## Phần IX: So Sánh UX
 
 ```text
-Trước:
-[🎁 THƯỞNG & TẶNG]  [🪙 MINT]  [💎 WALLET]
-     Vàng            Xanh lạc      Xanh cyan
-                     tone ❌
+TRƯỚC (7 bước, user phải nghĩ):
+1. Mở trang FUN Money
+2. Click "New Request"
+3. Điền description
+4. Điền proof URL
+5. Điều chỉnh 5 sliders (S, T, H, C, U)
+6. Check 4 unity signals
+7. Submit
 
-Sau:
-[🎁 THƯỞNG & TẶNG]  [🪙 MINT]  [💎 WALLET]
-     Vàng            Vàng ✅      Xanh cyan
-     Kim loại        Kim loại     Holographic
+SAU (2 bước, user chỉ cần nhìn và bấm):
+1. Mở trang FUN Money → Thấy ngay "1,250 FUN có thể mint"
+2. Bấm "MINT NOW" → Done!
 ```
 
 ---
 
 ## Tóm Tắt
 
-| Bước | Công việc |
-|------|-----------|
-| 1 | Thay đổi background của MINT từ cyan sang gradient vàng kim loại |
-| 2 | Đổi text color sang #7C5800 |
-| 3 | Thêm border vàng và shadow inset cho hiệu ứng 3D |
-| 4 | Thêm Mirror Shimmer animation |
-| 5 | Điều chỉnh padding và font size cho đồng bộ với nút Thưởng & Tặng |
+| Thay đổi | Chi tiết |
+|----------|----------|
+| **Bỏ form thủ công** | Không cần user điền pillars, evidence |
+| **Tự động tính từ activity** | Dựa trên reward_transactions đã track |
+| **1-click mint** | User chỉ bấm MINT, hệ thống làm hết |
+| **Hiển thị trực quan** | Card lớn với số FUN, progress bar Light Score |
+| **Giữ nguyên flow admin** | Pending → Admin review → Approve → Mint on-chain |
 
-**Thời gian ước tính:** 5-10 phút
