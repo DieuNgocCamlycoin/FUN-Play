@@ -193,20 +193,16 @@ export const WalletButton = ({ compact = false, className }: WalletButtonProps) 
           style={{ width: '50%' }}
         />
         
-        <motion.div
-          animate={hasRewards ? { scale: [1, 1.1, 1] } : {}}
-          transition={{ duration: 2, repeat: Infinity }}
-          className="relative z-10"
-        >
+        <div className="relative z-10">
           <img 
             src="/images/fun-play-wallet-icon.png" 
             alt="Wallet" 
-            className="h-14 w-14 rounded-full -ml-2 drop-shadow-lg"
+            className="h-11 w-11 rounded-full -ml-2 drop-shadow-lg"
           />
-        </motion.div>
+        </div>
         
         <span 
-          className="relative z-10 font-bold text-white tracking-wide"
+          className="relative z-10 font-bold text-white tracking-wide text-lg"
           style={{
             textShadow: "0 0 10px rgba(255,255,255,0.5), 0 1px 2px rgba(0,0,0,0.2)"
           }}
