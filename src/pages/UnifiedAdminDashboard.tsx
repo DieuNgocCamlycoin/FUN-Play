@@ -14,6 +14,7 @@ import { UsersManagementTab } from "@/components/Admin/tabs/UsersManagementTab";
 import { VideosManagementTab } from "@/components/Admin/tabs/VideosManagementTab";
 import { ConfigManagementTab } from "@/components/Admin/tabs/ConfigManagementTab";
 import AdminManagementTab from "@/components/Admin/tabs/AdminManagementTab";
+import { FunMoneyApprovalTab } from "@/components/Admin/tabs/FunMoneyApprovalTab";
 import { useAdminManage } from "@/hooks/useAdminManage";
 import { useAdminRealtime } from "@/hooks/useAdminRealtime";
 
@@ -110,6 +111,8 @@ export default function UnifiedAdminDashboard() {
         return <OverviewTab />;
       case "rewards":
         return <RewardsManagementTab />;
+      case "fun-money":
+        return <FunMoneyApprovalTab />;
       case "users":
         return <UsersManagementTab />;
       case "videos":
@@ -137,6 +140,7 @@ export default function UnifiedAdminDashboard() {
             <h1 className="text-3xl font-black bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] to-[#FF00E5] bg-clip-text text-transparent">
               {currentSection === "overview" && "Tổng Quan Dashboard"}
               {currentSection === "rewards" && "Quản Lý CAMLY Rewards"}
+              {currentSection === "fun-money" && "FUN Money Mint"}
               {currentSection === "users" && "Quản Lý Người Dùng"}
               {currentSection === "videos" && "Quản Lý Video"}
               {currentSection === "config" && "Cấu Hình Hệ Thống"}
@@ -145,6 +149,7 @@ export default function UnifiedAdminDashboard() {
             <p className="text-muted-foreground mt-1">
               {currentSection === "overview" && "Thống kê toàn nền tảng FUN Play"}
               {currentSection === "rewards" && "Duyệt, theo dõi và quản lý phần thưởng CAMLY"}
+              {currentSection === "fun-money" && "Duyệt và mint FUN tokens theo PPLP Protocol"}
               {currentSection === "users" && "Quản lý tài khoản và quyền người dùng"}
               {currentSection === "videos" && "Duyệt video và thống kê uploads"}
               {currentSection === "config" && "Điều chỉnh mức thưởng và giới hạn hệ thống"}
