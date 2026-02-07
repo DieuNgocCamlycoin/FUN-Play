@@ -1,4 +1,4 @@
-import { Search, Video, Bell, Menu, User as UserIcon, LogOut, Settings, Radio, SquarePen, Plus, FileVideo, List, Music, Shield, Crown } from "lucide-react";
+import { Search, Video, Bell, Menu, User as UserIcon, LogOut, Settings, Radio, SquarePen, Plus, FileVideo, List, Music, Shield, Crown, MessageCircle } from "lucide-react";
 import funplayLogo from "@/assets/funplay-logo.jpg";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -246,6 +246,23 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
               </Button>
             </TooltipTrigger>
             <TooltipContent>Chat với ANGEL AI ✨</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        
+        {/* Messages button */}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => navigate("/messages")}
+                className="relative"
+              >
+                <MessageCircle className="h-5 w-5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Tin nhắn</TooltipContent>
           </Tooltip>
         </TooltipProvider>
         
