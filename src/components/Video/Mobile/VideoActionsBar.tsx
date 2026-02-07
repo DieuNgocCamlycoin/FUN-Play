@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ThumbsUp, ThumbsDown, Download, Loader2, Bookmark, Bell, BellRing, BellOff, ChevronDown, Share2 } from "lucide-react";
+import { ThumbsUp, ThumbsDown, Download, Loader2, Bookmark, Bell, BellRing, BellOff, ChevronDown, Share2, Gift } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -9,6 +9,7 @@ import { SaveToPlaylistDrawer } from "@/components/Playlist/SaveToPlaylistDrawer
 import { useHapticFeedback } from "@/hooks/useHapticFeedback";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { motion } from "framer-motion";
+import { EnhancedDonateModal } from "@/components/Donate/EnhancedDonateModal";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -52,6 +53,7 @@ export function VideoActionsBar({
   const { toast } = useToast();
   const [isDownloading, setIsDownloading] = useState(false);
   const [saveDrawerOpen, setSaveDrawerOpen] = useState(false);
+  const [donateModalOpen, setDonateModalOpen] = useState(false);
   const { lightTap, successFeedback } = useHapticFeedback();
   const [showLikeAnimation, setShowLikeAnimation] = useState(false);
 
@@ -221,14 +223,29 @@ export function VideoActionsBar({
             </Button>
           </div>
 
-          {/* Share button */}
+          {/* Share button - Icon only */}
           <Button
             variant="ghost"
-            size="sm"
+            size="icon"
             onClick={() => { lightTap(); onShare(); }}
-            className="rounded-full bg-muted/80 h-10 px-4 shrink-0 hover:bg-muted"
+            className="rounded-full bg-muted/80 h-10 w-10 shrink-0 hover:bg-muted"
           >
             <Share2 className="h-5 w-5" />
+          </Button>
+
+          {/* Donate button - Premium Gold with Mirror Shimmer */}
+          <Button
+            onClick={() => { lightTap(); setDonateModalOpen(true); }}
+            className="relative overflow-hidden rounded-full bg-gradient-to-b from-[#FFEA00] via-[#FFD700] to-[#E5A800] 
+                       text-[#7C5800] font-bold h-10 px-4 gap-1.5 shrink-0
+                       shadow-[0_0_15px_rgba(255,215,0,0.4),inset_0_2px_4px_rgba(255,255,255,0.6)]
+                       hover:shadow-[0_0_25px_rgba(255,234,0,0.7)] 
+                       border border-[#FFEA00]/60 transition-all duration-300"
+          >
+            <Gift className="h-5 w-5 relative z-10" />
+            <span className="text-sm font-bold relative z-10">Tặng</span>
+            {/* Mirror shimmer effect - continuous */}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-mirror-shimmer" />
           </Button>
 
           {/* Save to playlist - với icon và text */}
@@ -272,6 +289,14 @@ export function VideoActionsBar({
           onOpenChange={setSaveDrawerOpen}
           videoId={videoId}
           videoTitle={videoTitle}
+        />
+
+        {/* Donate modal */}
+        <EnhancedDonateModal
+          open={donateModalOpen}
+          onOpenChange={setDonateModalOpen}
+          defaultReceiverId={channelId}
+          defaultReceiverName={channelName}
         />
       </div>
     </TooltipProvider>

@@ -137,14 +137,14 @@ export const ProfileInfo = ({
           {!isOwnProfile && (
             <Button
               onClick={() => setDonateModalOpen(true)}
-              className="relative group overflow-hidden bg-gradient-to-b from-[#FFEA00] via-[#FFD700] to-[#E5A800] text-[#7C5800] font-bold px-5 py-2.5 rounded-full shadow-[0_0_20px_rgba(255,215,0,0.5),inset_0_2px_4px_rgba(255,255,255,0.6),inset_0_-1px_2px_rgba(0,0,0,0.1)] hover:shadow-[0_0_35px_rgba(255,234,0,0.7),0_0_50px_rgba(255,215,0,0.4)] border border-[#FFEA00]/60 transition-all duration-300 hover:scale-105"
+              className="relative overflow-hidden bg-gradient-to-b from-[#FFEA00] via-[#FFD700] to-[#E5A800] text-[#7C5800] font-bold px-5 py-2.5 rounded-full shadow-[0_0_20px_rgba(255,215,0,0.5),inset_0_2px_4px_rgba(255,255,255,0.6),inset_0_-1px_2px_rgba(0,0,0,0.1)] hover:shadow-[0_0_35px_rgba(255,234,0,0.7),0_0_50px_rgba(255,215,0,0.4)] border border-[#FFEA00]/60 transition-all duration-300 hover:scale-105"
             >
               <span className="relative z-10 flex items-center gap-2">
                 <Gift className="w-4 h-4" />
                 Tặng thưởng
               </span>
-              {/* Shimmer effect */}
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+              {/* Mirror shimmer effect - continuous */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-mirror-shimmer" />
             </Button>
           )}
 
