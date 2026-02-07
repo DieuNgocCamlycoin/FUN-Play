@@ -330,9 +330,18 @@ export const EnhancedDonateModal = ({
                 <img src={selectedToken.icon_url || ""} alt="" className="h-5 w-5" />
                 <span>{selectedToken.name}</span>
                 {currentBalance !== null && (
-                  <span className="ml-auto">Số dư: {currentBalance} {selectedToken.symbol}</span>
+                  <span className={`ml-auto ${currentBalance === 0 ? "text-destructive" : ""}`}>
+                    Số dư: {currentBalance} {selectedToken.symbol}
+                  </span>
                 )}
               </div>
+
+              {/* Warning if internal token has no balance */}
+              {selectedToken.chain === "internal" && currentBalance === 0 && (
+                <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-sm text-amber-600">
+                  ⚠️ Bạn chưa có {selectedToken.symbol}. Hãy chọn token khác hoặc kiếm {selectedToken.symbol} trước.
+                </div>
+              )}
 
               <Input
                 type="number"
@@ -350,16 +359,30 @@ export const EnhancedDonateModal = ({
                     size="sm"
                     className="flex-1"
                     onClick={() => setAmount(qa.toString())}
+                    disabled={selectedToken.chain === "internal" && currentBalance !== null && qa > currentBalance}
                   >
                     {qa}
                   </Button>
                 ))}
               </div>
 
+              {/* Validation error for insufficient balance */}
+              {selectedToken.chain === "internal" && 
+               currentBalance !== null && 
+               parseFloat(amount) > currentBalance && (
+                <p className="text-sm text-destructive">
+                  Số dư không đủ. Bạn chỉ có {currentBalance} {selectedToken.symbol}
+                </p>
+              )}
+
               <Button
                 className="w-full"
                 onClick={() => setStep("message")}
-                disabled={!amount || parseFloat(amount) <= 0}
+                disabled={
+                  !amount || 
+                  parseFloat(amount) <= 0 ||
+                  (selectedToken.chain === "internal" && currentBalance !== null && parseFloat(amount) > currentBalance)
+                }
               >
                 Tiếp tục
                 <ArrowRight className="h-4 w-4 ml-2" />
