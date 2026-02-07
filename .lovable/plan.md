@@ -1,72 +1,87 @@
 
-# Cập Nhật Nút WALLET Theo Style "Claim Rewards" Holographic Rainbow
+# Cải Tiến Nút WALLET và Thưởng & Tặng
 
-## Phân Tích Hình Ảnh Reference
+## Phân Tích Yêu Cầu
 
-Từ hình ảnh con gửi, nút **"Claim Rewards"** cũ có:
-- **Gradient cầu vồng** (Rainbow Holographic): Xanh lá → Vàng → Cam → Hồng → Tím → Xanh dương
-- **Border mềm** với hiệu ứng glow
-- **Text màu trắng** hoặc màu sáng để tương phản
-- **Icon xoay tròn** với các vòng tròn đồng tâm
-- **Badge đỏ/hồng** ở góc trên phải
+Từ hình ảnh và mô tả của con, Cha cần thực hiện 4 thay đổi:
 
-## Thay Đổi Cần Thực Hiện
+1. **Nút WALLET - Thêm hiệu ứng sáng bóng:** Thêm màu trắng/xanh sáng ở các điểm giao nhau của gradient để tạo độ sáng lấp lánh
+2. **Logo ví FUN to hơn:** Tăng kích thước logo từ `h-5 w-5` lên `h-7 w-7` để tràn viền, dễ nhận diện hơn
+3. **Xóa badge số đỏ:** Loại bỏ hoàn toàn phần hiển thị số rewards trong khung đỏ vì đang bị che
+4. **Chữ "Thưởng & Tặng" to hơn:** Tăng size font từ `text-sm` lên `text-base` và thêm uppercase
 
-### File: `src/components/Wallet/WalletButton.tsx`
+---
 
-**Từ style hiện tại (Premium 5D Gold):**
+## Chi Tiết Kỹ Thuật
+
+### 1. Nút WALLET - Thêm Điểm Sáng Giao Nhau
+
+**File:** `src/components/Wallet/WalletButton.tsx`
+
+**Thay đổi gradient:**
 ```typescript
-"bg-gradient-to-b from-[#FFEA00] via-[#FFD700] to-[#E5A800] text-[#7C5800]"
+// Từ:
+"bg-gradient-to-r from-green-400 via-yellow-400 via-orange-400 via-pink-400 via-purple-400 to-cyan-400"
+
+// Sang (thêm white/cyan sáng ở điểm giao):
+"bg-gradient-to-r from-green-400 via-white via-yellow-400 via-white via-pink-400 via-white via-cyan-400 to-green-400"
 ```
 
-**Sang style mới (Rainbow Holographic):**
+**Hoặc dùng CSS gradient phức tạp hơn với multiple color stops để tạo hiệu ứng lấp lánh tại các điểm giao nhau**
+
+### 2. Logo Ví FUN To Hơn
+
+**Thay đổi:**
 ```typescript
-"bg-gradient-to-r from-green-400 via-yellow-400 via-orange-400 via-pink-400 via-purple-400 to-cyan-400 text-white"
+// Từ:
+className="h-5 w-5 rounded-full"
+
+// Sang:
+className="h-7 w-7 rounded-full -ml-1"  // To hơn, dịch trái để tràn viền
 ```
 
-### Chi Tiết Kỹ Thuật
+### 3. Xóa Badge Số Đỏ
 
-| Thuộc tính | Giá trị cũ (Gold) | Giá trị mới (Rainbow) |
-|------------|-------------------|----------------------|
-| Gradient direction | `to-b` (dọc) | `to-r` (ngang) |
-| Colors | `#FFEA00 → #FFD700 → #E5A800` | `green → yellow → orange → pink → purple → cyan` |
-| Text color | `#7C5800` (dark gold) | `white` |
-| Box shadow | Gold glow | Rainbow glow |
-| Shimmer | White stripe | White stripe (giữ nguyên) |
-
-### Code Cụ Thể
-
+**Xóa hoàn toàn đoạn code từ line 206-221:**
 ```typescript
-// Desktop version
-className={cn(
-  "relative gap-2 font-bold transition-all duration-300 overflow-hidden",
-  hasRewards
-    ? "bg-gradient-to-r from-green-400 via-yellow-400 via-orange-400 via-pink-400 via-purple-400 to-cyan-400 text-white hover:opacity-90"
-    : "bg-gradient-to-r from-green-400/70 via-yellow-400/70 via-pink-400/70 to-cyan-400/70 text-white/90 border border-white/20"
-)}
-style={{
-  boxShadow: hasRewards 
-    ? "0 0 20px rgba(168, 85, 247, 0.4), 0 0 40px rgba(236, 72, 153, 0.2)"
-    : "0 0 10px rgba(168, 85, 247, 0.2)"
-}}
+// XÓA:
+{/* Badge for rewards count */}
+<AnimatePresence>
+  {hasRewards && (
+    <motion.span ... >
+      {formatNumber(totalRewards)}
+    </motion.span>
+  )}
+</AnimatePresence>
 ```
 
-### Hiệu Ứng Animation
+### 4. Chữ "Thưởng & Tặng" To Hơn
 
-- Giữ nguyên **Mirror Shimmer** để tạo ánh sáng chạy qua
-- Có thể thêm **animate-rainbow-gradient** để màu sắc chuyển động nhẹ
+**File:** `src/components/Donate/GlobalDonateButton.tsx`
+
+**Thay đổi:**
+```typescript
+// Từ:
+<span className="text-sm font-bold hidden md:inline relative z-10">Thưởng & Tặng</span>
+
+// Sang:
+<span className="text-base font-extrabold hidden md:inline relative z-10 tracking-wide">THƯỞNG & TẶNG</span>
+```
+
+---
+
+## Tóm Tắt Thay Đổi
+
+| File | Thay đổi |
+|------|----------|
+| `src/components/Wallet/WalletButton.tsx` | 1. Gradient thêm điểm sáng<br>2. Logo to hơn (h-7 w-7)<br>3. Xóa badge số đỏ |
+| `src/components/Donate/GlobalDonateButton.tsx` | Chữ to hơn, uppercase, font-extrabold |
+
+---
 
 ## Kết Quả Mong Đợi
 
-Nút WALLET sẽ có style **giống hệt** nút "Claim Rewards" trong hình:
-- Gradient cầu vồng holographic đẹp mắt
-- Text trắng dễ đọc
-- Hiệu ứng glow tím/hồng xung quanh
-- Badge đỏ hiển thị số rewards
-- Shimmer effect tạo cảm giác sang trọng
-
-## Files Thay Đổi
-
-| File | Hành động |
-|------|-----------|
-| `src/components/Wallet/WalletButton.tsx` | Cập nhật gradient và colors |
+- Nút WALLET có hiệu ứng rainbow sáng lấp lánh với các điểm sáng trắng/xanh
+- Logo ví FUN to rõ ràng, tràn viền ấn tượng
+- Không còn badge số đỏ bị che khuất
+- Chữ "THƯỞNG & TẶNG" to rõ ràng, dễ đọc
