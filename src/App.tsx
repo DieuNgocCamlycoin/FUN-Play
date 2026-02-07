@@ -44,6 +44,7 @@ import PlatformDocs from "./pages/PlatformDocs";
 import PostDetail from "./pages/PostDetail";
 import VideoRedirect from "./pages/VideoRedirect";
 import Profile from "./pages/Profile";
+import UserProfile from "./pages/UserProfile";
 import YourVideosMobile from "./pages/YourVideosMobile";
 import DownloadedVideos from "./pages/DownloadedVideos";
 import Bounty from "./pages/Bounty";
@@ -134,6 +135,8 @@ function AppContent() {
         <Route path="/docs/platform" element={<PlatformDocs />} />
         {/* Profile & Mobile-specific pages */}
         <Route path="/profile" element={<Profile />} />
+        <Route path="/user/:userId" element={<UserProfile />} />
+        <Route path="/u/:username" element={<UserProfile />} />
         <Route path="/your-videos-mobile" element={<YourVideosMobile />} />
         <Route path="/downloads" element={<DownloadedVideos />} />
         <Route path="/build-bounty" element={<Bounty />} />
