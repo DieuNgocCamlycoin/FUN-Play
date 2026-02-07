@@ -1,19 +1,20 @@
 import { useEffect } from 'react';
+import { debugLog } from '@/lib/debugLog';
 
 // Update this version with each deployment
-const APP_VERSION = '2025.01.10.3';
+const APP_VERSION = '2025.02.07.1';
 
 export const VersionCheck = () => {
   useEffect(() => {
     const storedVersion = localStorage.getItem('app_version');
     
     if (storedVersion && storedVersion !== APP_VERSION) {
-      console.log('[VersionCheck] New version detected:', APP_VERSION, 'Previous:', storedVersion);
+      debugLog('VersionCheck', 'New version detected', { current: APP_VERSION, previous: storedVersion });
       
       // Clear Service Worker caches
       if ('caches' in window) {
         caches.keys().then(names => {
-          console.log('[VersionCheck] Clearing', names.length, 'caches...');
+          debugLog('VersionCheck', 'Clearing caches', { count: names.length });
           names.forEach(name => caches.delete(name));
         });
       }
@@ -21,7 +22,7 @@ export const VersionCheck = () => {
       // Unregister old Service Workers
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(registrations => {
-          console.log('[VersionCheck] Unregistering', registrations.length, 'service workers...');
+          debugLog('VersionCheck', 'Unregistering service workers', { count: registrations.length });
           registrations.forEach(registration => registration.unregister());
         });
       }
@@ -31,13 +32,13 @@ export const VersionCheck = () => {
       
       // Small delay to ensure cache operations complete
       setTimeout(() => {
-        console.log('[VersionCheck] Reloading page...');
+        debugLog('VersionCheck', 'Reloading page');
         window.location.reload();
       }, 500);
     } else if (!storedVersion) {
       // First visit, just store the version
       localStorage.setItem('app_version', APP_VERSION);
-      console.log('[VersionCheck] First visit, version:', APP_VERSION);
+      debugLog('VersionCheck', 'First visit', { version: APP_VERSION });
     }
   }, []);
   

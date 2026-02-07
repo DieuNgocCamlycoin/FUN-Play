@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -10,6 +10,7 @@ import { useWalletConnectionWithRetry } from "@/hooks/useWalletConnectionWithRet
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useDebouncedCallback } from "@/hooks/useDebounce";
 import {
   Tooltip,
   TooltipContent,
@@ -24,6 +25,7 @@ export const ClaimRewardsSection = () => {
   const { isConnected, address, connectWithRetry, isConnecting } = useWalletConnectionWithRetry();
   const [modalOpen, setModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const isMountedRef = useRef(true);
   const [stats, setStats] = useState({
     totalRewards: 0,
     pendingRewards: 0,
@@ -52,7 +54,7 @@ export const ClaimRewardsSection = () => {
 
       const claimedTotal = claims?.reduce((sum, c) => sum + Number(c.amount), 0) || 0;
 
-      if (profile) {
+      if (profile && isMountedRef.current) {
         setStats({
           totalRewards: profile.total_camly_rewards || 0,
           pendingRewards: profile.pending_rewards || 0,
@@ -63,29 +65,36 @@ export const ClaimRewardsSection = () => {
     } catch (error) {
       console.error("Error fetching stats:", error);
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   }, [user?.id]);
 
+  // Debounced fetch for realtime
+  const debouncedFetch = useDebouncedCallback(fetchStats, 300);
+
   useEffect(() => {
+    isMountedRef.current = true;
     fetchStats();
 
-    const handleReward = () => fetchStats();
+    const handleReward = () => debouncedFetch();
     window.addEventListener("camly-reward", handleReward);
     window.addEventListener("reward-claimed", handleReward);
 
     return () => {
+      isMountedRef.current = false;
       window.removeEventListener("camly-reward", handleReward);
       window.removeEventListener("reward-claimed", handleReward);
     };
-  }, [fetchStats]);
+  }, [fetchStats, debouncedFetch]);
 
-  // Realtime subscription
+  // Realtime subscription - simplified
   useEffect(() => {
     if (!user?.id) return;
 
     const channel = supabase
-      .channel('claim-section-updates')
+      .channel('claim-section-profile')
       .on(
         'postgres_changes',
         {
@@ -94,14 +103,14 @@ export const ClaimRewardsSection = () => {
           table: 'profiles',
           filter: `id=eq.${user.id}`
         },
-        () => fetchStats()
+        () => debouncedFetch()
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id, fetchStats]);
+  }, [user?.id, debouncedFetch]);
 
   const progressPercent = Math.min((stats.approvedRewards / CLAIM_THRESHOLD) * 100, 100);
   const canClaim = stats.approvedRewards >= CLAIM_THRESHOLD && isConnected;
