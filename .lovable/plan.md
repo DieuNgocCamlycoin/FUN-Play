@@ -1,607 +1,167 @@
 
-# 🎁 Kế Hoạch Triển Khai Hệ Thống "THƯỞNG & TẶNG / REWARD & DONATE" Toàn Diện
+# 🛠️ Fix Dropdown Bị Che Khuất Trong Modal "Thưởng & Tặng"
 
-## 📊 Phân Tích Hiện Trạng
+## 📊 Phân Tích Nguyên Nhân
 
-### Đã có sẵn:
-| Component | Trạng thái | Ghi chú |
-|-----------|------------|---------|
-| `DonateModal.tsx` | ✅ Hoàn thành | Đã đổi tên từ TipModal, hỗ trợ BSC on-chain |
-| `donation.ts` | ✅ Hoàn thành | Hàm sendDonation() cho giao dịch BSC |
-| `wallet_transactions` table | ✅ Có sẵn | Lưu giao dịch on-chain |
-| `GlobalPaymentNotifications` | ✅ Có sẵn | Realtime thông báo khi nhận tiền |
-| `RichNotification` | ✅ Có sẵn | Confetti celebration overlay |
-| `useTopSponsors` hook | ✅ Có sẵn | Lấy top donors từ wallet_transactions |
-| `SUPPORTED_TOKENS` config | ✅ Có sẵn | BNB, USDT, CAMLY, BTC |
+### Vấn đề hiện tại:
+| Component | z-index hiện tại | Vấn đề |
+|-----------|------------------|--------|
+| DialogOverlay | `z-[10001]` | ✅ OK |
+| DialogContent | `z-[10002]` | ✅ OK |
+| SelectContent | `z-50` | ❌ Thấp hơn modal! |
+| DropdownMenuContent | `z-50` | ❌ Thấp hơn modal! |
+| PopoverContent | `z-50` | ❌ Thấp hơn modal! |
 
-### Cần bổ sung:
-| Tính năng | Trạng thái | Mức độ ưu tiên |
-|-----------|------------|----------------|
-| Token FUN MONEY (nội bộ off-chain) | ❌ Chưa có | CAO |
-| Bảng `donate_tokens` quản lý token | ❌ Chưa có | CAO |
-| Bảng `internal_wallets` balance nội bộ | ❌ Chưa có | CAO |
-| Bảng `donation_transactions` toàn diện | ❌ Chưa có | CAO |
-| Nút "🎁 Thưởng & Tặng" trên Header | ❌ Chưa có | CAO |
-| Nút "Tặng" trên mỗi POST | ❌ Chưa có | CAO |
-| Ô lời nhắn (message) trong modal | ❌ Chưa có | TRUNG BÌNH |
-| Chat tin nhắn liên kết giao dịch | ❌ Chưa có | TRUNG BÌNH |
-| Receipt Page public share | ❌ Chưa có | TRUNG BÌNH |
-| Celebration Receipt overlay (giữ lại) | ❌ Chưa có | CAO |
-| Export CSV/XLSX báo cáo | ❌ Chưa có | THẤP |
+**Root cause:** Shadcn/ui Select component sử dụng Portal để render dropdown ra ngoài parent, NHƯNG z-index chỉ là `z-50` (= 50), trong khi Dialog có z-index là `10002`. Do đó dropdown bị che khuất phía dưới modal!
 
 ---
 
-## 🗄️ PHASE 1: DATABASE SCHEMA
+## ✅ Giải Pháp Fix Toàn Diện
 
-### Bảng 1: `donate_tokens` - Quản lý Token
+### 1. Tăng z-index cho SelectContent (select.tsx)
 
-| Column | Type | Description |
-|--------|------|-------------|
-| id | UUID | Primary key |
-| symbol | TEXT UNIQUE | FUNM, CAMLY, BNB, USDT |
-| name | TEXT | Tên đầy đủ |
-| chain | TEXT | 'internal' hoặc 'bsc' |
-| contract_address | TEXT | NULL cho internal tokens |
-| decimals | INTEGER | Số thập phân |
-| is_enabled | BOOLEAN | Có thể sử dụng không |
-| priority | INTEGER | Thứ tự ưu tiên (1=cao nhất) |
-| icon_url | TEXT | URL icon |
-| created_at | TIMESTAMPTZ | Thời gian tạo |
+**File:** `src/components/ui/select.tsx`
 
-**Seed Data:**
-- FUN MONEY (FUNM) - priority=1, chain='internal'
-- CAMLY COIN (CAMLY) - priority=2, chain='bsc'
-- BNB - priority=3, chain='bsc'
-- USDT - priority=4, chain='bsc'
+**Thay đổi dòng 68-69:**
+- Cũ: `z-50`
+- Mới: `z-[10003]` (cao hơn DialogContent z-[10002])
 
-### Bảng 2: `internal_wallets` - Balance Nội Bộ
+**Thêm styles:**
+- Background solid: `bg-white dark:bg-gray-900` (không transparent)
+- Border gradient: `border-2 border-cosmic-cyan/30`
+- Shadow glow: `shadow-[0_0_20px_rgba(0,231,255,0.3)]`
+- Rounded: `rounded-xl`
 
-| Column | Type | Description |
-|--------|------|-------------|
-| id | UUID | Primary key |
-| user_id | UUID FK | Liên kết profiles |
-| token_id | UUID FK | Liên kết donate_tokens |
-| balance | NUMERIC | Số dư (CHECK >= 0) |
-| updated_at | TIMESTAMPTZ | Cập nhật lần cuối |
-| UNIQUE | | (user_id, token_id) |
+### 2. Tăng z-index cho DropdownMenuContent (dropdown-menu.tsx)
 
-### Bảng 3: `donation_transactions` - Giao Dịch Tặng
+**File:** `src/components/ui/dropdown-menu.tsx`
 
-| Column | Type | Description |
-|--------|------|-------------|
-| id | UUID | Primary key |
-| created_at | TIMESTAMPTZ | Thời gian tạo |
-| sender_id | UUID FK | Người tặng |
-| receiver_id | UUID FK | Người nhận |
-| token_id | UUID FK | Token sử dụng |
-| amount | NUMERIC | Số tiền (CHECK > 0) |
-| amount_usd | NUMERIC | Giá trị USD (nullable) |
-| fee_amount | NUMERIC | Phí (default 0) |
-| context_type | TEXT | 'global', 'post', 'video', 'comment' |
-| context_id | UUID | ID của post/video nếu có |
-| message | TEXT | Lời nhắn từ người tặng |
-| receipt_public_id | TEXT UNIQUE | ID công khai để share |
-| status | TEXT | 'pending', 'success', 'failed', 'refunded' |
-| chain | TEXT | 'internal' hoặc 'bsc' |
-| tx_hash | TEXT | Hash giao dịch BSC (nullable) |
-| block_number | BIGINT | Block number BSC (nullable) |
-| explorer_url | TEXT | Link BscScan (nullable) |
-| metadata | JSONB | Dữ liệu bổ sung |
+**Thay đổi dòng 63-64:**
+- Cũ: `z-50`
+- Mới: `z-[10003]`
 
-**Indexes:**
-```sql
-CREATE INDEX idx_donation_tx_sender ON donation_transactions(sender_id, created_at DESC);
-CREATE INDEX idx_donation_tx_receiver ON donation_transactions(receiver_id, created_at DESC);
-CREATE INDEX idx_donation_tx_status ON donation_transactions(status, created_at DESC);
-CREATE INDEX idx_donation_tx_context ON donation_transactions(context_type, context_id);
-CREATE INDEX idx_donation_tx_receipt ON donation_transactions(receipt_public_id);
-```
+**Thêm styles tương tự:**
+- `bg-white dark:bg-gray-900`
+- `border border-cosmic-cyan/30`
+- `shadow-lg`
 
-### Bảng 4: `user_chats` & `chat_messages` - Tin Nhắn
+### 3. Tăng z-index cho PopoverContent (popover.tsx)
 
-| Column (user_chats) | Type | Description |
-|---------------------|------|-------------|
-| id | UUID | Primary key |
-| user1_id | UUID FK | User 1 |
-| user2_id | UUID FK | User 2 |
-| created_at | TIMESTAMPTZ | Thời gian tạo |
-| updated_at | TIMESTAMPTZ | Cập nhật lần cuối |
-| UNIQUE | | (user1_id, user2_id) |
+**File:** `src/components/ui/popover.tsx`
 
-| Column (chat_messages) | Type | Description |
-|------------------------|------|-------------|
-| id | UUID | Primary key |
-| chat_id | UUID FK | Liên kết user_chats |
-| sender_id | UUID FK | Người gửi |
-| message_type | TEXT | 'text', 'donation', 'system' |
-| content | TEXT | Nội dung tin nhắn |
-| donation_transaction_id | UUID FK | Liên kết donation_transactions |
-| deep_link | TEXT | Link tới receipt |
-| is_read | BOOLEAN | Đã đọc chưa |
-| created_at | TIMESTAMPTZ | Thời gian gửi |
+**Thay đổi dòng 19-20:**
+- Cũ: `z-50`
+- Mới: `z-[10003]`
 
-### RLS Policies
+**Thêm styles:**
+- `bg-white dark:bg-gray-900`
+- `border border-cosmic-cyan/30`
 
-```sql
--- donation_transactions: sender/receiver có thể xem; public xem qua receipt_public_id
--- internal_wallets: chỉ chủ wallet và admin
--- chat_messages: chỉ 2 user trong chat
--- user_chats: chỉ 2 user tham gia
-```
+### 4. Tăng z-index cho DropdownMenuSubContent (dropdown-menu.tsx)
 
-### Realtime
-
-```sql
-ALTER PUBLICATION supabase_realtime ADD TABLE public.donation_transactions;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.chat_messages;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.internal_wallets;
-```
+**Thay đổi dòng 46-47:**
+- Cũ: `z-50`
+- Mới: `z-[10004]` (cao hơn parent dropdown)
 
 ---
 
-## ⚡ PHASE 2: EDGE FUNCTIONS
+## 🎨 Design System Compliance
 
-### Edge Function 1: `create-donation`
-
-**Input:**
-```typescript
-{
-  receiver_id: string;          // UUID người nhận
-  token_symbol: string;         // 'FUNM' | 'CAMLY' | 'BNB' | 'USDT'
-  amount: number;               // Số tiền
-  message?: string;             // Lời nhắn (optional)
-  context_type: string;         // 'global' | 'post' | 'video'
-  context_id?: string;          // post_id hoặc video_id
-}
-```
-
-**Logic:**
-1. **Validate:**
-   - amount > 0
-   - sender_id ≠ receiver_id (chặn tự tặng)
-   - Token enabled
-   - Receiver tồn tại
-
-2. **Nếu chain = 'internal' (FUN MONEY):**
-   - Kiểm tra internal_wallets.balance đủ
-   - BEGIN TRANSACTION
-   - Trừ balance sender
-   - Cộng balance receiver
-   - Tạo donation_transactions status='success'
-   - COMMIT
-
-3. **Nếu chain = 'bsc':**
-   - Tạo record status='pending'
-   - Return để client gửi tx qua MetaMask
-   - Sau khi có tx_hash → gọi confirm-bsc-donation
-
-4. **Tạo chat_messages:**
-   - Tìm hoặc tạo user_chats giữa 2 user
-   - Insert message type='donation'
-   - content: "🎁 {sender} đã tặng {amount} {token}"
-   - donation_transaction_id = transaction id
-   - deep_link = /receipt/{receipt_public_id}
-
-5. **Return:** transaction record + receipt_public_id
-
-### Edge Function 2: `confirm-bsc-donation`
-
-**Input:** { transaction_id, tx_hash }
-**Logic:** 
-- Update donation_transactions với tx_hash
-- Set explorer_url = `https://bscscan.com/tx/${tx_hash}`
-- Set status = 'success'
-
-### Edge Function 3: `get-donation-receipt`
-
-**Input:** { receipt_public_id }
-**Output:** 
-- Transaction details
-- Sender profile (avatar, username, display_name)
-- Receiver profile
-- Context info (post/video title nếu có)
-
----
-
-## 🎨 PHASE 3: UI COMPONENTS
-
-### Component 1: `GlobalDonateButton` (Header)
-
-**Vị trí:** Header.tsx và MobileHeader.tsx, cạnh các action buttons
-
-**Design:**
-```tsx
-<Button 
-  variant="ghost" 
-  className="flex items-center gap-2 bg-gradient-to-r from-cosmic-cyan/20 to-cosmic-magenta/20 
-             hover:from-cosmic-cyan/30 hover:to-cosmic-magenta/30 
-             border border-cosmic-cyan/30 rounded-full px-4"
->
-  <Gift className="h-4 w-4 text-cosmic-gold" />
-  <span className="text-sm font-medium">Thưởng & Tặng</span>
-</Button>
-```
-
-**Click → mở EnhancedDonateModal**
-
-### Component 2: `EnhancedDonateModal` (Nâng cấp từ DonateModal)
-
-**Cấu trúc 4 bước:**
-
-| Bước | Nội dung |
-|------|----------|
-| 1. Người nhận | Search user / Recent / Suggested creators |
-| 2. Token | Dropdown sorted by priority (FUNM mặc định) |
-| 3. Số tiền | Input + Quick amounts (10, 50, 100, 500) |
-| 4. Lời nhắn | Textarea optional (max 200 ký tự) |
-
-**Features:**
-- Hiển thị balance hiện có của token đã chọn
-- Auto-detect: internal vs BSC flow
-- Real-time validation
-- Loading state khi xử lý
-
-**Props mới:**
-```typescript
-interface EnhancedDonateModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  // Pre-fill options
-  defaultReceiverId?: string;
-  defaultReceiverName?: string;
-  contextType?: 'global' | 'post' | 'video';
-  contextId?: string;
-  // Callbacks
-  onSuccess?: (transaction: DonationTransaction) => void;
-}
-```
-
-### Component 3: `PostDonateButton`
-
-**Vị trí:** PostDetail.tsx, cạnh Like/Comment/Share
-
-**Design:**
-```tsx
-<Button 
-  variant="ghost" 
-  size="sm"
-  className="flex items-center gap-1.5 text-cosmic-gold hover:bg-cosmic-gold/10"
->
-  <Gift className="h-4 w-4" />
-  <span>Tặng</span>
-</Button>
-```
-
-**Click → mở EnhancedDonateModal với:**
-- defaultReceiverId = post.user_id
-- defaultReceiverName = post.profile.display_name
-- contextType = 'post'
-- contextId = post.id
-
-### Component 4: `VideoDonateButton` (Cập nhật nút hiện tại)
-
-**Vị trí:** Watch.tsx (đã có nút "Tặng")
-
-**Thay đổi:**
-- Đổi icon từ Coins → Gift
-- Thay DonateModal → EnhancedDonateModal
-- Thêm props contextType='video', contextId=video.id
-
-### Component 5: `CelebrationReceiptOverlay` (QUAN TRỌNG)
-
-**Trigger:** Sau khi donation thành công
-
-**Design:**
+Tất cả dropdown sẽ được style theo FUN PLAY Design System v1.0:
 
 ```text
-┌─────────────────────────────────────┐
-│     🎉 CHÚC MỪNG! TẶNG THÀNH CÔNG   │
-│                                     │
-│  ┌───────────────────────────────┐  │
-│  │  [Sender Avatar]              │  │
-│  │  Người tặng: @sender_name     │  │
-│  │                ↓              │  │
-│  │  [Receiver Avatar]            │  │
-│  │  Người nhận: @receiver_name   │  │
-│  │                               │  │
-│  │  💰 100 FUN MONEY             │  │
-│  │  📝 "Cảm ơn video hay!"       │  │
-│  │                               │  │
-│  │  🕐 07/02/2026 14:30          │  │
-│  │  📋 Receipt: #abc123          │  │
-│  │                               │  │
-│  │  [🔗 Xem BscScan] (nếu có)    │  │
-│  │  [📋 Copy Link]               │  │
-│  └───────────────────────────────┘  │
-│                                     │
-│           [ ✕ Đóng ]                │
-└─────────────────────────────────────┘
-```
-
-**Behavior:**
-- Confetti chạy 3-4 giây rồi DỪNG
-- Receipt overlay GIỮ NGUYÊN cho tới khi user bấm "Đóng"
-- Nút "Copy Link" → copy `/receipt/{receipt_public_id}`
-- Sound effect celebration (dùng useClaimNotificationSound)
-
-### Component 6: `ChatDonationCard`
-
-**Vị trí:** Trong chat/inbox giữa 2 user (nếu có hệ thống chat)
-
-**Design:**
-```text
-┌──────────────────────────────────┐
-│ 🎁 Bạn đã tặng @receiver         │
-│    100 FUN MONEY                 │
-│    "Cảm ơn video hay!"           │
-│                                  │
-│    [Xem biên nhận →]             │
-│                    14:30 ✓✓      │
-└──────────────────────────────────┘
-```
-
-**Click "Xem biên nhận" → navigate to /receipt/{id}**
-
-### Component 7: `ReceiptPage` (/receipt/:receiptPublicId)
-
-**Route mới:** Thêm vào App.tsx
-
-**Design:**
-```text
-┌─────────────────────────────────────────┐
-│  FUN PLAY - BIÊN NHẬN TẶNG              │
-│  ─────────────────────────────────────  │
-│                                         │
-│  [Sender Avatar]     →    [Receiver]    │
-│  @sender_name             @receiver_name│
-│                                         │
-│  ─────────────────────────────────────  │
-│  Token:     FUN MONEY (FUNM)            │
-│  Số tiền:   100 FUNM                    │
-│  USD:       ~$10.00                     │
-│  ─────────────────────────────────────  │
-│  Lời nhắn:                              │
-│  "Cảm ơn video hay quá!"                │
-│  ─────────────────────────────────────  │
-│  Context:   Video "Hướng dẫn Web3"      │
-│             [Xem video →]               │
-│  ─────────────────────────────────────  │
-│  Thời gian: 07/02/2026 14:30:45         │
-│  TX Hash:   0x123...abc                 │
-│             [Xem trên BscScan →]        │
-│  ─────────────────────────────────────  │
-│                                         │
-│  [📋 Copy Link]  [📥 Tải ảnh]           │
-│                                         │
-└─────────────────────────────────────────┘
-```
-
-**Features:**
-- Public access (không cần đăng nhập)
-- Share được link
-- Download as image (html2canvas)
-
----
-
-## 📊 PHASE 4: LEADERBOARD & TOP SPONSORS
-
-### Upgrade `useTopSponsors` Hook
-
-**Thay đổi query source:**
-- Cũ: `wallet_transactions`
-- Mới: `donation_transactions` (kết hợp cả internal và on-chain)
-
-**Query:**
-```sql
-SELECT 
-  sender_id,
-  SUM(amount) as total_donated,
-  COUNT(*) as tx_count
-FROM donation_transactions
-WHERE status = 'success'
-  AND created_at >= NOW() - INTERVAL '30 days'
-GROUP BY sender_id
-ORDER BY total_donated DESC
-LIMIT 10
-```
-
-### Upgrade `TopSponsorsCard` Component
-
-**Thêm filter:**
-- 7 ngày / 30 ngày / Tất cả
-- Token filter (All / FUNM / CAMLY / ...)
-
-### Mới: `TopReceiversCard` Component
-
-**Hiển thị:** Top users nhận được nhiều donation nhất
-
-**Vị trí:** Bên cạnh TopSponsorsCard trong Sidebar/Leaderboard page
-
----
-
-## 📈 PHASE 5: REPORTS & EXPORT
-
-### Trang `DonationReports` (/admin/donation-reports)
-
-**Filters:**
-| Filter | Type |
-|--------|------|
-| Date range | Date picker |
-| Token | Dropdown |
-| Sender | User search |
-| Receiver | User search |
-| Context type | Dropdown |
-| Status | Dropdown |
-| Chain | Dropdown |
-
-**Table columns:**
-- created_at, id, sender, receiver, token, amount, amount_usd
-- context_type, context_id, status, chain, tx_hash, message
-- Actions: View receipt
-
-**Export buttons:**
-- Export CSV (papaparse)
-- Export XLSX (xlsx library)
-
-### Export Format
-
-```csv
-created_at,transaction_id,sender_username,receiver_username,token,amount,amount_usd,context_type,context_id,status,chain,tx_hash,message,receipt_link
-2026-02-07 14:30:45,abc123,@sender,@receiver,FUNM,100,10.00,video,video_id,success,internal,,Cảm ơn!,https://play.fun.rich/receipt/abc123
+Background:     bg-white dark:bg-gray-900 (solid, không transparent)
+Border:         border border-cosmic-cyan/30 (gradient cyan subtle)
+Shadow:         shadow-lg shadow-cyan-500/10 (glow effect nhẹ)
+Rounded:        rounded-xl (bo góc đẹp)
+Animation:      Giữ nguyên fade-in/zoom-in hiện tại
+Max-height:     max-h-96 (384px, scroll nếu dài)
 ```
 
 ---
 
-## 🔔 PHASE 6: REALTIME & NOTIFICATIONS
-
-### Supabase Realtime Subscriptions
-
-**Trong GlobalPaymentNotifications.tsx:**
-```typescript
-// Subscribe to donation_transactions table
-supabase
-  .channel('global-donations')
-  .on('postgres_changes', {
-    event: 'INSERT',
-    schema: 'public',
-    table: 'donation_transactions',
-    filter: `receiver_id=eq.${user.id}`,
-  }, handleNewDonation)
-  .subscribe();
-```
-
-### Toast Notifications
-
-**Người tặng:**
-```
-🎁 Tặng thành công!
-Bạn đã tặng 100 FUNM cho @receiver
-```
-
-**Người nhận:**
-```
-💰 Bạn vừa nhận được quà!
-@sender đã tặng bạn 100 FUNM
-[Xem chi tiết]
-```
-
-### Browser Push Notification
-
-```javascript
-showLocalNotification('🎁 FUN Play - Bạn nhận được quà!', {
-  body: `@sender đã tặng bạn ${amount} ${token}! 🎉`,
-  icon: '/images/camly-coin.png',
-  tag: 'donation-received',
-  requireInteraction: true,
-});
-```
-
----
-
-## 🛡️ PHASE 7: CHỐNG GIAN LẬN
-
-### Rules
-
-| Rule | Implementation |
-|------|----------------|
-| Chặn tự tặng | sender_id ≠ receiver_id trong Edge Function |
-| Rate limit | Max 50 donations/day/user (lưu trong metadata) |
-| Min amount | FUNM: 1, CAMLY: 0.001, BNB: 0.0001 |
-| Cooldown | 30 giây giữa các giao dịch cùng receiver |
-
-### Logging
-
-```typescript
-metadata: {
-  ip_hash: hash(request.ip),
-  user_agent: request.headers['user-agent'],
-  timestamp_ms: Date.now(),
-  light_score: user.light_score
-}
-```
-
----
-
-## 📁 DANH SÁCH FILES
-
-### Mới tạo:
-
-| File | Mô tả |
-|------|-------|
-| `supabase/migrations/xxx_donation_system.sql` | Database schema |
-| `supabase/functions/create-donation/index.ts` | Edge function xử lý donation |
-| `supabase/functions/confirm-bsc-donation/index.ts` | Confirm giao dịch BSC |
-| `supabase/functions/get-donation-receipt/index.ts` | Lấy chi tiết receipt |
-| `src/components/Donate/GlobalDonateButton.tsx` | Nút global trên Header |
-| `src/components/Donate/EnhancedDonateModal.tsx` | Modal donation nâng cấp |
-| `src/components/Donate/CelebrationReceiptOverlay.tsx` | Overlay ăn mừng |
-| `src/components/Donate/ReceiptCard.tsx` | Card biên nhận |
-| `src/components/Donate/PostDonateButton.tsx` | Nút donate trên post |
-| `src/components/Donate/UserSearchInput.tsx` | Search user component |
-| `src/components/Chat/ChatDonationCard.tsx` | Card donation trong chat |
-| `src/pages/Receipt.tsx` | Trang /receipt/:id |
-| `src/pages/DonationReports.tsx` | Trang báo cáo admin |
-| `src/hooks/useDonation.ts` | Hook xử lý donation |
-| `src/hooks/useInternalWallet.ts` | Hook balance nội bộ |
-| `src/hooks/useDonationReceipt.ts` | Hook lấy receipt |
-| `src/lib/donationExport.ts` | Utility export CSV/XLSX |
-
-### Cần sửa:
+## 📁 Files Cần Chỉnh Sửa
 
 | File | Thay đổi |
 |------|----------|
-| `src/App.tsx` | Thêm route /receipt/:receiptPublicId |
-| `src/components/Layout/Header.tsx` | Thêm GlobalDonateButton |
-| `src/components/Layout/MobileHeader.tsx` | Thêm GlobalDonateButton |
-| `src/pages/Watch.tsx` | Cập nhật nút Tặng dùng EnhancedDonateModal |
-| `src/pages/PostDetail.tsx` | Thêm PostDonateButton |
-| `src/hooks/useTopSponsors.ts` | Query từ donation_transactions |
-| `src/config/tokens.ts` | Thêm FUNM token config |
-| `src/components/Donate/DonateModal.tsx` | Deprecate, thay bằng EnhancedDonateModal |
+| `src/components/ui/select.tsx` | `z-50` → `z-[10003]` + styles |
+| `src/components/ui/dropdown-menu.tsx` | `z-50` → `z-[10003]` + `z-[10004]` cho SubContent |
+| `src/components/ui/popover.tsx` | `z-50` → `z-[10003]` + styles |
 
 ---
 
-## ⏱️ TIMELINE DỰ KIẾN
+## 🔧 Chi Tiết Code Changes
 
-| Phase | Công việc | Thời gian |
-|-------|-----------|-----------|
-| 1 | Database Schema + Migrations + RLS | 2-3h |
-| 2 | Edge Functions (create, confirm, get-receipt) | 3-4h |
-| 3 | UI Components (Modal, Receipt, Buttons) | 4-5h |
-| 4 | Leaderboard & Top Sponsors upgrade | 2h |
-| 5 | Reports & Export | 2-3h |
-| 6 | Realtime & Notifications | 1-2h |
-| 7 | Testing & Polish animations | 2h |
-| **Tổng** | | **~18-20h** |
+### select.tsx (dòng 68-69)
+```tsx
+// Thay đổi className trong SelectContent
+className={cn(
+  "relative z-[10003] max-h-96 min-w-[8rem] overflow-hidden rounded-xl border border-cosmic-cyan/30 bg-white dark:bg-gray-900 text-popover-foreground shadow-lg shadow-cyan-500/10 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+  position === "popper" && "...",
+  className,
+)}
+```
+
+### dropdown-menu.tsx (dòng 63-65)
+```tsx
+// Thay đổi className trong DropdownMenuContent
+className={cn(
+  "z-[10003] min-w-[8rem] overflow-hidden rounded-xl border border-cosmic-cyan/30 bg-white dark:bg-gray-900 p-1 text-popover-foreground shadow-lg shadow-cyan-500/10 data-[state=open]:animate-in data-[state=closed]:animate-out ...",
+  className,
+)}
+```
+
+### dropdown-menu.tsx (dòng 46-48 - SubContent)
+```tsx
+// Thay đổi className trong DropdownMenuSubContent
+className={cn(
+  "z-[10004] min-w-[8rem] overflow-hidden rounded-xl border border-cosmic-cyan/30 bg-white dark:bg-gray-900 p-1 text-popover-foreground shadow-lg ...",
+  className,
+)}
+```
+
+### popover.tsx (dòng 19-21)
+```tsx
+// Thay đổi className trong PopoverContent
+className={cn(
+  "z-[10003] w-72 rounded-xl border border-cosmic-cyan/30 bg-white dark:bg-gray-900 p-4 text-popover-foreground shadow-lg shadow-cyan-500/10 outline-none data-[state=open]:animate-in ...",
+  className,
+)}
+```
 
 ---
 
-## 🎨 DESIGN SYSTEM ALIGNMENT
+## 🧪 Testing Checklist
 
-Tất cả components tuân theo FUN PLAY Design System v1.0:
+Sau khi fix, test các trường hợp:
 
-| Element | Style |
-|---------|-------|
-| Background | `bg-white/85 backdrop-blur-xl` (glassmorphism) |
-| Gradient | `from-cosmic-cyan via-cosmic-magenta to-cosmic-gold` |
-| Glow | `shadow-[0_0_20px_rgba(0,231,255,0.5)]` |
-| Border | `border border-cosmic-cyan/30` |
-| Animation | Framer Motion với spring physics |
-| Typography | Inter font, gradient text cho highlights |
-| Icons | Lucide React, màu cosmic-gold cho donation |
+1. **Modal Thưởng & Tặng:**
+   - [ ] Mở modal → bấm chọn token → dropdown nổi hoàn toàn trên modal
+   - [ ] Dropdown hiển thị đầy đủ 4 token (FUNM, CAMLY, BNB, USDT)
+   - [ ] Scroll mượt nếu có nhiều token
+   - [ ] Click chọn token → dropdown đóng, token được chọn
+
+2. **Các dropdown khác:**
+   - [ ] Dropdown trong Header (user menu)
+   - [ ] Dropdown trong Wallet page
+   - [ ] Popover/Datepicker trong forms
+   - [ ] Tất cả đều nổi trên các modal khác
+
+3. **Mobile:**
+   - [ ] Dropdown responsive, không bị tràn màn hình
+   - [ ] Touch-friendly, dễ chọn
 
 ---
 
-## ✅ THỨ TỰ TRIỂN KHAI
+## 📊 Tổng Kết
 
-1. **Database** → Tạo tables + RLS + seed data
-2. **Edge Functions** → create-donation, confirm-bsc-donation
-3. **Config** → Thêm FUNM vào tokens.ts
-4. **Hooks** → useDonation, useInternalWallet
-5. **UI Core** → EnhancedDonateModal, CelebrationReceiptOverlay
-6. **Buttons** → GlobalDonateButton, PostDonateButton
-7. **Receipt** → ReceiptCard, ReceiptPage
-8. **Integration** → Header, Watch.tsx, PostDetail.tsx
-9. **Leaderboard** → Upgrade useTopSponsors
-10. **Reports** → DonationReports page + Export
-11. **Polish** → Animations, sounds, responsive
+| Trước Fix | Sau Fix |
+|-----------|---------|
+| Dropdown z-50 (50) | Dropdown z-[10003] (10003) |
+| Bị che bởi Dialog z-[10002] | Nổi trên Dialog |
+| Không style đẹp | Gradient border + glow shadow |
+| Có thể transparent | Background solid |
+
+**Thời gian thực hiện:** ~10 phút
+
+Kế hoạch này sẽ fix dứt điểm vấn đề dropdown bị che khuất trong modal, áp dụng cho toàn bộ hệ thống và đảm bảo Design System consistency!
