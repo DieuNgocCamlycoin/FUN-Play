@@ -128,7 +128,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
           <img 
             src={funplayLogo} 
             alt="FUN Play" 
-            className="h-12 w-12 rounded-full object-cover shadow-lg ring-2 ring-primary/30 hover:ring-primary/50 transition-all"
+            className="h-11 w-11 rounded-full object-cover shadow-lg ring-2 ring-primary/30 hover:ring-primary/50 transition-all drop-shadow-lg"
           />
         </div>
       </div>
@@ -220,23 +220,12 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
                 variant="ghost"
                 size="icon"
                 onClick={() => setAngelChatOpen(true)}
-                className="relative rounded-full overflow-hidden h-9 w-9 hover:scale-110 transition-transform"
+                className="relative rounded-full overflow-hidden h-11 w-11 hover:scale-110 transition-transform p-0"
               >
-                <motion.div
-                  className="absolute inset-0 rounded-full"
-                  animate={{
-                    boxShadow: [
-                      '0 0 10px rgba(255,215,0,0.4)',
-                      '0 0 20px rgba(255,215,0,0.6)',
-                      '0 0 10px rgba(255,215,0,0.4)'
-                    ]
-                  }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                />
                 <img 
                   src="/images/angel-ai-v2.png" 
                   alt="ANGEL AI" 
-                  className="w-8 h-8 object-contain relative z-10"
+                  className="w-11 h-11 rounded-full object-cover shadow-lg ring-2 ring-primary/30 hover:ring-primary/50 transition-all drop-shadow-lg"
                 />
               </Button>
             </TooltipTrigger>
@@ -268,15 +257,15 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
         {user ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="rounded-full">
+              <Button variant="ghost" size="icon" className="rounded-full h-11 w-11 p-0 hover:scale-105 transition-transform">
                 {profile?.avatar_url ? (
                   <img
                     src={profile.avatar_url}
                     alt="Profile"
-                    className="w-8 h-8 rounded-full object-cover"
+                    className="w-11 h-11 rounded-full object-cover shadow-lg ring-2 ring-primary/30 hover:ring-primary/50 transition-all drop-shadow-lg"
                   />
                 ) : (
-                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-semibold">
+                  <div className="w-11 h-11 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-semibold shadow-lg ring-2 ring-primary/30">
                     {user.email?.[0].toUpperCase()}
                   </div>
                 )}
