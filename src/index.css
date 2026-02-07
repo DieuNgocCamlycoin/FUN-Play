@@ -419,3 +419,88 @@ body > [data-w3m-modal] {
 .animate-light-pulse {
   animation: light-pulse 3s ease-in-out infinite;
 }
+
+/* Hologram Input Border - Applied globally */
+.hologram-input {
+  position: relative;
+  border: 1px solid transparent !important;
+  background: 
+    linear-gradient(hsl(var(--background)), hsl(var(--background))) padding-box,
+    linear-gradient(135deg, 
+      hsl(var(--cosmic-cyan)), 
+      hsl(var(--cosmic-magenta)), 
+      hsl(var(--cosmic-gold))
+    ) border-box !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hologram-input:focus,
+.hologram-input:focus-within {
+  box-shadow: 
+    0 0 8px hsl(var(--cosmic-cyan) / 0.5),
+    0 0 16px hsl(var(--cosmic-magenta) / 0.3),
+    0 0 24px hsl(var(--cosmic-gold) / 0.2);
+  animation: input-glow-pulse 1.5s ease-in-out infinite;
+}
+
+.hologram-input-trigger {
+  border: 1px solid transparent !important;
+  background: 
+    linear-gradient(hsl(var(--background)), hsl(var(--background))) padding-box,
+    linear-gradient(135deg, 
+      hsl(var(--cosmic-cyan)), 
+      hsl(var(--cosmic-magenta)), 
+      hsl(var(--cosmic-gold))
+    ) border-box !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hologram-input-trigger:focus,
+.hologram-input-trigger[data-state="open"] {
+  box-shadow: 
+    0 0 8px hsl(var(--cosmic-cyan) / 0.5),
+    0 0 16px hsl(var(--cosmic-magenta) / 0.3);
+  animation: input-glow-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes input-glow-pulse {
+  0%, 100% { 
+    box-shadow: 
+      0 0 8px hsl(var(--cosmic-cyan) / 0.5),
+      0 0 16px hsl(var(--cosmic-magenta) / 0.3);
+  }
+  50% { 
+    box-shadow: 
+      0 0 12px hsl(var(--cosmic-cyan) / 0.7),
+      0 0 24px hsl(var(--cosmic-magenta) / 0.5),
+      0 0 32px hsl(var(--cosmic-gold) / 0.3);
+  }
+}
+
+/* Input sparkle effect when typing */
+.hologram-input-sparkle {
+  position: relative;
+  overflow: hidden;
+}
+
+.hologram-input-sparkle::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    hsl(var(--cosmic-cyan) / 0.3),
+    transparent
+  );
+  animation: input-sparkle 2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes input-sparkle {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}

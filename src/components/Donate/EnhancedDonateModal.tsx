@@ -1,18 +1,20 @@
 import { useState, useEffect } from "react";
-import { Gift, Search, ArrowRight, Loader2, CheckCircle2, ExternalLink, Copy, X } from "lucide-react";
+import { Gift, Search, Loader2, X, Smile } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
 import { useDonation, DonationTransaction, DonationToken } from "@/hooks/useDonation";
 import { useInternalWallet } from "@/hooks/useInternalWallet";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
-import confetti from "canvas-confetti";
+import { DonationSuccessOverlay } from "./DonationSuccessOverlay";
 
 interface EnhancedDonateModalProps {
   open: boolean;
@@ -34,7 +36,15 @@ interface UserResult {
   wallet_address: string | null;
 }
 
-type Step = "receiver" | "token" | "amount" | "message" | "success";
+interface SenderProfile {
+  id: string;
+  username: string;
+  display_name: string | null;
+  avatar_url: string | null;
+}
+
+// Emoji categories for quick picker
+const EMOJI_LIST = ["💖", "❤️", "🥰", "😍", "🙏", "🔥", "💯", "⭐", "🌟", "✨", "🎉", "🎁", "💪", "👏", "🤝", "💕"];
 
 export const EnhancedDonateModal = ({
   open,
@@ -49,49 +59,80 @@ export const EnhancedDonateModal = ({
 }: EnhancedDonateModalProps) => {
   const { user } = useAuth();
   const { loading, tokens, fetchTokens, createDonation } = useDonation();
-  const { balances, getBalanceBySymbol } = useInternalWallet();
+  const { getBalanceBySymbol } = useInternalWallet();
 
-  const [step, setStep] = useState<Step>(defaultReceiverId ? "token" : "receiver");
+  // Form state
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<UserResult[]>([]);
   const [searching, setSearching] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
 
-  const [selectedReceiver, setSelectedReceiver] = useState<UserResult | null>(
-    defaultReceiverId
-      ? {
+  const [selectedReceiver, setSelectedReceiver] = useState<UserResult | null>(null);
+  const [selectedToken, setSelectedToken] = useState<DonationToken | null>(null);
+  const [amount, setAmount] = useState("");
+  const [message, setMessage] = useState("");
+
+  // Success state
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [completedTransaction, setCompletedTransaction] = useState<DonationTransaction | null>(null);
+
+  // Sender profile
+  const [senderProfile, setSenderProfile] = useState<SenderProfile | null>(null);
+
+  // Emoji picker
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+  const quickAmounts = [10, 50, 100, 500];
+
+  // Fetch sender profile
+  useEffect(() => {
+    const fetchSender = async () => {
+      if (!user?.id) return;
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, username, display_name, avatar_url")
+        .eq("id", user.id)
+        .single();
+      if (data) setSenderProfile(data);
+    };
+    if (open && user) fetchSender();
+  }, [open, user]);
+
+  // Initialize on open
+  useEffect(() => {
+    if (open) {
+      fetchTokens().then((fetchedTokens) => {
+        if (fetchedTokens && fetchedTokens.length > 0) {
+          // Sort by priority (FUN MONEY first)
+          const sorted = [...fetchedTokens].sort((a, b) => a.priority - b.priority);
+          setSelectedToken(sorted[0]);
+        }
+      });
+
+      // Set default receiver if provided
+      if (defaultReceiverId) {
+        setSelectedReceiver({
           id: defaultReceiverId,
           username: defaultReceiverName || "",
           display_name: defaultReceiverName || null,
           avatar_url: defaultReceiverAvatar || null,
           wallet_address: defaultReceiverWallet || null,
-        }
-      : null
-  );
-  const [selectedToken, setSelectedToken] = useState<DonationToken | null>(null);
-  const [amount, setAmount] = useState("");
-  const [message, setMessage] = useState("");
-  const [completedTransaction, setCompletedTransaction] = useState<DonationTransaction | null>(null);
-
-  useEffect(() => {
-    if (open) {
-      fetchTokens().then((fetchedTokens) => {
-        if (fetchedTokens && fetchedTokens.length > 0) {
-          setSelectedToken(fetchedTokens[0]);
-        }
-      });
-      // Reset state
-      if (!defaultReceiverId) {
-        setStep("receiver");
-        setSelectedReceiver(null);
+        });
+        setShowSearch(false);
       } else {
-        setStep("token");
+        setSelectedReceiver(null);
+        setShowSearch(true);
       }
+
+      // Reset form
       setAmount("");
       setMessage("");
+      setShowSuccess(false);
       setCompletedTransaction(null);
     }
-  }, [open]);
+  }, [open, defaultReceiverId, defaultReceiverName, defaultReceiverAvatar, defaultReceiverWallet, fetchTokens]);
 
+  // Search users
   useEffect(() => {
     const searchUsers = async () => {
       if (searchQuery.length < 2) {
@@ -105,7 +146,7 @@ export const EnhancedDonateModal = ({
         .select("id, username, display_name, avatar_url, wallet_address")
         .or(`username.ilike.%${searchQuery}%,display_name.ilike.%${searchQuery}%`)
         .neq("id", user?.id || "")
-        .limit(10);
+        .limit(8);
 
       setSearchResults(data || []);
       setSearching(false);
@@ -117,19 +158,31 @@ export const EnhancedDonateModal = ({
 
   const handleSelectReceiver = (receiver: UserResult) => {
     setSelectedReceiver(receiver);
-    setStep("token");
+    setShowSearch(false);
     setSearchQuery("");
     setSearchResults([]);
   };
 
   const handleSelectToken = (symbol: string) => {
     const token = tokens.find((t) => t.symbol === symbol);
-    if (token) {
-      setSelectedToken(token);
+    if (token) setSelectedToken(token);
+  };
+
+  const handleAmountChange = (value: string) => {
+    // Allow empty or valid numbers
+    if (value === "" || /^\d*\.?\d*$/.test(value)) {
+      setAmount(value);
     }
   };
 
-  const quickAmounts = [10, 50, 100, 500];
+  const handleSliderChange = (values: number[]) => {
+    setAmount(values[0].toString());
+  };
+
+  const handleEmojiSelect = (emoji: string) => {
+    setMessage((prev) => prev + emoji);
+    setShowEmojiPicker(false);
+  };
 
   const handleDonate = async () => {
     if (!selectedReceiver || !selectedToken || !amount || parseFloat(amount) <= 0) {
@@ -153,25 +206,8 @@ export const EnhancedDonateModal = ({
 
     if (result.success && result.transaction) {
       setCompletedTransaction(result.transaction);
-      setStep("success");
-
-      // Trigger confetti
-      confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ["#FFD700", "#FFA500", "#FF6B6B", "#4ECDC4"],
-      });
-
+      setShowSuccess(true);
       onSuccess?.(result.transaction);
-    }
-  };
-
-  const handleCopyReceipt = () => {
-    if (completedTransaction) {
-      const url = `${window.location.origin}/receipt/${completedTransaction.receipt_public_id}`;
-      navigator.clipboard.writeText(url);
-      toast({ title: "Đã copy link biên nhận!" });
     }
   };
 
@@ -179,312 +215,322 @@ export const EnhancedDonateModal = ({
     onOpenChange(false);
     // Reset after close animation
     setTimeout(() => {
-      setStep(defaultReceiverId ? "token" : "receiver");
+      setShowSuccess(false);
       setCompletedTransaction(null);
+      setSelectedReceiver(defaultReceiverId ? selectedReceiver : null);
     }, 200);
   };
 
-  const currentBalance = selectedToken?.chain === "internal" 
-    ? getBalanceBySymbol(selectedToken.symbol)
-    : null;
+  const currentBalance =
+    selectedToken?.chain === "internal" ? getBalanceBySymbol(selectedToken.symbol) : null;
+
+  const maxAmount = currentBalance !== null ? currentBalance : 10000;
+  const isValidAmount =
+    selectedToken?.chain === "internal"
+      ? currentBalance !== null && parseFloat(amount || "0") <= currentBalance
+      : true;
+
+  // Sort tokens by priority
+  const sortedTokens = [...tokens].sort((a, b) => a.priority - b.priority);
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 text-lg">
             <Gift className="h-5 w-5 text-amber-500" />
-            {step === "success" ? "Tặng Thành Công! 🎉" : "Thưởng & Tặng"}
+            {showSuccess ? "🎉 Tặng Thành Công!" : "🎁 Thưởng & Tặng"}
           </DialogTitle>
         </DialogHeader>
 
         <AnimatePresence mode="wait">
-          {/* Step 1: Select Receiver */}
-          {step === "receiver" && (
-            <motion.div
-              key="receiver"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              className="space-y-4"
-            >
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Tìm kiếm người nhận..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-
-              {searching && (
-                <div className="flex justify-center py-4">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                </div>
-              )}
-
-              {searchResults.length > 0 && (
-                <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {searchResults.map((user) => (
-                    <button
-                      key={user.id}
-                      onClick={() => handleSelectReceiver(user)}
-                      className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-accent transition-colors"
-                    >
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src={user.avatar_url || ""} />
-                        <AvatarFallback>{user.username[0].toUpperCase()}</AvatarFallback>
-                      </Avatar>
-                      <div className="text-left">
-                        <p className="font-medium">{user.display_name || user.username}</p>
-                        <p className="text-sm text-muted-foreground">@{user.username}</p>
-                      </div>
-                      <ArrowRight className="h-4 w-4 ml-auto text-muted-foreground" />
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {searchQuery.length >= 2 && searchResults.length === 0 && !searching && (
-                <p className="text-center text-muted-foreground py-4">
-                  Không tìm thấy người dùng
-                </p>
-              )}
-            </motion.div>
-          )}
-
-          {/* Step 2: Select Token */}
-          {step === "token" && selectedReceiver && (
-            <motion.div
-              key="token"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              className="space-y-4"
-            >
-              <div className="flex items-center gap-3 p-3 bg-accent/50 rounded-lg">
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src={selectedReceiver.avatar_url || ""} />
-                  <AvatarFallback>{selectedReceiver.username[0].toUpperCase()}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="font-medium">{selectedReceiver.display_name || selectedReceiver.username}</p>
-                  <p className="text-sm text-muted-foreground">@{selectedReceiver.username}</p>
-                </div>
-                {!defaultReceiverId && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="ml-auto"
-                    onClick={() => setStep("receiver")}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-
-              <Select value={selectedToken?.symbol} onValueChange={handleSelectToken}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Chọn token" />
-                </SelectTrigger>
-                <SelectContent>
-                  {tokens.map((token) => (
-                    <SelectItem key={token.id} value={token.symbol}>
-                      <div className="flex items-center gap-2">
-                        {token.icon_url && (
-                          <img src={token.icon_url} alt={token.symbol} className="h-5 w-5" />
-                        )}
-                        <span>{token.name}</span>
-                        <span className="text-muted-foreground">({token.symbol})</span>
-                        {token.chain === "internal" && (
-                          <span className="text-xs bg-green-500/20 text-green-600 px-1.5 py-0.5 rounded">
-                            Nội bộ
-                          </span>
-                        )}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              {selectedToken && (
-                <Button className="w-full" onClick={() => setStep("amount")}>
-                  Tiếp tục
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </Button>
-              )}
-            </motion.div>
-          )}
-
-          {/* Step 3: Enter Amount */}
-          {step === "amount" && selectedToken && (
-            <motion.div
-              key="amount"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              className="space-y-4"
-            >
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <img src={selectedToken.icon_url || ""} alt="" className="h-5 w-5" />
-                <span>{selectedToken.name}</span>
-                {currentBalance !== null && (
-                  <span className={`ml-auto ${currentBalance === 0 ? "text-destructive" : ""}`}>
-                    Số dư: {currentBalance} {selectedToken.symbol}
-                  </span>
-                )}
-              </div>
-
-              {/* Warning if internal token has no balance */}
-              {selectedToken.chain === "internal" && currentBalance === 0 && (
-                <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-sm text-amber-600">
-                  ⚠️ Bạn chưa có {selectedToken.symbol}. Hãy chọn token khác hoặc kiếm {selectedToken.symbol} trước.
-                </div>
-              )}
-
-              <Input
-                type="number"
-                placeholder="Nhập số tiền"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className="text-2xl font-bold text-center h-16"
-              />
-
-              <div className="flex gap-2">
-                {quickAmounts.map((qa) => (
-                  <Button
-                    key={qa}
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => setAmount(qa.toString())}
-                    disabled={selectedToken.chain === "internal" && currentBalance !== null && qa > currentBalance}
-                  >
-                    {qa}
-                  </Button>
-                ))}
-              </div>
-
-              {/* Validation error for insufficient balance */}
-              {selectedToken.chain === "internal" && 
-               currentBalance !== null && 
-               parseFloat(amount) > currentBalance && (
-                <p className="text-sm text-destructive">
-                  Số dư không đủ. Bạn chỉ có {currentBalance} {selectedToken.symbol}
-                </p>
-              )}
-
-              <Button
-                className="w-full"
-                onClick={() => setStep("message")}
-                disabled={
-                  !amount || 
-                  parseFloat(amount) <= 0 ||
-                  (selectedToken.chain === "internal" && currentBalance !== null && parseFloat(amount) > currentBalance)
-                }
-              >
-                Tiếp tục
-                <ArrowRight className="h-4 w-4 ml-2" />
-              </Button>
-            </motion.div>
-          )}
-
-          {/* Step 4: Message & Confirm */}
-          {step === "message" && (
-            <motion.div
-              key="message"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              className="space-y-4"
-            >
-              <div className="p-4 bg-accent/50 rounded-lg space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Người nhận</span>
-                  <span className="font-medium">@{selectedReceiver?.username}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Số tiền</span>
-                  <span className="font-medium">{amount} {selectedToken?.symbol}</span>
-                </div>
-              </div>
-
-              <Textarea
-                placeholder="Lời nhắn (tùy chọn)"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                maxLength={200}
-                rows={3}
-              />
-              <p className="text-xs text-muted-foreground text-right">{message.length}/200</p>
-
-              <Button
-                className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
-                onClick={handleDonate}
-                disabled={loading}
-              >
-                {loading ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  <Gift className="h-4 w-4 mr-2" />
-                )}
-                Tặng ngay
-              </Button>
-            </motion.div>
-          )}
-
-          {/* Step 5: Success */}
-          {step === "success" && completedTransaction && (
-            <motion.div
+          {showSuccess && completedTransaction && senderProfile && selectedReceiver && selectedToken ? (
+            <DonationSuccessOverlay
               key="success"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="space-y-4 text-center"
+              transaction={completedTransaction}
+              sender={{
+                id: senderProfile.id,
+                name: senderProfile.display_name || senderProfile.username,
+                username: senderProfile.username,
+                avatar: senderProfile.avatar_url,
+              }}
+              receiver={{
+                id: selectedReceiver.id,
+                name: selectedReceiver.display_name || selectedReceiver.username,
+                username: selectedReceiver.username,
+                avatar: selectedReceiver.avatar_url,
+              }}
+              token={{
+                symbol: selectedToken.symbol,
+                name: selectedToken.name,
+                icon_url: selectedToken.icon_url,
+              }}
+              message={message}
+              onClose={handleClose}
+            />
+          ) : (
+            <motion.div
+              key="form"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="space-y-5"
             >
-              <div className="flex justify-center">
-                <div className="h-16 w-16 rounded-full bg-green-500/20 flex items-center justify-center">
-                  <CheckCircle2 className="h-10 w-10 text-green-500" />
+              {/* Sender info (fixed) */}
+              {senderProfile && (
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20">
+                  <Avatar className="h-10 w-10 ring-2 ring-purple-500/30">
+                    <AvatarImage src={senderProfile.avatar_url || ""} />
+                    <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white">
+                      {senderProfile.username[0].toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1">
+                    <p className="font-medium text-sm">
+                      {senderProfile.display_name || senderProfile.username}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Người gửi</p>
+                  </div>
                 </div>
-              </div>
+              )}
 
-              <div>
-                <p className="text-lg font-semibold">Tặng thành công!</p>
-                <p className="text-muted-foreground">
-                  Bạn đã tặng {completedTransaction.amount} {selectedToken?.symbol} cho @{selectedReceiver?.username}
-                </p>
-              </div>
+              {/* Receiver search/display */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Người nhận 💝</label>
 
-              <div className="p-4 bg-accent/50 rounded-lg text-left space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Mã biên nhận</span>
-                  <span className="font-mono">#{completedTransaction.receipt_public_id}</span>
-                </div>
-                {completedTransaction.tx_hash && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">TX Hash</span>
-                    <a
-                      href={completedTransaction.explorer_url || `https://bscscan.com/tx/${completedTransaction.tx_hash}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary flex items-center gap-1"
-                    >
-                      {completedTransaction.tx_hash.substring(0, 10)}...
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
+                {selectedReceiver && !showSearch ? (
+                  <div className="flex items-center gap-3 p-3 rounded-xl border hologram-input">
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={selectedReceiver.avatar_url || ""} />
+                      <AvatarFallback>
+                        {selectedReceiver.username[0].toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">
+                        {selectedReceiver.display_name || selectedReceiver.username}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        @{selectedReceiver.username}
+                      </p>
+                    </div>
+                    {!defaultReceiverId && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => setShowSearch(true)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Tìm kiếm người nhận..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-9 hologram-input"
+                    />
+
+                    {/* Search results dropdown */}
+                    {(searchResults.length > 0 || searching) && (
+                      <div className="absolute z-50 w-full mt-1 bg-background border rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                        {searching ? (
+                          <div className="flex justify-center py-4">
+                            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                          </div>
+                        ) : (
+                          searchResults.map((result) => (
+                            <button
+                              key={result.id}
+                              onClick={() => handleSelectReceiver(result)}
+                              className="w-full flex items-center gap-3 p-3 hover:bg-accent transition-colors"
+                            >
+                              <Avatar className="h-8 w-8">
+                                <AvatarImage src={result.avatar_url || ""} />
+                                <AvatarFallback>
+                                  {result.username[0].toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="text-left">
+                                <p className="font-medium text-sm">
+                                  {result.display_name || result.username}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  @{result.username}
+                                </p>
+                              </div>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
 
-              <div className="flex gap-2">
-                <Button variant="outline" className="flex-1" onClick={handleCopyReceipt}>
-                  <Copy className="h-4 w-4 mr-2" />
-                  Copy Link
-                </Button>
-                <Button className="flex-1" onClick={handleClose}>
-                  Đóng
-                </Button>
+              {/* Token selection */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <label className="text-sm font-medium">Chọn Token 💰</label>
+                  {currentBalance !== null && (
+                    <span className="text-xs text-muted-foreground">
+                      Số dư:{" "}
+                      <span className={currentBalance === 0 ? "text-destructive" : "text-foreground font-medium"}>
+                        {currentBalance} {selectedToken?.symbol}
+                      </span>
+                    </span>
+                  )}
+                </div>
+                <Select value={selectedToken?.symbol} onValueChange={handleSelectToken}>
+                  <SelectTrigger className="hologram-input-trigger">
+                    <SelectValue placeholder="Chọn token" />
+                  </SelectTrigger>
+                  <SelectContent className="z-[10003]">
+                    {sortedTokens.map((token) => (
+                      <SelectItem key={token.id} value={token.symbol}>
+                        <div className="flex items-center gap-2">
+                          {token.icon_url && (
+                            <img src={token.icon_url} alt={token.symbol} className="h-5 w-5" />
+                          )}
+                          <span>{token.name}</span>
+                          <span className="text-muted-foreground">({token.symbol})</span>
+                          {token.chain === "internal" && (
+                            <span className="text-xs bg-green-500/20 text-green-600 px-1.5 py-0.5 rounded">
+                              Nội bộ
+                            </span>
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/* Zero balance warning */}
+                {selectedToken?.chain === "internal" && currentBalance === 0 && (
+                  <div className="p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg text-xs text-amber-600">
+                    ⚠️ Bạn chưa có {selectedToken.symbol}. Hãy chọn token khác.
+                  </div>
+                )}
               </div>
+
+              {/* Amount input */}
+              <div className="space-y-3">
+                <label className="text-sm font-medium">Số tiền 🎁</label>
+
+                {/* Quick amount buttons */}
+                <div className="flex gap-2">
+                  {quickAmounts.map((qa) => (
+                    <Button
+                      key={qa}
+                      variant={amount === qa.toString() ? "default" : "outline"}
+                      size="sm"
+                      className={`flex-1 ${amount === qa.toString() ? "bg-gradient-to-r from-purple-500 to-pink-500" : "hologram-input-trigger"}`}
+                      onClick={() => setAmount(qa.toString())}
+                      disabled={currentBalance !== null && qa > currentBalance}
+                    >
+                      {qa}
+                    </Button>
+                  ))}
+                </div>
+
+                {/* Custom amount input */}
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="Hoặc nhập số tùy chọn..."
+                  value={amount}
+                  onChange={(e) => handleAmountChange(e.target.value)}
+                  className="text-lg font-bold text-center hologram-input"
+                />
+
+                {/* Slider */}
+                {maxAmount > 0 && (
+                  <Slider
+                    min={1}
+                    max={Math.min(maxAmount, 10000)}
+                    step={1}
+                    value={[parseFloat(amount) || 0]}
+                    onValueChange={handleSliderChange}
+                    className="mt-2"
+                  />
+                )}
+
+                {/* Validation error */}
+                {!isValidAmount && parseFloat(amount || "0") > 0 && (
+                  <p className="text-xs text-destructive">
+                    Số dư không đủ. Bạn chỉ có {currentBalance} {selectedToken?.symbol}
+                  </p>
+                )}
+              </div>
+
+              {/* Message textarea */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Lời nhắn yêu thương 💖</label>
+                <div className="relative">
+                  <Textarea
+                    placeholder="Gửi lời nhắn đến người nhận..."
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    maxLength={200}
+                    rows={3}
+                    className="hologram-input pr-10 resize-none"
+                  />
+
+                  {/* Emoji picker button */}
+                  <Popover open={showEmojiPicker} onOpenChange={setShowEmojiPicker}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute bottom-2 right-2 h-7 w-7"
+                      >
+                        <Smile className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-2 z-[10003]" align="end">
+                      <div className="grid grid-cols-8 gap-1">
+                        {EMOJI_LIST.map((emoji) => (
+                          <button
+                            key={emoji}
+                            type="button"
+                            onClick={() => handleEmojiSelect(emoji)}
+                            className="w-8 h-8 flex items-center justify-center text-lg hover:bg-muted rounded transition-colors"
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <p className="text-xs text-muted-foreground text-right">{message.length}/200</p>
+              </div>
+
+              {/* Submit button */}
+              <Button
+                className="w-full h-12 text-lg font-semibold bg-gradient-to-r from-purple-500 via-pink-500 to-amber-500 hover:opacity-90 text-white shadow-lg shadow-purple-500/25"
+                onClick={handleDonate}
+                disabled={
+                  loading ||
+                  !selectedReceiver ||
+                  !selectedToken ||
+                  !amount ||
+                  parseFloat(amount) <= 0 ||
+                  !isValidAmount
+                }
+              >
+                {loading ? (
+                  <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                ) : (
+                  <Gift className="h-5 w-5 mr-2" />
+                )}
+                {loading ? "Đang xử lý..." : `Tặng ${amount || "0"} ${selectedToken?.symbol || ""} →`}
+              </Button>
             </motion.div>
           )}
         </AnimatePresence>
@@ -492,3 +538,5 @@ export const EnhancedDonateModal = ({
     </Dialog>
   );
 };
+
+export default EnhancedDonateModal;
