@@ -41,11 +41,11 @@ export const CAMLYPriceSection = () => {
       "1h": "60",
       "1d": "1440"
     };
-    return `https://dexscreener.com/bsc/${CAMLY_CONTRACT}?embed=1&theme=dark&trades=0&info=0&interval=${intervals[timeframe]}`;
+    return `https://dexscreener.com/bsc/${CAMLY_CONTRACT}?embed=1&theme=light&trades=0&info=0&interval=${intervals[timeframe]}`;
   };
 
   return (
-    <Card className="bg-white/90 backdrop-blur-xl border border-white/20 shadow-xl overflow-hidden">
+    <Card className="bg-white backdrop-blur-xl border border-gray-100 shadow-lg overflow-hidden">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-4">
@@ -127,7 +127,7 @@ export const CAMLYPriceSection = () => {
         </Tabs>
         
         {/* DexScreener Chart Embed */}
-        <div className="w-full h-[400px] rounded-lg overflow-hidden border border-border bg-background">
+        <div className="w-full h-[400px] rounded-xl overflow-hidden border border-gray-200 bg-white shadow-sm">
           <iframe
             src={getEmbedUrl()}
             className="w-full h-full border-0"
@@ -137,7 +137,7 @@ export const CAMLYPriceSection = () => {
         </div>
         
         {/* Contract Info */}
-        <div className="mt-4 p-3 bg-muted/50 rounded-lg">
+        <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-100">
           <p className="text-xs text-muted-foreground">
             <span className="font-medium">Contract Address:</span>{" "}
             <code className="bg-background px-1 py-0.5 rounded text-[10px]">
