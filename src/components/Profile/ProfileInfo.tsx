@@ -137,7 +137,7 @@ export const ProfileInfo = ({
           {!isOwnProfile && (
             <Button
               onClick={() => setDonateModalOpen(true)}
-              className="relative group overflow-hidden bg-gradient-to-r from-[#D4AF37] via-[#F5E7A3] to-[#D4AF37] text-[#654321] font-bold px-5 py-2.5 rounded-full shadow-[0_0_25px_rgba(212,175,55,0.6),inset_0_1px_0_rgba(255,255,255,0.4)] hover:shadow-[0_0_40px_rgba(245,231,163,0.8),0_0_60px_rgba(212,175,55,0.5)] border border-[#F5E7A3]/50 transition-all duration-300 hover:scale-105"
+              className="relative group overflow-hidden bg-gradient-to-b from-[#FFEA00] via-[#FFD700] to-[#E5A800] text-[#7C5800] font-bold px-5 py-2.5 rounded-full shadow-[0_0_20px_rgba(255,215,0,0.5),inset_0_2px_4px_rgba(255,255,255,0.6),inset_0_-1px_2px_rgba(0,0,0,0.1)] hover:shadow-[0_0_35px_rgba(255,234,0,0.7),0_0_50px_rgba(255,215,0,0.4)] border border-[#FFEA00]/60 transition-all duration-300 hover:scale-105"
             >
               <span className="relative z-10 flex items-center gap-2">
                 <Gift className="w-4 h-4" />
