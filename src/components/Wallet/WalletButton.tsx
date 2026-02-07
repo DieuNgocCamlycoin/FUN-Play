@@ -166,33 +166,33 @@ export const WalletButton = ({ compact = false, className }: WalletButtonProps) 
     );
   }
 
-  // Full version for desktop
+  // Full version for desktop - Premium 5D Gold Metallic Style
   return (
     <motion.div className={cn("relative", className)}>
       <Button
         onClick={handleClick}
         className={cn(
-          "relative gap-2 font-bold transition-all duration-300",
+          "relative gap-2 font-bold transition-all duration-300 overflow-hidden",
           hasRewards
-            ? "bg-gradient-to-r from-[#FFD700] via-[#FFEA00] to-[#E5A800] text-[#7C5800] hover:from-[#FFEA00] hover:via-[#FFD700] hover:to-[#E5A800] shadow-lg"
-            : "bg-gradient-to-r from-yellow-500/20 to-orange-500/20 text-yellow-600 hover:from-yellow-500/30 hover:to-orange-500/30 border border-yellow-500/30"
+            ? "bg-gradient-to-b from-[#FFEA00] via-[#FFD700] to-[#E5A800] text-[#7C5800] hover:from-[#FFF200] hover:via-[#FFEA00] hover:to-[#FFD700]"
+            : "bg-gradient-to-b from-[#FFEA00]/80 via-[#FFD700]/80 to-[#E5A800]/80 text-[#7C5800] hover:from-[#FFEA00] hover:via-[#FFD700] hover:to-[#E5A800] border border-yellow-400/50"
         )}
-        style={hasRewards ? {
-          boxShadow: "0 0 20px rgba(255, 215, 0, 0.4), inset 0 2px 4px rgba(255, 255, 255, 0.6), inset 0 -2px 4px rgba(0, 0, 0, 0.1)"
-        } : undefined}
+        style={{
+          boxShadow: hasRewards 
+            ? "0 0 20px rgba(255, 215, 0, 0.4), inset 0 2px 4px rgba(255, 255, 255, 0.6), inset 0 -2px 4px rgba(0, 0, 0, 0.1)"
+            : "inset 0 2px 4px rgba(255, 255, 255, 0.4), inset 0 -1px 2px rgba(0, 0, 0, 0.05)"
+        }}
       >
-        {/* Mirror shimmer effect for gold buttons */}
-        {hasRewards && (
-          <motion.div
-            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent rounded-md"
-            animate={{ x: ["-100%", "200%"] }}
-            transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-          />
-        )}
+        {/* Continuous Mirror Shimmer Effect - Premium 5D */}
+        <div 
+          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-mirror-shimmer pointer-events-none"
+          style={{ width: '50%' }}
+        />
         
         <motion.div
           animate={hasRewards ? { scale: [1, 1.1, 1] } : {}}
           transition={{ duration: 2, repeat: Infinity }}
+          className="relative z-10"
         >
           <img 
             src="/images/fun-play-wallet-icon.png" 
@@ -201,7 +201,7 @@ export const WalletButton = ({ compact = false, className }: WalletButtonProps) 
           />
         </motion.div>
         
-        <span className="relative z-10">WALLET</span>
+        <span className="relative z-10 font-semibold">WALLET</span>
 
         {/* Badge for rewards count */}
         <AnimatePresence>
@@ -210,7 +210,7 @@ export const WalletButton = ({ compact = false, className }: WalletButtonProps) 
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               exit={{ scale: 0 }}
-              className="absolute -top-2 -right-2 min-w-[22px] h-5 px-1 rounded-full bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs font-bold flex items-center justify-center shadow-lg"
+              className="absolute -top-2 -right-2 min-w-[22px] h-5 px-1 rounded-full bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs font-bold flex items-center justify-center"
               style={{
                 boxShadow: "0 0 10px rgba(255, 0, 100, 0.5)"
               }}
@@ -220,15 +220,15 @@ export const WalletButton = ({ compact = false, className }: WalletButtonProps) 
           )}
         </AnimatePresence>
 
-        {/* Glow effect for rewards */}
+        {/* Pulsing Glow effect for rewards */}
         {hasRewards && (
           <motion.div
             className="absolute inset-0 rounded-md pointer-events-none"
             animate={{
               boxShadow: [
-                "0 0 15px rgba(255, 215, 0, 0.4)",
-                "0 0 25px rgba(255, 215, 0, 0.6)",
-                "0 0 15px rgba(255, 215, 0, 0.4)",
+                "0 0 15px rgba(255, 215, 0, 0.3)",
+                "0 0 25px rgba(255, 215, 0, 0.5)",
+                "0 0 15px rgba(255, 215, 0, 0.3)",
               ],
             }}
             transition={{ duration: 2, repeat: Infinity }}

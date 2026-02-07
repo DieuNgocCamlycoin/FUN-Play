@@ -163,6 +163,10 @@ export default {
           "33%": { borderColor: "rgba(168, 85, 247, 0.3)" },
           "66%": { borderColor: "rgba(236, 72, 153, 0.3)" },
         },
+        "mirrorShimmer": {
+          "0%": { transform: "translateX(-100%)" },
+          "100%": { transform: "translateX(200%)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -176,6 +180,7 @@ export default {
         "pulse-halo": "pulse-halo 2s ease-in-out infinite",
         "rainbow-sparkle": "rainbow-sparkle 0.6s ease-out",
         "mini-player-border": "mini-player-border 3s ease-in-out infinite",
+        "mirror-shimmer": "mirrorShimmer 3s linear infinite",
       },
     },
   },
