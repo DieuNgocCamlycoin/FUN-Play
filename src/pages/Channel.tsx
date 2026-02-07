@@ -1,150 +1,142 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { MainLayout } from "@/components/Layout/MainLayout";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { VideoCard } from "@/components/Video/VideoCard";
-import { useAuth } from "@/hooks/useAuth";
-import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { MainLayout } from "@/components/Layout/MainLayout";
+import { ProfileHeader } from "@/components/Profile/ProfileHeader";
+import { ProfileInfo } from "@/components/Profile/ProfileInfo";
+import { ProfileTabs } from "@/components/Profile/ProfileTabs";
+import { DonationCelebration } from "@/components/Profile/DonationCelebration";
 import { BackgroundMusicPlayer } from "@/components/BackgroundMusicPlayer";
-import { Copy, QrCode, Share2 } from "lucide-react";
-import { CompactHonobar } from "@/components/Layout/CompactHonobar";
-import { RewardStats } from "@/components/Profile/RewardStats";
-import { QRCodeSVG } from "qrcode.react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
 
-interface Channel {
+interface ProfileData {
+  id: string;
+  username: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  bio: string | null;
+  wallet_address: string | null;
+  total_camly_rewards: number;
+  pending_rewards: number | null;
+  approved_reward: number | null;
+  background_music_url: string | null;
+  music_enabled: boolean | null;
+}
+
+interface ChannelData {
   id: string;
   name: string;
-  description: string;
-  banner_url: string;
+  description: string | null;
+  banner_url: string | null;
   subscriber_count: number;
   user_id: string;
 }
 
-interface Profile {
-  background_music_url: string | null;
-  music_enabled: boolean | null;
-  bio: string | null;
-  wallet_address: string | null;
-  avatar_url: string | null;
-  display_name: string | null;
-}
-
-interface Video {
-  id: string;
-  title: string;
-  thumbnail_url: string;
-  view_count: number;
-  created_at: string;
-}
-
 export default function Channel() {
   const { id, username } = useParams();
-  const [channel, setChannel] = useState<Channel | null>(null);
-  const [videos, setVideos] = useState<Video[]>([]);
-  const [isSubscribed, setIsSubscribed] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [showQRCode, setShowQRCode] = useState(false);
-  const [selectedWalletAddress, setSelectedWalletAddress] = useState<string>("");
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
-  const navigate = useNavigate();
+
+  const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [channel, setChannel] = useState<ChannelData | null>(null);
+  const [isSubscribed, setIsSubscribed] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [celebrationData, setCelebrationData] = useState<{ amount: number; senderName: string } | null>(null);
+
+  // Parse username (remove @ prefix)
+  const targetUsername = username?.replace("@", "") || null;
+  const targetChannelId = id || null;
 
   useEffect(() => {
-    if (id || username) {
-      fetchChannel();
-    }
-  }, [id, username, user]);
+    fetchChannelAndProfile();
+  }, [targetChannelId, targetUsername]);
 
   useEffect(() => {
-    if (channel) {
-      fetchVideos();
-      if (user) {
-        checkSubscription();
-      }
+    if (profile && user && channel) {
+      checkSubscription();
     }
-  }, [channel, user]);
+  }, [profile, user, channel]);
 
-  // Real-time subscription for channel updates (subscriber count)
+  // Real-time subscription for donations
+  useEffect(() => {
+    if (!profile) return;
+
+    const donationChannel = supabase
+      .channel(`channel-donations-${profile.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "donation_transactions",
+          filter: `receiver_id=eq.${profile.id}`,
+        },
+        async (payload) => {
+          const donation = payload.new as any;
+          const { data: senderProfile } = await supabase
+            .from("profiles")
+            .select("display_name, username")
+            .eq("id", donation.sender_id)
+            .single();
+
+          setCelebrationData({
+            amount: donation.amount,
+            senderName: senderProfile?.display_name || senderProfile?.username || "Người ẩn danh",
+          });
+          setShowCelebration(true);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(donationChannel);
+    };
+  }, [profile?.id]);
+
+  // Real-time subscription for channel updates
   useEffect(() => {
     if (!channel) return;
 
     const channelSub = supabase
       .channel(`channel-updates-${channel.id}`)
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'channels',
+          event: "UPDATE",
+          schema: "public",
+          table: "channels",
           filter: `id=eq.${channel.id}`,
         },
         (payload) => {
-          console.log('Channel updated in real-time:', payload);
-          setChannel(prev => prev ? { ...prev, ...payload.new as any } : null);
-        }
-      )
-      .subscribe();
-
-    // Real-time subscription for video updates (view counts)
-    const videoSub = supabase
-      .channel(`videos-channel-${channel.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'videos',
-        },
-        (payload) => {
-          console.log('Video updated in real-time:', payload);
-          setVideos(prev => 
-            prev.map(v => v.id === payload.new.id 
-              ? { ...v, view_count: payload.new.view_count } 
-              : v
-            )
-          );
+          setChannel((prev) => (prev ? { ...prev, ...(payload.new as any) } : null));
         }
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channelSub);
-      supabase.removeChannel(videoSub);
     };
   }, [channel?.id]);
 
-  // Real-time subscription for profile updates (avatar, bio, etc.)
+  // Real-time subscription for profile updates
   useEffect(() => {
-    if (!channel) return;
+    if (!profile) return;
 
     const profileSub = supabase
-      .channel(`profile-updates-${channel.user_id}`)
+      .channel(`profile-updates-${profile.id}`)
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'profiles',
-          filter: `id=eq.${channel.user_id}`,
+          event: "UPDATE",
+          schema: "public",
+          table: "profiles",
+          filter: `id=eq.${profile.id}`,
         },
         (payload) => {
-          console.log('Profile updated in real-time:', payload);
-          setProfile(payload.new as Profile);
+          setProfile(payload.new as ProfileData);
         }
       )
       .subscribe();
@@ -152,69 +144,67 @@ export default function Channel() {
     return () => {
       supabase.removeChannel(profileSub);
     };
-  }, [channel?.user_id]);
+  }, [profile?.id]);
 
-  // Listen for profile-updated event to refetch profile data
-  useEffect(() => {
-    const handleProfileUpdate = () => {
-      if (channel) {
-        fetchChannel();
-      }
-    };
-
-    window.addEventListener('profile-updated', handleProfileUpdate);
-
-    return () => {
-      window.removeEventListener('profile-updated', handleProfileUpdate);
-    };
-  }, [channel]);
-
-  const fetchChannel = async () => {
+  const fetchChannelAndProfile = async () => {
     try {
-      let query = supabase.from("channels").select("*");
-      
-      if (username) {
-        // First get profile by username
-        const { data: profileData, error: profileError } = await supabase
+      setLoading(true);
+
+      let channelData: ChannelData | null = null;
+      let profileData: ProfileData | null = null;
+
+      if (targetUsername) {
+        // Fetch by username - first get profile
+        const { data: pData, error: pError } = await supabase
           .from("profiles")
-          .select("id")
-          .eq("username", username.replace('@', ''))
+          .select("*")
+          .eq("username", targetUsername)
           .maybeSingle();
-          
-        if (profileError || !profileData) {
-          throw new Error("Profile not found");
-        }
-        
-        // Then get channel by user_id
-        query = query.eq("user_id", profileData.id);
-      } else {
-        query = query.eq("id", id);
-      }
-      
-      const { data, error } = await query.maybeSingle();
 
-      if (error) throw error;
-      
-      if (!data) {
-        throw new Error("Channel not found");
-      }
-      
-      setChannel(data);
+        if (pError) throw pError;
+        if (!pData) throw new Error("User not found");
 
-      // Fetch profile for background music and avatar
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("background_music_url, music_enabled, bio, wallet_address, avatar_url, display_name")
-        .eq("id", data.user_id)
-        .single();
+        profileData = pData;
 
-      if (profileData) {
-        setProfile(profileData);
+        // Then get channel
+        const { data: cData } = await supabase
+          .from("channels")
+          .select("*")
+          .eq("user_id", pData.id)
+          .maybeSingle();
+
+        channelData = cData;
+      } else if (targetChannelId) {
+        // Fetch by channel ID
+        const { data: cData, error: cError } = await supabase
+          .from("channels")
+          .select("*")
+          .eq("id", targetChannelId)
+          .maybeSingle();
+
+        if (cError) throw cError;
+        if (!cData) throw new Error("Channel not found");
+
+        channelData = cData;
+
+        // Then get profile
+        const { data: pData } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", cData.user_id)
+          .maybeSingle();
+
+        if (!pData) throw new Error("Profile not found");
+        profileData = pData;
       }
+
+      setProfile(profileData);
+      setChannel(channelData);
     } catch (error: any) {
+      console.error("Error fetching channel/profile:", error);
       toast({
-        title: "Error loading channel",
-        description: error.message,
+        title: "Lỗi",
+        description: error.message || "Không thể tải trang kênh",
         variant: "destructive",
       });
     } finally {
@@ -222,39 +212,17 @@ export default function Channel() {
     }
   };
 
-  const fetchVideos = async () => {
-    if (!channel) return;
-    
-    try {
-      const { data, error } = await supabase
-        .from("videos")
-        .select("id, title, thumbnail_url, view_count, created_at")
-        .eq("channel_id", channel.id)
-        .eq("is_public", true)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      setVideos(data || []);
-    } catch (error: any) {
-      console.error("Error loading videos:", error);
-    }
-  };
-
   const checkSubscription = async () => {
     if (!user || !channel) return;
 
-    try {
-      const { data } = await supabase
-        .from("subscriptions")
-        .select("id")
-        .eq("channel_id", channel.id)
-        .eq("subscriber_id", user.id)
-        .maybeSingle();
+    const { data } = await supabase
+      .from("subscriptions")
+      .select("id")
+      .eq("channel_id", channel.id)
+      .eq("subscriber_id", user.id)
+      .maybeSingle();
 
-      setIsSubscribed(!!data);
-    } catch (error) {
-      console.error("Error checking subscription:", error);
-    }
+    setIsSubscribed(!!data);
   };
 
   const handleSubscribe = async () => {
@@ -272,326 +240,107 @@ export default function Channel() {
           .delete()
           .eq("channel_id", channel.id)
           .eq("subscriber_id", user.id);
-
-        // subscriber_count is updated automatically by database trigger
-
         setIsSubscribed(false);
       } else {
         await supabase.from("subscriptions").insert({
           channel_id: channel.id,
           subscriber_id: user.id,
         });
-
-        // subscriber_count is updated automatically by database trigger
-
         setIsSubscribed(true);
       }
 
-      fetchChannel();
+      // Refresh channel data
+      const { data: updatedChannel } = await supabase
+        .from("channels")
+        .select("*")
+        .eq("id", channel.id)
+        .single();
+
+      if (updatedChannel) {
+        setChannel(updatedChannel);
+      }
+
       toast({
-        title: isSubscribed ? "Unsubscribed" : "Subscribed!",
+        title: isSubscribed ? "Đã hủy theo dõi" : "Đã theo dõi! 🎉",
         description: isSubscribed
-          ? "You've unsubscribed from this channel"
-          : "You've subscribed to this channel",
+          ? "Bạn đã hủy theo dõi kênh này"
+          : "Bạn đã theo dõi kênh này",
       });
     } catch (error: any) {
       toast({
-        title: "Error",
+        title: "Lỗi",
         description: error.message,
         variant: "destructive",
       });
     }
   };
 
-  const detectWalletAddress = (text: string): { before: string; address: string; after: string } | null => {
-    const walletRegex = /(0x[a-fA-F0-9]{40})/;
-    const match = text.match(walletRegex);
-    if (match) {
-      const index = match.index!;
-      return {
-        before: text.substring(0, index),
-        address: match[1],
-        after: text.substring(index + match[1].length),
-      };
-    }
-    return null;
-  };
-
-  const renderBioWithHighlight = (bio: string) => {
-    const detected = detectWalletAddress(bio);
-    if (detected) {
-      return (
-        <>
-          {detected.before}
-          <span 
-            className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-yellow-500 to-amber-400 cursor-pointer hover:underline"
-            onClick={() => {
-              setSelectedWalletAddress(detected.address);
-              setShowQRCode(true);
-            }}
-          >
-            {detected.address}
-          </span>
-          {detected.after}
-        </>
-      );
-    }
-    return bio;
-  };
-
-  const shareChannel = (platform: string) => {
-    const channelUrl = `${window.location.origin}/c/${username || id}`;
-    const text = `Check out ${channel?.name} on FUN PLAY!`;
-    
-    let shareUrl = "";
-    switch (platform) {
-      case "telegram":
-        shareUrl = `https://t.me/share/url?url=${encodeURIComponent(channelUrl)}&text=${encodeURIComponent(text)}`;
-        break;
-      case "facebook":
-        shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(channelUrl)}`;
-        break;
-      case "twitter":
-        shareUrl = `https://twitter.com/intent/tweet?url=${encodeURIComponent(channelUrl)}&text=${encodeURIComponent(text)}`;
-        break;
-      case "zalo":
-        shareUrl = `https://zalo.me/share?url=${encodeURIComponent(channelUrl)}&text=${encodeURIComponent(text)}`;
-        break;
-      case "copy":
-        navigator.clipboard.writeText(channelUrl);
-        toast({
-          title: "Đã copy",
-          description: "Đã sao chép link kênh vào clipboard",
-        });
-        return;
-    }
-    
-    if (shareUrl) {
-      window.open(shareUrl, "_blank", "width=600,height=400");
-    }
-  };
-
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-foreground">Loading...</div>
-      </div>
+      <MainLayout className="pt-0">
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-16 h-16 rounded-full animate-pulse bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] to-[hsl(var(--cosmic-magenta))]" />
+            <div className="text-muted-foreground">Đang tải trang kênh...</div>
+          </div>
+        </div>
+      </MainLayout>
     );
   }
 
-  if (!channel) {
+  if (!profile) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-foreground">Channel not found</div>
-      </div>
+      <MainLayout className="pt-0">
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-foreground mb-2">Không tìm thấy kênh</h1>
+            <p className="text-muted-foreground">Kênh này không tồn tại hoặc đã bị xóa.</p>
+          </div>
+        </div>
+      </MainLayout>
     );
   }
+
+  const isOwnProfile = user?.id === profile.id;
 
   return (
     <MainLayout className="pt-0">
-      {profile?.music_enabled && profile.background_music_url && (
+      {/* Background Music */}
+      {profile.music_enabled && profile.background_music_url && (
         <BackgroundMusicPlayer musicUrl={profile.background_music_url} />
       )}
 
-        {/* Channel Banner with Compact Honobar */}
-        <div className="relative h-48 bg-gradient-to-r from-[#00E7FF]/30 via-[#7A2BFF]/20 to-[#FFD700]/30">
-          {channel.banner_url && (
-            <img
-              src={channel.banner_url}
-              alt={channel.name}
-              className="w-full h-full object-cover"
-            />
-          )}
-          {/* Compact Honobar positioned in top-right corner of cover photo */}
-          <CompactHonobar />
+      {/* Donation Celebration */}
+      {showCelebration && celebrationData && (
+        <DonationCelebration
+          amount={celebrationData.amount}
+          senderName={celebrationData.senderName}
+          onClose={() => setShowCelebration(false)}
+        />
+      )}
+
+      <div className="min-h-screen bg-background">
+        {/* Header with Cover + Avatar + Honor Board */}
+        <ProfileHeader profile={profile} channel={channel} />
+
+        {/* User Info + Actions */}
+        <div className="max-w-6xl mx-auto px-4 lg:px-6">
+          <ProfileInfo
+            profile={profile}
+            channel={channel}
+            isOwnProfile={isOwnProfile}
+            isSubscribed={isSubscribed}
+            onSubscribe={handleSubscribe}
+          />
+
+          {/* Tabs Content */}
+          <ProfileTabs
+            userId={profile.id}
+            channelId={channel?.id}
+            isOwnProfile={isOwnProfile}
+          />
         </div>
-
-        {/* Channel Info */}
-        <div className="max-w-7xl mx-auto px-6 py-6">
-          {/* Reward Stats */}
-          <RewardStats userId={channel.user_id} walletAddress={profile?.wallet_address} />
-          
-          <div className="flex items-start gap-6 mb-6">
-            {profile?.avatar_url ? (
-              <img
-                src={profile.avatar_url}
-                alt={channel.name}
-                className="w-20 h-20 rounded-full object-cover flex-shrink-0 border-2 border-primary shadow-lg"
-              />
-            ) : (
-              <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-2xl flex-shrink-0">
-                {channel.name[0]}
-              </div>
-            )}
-            <div className="flex-1">
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-[#FF0000] via-[#FF7F00] via-[#FFFF00] via-[#00FF00] via-[#0000FF] via-[#4B0082] to-[#9400D3] bg-clip-text text-transparent mb-1 animate-rainbow-shift bg-[length:200%_auto]">
-                {(profile?.display_name || channel.name).replace("'s Channel", "").replace(" là", "").replace(" is", "")}
-              </h1>
-              <div className="flex items-center gap-4 mb-2">
-                <p className="text-muted-foreground font-semibold">
-                  {(channel.subscriber_count || 0).toLocaleString()} người đăng ký
-                </p>
-                <p className="text-muted-foreground font-semibold">
-                  {videos.length} video{videos.length !== 1 ? 's' : ''}
-                </p>
-                <p className="text-muted-foreground font-semibold">
-                  {videos.reduce((sum, v) => sum + (v.view_count || 0), 0).toLocaleString()} lượt xem
-                </p>
-              </div>
-              {channel.description && (
-                <p className="text-sm text-foreground">{channel.description}</p>
-              )}
-              {profile?.bio && (
-                <div className="mt-3 p-3 bg-card/50 border border-border rounded-lg">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm text-foreground whitespace-pre-wrap break-all flex-1 font-mono">
-                      {renderBioWithHighlight(profile.bio)}
-                    </p>
-                    <div className="flex gap-1 flex-shrink-0">
-                      {detectWalletAddress(profile.bio) && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => {
-                            const detected = detectWalletAddress(profile.bio || "");
-                            if (detected) {
-                              setSelectedWalletAddress(detected.address);
-                              setShowQRCode(true);
-                            }
-                          }}
-                        >
-                          <QrCode className="h-4 w-4" />
-                        </Button>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => {
-                          navigator.clipboard.writeText(profile.bio || "");
-                          toast({
-                            title: "Đã copy",
-                            description: "Đã sao chép Bio vào clipboard",
-                          });
-                        }}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className="flex gap-2">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon" className="rounded-full">
-                    <Share2 className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => shareChannel("copy")}>
-                    <Copy className="h-4 w-4 mr-2" />
-                    Copy Link
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => shareChannel("telegram")}>
-                    Telegram
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => shareChannel("zalo")}>
-                    Zalo
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => shareChannel("facebook")}>
-                    Facebook
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => shareChannel("twitter")}>
-                    Twitter
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <Button
-                onClick={handleSubscribe}
-                className={`rounded-full px-6 ${
-                  isSubscribed
-                    ? "bg-muted hover:bg-muted/80 text-foreground"
-                    : "bg-gradient-to-r from-cosmic-sapphire to-cosmic-cyan hover:from-cosmic-sapphire/90 hover:to-cosmic-cyan/90 text-foreground shadow-[0_0_30px_rgba(0,255,255,0.5)]"
-                }`}
-              >
-                {isSubscribed ? "Đã đăng ký" : "Đăng ký"}
-              </Button>
-            </div>
-          </div>
-
-          {/* Tabs */}
-          <Tabs defaultValue="videos" className="w-full">
-            <TabsList className="mb-6">
-              <TabsTrigger value="videos">Videos</TabsTrigger>
-              <TabsTrigger value="playlists">Playlists</TabsTrigger>
-              <TabsTrigger value="about">About</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="videos">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {videos.map((video) => (
-                  <VideoCard
-                    key={video.id}
-                    videoId={video.id}
-                    userId={channel.user_id}
-                    channelId={channel.id}
-                    thumbnail={video.thumbnail_url || undefined}
-                    title={video.title}
-                    channel={channel.name}
-                    avatarUrl={profile?.avatar_url || undefined}
-                    views={`${video.view_count || 0} views`}
-                    timestamp={new Date(video.created_at).toLocaleDateString()}
-                    onPlay={(id) => navigate(`/watch/${id}`)}
-                  />
-                ))}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="playlists">
-              <p className="text-muted-foreground">No playlists yet</p>
-            </TabsContent>
-
-            <TabsContent value="about">
-              <div className="max-w-2xl">
-                <h2 className="text-xl font-semibold mb-4 text-foreground">
-                  About
-                </h2>
-                <p className="text-foreground">{channel.description}</p>
-              </div>
-            </TabsContent>
-        </Tabs>
       </div>
-      <Dialog open={showQRCode} onOpenChange={setShowQRCode}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>QR Code - Địa chỉ ví</DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col items-center gap-4 p-6">
-            <div className="bg-white p-4 rounded-lg">
-              <QRCodeSVG value={selectedWalletAddress} size={200} />
-            </div>
-            <p className="text-xs text-muted-foreground text-center break-all font-mono">
-              {selectedWalletAddress}
-            </p>
-            <Button
-              onClick={() => {
-                navigator.clipboard.writeText(selectedWalletAddress);
-                toast({
-                  title: "Đã copy",
-                  description: "Đã sao chép địa chỉ ví vào clipboard",
-                });
-              }}
-              className="w-full"
-            >
-              <Copy className="h-4 w-4 mr-2" />
-              Copy địa chỉ ví
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </MainLayout>
   );
 }
