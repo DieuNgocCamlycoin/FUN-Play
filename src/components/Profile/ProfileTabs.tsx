@@ -30,10 +30,9 @@ export const ProfileTabs = ({ userId, channelId, isOwnProfile }: ProfileTabsProp
       transition={{ duration: 0.4, delay: 0.3 }}
     >
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        {/* Tabs List with Gradient Background */}
+        {/* Tabs List with Bright Gradient Background */}
         <div className="relative mb-6">
-          <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-[hsl(var(--cosmic-cyan))]/10 via-[hsl(var(--cosmic-purple))]/10 to-[hsl(var(--cosmic-magenta))]/10 blur-sm" />
-          <TabsList className="relative w-full justify-start gap-1 h-auto p-1.5 bg-gradient-to-r from-[hsl(var(--cosmic-cyan))]/5 via-[hsl(var(--cosmic-purple))]/5 to-[hsl(var(--cosmic-magenta))]/5 border border-[hsl(var(--cosmic-cyan))]/20 rounded-xl">
+          <TabsList className="relative w-full justify-start gap-2 h-auto p-2 bg-white/90 backdrop-blur-sm border border-sky-200/50 rounded-xl shadow-sm">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -41,10 +40,10 @@ export const ProfileTabs = ({ userId, channelId, isOwnProfile }: ProfileTabsProp
                 <TabsTrigger
                   key={tab.id}
                   value={tab.id}
-                  className={`relative flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all duration-300 ${
+                  className={`relative flex items-center gap-2 px-4 py-2.5 rounded-lg font-semibold transition-all duration-300 ${
                     isActive
-                      ? "bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] via-[hsl(var(--cosmic-purple))] to-[hsl(var(--cosmic-magenta))] text-white shadow-[0_0_20px_rgba(0,231,255,0.4)]"
-                      : "text-muted-foreground hover:text-foreground hover:bg-white/50"
+                      ? "bg-gradient-to-r from-[#00E7FF] via-[#00BFFF] to-[#7A2BFF] text-white shadow-[0_4px_15px_rgba(0,231,255,0.4)]"
+                      : "bg-white/80 text-sky-600 hover:text-sky-700 hover:bg-white border border-sky-200/50 hover:border-sky-300"
                   }`}
                 >
                   <Icon className="w-4 h-4" />

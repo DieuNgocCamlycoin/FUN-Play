@@ -41,7 +41,10 @@ export const ProfileInfo = ({
   const { toast } = useToast();
   const [donateModalOpen, setDonateModalOpen] = useState(false);
 
-  const displayName = profile.display_name || profile.username || "User";
+  const displayName = (profile.display_name || profile.username || "User")
+    .replace(" là", "")
+    .replace(" is", "")
+    .replace("'s Channel", "");
   const subscriberCount = channel?.subscriber_count || 0;
 
   const handleShare = (platform: string) => {
@@ -83,8 +86,8 @@ export const ProfileInfo = ({
       <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
         {/* Left: Name + Info */}
         <div className="flex-1 pl-36 md:pl-44 lg:pl-52">
-          {/* Display Name with Gradient */}
-          <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] via-[hsl(var(--cosmic-purple))] to-[hsl(var(--cosmic-magenta))] bg-clip-text text-transparent mb-1">
+          {/* Display Name with Rainbow Gradient */}
+          <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-[#FF0000] via-[#FF7F00] via-[#FFFF00] via-[#00FF00] via-[#0000FF] via-[#4B0082] to-[#9400D3] bg-clip-text text-transparent mb-1 animate-rainbow-shift bg-[length:200%_auto]">
             {displayName}
           </h1>
 
@@ -130,17 +133,18 @@ export const ProfileInfo = ({
 
         {/* Right: Action Buttons */}
         <div className="flex items-center gap-2 lg:gap-3 pl-36 md:pl-44 lg:pl-0">
-          {/* Donate Button - Premium Style */}
+          {/* Donate Button - Premium Metallic Gold Style */}
           {!isOwnProfile && (
             <Button
               onClick={() => setDonateModalOpen(true)}
-              className="relative group overflow-hidden bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] via-[hsl(var(--cosmic-magenta))] to-[hsl(var(--cosmic-gold))] text-white font-semibold px-4 py-2 rounded-full shadow-[0_0_20px_rgba(0,231,255,0.4)] hover:shadow-[0_0_30px_rgba(255,0,229,0.5)] transition-all duration-300"
+              className="relative group overflow-hidden bg-gradient-to-r from-[#D4AF37] via-[#F5E7A3] to-[#D4AF37] text-[#654321] font-bold px-5 py-2.5 rounded-full shadow-[0_0_25px_rgba(212,175,55,0.6),inset_0_1px_0_rgba(255,255,255,0.4)] hover:shadow-[0_0_40px_rgba(245,231,163,0.8),0_0_60px_rgba(212,175,55,0.5)] border border-[#F5E7A3]/50 transition-all duration-300 hover:scale-105"
             >
               <span className="relative z-10 flex items-center gap-2">
                 <Gift className="w-4 h-4" />
                 Tặng thưởng
               </span>
-              <div className="absolute inset-0 bg-gradient-to-r from-[hsl(var(--cosmic-gold))] via-[hsl(var(--cosmic-magenta))] to-[hsl(var(--cosmic-cyan))] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              {/* Shimmer effect */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
             </Button>
           )}
 
