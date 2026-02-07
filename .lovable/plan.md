@@ -1,177 +1,181 @@
 
-# 🛠️ Kế Hoạch Fix Dứt Điểm Layout FUN PLAY - Không Tràn Viền
+# 🎁 Cập Nhật Thuật Ngữ: THƯỞNG & TẶNG / REWARD & DONATE
 
-## 📊 Phân Tích Vấn Đề Chi Tiết
+## 📋 Tổng Quan Thay Đổi
 
-### Vấn đề 1: Right Sidebar bị cắt góc phải
-**Nguyên nhân gốc:**
-- Sidebar có `w-[280px]` fixed nhưng `px-2` padding → content thực chỉ còn 264px
-- Stat pills trong HonorBoardCard dùng `rounded-full` và gradient phức tạp bị cắt
-- Các items trong TopRanking/TopSponsors có content vượt quá chiều rộng cho phép
-- `overflow-hidden` ở container cha cắt mất content con
+Thay thế tất cả từ ngữ liên quan đến "Tip", "Tặng thưởng" bằng thuật ngữ mới theo yêu cầu:
 
-### Vấn đề 2: Stat pills màu hồng-tím-vàng không match với CategoryChips
-**Yêu cầu:** Đổi sang màu tương tự nút "TẤT CẢ" (bg trắng + border xanh nhạt + text xanh)
-
-### Vấn đề 3: VideoCard content quá dài
-**Nguyên nhân:**
-- Title `line-clamp-2` có thể chiếm 2 dòng
-- Views + timestamp xuống dòng riêng thay vì cùng hàng
+| Cũ | Mới (Tiếng Việt) | Mới (Tiếng Anh) |
+|----|------------------|-----------------|
+| Tip | Tặng | Donate |
+| Tặng thưởng | Thưởng & Tặng | Reward & Donate |
+| TipModal | DonateModal | DonateModal |
+| sendTip | sendDonation | sendDonation |
+| tipModalOpen | donateModalOpen | donateModalOpen |
 
 ---
 
-## 🎯 Giải Pháp Chi Tiết
+## 📁 Danh Sách Files Cần Thay Đổi
 
-### 1. HonoboardRightSidebar.tsx - Fix Container
+### 1. Đổi Tên File
+| File cũ | File mới |
+|---------|----------|
+| `src/components/Tipping/TipModal.tsx` | `src/components/Donate/DonateModal.tsx` |
+| `src/lib/tipping.ts` | `src/lib/donation.ts` |
+
+### 2. Cập Nhật Nội Dung
+
+#### **DonateModal.tsx** (rename từ TipModal)
+- `TipModal` → `DonateModal`
+- `TipModalProps` → `DonateModalProps`
+- `tipModalOpen` → `donateModalOpen`
+- Dialog title: `Tip ${creatorName}` → `Tặng cho ${creatorName}`
+- Dialog description: `"Gửi tiền cryptocurrency để ủng hộ creator"` → `"Thưởng & Tặng cho creator yêu thích của bạn"`
+- Button: `"Gửi tiền"` → `"Tặng ngay"`
+
+#### **donation.ts** (rename từ tipping.ts)
+- `sendTip` → `sendDonation`
+- `SendTipParams` → `SendDonationParams`
+- Comments và error messages cập nhật tương ứng
+
+#### **src/pages/Watch.tsx**
+- Import: `TipModal` → `DonateModal`
+- State: `tipModalOpen` → `donateModalOpen`
+- `setTipModalOpen` → `setDonateModalOpen`
+- Button text: `"Tip"` (dòng 669) → `"Tặng"` 
+
+#### **src/pages/Wallet.tsx**
+- Import: `sendTip` → `sendDonation`
+- Function call: `sendTip({...})` → `sendDonation({...})`
+
+#### **src/components/Web3/SendToFunWalletModal.tsx**
+- Import: `sendTip` → `sendDonation`
+- Function call: `sendTip({...})` → `sendDonation({...})`
+
+---
+
+## 📝 Chi Tiết Thay Đổi Code
+
+### File 1: `src/components/Donate/DonateModal.tsx`
+
 **Thay đổi:**
+```tsx
+// Interface
+interface DonateModalProps { ... }
 
-| Element | Hiện tại | Mới |
-|---------|----------|-----|
-| Container | `overflow-hidden` | `overflow-visible` (bỏ hidden) |
-| Aside width | `w-[280px]` | `w-[260px]` (giảm 20px) |
-| Index.tsx pr | `lg:pr-[280px]` | `lg:pr-[260px]` |
-| ScrollArea | `overflow-x-hidden` | Giữ nguyên |
-| Space between cards | `space-y-3` | `space-y-2` |
+// Component
+export const DonateModal = ({ ... }: DonateModalProps) => {
+  // ...
+}
 
-### 2. HonorBoardCard.tsx - Đổi Màu Stat Pills
-**Thay đổi lớn - Màu mới giống nút "TẤT CẢ":**
+// Dialog Title (dòng 115)
+// Cũ: {manualAddress ? "Chuyển tiền thủ công" : `Tip ${creatorName}`}
+// Mới: {manualAddress ? "Chuyển tiền thủ công" : `Tặng cho ${creatorName}`}
 
-| Element | Hiện tại | Mới |
-|---------|----------|-----|
-| StatPill bg | `bg-gradient-to-r from-[#7A2BFF] via-[#FF00E5] to-[#FFD700]` | `bg-white border border-[#00E7FF]/30` |
-| StatPill shadow | `shadow-[0_4px_20px_rgba(122,43,255,0.4)]` | `shadow-[0_2px_8px_rgba(0,231,255,0.2)]` |
-| Icon color | `text-white` | `text-[#7A2BFF]` |
-| Label color | `text-white` | `text-[#7A2BFF]` |
-| Value color | `text-[#FFD700]` | `text-[#00E7FF] font-bold` |
-| Container padding | `px-2 py-1.5` | `px-2.5 py-1.5` |
-| StatPill | `rounded-full` | `rounded-lg` |
-| Value | `text-base` | `text-sm` |
+// Dialog Description (dòng 118)
+// Cũ: "Gửi tiền cryptocurrency để ủng hộ creator"
+// Mới: "Thưởng & Tặng cho creator yêu thích"
 
-**Thêm:**
-- `hover:bg-[#00E7FF]/5` cho hover effect
-- `transition-colors duration-200`
+// Button text (dòng 203-204)
+// Cũ: "Gửi tiền"
+// Mới: "Tặng ngay"
 
-### 3. TopRankingCard.tsx - Fix Item Overflow
-**Thay đổi:**
-
-| Element | Hiện tại | Mới |
-|---------|----------|-----|
-| RankingItem | `overflow-hidden` | `overflow-visible` |
-| Rank badge | `min-w-[28px]` | `min-w-[24px] text-sm` |
-| Avatar | `h-8 w-8` | `h-7 w-7` |
-| Name text | `text-xs truncate` | `text-[11px] truncate max-w-[80px]` |
-| CAMLY container | `gap-0.5` | `gap-0.5 text-[11px]` |
-| Item padding | `px-2 py-1.5` | `px-1.5 py-1` |
-| Card padding | `p-4` | `p-3` |
-
-### 4. TopSponsorsCard.tsx - Fix Item Overflow
-**Tương tự TopRanking:**
-
-| Element | Hiện tại | Mới |
-|---------|----------|-----|
-| Item padding | `px-2 py-1.5` | `px-1.5 py-1` |
-| Avatar | `h-8 w-8` | `h-7 w-7` |
-| Name | `text-xs` | `text-[11px] max-w-[80px]` |
-| Amount | `text-xs` | `text-[11px]` |
-| Button height | `h-9` | `h-8` |
-| Card padding | `p-4` | `p-3` |
-
-### 5. VideoCard.tsx - Compact Layout
-**Thay đổi:**
-
-| Element | Hiện tại | Mới |
-|---------|----------|-----|
-| Title | `text-[15px] line-clamp-2` | `text-sm line-clamp-1` (chỉ 1 dòng + ellipsis) |
-| Channel + Views row | Riêng 2 dòng | `flex justify-between` cùng 1 dòng |
-| Info padding | `p-4` | `p-3` |
-| Avatar | `w-10 h-10` | `w-8 h-8` |
-| Info gap | `gap-3` | `gap-2` |
-
-**Layout mới cho content:**
-```text
-[Avatar] [Title...] (1 dòng, ellipsis)
-         [Channel]      [Views • Time] (cùng dòng, justify-between)
+// Import
+import { sendDonation } from "@/lib/donation";
 ```
 
-### 6. Index.tsx - Update Main Content Padding
+### File 2: `src/lib/donation.ts`
+
 **Thay đổi:**
+```tsx
+// Interface
+interface SendDonationParams { ... }
 
-| Element | Hiện tại | Mới |
-|---------|----------|-----|
-| Main padding-right | `lg:pr-[280px]` | `lg:pr-[260px]` |
+// Function
+export const sendDonation = async ({ ... }: SendDonationParams) => {
+  // ...
+}
 
----
-
-## 📐 Tính Toán Kích Thước Mới
-
-### Sidebar Layout (Desktop ≥1024px)
-```text
-Tổng width sidebar: 260px
-├── Padding left/right: 8px × 2 = 16px
-├── Content width: 244px
-│   ├── Card padding: 12px × 2 = 24px
-│   └── Inner content: 220px
-│       ├── Stat pill: ~216px (đủ cho icon + label + value)
-│       └── Ranking item: ~216px (rank + avatar + name + amount)
+// Error message (dòng 32)
+// Cũ: "Vui lòng kết nối ví để gửi tiền"
+// Mới: "Vui lòng kết nối ví để tặng"
 ```
 
-### Video Card Layout
-```text
-Card height: ~280px (fixed)
-├── Thumbnail: 16:9 aspect ratio (~160px height)
-├── Content: ~120px
-│   ├── Padding: 12px × 2 = 24px
-│   ├── Title row: ~20px (1 line)
-│   └── Channel/Stats row: ~18px
-│       ├── Channel name (left)
-│       └── Views • Time (right, flex-end)
+### File 3: `src/pages/Watch.tsx`
+
+**Thay đổi:**
+```tsx
+// Import (dòng 10)
+import { DonateModal } from "@/components/Donate/DonateModal";
+
+// State (dòng 62)
+const [donateModalOpen, setDonateModalOpen] = useState(false);
+
+// Button onClick (dòng 666)
+onClick={() => setDonateModalOpen(true)}
+
+// Button text (dòng 669)
+// Cũ: Tip
+// Mới: Tặng
+
+// Component usage (dòng 722-727)
+<DonateModal
+  open={donateModalOpen}
+  onOpenChange={setDonateModalOpen}
+  ...
+/>
+```
+
+### File 4: `src/pages/Wallet.tsx`
+
+**Thay đổi:**
+```tsx
+// Import (dòng 12)
+import { sendDonation, getTransactionHistory } from "@/lib/donation";
+
+// Function call (dòng 363)
+await sendDonation({ ... });
+```
+
+### File 5: `src/components/Web3/SendToFunWalletModal.tsx`
+
+**Thay đổi:**
+```tsx
+// Import (dòng 9)
+import { sendDonation } from "@/lib/donation";
+
+// Function call (dòng 92)
+const result = await sendDonation({ ... });
 ```
 
 ---
 
-## 🎨 Design Consistency
+## 🌐 Bảng Thuật Ngữ Đầy Đủ
 
-### Màu Stat Pills Mới (Match "TẤT CẢ" button)
-- **Background**: `bg-white/90`
-- **Border**: `border border-[#00E7FF]/30`
-- **Text**: `text-[#7A2BFF]` (labels), `text-[#00E7FF]` (values)
-- **Hover**: `hover:bg-[#00E7FF]/5 hover:border-[#00E7FF]/50`
-- **Shadow**: `shadow-sm hover:shadow-[0_0_12px_rgba(0,231,255,0.3)]`
-
-### Responsive Breakpoints
-- **Desktop (≥1024px)**: Sidebar 260px cố định bên phải
-- **Mobile (<1024px)**: Cards stack dọc, full-width
-
----
-
-## 📁 Files Cần Thay Đổi
-
-| File | Thay đổi chính |
-|------|----------------|
-| `HonoboardRightSidebar.tsx` | Giảm width 280→260px, fix overflow |
-| `HonorBoardCard.tsx` | Đổi màu pills sang trắng/xanh, compact sizing |
-| `TopRankingCard.tsx` | Giảm padding, avatar size, fix truncate |
-| `TopSponsorsCard.tsx` | Giảm padding, avatar size, fix truncate |
-| `VideoCard.tsx` | Title 1 dòng, compact layout |
-| `Index.tsx` | Update pr-[260px] |
-| **Tổng cộng** | **6 files** |
+| Context | Tiếng Việt | Tiếng Anh |
+|---------|------------|-----------|
+| Nút chính | Thưởng & Tặng | Reward & Donate |
+| Nút trên video | Tặng | Donate |
+| Modal title | Tặng cho {name} | Donate to {name} |
+| Modal description | Thưởng & Tặng cho creator yêu thích | Reward & Donate to your favorite creator |
+| Button confirm | Tặng ngay | Donate Now |
+| Toast success | Tặng thành công! | Donation successful! |
+| Transaction history | Đã tặng | Donated |
+| Receipt | Biên nhận tặng | Donation Receipt |
+| Leaderboard | Top Người Tặng | Top Donors |
+| Sponsors section | Mạnh Thường Quân | Sponsors |
 
 ---
 
-## ✅ Kết Quả Mong Đợi
+## 📊 Tóm Tắt
 
-### Desktop
-- Sidebar 260px vừa vặn, không tràn góc
-- Stat pills hiển thị đầy đủ với màu xanh-trắng sáng sủa
-- Ranking/Sponsor items không bị cắt
-- Video cards gọn gàng, đều đặn
+| Hạng mục | Số lượng |
+|----------|----------|
+| Files đổi tên | 2 |
+| Files cập nhật nội dung | 5 |
+| Từ khóa thay đổi | ~15 vị trí |
 
-### Mobile
-- Cards stack mượt mà
-- Actions bar không bị cắt
-- Content fit vào viewport
-
-### UX
-- Hover glow hologram giữ nguyên
-- Realtime pulse indicator hoạt động
-- Scroll sidebar nếu content dài
+**Nguyên tắc:**
+- UI hiển thị: Ưu tiên tiếng Việt ("Tặng", "Thưởng & Tặng")
+- Code/Variable names: Dùng tiếng Anh ("donate", "donation")
+- Không dùng từ "Tip" hay "Tặng thưởng" ở bất kỳ đâu trong UI
