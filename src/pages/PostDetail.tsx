@@ -23,6 +23,9 @@ interface Post {
   id: string;
   content: string;
   image_url: string | null;
+  images: string[] | null;
+  gif_url: string | null;
+  post_type: string | null;
   like_count: number;
   comment_count: number;
   created_at: string;
@@ -203,13 +206,48 @@ const PostDetail: React.FC = () => {
             </p>
           </div>
 
-          {/* Image */}
-          {post.image_url && (
+          {/* Images Gallery */}
+          {post.images && post.images.length > 0 && (
+            <div className="px-4 pb-4">
+              <div className={`grid gap-2 ${
+                post.images.length === 1 ? 'grid-cols-1' :
+                post.images.length === 2 ? 'grid-cols-2' :
+                'grid-cols-2 sm:grid-cols-3'
+              }`}>
+                {post.images.map((url, index) => (
+                  <img
+                    key={index}
+                    src={url}
+                    alt={`Post image ${index + 1}`}
+                    className={`w-full rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity ${
+                      post.images!.length === 1 ? 'max-h-[500px]' : 'aspect-square'
+                    }`}
+                    loading="lazy"
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Legacy single image support */}
+          {!post.images?.length && post.image_url && (
             <div className="px-4 pb-4">
               <img
                 src={post.image_url}
                 alt="Post image"
                 className="w-full rounded-lg object-cover max-h-[500px]"
+                loading="lazy"
+              />
+            </div>
+          )}
+
+          {/* GIF Display */}
+          {post.gif_url && (
+            <div className="px-4 pb-4">
+              <img
+                src={post.gif_url}
+                alt="GIF"
+                className="w-full rounded-lg object-contain max-h-[400px] bg-muted/30"
                 loading="lazy"
               />
             </div>

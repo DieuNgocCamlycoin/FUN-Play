@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -7,8 +7,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PostCard } from "./PostCard";
-import { Image, Smile, Send, Loader2 } from "lucide-react";
+import { ImageUploadGrid } from "@/components/Post/ImageUploadGrid";
+import { GifPicker } from "@/components/Post/GifPicker";
+import { Image, Smile, Send, Loader2, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 interface ProfilePostsTabProps {
   userId: string;
@@ -19,6 +26,9 @@ interface Post {
   id: string;
   content: string;
   image_url: string | null;
+  images: string[] | null;
+  gif_url: string | null;
+  post_type: string | null;
   created_at: string;
   like_count: number;
   comment_count: number;
@@ -39,6 +49,26 @@ export const ProfilePostsTab = ({ userId, isOwnProfile }: ProfilePostsTabProps) 
   const [posting, setPosting] = useState(false);
   const [userProfile, setUserProfile] = useState<any>(null);
 
+  // Image upload state
+  const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  
+  // GIF state
+  const [selectedGif, setSelectedGif] = useState<string | null>(null);
+  const [showGifPicker, setShowGifPicker] = useState(false);
+
+  // Generate preview URLs for selected images
+  const previewUrls = useMemo(() => {
+    return selectedImages.map((file) => URL.createObjectURL(file));
+  }, [selectedImages]);
+
+  // Cleanup preview URLs on unmount
+  useEffect(() => {
+    return () => {
+      previewUrls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [previewUrls]);
+
   useEffect(() => {
     fetchPosts();
     if (user) {
@@ -58,7 +88,6 @@ export const ProfilePostsTab = ({ userId, isOwnProfile }: ProfilePostsTabProps) 
 
   const fetchPosts = async () => {
     try {
-      // Fetch posts
       const { data: postsData, error: postsError } = await supabase
         .from("posts")
         .select("*")
@@ -68,14 +97,12 @@ export const ProfilePostsTab = ({ userId, isOwnProfile }: ProfilePostsTabProps) 
 
       if (postsError) throw postsError;
       
-      // Fetch user profile separately
       const { data: profileData } = await supabase
         .from("profiles")
         .select("display_name, username, avatar_url")
         .eq("id", userId)
         .single();
 
-      // Combine posts with profile info
       const postsWithProfiles = (postsData || []).map((post) => ({
         ...post,
         profiles: profileData || { display_name: null, username: "user", avatar_url: null },
@@ -89,10 +116,45 @@ export const ProfilePostsTab = ({ userId, isOwnProfile }: ProfilePostsTabProps) 
     }
   };
 
+  const uploadImages = async (files: File[]): Promise<string[]> => {
+    const uploadedUrls: string[] = [];
+    const total = files.length;
+    
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const fileName = `${user!.id}/${Date.now()}-${file.name}`;
+      
+      const { data, error } = await supabase.storage
+        .from("post-images")
+        .upload(fileName, file);
+      
+      if (!error && data) {
+        const { data: urlData } = supabase.storage
+          .from("post-images")
+          .getPublicUrl(data.path);
+        uploadedUrls.push(urlData.publicUrl);
+      } else {
+        console.error("Upload error:", error);
+      }
+      
+      setUploadProgress(Math.round(((i + 1) / total) * 100));
+    }
+    
+    return uploadedUrls;
+  };
+
   const handleCreatePost = async () => {
-    if (!user || !newPostContent.trim()) return;
+    if (!user || (!newPostContent.trim() && selectedImages.length === 0 && !selectedGif)) {
+      toast({
+        title: "Vui lòng nhập nội dung hoặc thêm ảnh/GIF",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setPosting(true);
+    setUploadProgress(0);
+    
     try {
       // Get user's channel
       const { data: channel } = await supabase
@@ -103,12 +165,34 @@ export const ProfilePostsTab = ({ userId, isOwnProfile }: ProfilePostsTabProps) 
 
       if (!channel) throw new Error("Channel not found");
 
-      const { error } = await supabase.from("posts").insert({
+      // Upload images if any
+      let uploadedImageUrls: string[] = [];
+      if (selectedImages.length > 0) {
+        uploadedImageUrls = await uploadImages(selectedImages);
+      }
+
+      // Prepare post data
+      const postData: any = {
         user_id: user.id,
         channel_id: channel.id,
         content: newPostContent.trim(),
         is_public: true,
-      });
+        post_type: "manual",
+      };
+
+      // Add images array
+      if (uploadedImageUrls.length > 0) {
+        postData.images = uploadedImageUrls;
+        // Also set image_url for backward compatibility
+        postData.image_url = uploadedImageUrls[0];
+      }
+
+      // Add GIF
+      if (selectedGif) {
+        postData.gif_url = selectedGif;
+      }
+
+      const { error } = await supabase.from("posts").insert(postData);
 
       if (error) throw error;
 
@@ -117,9 +201,14 @@ export const ProfilePostsTab = ({ userId, isOwnProfile }: ProfilePostsTabProps) 
         description: "Lan tỏa ánh sáng yêu thương...",
       });
 
+      // Reset form
       setNewPostContent("");
+      setSelectedImages([]);
+      setSelectedGif(null);
+      setUploadProgress(0);
       fetchPosts();
     } catch (error: any) {
+      console.error("Post error:", error);
       toast({
         title: "Lỗi",
         description: error.message,
@@ -129,6 +218,13 @@ export const ProfilePostsTab = ({ userId, isOwnProfile }: ProfilePostsTabProps) 
       setPosting(false);
     }
   };
+
+  const handleSelectGif = (gifUrl: string) => {
+    setSelectedGif(gifUrl);
+    setShowGifPicker(false);
+  };
+
+  const canPost = newPostContent.trim() || selectedImages.length > 0 || selectedGif;
 
   if (loading) {
     return (
@@ -156,7 +252,7 @@ export const ProfilePostsTab = ({ userId, isOwnProfile }: ProfilePostsTabProps) 
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <Card className="p-4 border-2 border-[hsl(var(--cosmic-cyan))]/20 bg-gradient-to-br from-white to-[hsl(var(--cosmic-cyan))]/5">
+          <Card className="p-4 border-2 border-[hsl(var(--cosmic-cyan))]/20 bg-gradient-to-br from-white to-[hsl(var(--cosmic-cyan))]/5 dark:from-card dark:to-[hsl(var(--cosmic-cyan))]/5">
             <div className="flex gap-3">
               <Avatar className="w-10 h-10">
                 <AvatarImage src={userProfile?.avatar_url} />
@@ -169,22 +265,119 @@ export const ProfilePostsTab = ({ userId, isOwnProfile }: ProfilePostsTabProps) 
                   value={newPostContent}
                   onChange={(e) => setNewPostContent(e.target.value)}
                   placeholder="Bạn đang nghĩ gì? Chia sẻ ánh sáng... ✨"
-                  className="min-h-[80px] resize-none border-[hsl(var(--cosmic-cyan))]/30 focus:border-[hsl(var(--cosmic-cyan))] bg-white/50"
+                  className="min-h-[80px] resize-none border-[hsl(var(--cosmic-cyan))]/30 focus:border-[hsl(var(--cosmic-cyan))] bg-white/50 dark:bg-background/50"
                 />
-                <div className="flex items-center justify-between">
-                  <div className="flex gap-2">
-                    <Button variant="ghost" size="sm" className="text-muted-foreground">
-                      <Image className="w-4 h-4 mr-1" />
-                      Ảnh/GIF
+
+                {/* Image Preview Grid */}
+                {selectedImages.length > 0 && (
+                  <ImageUploadGrid
+                    images={selectedImages}
+                    onImagesChange={setSelectedImages}
+                    previewUrls={previewUrls}
+                    maxImages={30}
+                    disabled={posting}
+                  />
+                )}
+
+                {/* GIF Preview */}
+                {selectedGif && (
+                  <div className="relative inline-block">
+                    <img
+                      src={selectedGif}
+                      alt="Selected GIF"
+                      className="max-h-40 rounded-lg border border-border"
+                    />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                      className="absolute -top-2 -right-2 h-6 w-6"
+                      onClick={() => setSelectedGif(null)}
+                    >
+                      <X className="h-3 w-3" />
                     </Button>
-                    <Button variant="ghost" size="sm" className="text-muted-foreground">
+                  </div>
+                )}
+
+                {/* Upload Progress */}
+                {posting && uploadProgress > 0 && uploadProgress < 100 && (
+                  <div className="w-full bg-muted rounded-full h-2">
+                    <div
+                      className="bg-[hsl(var(--cosmic-cyan))] h-2 rounded-full transition-all"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                )}
+
+                {/* Actions */}
+                <div className="flex items-center justify-between">
+                  <div className="flex gap-1">
+                    {/* Image/GIF Button */}
+                    <Popover open={showGifPicker} onOpenChange={setShowGifPicker}>
+                      <PopoverTrigger asChild>
+                        <Button 
+                          type="button"
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-muted-foreground hover:text-[hsl(var(--cosmic-cyan))]"
+                          disabled={posting}
+                        >
+                          <Image className="w-4 h-4 mr-1" />
+                          Ảnh/GIF
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <div className="p-2 space-y-2">
+                          {/* Upload Images Button */}
+                          <label className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted cursor-pointer transition-colors">
+                            <Image className="w-4 h-4" />
+                            <span className="text-sm">Tải ảnh lên</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              multiple
+                              className="hidden"
+                              onChange={(e) => {
+                                if (e.target.files) {
+                                  const files = Array.from(e.target.files);
+                                  const remaining = 30 - selectedImages.length;
+                                  setSelectedImages((prev) => [
+                                    ...prev,
+                                    ...files.slice(0, remaining),
+                                  ]);
+                                }
+                                setShowGifPicker(false);
+                              }}
+                              disabled={posting || selectedImages.length >= 30}
+                            />
+                          </label>
+                          <div className="border-t border-border" />
+                          {/* GIF Picker */}
+                          <GifPicker
+                            onSelect={handleSelectGif}
+                            onClose={() => setShowGifPicker(false)}
+                          />
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+
+                    {/* Emoji Button (placeholder) */}
+                    <Button 
+                      type="button"
+                      variant="ghost" 
+                      size="sm" 
+                      className="text-muted-foreground"
+                      disabled={posting}
+                    >
                       <Smile className="w-4 h-4 mr-1" />
                       Emoji
                     </Button>
                   </div>
+
+                  {/* Post Button */}
                   <Button
                     onClick={handleCreatePost}
-                    disabled={!newPostContent.trim() || posting}
+                    disabled={!canPost || posting}
                     className="bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] to-[hsl(var(--cosmic-magenta))] text-white rounded-full px-6"
                   >
                     {posting ? (

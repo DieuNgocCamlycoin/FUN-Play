@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { EnhancedDonateModal } from "@/components/Donate/EnhancedDonateModal";
-import { Heart, MessageSquare, Share2, Gift, MoreHorizontal } from "lucide-react";
+import { Heart, MessageSquare, Share2, Gift, MoreHorizontal, Sparkles } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { vi } from "date-fns/locale";
 import {
@@ -22,6 +22,9 @@ interface PostCardProps {
     id: string;
     content: string;
     image_url: string | null;
+    images?: string[] | null;
+    gif_url?: string | null;
+    post_type?: string | null;
     created_at: string;
     like_count: number;
     comment_count: number;
@@ -46,6 +49,12 @@ export const PostCard = ({ post, onUpdate }: PostCardProps) => {
   const displayName = post.profiles?.display_name || post.profiles?.username || "User";
   const avatarUrl = post.profiles?.avatar_url;
   const timeAgo = formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: vi });
+  
+  // Check if this is a donation post
+  const isDonationPost = post.post_type === "donation";
+  
+  // Get images - prefer new images array, fallback to single image_url
+  const images = post.images?.length ? post.images : (post.image_url ? [post.image_url] : []);
 
   const handleLike = async () => {
     if (!user) {
@@ -69,8 +78,37 @@ export const PostCard = ({ post, onUpdate }: PostCardProps) => {
     });
   };
 
+  // Calculate grid layout for images
+  const getImageGridClass = (count: number) => {
+    if (count === 1) return "grid-cols-1";
+    if (count === 2) return "grid-cols-2";
+    if (count <= 4) return "grid-cols-2";
+    return "grid-cols-3";
+  };
+
+  const getImageAspect = (count: number, index: number) => {
+    if (count === 1) return "aspect-video";
+    if (count === 2) return "aspect-square";
+    if (count === 3 && index === 0) return "row-span-2 aspect-auto h-full";
+    return "aspect-square";
+  };
+
   return (
-    <Card className="p-4 border border-border hover:border-[hsl(var(--cosmic-cyan))]/30 transition-colors">
+    <Card className={`p-4 border transition-colors ${
+      isDonationPost 
+        ? "border-[hsl(var(--cosmic-gold))]/30 bg-gradient-to-br from-[hsl(var(--cosmic-gold))]/5 to-transparent" 
+        : "border-border hover:border-[hsl(var(--cosmic-cyan))]/30"
+    }`}>
+      {/* Donation Badge */}
+      {isDonationPost && (
+        <div className="flex items-center gap-2 mb-3 text-xs">
+          <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-gradient-to-r from-[hsl(var(--cosmic-gold))]/20 to-[hsl(var(--cosmic-magenta))]/20 border border-[hsl(var(--cosmic-gold))]/30">
+            <Sparkles className="w-3 h-3 text-[hsl(var(--cosmic-gold))]" />
+            <span className="text-[hsl(var(--cosmic-gold))] font-medium">Lì xì</span>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3">
@@ -112,12 +150,48 @@ export const PostCard = ({ post, onUpdate }: PostCardProps) => {
       {/* Content */}
       <div className="mb-4">
         <p className="text-foreground whitespace-pre-wrap">{post.content}</p>
-        {post.image_url && (
+        
+        {/* Images Grid */}
+        {images.length > 0 && (
+          <div className={`mt-3 grid ${getImageGridClass(images.length)} gap-1 rounded-xl overflow-hidden`}>
+            {images.slice(0, 6).map((url, index) => (
+              <div
+                key={index}
+                className={`relative ${getImageAspect(images.length, index)} overflow-hidden ${
+                  images.length === 3 && index === 0 ? "" : ""
+                }`}
+              >
+                <img
+                  src={url}
+                  alt={`Post image ${index + 1}`}
+                  className="w-full h-full object-cover hover:scale-105 transition-transform cursor-pointer"
+                  onClick={() => navigate(`/post/${post.id}`)}
+                  loading="lazy"
+                />
+                {/* Show "+X" overlay for more images */}
+                {index === 5 && images.length > 6 && (
+                  <div 
+                    className="absolute inset-0 bg-black/60 flex items-center justify-center cursor-pointer"
+                    onClick={() => navigate(`/post/${post.id}`)}
+                  >
+                    <span className="text-white text-2xl font-bold">
+                      +{images.length - 6}
+                    </span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* GIF Display */}
+        {post.gif_url && (
           <div className="mt-3 rounded-xl overflow-hidden">
             <img
-              src={post.image_url}
-              alt="Post image"
-              className="w-full max-h-[500px] object-cover"
+              src={post.gif_url}
+              alt="GIF"
+              className="w-full max-h-[300px] object-contain bg-muted/30"
+              loading="lazy"
             />
           </div>
         )}

@@ -109,6 +109,15 @@ export const DonationSuccessOverlay = ({
     toast({ title: "Đã copy link biên nhận! 📋" });
   };
 
+  // Celebration GIFs for donation posts
+  const CELEBRATION_GIFS = [
+    "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExcWZrOWJxaTN0d3NlMnJmMnVyOWZxOGtjcm9yY3JyemxqaXB2MWNsdiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o6Zt6cQPT8dpg4YkE/giphy.gif",
+    "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExdHd1bTBoNWJkMm5wN2doaXk0Z295bHc4bHdyN2c5MnZtaHQ3bGNxaiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/KzDqC8LvVC4lshCsGJ/giphy.gif",
+    "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExY3M5aHp6eGh5cGZocnBuaXM1aDZncW54MGZkcDV4czdnOGk1cnZ6aiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/26tP4gFBQewkLnMv6/giphy.gif",
+    "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbjJ0MGN5MDg3NTN2dHFlNGF4dzR6dXZsMWR0NnpsMzE5cWNuOGY0byZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/l0MYt5jPR6QX5pnqM/giphy.gif",
+    "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExcXRxZ3UzMWVvbnEzbGd6NW5mdWFvazZ6eWhuOWlmcHEzMmFwcmM2aSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o7btNa0RUYa5E7iiQ/giphy.gif",
+  ];
+
   const handleShareToProfile = async () => {
     setIsSharing(true);
     try {
@@ -123,6 +132,9 @@ export const DonationSuccessOverlay = ({
         throw new Error("Không tìm thấy channel");
       }
 
+      // Pick a random celebration GIF
+      const randomGif = CELEBRATION_GIFS[Math.floor(Math.random() * CELEBRATION_GIFS.length)];
+
       const receiptUrl = `${window.location.origin}/receipt/${transaction.receipt_public_id}`;
       const postContent = `✨ ${sender.name} vừa tặng ${transaction.amount} ${token.symbol} cho @${receiver.username}${message ? ` với lời nhắn: "${message}"` : ""} 💖\n\n🎁 Xem biên nhận: ${receiptUrl}\n\n#FUNGift #FUNPlay #LanToaYeuThuong`;
 
@@ -130,6 +142,8 @@ export const DonationSuccessOverlay = ({
         user_id: sender.id,
         channel_id: channel.id,
         content: postContent,
+        gif_url: randomGif,
+        post_type: "donation",
         is_public: true,
       });
 
@@ -137,7 +151,7 @@ export const DonationSuccessOverlay = ({
 
       toast({
         title: "Đã chia sẻ lên Profile! 🎉",
-        description: "Bài viết đã được đăng thành công",
+        description: "Bài viết đã được đăng với hiệu ứng lì xì",
       });
       setHasShared(true);
     } catch (error) {
