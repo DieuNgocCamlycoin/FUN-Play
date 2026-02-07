@@ -529,3 +529,37 @@ body > [data-w3m-modal] {
   0% { left: -100%; }
   100% { left: 100%; }
 }
+
+/* Honor Board Rainbow Slide Animation */
+@keyframes rainbow-slide {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 300% 50%; }
+}
+
+.animate-rainbow-slide {
+  animation: rainbow-slide 4s linear infinite;
+}
+
+/* Honor Board Hologram Border */
+.honor-board-border {
+  position: relative;
+  background: linear-gradient(
+    90deg, 
+    #FF6B9D,
+    #C084FC,
+    #00E7FF,
+    #4ADE80,
+    #FFD700,
+    #FF6B9D
+  );
+  background-size: 300% 100%;
+  animation: rainbow-slide 4s linear infinite;
+  border-radius: 1.25rem;
+  padding: 2px;
+}
+
+.honor-board-border > .honor-board-inner {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(24px);
+  border-radius: calc(1.25rem - 2px);
+}
