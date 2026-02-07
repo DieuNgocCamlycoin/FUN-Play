@@ -1,113 +1,72 @@
 
-# Áp Dụng Hiệu Ứng Mirror Shimmer Liên Tục Cho Tất Cả Nút Vàng Kim Loại
+# 🌟 Đồng Bộ Thiết Kế Trang Cá Nhân Cho Tất Cả Users
 
-## Tổng Quan
+## Tổng Quan Vấn Đề
 
-Thêm hiệu ứng vệt trắng sáng chạy qua chạy lại LIÊN TỤC (không chỉ khi hover) trên tất cả nút vàng kim loại "Thưởng & Tặng" trên nền tảng.
+Hiện tại có **2 trang profile khác nhau**:
 
----
+| Route | Page | Thiết kế |
+|-------|------|----------|
+| `/channel/:id`, `/c/:username`, `/@:username` | `Channel.tsx` | **CŨ** - có "Huy Hiệu Thành Tích", không có Honor Board trên bìa |
+| `/user/:userId`, `/u/:username` | `UserProfile.tsx` | **MỚI** - đẹp như Angel Diệu Ngọc |
 
-## Thay Đổi Cần Thực Hiện
-
-### 1. Thêm CSS Animation Mới (src/index.css)
-
-Thêm animation `mirror-shimmer` chạy liên tục:
-
-```css
-/* Mirror shimmer effect - Continuous back and forth */
-@keyframes mirror-shimmer {
-  0%, 100% { transform: translateX(-100%); }
-  50% { transform: translateX(100%); }
-}
-
-.animate-mirror-shimmer {
-  animation: mirror-shimmer 3s ease-in-out infinite;
-}
-```
+Khi click vào avatar/tên người dùng từ video → đi đến `/channel/:id` → thấy giao diện cũ.
 
 ---
 
-### 2. Cập Nhật GlobalDonateButton.tsx (Header)
+## Giải Pháp
 
-**Desktop variant (dòng 69-70):**
-- Thay shimmer hover thành liên tục
-
-Trước:
-```tsx
-<div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-```
-
-Sau:
-```tsx
-<div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-mirror-shimmer" />
-```
-
-**Mobile variant (dòng 34-45):**
-- Thêm shimmer layer liên tục
-
-Thêm vào trong Button:
-```tsx
-<div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-mirror-shimmer rounded-full" />
-```
+**Thay thế hoàn toàn trang `Channel.tsx` bằng giao diện mới giống `UserProfile.tsx`**, đảm bảo tất cả routes đều dùng thiết kế 5D Light Economy thống nhất.
 
 ---
 
-### 3. Cập Nhật ProfileInfo.tsx (Trang Cá Nhân)
+## Chi Tiết Thực Hiện
 
-**Nút "Tặng thưởng" (dòng 146-148):**
+### 1. Cập Nhật Channel.tsx - Sử Dụng Components Mới
 
-Trước:
+**Thay thế hoàn toàn logic cũ bằng:**
+- `ProfileHeader` (ảnh bìa + avatar hologram + Honor Board trên bìa)
+- `ProfileInfo` (tên rainbow gradient + nút "Tặng & Thưởng" + nút theo dõi)
+- `ProfileTabs` (Bài viết, Video, Shorts, Livestream, Playlist)
+
+**Xóa:**
+- Import `CompactHonobar`, `RewardStats`, `AchievementBadges`
+- Bảng "Huy Hiệu Thành Tích" cũ
+- Layout cũ với tabs Videos/Playlists/About
+
+### 2. Thêm Nút "Tặng & Thưởng" Cho Tất Cả Profile
+
+Trong `ProfileInfo.tsx`:
+- **Bỏ điều kiện `!isOwnProfile`** cho nút donate → Nút luôn hiển thị
+- Khi xem profile **người khác**: Auto-fill receiver
+- Khi xem profile **chính mình**: Mở modal global để chọn người nhận
+
+### 3. Đổi Nút "Chỉnh sửa" Thành Icon Settings
+
+Thay:
 ```tsx
-<div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-```
-
-Sau:
-```tsx
-<div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-mirror-shimmer" />
-```
-
----
-
-### 4. Thêm Nút "Thưởng & Tặng" Vào VideoActionsBar.tsx
-
-**Thêm import:**
-```tsx
-import { Gift } from "lucide-react";
-import { EnhancedDonateModal } from "@/components/Donate/EnhancedDonateModal";
-```
-
-**Thêm state:**
-```tsx
-const [donateModalOpen, setDonateModalOpen] = useState(false);
-```
-
-**Thêm nút sau nút Share (dòng 232):**
-```tsx
-{/* Donate button - Premium Gold */}
-<Button
-  onClick={() => { lightTap(); setDonateModalOpen(true); }}
-  className="relative overflow-hidden rounded-full bg-gradient-to-b from-[#FFEA00] via-[#FFD700] to-[#E5A800] 
-             text-[#7C5800] font-bold h-10 px-4 gap-1.5 shrink-0
-             shadow-[0_0_15px_rgba(255,215,0,0.4),inset_0_2px_4px_rgba(255,255,255,0.6)]
-             hover:shadow-[0_0_25px_rgba(255,234,0,0.7)] 
-             border border-[#FFEA00]/60 transition-all duration-300"
->
-  <Gift className="h-5 w-5" />
-  <span className="text-sm font-bold">Tặng</span>
-  {/* Mirror shimmer effect */}
-  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-mirror-shimmer" />
+<Button>
+  <Settings className="w-4 h-4 mr-2" />
+  Chỉnh sửa
 </Button>
 ```
 
-**Thêm modal ở cuối component (trước closing tag của TooltipProvider):**
+Thành icon-only:
 ```tsx
-<EnhancedDonateModal
-  open={donateModalOpen}
-  onOpenChange={setDonateModalOpen}
-  defaultReceiverId={channelId}
-  defaultReceiverName={channelName}
-/>
+<Button variant="outline" size="icon" className="rounded-full">
+  <Settings className="w-4 h-4" />
+</Button>
 ```
+
+### 4. Xóa Component AchievementBadges (Bảng Huy Hiệu Thành Tích)
+
+- Xóa import và render `AchievementBadges` trong `RewardStats.tsx`
+- Giữ file `AchievementBadges.tsx` nhưng không dùng (có thể thay bằng biểu tượng khác sau)
+
+### 5. Cập Nhật RewardStats.tsx
+
+- Xóa import và render của `AchievementBadges`
+- Giữ lại 3 stat cards (Tổng Reward, Số dư CAMLY, Người theo dõi) nếu cần dùng ở nơi khác
 
 ---
 
@@ -115,26 +74,61 @@ const [donateModalOpen, setDonateModalOpen] = useState(false);
 
 | File | Thay đổi |
 |------|----------|
-| `src/index.css` | Thêm animation `mirror-shimmer` và class `.animate-mirror-shimmer` |
-| `src/components/Donate/GlobalDonateButton.tsx` | Đổi shimmer từ hover sang liên tục (cả desktop + mobile) |
-| `src/components/Profile/ProfileInfo.tsx` | Đổi shimmer từ hover sang liên tục |
-| `src/components/Video/Mobile/VideoActionsBar.tsx` | Thêm nút "Thưởng & Tặng" với shimmer liên tục |
+| `src/pages/Channel.tsx` | **Viết lại hoàn toàn** - sử dụng ProfileHeader, ProfileInfo, ProfileTabs giống UserProfile.tsx |
+| `src/components/Profile/ProfileInfo.tsx` | Bỏ điều kiện `!isOwnProfile` cho nút donate, đổi nút Settings thành icon, thêm logic modal |
+| `src/components/Profile/RewardStats.tsx` | Xóa import và render `AchievementBadges` |
+
+---
+
+## Cấu Trúc Mới Của Channel.tsx
+
+```text
+MainLayout
+├── BackgroundMusicPlayer (nếu có)
+├── DonationCelebration (realtime)
+├── ProfileHeader
+│   ├── Cover Photo (full width)
+│   ├── ProfileHonorBoard (góc phải trên bìa)
+│   └── Avatar (hologram rainbow border)
+├── ProfileInfo
+│   ├── Display Name (rainbow gradient)
+│   ├── Username + Stats
+│   ├── Bio + Wallet
+│   └── Action Buttons:
+│       ├── "Tặng & Thưởng" (vàng kim loại shimmer) - LUÔN HIỂN THỊ
+│       ├── "Theo dõi" (nếu không phải own profile)
+│       ├── Settings icon (nếu là own profile)
+│       └── Share dropdown
+└── ProfileTabs
+    ├── Bài viết
+    ├── Video
+    ├── Shorts
+    ├── Livestream
+    └── Playlist
+```
 
 ---
 
 ## Kết Quả Mong Đợi
 
-- Vệt trắng sáng chạy qua chạy lại LIÊN TỤC trên tất cả nút vàng kim loại
-- Animation mượt mà 3 giây mỗi chu kỳ
-- Hiệu ứng tráng gương sang trọng, thu hút sự chú ý
-- Áp dụng đồng bộ trên Header, Profile, và Video
+| Trước | Sau |
+|-------|-----|
+| Profile `/channel/:id` có "Huy Hiệu Thành Tích" cũ | Tất cả profile đều có Honor Board trên ảnh bìa |
+| Không có nút "Tặng & Thưởng" trên profile khác | Nút vàng kim loại shimmer hiển thị trên TẤT CẢ profile |
+| Tabs cũ: Videos, Playlists, About | Tabs mới: Bài viết, Video, Shorts, Livestream, Playlist |
+| Avatar đơn giản | Avatar hologram với rainbow border animation |
+| Tên bình thường | Tên rainbow gradient với animation |
 
 ---
 
-## Testing
+## Testing Checklist
 
-- [ ] Nút "Thưởng & Tặng" trên Header có shimmer chạy liên tục
-- [ ] Nút "Tặng thưởng" trên Profile có shimmer chạy liên tục  
-- [ ] Nút "Tặng" dưới video có shimmer chạy liên tục
-- [ ] Click nút mở modal tặng tiền hoạt động đúng
-- [ ] Animation mượt mà, không giật
+- [ ] Vào `/channel/:id` của bất kỳ user → Thấy design mới giống Angel Diệu Ngọc
+- [ ] Vào `/c/:username` → Design mới
+- [ ] Vào `/@:username` → Design mới
+- [ ] Không còn thấy "Huy Hiệu Thành Tích" cũ
+- [ ] Honor Board hiển thị trên góc phải ảnh bìa
+- [ ] Nút "Tặng & Thưởng" hiển thị trên TẤT CẢ profile (kể cả của mình)
+- [ ] Click nút → Mở modal tặng tiền đúng chức năng
+- [ ] Tabs mới hoạt động đúng
+- [ ] Mobile responsive: Stack dọc đẹp
