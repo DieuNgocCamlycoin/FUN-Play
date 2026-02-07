@@ -1,313 +1,164 @@
 
-# 🎁 Hoàn Thiện Modal "Thưởng & Tặng" Siêu Xịn Sò
+# 🔧 Fix Tính Năng Modal "Thưởng & Tặng" - Các Mục Không Hoạt Động
 
-## 📊 Phân Tích Hiện Tại
+## 📋 Phân Tích Vấn Đề
 
-**Modal hiện tại (`EnhancedDonateModal.tsx`):**
-- ✅ Có 5 steps riêng biệt (receiver → token → amount → message → success)
-- ✅ Đã có confetti khi success
-- ❌ Các bước tách rời, không hiển thị cùng lúc
-- ❌ Thiếu viền hologram cho inputs
-- ❌ Success đơn giản, thiếu GIF/nhạc/auto post
-- ❌ Không có emoji picker trong textarea
-- ❌ Không có slider cho amount
+Dựa trên screenshots và code review, em đã xác định được **4 lỗi chính** trong modal:
+
+### Vấn đề #1: Người Nhận - Không chọn được từ dropdown
+**Nguyên nhân:** Dropdown search results có `z-50` (= 50), thấp hơn DialogContent `z-[10002]` (= 10002). Do đó dropdown bị che khuất và click events không hoạt động.
+
+**Code hiện tại (dòng 340):**
+```tsx
+<div className="absolute z-50 w-full mt-1 bg-background border rounded-xl shadow-lg max-h-48 overflow-y-auto">
+```
+
+### Vấn đề #2: Chọn Token - Không chọn được token khác
+**Nguyên nhân:** Mặc dù SelectContent đã có `z-[10003]`, nhưng có thể Select component đang không trigger onValueChange đúng cách hoặc tokens chưa được load.
+
+### Vấn đề #3: Số Tiền - Không chọn/nhập được
+**Nguyên nhân:** Các Quick Amount buttons đang bị `disabled` khi `currentBalance !== null && qa > currentBalance`. Nếu balance = 0, tất cả buttons đều disabled. Input cũng có thể bị event blocking.
+
+### Vấn đề #4: Lời Nhắn - Không nhập được
+**Nguyên nhân:** Có thể có CSS hoặc event issues blocking textarea input. Cần kiểm tra nếu có overlay che phủ.
 
 ---
 
-## ✅ Kế Hoạch Triển Khai
+## ✅ Giải Pháp Chi Tiết
 
-### 1. Modal Tặng & Thưởng (Full Fields Cùng Lúc)
+### Fix #1: Tăng z-index cho Search Results Dropdown
 
 **File:** `src/components/Donate/EnhancedDonateModal.tsx`
 
-**Thay đổi chính:**
-- Loại bỏ hệ thống step-by-step, hiển thị tất cả fields trên 1 màn hình
-- Layout responsive: 
-  - Desktop: Grid 2 cột (sender + receiver cột trái, token + amount + message cột phải)
-  - Mobile: Stack dọc, scroll nếu cần
+**Thay đổi dòng 340:**
+- Cũ: `className="absolute z-50 w-full mt-1 bg-background border rounded-xl shadow-lg max-h-48 overflow-y-auto"`
+- Mới: `className="absolute z-[10003] w-full mt-1 bg-white dark:bg-gray-900 border border-cosmic-cyan/30 rounded-xl shadow-lg shadow-cyan-500/10 max-h-48 overflow-y-auto"`
 
-**Cấu trúc mới:**
-```text
-┌─────────────────────────────────────────────────────────────┐
-│ 🎁 Thưởng & Tặng                              [X]           │
-├─────────────────────────────────────────────────────────────┤
-│ ┌─────────────────┐  ┌──────────────────────────────────┐   │
-│ │ [Avatar] Bạn    │  │ 🔍 Tìm người nhận...             │   │
-│ │ @username       │  │ [Avatar dropdown list]           │   │
-│ └─────────────────┘  └──────────────────────────────────┘   │
-├─────────────────────────────────────────────────────────────┤
-│ [Dropdown Token] FUN MONEY ▼  │ Số dư: 1000 FUNM           │
-├─────────────────────────────────────────────────────────────┤
-│ [10] [50] [100] [500] [Custom ___]                          │
-│ [═══════════════●═══════════] 250 FUNM                      │
-├─────────────────────────────────────────────────────────────┤
-│ ┌──────────────────────────────────────────────────────┐    │
-│ │ Lời nhắn yêu thương 💖                               │    │
-│ │ ________________________________________________    │    │
-│ │ [😊] Emoji picker                              0/200 │    │
-│ └──────────────────────────────────────────────────────┘    │
-├─────────────────────────────────────────────────────────────┤
-│          [ 🎁 Tặng Ngay - 250 FUNM → @receiver ]            │
-└─────────────────────────────────────────────────────────────┘
-```
+### Fix #2: Đảm bảo Token Selection hoạt động
 
-### 2. Viền Hologram Input (Toàn Hệ Thống)
+**Kiểm tra:**
+- Đảm bảo `tokens` array được load đúng
+- Thêm log để debug nếu cần
+- Xác nhận `onValueChange` handler được gọi
 
-**File:** `src/index.css`
-
-**Thêm CSS class mới:**
-```css
-/* Hologram border for inputs - global apply */
-.hologram-input {
-  position: relative;
-  border: 1px solid transparent;
-  background-image: 
-    linear-gradient(white, white),
-    linear-gradient(135deg, #00E7FF, #7A2BFF, #FF00E5, #FFD700);
-  background-origin: border-box;
-  background-clip: padding-box, border-box;
-  transition: all 0.3s ease;
-}
-
-.hologram-input:focus {
-  box-shadow: 
-    0 0 10px rgba(0, 231, 255, 0.4),
-    0 0 20px rgba(122, 43, 255, 0.3),
-    0 0 30px rgba(255, 0, 229, 0.2);
-  animation: pulse-glow 1.5s ease-in-out infinite;
-}
-```
-
-**Files cần update:**
-- `src/components/ui/input.tsx` - Thêm `hologram-input` class vào base styles
-- `src/components/ui/textarea.tsx` - Tương tự
-- `src/components/ui/select.tsx` - Thêm cho SelectTrigger
-
-### 3. Success State Siêu Xịn
-
-**Tính năng mới:**
-
-| Feature | Chi tiết |
-|---------|----------|
-| GIF ăn mừng | Hiển thị GIF animation (configurable URL) |
-| Pháo hoa | Enhanced confetti với nhiều màu hơn, duration lâu hơn |
-| Nhạc "RICH RICH RICH" | Sử dụng `useSoundEffects` hook với `celebrate()` sound |
-| Auto Post | Button "Chia sẻ lên Profile" tạo post tự động |
-| Modal không tự đóng | Giữ nguyên cho user chụp hình, có nút X để tắt |
-
-**Success State UI:**
-```text
-┌─────────────────────────────────────────────────────────────┐
-│                                                     [X]     │
-│                    🎉 [GIF Animation] 🎉                    │
-│                                                             │
-│              ✨ Tặng Thành Công! ✨                         │
-│                                                             │
-│   Bạn đã lan tỏa 250 FUNM đến @receiver 💖                 │
-│                                                             │
-│  ┌─────────────────────────────────────────────────────┐    │
-│  │ [Avatar Sender] → [Avatar Receiver]                 │    │
-│  │ "Lời nhắn yêu thương từ bạn..."                     │    │
-│  │ TX: 0x1234... [🔗]                                  │    │
-│  └─────────────────────────────────────────────────────┘    │
-│                                                             │
-│  [ 📋 Copy Link ]  [ 🌟 Chia Sẻ Lên Profile ]              │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### 4. Auto Post Lên Profile
-
-**Logic:**
-1. Khi user bấm "Chia sẻ lên Profile"
-2. Tạo post mới trong bảng `posts` với:
-   - `content`: "{DisplayName} vừa tặng {amount} {symbol} cho @{receiver} 💖 #FUNGift"
-   - `image_url`: null (hoặc GIF nếu có)
-3. Navigate đến post mới hoặc hiển thị toast success
-
-**Code snippet:**
-```typescript
-const handleShareToProfile = async () => {
-  const postContent = `${senderName} vừa tặng ${amount} ${symbol} cho @${receiverUsername} với lời nhắn: "${message}" 💖 #FUNGift`;
-  
-  const { data: channel } = await supabase
-    .from("channels")
-    .select("id")
-    .eq("user_id", user.id)
-    .single();
-    
-  await supabase.from("posts").insert({
-    user_id: user.id,
-    channel_id: channel.id,
-    content: postContent,
-    image_url: null,
-  });
-  
-  toast({ title: "Đã chia sẻ lên Profile!" });
-};
-```
-
-### 5. Tính Năng Bổ Sung
-
-**a. Emoji Picker trong Textarea:**
-- Sử dụng component `EmojiPicker` đã có sẵn trong project
-- Thêm nút 😊 cạnh textarea
-- Click → hiển thị emoji grid → chọn → insert vào message
-
-**b. Slider Amount:**
+**Code cần review:**
 ```tsx
-<Slider
-  min={1}
-  max={Math.min(currentBalance || 1000, 10000)}
-  step={1}
-  value={[parseFloat(amount) || 0]}
-  onValueChange={(v) => setAmount(v[0].toString())}
-  className="hologram-input"
-/>
+<Select value={selectedToken?.symbol} onValueChange={handleSelectToken}>
 ```
 
-**c. Token Priority (FUN MONEY trước):**
-- Sort tokens: `tokens.sort((a, b) => a.priority - b.priority)`
-- Ensure `donate_tokens` table có FUN MONEY priority = 1
+### Fix #3: Fix Amount Buttons và Input
+
+**Vấn đề:** Khi balance = 0, tất cả buttons đều disabled
+**Giải pháp:** Chỉ disable khi token là "internal" VÀ balance < amount
+
+**Thay đổi dòng 433:**
+```tsx
+disabled={selectedToken?.chain === "internal" && currentBalance !== null && qa > currentBalance}
+```
+
+### Fix #4: Đảm bảo Textarea hoạt động
+
+**Kiểm tra:** Xác nhận không có overlay hoặc CSS blocking
+**Thêm:** explicit pointer-events-auto nếu cần
 
 ---
 
-## 📁 Files Cần Tạo/Chỉnh Sửa
+## 📁 Files Cần Chỉnh Sửa
 
-| File | Hành động | Mô tả |
-|------|-----------|-------|
-| `src/components/Donate/EnhancedDonateModal.tsx` | **Major Rewrite** | Modal full-fields + success siêu xịn |
-| `src/components/Donate/DonationSuccessOverlay.tsx` | **New** | Component success riêng với GIF/confetti/sound |
-| `src/index.css` | **Edit** | Thêm `.hologram-input` class |
-| `src/components/ui/input.tsx` | **Edit** | Thêm hologram border class |
-| `src/components/ui/textarea.tsx` | **Edit** | Thêm hologram border class |
-| `src/components/ui/slider.tsx` | **Edit** | Thêm hologram glow effect |
+| File | Thay đổi |
+|------|----------|
+| `src/components/Donate/EnhancedDonateModal.tsx` | Fix z-index dropdown, button disabled logic, pointer-events |
 
 ---
 
 ## 🔧 Chi Tiết Code Changes
 
-### EnhancedDonateModal.tsx (Major Rewrite)
+### EnhancedDonateModal.tsx
 
-**Xóa:**
-- State `step` và logic step-by-step
-- AnimatePresence với key từng step
-
-**Thêm:**
-- Single-page layout với tất cả fields
-- Slider component cho amount
-- Emoji picker integration
-- Enhanced confetti settings
-- Sound effect on success
-- Share to profile button
-- Modal không auto-close
-
-### DonationSuccessOverlay.tsx (New Component)
-
+**1. Fix Search Results Dropdown (dòng 340):**
 ```tsx
-interface SuccessOverlayProps {
-  transaction: DonationTransaction;
-  sender: { name: string; avatar: string };
-  receiver: { name: string; avatar: string };
-  token: DonationToken;
-  message?: string;
-  onClose: () => void;
-  onShare: () => void;
-}
-
-// Features:
-// - Full-screen overlay với backdrop blur
-// - GIF animation (configurable URL)
-// - Enhanced confetti (multiple bursts)
-// - Celebration sound effect
-// - Transaction details card
-// - Copy link + Share buttons
-// - X button to close (không auto-close)
+// Thay đổi z-50 thành z-[10003] và thêm styles
+<div className="absolute z-[10003] w-full mt-1 bg-white dark:bg-gray-900 border border-cosmic-cyan/30 rounded-xl shadow-lg shadow-cyan-500/10 max-h-48 overflow-y-auto">
 ```
 
-### index.css Additions
+**2. Fix Button trong search results (dòng 347-366):**
+```tsx
+<button
+  key={result.id}
+  type="button"  // Thêm type="button" để tránh form submission
+  onClick={() => handleSelectReceiver(result)}
+  className="w-full flex items-center gap-3 p-3 hover:bg-accent transition-colors cursor-pointer"
+>
+```
 
-```css
-/* Hologram Input Border - Applied globally */
-.hologram-input,
-.hologram-input-trigger {
-  position: relative;
-  border: 1px solid transparent !important;
-  background: 
-    linear-gradient(hsl(var(--background)), hsl(var(--background))) padding-box,
-    linear-gradient(135deg, 
-      hsl(var(--cosmic-cyan)), 
-      hsl(var(--cosmic-magenta)), 
-      hsl(var(--cosmic-gold))
-    ) border-box !important;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
+**3. Fix Quick Amount Buttons disabled logic (dòng 433):**
+```tsx
+disabled={selectedToken?.chain === "internal" && currentBalance !== null && currentBalance > 0 && qa > currentBalance}
+```
+Giải thích: Chỉ disable khi:
+- Token là internal (FUN MONEY, etc.)
+- Có balance (không null)  
+- Balance > 0 (có số dư)
+- Amount > balance (vượt quá số dư)
 
-.hologram-input:focus,
-.hologram-input-trigger:focus,
-.hologram-input:focus-within {
-  box-shadow: 
-    0 0 8px hsla(var(--cosmic-cyan), 0.5),
-    0 0 16px hsla(var(--cosmic-magenta), 0.3),
-    0 0 24px hsla(var(--cosmic-gold), 0.2);
-  animation: input-glow-pulse 1.5s ease-in-out infinite;
-}
+**4. Thêm pointer-events cho các interactive elements:**
+```tsx
+// Input amount
+<Input
+  type="text"
+  inputMode="decimal"
+  placeholder="Hoặc nhập số tùy chọn..."
+  value={amount}
+  onChange={(e) => handleAmountChange(e.target.value)}
+  className="text-lg font-bold text-center hologram-input pointer-events-auto"
+/>
 
-@keyframes input-glow-pulse {
-  0%, 100% { 
-    box-shadow: 
-      0 0 8px hsla(var(--cosmic-cyan), 0.5),
-      0 0 16px hsla(var(--cosmic-magenta), 0.3);
-  }
-  50% { 
-    box-shadow: 
-      0 0 12px hsla(var(--cosmic-cyan), 0.7),
-      0 0 24px hsla(var(--cosmic-magenta), 0.5),
-      0 0 32px hsla(var(--cosmic-gold), 0.3);
-  }
-}
+// Textarea
+<Textarea
+  placeholder="Gửi lời nhắn đến người nhận..."
+  value={message}
+  onChange={(e) => setMessage(e.target.value)}
+  maxLength={200}
+  rows={3}
+  className="hologram-input pr-10 resize-none pointer-events-auto"
+/>
 ```
 
 ---
 
 ## 🧪 Testing Checklist
 
-1. **Modal Flow:**
-   - [ ] Mở modal → tất cả fields hiển thị cùng lúc
-   - [ ] Search người nhận → dropdown hiển thị avatar + tên
-   - [ ] Chọn token → dropdown đẹp, FUN MONEY đầu tiên
-   - [ ] Nhập amount → slider + quick buttons hoạt động
-   - [ ] Viết lời nhắn → emoji picker hoạt động
-   - [ ] Validate amount <= balance
+Sau khi fix, cần test:
 
-2. **Viền Hologram:**
-   - [ ] Tất cả input có viền gradient mảnh
-   - [ ] Focus → glow effect + pulse animation
-   - [ ] Áp dụng cho select trigger
+1. **Người nhận:**
+   - [ ] Nhập tên → dropdown hiển thị users
+   - [ ] Click user → user được chọn, dropdown đóng
+   - [ ] Hiển thị avatar + tên người nhận
 
-3. **Success State:**
-   - [ ] GIF animation hiển thị
-   - [ ] Confetti pháo hoa nhiều màu
-   - [ ] Nhạc celebration tự động phát
-   - [ ] Modal không tự đóng
-   - [ ] Nút X để đóng modal
-   - [ ] Copy link hoạt động
-   - [ ] Share to profile tạo post mới
+2. **Chọn Token:**
+   - [ ] Click dropdown → hiện tất cả tokens
+   - [ ] Click CAMLY COIN → token đổi sang CAMLY
+   - [ ] Balance hiển thị đúng theo token
 
-4. **Responsive:**
-   - [ ] Desktop: Grid layout đẹp
-   - [ ] Mobile: Stack dọc, scroll mượt
+3. **Số tiền:**
+   - [ ] Click 10/50/100/500 → số được chọn
+   - [ ] Nhập số vào input → số hiển thị
+   - [ ] Slider kéo → số thay đổi
+
+4. **Lời nhắn:**
+   - [ ] Click vào textarea → có thể focus
+   - [ ] Gõ chữ → chữ hiển thị
+   - [ ] Click emoji → emoji được thêm
 
 ---
 
 ## 📊 Tổng Kết
 
-| Trước | Sau |
-|-------|-----|
-| 5 steps tách rời | 1 màn hình full fields |
-| Input border đơn giản | Hologram gradient border + glow |
-| Success chỉ có confetti | GIF + Confetti + Sound + Auto Post |
-| Modal tự đóng | Giữ nguyên cho chụp hình |
-| Không có emoji picker | Có emoji picker trong message |
-| Không có slider | Slider + Quick amount buttons |
+| Vấn đề | Nguyên nhân | Fix |
+|--------|-------------|-----|
+| Không chọn được người nhận | z-index thấp (z-50 < z-10002) | Tăng lên z-[10003] |
+| Không chọn token khác | Có thể do Select component | Verify và fix nếu cần |
+| Không chọn số tiền | Buttons bị disabled khi balance=0 | Fix disabled logic |
+| Không nhập lời nhắn | Có thể bị event blocking | Thêm pointer-events-auto |
 
-**Thời gian ước tính:** ~30-40 phút
+**Thời gian thực hiện:** ~10 phút
