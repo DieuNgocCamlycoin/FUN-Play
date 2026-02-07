@@ -15,18 +15,17 @@ export const HonoboardRightSidebar = ({ className }: HonoboardRightSidebarProps)
   return (
     <aside 
       className={cn(
-        "hidden lg:flex flex-col w-[280px] shrink-0 h-[calc(100vh-3.5rem)]",
+        "hidden lg:flex flex-col w-[260px] shrink-0 h-[calc(100vh-3.5rem)]",
         "fixed right-0 top-14 z-40",
         "bg-gradient-to-b from-white via-white to-[#F0FDFF]",
         "border-l border-border/50",
         "shadow-[-10px_0_40px_rgba(0,231,255,0.1)]",
-        "overflow-hidden",
         className
       )}
     >
       <ScrollArea className="flex-1 px-2 py-3 overflow-x-hidden">
         {/* 3 Separate Cards stacked vertically */}
-        <div className="space-y-3">
+        <div className="space-y-2">
           {/* 1. Honor Board Card */}
           <HonorBoardCard stats={stats} loading={loading} />
 

@@ -17,19 +17,19 @@ const StatPill = ({ icon: Icon, label, value, loading, index }: StatPillProps) =
     initial={{ opacity: 0, x: -20 }}
     animate={{ opacity: 1, x: 0 }}
     transition={{ delay: index * 0.08, type: "spring", stiffness: 200 }}
-    whileHover={{ x: 4, scale: 1.02 }}
-    className="flex items-center justify-between gap-1 px-2 py-1.5 rounded-full overflow-hidden
-      bg-gradient-to-r from-[#7A2BFF] via-[#FF00E5] to-[#FFD700]
-      shadow-[0_4px_20px_rgba(122,43,255,0.4)] hover:shadow-[0_6px_30px_rgba(255,0,229,0.5)] 
-      transition-all duration-300"
+    whileHover={{ x: 4, scale: 1.01 }}
+    className="flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-lg
+      bg-white/90 border border-[#00E7FF]/30
+      shadow-sm hover:shadow-[0_0_12px_rgba(0,231,255,0.3)] hover:border-[#00E7FF]/50
+      hover:bg-[#00E7FF]/5 transition-all duration-200"
   >
-    <div className="flex items-center gap-1 min-w-0">
-      <Icon className="h-3.5 w-3.5 text-white shrink-0" />
-      <span className="text-[10px] font-semibold text-white uppercase tracking-wider truncate">
+    <div className="flex items-center gap-1.5 min-w-0">
+      <Icon className="h-3.5 w-3.5 text-[#7A2BFF] shrink-0" />
+      <span className="text-[10px] font-semibold text-[#7A2BFF] uppercase tracking-wider truncate">
         {label}
       </span>
     </div>
-    <span className="text-base font-black text-[#FFD700] drop-shadow-[0_0_8px_rgba(255,215,0,0.7)] whitespace-nowrap shrink-0 ml-1">
+    <span className="text-sm font-bold text-[#00E7FF] whitespace-nowrap shrink-0 ml-1">
       {loading ? "..." : <CounterAnimation value={value} duration={800} compact />}
     </span>
   </motion.div>
@@ -56,7 +56,7 @@ export const HonorBoardCard = ({ stats, loading, className }: HonorBoardCardProp
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, type: "spring" }}
       className={cn(
-        "relative p-4 rounded-2xl overflow-hidden",
+        "relative p-3 rounded-2xl",
         "bg-white/85 backdrop-blur-xl",
         "border-2 border-transparent",
         "shadow-[0_0_30px_rgba(0,231,255,0.3)]",

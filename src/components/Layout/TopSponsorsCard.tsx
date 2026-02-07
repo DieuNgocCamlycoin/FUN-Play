@@ -34,39 +34,39 @@ const SponsorItem = ({ rank, sponsor, index }: SponsorItemProps) => {
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: index * 0.08, type: "spring", stiffness: 200 }}
-      whileHover={{ x: 6, scale: 1.02 }}
+      whileHover={{ x: 4, scale: 1.01 }}
       onClick={() => navigate(`/channel/${sponsor.userId}`)}
       className={cn(
-        "w-full flex items-center gap-2 px-2 py-1.5 rounded-xl transition-all duration-300 overflow-hidden",
+        "w-full flex items-center gap-1.5 px-1.5 py-1 rounded-lg transition-all duration-300",
         isTopThree 
           ? "bg-gradient-to-r from-[#FF00E5]/10 via-[#7A2BFF]/10 to-[#00E7FF]/15 border border-[#FF00E5]/30"
           : "bg-gradient-to-r from-[#FF00E5]/5 to-[#7A2BFF]/5 border border-[#FF00E5]/20",
-        "hover:shadow-[0_0_20px_rgba(255,0,229,0.3)]"
+        "hover:shadow-[0_0_15px_rgba(255,0,229,0.3)]"
       )}
     >
       {/* Rank Badge */}
-      <span className="text-base font-bold min-w-[28px]">{getRankBadge(rank)}</span>
+      <span className="text-sm font-bold min-w-[24px] shrink-0">{getRankBadge(rank)}</span>
 
       {/* Avatar */}
       <Avatar className={cn(
-        "h-8 w-8 border-2",
-        isTopThree ? "border-[#FF00E5] shadow-[0_0_12px_rgba(255,0,229,0.5)]" : "border-[#FF00E5]/50"
+        "h-7 w-7 border-2 shrink-0",
+        isTopThree ? "border-[#FF00E5] shadow-[0_0_10px_rgba(255,0,229,0.5)]" : "border-[#FF00E5]/50"
       )}>
         <AvatarImage src={sponsor.avatarUrl || undefined} />
-        <AvatarFallback className="bg-gradient-to-br from-[#FF00E5] to-[#7A2BFF] text-white text-[10px] font-bold">
+        <AvatarFallback className="bg-gradient-to-br from-[#FF00E5] to-[#7A2BFF] text-white text-[9px] font-bold">
           {(sponsor.displayName || sponsor.username).charAt(0).toUpperCase()}
         </AvatarFallback>
       </Avatar>
 
       {/* Name */}
-      <span className="flex-1 text-left text-xs font-semibold text-[#FF00E5] truncate">
+      <span className="flex-1 text-left text-[11px] font-semibold text-[#FF00E5] truncate max-w-[70px]">
         {sponsor.displayName || sponsor.username}
       </span>
 
       {/* Amount */}
       <div className="flex items-center gap-0.5 shrink-0">
-        <Coins className="h-3 w-3 text-[#FFD700]" />
-        <span className="text-xs font-black text-[#FFD700]">
+        <Coins className="h-3 w-3 text-[#FFD700] shrink-0" />
+        <span className="text-[11px] font-black text-[#FFD700]">
           {formatAmount(sponsor.totalDonated)}
         </span>
       </div>
@@ -88,7 +88,7 @@ export const TopSponsorsCard = ({ className }: TopSponsorsCardProps) => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.2, duration: 0.5, type: "spring" }}
       className={cn(
-        "relative p-4 rounded-2xl overflow-hidden",
+        "relative p-3 rounded-2xl",
         "bg-white/85 backdrop-blur-xl",
         "border-2 border-transparent",
         "shadow-[0_0_30px_rgba(255,0,229,0.3)]",
@@ -134,14 +134,14 @@ export const TopSponsorsCard = ({ className }: TopSponsorsCardProps) => {
       </div>
 
       {/* Donate Button */}
-      <motion.div whileTap={{ scale: 0.97 }} className="mt-3">
+      <motion.div whileTap={{ scale: 0.97 }} className="mt-2">
         <Button
           onClick={() => navigate("/wallet")}
           className="w-full bg-gradient-to-r from-[#FF00E5] via-[#7A2BFF] to-[#00E7FF]
             text-white text-xs font-bold
             shadow-[0_0_20px_rgba(255,0,229,0.4)]
             hover:shadow-[0_0_30px_rgba(122,43,255,0.6)]
-            border-0 rounded-full h-9"
+            border-0 rounded-full h-8"
         >
           <Heart className="h-3.5 w-3.5 mr-1.5 fill-white" />
           Donate to Project

@@ -185,35 +185,37 @@ export const VideoCard = ({
         </Button>
       </div>
 
-      {/* Info with glassmorphism */}
-      <div className="p-4 flex gap-3 bg-white/80">
+      {/* Info with glassmorphism - Compact Layout */}
+      <div className="p-3 flex gap-2 bg-white/80">
         <div className="flex-shrink-0" onClick={handleChannelClick}>
           {avatarUrl ? (
             <img
               src={avatarUrl}
               alt={channel}
-              className="w-10 h-10 rounded-full object-cover cursor-pointer hover:scale-110 transition-transform shadow-[0_0_30px_rgba(0,255,255,0.7)]"
+              className="w-8 h-8 rounded-full object-cover cursor-pointer hover:scale-110 transition-transform shadow-[0_0_20px_rgba(0,255,255,0.5)]"
             />
           ) : (
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta flex items-center justify-center text-foreground font-bold text-sm shadow-[0_0_30px_rgba(0,255,255,0.7)] cursor-pointer hover:scale-110 transition-transform">
-              {channel[0]}
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta flex items-center justify-center text-foreground font-bold text-xs shadow-[0_0_20px_rgba(0,255,255,0.5)] cursor-pointer hover:scale-110 transition-transform">
+              {channel?.[0] || '?'}
             </div>
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-[15px] leading-snug line-clamp-2 mb-1 text-gray-900 group-hover:text-cosmic-cyan transition-colors duration-300">
+          <h3 className="font-semibold text-sm leading-snug line-clamp-1 text-gray-900 group-hover:text-cosmic-cyan transition-colors duration-300">
             {title}
           </h3>
-          <p 
-            className="text-sm text-gray-600 group-hover:text-divine-rose-gold transition-colors duration-300 cursor-pointer hover:underline"
-            onClick={handleChannelClick}
-          >
-            {channel}
-          </p>
-          <div className="flex items-center gap-2 text-[13px] text-gray-500 group-hover:text-cosmic-magenta mt-1 transition-colors duration-300">
-            <span>{views}</span>
-            <span className="text-cosmic-sapphire">•</span>
-            <span>{timestamp}</span>
+          <div className="flex items-center justify-between gap-2 mt-0.5">
+            <p 
+              className="text-xs text-gray-600 group-hover:text-divine-rose-gold transition-colors duration-300 cursor-pointer hover:underline truncate"
+              onClick={handleChannelClick}
+            >
+              {channel}
+            </p>
+            <div className="flex items-center gap-1 text-[11px] text-gray-500 group-hover:text-cosmic-magenta shrink-0 transition-colors duration-300">
+              <span>{views}</span>
+              <span className="text-cosmic-sapphire">•</span>
+              <span>{timestamp}</span>
+            </div>
           </div>
         </div>
       </div>
