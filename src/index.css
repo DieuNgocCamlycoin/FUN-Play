@@ -247,6 +247,38 @@ body > [data-w3m-modal] {
   animation: rainbow-border 3s linear infinite;
 }
 
+/* Honor Board Compact Premium Gold Border */
+@keyframes gold-shimmer {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.honor-board-compact {
+  background: linear-gradient(
+    135deg,
+    #fbbf24,
+    #f59e0b,
+    #fcd34d,
+    #f59e0b,
+    #fbbf24
+  );
+  background-size: 200% 200%;
+  animation: gold-shimmer 4s ease-in-out infinite;
+  padding: 2px;
+  border-radius: 0.75rem;
+  box-shadow: 
+    0 4px 20px rgba(251, 191, 36, 0.4),
+    0 0 40px rgba(245, 158, 11, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.honor-board-inner-compact {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(20px);
+  border-radius: calc(0.75rem - 2px);
+}
+
 /* Holographic foil texture */
 .holographic {
   background: linear-gradient(135deg, 
