@@ -67,7 +67,7 @@ export const GlobalDonateButton = ({ variant = "default", className }: GlobalDon
                    transition-all duration-300 hover:scale-105 ${className}`}
       >
         <Gift className="h-4 w-4 relative z-10" />
-        <span className="text-sm font-bold hidden md:inline relative z-10">Thưởng & Tặng</span>
+        <span className="text-base font-extrabold hidden md:inline relative z-10 tracking-wide">THƯỞNG & TẶNG</span>
         {/* Mirror shimmer effect - continuous */}
         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-mirror-shimmer" />
       </Button>

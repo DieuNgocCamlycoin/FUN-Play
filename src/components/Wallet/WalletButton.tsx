@@ -174,8 +174,8 @@ export const WalletButton = ({ compact = false, className }: WalletButtonProps) 
         className={cn(
           "relative gap-2 font-bold transition-all duration-300 overflow-hidden",
           hasRewards
-            ? "bg-gradient-to-r from-green-400 via-yellow-400 via-orange-400 via-pink-400 via-purple-400 to-cyan-400 text-white hover:opacity-90"
-            : "bg-gradient-to-r from-green-400/70 via-yellow-400/70 via-pink-400/70 to-cyan-400/70 text-white/90 border border-white/20"
+            ? "bg-[linear-gradient(to_right,#4ade80,#ffffff,#facc15,#ffffff,#f472b6,#ffffff,#22d3ee,#4ade80)] text-white hover:opacity-90"
+            : "bg-[linear-gradient(to_right,#4ade80aa,#ffffffaa,#facc15aa,#ffffffaa,#f472b6aa,#ffffffaa,#22d3eeaa,#4ade80aa)] text-white/90 border border-white/20"
         )}
         style={{
           boxShadow: hasRewards 
@@ -197,28 +197,12 @@ export const WalletButton = ({ compact = false, className }: WalletButtonProps) 
           <img 
             src="/images/fun-play-wallet-icon.png" 
             alt="Wallet" 
-            className="h-5 w-5 rounded-full"
+            className="h-7 w-7 rounded-full -ml-1"
           />
         </motion.div>
         
         <span className="relative z-10 font-semibold">WALLET</span>
 
-        {/* Badge for rewards count */}
-        <AnimatePresence>
-          {hasRewards && (
-            <motion.span
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0 }}
-              className="absolute -top-2 -right-2 min-w-[22px] h-5 px-1 rounded-full bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs font-bold flex items-center justify-center"
-              style={{
-                boxShadow: "0 0 10px rgba(255, 0, 100, 0.5)"
-              }}
-            >
-              {formatNumber(totalRewards)}
-            </motion.span>
-          )}
-        </AnimatePresence>
 
         {/* Pulsing Glow effect for rewards */}
         {hasRewards && (
