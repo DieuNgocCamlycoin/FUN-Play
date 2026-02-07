@@ -5,12 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Coins } from "lucide-react";
-import { sendTip } from "@/lib/tipping";
+import { Loader2, Gift } from "lucide-react";
+import { sendDonation } from "@/lib/donation";
 import { supabase } from "@/integrations/supabase/client";
 import { SUPPORTED_TOKENS } from "@/config/tokens";
 
-interface TipModalProps {
+interface DonateModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   creatorAddress?: string;
@@ -19,7 +19,7 @@ interface TipModalProps {
   channelUserId?: string;
 }
 
-export const TipModal = ({ open, onOpenChange, creatorAddress, videoId, creatorName, channelUserId }: TipModalProps) => {
+export const DonateModal = ({ open, onOpenChange, creatorAddress, videoId, creatorName, channelUserId }: DonateModalProps) => {
   const [selectedToken, setSelectedToken] = useState("BNB");
   const [amount, setAmount] = useState("");
   const [manualAddress, setManualAddress] = useState("");
@@ -52,7 +52,7 @@ export const TipModal = ({ open, onOpenChange, creatorAddress, videoId, creatorN
     }
   };
 
-  const handleTip = async () => {
+  const handleDonate = async () => {
     if (!amount || parseFloat(amount) <= 0) {
       toast({
         title: "Số tiền không hợp lệ",
@@ -78,7 +78,7 @@ export const TipModal = ({ open, onOpenChange, creatorAddress, videoId, creatorN
       const token = SUPPORTED_TOKENS.find(t => t.symbol === selectedToken);
       if (!token) throw new Error("Token not found");
 
-      const result = await sendTip({
+      const result = await sendDonation({
         toAddress: targetAddress,
         amount: parseFloat(amount),
         tokenSymbol: token.symbol,
@@ -88,8 +88,8 @@ export const TipModal = ({ open, onOpenChange, creatorAddress, videoId, creatorN
       });
 
       toast({
-        title: "Gửi tiền thành công! 🎉",
-        description: `Đã gửi ${amount} ${selectedToken} ${manualAddress ? "đến địa chỉ ví" : `cho ${creatorName}`}`,
+        title: "Tặng thành công! 🎉",
+        description: `Đã tặng ${amount} ${selectedToken} ${manualAddress ? "đến địa chỉ ví" : `cho ${creatorName}`}`,
       });
 
       onOpenChange(false);
@@ -97,8 +97,8 @@ export const TipModal = ({ open, onOpenChange, creatorAddress, videoId, creatorN
       setManualAddress("");
     } catch (error: any) {
       toast({
-        title: "Gửi tiền thất bại",
-        description: error.message || "Không thể gửi tiền",
+        title: "Tặng thất bại",
+        description: error.message || "Không thể hoàn tất giao dịch",
         variant: "destructive",
       });
     } finally {
@@ -111,11 +111,11 @@ export const TipModal = ({ open, onOpenChange, creatorAddress, videoId, creatorN
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Coins className="h-5 w-5 text-cosmic-gold" />
-            {manualAddress ? "Chuyển tiền thủ công" : `Tip ${creatorName}`}
+            <Gift className="h-5 w-5 text-cosmic-gold" />
+            {manualAddress ? "Chuyển tiền thủ công" : `Tặng cho ${creatorName}`}
           </DialogTitle>
           <DialogDescription>
-            {manualAddress ? "Gửi tiền cryptocurrency đến bất kỳ địa chỉ ví nào" : "Gửi tiền cryptocurrency để ủng hộ creator"}
+            {manualAddress ? "Gửi cryptocurrency đến bất kỳ địa chỉ ví nào" : "Thưởng & Tặng cho creator yêu thích"}
           </DialogDescription>
         </DialogHeader>
 
@@ -189,7 +189,7 @@ export const TipModal = ({ open, onOpenChange, creatorAddress, videoId, creatorN
             Hủy
           </Button>
           <Button
-            onClick={handleTip}
+            onClick={handleDonate}
             className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
             disabled={loading}
           >
@@ -200,8 +200,8 @@ export const TipModal = ({ open, onOpenChange, creatorAddress, videoId, creatorN
               </>
             ) : (
               <>
-                <Coins className="mr-2 h-4 w-4" />
-                Gửi tiền
+                <Gift className="mr-2 h-4 w-4" />
+                Tặng ngay
               </>
             )}
           </Button>

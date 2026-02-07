@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { useFunWalletSync } from '@/hooks/useFunWalletSync';
 import { useWalletConnection } from '@/hooks/useWalletConnection';
 import { CAMLY_TOKEN_ADDRESS } from '@/config/tokens';
-import { sendTip } from '@/lib/tipping';
+import { sendDonation } from '@/lib/donation';
 import { toast } from 'sonner';
 import { Loader2, Send, Wallet, AlertCircle, CheckCircle2, ExternalLink } from 'lucide-react';
 import { ethers } from 'ethers';
@@ -89,7 +89,7 @@ export const SendToFunWalletModal = ({ isOpen, onClose }: SendToFunWalletModalPr
     setTxHash(null);
 
     try {
-      const result = await sendTip({
+      const result = await sendDonation({
         toAddress: funWalletAddress,
         amount: parseFloat(amount),
         tokenSymbol: 'CAMLY',

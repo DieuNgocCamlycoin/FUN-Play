@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Wallet as WalletIcon, Send, History, Loader2, Copy, QrCode, ExternalLink, Search, Filter, ArrowLeft, Download, RefreshCw, HelpCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
-import { sendTip, getTransactionHistory } from "@/lib/tipping";
+import { sendDonation, getTransactionHistory } from "@/lib/donation";
 import { supabase } from "@/integrations/supabase/client";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ethers } from "ethers";
@@ -360,7 +360,7 @@ const Wallet = () => {
 
     setSending(true);
     try {
-      await sendTip({
+      await sendDonation({
         toAddress: recipientAddress,
         amount: parseFloat(amount),
         tokenSymbol: tokenConfig.symbol,
