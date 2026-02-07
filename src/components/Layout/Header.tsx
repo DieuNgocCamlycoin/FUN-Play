@@ -185,16 +185,24 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
               <Button
                 variant="ghost"
                 onClick={() => navigate("/fun-money")}
-                className="hidden md:flex items-center gap-2 px-3 py-2 h-auto rounded-full bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-primary/10 hover:from-cyan-500/20 hover:via-blue-500/20 hover:to-primary/20 border border-cyan-400/30 hover:border-cyan-400/50 transition-all duration-300"
+                className="relative hidden md:flex items-center gap-2 overflow-hidden
+                           bg-gradient-to-b from-[#FFEA00] via-[#FFD700] to-[#E5A800] 
+                           text-[#7C5800] font-extrabold rounded-full px-4 py-2 h-auto
+                           shadow-[0_0_15px_rgba(255,215,0,0.4),inset_0_2px_4px_rgba(255,255,255,0.6),inset_0_-1px_2px_rgba(0,0,0,0.1)] 
+                           hover:shadow-[0_0_25px_rgba(255,234,0,0.6),0_0_40px_rgba(255,215,0,0.3)] 
+                           border border-[#FFEA00]/60 
+                           transition-all duration-300 hover:scale-105"
               >
                 <img 
                   src="/images/fun-money-coin.png" 
                   alt="FUN Money" 
-                  className="h-6 w-6 rounded-full object-cover ring-2 ring-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.4)]"
+                  className="h-5 w-5 rounded-full object-cover ring-1 ring-[#7C5800]/30 relative z-10"
                 />
-                <span className="text-sm font-semibold bg-gradient-to-r from-cyan-500 to-blue-500 bg-clip-text text-transparent">
+                <span className="text-base font-extrabold relative z-10 tracking-wide">
                   MINT
                 </span>
+                {/* Mirror shimmer effect */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-mirror-shimmer" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>Mint FUN Money - PPLP Protocol</TooltipContent>
