@@ -42,7 +42,7 @@ export const SendToFunWalletModal = ({ isOpen, onClose }: SendToFunWalletModalPr
 
       setIsLoadingBalance(true);
       try {
-        const provider = new ethers.BrowserProvider(window.ethereum as any);
+        const provider = new ethers.BrowserProvider((window as any).ethereum);
         const contract = new ethers.Contract(CAMLY_TOKEN_ADDRESS, ERC20_ABI, provider);
         
         const [balance, decimals] = await Promise.all([
