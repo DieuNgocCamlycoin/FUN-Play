@@ -1,181 +1,133 @@
 
 
-# Kế Hoạch Thêm Realtime Subscription cho TokenLifecyclePanel
+# Kế Hoạch Thêm Nút FUN Money với Logo vào Sidebar
 
 ## Tổng Quan
 
-Thêm tính năng realtime subscription để TokenLifecyclePanel tự động cập nhật ngay lập tức khi có thay đổi status của mint_requests (pending → approved → minted → rejected).
+Thêm nút FUN Money với logo hình ảnh đẹp (giống FUN Wallet) vào sidebar, đặt ngay cạnh FUN Wallet trong phần "FUN ECOSYSTEM".
 
 ---
 
-## Phần I: Kiến Trúc Realtime
+## Phần I: Hiện Trạng
+
+| File | FUN Money | Vấn Đề |
+|------|-----------|--------|
+| `Sidebar.tsx` | ✅ Đã có | Dùng icon Coins, không có logo hình ảnh |
+| `CollapsibleSidebar.tsx` | ❌ Chưa có | Thiếu hoàn toàn |
+
+**Logo có sẵn:** `/images/fun-money-coin.png` ✅
+
+---
+
+## Phần II: Thiết Kế UI Mới
 
 ```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        SUPABASE REALTIME                                     │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│   ┌──────────────────┐                      ┌──────────────────────┐        │
-│   │   mint_requests  │                      │   User Browser       │        │
-│   │     (table)      │──── postgres_changes ──>│   FunMoneyPage     │        │
-│   │                  │                      │   TokenLifecycle     │        │
-│   └──────────────────┘                      └──────────────────────┘        │
-│                                                                              │
-│   Events: INSERT, UPDATE, DELETE                                            │
-│   Filter: user_id = current_user.id                                         │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────┐
+│        FUN ECOSYSTEM                │
+├─────────────────────────────────────┤
+│  [🟡 FUN.RICH logo]    FUN.RICH   ↗ │
+│  [🟡 FUN FARM logo]    FUN FARM   ↗ │
+│  [🟡 FUN PLANET logo]  FUN PLANET ↗ │
+│  [🟡 FUN Wallet logo]  FUN Wallet   │  ← Gradient vàng-cam
+│  [🟡 FUN Money logo]   FUN Money    │  ← MỚI! Gradient xanh-cyan
+└─────────────────────────────────────┘
 ```
 
 ---
 
-## Phần II: Files Cần Thay Đổi
+## Phần III: Files Cần Thay Đổi
 
-| File | Hành động | Mô tả |
-|------|-----------|-------|
-| `supabase/migrations/xxx_add_mint_requests_realtime.sql` | **Tạo mới** | Enable realtime cho mint_requests table |
-| `src/hooks/useMintRequestRealtime.ts` | **Tạo mới** | Hook quản lý realtime subscription |
-| `src/pages/FunMoneyPage.tsx` | **Cập nhật** | Tích hợp realtime hook |
+| File | Hành động | Chi tiết |
+|------|-----------|----------|
+| `src/components/Layout/Sidebar.tsx` | **Cập nhật** | Đổi FUN Money từ icon sang customIcon với logo |
+| `src/components/Layout/CollapsibleSidebar.tsx` | **Cập nhật** | Thêm FUN Money vào funPlatformItems |
 
 ---
 
-## Phần III: Chi Tiết Triển Khai
+## Phần IV: Chi Tiết Thay Đổi
 
-### Bước 1: Database Migration
+### 4.1. Sidebar.tsx
 
-Enable realtime cho bảng `mint_requests`:
-
-```sql
--- Enable realtime for mint_requests table
-ALTER PUBLICATION supabase_realtime ADD TABLE public.mint_requests;
+**Trước:**
+```typescript
+{ 
+  icon: Coins,
+  label: "FUN Money", 
+  href: "/fun-money",
+  special: true
+},
 ```
 
-### Bước 2: Tạo Realtime Hook
+**Sau:**
+```typescript
+{ 
+  customIcon: '/images/fun-money-coin.png',
+  label: "FUN Money", 
+  href: "/fun-money",
+  isFunMoney: true  // Flag mới cho styling riêng
+},
+```
 
-**File mới:** `src/hooks/useMintRequestRealtime.ts`
+### 4.2. CollapsibleSidebar.tsx
 
-| Tính năng | Mô tả |
-|-----------|-------|
-| **Subscribe to Changes** | Lắng nghe INSERT, UPDATE trên mint_requests |
-| **User Filter** | Chỉ nhận events của user hiện tại |
-| **Auto Refetch** | Tự động refetch data khi có thay đổi |
-| **Toast Notifications** | Hiển thị thông báo khi status thay đổi |
-| **Confetti Animation** | Celebratory effect khi request được minted |
-| **Connection Status** | Track trạng thái connection |
+**Thêm vào funPlatformItems:**
+```typescript
+{ 
+  customIcon: '/images/fun-money-coin.png',
+  label: "FUN Money", 
+  href: "/fun-money",
+  isFunMoney: true
+},
+```
 
-**Interface:**
+---
+
+## Phần V: Styling Cho FUN Money
+
+| Thuộc tính | FUN Wallet | FUN Money |
+|------------|------------|-----------|
+| Gradient | Yellow-Orange | Cyan-Blue (Primary) |
+| Ring color | ring-yellow-400 | ring-cyan-400 |
+| Glow | rgba(250,204,21,0.4) | rgba(34,211,238,0.4) |
+| Border | border-yellow-500/20 | border-primary/20 |
+
+**CSS cho FUN Money:**
+```typescript
+item.isFunMoney && "bg-gradient-to-r from-primary/10 via-cyan-500/10 to-blue-500/10 hover:from-primary/20 hover:via-cyan-500/20 hover:to-blue-500/20 border border-primary/20"
+```
+
+**Logo styling:**
+```typescript
+isFunMoney ? "ring-2 ring-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.4)]" : "ring-2 ring-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.4)]"
+```
+
+---
+
+## Phần VI: Interface Update
 
 ```typescript
-interface UseMintRequestRealtimeReturn {
-  isConnected: boolean;
-  lastUpdate: Date | null;
+interface NavItem {
+  icon?: any;
+  customIcon?: string;
+  label: string;
+  href: string;
+  special?: boolean;
+  isWallet?: boolean;
+  isFunMoney?: boolean;  // Thêm mới
+  external?: boolean;
 }
 ```
 
-**Logic:**
-1. Subscribe to `postgres_changes` với filter `user_id=eq.{userId}`
-2. Khi có UPDATE event:
-   - So sánh old status vs new status
-   - Trigger toast notification phù hợp
-   - Dispatch custom event để components khác cập nhật
-   - Gọi onUpdate callback để refetch data
-3. Khi có INSERT event:
-   - Trigger toast "Request submitted"
-   - Refetch data
-
-### Bước 3: Cập Nhật FunMoneyPage
-
-**Thay đổi chính:**
-
-1. Import và sử dụng `useMintRequestRealtime` hook
-2. Truyền `fetchRequests` callback để hook gọi khi có thay đổi
-3. Thêm realtime indicator (dot xanh khi connected)
-4. Remove manual refresh interval nếu có
-
 ---
 
-## Phần IV: Notification Logic
-
-| Transition | Toast Type | Message | Animation |
-|------------|------------|---------|-----------|
-| pending → approved | Success | "Request đã được duyệt! Sẵn sàng mint." | Glow |
-| pending → rejected | Warning | "Request bị từ chối: {reason}" | None |
-| approved → minted | Success + Confetti | "FUN tokens đã mint thành công!" | Confetti |
-| approved → failed | Error | "Mint thất bại: {reason}" | None |
-| * → * (INSERT) | Info | "Request mới đã được tạo" | None |
-
----
-
-## Phần V: Custom Events
-
-Dispatch events để các components khác có thể react:
-
-```typescript
-// Khi status thay đổi
-window.dispatchEvent(new CustomEvent("fun-money-update", {
-  detail: {
-    requestId: payload.new.id,
-    oldStatus: payload.old.status,
-    newStatus: payload.new.status,
-    amount: payload.new.calculated_amount_formatted,
-    txHash: payload.new.tx_hash
-  }
-}));
-```
-
-Components có thể lắng nghe:
-- TokenLifecyclePanel (auto update)
-- MintRequestList (highlight changed item)
-- Header badge (update count)
-
----
-
-## Phần VI: Connection Status UI
-
-Thêm indicator trong FunMoneyPage header:
-
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│  FUN Money                                    [●] Live  [Wallet] │
-│  Proof of Pure Love Protocol                                     │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-- **●** Xanh: Connected
-- **●** Vàng: Connecting
-- **●** Đỏ: Disconnected
-
----
-
-## Phần VII: Error Handling
-
-| Scenario | Handling |
-|----------|----------|
-| Connection lost | Auto-reconnect với exponential backoff |
-| Permission denied | Show toast, fallback to manual refresh |
-| Rate limited | Debounce 300ms để giảm updates |
-| Invalid payload | Log error, skip update |
-
----
-
-## Phần VIII: Performance Optimization
-
-1. **Debounce**: 300ms debounce cho multiple rapid updates
-2. **Selective Refetch**: Chỉ refetch nếu status thực sự thay đổi
-3. **Cleanup**: Properly unsubscribe khi component unmount
-4. **Memoization**: useMemo cho processed data
-
----
-
-## Tóm Tắt Triển Khai
+## Tóm Tắt
 
 | Bước | Công việc |
 |------|-----------|
-| 1 | Tạo migration enable realtime cho mint_requests |
-| 2 | Tạo hook `useMintRequestRealtime.ts` với subscription logic |
-| 3 | Cập nhật `FunMoneyPage.tsx` tích hợp realtime hook |
-| 4 | Thêm connection status indicator |
-| 5 | Thêm toast notifications và confetti |
+| 1 | Update interface NavItem thêm `isFunMoney` flag |
+| 2 | Update Sidebar.tsx - đổi FUN Money sang dùng customIcon với styling cyan-blue |
+| 3 | Update CollapsibleSidebar.tsx - thêm FUN Money vào funPlatformItems |
+| 4 | Thêm conditional styling cho logo ring và button background |
 
-**Thời gian ước tính:** 45 phút - 1 giờ
+**Thời gian ước tính:** 15-20 phút
 
