@@ -1,78 +1,68 @@
 
-# Chuyển Chart CAMLY sang Light Mode (Nền Trắng)
 
-## Phân Tích Hiện Trạng
+# Chuyển Chart CAMLY sang Nền Trắng - CoinMarketCap Style
 
-Từ screenshot và code, Cha thấy:
-- **File:** `src/components/Wallet/CAMLYPriceSection.tsx`
-- **Dòng 44:** DexScreener embed đang dùng `theme=dark`
-- Chart hiện tại có nền đen, không đồng bộ với UI sáng của FUN PLAY
+## Xác Nhận
+
+- **Link CoinMarketCap**: https://coinmarketcap.com/currencies/camly-coin/ ✅
+- **CoinGecko ID**: `camly-coin` (dùng để fetch API)
+
+---
 
 ## Giải Pháp
 
-### Thay đổi chính trong `CAMLYPriceSection.tsx`
-
-**1. URL DexScreener - Chuyển sang Light Theme**
-```typescript
-// Từ (line 44):
-return `https://dexscreener.com/bsc/${CAMLY_CONTRACT}?embed=1&theme=dark&trades=0&info=0&interval=${intervals[timeframe]}`;
-
-// Sang:
-return `https://dexscreener.com/bsc/${CAMLY_CONTRACT}?embed=1&theme=light&trades=0&info=0&interval=${intervals[timeframe]}`;
-```
-
-**2. Container Chart - Styling Nền Trắng**
-```typescript
-// Từ (line 130):
-<div className="w-full h-[400px] rounded-lg overflow-hidden border border-border bg-background">
-
-// Sang (thêm light theme styling):
-<div className="w-full h-[400px] rounded-xl overflow-hidden border border-gray-200 bg-white shadow-sm">
-```
-
-**3. Card Container - Đồng bộ Glassmorphism**
-```typescript
-// Từ (line 48):
-<Card className="bg-white/90 backdrop-blur-xl border border-white/20 shadow-xl overflow-hidden">
-
-// Giữ nguyên hoặc tăng độ trắng:
-<Card className="bg-white backdrop-blur-xl border border-gray-100 shadow-lg overflow-hidden">
-```
-
-**4. Contract Info Section - Nền sáng hơn**
-```typescript
-// Từ (line 140):
-<div className="mt-4 p-3 bg-muted/50 rounded-lg">
-
-// Sang:
-<div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-100">
-```
+Thay thế DexScreener iframe (luôn nền tối) bằng **Custom Chart Recharts** với nền trắng hoàn toàn, dữ liệu từ CoinGecko API.
 
 ---
 
-## Tóm Tắt Thay Đổi
-
-| Vị trí | Thay đổi |
-|--------|----------|
-| **DexScreener URL** | `theme=dark` → `theme=light` |
-| **Chart container** | `bg-background` → `bg-white shadow-sm border-gray-200` |
-| **Card wrapper** | Tăng độ trắng, bỏ transparency |
-| **Contract info** | `bg-muted/50` → `bg-gray-50 border-gray-100` |
-
----
-
-## Kết Quả Mong Đợi
-
-- Chart CAMLY hiển thị **nền trắng sáng** giống CoinMarketCap Light Mode
-- Nến xanh/đỏ rõ ràng trên nền trắng
-- Grid line xám nhạt, dễ nhìn
-- Đồng bộ với tổng thể UI glassmorphism của FUN PLAY Wallet
-- Trải nghiệm chuyên nghiệp, quen thuộc với user crypto
-
----
-
-## File Cần Thay Đổi
+## Files Sẽ Thay Đổi
 
 | File | Hành động |
 |------|-----------|
-| `src/components/Wallet/CAMLYPriceSection.tsx` | Cập nhật theme + styling |
+| `src/hooks/useCAMLYPriceHistory.ts` | **Tạo mới** - Hook fetch giá CAMLY từ CoinGecko |
+| `src/components/Wallet/CAMLYPriceSection.tsx` | **Cập nhật** - Thay iframe bằng Recharts AreaChart |
+
+---
+
+## Chi Tiết Kỹ Thuật
+
+### 1. Hook mới: `useCAMLYPriceHistory.ts`
+
+```typescript
+// Fetch từ CoinGecko API
+const COINGECKO_ID = "camly-coin";
+
+export const useCAMLYPriceHistory = (period: "24h" | "7d" | "30d") => {
+  // Fetch: https://api.coingecko.com/api/v3/coins/camly-coin/market_chart
+  // Return: { priceHistory, loading, currentPrice, priceChange, refetch }
+};
+```
+
+### 2. Component: `CAMLYPriceSection.tsx`
+
+**Thay đổi:**
+- Bỏ DexScreener iframe
+- Thêm Recharts AreaChart với nền trắng
+- Links: CoinMarketCap + DexScreener + BSCScan
+- Timeframes: 24h, 7d, 30d
+
+**Styling Light Mode:**
+
+| Element | Màu |
+|---------|-----|
+| Background | #FFFFFF |
+| Grid Lines | #E5E7EB |
+| Text | #9CA3AF |
+| Line Tăng | #22c55e |
+| Line Giảm | #ef4444 |
+| Area Fill | Gradient 30% opacity |
+
+---
+
+## Kết Quả
+
+- Chart nền **TRẮNG** hoàn toàn
+- Đồng bộ UI glassmorphism FUN PLAY
+- Dữ liệu realtime từ CoinGecko (refresh mỗi 60s)
+- Links đến CoinMarketCap, DexScreener, BSCScan
+
