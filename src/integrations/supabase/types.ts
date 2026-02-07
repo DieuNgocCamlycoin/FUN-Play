@@ -1189,10 +1189,14 @@ export type Database = {
           comment_count: number | null
           content: string
           created_at: string
+          donation_transaction_id: string | null
+          gif_url: string | null
           id: string
           image_url: string | null
+          images: string[] | null
           is_public: boolean | null
           like_count: number | null
+          post_type: string | null
           updated_at: string
           user_id: string
         }
@@ -1201,10 +1205,14 @@ export type Database = {
           comment_count?: number | null
           content: string
           created_at?: string
+          donation_transaction_id?: string | null
+          gif_url?: string | null
           id?: string
           image_url?: string | null
+          images?: string[] | null
           is_public?: boolean | null
           like_count?: number | null
+          post_type?: string | null
           updated_at?: string
           user_id: string
         }
@@ -1213,10 +1221,14 @@ export type Database = {
           comment_count?: number | null
           content?: string
           created_at?: string
+          donation_transaction_id?: string | null
+          gif_url?: string | null
           id?: string
           image_url?: string | null
+          images?: string[] | null
           is_public?: boolean | null
           like_count?: number | null
+          post_type?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -1226,6 +1238,13 @@ export type Database = {
             columns: ["channel_id"]
             isOneToOne: false
             referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "posts_donation_transaction_id_fkey"
+            columns: ["donation_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "donation_transactions"
             referencedColumns: ["id"]
           },
         ]
