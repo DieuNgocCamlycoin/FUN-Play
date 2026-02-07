@@ -179,8 +179,8 @@ export function VideoActionsBar({
           )}
         </div>
 
-        {/* Actions row - ENHANCED - Xóa nút Bell riêng, thêm pr-4 */}
-        <div className="flex items-center gap-2 mt-3 overflow-x-auto pb-1 pr-4 scrollbar-hide">
+        {/* Actions row - ENHANCED - Tăng padding right để không bị cắt */}
+        <div className="flex items-center gap-2 mt-3 overflow-x-auto overflow-y-visible pb-1 pr-6 scrollbar-hide">
           {/* Like/Dislike pill - ENHANCED */}
           <div className="flex items-center bg-muted/80 rounded-full shrink-0">
             <Tooltip>
@@ -249,13 +249,13 @@ export function VideoActionsBar({
             </TooltipContent>
           </Tooltip>
 
-          {/* Download - với status */}
+          {/* Download - với status và margin-right để không bị cắt */}
           <Button
             variant="ghost"
             size="sm"
             onClick={handleDownload}
             disabled={isDownloading}
-            className="rounded-full bg-muted/80 h-10 px-4 gap-1.5 shrink-0 hover:bg-muted"
+            className="rounded-full bg-muted/80 h-10 px-4 gap-1.5 shrink-0 hover:bg-muted mr-2"
           >
             {isDownloading ? (
               <Loader2 className="h-5 w-5 animate-spin" />

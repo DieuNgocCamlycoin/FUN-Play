@@ -37,7 +37,7 @@ const SponsorItem = ({ rank, sponsor, index }: SponsorItemProps) => {
       whileHover={{ x: 6, scale: 1.02 }}
       onClick={() => navigate(`/channel/${sponsor.userId}`)}
       className={cn(
-        "w-full flex items-center gap-2 px-2.5 py-2 rounded-xl transition-all duration-300",
+        "w-full flex items-center gap-2 px-2 py-1.5 rounded-xl transition-all duration-300 overflow-hidden",
         isTopThree 
           ? "bg-gradient-to-r from-[#FF00E5]/10 via-[#7A2BFF]/10 to-[#00E7FF]/15 border border-[#FF00E5]/30"
           : "bg-gradient-to-r from-[#FF00E5]/5 to-[#7A2BFF]/5 border border-[#FF00E5]/20",
@@ -64,7 +64,7 @@ const SponsorItem = ({ rank, sponsor, index }: SponsorItemProps) => {
       </span>
 
       {/* Amount */}
-      <div className="flex items-center gap-0.5">
+      <div className="flex items-center gap-0.5 shrink-0">
         <Coins className="h-3 w-3 text-[#FFD700]" />
         <span className="text-xs font-black text-[#FFD700]">
           {formatAmount(sponsor.totalDonated)}

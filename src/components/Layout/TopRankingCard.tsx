@@ -37,7 +37,7 @@ const RankingItem = ({ rank, user, index }: RankingItemProps) => {
       whileHover={{ x: 6, scale: 1.02 }}
       onClick={() => navigate(`/channel/${user.id}`)}
       className={cn(
-        "w-full flex items-center gap-2 px-2.5 py-2 rounded-xl transition-all duration-300",
+        "w-full flex items-center gap-2 px-2 py-1.5 rounded-xl transition-all duration-300 overflow-hidden",
         isTopThree 
           ? "bg-gradient-to-r from-[#7A2BFF]/10 via-[#FF00E5]/10 to-[#FFD700]/15 border border-[#FFD700]/30"
           : "bg-gradient-to-r from-[#00E7FF]/5 to-[#7A2BFF]/5 border border-[#7A2BFF]/20",
@@ -64,7 +64,7 @@ const RankingItem = ({ rank, user, index }: RankingItemProps) => {
       </span>
 
       {/* CAMLY Amount */}
-      <div className="flex items-center gap-0.5">
+      <div className="flex items-center gap-0.5 shrink-0">
         <Coins className="h-3 w-3 text-[#FFD700]" />
         <span className="text-xs font-black text-[#FFD700]">
           {formatRewards(user.total_camly_rewards)}
