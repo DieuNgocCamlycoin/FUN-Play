@@ -1,4 +1,4 @@
-import { Search, Bell, Menu, X, Plus, Upload, Music, FileText, Download, Shield, Crown, Settings, LogOut } from "lucide-react";
+import { Search, Bell, Menu, X, Plus, Upload, Music, FileText, Download, Shield, Crown, Settings, LogOut, MessageCircle } from "lucide-react";
 import funplayLogo from "@/assets/funplay-logo.jpg";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -248,6 +248,23 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
               </TooltipTrigger>
               <TooltipContent side="bottom" className="text-xs">
                 Tải App FUN Play
+              </TooltipContent>
+            </Tooltip>
+
+            {/* Messages */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-7 w-7 relative"
+                  onClick={() => navigate("/messages")}
+                >
+                  <MessageCircle className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-xs">
+                Tin nhắn
               </TooltipContent>
             </Tooltip>
 

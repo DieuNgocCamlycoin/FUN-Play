@@ -51,6 +51,7 @@ import Bounty from "./pages/Bounty";
 import MyAIMusic from "./pages/MyAIMusic";
 import Receipt from "./pages/Receipt";
 import AIMusicDetail from "./pages/AIMusicDetail";
+import Messages from "./pages/Messages";
 import { wagmiConfig, initWeb3Modal } from '@/lib/web3Config';
 import { GlobalPaymentNotifications } from './components/Web3/GlobalPaymentNotifications';
 import { MusicPlayerProvider } from './contexts/MusicPlayerContext';
@@ -145,6 +146,9 @@ function AppContent() {
         <Route path="/ai-music/:id" element={<AIMusicDetail />} />
         {/* Donation Receipt Page */}
         <Route path="/receipt/:receiptPublicId" element={<Receipt />} />
+        {/* Messenger / Chat */}
+        <Route path="/messages" element={<Messages />} />
+        <Route path="/messages/:chatId" element={<Messages />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
