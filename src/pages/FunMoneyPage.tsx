@@ -18,11 +18,13 @@ import {
   Plus,
   ExternalLink,
   Info,
-  Zap
+  Zap,
+  Radio
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useMintRequest } from '@/hooks/useFunMoneyMintRequest';
 import { useFunMoneyWallet } from '@/hooks/useFunMoneyWallet';
+import { useMintRequestRealtime } from '@/hooks/useMintRequestRealtime';
 import { MintRequestForm, TokenLifecyclePanel, MintRequestList } from '@/components/FunMoney';
 import { cn } from '@/lib/utils';
 import { Navigate } from 'react-router-dom';
@@ -38,7 +40,7 @@ export default function FunMoney() {
   } = useMintRequest();
 
   const {
-    isConnected,
+    isConnected: isWalletConnected,
     address,
     connect,
     chainId,
@@ -55,6 +57,13 @@ export default function FunMoney() {
     setMyRequests(data);
     setLoadingRequests(false);
   }, [getMyRequests]);
+
+  // Realtime subscription
+  const { isConnected, connectionStatus } = useMintRequestRealtime({
+    userId: user?.id,
+    onUpdate: fetchRequests,
+    enabled: !!user,
+  });
 
   useEffect(() => {
     if (user) {
@@ -90,17 +99,36 @@ export default function FunMoney() {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Realtime Status Indicator */}
+            <Badge 
+              variant="outline"
+              className={cn(
+                "gap-1.5 py-1.5 px-2",
+                connectionStatus === 'connected' && "bg-green-500/20 text-green-500 border-green-500/30",
+                connectionStatus === 'connecting' && "bg-yellow-500/20 text-yellow-500 border-yellow-500/30",
+                connectionStatus === 'disconnected' && "bg-red-500/20 text-red-500 border-red-500/30"
+              )}
+            >
+              <span className={cn(
+                "w-2 h-2 rounded-full",
+                connectionStatus === 'connected' && "bg-green-500 animate-pulse",
+                connectionStatus === 'connecting' && "bg-yellow-500 animate-pulse",
+                connectionStatus === 'disconnected' && "bg-red-500"
+              )} />
+              {connectionStatus === 'connected' ? 'Live' : connectionStatus === 'connecting' ? 'Connecting' : 'Offline'}
+            </Badge>
+
             {/* Wallet Status */}
             <Badge 
-              variant={isConnected ? "default" : "outline"}
+              variant={isWalletConnected ? "default" : "outline"}
               className={cn(
                 "gap-1.5 py-1.5 px-3",
-                isConnected && isCorrectChain && "bg-green-500/20 text-green-500 border-green-500/30",
-                isConnected && !isCorrectChain && "bg-yellow-500/20 text-yellow-500 border-yellow-500/30"
+                isWalletConnected && isCorrectChain && "bg-green-500/20 text-green-500 border-green-500/30",
+                isWalletConnected && !isCorrectChain && "bg-yellow-500/20 text-yellow-500 border-yellow-500/30"
               )}
             >
               <Wallet className="w-4 h-4" />
-              {isConnected ? (
+              {isWalletConnected ? (
                 <>
                   {address?.slice(0, 6)}...{address?.slice(-4)}
                   {!isCorrectChain && " (Wrong Network)"}
@@ -110,7 +138,7 @@ export default function FunMoney() {
               )}
             </Badge>
 
-            {!isConnected && (
+            {!isWalletConnected && (
               <Button onClick={connect} size="sm" className="gap-2">
                 <Wallet className="w-4 h-4" />
                 Connect
