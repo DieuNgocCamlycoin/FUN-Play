@@ -25,7 +25,8 @@ export type AdminSection =
   | "users" 
   | "videos" 
   | "config" 
-  | "admin-team";
+  | "admin-team"
+  | "fun-money";
 
 interface NavItem {
   id: AdminSection;
@@ -46,6 +47,7 @@ interface UnifiedAdminLayoutProps {
 const navItems: NavItem[] = [
   { id: "overview", label: "Tổng Quan", icon: LayoutDashboard },
   { id: "rewards", label: "CAMLY Rewards", icon: Coins },
+  { id: "fun-money", label: "FUN Money", icon: Coins },
   { id: "users", label: "Quản Lý Users", icon: Users },
   { id: "videos", label: "Quản Lý Video", icon: Video },
   { id: "config", label: "Cấu Hình", icon: Settings },

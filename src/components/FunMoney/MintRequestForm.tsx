@@ -19,12 +19,18 @@ import { formatFunAmount } from '@/lib/fun-money/pplp-engine';
 import { toast } from 'sonner';
 
 interface MintRequestFormProps {
-  platformId: string;
-  actionType: string;
+  platformId?: string;
+  actionType?: string;
   onSubmitSuccess?: (requestId: string) => void;
+  onSuccess?: () => void;
 }
 
-export function MintRequestForm({ platformId, actionType, onSubmitSuccess }: MintRequestFormProps) {
+export function MintRequestForm({ 
+  platformId = 'FUN_PROFILE', 
+  actionType = 'CONTENT_CREATE', 
+  onSubmitSuccess,
+  onSuccess 
+}: MintRequestFormProps) {
   const { isConnected, address, connect } = useFunMoneyWallet();
   const { submitRequest, loading, error } = useMintRequest();
   
@@ -76,6 +82,7 @@ export function MintRequestForm({ platformId, actionType, onSubmitSuccess }: Min
       setResultAmount(result.scoringResult.calculatedAmountFormatted);
       toast.success('Request submitted successfully!');
       onSubmitSuccess?.(result.id);
+      onSuccess?.();
     }
   };
 
