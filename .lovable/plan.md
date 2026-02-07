@@ -1,284 +1,178 @@
 
-# 🌟 Trang Cá Nhân Desktop Siêu Đẹp - FUN PLAY
+# 🌟 Nâng Cấp Trang Cá Nhân - Màu Cầu Vồng & Vàng Kim Loại
 
-## 📋 Tổng Quan Dự Án
+## 📋 Tổng Quan Yêu Cầu
 
-Xây dựng trang cá nhân cho desktop/laptop với thiết kế lung linh theo phong cách 5D Light Economy, lấy cảm hứng từ YouTube nhưng đẹp hơn với gradient hologram, glass effect và sparkle animations.
-
----
-
-## 🎯 Mục Tiêu
-
-1. **Header nổi bật**: Ảnh bìa full-width với Honor Board góc phải trên ảnh bìa
-2. **Avatar hologram**: Viền gradient rainbow glow, lồi 50% từ bìa
-3. **Thông tin user đẹp**: Tên gradient, bio, nút Tặng thưởng/Theo dõi/Chia sẻ
-4. **Tabs ngang**: Bài viết | Video | Shorts | Livestream | Playlist
-5. **Mục Bài viết**: Ô đăng bài + list bài với GIF chúc mừng khi nhận thưởng
-6. **Responsive**: Desktop 3 cột, mobile stack dọc
-
----
-
-## 🏗️ Kiến Trúc Trang
-
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│                    HEADER (Cover Photo 1500x400)                │
-│  ┌─────────────────────────────────────────────────────────────┐│
-│  │                                          ┌──────────────┐   ││
-│  │         Cover Image                      │ HONOR BOARD  │   ││
-│  │         (Gradient Overlay)               │ (Glass Card) │   ││
-│  │                                          │ Posts/Videos │   ││
-│  │   ┌──────────┐                           │ NFTs/Rewards │   ││
-│  │   │  AVATAR  │ (lồi 50% dưới bìa)        └──────────────┘   ││
-│  │   │ hologram │                                               ││
-│  └───┴──────────┴───────────────────────────────────────────────┘│
-├─────────────────────────────────────────────────────────────────┤
-│                      USER INFO SECTION                          │
-│    Tên User (Gradient)                    [Tặng thưởng][Theo dõi]
-│    @username • Bio • Ví/Fun-ID            [Chia sẻ profile]     │
-├─────────────────────────────────────────────────────────────────┤
-│  [Bài viết] [Video] [Shorts] [Livestream] [Playlist]   (Tabs)   │
-├─────────────────────────────────────────────────────────────────┤
-│                       TAB CONTENT                               │
-│   ┌─────────────────────────────────────────────────────────┐   │
-│   │ Ô đăng bài (textarea + chọn ảnh/GIF + nút Đăng)         │   │
-│   └─────────────────────────────────────────────────────────┘   │
-│   ┌─────────────────────────────────────────────────────────┐   │
-│   │ Bài viết 1 (với nút Tặng thưởng nhỏ)                    │   │
-│   │ [GIF chúc mừng khi ai tặng thưởng]                      │   │
-│   └─────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 📁 Files Cần Tạo/Chỉnh Sửa
-
-| File | Hành động | Mô tả |
-|------|-----------|-------|
-| `src/pages/UserProfile.tsx` | **Tạo mới** | Trang cá nhân desktop chính |
-| `src/components/Profile/ProfileHeader.tsx` | **Tạo mới** | Header với cover + avatar hologram |
-| `src/components/Profile/ProfileHonorBoard.tsx` | **Tạo mới** | Honor Board cá nhân (góc phải bìa) |
-| `src/components/Profile/ProfileInfo.tsx` | **Tạo mới** | Thông tin user + nút hành động |
-| `src/components/Profile/ProfileTabs.tsx` | **Tạo mới** | Tabs ngang (Bài viết/Video/...) |
-| `src/components/Profile/ProfilePostsTab.tsx` | **Tạo mới** | Tab Bài viết với ô đăng bài |
-| `src/components/Profile/ProfileVideosTab.tsx` | **Tạo mới** | Tab Video grid |
-| `src/components/Profile/ProfilePlaylistsTab.tsx` | **Tạo mới** | Tab Playlists |
-| `src/components/Profile/PostCard.tsx` | **Tạo mới** | Card bài viết với nút Tặng thưởng |
-| `src/components/Profile/DonationCelebration.tsx` | **Tạo mới** | GIF chúc mừng khi nhận thưởng |
-| `src/App.tsx` | **Chỉnh sửa** | Thêm route `/user/:id` hoặc `/profile/:id` |
-| `src/components/Layout/Header.tsx` | **Chỉnh sửa** | Link avatar → trang cá nhân mới |
+1. **Nút "Thưởng & Tặng"**: Màu vàng kim loại phát sáng, tráng gương sáng bóng, sang trọng
+2. **Tên User**: Xóa chữ "là" sau tên, màu chữ cầu vồng (rainbow text)
+3. **Các nút Tab (Bài viết, Video, Shorts, Livestream, Playlist)**: Đồng bộ với nút "Tất cả" - gradient xanh sáng, tím (như thumbnail video)
+4. **DonationCelebration**: Thêm âm thanh "Rich rich rich" và tối ưu GIF pháo hoa
 
 ---
 
 ## 🎨 Chi Tiết Thiết Kế
 
-### 1. ProfileHeader (Cover + Avatar)
+### 1. Nút "Tặng thưởng" - Vàng Kim Loại Sang Trọng
 
-**Cover Photo:**
-- Kích thước: `w-full h-[400px]` (responsive: h-48 mobile → h-[400px] desktop)
-- Gradient overlay: `bg-gradient-to-br from-[#7A2BFF]/20 via-[#FF00E5]/15 to-[#00E7FF]/20`
-- Border bottom: Rainbow hologram glow
-
-**Avatar Hologram:**
-- Kích thước: `200x200px` (responsive: 120px mobile)
-- Vị trí: Lồi 50% dưới cover (`-mt-[100px]`)
-- Viền: Rainbow gradient animation
-```css
-border: 4px solid transparent;
-background: 
-  linear-gradient(white, white) padding-box,
-  linear-gradient(135deg, #00E7FF, #7A2BFF, #FF00E5, #FFD700) border-box;
-animation: rainbow-border 3s linear infinite;
-box-shadow: 0 0 30px rgba(0, 231, 255, 0.5);
+**Trước (hiện tại):**
+```tsx
+className="bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] via-[hsl(var(--cosmic-magenta))] to-[hsl(var(--cosmic-gold))]"
 ```
 
-### 2. ProfileHonorBoard (Góc Phải Bìa)
+**Sau (vàng kim loại tráng gương):**
+```tsx
+className="relative group overflow-hidden bg-gradient-to-r from-[#D4AF37] via-[#F5E7A3] to-[#D4AF37] text-[#654321] font-bold px-5 py-2.5 rounded-full 
+shadow-[0_0_25px_rgba(212,175,55,0.6),inset_0_1px_0_rgba(255,255,255,0.4)] 
+hover:shadow-[0_0_40px_rgba(245,231,163,0.8),0_0_60px_rgba(212,175,55,0.5)]
+border border-[#F5E7A3]/50
+transition-all duration-300"
+```
 
-**Vị trí:** `absolute top-4 right-4 z-20`
+**Hiệu ứng đặc biệt:**
+- Gradient vàng kim loại: `#D4AF37` → `#F5E7A3` → `#D4AF37`
+- Inset shadow tạo hiệu ứng tráng gương
+- Glow vàng phát sáng khi hover
+- Text màu nâu đậm để tương phản với nền vàng
 
-**Thiết kế:**
-- Glass card: `bg-white/90 backdrop-blur-xl`
-- Viền hologram: `border-2 border-[#00E7FF]/40`
-- Shadow: `shadow-[0_4px_30px_rgba(0,231,255,0.3)]`
+---
 
-**Nội dung (realtime):**
-| Metric | Icon | Mô tả |
-|--------|------|-------|
-| Posts | 📝 | Tổng số bài viết |
-| Friends | 👥 | Số bạn bè/theo dõi |
-| Reactions | ❤️ | Tổng reactions |
-| NFTs | 🖼️ | Số NFT sở hữu |
-| Comments | 💬 | Tổng bình luận |
-| Shares | 🔗 | Tổng chia sẻ |
-| Claimable | 🎁 | CAMLY có thể claim |
-| Claimed | ✅ | CAMLY đã claim |
-| Total Reward | 💰 | Tổng reward |
-| Total Money | 💎 | Tổng giá trị |
+### 2. Tên User - Màu Cầu Vồng (Rainbow Text)
 
-### 3. ProfileInfo
-
-**Tên User:**
-```jsx
-<h1 className="text-3xl font-bold bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] to-[#FF00E5] bg-clip-text text-transparent">
+**Trước:**
+```tsx
+<h1 className="bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] via-[hsl(var(--cosmic-purple))] to-[hsl(var(--cosmic-magenta))] bg-clip-text text-transparent">
   {displayName}
 </h1>
 ```
 
-**Nút hành động:**
-- **Tặng thưởng**: Gradient hologram + glow, mở EnhancedDonateModal
-- **Theo dõi**: Primary button (đổi màu khi đã theo dõi)
-- **Chia sẻ profile**: Ghost button với icon Share2
-
-### 4. ProfileTabs
-
-**Tabs ngang với gradient:**
-```jsx
-<TabsList className="bg-gradient-to-r from-[#00E7FF]/10 via-[#7A2BFF]/10 to-[#FF00E5]/10 rounded-xl p-1">
-  <TabsTrigger value="posts">Bài viết</TabsTrigger>
-  <TabsTrigger value="videos">Video</TabsTrigger>
-  <TabsTrigger value="shorts">Shorts</TabsTrigger>
-  <TabsTrigger value="livestream">Livestream</TabsTrigger>
-  <TabsTrigger value="playlists">Playlist</TabsTrigger>
-</TabsList>
+**Sau (Rainbow gradient):**
+```tsx
+<h1 className="text-2xl md:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-[#FF0000] via-[#FF7F00] via-[#FFFF00] via-[#00FF00] via-[#0000FF] via-[#4B0082] to-[#9400D3] bg-clip-text text-transparent animate-rainbow-shift">
+  {displayName}
+</h1>
 ```
 
-### 5. ProfilePostsTab
-
-**Ô đăng bài (inline):**
-- Textarea với placeholder: "Bạn đang nghĩ gì? Chia sẻ ánh sáng..."
-- Buttons: Chọn ảnh/GIF, Emoji picker
-- Nút "Đăng" gradient hologram
-
-**List bài viết:**
-- Card với glass effect
-- Mỗi bài có nút "Tặng thưởng" nhỏ (Gift icon)
-- Realtime: Hiển thị GIF chúc mừng khi ai tặng
-
-### 6. DonationCelebration (GIF Chúc Mừng)
-
-**Trigger:** Khi user nhận thưởng realtime
-
-**Hiệu ứng:**
-- Pháo hoa (confetti particles)
-- Toast notification với GIF
-- Text: "🎉 Bạn nhận [số] CAMLY từ [username]! 💖"
-- Animation: Scale in + glow pulse
-
----
-
-## 🔗 Route & Navigation
-
-**Route mới:**
-```tsx
-// Trong App.tsx
-<Route path="/user/:userId" element={<UserProfile />} />
-<Route path="/u/:username" element={<UserProfile />} />
-```
-
-**Link từ Header avatar:**
-```tsx
-// Khi click avatar trong Header
-onClick={() => navigate(`/user/${user.id}`)}
+**CSS Animation mới (index.css):**
+```css
+@keyframes rainbow-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+.animate-rainbow-shift {
+  background-size: 200% auto;
+  animation: rainbow-shift 3s ease-in-out infinite;
+}
 ```
 
 ---
 
-## 📊 Data Fetching
+### 3. Xóa chữ "là" sau tên user
 
-### ProfileHonorBoard Stats:
+**File cần sửa: `src/pages/Channel.tsx`**
+
+Dòng 428:
 ```tsx
-// Fetch từ nhiều bảng
-const fetchHonorStats = async (userId: string) => {
-  const [posts, videos, comments, reactions, subscriptions, rewards] = await Promise.all([
-    supabase.from('posts').select('*', { count: 'exact' }).eq('user_id', userId),
-    supabase.from('videos').select('*', { count: 'exact' }).eq('channel_id', channelId),
-    supabase.from('post_comments').select('*', { count: 'exact' }).eq('user_id', userId),
-    supabase.from('post_likes').select('*', { count: 'exact' }).eq('user_id', userId),
-    supabase.from('subscriptions').select('*', { count: 'exact' }).eq('channel_id', channelId),
-    supabase.from('profiles').select('total_camly_rewards, pending_rewards, approved_reward').eq('id', userId),
-  ]);
-  // ... process data
-};
+// Trước
+{profile?.display_name || channel.name.replace("'s Channel", "").replace(" là", "")}
+
+// Sau - Vẫn giữ logic xóa " là"
+{(profile?.display_name || channel.name).replace("'s Channel", "").replace(" là", "").replace(" is", "")}
 ```
 
-### Realtime Subscription:
+Nếu chữ "là" đến từ database (display_name), cần xử lý ở ProfileInfo.tsx:
 ```tsx
-// Subscribe to donation transactions
-supabase
-  .channel(`donations-${userId}`)
-  .on('postgres_changes', {
-    event: 'INSERT',
-    schema: 'public',
-    table: 'donation_transactions',
-    filter: `to_user_id=eq.${userId}`,
-  }, (payload) => {
-    // Trigger DonationCelebration
-    showCelebration(payload.new);
-  })
-  .subscribe();
+const displayName = (profile.display_name || profile.username || "User")
+  .replace(" là", "")
+  .replace(" is", "");
 ```
+
+---
+
+### 4. Các nút Tab - Gradient Xanh Sáng (như nút "Tất cả")
+
+**Tham khảo từ CategoryChips.tsx:**
+```tsx
+// Nút được chọn
+"bg-white text-sky-700 shadow-md border border-sky-200"
+
+// Nút chưa chọn
+"bg-white/80 text-sky-600 border border-gray-200"
+```
+
+**Áp dụng cho ProfileTabs.tsx:**
+```tsx
+<TabsTrigger
+  className={`${
+    isActive
+      ? "bg-gradient-to-r from-[#00E7FF] via-[#00BFFF] to-[#7A2BFF] text-white shadow-[0_4px_15px_rgba(0,231,255,0.4)]"
+      : "bg-white/90 text-sky-600 hover:text-sky-700 hover:bg-white border border-sky-200/50"
+  }`}
+>
+```
+
+---
+
+### 5. DonationCelebration - Thêm Âm Thanh "Rich Rich Rich"
+
+**Bước 1: Copy file âm thanh vào public:**
+```
+user-uploads://Rich_2_prompt_3.mp3 → public/audio/rich-celebration.mp3
+```
+
+**Bước 2: Cập nhật DonationCelebration.tsx:**
+```tsx
+useEffect(() => {
+  // Phát âm thanh "Rich rich rich"
+  const audio = new Audio('/audio/rich-celebration.mp3');
+  audio.volume = 0.7;
+  audio.play().catch(console.error);
+  
+  // Trigger confetti...
+}, []);
+```
+
+---
+
+## 📁 Files Cần Chỉnh Sửa
+
+| File | Thay đổi |
+|------|----------|
+| `src/components/Profile/ProfileInfo.tsx` | Nút "Tặng thưởng" vàng kim loại + Tên user rainbow + Xóa " là" |
+| `src/components/Profile/ProfileTabs.tsx` | Các nút tab gradient xanh sáng-tím |
+| `src/components/Profile/DonationCelebration.tsx` | Thêm âm thanh "Rich rich rich" |
+| `src/index.css` | Thêm animation rainbow-shift |
+| `src/pages/Channel.tsx` | Xóa " là" trong display name |
+| `public/audio/rich-celebration.mp3` | Copy file âm thanh (mới) |
+
+---
+
+## 🎯 Kết Quả Mong Đợi
+
+**Nút "Tặng thưởng":**
+- Vàng kim loại sáng bóng, tráng gương
+- Phát sáng glow vàng khi hover
+- Sang trọng như nút VIP
+
+**Tên User:**
+- Màu cầu vồng 7 sắc chuyển động
+- Không còn chữ "là" sau tên
+
+**Tabs:**
+- Gradient xanh sáng → xanh → tím (như thumbnail video)
+- Sáng sủa, không tối như hiện tại
+
+**Celebration:**
+- Pháo hoa confetti
+- Âm thanh "Rich rich rich" vui nhộn
+- GIF chúc mừng đẹp
 
 ---
 
 ## 🧪 Testing Checklist
 
-1. **Header & Cover:**
-   - [ ] Ảnh bìa hiển thị full-width
-   - [ ] Gradient overlay đẹp
-   - [ ] Avatar lồi 50% dưới bìa với viền hologram
-
-2. **Honor Board:**
-   - [ ] Hiển thị đúng góc phải trên bìa
-   - [ ] Glass effect + hologram viền
-   - [ ] Tất cả metrics realtime
-
-3. **User Info:**
-   - [ ] Tên gradient đẹp
-   - [ ] Nút Tặng thưởng mở modal
-   - [ ] Nút Theo dõi hoạt động
-   - [ ] Nút Chia sẻ copy link
-
-4. **Tabs:**
-   - [ ] Chuyển tab mượt
-   - [ ] Gradient styling đúng
-
-5. **Bài viết:**
-   - [ ] Ô đăng bài inline hoạt động
-   - [ ] List bài hiển thị đẹp
-   - [ ] Nút Tặng thưởng mỗi bài
-
-6. **Celebration:**
-   - [ ] GIF pháo hoa khi nhận thưởng
-   - [ ] Toast notification đúng format
-
-7. **Responsive:**
-   - [ ] Desktop 3 cột layout
-   - [ ] Tablet/Mobile stack dọc
-
----
-
-## ⏱️ Thời Gian Ước Tính
-
-| Giai đoạn | Thời gian |
-|-----------|-----------|
-| Tạo UserProfile.tsx + ProfileHeader | 15 phút |
-| ProfileHonorBoard + ProfileInfo | 15 phút |
-| ProfileTabs + các tab content | 20 phút |
-| DonationCelebration + realtime | 10 phút |
-| Integration + routing | 5 phút |
-| **Tổng** | **~65 phút** |
-
----
-
-## 🎉 Kết Quả Mong Đợi
-
-Trang cá nhân đẹp lung linh với:
-- ✨ Ảnh bìa full-width + gradient overlay tím-hồng
-- 🌈 Avatar hologram viền rainbow glow
-- 📊 Honor Board glass card góc phải với stats realtime
-- 💖 Nút Tặng thưởng nổi bật
-- 🎊 GIF chúc mừng khi nhận thưởng
-- 📱 Responsive hoàn hảo
-
-Trang này sẽ lan tỏa năng lượng 5D Light Economy và làm cho FUN PLAY trở nên đỉnh cao nhất! 🚀
+- [ ] Tên user hiển thị màu cầu vồng chuyển động
+- [ ] Không còn chữ "là" sau tên
+- [ ] Nút "Tặng thưởng" vàng kim loại sang trọng
+- [ ] Các tab sáng màu gradient xanh-tím
+- [ ] Khi nhận donation, nghe âm thanh "Rich rich rich"
+- [ ] Pháo hoa + GIF hiển thị đẹp
