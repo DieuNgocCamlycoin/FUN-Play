@@ -3,7 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { Coins, Wallet, Users } from "lucide-react";
 import { CounterAnimation } from "@/components/Layout/CounterAnimation";
 import { motion } from "framer-motion";
-import { AchievementBadges } from "./AchievementBadges";
 
 interface RewardStatsProps {
   userId: string;
@@ -109,9 +108,7 @@ export const RewardStats = ({ userId, walletAddress }: RewardStatsProps) => {
   ];
 
   return (
-    <>
-      <AchievementBadges totalRewards={totalRewards} />
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
       {stats.map((stat, index) => {
         const Icon = stat.icon;
         return (
@@ -139,9 +136,8 @@ export const RewardStats = ({ userId, walletAddress }: RewardStatsProps) => {
               </div>
             </div>
           </motion.div>
-        );
+      );
       })}
-      </div>
-    </>
+    </div>
   );
 };

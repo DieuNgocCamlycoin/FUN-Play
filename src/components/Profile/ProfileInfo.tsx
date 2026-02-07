@@ -133,20 +133,18 @@ export const ProfileInfo = ({
 
         {/* Right: Action Buttons */}
         <div className="flex items-center gap-2 lg:gap-3 pl-36 md:pl-44 lg:pl-0">
-          {/* Donate Button - Premium Metallic Gold Style */}
-          {!isOwnProfile && (
-            <Button
-              onClick={() => setDonateModalOpen(true)}
-              className="relative overflow-hidden bg-gradient-to-b from-[#FFEA00] via-[#FFD700] to-[#E5A800] text-[#7C5800] font-bold px-5 py-2.5 rounded-full shadow-[0_0_20px_rgba(255,215,0,0.5),inset_0_2px_4px_rgba(255,255,255,0.6),inset_0_-1px_2px_rgba(0,0,0,0.1)] hover:shadow-[0_0_35px_rgba(255,234,0,0.7),0_0_50px_rgba(255,215,0,0.4)] border border-[#FFEA00]/60 transition-all duration-300 hover:scale-105"
-            >
-              <span className="relative z-10 flex items-center gap-2">
-                <Gift className="w-4 h-4" />
-                Tặng thưởng
-              </span>
-              {/* Mirror shimmer effect - continuous */}
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-mirror-shimmer" />
-            </Button>
-          )}
+          {/* Donate Button - Premium Metallic Gold Style - ALWAYS VISIBLE */}
+          <Button
+            onClick={() => setDonateModalOpen(true)}
+            className="relative overflow-hidden bg-gradient-to-b from-[#FFEA00] via-[#FFD700] to-[#E5A800] text-[#7C5800] font-bold px-5 py-2.5 rounded-full shadow-[0_0_20px_rgba(255,215,0,0.5),inset_0_2px_4px_rgba(255,255,255,0.6),inset_0_-1px_2px_rgba(0,0,0,0.1)] hover:shadow-[0_0_35px_rgba(255,234,0,0.7),0_0_50px_rgba(255,215,0,0.4)] border border-[#FFEA00]/60 transition-all duration-300 hover:scale-105"
+          >
+            <span className="relative z-10 flex items-center gap-2">
+              <Gift className="w-4 h-4" />
+              Tặng & Thưởng
+            </span>
+            {/* Mirror shimmer effect - continuous */}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-mirror-shimmer" />
+          </Button>
 
           {/* Subscribe Button */}
           {!isOwnProfile && (
@@ -173,15 +171,15 @@ export const ProfileInfo = ({
             </Button>
           )}
 
-          {/* Settings Button (own profile) */}
+          {/* Settings Button (own profile) - Icon only */}
           {isOwnProfile && (
             <Button
               onClick={() => navigate("/settings")}
               variant="outline"
+              size="icon"
               className="rounded-full"
             >
-              <Settings className="w-4 h-4 mr-2" />
-              Chỉnh sửa
+              <Settings className="w-4 h-4" />
             </Button>
           )}
 
@@ -211,14 +209,19 @@ export const ProfileInfo = ({
         </div>
       </div>
 
-      {/* Donate Modal */}
+      {/* Donate Modal - Context-aware */}
       <EnhancedDonateModal
         open={donateModalOpen}
         onOpenChange={setDonateModalOpen}
-        defaultReceiverId={profile.id}
-        defaultReceiverName={displayName}
-        defaultReceiverAvatar={undefined}
-        defaultReceiverWallet={profile.wallet_address || undefined}
+        {...(isOwnProfile
+          ? { contextType: "global" as const }
+          : {
+              defaultReceiverId: profile.id,
+              defaultReceiverName: displayName,
+              defaultReceiverAvatar: undefined,
+              defaultReceiverWallet: profile.wallet_address || undefined,
+            }
+        )}
       />
     </motion.div>
   );
