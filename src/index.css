@@ -446,6 +446,7 @@ body > [data-w3m-modal] {
 }
 
 .hologram-input-trigger {
+  position: relative;
   border: 1px solid transparent !important;
   background: 
     linear-gradient(hsl(var(--background)), hsl(var(--background))) padding-box,
@@ -455,6 +456,8 @@ body > [data-w3m-modal] {
       hsl(var(--cosmic-gold))
     ) border-box !important;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: auto !important;
+  isolation: isolate;
 }
 
 .hologram-input-trigger:focus,

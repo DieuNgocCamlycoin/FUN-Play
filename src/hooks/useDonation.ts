@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { sendDonation as sendBscDonation } from "@/lib/donation";
 import { toast } from "@/hooks/use-toast";
@@ -57,7 +57,7 @@ export const useDonation = () => {
   const [loading, setLoading] = useState(false);
   const [tokens, setTokens] = useState<DonationToken[]>([]);
 
-  const fetchTokens = async () => {
+  const fetchTokens = useCallback(async () => {
     const { data, error } = await supabase
       .from("donate_tokens")
       .select("*")
@@ -68,7 +68,7 @@ export const useDonation = () => {
       setTokens(data as DonationToken[]);
     }
     return data as DonationToken[] || [];
-  };
+  }, []);
 
   const createDonation = async (params: CreateDonationParams): Promise<{
     success: boolean;
