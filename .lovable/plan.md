@@ -1,223 +1,72 @@
 
-# KIỂM TRA TOÀN DIỆN & KẾ HOẠCH HOÀN THIỆN FUN PLAY
+# Cập Nhật Nút WALLET Theo Style "Claim Rewards" Holographic Rainbow
 
-## PHẦN 1: ĐÁNH GIÁ TRẠNG THÁI HIỆN TẠI
+## Phân Tích Hình Ảnh Reference
 
-### ✅ CÁC TÍNH NĂNG ĐÃ HOÀN THIỆN TỐT
+Từ hình ảnh con gửi, nút **"Claim Rewards"** cũ có:
+- **Gradient cầu vồng** (Rainbow Holographic): Xanh lá → Vàng → Cam → Hồng → Tím → Xanh dương
+- **Border mềm** với hiệu ứng glow
+- **Text màu trắng** hoặc màu sáng để tương phản
+- **Icon xoay tròn** với các vòng tròn đồng tâm
+- **Badge đỏ/hồng** ở góc trên phải
 
-| Tính năng | Trạng thái | Ghi chú |
-|-----------|------------|---------|
-| **FUN PLAY WALLET Hub** | ✅ 95% | 5 sections hoàn chỉnh: Price, Claim, Top Sponsors, History, Export |
-| **WalletButton thay 3 nút cũ** | ✅ 100% | Header đã gọn gàng, badge rewards hoạt động |
-| **Top Ranking** | ✅ 100% | Realtime + debounce 500ms |
-| **Top Sponsors** | ✅ 100% | Realtime + debounce 500ms |
-| **Transaction History** | ✅ 100% | Filters, search, CSV/PDF export |
-| **Thưởng & Tặng Modal** | ✅ 100% | FUN MONEY + BSC tokens, emoji picker, success overlay |
-| **Chat Messages** | ✅ 100% | Realtime, donation messages, deep links |
-| **Receipt Public Page** | ✅ 100% | Edge function hoạt động ổn định |
-| **Build & Bounty** | ✅ 100% | Form gửi, upvote, admin approve |
-| **AI Music (Suno)** | ✅ 100% | 6 bài nhạc đã tạo thành công |
-| **Lazy Loading** | ✅ 100% | 30+ pages lazy loaded |
-| **Realtime Optimization** | ✅ 100% | Unified channels + debounce |
-| **Database Indexes** | ✅ 100% | 6 indexes đã thêm |
-| **Debug Logging** | ✅ 100% | debugLog utility đã tạo |
+## Thay Đổi Cần Thực Hiện
 
-### ⚠️ CÁC ĐIỂM CẦN CẢI TIẾN
+### File: `src/components/Wallet/WalletButton.tsx`
 
-| Vấn đề | Mức độ | Mô tả |
-|--------|--------|-------|
-| **WalletButton style** | Medium | Cần áp dụng đúng style "Premium 5D Gold Metallic" như nút Claim cũ |
-| **RLS Policy Always True** | Low | Cần review các bảng sử dụng `USING (true)` |
-| **Leaked Password Protection** | Low | Cần enable trong Auth settings |
-| **Pending Donations** | Medium | 26 donations đang pending (cần mechanism tự động cleanup) |
-| **FUN MONEY token decimals** | Low | Decimals = 0 có thể gây lỗi tính toán |
-
----
-
-## PHẦN 2: KẾ HOẠCH HOÀN THIỆN CHI TIẾT
-
-### PHASE 1: UI/UX POLISH (Ưu tiên cao)
-
-#### 1.1 Cập nhật WalletButton với Premium 5D Gold Style
-
-**File:** `src/components/Wallet/WalletButton.tsx`
-
-**Thay đổi:**
-- Gradient: `from-[#FFEA00] via-[#FFD700] to-[#E5A800]` (vertical top-to-bottom)
-- Text color: `#7C5800` (dark golden brown)
-- Inner shadows: `inset 0 2px 4px rgba(255,255,255,0.6)` (top highlight)
-- Animation: `animate-mirror-shimmer` liên tục mỗi 3 giây
-- Glow effect: `shadow-[0_0_20px_rgba(255,215,0,0.4)]`
-
-**Kết quả mong đợi:** Nút WALLET có style giống hệt nút Claim cũ, đẹp và nhất quán
-
-#### 1.2 Thêm Mirror Shimmer Animation (nếu chưa có)
-
-**File:** `tailwind.config.ts`
-
-```javascript
-animation: {
-  'mirror-shimmer': 'mirrorShimmer 3s linear infinite',
-},
-keyframes: {
-  mirrorShimmer: {
-    '0%': { transform: 'translateX(-100%)' },
-    '100%': { transform: 'translateX(200%)' },
-  },
-}
+**Từ style hiện tại (Premium 5D Gold):**
+```typescript
+"bg-gradient-to-b from-[#FFEA00] via-[#FFD700] to-[#E5A800] text-[#7C5800]"
 ```
 
----
+**Sang style mới (Rainbow Holographic):**
+```typescript
+"bg-gradient-to-r from-green-400 via-yellow-400 via-orange-400 via-pink-400 via-purple-400 to-cyan-400 text-white"
+```
 
-### PHASE 2: DATA INTEGRITY (Ưu tiên cao)
+### Chi Tiết Kỹ Thuật
 
-#### 2.1 Cleanup Pending Donations
+| Thuộc tính | Giá trị cũ (Gold) | Giá trị mới (Rainbow) |
+|------------|-------------------|----------------------|
+| Gradient direction | `to-b` (dọc) | `to-r` (ngang) |
+| Colors | `#FFEA00 → #FFD700 → #E5A800` | `green → yellow → orange → pink → purple → cyan` |
+| Text color | `#7C5800` (dark gold) | `white` |
+| Box shadow | Gold glow | Rainbow glow |
+| Shimmer | White stripe | White stripe (giữ nguyên) |
 
-**Vấn đề:** 26 donations đang ở trạng thái `pending` quá lâu
+### Code Cụ Thể
 
-**Giải pháp:**
-- Tạo scheduled job (cron) hoặc edge function cleanup
-- Donations pending > 24h → auto-mark as `failed`
-- Hoặc: Admin manual review trong Dashboard
+```typescript
+// Desktop version
+className={cn(
+  "relative gap-2 font-bold transition-all duration-300 overflow-hidden",
+  hasRewards
+    ? "bg-gradient-to-r from-green-400 via-yellow-400 via-orange-400 via-pink-400 via-purple-400 to-cyan-400 text-white hover:opacity-90"
+    : "bg-gradient-to-r from-green-400/70 via-yellow-400/70 via-pink-400/70 to-cyan-400/70 text-white/90 border border-white/20"
+)}
+style={{
+  boxShadow: hasRewards 
+    ? "0 0 20px rgba(168, 85, 247, 0.4), 0 0 40px rgba(236, 72, 153, 0.2)"
+    : "0 0 10px rgba(168, 85, 247, 0.2)"
+}}
+```
 
-#### 2.2 Fix FUN MONEY Token Decimals
+### Hiệu Ứng Animation
 
-**Vấn đề:** `decimals = 0` có thể gây lỗi khi hiển thị số lẻ
+- Giữ nguyên **Mirror Shimmer** để tạo ánh sáng chạy qua
+- Có thể thêm **animate-rainbow-gradient** để màu sắc chuyển động nhẹ
 
-**Giải pháp:**
-- Cập nhật `donate_tokens` table: `decimals = 2` cho FUN MONEY
-- Hoặc giữ decimals = 0 nếu FUN MONEY chỉ dùng số nguyên
+## Kết Quả Mong Đợi
 
----
+Nút WALLET sẽ có style **giống hệt** nút "Claim Rewards" trong hình:
+- Gradient cầu vồng holographic đẹp mắt
+- Text trắng dễ đọc
+- Hiệu ứng glow tím/hồng xung quanh
+- Badge đỏ hiển thị số rewards
+- Shimmer effect tạo cảm giác sang trọng
 
-### PHASE 3: SECURITY HARDENING (Ưu tiên trung bình)
+## Files Thay Đổi
 
-#### 3.1 Review RLS Policies
-
-**Bảng cần kiểm tra:**
-- Tìm các bảng có `USING (true)` cho UPDATE/DELETE
-- Đánh giá xem có cần restrict không
-
-**Công cụ:** Chạy query để list tất cả RLS policies
-
-#### 3.2 Enable Leaked Password Protection
-
-**Hướng dẫn:**
-1. Mở backend settings (Cloud View)
-2. Authentication → Password Settings
-3. Enable "Leaked Password Protection"
-
----
-
-### PHASE 4: PERFORMANCE TUNING (Ưu tiên thấp)
-
-#### 4.1 Tối ưu TransactionHistorySection Queries
-
-**Hiện tại:** 3 queries riêng lẻ (rewards, sent, received)
-
-**Tối ưu:**
-- Gộp thành 1-2 queries
-- Sử dụng database function nếu cần aggregate phức tạp
-- Thêm pagination (hiện đang limit 100+50+50 = 200)
-
-#### 4.2 Monitoring & Analytics
-
-**Đề xuất:**
-- Thêm error tracking (Sentry)
-- Log các edge function errors
-- Monitor realtime subscription performance
-
----
-
-## PHẦN 3: TEST CHECKLIST
-
-### Luồng WALLET
-- [ ] Click nút WALLET trên header → Navigate `/wallet`
-- [ ] Hiển thị đúng 5 sections
-- [ ] Giá CAMLY realtime với % 24h
-- [ ] Chart DexScreener với timeframes
-- [ ] Claim section hiển thị đúng stats từ profile
-- [ ] Top Sponsors ranking đúng
-
-### Luồng THƯỞNG & TẶNG
-- [ ] Click nút Thưởng & Tặng → Mở modal
-- [ ] Tìm kiếm user hoạt động
-- [ ] Chọn token (FUN MONEY, CAMLY, BNB, USDT)
-- [ ] Nhập số tiền + slider
-- [ ] Gửi thành công → Success overlay + audio
-- [ ] Chat message tự động tạo với link receipt
-
-### Luồng CHAT
-- [ ] Mở Messages → Hiển thị danh sách chat
-- [ ] Click chat → Hiển thị tin nhắn
-- [ ] Gửi tin nhắn text → Realtime update
-- [ ] Donation message hiển thị card đặc biệt
-- [ ] Click deep link → Navigate `/receipt/{id}`
-
-### Luồng RECEIPT
-- [ ] Access `/receipt/{id}` → Hiển thị biên nhận
-- [ ] Thông tin sender, receiver, amount đúng
-- [ ] Copy link hoạt động
-- [ ] Link BSCScan hoạt động (nếu có tx_hash)
-
-### Luồng ADMIN
-- [ ] Access `/admin` → Kiểm tra quyền admin
-- [ ] Tab Rewards → Duyệt thưởng pending
-- [ ] Tab Bounty → Duyệt submissions
-- [ ] Realtime badge update khi có data mới
-
----
-
-## PHẦN 4: METRICS SO SÁNH
-
-| Metric | Trước Phase Cleanup | Hiện Tại | Mục Tiêu |
-|--------|---------------------|----------|----------|
-| Console.log trong hooks | ~20+ | 0 (debugLog) | ✅ Đạt |
-| Realtime channels profiles | 7+ channels | 1 unified | ✅ Đạt |
-| Components trùng lặp | 3 (Claim, Widget) | 0 | ✅ Đạt |
-| DB Indexes transactions | 0 | 6 | ✅ Đạt |
-| Lazy loaded pages | 0 | 30+ | ✅ Đạt |
-| Polling crypto prices | 60s | 120s | ✅ Đạt |
-| Debounce realtime | Không | 500ms | ✅ Đạt |
-| Donations thành công | N/A | 11/37 (30%) | Cần cải thiện |
-| AI Music created | N/A | 6 | ✅ Hoạt động |
-
----
-
-## PHẦN 5: ƯU TIÊN THỰC HIỆN
-
-### Ngay bây giờ (Quick Wins)
-1. **Cập nhật WalletButton style** - 5 phút, impact cao về visual
-2. **Review pending donations** - Cleanup hoặc document
-
-### Trong tuần này
-3. **Enable Leaked Password Protection** - 1 phút, bảo mật
-4. **Review RLS policies** - 30 phút, bảo mật
-
-### Khi scale
-5. **Transaction history pagination** - Khi data > 1000
-6. **Error tracking (Sentry)** - Production monitoring
-7. **Unit tests cho hooks critical** - Stability
-
----
-
-## PHẦN 6: TÓM TẮT
-
-### Đã hoàn thành xuất sắc:
-- ✅ WALLET Hub consolidation (3 buttons → 1)
-- ✅ Realtime optimization (debounce + unified channels)
-- ✅ Lazy loading 30+ pages
-- ✅ Database indexes
-- ✅ Full donation flow (FUN MONEY + BSC)
-- ✅ Chat với donation messages
-- ✅ Receipt public pages
-- ✅ Build & Bounty system
-- ✅ AI Music với Suno
-
-### Cần hoàn thiện:
-- ⏳ WalletButton style Premium 5D Gold
-- ⏳ Pending donations cleanup
-- ⏳ Security hardening (RLS, password protection)
-
-### Hệ thống đã sẵn sàng:
-FUN PLAY đã vận hành **mượt – nhẹ – ổn định** với các tính năng core hoạt động tốt. Các điểm cần cải thiện đều là polish và hardening, không ảnh hưởng đến core functionality.
+| File | Hành động |
+|------|-----------|
+| `src/components/Wallet/WalletButton.tsx` | Cập nhật gradient và colors |
