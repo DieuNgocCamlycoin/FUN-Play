@@ -26,35 +26,36 @@ serve(async (req) => {
       );
     }
 
-    // Fetch transaction with related data
-    const { data: transaction, error } = await supabase
-      .from("donation_transactions")
-      .select(`
-        id,
-        created_at,
-        amount,
-        amount_usd,
-        message,
-        context_type,
-        context_id,
-        receipt_public_id,
-        status,
-        chain,
-        tx_hash,
-        explorer_url,
-        token:donate_tokens(symbol, name, icon_url, decimals),
-        sender:profiles!donation_transactions_sender_id_fkey(id, username, display_name, avatar_url),
-        receiver:profiles!donation_transactions_receiver_id_fkey(id, username, display_name, avatar_url)
-      `)
-      .eq("receipt_public_id", receiptPublicId)
-      .single();
+    console.log("Fetching receipt:", receiptPublicId);
 
-    if (error || !transaction) {
+    // Fetch transaction first (without FK hints to avoid schema cache issues)
+    const { data: transaction, error: txError } = await supabase
+      .from("donation_transactions")
+      .select("*")
+      .eq("receipt_public_id", receiptPublicId)
+      .maybeSingle();
+
+    if (txError) {
+      console.error("Transaction fetch error:", txError);
+      return new Response(
+        JSON.stringify({ error: "Database error", details: txError.message }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!transaction) {
       return new Response(
         JSON.stringify({ error: "Receipt not found" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Fetch related data separately to avoid FK hint issues
+    const [tokenResult, senderResult, receiverResult] = await Promise.all([
+      supabase.from("donate_tokens").select("symbol, name, icon_url, decimals").eq("id", transaction.token_id).maybeSingle(),
+      supabase.from("profiles").select("id, username, display_name, avatar_url").eq("id", transaction.sender_id).maybeSingle(),
+      supabase.from("profiles").select("id, username, display_name, avatar_url").eq("id", transaction.receiver_id).maybeSingle(),
+    ]);
 
     // Get context info if applicable
     let contextInfo = null;
@@ -63,14 +64,14 @@ serve(async (req) => {
         .from("videos")
         .select("id, title, thumbnail_url")
         .eq("id", transaction.context_id)
-        .single();
+        .maybeSingle();
       contextInfo = video ? { type: "video", ...video } : null;
     } else if (transaction.context_type === "post" && transaction.context_id) {
       const { data: post } = await supabase
         .from("posts")
         .select("id, content, image_url")
         .eq("id", transaction.context_id)
-        .single();
+        .maybeSingle();
       contextInfo = post ? { type: "post", ...post } : null;
     }
 
@@ -79,6 +80,9 @@ serve(async (req) => {
         success: true,
         receipt: {
           ...transaction,
+          token: tokenResult.data,
+          sender: senderResult.data,
+          receiver: receiverResult.data,
           context_info: contextInfo,
         },
       }),
