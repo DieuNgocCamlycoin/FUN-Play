@@ -9,6 +9,11 @@ import type { PillarScores, UnitySignals } from '@/lib/fun-money/pplp-engine';
 import { 
   scoreAction, 
   getBaseReward,
+  calculateLightScore,
+  calculateUnityScore,
+  calculateIntegrityMultiplier,
+  calculateUnityMultiplier,
+  formatFunAmount,
   type ScoringResult 
 } from '@/lib/fun-money/pplp-engine';
 import { createActionHash, createEvidenceHash } from '@/lib/fun-money/eip712-signer';
@@ -28,6 +33,23 @@ export interface MintRequestInput {
   pillarScores: PillarScores;
   unitySignals: Partial<UnitySignals>;
   antiSybilScore?: number;
+}
+
+// Auto mint input (1-click from light activity)
+export interface AutoMintInput {
+  userWalletAddress: string;
+  pillars: PillarScores;
+  lightScore: number;
+  unityScore: number;
+  unitySignals: Partial<UnitySignals>;
+  mintableFunAtomic: string;
+  activitySummary: {
+    views: number;
+    likes: number;
+    comments: number;
+    shares?: number;
+    uploads: number;
+  };
 }
 
 export interface MintRequest {
@@ -232,6 +254,107 @@ export function useMintRequest(): UseMintRequestReturn {
     submitRequest,
     getMyRequests,
     getRequestById
+  };
+}
+
+// ===== AUTO MINT HOOK (1-Click from Light Activity) =====
+
+export interface UseAutoMintRequestReturn {
+  loading: boolean;
+  error: string | null;
+  submitAutoRequest: (input: AutoMintInput) => Promise<{ id: string } | null>;
+}
+
+export function useAutoMintRequest(): UseAutoMintRequestReturn {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submitAutoRequest = useCallback(async (input: AutoMintInput): Promise<{ id: string } | null> => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      // 1. Get current user
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        throw new Error('You must be logged in to submit a request');
+      }
+
+      // 2. Calculate multipliers from provided data
+      const integrityK = calculateIntegrityMultiplier(0.9, false, 1.0);
+      const unityUx = calculateUnityMultiplier(input.unityScore, input.unitySignals);
+
+      // 3. Create evidence from activity summary
+      const evidence = {
+        type: 'LIGHT_ACTIVITY',
+        description: 'Auto-generated from platform light activities',
+        data: JSON.stringify(input.activitySummary),
+        timestamp: new Date().toISOString()
+      };
+
+      // 4. Create hashes
+      const actionHash = createActionHash('LIGHT_ACTIVITY');
+      const evidenceHash = createEvidenceHash({
+        actionType: 'LIGHT_ACTIVITY',
+        timestamp: Math.floor(Date.now() / 1000),
+        pillars: pillarScoresToRecord(input.pillars),
+        metadata: evidence
+      });
+
+      // 5. Insert into database
+      const insertData = {
+        user_id: user.id,
+        user_wallet_address: input.userWalletAddress,
+        platform_id: 'FUN_PROFILE',
+        action_type: 'LIGHT_ACTIVITY',
+        action_evidence: evidence,
+        pillar_scores: input.pillars,
+        light_score: input.lightScore,
+        unity_score: input.unityScore,
+        unity_signals: input.unitySignals,
+        multiplier_q: 1.0,
+        multiplier_i: 1.0,
+        multiplier_k: integrityK,
+        multiplier_ux: unityUx,
+        base_reward_atomic: input.mintableFunAtomic,
+        calculated_amount_atomic: input.mintableFunAtomic,
+        calculated_amount_formatted: formatFunAmount(input.mintableFunAtomic),
+        action_hash: actionHash,
+        evidence_hash: evidenceHash,
+        status: 'pending',
+        decision_reason: null
+      };
+
+      const { data, error: insertError } = await (supabase as any)
+        .from('mint_requests')
+        .insert(insertData)
+        .select('id')
+        .single();
+
+      if (insertError) {
+        throw new Error(insertError.message);
+      }
+
+      // 6. Update last mint timestamp on profile
+      await supabase
+        .from('profiles')
+        .update({ last_fun_mint_at: new Date().toISOString() })
+        .eq('id', user.id);
+
+      return { id: data.id };
+
+    } catch (err: any) {
+      setError(err.message || 'Failed to submit auto request');
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  return {
+    loading,
+    error,
+    submitAutoRequest
   };
 }
 

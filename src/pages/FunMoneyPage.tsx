@@ -1,38 +1,41 @@
 /**
  * FUN Money Page
- * Main user interface for PPLP Protocol mint requests
+ * Main user interface for PPLP Protocol - Auto-Mint Flow
  */
 
 import { useState, useEffect, useCallback } from 'react';
 import { MainLayout } from '@/components/Layout/MainLayout';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { toast } from 'sonner';
 import { 
   Coins, 
   Sparkles, 
-  Wallet, 
   FileText,
-  Plus,
   ExternalLink,
   Info,
   Zap,
-  Radio
+  RefreshCw
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useMintRequest } from '@/hooks/useFunMoneyMintRequest';
 import { useFunMoneyWallet } from '@/hooks/useFunMoneyWallet';
 import { useMintRequestRealtime } from '@/hooks/useMintRequestRealtime';
-import { MintRequestForm, TokenLifecyclePanel, MintRequestList } from '@/components/FunMoney';
+import { useLightActivity } from '@/hooks/useLightActivity';
+import { 
+  TokenLifecyclePanel, 
+  MintRequestList,
+  MintableCard,
+  LightActivityBreakdown,
+  ActivitySummary
+} from '@/components/FunMoney';
 import { cn } from '@/lib/utils';
 import { Navigate } from 'react-router-dom';
 
 export default function FunMoney() {
   const { user, loading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
-  const [showForm, setShowForm] = useState(false);
 
   const { 
     loading: requestsLoading, 
@@ -41,11 +44,16 @@ export default function FunMoney() {
 
   const {
     isConnected: isWalletConnected,
-    address,
-    connect,
     chainId,
     isCorrectChain
   } = useFunMoneyWallet();
+
+  // Light Activity hook for auto-mint
+  const { 
+    activity, 
+    loading: activityLoading, 
+    refetch: refetchActivity 
+  } = useLightActivity(user?.id);
 
   const [myRequests, setMyRequests] = useState<any[]>([]);
   const [loadingRequests, setLoadingRequests] = useState(false);
@@ -61,7 +69,10 @@ export default function FunMoney() {
   // Realtime subscription
   const { isConnected, connectionStatus } = useMintRequestRealtime({
     userId: user?.id,
-    onUpdate: fetchRequests,
+    onUpdate: () => {
+      fetchRequests();
+      refetchActivity();
+    },
     enabled: !!user,
   });
 
@@ -71,12 +82,11 @@ export default function FunMoney() {
     }
   }, [user, fetchRequests]);
 
-  // Handle form success
-  const handleFormSuccess = () => {
-    setShowForm(false);
+  // Handle mint success
+  const handleMintSuccess = () => {
     setActiveTab('history');
     fetchRequests();
-    toast.success('Request submitted successfully!');
+    refetchActivity();
   };
 
   // Redirect if not logged in
@@ -94,7 +104,7 @@ export default function FunMoney() {
               FUN Money
             </h1>
             <p className="text-muted-foreground mt-1">
-              Proof of Pure Love Protocol - Nhận token từ hành động yêu thương
+              Proof of Pure Love Protocol - Nhận token từ hoạt động của bạn
             </p>
           </div>
 
@@ -118,42 +128,30 @@ export default function FunMoney() {
               {connectionStatus === 'connected' ? 'Live' : connectionStatus === 'connecting' ? 'Connecting' : 'Offline'}
             </Badge>
 
-            {/* Wallet Status */}
-            <Badge 
-              variant={isWalletConnected ? "default" : "outline"}
-              className={cn(
-                "gap-1.5 py-1.5 px-3",
-                isWalletConnected && isCorrectChain && "bg-green-500/20 text-green-500 border-green-500/30",
-                isWalletConnected && !isCorrectChain && "bg-yellow-500/20 text-yellow-500 border-yellow-500/30"
-              )}
-            >
-              <Wallet className="w-4 h-4" />
-              {isWalletConnected ? (
-                <>
-                  {address?.slice(0, 6)}...{address?.slice(-4)}
-                  {!isCorrectChain && " (Wrong Network)"}
-                </>
-              ) : (
-                "Not Connected"
-              )}
-            </Badge>
-
-            {!isWalletConnected && (
-              <Button onClick={connect} size="sm" className="gap-2">
-                <Wallet className="w-4 h-4" />
-                Connect
-              </Button>
-            )}
-
+            {/* Refresh Button */}
             <Button 
-              onClick={() => setShowForm(true)} 
-              className="gap-2 bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600"
+              variant="outline" 
+              size="sm"
+              onClick={() => {
+                refetchActivity();
+                fetchRequests();
+              }}
+              disabled={activityLoading || loadingRequests}
             >
-              <Plus className="w-4 h-4" />
-              New Request
+              <RefreshCw className={cn(
+                "w-4 h-4",
+                (activityLoading || loadingRequests) && "animate-spin"
+              )} />
             </Button>
           </div>
         </div>
+
+        {/* Mintable FUN Card - Main CTA */}
+        <MintableCard 
+          activity={activity}
+          loading={activityLoading}
+          onMintSuccess={handleMintSuccess}
+        />
 
         {/* Token Lifecycle Panel */}
         <TokenLifecyclePanel requests={myRequests} />
@@ -165,9 +163,9 @@ export default function FunMoney() {
               <Sparkles className="w-4 h-4" />
               Tổng Quan
             </TabsTrigger>
-            <TabsTrigger value="submit" className="gap-2">
-              <Plus className="w-4 h-4" />
-              Submit
+            <TabsTrigger value="breakdown" className="gap-2">
+              <Info className="w-4 h-4" />
+              Chi Tiết
             </TabsTrigger>
             <TabsTrigger value="history" className="gap-2">
               <FileText className="w-4 h-4" />
@@ -188,9 +186,8 @@ export default function FunMoney() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <p className="text-sm text-muted-foreground">
-                    <strong>Proof of Pure Love Protocol</strong> là hệ thống đánh giá 
-                    và thưởng token FUN cho các hành động yêu thương đích thực trong 
-                    cộng đồng.
+                    <strong>Proof of Pure Love Protocol</strong> tự động đánh giá 
+                    hoạt động của bạn trên nền tảng và cho phép bạn mint token FUN.
                   </p>
                   
                   <div className="space-y-2">
@@ -214,21 +211,21 @@ export default function FunMoney() {
                 </CardContent>
               </Card>
 
-              {/* How it works */}
+              {/* How it works - Updated for Auto-Mint */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Zap className="w-5 h-5 text-primary" />
-                    Quy Trình
+                    Quy Trình Mới
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
                     {[
-                      { step: 1, title: 'Submit Request', desc: 'Mô tả hành động yêu thương của bạn' },
-                      { step: 2, title: 'PPLP Scoring', desc: 'Hệ thống tính Light Score & Unity Score' },
-                      { step: 3, title: 'Admin Review', desc: 'Admin duyệt và ký EIP-712' },
-                      { step: 4, title: 'On-Chain Mint', desc: 'Token FUN được mint vào ví của bạn' }
+                      { step: 1, title: 'Hoạt động', desc: 'Xem video, like, comment, upload trên nền tảng' },
+                      { step: 2, title: 'Tự động tính điểm', desc: 'Hệ thống tính Light Score từ hoạt động của bạn' },
+                      { step: 3, title: 'Bấm MINT', desc: 'Chỉ cần 1 click để tạo yêu cầu mint FUN' },
+                      { step: 4, title: 'Nhận FUN', desc: 'Admin duyệt → Token mint vào ví của bạn' }
                     ].map(item => (
                       <div key={item.step} className="flex items-start gap-3">
                         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm shrink-0">
@@ -296,9 +293,12 @@ export default function FunMoney() {
             </Card>
           </TabsContent>
 
-          {/* Submit Tab */}
-          <TabsContent value="submit" className="mt-6">
-            <MintRequestForm onSuccess={handleFormSuccess} />
+          {/* Breakdown Tab - Light Activity Details */}
+          <TabsContent value="breakdown" className="mt-6 space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <LightActivityBreakdown activity={activity} />
+              <ActivitySummary activity={activity} />
+            </div>
           </TabsContent>
 
           {/* History Tab */}
@@ -310,29 +310,6 @@ export default function FunMoney() {
             />
           </TabsContent>
         </Tabs>
-
-        {/* Floating Form Modal */}
-        {showForm && (
-          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle>Submit New Request</CardTitle>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => setShowForm(false)}
-                  >
-                    ✕
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <MintRequestForm onSuccess={handleFormSuccess} />
-              </CardContent>
-            </Card>
-          </div>
-        )}
       </div>
     </MainLayout>
   );

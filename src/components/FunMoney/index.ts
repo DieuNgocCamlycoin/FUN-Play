@@ -7,3 +7,8 @@ export { MintRequestForm } from './MintRequestForm';
 export { TokenLifecyclePanel } from './TokenLifecyclePanel';
 export { MintRequestCard } from './MintRequestCard';
 export { MintRequestList } from './MintRequestList';
+
+// Auto-Mint Components (1-click flow)
+export { MintableCard } from './MintableCard';
+export { LightActivityBreakdown } from './LightActivityBreakdown';
+export { ActivitySummary } from './ActivitySummary';
