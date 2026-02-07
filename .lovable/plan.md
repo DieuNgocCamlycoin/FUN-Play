@@ -1,87 +1,107 @@
 
-# Cải Tiến Nút WALLET và Thưởng & Tặng
+# Sửa Lỗi Tên User Có Chữ "là" - Giải Pháp Toàn Diện
 
-## Phân Tích Yêu Cầu
+## Vấn Đề
 
-Từ hình ảnh và mô tả của con, Cha cần thực hiện 4 thay đổi:
+Tên user đang hiển thị sai với hậu tố "là" (ví dụ: "Angel Diệu Ngọc là ") do:
+1. **Database**: Có record lưu sai `display_name = "Angel Diệu Ngọc là "`
+2. **Code**: 38 files đang dùng `display_name || username` mà không sanitize
 
-1. **Nút WALLET - Thêm hiệu ứng sáng bóng:** Thêm màu trắng/xanh sáng ở các điểm giao nhau của gradient để tạo độ sáng lấp lánh
-2. **Logo ví FUN to hơn:** Tăng kích thước logo từ `h-5 w-5` lên `h-7 w-7` để tràn viền, dễ nhận diện hơn
-3. **Xóa badge số đỏ:** Loại bỏ hoàn toàn phần hiển thị số rewards trong khung đỏ vì đang bị che
-4. **Chữ "Thưởng & Tặng" to hơn:** Tăng size font từ `text-sm` lên `text-base` và thêm uppercase
+## Giải Pháp
 
----
+### Bước 1: Tạo Utility Function (Reusable)
 
-## Chi Tiết Kỹ Thuật
+**File mới:** `src/lib/userUtils.ts`
 
-### 1. Nút WALLET - Thêm Điểm Sáng Giao Nhau
-
-**File:** `src/components/Wallet/WalletButton.tsx`
-
-**Thay đổi gradient:**
 ```typescript
-// Từ:
-"bg-gradient-to-r from-green-400 via-yellow-400 via-orange-400 via-pink-400 via-purple-400 to-cyan-400"
+/**
+ * Sanitize display name - loại bỏ các hậu tố tự động
+ */
+export function sanitizeDisplayName(name: string | null | undefined): string {
+  if (!name) return "User";
+  return name
+    .replace(/ là$/i, "")
+    .replace(/ là /gi, "")
+    .replace(/ is$/i, "")
+    .replace(/ is /gi, "")
+    .replace(/'s Channel$/i, "")
+    .trim();
+}
 
-// Sang (thêm white/cyan sáng ở điểm giao):
-"bg-gradient-to-r from-green-400 via-white via-yellow-400 via-white via-pink-400 via-white via-cyan-400 to-green-400"
+/**
+ * Lấy display name đã sanitize từ profile
+ */
+export function getDisplayName(
+  displayName: string | null | undefined, 
+  username: string | null | undefined,
+  fallback: string = "User"
+): string {
+  const name = displayName || username || fallback;
+  return sanitizeDisplayName(name);
+}
 ```
 
-**Hoặc dùng CSS gradient phức tạp hơn với multiple color stops để tạo hiệu ứng lấp lánh tại các điểm giao nhau**
+### Bước 2: Sửa Database (Chỉ 1 Record)
 
-### 2. Logo Ví FUN To Hơn
-
-**Thay đổi:**
-```typescript
-// Từ:
-className="h-5 w-5 rounded-full"
-
-// Sang:
-className="h-7 w-7 rounded-full -ml-1"  // To hơn, dịch trái để tràn viền
+```sql
+UPDATE profiles 
+SET display_name = TRIM(
+  REGEXP_REPLACE(
+    REGEXP_REPLACE(display_name, ' là$', ''),
+    ' là ', ''
+  )
+)
+WHERE display_name LIKE '% là%' OR display_name LIKE '%là ';
 ```
 
-### 3. Xóa Badge Số Đỏ
-
-**Xóa hoàn toàn đoạn code từ line 206-221:**
-```typescript
-// XÓA:
-{/* Badge for rewards count */}
-<AnimatePresence>
-  {hasRewards && (
-    <motion.span ... >
-      {formatNumber(totalRewards)}
-    </motion.span>
-  )}
-</AnimatePresence>
-```
-
-### 4. Chữ "Thưởng & Tặng" To Hơn
-
-**File:** `src/components/Donate/GlobalDonateButton.tsx`
-
-**Thay đổi:**
-```typescript
-// Từ:
-<span className="text-sm font-bold hidden md:inline relative z-10">Thưởng & Tặng</span>
-
-// Sang:
-<span className="text-base font-extrabold hidden md:inline relative z-10 tracking-wide">THƯỞNG & TẶNG</span>
-```
-
----
-
-## Tóm Tắt Thay Đổi
+### Bước 3: Cập Nhật Các Components Chính
 
 | File | Thay đổi |
 |------|----------|
-| `src/components/Wallet/WalletButton.tsx` | 1. Gradient thêm điểm sáng<br>2. Logo to hơn (h-7 w-7)<br>3. Xóa badge số đỏ |
-| `src/components/Donate/GlobalDonateButton.tsx` | Chữ to hơn, uppercase, font-extrabold |
+| `src/components/Donate/EnhancedDonateModal.tsx` | Import và dùng `getDisplayName()` |
+| `src/components/Chat/ChatHeader.tsx` | Import và dùng `getDisplayName()` |
+| `src/pages/Profile.tsx` | Import và dùng `getDisplayName()` |
+| `src/pages/UserProfile.tsx` | Import và dùng `getDisplayName()` |
+| `src/pages/Channel.tsx` | Import và dùng `getDisplayName()` |
+| `src/components/Layout/HonobarDetailModal.tsx` | Import và dùng `getDisplayName()` |
+| `src/components/Video/ShortsCommentSheet.tsx` | Import và dùng `getDisplayName()` |
+| `src/components/Admin/tabs/RewardApprovalTab.tsx` | Import và dùng `getDisplayName()` |
+| `src/components/Admin/tabs/BannedUsersTab.tsx` | Import và dùng `getDisplayName()` |
+| *... và các files khác* | Tương tự |
 
----
+### Ví Dụ Cập Nhật Code
+
+**Trước:**
+```typescript
+<p>{senderProfile.display_name || senderProfile.username}</p>
+```
+
+**Sau:**
+```typescript
+import { getDisplayName } from "@/lib/userUtils";
+
+<p>{getDisplayName(senderProfile.display_name, senderProfile.username)}</p>
+```
 
 ## Kết Quả Mong Đợi
 
-- Nút WALLET có hiệu ứng rainbow sáng lấp lánh với các điểm sáng trắng/xanh
-- Logo ví FUN to rõ ràng, tràn viền ấn tượng
-- Không còn badge số đỏ bị che khuất
-- Chữ "THƯỞNG & TẶNG" to rõ ràng, dễ đọc
+- Tất cả tên user hiển thị sạch, không còn hậu tố "là", "is", hoặc "'s Channel"
+- Code dễ maintain với utility function tập trung
+- Database đã được clean up
+
+## Files Sẽ Thay Đổi
+
+| File | Hành động |
+|------|-----------|
+| `src/lib/userUtils.ts` | **Tạo mới** - Utility functions |
+| `src/components/Donate/EnhancedDonateModal.tsx` | Cập nhật |
+| `src/components/Chat/ChatHeader.tsx` | Cập nhật |
+| `src/pages/Profile.tsx` | Cập nhật |
+| `src/pages/UserProfile.tsx` | Cập nhật |
+| `src/pages/Channel.tsx` | Cập nhật |
+| `src/components/Layout/HonobarDetailModal.tsx` | Cập nhật |
+| `src/components/Video/ShortsCommentSheet.tsx` | Cập nhật |
+| `src/components/Admin/tabs/RewardApprovalTab.tsx` | Cập nhật |
+| `src/components/Admin/tabs/BannedUsersTab.tsx` | Cập nhật |
+| `src/components/Profile/ProfileInfo.tsx` | Cập nhật để dùng utility |
+| **Database Migration** | Sửa display_name có "là" |
