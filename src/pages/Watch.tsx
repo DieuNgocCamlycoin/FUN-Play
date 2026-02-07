@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { ThumbsUp, ThumbsDown, Share2, MoreHorizontal, Coins } from "lucide-react";
-import { TipModal } from "@/components/Tipping/TipModal";
+import { ThumbsUp, ThumbsDown, Share2, MoreHorizontal, Gift } from "lucide-react";
+import { DonateModal } from "@/components/Donate/DonateModal";
 import { ShareModal } from "@/components/Video/ShareModal";
 import { MiniProfileCard } from "@/components/Video/MiniProfileCard";
 
@@ -59,7 +59,7 @@ export default function Watch() {
   const [video, setVideo] = useState<Video | null>(null);
   const [recommendedVideos, setRecommendedVideos] = useState<RecommendedVideo[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tipModalOpen, setTipModalOpen] = useState(false);
+  const [donateModalOpen, setDonateModalOpen] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [rewardNotif, setRewardNotif] = useState<{ amount: number; type: "VIEW" | "LIKE" | "COMMENT" | "SHARE"; show: boolean }>({ 
     amount: 0, 
@@ -507,9 +507,9 @@ export default function Watch() {
           channelName={video?.channels?.name}
           userId={user?.id}
         />
-        <TipModal
-          open={tipModalOpen}
-          onOpenChange={setTipModalOpen}
+        <DonateModal
+          open={donateModalOpen}
+          onOpenChange={setDonateModalOpen}
           videoId={id}
           creatorName={video?.channels.name || ""}
           channelUserId={video?.user_id}
@@ -663,10 +663,10 @@ export default function Watch() {
                     variant="secondary"
                     size="sm"
                     className="rounded-full gap-2 bg-gradient-to-r from-glow-gold/20 to-divine-rose-gold/20 hover:from-glow-gold/30 hover:to-divine-rose-gold/30 border border-glow-gold/30"
-                    onClick={() => setTipModalOpen(true)}
+                    onClick={() => setDonateModalOpen(true)}
                   >
-                    <Coins className="h-4 w-4 text-glow-gold" />
-                    Tip
+                    <Gift className="h-4 w-4 text-glow-gold" />
+                    Tặng
                   </Button>
                   <Button
                     variant="secondary"
@@ -719,9 +719,9 @@ export default function Watch() {
         userId={user?.id}
       />
 
-      <TipModal
-        open={tipModalOpen}
-        onOpenChange={setTipModalOpen}
+      <DonateModal
+        open={donateModalOpen}
+        onOpenChange={setDonateModalOpen}
         videoId={id}
         creatorName={video?.channels.name || ""}
         channelUserId={video?.user_id}

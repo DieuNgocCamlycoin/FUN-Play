@@ -9,7 +9,7 @@ const ERC20_ABI = [
   "function decimals() view returns (uint8)",
 ];
 
-interface SendTipParams {
+interface SendDonationParams {
   toAddress: string;
   amount: number;
   tokenSymbol: string;
@@ -18,18 +18,18 @@ interface SendTipParams {
   videoId?: string;
 }
 
-export const sendTip = async ({
+export const sendDonation = async ({
   toAddress,
   amount,
   tokenSymbol,
   tokenAddress,
   decimals,
   videoId,
-}: SendTipParams) => {
+}: SendDonationParams) => {
   // Get wallet client from wagmi instead of window.ethereum
   const walletClient = await getWalletClient(wagmiConfig);
   if (!walletClient) {
-    throw new Error("Vui lòng kết nối ví để gửi tiền");
+    throw new Error("Vui lòng kết nối ví để tặng");
   }
 
   // Create ethers provider - use window.ethereum if available
