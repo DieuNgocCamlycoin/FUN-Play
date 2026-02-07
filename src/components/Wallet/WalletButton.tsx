@@ -166,26 +166,30 @@ export const WalletButton = ({ compact = false, className }: WalletButtonProps) 
     );
   }
 
-  // Full version for desktop - Premium 5D Gold Metallic Style
+  // Full version for desktop - Hologram Glass Cyan-Teal-Blue Style
   return (
     <motion.div className={cn("relative", className)}>
       <Button
         onClick={handleClick}
         className={cn(
-          "relative gap-2 font-bold transition-all duration-300 overflow-hidden",
-          hasRewards
-            ? "bg-[linear-gradient(to_right,#4ade80,#ffffff,#facc15,#ffffff,#f472b6,#ffffff,#22d3ee,#4ade80)] text-white hover:opacity-90"
-            : "bg-[linear-gradient(to_right,#4ade80aa,#ffffffaa,#facc15aa,#ffffffaa,#f472b6aa,#ffffffaa,#22d3eeaa,#4ade80aa)] text-white/90 border border-white/20"
+          "relative gap-2 font-bold transition-all duration-300 overflow-hidden rounded-full px-5 py-2",
+          "bg-[linear-gradient(90deg,#5EEAD4_0%,#22D3EE_35%,#06B6D4_50%,#0EA5E9_75%,#0284C7_100%)]",
+          "text-white",
+          "hover:brightness-110 hover:saturate-125 hover:-translate-y-0.5 hover:shadow-[0_8px_30px_rgba(34,211,238,0.5)]",
+          "active:brightness-95 active:translate-y-0.5 active:shadow-[0_2px_10px_rgba(34,211,238,0.3)]"
         )}
         style={{
-          boxShadow: hasRewards 
-            ? "0 0 20px rgba(168, 85, 247, 0.4), 0 0 40px rgba(236, 72, 153, 0.2)"
-            : "0 0 10px rgba(168, 85, 247, 0.2)"
+          boxShadow: "0 4px 20px rgba(34, 211, 238, 0.35), 0 0 40px rgba(6, 182, 212, 0.15), inset 0 1px 0 rgba(255,255,255,0.4)"
         }}
       >
-        {/* Continuous Mirror Shimmer Effect - Premium 5D */}
+        {/* Glass highlight reflection on top */}
         <div 
-          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-mirror-shimmer pointer-events-none"
+          className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/30 to-transparent rounded-t-full pointer-events-none"
+        />
+        
+        {/* Continuous Mirror Shimmer Effect */}
+        <div 
+          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent animate-mirror-shimmer pointer-events-none rounded-full"
           style={{ width: '50%' }}
         />
         
@@ -197,22 +201,28 @@ export const WalletButton = ({ compact = false, className }: WalletButtonProps) 
           <img 
             src="/images/fun-play-wallet-icon.png" 
             alt="Wallet" 
-            className="h-7 w-7 rounded-full -ml-1"
+            className="h-14 w-14 rounded-full -ml-2 drop-shadow-lg"
           />
         </motion.div>
         
-        <span className="relative z-10 font-semibold">WALLET</span>
+        <span 
+          className="relative z-10 font-bold text-white tracking-wide"
+          style={{
+            textShadow: "0 0 10px rgba(255,255,255,0.5), 0 1px 2px rgba(0,0,0,0.2)"
+          }}
+        >
+          WALLET
+        </span>
 
-
-        {/* Pulsing Glow effect for rewards */}
+        {/* Soft glow effect for rewards */}
         {hasRewards && (
           <motion.div
-            className="absolute inset-0 rounded-md pointer-events-none"
+            className="absolute inset-0 rounded-full pointer-events-none"
             animate={{
               boxShadow: [
-                "0 0 15px rgba(255, 215, 0, 0.3)",
-                "0 0 25px rgba(255, 215, 0, 0.5)",
-                "0 0 15px rgba(255, 215, 0, 0.3)",
+                "0 0 20px rgba(34, 211, 238, 0.4)",
+                "0 0 35px rgba(6, 182, 212, 0.6)",
+                "0 0 20px rgba(34, 211, 238, 0.4)",
               ],
             }}
             transition={{ duration: 2, repeat: Infinity }}
