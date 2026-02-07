@@ -341,6 +341,57 @@ export type Database = {
         }
         Relationships: []
       }
+      chat_messages: {
+        Row: {
+          chat_id: string
+          content: string | null
+          created_at: string
+          deep_link: string | null
+          donation_transaction_id: string | null
+          id: string
+          is_read: boolean
+          message_type: string
+          sender_id: string
+        }
+        Insert: {
+          chat_id: string
+          content?: string | null
+          created_at?: string
+          deep_link?: string | null
+          donation_transaction_id?: string | null
+          id?: string
+          is_read?: boolean
+          message_type?: string
+          sender_id: string
+        }
+        Update: {
+          chat_id?: string
+          content?: string | null
+          created_at?: string
+          deep_link?: string | null
+          donation_transaction_id?: string | null
+          id?: string
+          is_read?: boolean
+          message_type?: string
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "user_chats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_messages_donation_transaction_id_fkey"
+            columns: ["donation_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "donation_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       claim_requests: {
         Row: {
           amount: number
@@ -657,6 +708,148 @@ export type Database = {
           view_rewards_earned?: number
         }
         Relationships: []
+      }
+      donate_tokens: {
+        Row: {
+          chain: string
+          contract_address: string | null
+          created_at: string
+          decimals: number
+          icon_url: string | null
+          id: string
+          is_enabled: boolean
+          name: string
+          priority: number
+          symbol: string
+        }
+        Insert: {
+          chain: string
+          contract_address?: string | null
+          created_at?: string
+          decimals?: number
+          icon_url?: string | null
+          id?: string
+          is_enabled?: boolean
+          name: string
+          priority?: number
+          symbol: string
+        }
+        Update: {
+          chain?: string
+          contract_address?: string | null
+          created_at?: string
+          decimals?: number
+          icon_url?: string | null
+          id?: string
+          is_enabled?: boolean
+          name?: string
+          priority?: number
+          symbol?: string
+        }
+        Relationships: []
+      }
+      donation_transactions: {
+        Row: {
+          amount: number
+          amount_usd: number | null
+          block_number: number | null
+          chain: string
+          context_id: string | null
+          context_type: string
+          created_at: string
+          explorer_url: string | null
+          fee_amount: number
+          id: string
+          message: string | null
+          metadata: Json | null
+          receipt_public_id: string
+          receiver_id: string
+          sender_id: string
+          status: string
+          token_id: string
+          tx_hash: string | null
+        }
+        Insert: {
+          amount: number
+          amount_usd?: number | null
+          block_number?: number | null
+          chain: string
+          context_id?: string | null
+          context_type?: string
+          created_at?: string
+          explorer_url?: string | null
+          fee_amount?: number
+          id?: string
+          message?: string | null
+          metadata?: Json | null
+          receipt_public_id?: string
+          receiver_id: string
+          sender_id: string
+          status?: string
+          token_id: string
+          tx_hash?: string | null
+        }
+        Update: {
+          amount?: number
+          amount_usd?: number | null
+          block_number?: number | null
+          chain?: string
+          context_id?: string | null
+          context_type?: string
+          created_at?: string
+          explorer_url?: string | null
+          fee_amount?: number
+          id?: string
+          message?: string | null
+          metadata?: Json | null
+          receipt_public_id?: string
+          receiver_id?: string
+          sender_id?: string
+          status?: string
+          token_id?: string
+          tx_hash?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "donation_transactions_token_id_fkey"
+            columns: ["token_id"]
+            isOneToOne: false
+            referencedRelation: "donate_tokens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      internal_wallets: {
+        Row: {
+          balance: number
+          id: string
+          token_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          balance?: number
+          id?: string
+          token_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          balance?: number
+          id?: string
+          token_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "internal_wallets_token_id_fkey"
+            columns: ["token_id"]
+            isOneToOne: false
+            referencedRelation: "donate_tokens"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ip_tracking: {
         Row: {
@@ -1393,6 +1586,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_chats: {
+        Row: {
+          created_at: string
+          id: string
+          updated_at: string
+          user1_id: string
+          user2_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user1_id: string
+          user2_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user1_id?: string
+          user2_id?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
