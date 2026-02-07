@@ -1,150 +1,126 @@
 
-# Tối ưu kích thước Right Sidebar - Cân đối theo Vũ trụ
+# Sửa Lỗi Overflow - Hiển Thị Đầy Đủ Góc Bên Phải
 
-## Phân tích vấn đề hiện tại
+## Phân Tích Vấn Đề
 
-Từ screenshot:
-- Right sidebar: **320px (w-80)** - quá rộng
-- Padding right cho main content: **320px (pr-80)** - chiếm quá nhiều không gian
-- Video grid: 3 cột nhưng bị ép bởi sidebar lớn
-- Stat pills: padding `px-4 py-3` - quá dày
-- Text size: `text-lg` cho values - quá lớn
+Từ screenshots con gửi, Cha thấy 2 vấn đề chính:
 
-## Tính toán kích thước mới
+### Vấn đề 1: Desktop - Right Sidebar bị cắt góc phải
+- Các stat pills trong Honor Board: số liệu như 19, 1, 36, 76.42M bị mất phần cuối
+- Các ranking items trong Top Ranking/Top Sponsors: số CAMLY như 4.3M, 4.2M bị cắt
 
-### Nguyên tắc thiết kế
-- Video card width trung bình: ~260-280px (với gap 16-20px)
-- Right sidebar nên bằng khoảng 1 video card width
-- Video grid nên giữ được 3 cột thoải mái
+**Nguyên nhân**: 
+- Sidebar width = 280px nhưng padding nội dung = px-3 (12px mỗi bên) = 24px padding
+- Thực tế content width = 280 - 24 = 256px - quá chật
+- Các stat pills có gradient kéo dài + text bên phải bị ép
 
-### Kích thước mới đề xuất
+### Vấn đề 2: Mobile - Actions bar bị tràn
+- Nút "Đăng ký", "Lưu", "Tải xuống" bị cắt góc phải
+- Actions row chỉ có `pr-4` không đủ
 
-| Thành phần | Hiện tại | Mới | Giảm |
-|------------|----------|-----|------|
-| Right Sidebar width | 320px (w-80) | **280px (w-[280px])** | -40px |
-| Main content padding-right | pr-80 (320px) | **pr-[280px]** | -40px |
-| Sidebar padding | px-4 | **px-3** | -8px |
-| Space between cards | space-y-4 | **space-y-3** | -4px |
+**Nguyên nhân**:
+- Container có `overflow-x-auto` nhưng không có padding đủ cho scrolling
+- Các buttons có `shrink-0` nhưng container không có đủ không gian
 
-## Chi tiết thay đổi từng Card
+---
 
-### 1. HonorBoardCard.tsx
+## Giải Pháp Chi Tiết
 
-**Giảm padding và kích thước:**
+### 1. HonoboardRightSidebar.tsx
 
-| Element | Hiện tại | Mới |
-|---------|----------|-----|
-| Card padding | p-5 | **p-4** |
-| Header margin | mb-5 | **mb-3** |
-| Crown icons | h-6 w-6 | **h-5 w-5** |
-| Title | text-xl | **text-lg** |
-| Stat pills | px-4 py-3 | **px-3 py-2** |
-| Stat icons | h-4 w-4 | **h-3.5 w-3.5** |
-| Stat labels | text-xs | **text-[10px]** |
-| Stat values | text-lg | **text-base** |
-| Space between pills | space-y-2.5 | **space-y-2** |
-| Realtime margin | mt-4 | **mt-3** |
+**Thay đổi:**
+- Thêm `overflow-hidden` vào aside để ngăn nội dung tràn ra ngoài viewport
+- Giảm padding ScrollArea từ `px-3` xuống `px-2` để tăng không gian content
 
-### 2. TopRankingCard.tsx
+| Vị trí | Cũ | Mới |
+|--------|-----|-----|
+| Dòng 18 | (aside classes) | Thêm `overflow-hidden` |
+| Dòng 26 | `px-3 py-3` | `px-2 py-3` |
 
-**Compact hóa:**
+### 2. HonorBoardCard.tsx - StatPill Component
 
-| Element | Hiện tại | Mới |
-|---------|----------|-----|
-| Card padding | p-5 | **p-4** |
-| Header margin | mb-4 | **mb-3** |
-| Trophy icon | h-5 w-5 | **h-4 w-4** |
-| Title | text-lg | **text-base** |
-| Ranking item padding | px-3 py-2.5 | **px-2.5 py-2** |
-| Avatar | h-9 w-9 | **h-8 w-8** |
-| Name text | text-sm | **text-xs** |
-| Coins icon | h-3.5 w-3.5 | **h-3 w-3** |
-| CAMLY amount | text-sm | **text-xs** |
-| Space between items | space-y-2 | **space-y-1.5** |
-| Button margin | mt-4 | **mt-3** |
-| Button height | default | **h-9** |
+**Thay đổi:**
+- Thêm `overflow-hidden` vào container card
+- Giảm gap giữa icon/label và value
+- Thêm `shrink-0` cho value để không bị co lại
+- Giảm padding pill từ `px-3` xuống `px-2`
 
-### 3. TopSponsorsCard.tsx
+| Element | Cũ | Mới |
+|---------|-----|-----|
+| StatPill padding | `px-3 py-2` | `px-2 py-1.5` |
+| StatPill | `justify-between` | `justify-between gap-1` |
+| Value span | `ml-2` | `shrink-0 ml-1` |
 
-**Tương tự TopRanking:**
+### 3. TopRankingCard.tsx - RankingItem Component
 
-| Element | Hiện tại | Mới |
-|---------|----------|-----|
-| Card padding | p-5 | **p-4** |
-| Header margin | mb-4 | **mb-3** |
-| Gem icon | h-5 w-5 | **h-4 w-4** |
-| Title | text-lg | **text-base** |
-| Sponsor item padding | px-3 py-2.5 | **px-2.5 py-2** |
-| Avatar | h-9 w-9 | **h-8 w-8** |
-| Name text | text-sm | **text-xs** |
-| Coins icon | h-3.5 w-3.5 | **h-3 w-3** |
-| Amount | text-sm | **text-xs** |
-| Space between items | space-y-2 | **space-y-1.5** |
-| Button margin | mt-4 | **mt-3** |
-| Button height | h-11 | **h-9** |
+**Thay đổi:**
+- Thêm `overflow-hidden` vào card và items
+- Thêm `shrink-0` cho CAMLY amount container
+- Giảm padding item
 
-### 4. HonoboardRightSidebar.tsx
+| Element | Cũ | Mới |
+|---------|-----|-----|
+| RankingItem padding | `px-2.5 py-2` | `px-2 py-1.5` |
+| CAMLY container | `flex items-center gap-0.5` | `flex items-center gap-0.5 shrink-0` |
 
-**Giảm width và padding:**
+### 4. TopSponsorsCard.tsx - SponsorItem Component
 
-| Element | Hiện tại | Mới |
-|---------|----------|-----|
-| Sidebar width | w-80 | **w-[280px]** |
-| Scroll area padding | px-4 py-4 | **px-3 py-3** |
-| Space between cards | space-y-4 | **space-y-3** |
-| Branding margin | mt-6 | **mt-4** |
+**Thay đổi tương tự:**
+- Thêm `overflow-hidden` vào card và items
+- Thêm `shrink-0` cho amount container
+- Giảm padding item
 
-### 5. Index.tsx
+| Element | Cũ | Mới |
+|---------|-----|-----|
+| SponsorItem padding | `px-2.5 py-2` | `px-2 py-1.5` |
+| Amount container | `flex items-center gap-0.5` | `flex items-center gap-0.5 shrink-0` |
 
-**Cập nhật main content padding:**
+### 5. VideoActionsBar.tsx (Mobile)
 
-| Element | Hiện tại | Mới |
-|---------|----------|-----|
-| Main padding-right | lg:pr-80 | **lg:pr-[280px]** |
+**Thay đổi:**
+- Tăng padding right của actions row để nội dung không bị cắt khi scroll
+- Thêm margin-right cho element cuối
 
-## Kết quả mong đợi
+| Element | Cũ | Mới |
+|---------|-----|-----|
+| Actions container | `pr-4` | `pr-6` |
+| Last button (Download) | Không có | Thêm `mr-2` |
+| Container | `overflow-x-auto` | `overflow-x-auto overflow-y-visible` |
 
-### Layout mới
+---
 
-```text
-+------------+---------------------------+-------------+
-| Sidebar    |      Video Feed           | Right Bar   |
-| 240px      |      (3 cột video)        |   280px     |
-| (expanded) |                           | (compact)   |
-+------------+---------------------------+-------------+
-             | [video] [video] [video]   | HONOR BOARD |
-             | [video] [video] [video]   | TOP RANKING |
-             |                           | TOP SPONSORS|
-             +---------------------------+-------------+
-```
-
-### So sánh trước/sau
-
-| Metric | Trước | Sau |
-|--------|-------|-----|
-| Right sidebar width | 320px | 280px |
-| Không gian video feed | Hẹp | Rộng hơn 40px |
-| Stat pill height | ~48px | ~36px |
-| Ranking item height | ~50px | ~40px |
-| Tổng height 3 cards | ~750px | ~580px |
-
-## Tổng kết files cần thay đổi
+## Tóm Tắt Thay Đổi
 
 | File | Thay đổi chính |
 |------|----------------|
-| `HonoboardRightSidebar.tsx` | Giảm width từ 320px xuống 280px |
-| `HonorBoardCard.tsx` | Compact padding, text sizes |
-| `TopRankingCard.tsx` | Compact padding, avatar, text sizes |
-| `TopSponsorsCard.tsx` | Compact padding, avatar, text sizes |
-| `Index.tsx` | Cập nhật pr-80 thành pr-[280px] |
+| `HonoboardRightSidebar.tsx` | Thêm `overflow-hidden`, giảm padding |
+| `HonorBoardCard.tsx` | Giảm padding pills, thêm `shrink-0` cho values |
+| `TopRankingCard.tsx` | Giảm padding items, thêm `shrink-0` cho amounts |
+| `TopSponsorsCard.tsx` | Giảm padding items, thêm `shrink-0` cho amounts |
+| `VideoActionsBar.tsx` | Tăng padding right, thêm margin cho nút cuối |
 | **Tổng cộng** | **5 files** |
 
-## Màu sắc và style giữ nguyên
+---
 
-- Hologram border gradient: Cyan → Purple → Magenta
-- Stat pills: Purple-Pink gradient (#7A2BFF → #FF00E5 → #FFD700)
-- Gold values: #FFD700
-- Glass effect: bg-white/85 backdrop-blur-xl
-- Glow shadows
+## Kết Quả Mong Đợi
 
-Chỉ thay đổi kích thước để cân đối hơn, không đổi màu sắc!
+### Desktop Right Sidebar:
+- Tất cả số liệu hiển thị đầy đủ trong khung
+- Không còn bị cắt góc phải
+- Vẫn giữ được hiệu ứng gradient và glow
+
+### Mobile Video Actions:
+- Tất cả buttons hiển thị đầy đủ
+- Scroll ngang hoạt động mượt mà
+- Không bị cắt nút cuối cùng
+
+---
+
+## Nguyên Tắc Thiết Kế
+
+1. **Container phải có overflow-hidden** để kiểm soát nội dung
+2. **Số liệu/giá trị quan trọng** cần `shrink-0` để không bị co lại
+3. **Padding đủ** cho scrollable containers
+4. **Text truncate** cho phần có thể cắt (tên user), giữ nguyên số liệu
+
+Màu sắc và style giữ nguyên hoàn toàn - chỉ điều chỉnh kích thước và overflow handling!
