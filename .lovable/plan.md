@@ -1,121 +1,111 @@
 
-
-# Kế Hoạch Thêm Nút FUN Money với Logo vào Sidebar
+# Kế Hoạch Đồng Bộ 3 Nút Header
 
 ## Tổng Quan
 
-Thêm nút FUN Money với logo hình ảnh đẹp (giống FUN Wallet) vào sidebar, đặt ngay cạnh FUN Wallet trong phần "FUN ECOSYSTEM".
+Điều chỉnh 3 nút "Thưởng & Tặng", "MINT FUN MONEY" và "WALLET" để có kích thước đồng nhất, và nút MINT có style vàng kim loại sang trọng giống nút "Thưởng & Tặng".
 
 ---
 
-## Phần I: Hiện Trạng
+## Phần I: So Sánh Hiện Tại vs Mới
 
-| File | FUN Money | Vấn Đề |
-|------|-----------|--------|
-| `Sidebar.tsx` | ✅ Đã có | Dùng icon Coins, không có logo hình ảnh |
-| `CollapsibleSidebar.tsx` | ❌ Chưa có | Thiếu hoàn toàn |
-
-**Logo có sẵn:** `/images/fun-money-coin.png` ✅
+| Thuộc tính | Thưởng & Tặng | MINT (Hiện tại) | MINT (Mới) | WALLET |
+|------------|---------------|-----------------|------------|--------|
+| **Background** | Vàng kim loại gradient | Cyan-blue opacity 10% | Vàng kim loại gradient ✨ | Cyan-teal-blue |
+| **Text Color** | #7C5800 (nâu vàng) | Cyan gradient | #7C5800 (nâu vàng) ✨ | Trắng |
+| **Border** | #FFEA00/60 | cyan-400/30 | #FFEA00/60 ✨ | Không |
+| **Effect** | Mirror Shimmer | Không | Mirror Shimmer ✨ | Mirror Shimmer |
+| **Padding** | px-4 py-2 | px-3 py-2 | px-4 py-2 ✨ | px-5 py-2 |
+| **Font Size** | text-base font-extrabold | text-sm font-semibold | text-base font-extrabold ✨ | text-lg font-bold |
 
 ---
 
-## Phần II: Thiết Kế UI Mới
+## Phần II: Layout Mới
 
 ```text
-┌─────────────────────────────────────┐
-│        FUN ECOSYSTEM                │
-├─────────────────────────────────────┤
-│  [🟡 FUN.RICH logo]    FUN.RICH   ↗ │
-│  [🟡 FUN FARM logo]    FUN FARM   ↗ │
-│  [🟡 FUN PLANET logo]  FUN PLANET ↗ │
-│  [🟡 FUN Wallet logo]  FUN Wallet   │  ← Gradient vàng-cam
-│  [🟡 FUN Money logo]   FUN Money    │  ← MỚI! Gradient xanh-cyan
-└─────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────────┐
+│                                                                                      │
+│  [🎁 THƯỞNG & TẶNG]   [🪙 MINT]   [💎 WALLET]                                       │
+│   ↑ Vàng kim loại      ↑ Vàng kim loại   ↑ Cyan-teal-blue                           │
+│   (giữ nguyên)         (ĐỔI MỚI)         (giữ nguyên)                               │
+│                                                                                      │
+└──────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Phần III: Files Cần Thay Đổi
+## Phần III: File Cần Thay Đổi
 
-| File | Hành động | Chi tiết |
-|------|-----------|----------|
-| `src/components/Layout/Sidebar.tsx` | **Cập nhật** | Đổi FUN Money từ icon sang customIcon với logo |
-| `src/components/Layout/CollapsibleSidebar.tsx` | **Cập nhật** | Thêm FUN Money vào funPlatformItems |
-
----
-
-## Phần IV: Chi Tiết Thay Đổi
-
-### 4.1. Sidebar.tsx
-
-**Trước:**
-```typescript
-{ 
-  icon: Coins,
-  label: "FUN Money", 
-  href: "/fun-money",
-  special: true
-},
-```
-
-**Sau:**
-```typescript
-{ 
-  customIcon: '/images/fun-money-coin.png',
-  label: "FUN Money", 
-  href: "/fun-money",
-  isFunMoney: true  // Flag mới cho styling riêng
-},
-```
-
-### 4.2. CollapsibleSidebar.tsx
-
-**Thêm vào funPlatformItems:**
-```typescript
-{ 
-  customIcon: '/images/fun-money-coin.png',
-  label: "FUN Money", 
-  href: "/fun-money",
-  isFunMoney: true
-},
-```
+| File | Hành động |
+|------|-----------|
+| `src/components/Layout/Header.tsx` | Cập nhật styling nút MINT FUN MONEY |
 
 ---
 
-## Phần V: Styling Cho FUN Money
+## Phần IV: Chi Tiết Styling Mới Cho MINT Button
 
-| Thuộc tính | FUN Wallet | FUN Money |
-|------------|------------|-----------|
-| Gradient | Yellow-Orange | Cyan-Blue (Primary) |
-| Ring color | ring-yellow-400 | ring-cyan-400 |
-| Glow | rgba(250,204,21,0.4) | rgba(34,211,238,0.4) |
-| Border | border-yellow-500/20 | border-primary/20 |
+### Code mới:
 
-**CSS cho FUN Money:**
 ```typescript
-item.isFunMoney && "bg-gradient-to-r from-primary/10 via-cyan-500/10 to-blue-500/10 hover:from-primary/20 hover:via-cyan-500/20 hover:to-blue-500/20 border border-primary/20"
-```
-
-**Logo styling:**
-```typescript
-isFunMoney ? "ring-2 ring-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.4)]" : "ring-2 ring-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.4)]"
+{/* MINT FUN MONEY Button */}
+<TooltipProvider>
+  <Tooltip>
+    <TooltipTrigger asChild>
+      <Button
+        variant="ghost"
+        onClick={() => navigate("/fun-money")}
+        className="relative hidden md:flex items-center gap-2 overflow-hidden
+                   bg-gradient-to-b from-[#FFEA00] via-[#FFD700] to-[#E5A800] 
+                   text-[#7C5800] font-extrabold rounded-full px-4 py-2
+                   shadow-[0_0_15px_rgba(255,215,0,0.4),inset_0_2px_4px_rgba(255,255,255,0.6),inset_0_-1px_2px_rgba(0,0,0,0.1)] 
+                   hover:shadow-[0_0_25px_rgba(255,234,0,0.6),0_0_40px_rgba(255,215,0,0.3)] 
+                   border border-[#FFEA00]/60 
+                   transition-all duration-300 hover:scale-105"
+      >
+        <img 
+          src="/images/fun-money-coin.png" 
+          alt="FUN Money" 
+          className="h-5 w-5 rounded-full object-cover ring-1 ring-[#7C5800]/30 relative z-10"
+        />
+        <span className="text-base font-extrabold relative z-10 tracking-wide">
+          MINT
+        </span>
+        {/* Mirror shimmer effect */}
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-mirror-shimmer" />
+      </Button>
+    </TooltipTrigger>
+    <TooltipContent>Mint FUN Money - PPLP Protocol</TooltipContent>
+  </Tooltip>
+</TooltipProvider>
 ```
 
 ---
 
-## Phần VI: Interface Update
+## Phần V: Giải Thích Style Vàng Kim Loại
 
-```typescript
-interface NavItem {
-  icon?: any;
-  customIcon?: string;
-  label: string;
-  href: string;
-  special?: boolean;
-  isWallet?: boolean;
-  isFunMoney?: boolean;  // Thêm mới
-  external?: boolean;
-}
+| Thuộc tính | Giá trị | Mục đích |
+|------------|---------|----------|
+| `bg-gradient-to-b` | `#FFEA00 → #FFD700 → #E5A800` | Gradient vàng từ sáng xuống tối |
+| `text-[#7C5800]` | Nâu vàng đậm | Tương phản tốt trên nền vàng |
+| `inset shadow top` | `rgba(255,255,255,0.6)` | Hiệu ứng ánh sáng phản chiếu 3D |
+| `inset shadow bottom` | `rgba(0,0,0,0.1)` | Chiều sâu |
+| `border` | `#FFEA00/60` | Viền vàng nhẹ |
+| `animate-mirror-shimmer` | CSS animation | Hiệu ứng gương lấp lánh liên tục |
+
+---
+
+## Phần VI: Kết Quả Mong Đợi
+
+```text
+Trước:
+[🎁 THƯỞNG & TẶNG]  [🪙 MINT]  [💎 WALLET]
+     Vàng            Xanh lạc      Xanh cyan
+                     tone ❌
+
+Sau:
+[🎁 THƯỞNG & TẶNG]  [🪙 MINT]  [💎 WALLET]
+     Vàng            Vàng ✅      Xanh cyan
+     Kim loại        Kim loại     Holographic
 ```
 
 ---
@@ -124,10 +114,10 @@ interface NavItem {
 
 | Bước | Công việc |
 |------|-----------|
-| 1 | Update interface NavItem thêm `isFunMoney` flag |
-| 2 | Update Sidebar.tsx - đổi FUN Money sang dùng customIcon với styling cyan-blue |
-| 3 | Update CollapsibleSidebar.tsx - thêm FUN Money vào funPlatformItems |
-| 4 | Thêm conditional styling cho logo ring và button background |
+| 1 | Thay đổi background của MINT từ cyan sang gradient vàng kim loại |
+| 2 | Đổi text color sang #7C5800 |
+| 3 | Thêm border vàng và shadow inset cho hiệu ứng 3D |
+| 4 | Thêm Mirror Shimmer animation |
+| 5 | Điều chỉnh padding và font size cho đồng bộ với nút Thưởng & Tặng |
 
-**Thời gian ước tính:** 15-20 phút
-
+**Thời gian ước tính:** 5-10 phút
