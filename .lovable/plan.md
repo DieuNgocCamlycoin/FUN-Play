@@ -1,118 +1,120 @@
 
-# 🔧 Fix Modal "Thưởng & Tặng" - Không Tìm Được Tên & Không Nhập Được Dữ Liệu
+# 🔧 Fix Triệt Để Modal "Thưởng & Tặng" - Chống Reset Loop
 
-## 📋 Phân Tích Vấn Đề
+## 📋 Nguyên Nhân Gốc
 
-Dựa trên screenshots và code review, em đã xác định được **3 vấn đề chính**:
+Khi gộp từ multi-step sang single-page, **useEffect khởi tạo** vẫn chạy theo logic cũ nhưng với dependency không stable:
 
-### Vấn đề #1: Không tìm được người nhận (loading mãi)
-
-**Phân tích từ Screenshot:**
-- Ảnh 1: User nhập "thu trang" → loading spinner hiển thị
-- Ảnh 2: Input trống nhưng vẫn có loading spinner
-
-**Nguyên nhân có thể:**
-1. Debounce effect không được cancel đúng cách khi user xóa input
-2. `searching` state không được reset về `false` sau khi search xong
-3. Logic hiển thị dropdown kiểm tra `searchResults.length > 0 || searching` - nếu searching = true mà không có results, sẽ hiển thị spinner mãi
-
-**Code hiện tại (dòng 136-157):**
 ```tsx
 useEffect(() => {
-  const searchUsers = async () => {
-    if (searchQuery.length < 2) {
-      setSearchResults([]);
-      return; // ❌ Không reset searching = false
-    }
-    setSearching(true);
-    // ... search logic
-    setSearchResults(data || []);
-    setSearching(false);
-  };
-  const debounce = setTimeout(searchUsers, 300);
-  return () => clearTimeout(debounce);
-}, [searchQuery, user?.id]);
+  if (open) {
+    fetchTokens().then(...);     // fetchTokens thay đổi mỗi render!
+    setSelectedReceiver(null);   // ← Reset mọi thứ
+    setAmount("");
+    setMessage("");
+  }
+}, [open, ..., fetchTokens]);    // ← fetchTokens là dependency không stable
 ```
 
-**Vấn đề:** Khi `searchQuery.length < 2`, function return sớm nhưng KHÔNG reset `searching` về `false`
-
-### Vấn đề #2: Input/Textarea không nhập được
-
-**Nguyên nhân:**
-- CSS class `.hologram-input` sử dụng `position: relative` và complex background gradients
-- Có thể có layer vô hình che phủ input
-- Cần đảm bảo `pointer-events` được set đúng
-
-**Code hiện tại trong CSS (dòng 424-435):**
-```css
-.hologram-input {
-  position: relative;
-  border: 1px solid transparent !important;
-  background: ...;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  /* ❌ Thiếu pointer-events */
-}
-```
-
-### Vấn đề #3: Select Token dropdown có thể bị block
-
-**Phân tích:** SelectContent đã có `z-[10003]` nhưng có thể SelectTrigger bị block bởi một layer khác
+**`fetchTokens` không được memoize** → mỗi lần render tạo function mới → dependency thay đổi → effect chạy lại → reset form!
 
 ---
 
-## ✅ Giải Pháp Chi Tiết
+## ✅ Giải Pháp
 
-### Fix #1: Sửa Logic Search Users
+### Fix #1: Memoize `fetchTokens` trong useDonation.ts
+
+**File:** `src/hooks/useDonation.ts`
+
+```tsx
+import { useState, useCallback } from "react";  // ← Thêm useCallback
+
+const fetchTokens = useCallback(async () => {
+  const { data, error } = await supabase
+    .from("donate_tokens")
+    .select("*")
+    .eq("is_enabled", true)
+    .order("priority", { ascending: true });
+
+  if (!error && data) {
+    setTokens(data as DonationToken[]);
+  }
+  return data as DonationToken[] || [];
+}, []);  // ← Empty dependency = stable reference
+```
+
+### Fix #2: Sử dụng `useRef` để chỉ init 1 lần khi modal mở
 
 **File:** `src/components/Donate/EnhancedDonateModal.tsx`
 
-**Thay đổi dòng 136-157:**
+Thêm ref để track trạng thái đã khởi tạo:
+
 ```tsx
+import { useState, useEffect, useRef } from "react";  // ← Thêm useRef
+
+// Trong component:
+const didInitRef = useRef(false);
+
 useEffect(() => {
-  const searchUsers = async () => {
-    // Khi query quá ngắn, reset cả results và searching state
-    if (searchQuery.length < 2) {
-      setSearchResults([]);
-      setSearching(false); // ✅ THÊM DÒNG NÀY
-      return;
+  // Khi modal đóng, reset flag để lần mở tiếp theo sẽ init lại
+  if (!open) {
+    didInitRef.current = false;
+    return;
+  }
+  
+  // Đã init rồi thì không chạy lại
+  if (didInitRef.current) return;
+  didInitRef.current = true;
+  
+  // Chỉ init 1 lần duy nhất khi modal vừa mở
+  fetchTokens().then((fetchedTokens) => {
+    if (fetchedTokens && fetchedTokens.length > 0) {
+      const sorted = [...fetchedTokens].sort((a, b) => a.priority - b.priority);
+      setSelectedToken(sorted[0]);
     }
+  });
 
-    setSearching(true);
-    try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, username, display_name, avatar_url, wallet_address")
-        .or(`username.ilike.%${searchQuery}%,display_name.ilike.%${searchQuery}%`)
-        .neq("id", user?.id || "")
-        .limit(8);
+  if (defaultReceiverId) {
+    setSelectedReceiver({
+      id: defaultReceiverId,
+      username: defaultReceiverName || "",
+      display_name: defaultReceiverName || null,
+      avatar_url: defaultReceiverAvatar || null,
+      wallet_address: defaultReceiverWallet || null,
+    });
+    setShowSearch(false);
+  } else {
+    setSelectedReceiver(null);
+    setShowSearch(true);
+  }
 
-      if (error) {
-        console.error("Search error:", error);
-        setSearchResults([]);
-      } else {
-        setSearchResults(data || []);
-      }
-    } catch (err) {
-      console.error("Search error:", err);
-      setSearchResults([]);
-    } finally {
-      setSearching(false); // ✅ Luôn reset searching state
-    }
-  };
-
-  const debounce = setTimeout(searchUsers, 300);
-  return () => clearTimeout(debounce);
-}, [searchQuery, user?.id]);
+  setAmount("");
+  setMessage("");
+  setShowSuccess(false);
+  setCompletedTransaction(null);
+}, [open, defaultReceiverId, defaultReceiverName, defaultReceiverAvatar, defaultReceiverWallet]);
+// ← Loại bỏ fetchTokens khỏi dependency
 ```
 
-### Fix #2: Thêm pointer-events vào CSS hologram-input
+### Fix #3: Sửa `Dialog onOpenChange` để không reset khi đang tương tác
+
+```tsx
+<Dialog 
+  open={open} 
+  onOpenChange={(nextOpen) => {
+    if (!nextOpen) {
+      handleClose();
+    }
+  }}
+>
+```
+
+### Fix #4: Thêm pointer-events cho `.hologram-input-trigger`
 
 **File:** `src/index.css`
 
-**Thay đổi dòng 423-435:**
 ```css
-/* Hologram Input Border - Applied globally */
-.hologram-input {
+.hologram-input-trigger {
   position: relative;
   border: 1px solid transparent !important;
   background: 
@@ -123,23 +125,9 @@ useEffect(() => {
       hsl(var(--cosmic-gold))
     ) border-box !important;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  pointer-events: auto !important; /* ✅ THÊM DÒNG NÀY */
-  isolation: isolate; /* ✅ THÊM DÒNG NÀY - Tạo stacking context mới */
+  pointer-events: auto !important;
+  isolation: isolate;
 }
-```
-
-### Fix #3: Đảm bảo Input trong modal có pointer-events
-
-**File:** `src/components/Donate/EnhancedDonateModal.tsx`
-
-Thêm `pointer-events-auto` cho search input (dòng 331-335):
-```tsx
-<Input
-  placeholder="Tìm kiếm người nhận..."
-  value={searchQuery}
-  onChange={(e) => setSearchQuery(e.target.value)}
-  className="pl-9 hologram-input pointer-events-auto"
-/>
 ```
 
 ---
@@ -148,28 +136,127 @@ Thêm `pointer-events-auto` cho search input (dòng 331-335):
 
 | File | Thay đổi |
 |------|----------|
-| `src/components/Donate/EnhancedDonateModal.tsx` | Fix search logic + thêm pointer-events cho search input |
-| `src/index.css` | Thêm pointer-events và isolation cho hologram-input |
+| `src/hooks/useDonation.ts` | Thêm `useCallback` cho `fetchTokens` |
+| `src/components/Donate/EnhancedDonateModal.tsx` | Thêm `useRef` để init 1 lần, sửa Dialog onOpenChange |
+| `src/index.css` | Thêm pointer-events cho `.hologram-input-trigger` |
 
 ---
 
 ## 🔧 Chi Tiết Code Changes
 
-### 1. EnhancedDonateModal.tsx
+### 1. useDonation.ts
 
-**Dòng 136-157 - Sửa search useEffect:**
-- Thêm `setSearching(false)` khi query < 2 ký tự
-- Wrap search trong try/catch/finally để đảm bảo `searching` luôn được reset
-- Thêm error logging
+**Dòng 1 - Thêm import useCallback:**
+```tsx
+import { useState, useCallback } from "react";
+```
 
-**Dòng 331-335 - Thêm pointer-events cho search input:**
-- Thêm `pointer-events-auto` vào className
+**Dòng 60-71 - Wrap fetchTokens bằng useCallback:**
+```tsx
+const fetchTokens = useCallback(async () => {
+  const { data, error } = await supabase
+    .from("donate_tokens")
+    .select("*")
+    .eq("is_enabled", true)
+    .order("priority", { ascending: true });
 
-### 2. index.css
+  if (!error && data) {
+    setTokens(data as DonationToken[]);
+  }
+  return data as DonationToken[] || [];
+}, []);
+```
 
-**Dòng 423-435 - Cập nhật .hologram-input:**
-- Thêm `pointer-events: auto !important;`
-- Thêm `isolation: isolate;` để tạo stacking context riêng
+### 2. EnhancedDonateModal.tsx
+
+**Dòng 1 - Thêm useRef:**
+```tsx
+import { useState, useEffect, useRef } from "react";
+```
+
+**Dòng 85 (sau senderProfile state) - Thêm ref:**
+```tsx
+// Track if modal has been initialized this session
+const didInitRef = useRef(false);
+```
+
+**Dòng 101-133 - Sửa lại useEffect init:**
+```tsx
+useEffect(() => {
+  if (!open) {
+    didInitRef.current = false;
+    return;
+  }
+  
+  if (didInitRef.current) return;
+  didInitRef.current = true;
+  
+  fetchTokens().then((fetchedTokens) => {
+    if (fetchedTokens && fetchedTokens.length > 0) {
+      const sorted = [...fetchedTokens].sort((a, b) => a.priority - b.priority);
+      setSelectedToken(sorted[0]);
+    }
+  });
+
+  if (defaultReceiverId) {
+    setSelectedReceiver({
+      id: defaultReceiverId,
+      username: defaultReceiverName || "",
+      display_name: defaultReceiverName || null,
+      avatar_url: defaultReceiverAvatar || null,
+      wallet_address: defaultReceiverWallet || null,
+    });
+    setShowSearch(false);
+  } else {
+    setSelectedReceiver(null);
+    setShowSearch(true);
+  }
+
+  setAmount("");
+  setMessage("");
+  setShowSuccess(false);
+  setCompletedTransaction(null);
+}, [open, defaultReceiverId, defaultReceiverName, defaultReceiverAvatar, defaultReceiverWallet]);
+```
+
+**Dòng 250 - Sửa Dialog onOpenChange:**
+```tsx
+<Dialog 
+  open={open} 
+  onOpenChange={(nextOpen) => {
+    if (!nextOpen) handleClose();
+  }}
+>
+```
+
+### 3. index.css
+
+**Thêm sau `.hologram-input` (khoảng dòng 445):**
+```css
+.hologram-input-trigger {
+  position: relative;
+  border: 1px solid transparent !important;
+  background: 
+    linear-gradient(hsl(var(--background)), hsl(var(--background))) padding-box,
+    linear-gradient(135deg, 
+      hsl(var(--cosmic-cyan)), 
+      hsl(var(--cosmic-magenta)), 
+      hsl(var(--cosmic-gold))
+    ) border-box !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: auto !important;
+  isolation: isolate;
+}
+
+.hologram-input-trigger:focus,
+.hologram-input-trigger:focus-within {
+  box-shadow: 
+    0 0 8px hsla(var(--cosmic-cyan), 0.5),
+    0 0 16px hsla(var(--cosmic-magenta), 0.3),
+    0 0 24px hsla(var(--cosmic-gold), 0.2);
+  animation: input-glow-pulse 1.5s ease-in-out infinite;
+}
+```
 
 ---
 
@@ -177,37 +264,40 @@ Thêm `pointer-events-auto` cho search input (dòng 331-335):
 
 Sau khi fix:
 
-1. **Tìm kiếm người nhận:**
-   - [ ] Nhập 1 ký tự → không có loading spinner
-   - [ ] Nhập 2+ ký tự → có loading spinner
-   - [ ] Có kết quả → hiển thị dropdown với users
-   - [ ] Không có kết quả → loading spinner biến mất
-   - [ ] Xóa hết input → loading spinner biến mất
+1. **Người nhận:**
+   - [ ] Tìm user → click chọn → giữ nguyên, không biến mất
+   - [ ] Click X để đổi user khác → hoạt động
 
-2. **Chọn người nhận:**
-   - [ ] Click vào user trong dropdown → user được chọn
-   - [ ] Hiển thị avatar + tên người nhận
+2. **Chọn Token:**
+   - [ ] Click dropdown → chọn CAMLY → giữ nguyên CAMLY
+   - [ ] Chọn BNB → giữ nguyên BNB
+   - [ ] Không tự nhảy về FUN MONEY
 
-3. **Input Số tiền:**
-   - [ ] Click vào input → có thể focus
-   - [ ] Gõ số → số hiển thị
+3. **Số tiền:**
+   - [ ] Click 10/50/100/500 → số được chọn và giữ nguyên
+   - [ ] Nhập số vào input → giữ nguyên số đã nhập
+   - [ ] Kéo slider → giữ nguyên
 
-4. **Textarea Lời nhắn:**
-   - [ ] Click vào textarea → có thể focus  
-   - [ ] Gõ chữ → chữ hiển thị
+4. **Lời nhắn:**
+   - [ ] Click vào textarea → focus được
+   - [ ] Gõ chữ → giữ nguyên chữ đã gõ
+   - [ ] Click emoji → emoji được thêm và giữ nguyên
 
-5. **Select Token:**
-   - [ ] Click dropdown → hiển thị danh sách tokens
-   - [ ] Chọn token khác → token được đổi
+5. **Flow hoàn chỉnh:**
+   - [ ] Chọn user → chọn token → nhập amount → nhập message → bấm Tặng
+   - [ ] Thành công hiển thị overlay celebration
 
 ---
 
 ## 📊 Tổng Kết
 
-| Vấn đề | Nguyên nhân | Fix |
-|--------|-------------|-----|
-| Loading spinner hiển thị mãi | `searching` không được reset khi query < 2 | Thêm `setSearching(false)` |
-| Không nhập được input | CSS hologram blocking events | Thêm `pointer-events: auto !important` |
-| Click user không chọn được | Đã fix ở bản trước với `type="button"` | Verify hoạt động |
+| Vấn đề | Nguyên nhân gốc | Fix |
+|--------|-----------------|-----|
+| User biến mất sau khi chọn | `useEffect` reset state liên tục | `useRef` để init 1 lần duy nhất |
+| Token nhảy về FUN MONEY | `fetchTokens` không stable → dependency thay đổi | `useCallback` cho `fetchTokens` |
+| Không nhập được amount/message | State bị reset khi gõ | Loại `fetchTokens` khỏi dependency |
+| Select bị block | Thiếu pointer-events | Thêm CSS cho `.hologram-input-trigger` |
 
-**Thời gian thực hiện:** ~5-10 phút
+**Đây là bài học quan trọng:** Khi chuyển từ multi-step sang single-page, cần đặc biệt chú ý đến **dependency của useEffect** và **memoization của functions**!
+
+**Thời gian thực hiện:** ~10 phút
