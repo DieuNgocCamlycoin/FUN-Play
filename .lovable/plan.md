@@ -1,31 +1,23 @@
 
-# 🌟 Nâng Cấp Nút "Tặng thưởng" - Vàng Gold Light Kim Loại
+# 🌟 Cập Nhật Nút "Thưởng & Tặng" Trên Header - Vàng Kim Loại
 
-## 📋 Phân Tích Màu Từ Hình Tham Khảo
+## 📋 Vấn Đề Hiện Tại
 
-Hình ảnh thể hiện hiệu ứng **brushed gold metal** (vàng kim loại đánh bóng) với các dải sọc ngang tạo độ sáng bóng:
-
-| Vùng | Mã màu | Mô tả |
-|------|--------|-------|
-| Highlight (sáng nhất) | `#FFEA00` → `#FFE55C` | Vàng chanh sáng, ánh sáng phản chiếu |
-| Midtone (giữa) | `#FFD700` → `#F5C800` | Vàng gold chuẩn |
-| Base (nền) | `#E5A800` → `#CC9600` | Vàng đậm hơn |
-| Shadow | `#B8860B` | Vàng nâu tối |
-
----
-
-## 🎨 Thiết Kế Mới Cho Nút "Tặng thưởng"
-
-**Gradient chính:**
-```css
-bg-gradient-to-b from-[#FFEA00] via-[#FFD700] to-[#E5A800]
+Nút "Thưởng & Tặng" trong `GlobalDonateButton.tsx` (hiển thị trên Header trang chủ) vẫn dùng style cũ:
+```tsx
+// Style cũ - amber/orange nhạt
+className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 
+           hover:from-amber-500/20 hover:to-orange-500/20 
+           border border-amber-500/30"
 ```
 
-**Hiệu ứng đặc biệt:**
-- Gradient dọc (top-to-bottom) để tạo hiệu ứng kim loại đánh bóng
-- Inset shadow trắng ở viền trên để tạo độ sáng bóng
-- Glow vàng sáng khi hover
-- Text màu nâu đậm (`#7C5800`) để dễ đọc trên nền sáng
+## 🎯 Mục Tiêu
+
+Đồng bộ style vàng kim loại sáng bóng giống như nút "Tặng thưởng" trong `ProfileInfo.tsx`:
+- Gradient vàng dọc: `#FFEA00` → `#FFD700` → `#E5A800`
+- Glow vàng sáng
+- Hiệu ứng tráng gương
+- Text nâu đậm để dễ đọc
 
 ---
 
@@ -33,53 +25,106 @@ bg-gradient-to-b from-[#FFEA00] via-[#FFD700] to-[#E5A800]
 
 | File | Thay đổi |
 |------|----------|
-| `src/components/Profile/ProfileInfo.tsx` | Cập nhật gradient nút "Tặng thưởng" thành vàng light gold |
+| `src/components/Donate/GlobalDonateButton.tsx` | Cập nhật cả 2 variant (default + mobile) với style vàng kim loại |
 
 ---
 
 ## 🔧 Chi Tiết Code
 
-### ProfileInfo.tsx - Dòng 138-148
+### GlobalDonateButton.tsx
 
-**Trước (hiện tại):**
+**Variant Default (Desktop - dòng 51-62):**
+
+Trước:
 ```tsx
-className="relative group overflow-hidden bg-gradient-to-r from-[#D4AF37] via-[#F5E7A3] to-[#D4AF37] text-[#654321] font-bold px-5 py-2.5 rounded-full shadow-[0_0_25px_rgba(212,175,55,0.6),inset_0_1px_0_rgba(255,255,255,0.4)] hover:shadow-[0_0_40px_rgba(245,231,163,0.8),0_0_60px_rgba(212,175,55,0.5)] border border-[#F5E7A3]/50 transition-all duration-300 hover:scale-105"
+<Button
+  variant="ghost"
+  onClick={handleClick}
+  className={`flex items-center gap-2 bg-gradient-to-r from-amber-500/10 to-orange-500/10 
+             hover:from-amber-500/20 hover:to-orange-500/20 
+             border border-amber-500/30 rounded-full px-4 ${className}`}
+>
+  <Gift className="h-4 w-4 text-amber-500" />
+  <span className="text-sm font-medium hidden md:inline">Thưởng & Tặng</span>
+</Button>
 ```
 
-**Sau (vàng light gold như hình):**
+Sau (vàng kim loại sáng bóng):
 ```tsx
-className="relative group overflow-hidden bg-gradient-to-b from-[#FFEA00] via-[#FFD700] to-[#E5A800] text-[#7C5800] font-bold px-5 py-2.5 rounded-full shadow-[0_0_20px_rgba(255,215,0,0.5),inset_0_2px_4px_rgba(255,255,255,0.6),inset_0_-1px_2px_rgba(0,0,0,0.1)] hover:shadow-[0_0_35px_rgba(255,234,0,0.7),0_0_50px_rgba(255,215,0,0.4)] border border-[#FFEA00]/60 transition-all duration-300 hover:scale-105"
+<Button
+  onClick={handleClick}
+  className={`relative group overflow-hidden flex items-center gap-2 
+             bg-gradient-to-b from-[#FFEA00] via-[#FFD700] to-[#E5A800] 
+             text-[#7C5800] font-bold rounded-full px-4 py-2
+             shadow-[0_0_15px_rgba(255,215,0,0.4),inset_0_2px_4px_rgba(255,255,255,0.6),inset_0_-1px_2px_rgba(0,0,0,0.1)] 
+             hover:shadow-[0_0_25px_rgba(255,234,0,0.6),0_0_40px_rgba(255,215,0,0.3)] 
+             border border-[#FFEA00]/60 
+             transition-all duration-300 hover:scale-105 ${className}`}
+>
+  <Gift className="h-4 w-4" />
+  <span className="text-sm font-bold hidden md:inline">Thưởng & Tặng</span>
+  {/* Shimmer effect */}
+  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+</Button>
 ```
 
-**Giải thích thay đổi:**
-1. **Gradient**: `bg-gradient-to-b` (dọc) thay vì `to-r` (ngang)
-2. **Màu mới**: 
-   - From: `#FFEA00` (vàng sáng nhất)
-   - Via: `#FFD700` (gold chuẩn)
-   - To: `#E5A800` (vàng đậm)
-3. **Text**: `#7C5800` (nâu vàng đậm, dễ đọc hơn)
-4. **Shadow**: 
-   - Glow vàng sáng hơn
-   - Inset shadow trắng mạnh hơn (0.6 opacity)
-   - Thêm inset shadow tối ở dưới để tạo chiều sâu
-5. **Border**: Màu vàng sáng `#FFEA00`
+**Variant Mobile (dòng 34-41):**
+
+Trước:
+```tsx
+<Button
+  variant="ghost"
+  size="icon"
+  onClick={handleClick}
+  className="relative h-9 w-9 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30"
+>
+  <Gift className="h-5 w-5 text-amber-500" />
+</Button>
+```
+
+Sau (vàng kim loại mini):
+```tsx
+<Button
+  size="icon"
+  onClick={handleClick}
+  className="relative h-9 w-9 rounded-full overflow-hidden
+             bg-gradient-to-b from-[#FFEA00] via-[#FFD700] to-[#E5A800]
+             shadow-[0_0_12px_rgba(255,215,0,0.5),inset_0_1px_2px_rgba(255,255,255,0.5)]
+             hover:shadow-[0_0_20px_rgba(255,234,0,0.7)]
+             border border-[#FFEA00]/50
+             transition-all duration-300 hover:scale-110"
+>
+  <Gift className="h-5 w-5 text-[#7C5800]" />
+</Button>
+```
+
+---
+
+## 🎨 So Sánh Trước/Sau
+
+| Thuộc tính | Trước | Sau |
+|------------|-------|-----|
+| Background | amber-500/10 (rất nhạt) | #FFEA00 → #FFD700 → #E5A800 (vàng sáng) |
+| Text | Mặc định | #7C5800 (nâu đậm) |
+| Border | amber-500/30 | #FFEA00/60 (vàng sáng) |
+| Shadow | Không có | Glow vàng + inset trắng |
+| Hover | Chỉ đổi màu nhẹ | Scale + glow mạnh + shimmer |
 
 ---
 
 ## 🎯 Kết Quả Mong Đợi
 
-Nút "Tặng thưởng" sẽ có:
-- ✨ Màu vàng sáng (light gold) giống hình tham khảo
-- 🔆 Hiệu ứng kim loại đánh bóng (gradient dọc)
-- 💫 Glow vàng sáng khi hover
-- 📝 Text màu nâu đậm dễ đọc
-- 🪞 Viền sáng bóng tạo cảm giác tráng gương
+Nút "Thưởng & Tặng" trên Header sẽ:
+- ✨ Vàng kim loại sáng bóng giống nút trong trang cá nhân
+- 🔆 Phát sáng glow vàng
+- 💫 Shimmer effect khi hover
+- 📱 Cả desktop và mobile đều đồng bộ style
 
 ---
 
 ## 🧪 Testing
 
-- [ ] Nút "Tặng thưởng" hiển thị màu vàng sáng như hình
-- [ ] Hover có glow effect đẹp
-- [ ] Text đọc rõ ràng
-- [ ] Shimmer effect vẫn hoạt động
+- [ ] Nút trên Header trang chủ hiển thị màu vàng kim loại
+- [ ] Hover có glow + shimmer effect
+- [ ] Mobile button cũng vàng kim loại
+- [ ] Icon Gift màu nâu đậm để dễ nhìn
