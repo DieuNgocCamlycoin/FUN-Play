@@ -85,9 +85,7 @@ serve(async (req) => {
       .eq("id", transaction_id)
       .select(`
         *,
-        token:donate_tokens(symbol, name, icon_url, chain),
-        sender:profiles!donation_transactions_sender_id_fkey(username, display_name, avatar_url),
-        receiver:profiles!donation_transactions_receiver_id_fkey(username, display_name, avatar_url)
+        token:donate_tokens(symbol, name, icon_url, chain)
       `)
       .single();
 
@@ -99,10 +97,30 @@ serve(async (req) => {
       );
     }
 
+    // Fetch sender and receiver profiles separately (no FK constraint)
+    const { data: senderProfile } = await supabase
+      .from("profiles")
+      .select("username, display_name, avatar_url")
+      .eq("id", existingTx.sender_id)
+      .single();
+
+    const { data: receiverProfile } = await supabase
+      .from("profiles")
+      .select("username, display_name, avatar_url")
+      .eq("id", existingTx.receiver_id)
+      .single();
+
+    // Build complete transaction object
+    const completeTransaction = {
+      ...updatedTx,
+      sender: senderProfile,
+      receiver: receiverProfile,
+    };
+
     return new Response(
       JSON.stringify({
         success: true,
-        transaction: updatedTx,
+        transaction: completeTransaction,
         explorer_url: explorerUrl,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
