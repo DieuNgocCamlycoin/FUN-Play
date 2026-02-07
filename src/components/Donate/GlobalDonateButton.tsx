@@ -32,12 +32,16 @@ export const GlobalDonateButton = ({ variant = "default", className }: GlobalDon
     return (
       <>
         <Button
-          variant="ghost"
           size="icon"
           onClick={handleClick}
-          className="relative h-9 w-9 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30"
+          className="relative h-9 w-9 rounded-full overflow-hidden
+                     bg-gradient-to-b from-[#FFEA00] via-[#FFD700] to-[#E5A800]
+                     shadow-[0_0_12px_rgba(255,215,0,0.5),inset_0_1px_2px_rgba(255,255,255,0.5)]
+                     hover:shadow-[0_0_20px_rgba(255,234,0,0.7)]
+                     border border-[#FFEA00]/50
+                     transition-all duration-300 hover:scale-110"
         >
-          <Gift className="h-5 w-5 text-amber-500" />
+          <Gift className="h-5 w-5 text-[#7C5800]" />
         </Button>
         <EnhancedDonateModal
           open={modalOpen}
@@ -51,14 +55,19 @@ export const GlobalDonateButton = ({ variant = "default", className }: GlobalDon
   return (
     <>
       <Button
-        variant="ghost"
         onClick={handleClick}
-        className={`flex items-center gap-2 bg-gradient-to-r from-amber-500/10 to-orange-500/10 
-                   hover:from-amber-500/20 hover:to-orange-500/20 
-                   border border-amber-500/30 rounded-full px-4 ${className}`}
+        className={`relative group overflow-hidden flex items-center gap-2 
+                   bg-gradient-to-b from-[#FFEA00] via-[#FFD700] to-[#E5A800] 
+                   text-[#7C5800] font-bold rounded-full px-4 py-2
+                   shadow-[0_0_15px_rgba(255,215,0,0.4),inset_0_2px_4px_rgba(255,255,255,0.6),inset_0_-1px_2px_rgba(0,0,0,0.1)] 
+                   hover:shadow-[0_0_25px_rgba(255,234,0,0.6),0_0_40px_rgba(255,215,0,0.3)] 
+                   border border-[#FFEA00]/60 
+                   transition-all duration-300 hover:scale-105 ${className}`}
       >
-        <Gift className="h-4 w-4 text-amber-500" />
-        <span className="text-sm font-medium hidden md:inline">Thưởng & Tặng</span>
+        <Gift className="h-4 w-4" />
+        <span className="text-sm font-bold hidden md:inline">Thưởng & Tặng</span>
+        {/* Shimmer effect */}
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
       </Button>
       <EnhancedDonateModal
         open={modalOpen}
