@@ -1,65 +1,146 @@
 
-# 🔧 Fix Tính Năng Modal "Thưởng & Tặng" - Các Mục Không Hoạt Động
+# 🔧 Fix Modal "Thưởng & Tặng" - Không Tìm Được Tên & Không Nhập Được Dữ Liệu
 
 ## 📋 Phân Tích Vấn Đề
 
-Dựa trên screenshots và code review, em đã xác định được **4 lỗi chính** trong modal:
+Dựa trên screenshots và code review, em đã xác định được **3 vấn đề chính**:
 
-### Vấn đề #1: Người Nhận - Không chọn được từ dropdown
-**Nguyên nhân:** Dropdown search results có `z-50` (= 50), thấp hơn DialogContent `z-[10002]` (= 10002). Do đó dropdown bị che khuất và click events không hoạt động.
+### Vấn đề #1: Không tìm được người nhận (loading mãi)
 
-**Code hiện tại (dòng 340):**
+**Phân tích từ Screenshot:**
+- Ảnh 1: User nhập "thu trang" → loading spinner hiển thị
+- Ảnh 2: Input trống nhưng vẫn có loading spinner
+
+**Nguyên nhân có thể:**
+1. Debounce effect không được cancel đúng cách khi user xóa input
+2. `searching` state không được reset về `false` sau khi search xong
+3. Logic hiển thị dropdown kiểm tra `searchResults.length > 0 || searching` - nếu searching = true mà không có results, sẽ hiển thị spinner mãi
+
+**Code hiện tại (dòng 136-157):**
 ```tsx
-<div className="absolute z-50 w-full mt-1 bg-background border rounded-xl shadow-lg max-h-48 overflow-y-auto">
+useEffect(() => {
+  const searchUsers = async () => {
+    if (searchQuery.length < 2) {
+      setSearchResults([]);
+      return; // ❌ Không reset searching = false
+    }
+    setSearching(true);
+    // ... search logic
+    setSearchResults(data || []);
+    setSearching(false);
+  };
+  const debounce = setTimeout(searchUsers, 300);
+  return () => clearTimeout(debounce);
+}, [searchQuery, user?.id]);
 ```
 
-### Vấn đề #2: Chọn Token - Không chọn được token khác
-**Nguyên nhân:** Mặc dù SelectContent đã có `z-[10003]`, nhưng có thể Select component đang không trigger onValueChange đúng cách hoặc tokens chưa được load.
+**Vấn đề:** Khi `searchQuery.length < 2`, function return sớm nhưng KHÔNG reset `searching` về `false`
 
-### Vấn đề #3: Số Tiền - Không chọn/nhập được
-**Nguyên nhân:** Các Quick Amount buttons đang bị `disabled` khi `currentBalance !== null && qa > currentBalance`. Nếu balance = 0, tất cả buttons đều disabled. Input cũng có thể bị event blocking.
+### Vấn đề #2: Input/Textarea không nhập được
 
-### Vấn đề #4: Lời Nhắn - Không nhập được
-**Nguyên nhân:** Có thể có CSS hoặc event issues blocking textarea input. Cần kiểm tra nếu có overlay che phủ.
+**Nguyên nhân:**
+- CSS class `.hologram-input` sử dụng `position: relative` và complex background gradients
+- Có thể có layer vô hình che phủ input
+- Cần đảm bảo `pointer-events` được set đúng
+
+**Code hiện tại trong CSS (dòng 424-435):**
+```css
+.hologram-input {
+  position: relative;
+  border: 1px solid transparent !important;
+  background: ...;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  /* ❌ Thiếu pointer-events */
+}
+```
+
+### Vấn đề #3: Select Token dropdown có thể bị block
+
+**Phân tích:** SelectContent đã có `z-[10003]` nhưng có thể SelectTrigger bị block bởi một layer khác
 
 ---
 
 ## ✅ Giải Pháp Chi Tiết
 
-### Fix #1: Tăng z-index cho Search Results Dropdown
+### Fix #1: Sửa Logic Search Users
 
 **File:** `src/components/Donate/EnhancedDonateModal.tsx`
 
-**Thay đổi dòng 340:**
-- Cũ: `className="absolute z-50 w-full mt-1 bg-background border rounded-xl shadow-lg max-h-48 overflow-y-auto"`
-- Mới: `className="absolute z-[10003] w-full mt-1 bg-white dark:bg-gray-900 border border-cosmic-cyan/30 rounded-xl shadow-lg shadow-cyan-500/10 max-h-48 overflow-y-auto"`
-
-### Fix #2: Đảm bảo Token Selection hoạt động
-
-**Kiểm tra:**
-- Đảm bảo `tokens` array được load đúng
-- Thêm log để debug nếu cần
-- Xác nhận `onValueChange` handler được gọi
-
-**Code cần review:**
+**Thay đổi dòng 136-157:**
 ```tsx
-<Select value={selectedToken?.symbol} onValueChange={handleSelectToken}>
+useEffect(() => {
+  const searchUsers = async () => {
+    // Khi query quá ngắn, reset cả results và searching state
+    if (searchQuery.length < 2) {
+      setSearchResults([]);
+      setSearching(false); // ✅ THÊM DÒNG NÀY
+      return;
+    }
+
+    setSearching(true);
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, username, display_name, avatar_url, wallet_address")
+        .or(`username.ilike.%${searchQuery}%,display_name.ilike.%${searchQuery}%`)
+        .neq("id", user?.id || "")
+        .limit(8);
+
+      if (error) {
+        console.error("Search error:", error);
+        setSearchResults([]);
+      } else {
+        setSearchResults(data || []);
+      }
+    } catch (err) {
+      console.error("Search error:", err);
+      setSearchResults([]);
+    } finally {
+      setSearching(false); // ✅ Luôn reset searching state
+    }
+  };
+
+  const debounce = setTimeout(searchUsers, 300);
+  return () => clearTimeout(debounce);
+}, [searchQuery, user?.id]);
 ```
 
-### Fix #3: Fix Amount Buttons và Input
+### Fix #2: Thêm pointer-events vào CSS hologram-input
 
-**Vấn đề:** Khi balance = 0, tất cả buttons đều disabled
-**Giải pháp:** Chỉ disable khi token là "internal" VÀ balance < amount
+**File:** `src/index.css`
 
-**Thay đổi dòng 433:**
-```tsx
-disabled={selectedToken?.chain === "internal" && currentBalance !== null && qa > currentBalance}
+**Thay đổi dòng 423-435:**
+```css
+/* Hologram Input Border - Applied globally */
+.hologram-input {
+  position: relative;
+  border: 1px solid transparent !important;
+  background: 
+    linear-gradient(hsl(var(--background)), hsl(var(--background))) padding-box,
+    linear-gradient(135deg, 
+      hsl(var(--cosmic-cyan)), 
+      hsl(var(--cosmic-magenta)), 
+      hsl(var(--cosmic-gold))
+    ) border-box !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: auto !important; /* ✅ THÊM DÒNG NÀY */
+  isolation: isolate; /* ✅ THÊM DÒNG NÀY - Tạo stacking context mới */
+}
 ```
 
-### Fix #4: Đảm bảo Textarea hoạt động
+### Fix #3: Đảm bảo Input trong modal có pointer-events
 
-**Kiểm tra:** Xác nhận không có overlay hoặc CSS blocking
-**Thêm:** explicit pointer-events-auto nếu cần
+**File:** `src/components/Donate/EnhancedDonateModal.tsx`
+
+Thêm `pointer-events-auto` cho search input (dòng 331-335):
+```tsx
+<Input
+  placeholder="Tìm kiếm người nhận..."
+  value={searchQuery}
+  onChange={(e) => setSearchQuery(e.target.value)}
+  className="pl-9 hologram-input pointer-events-auto"
+/>
+```
 
 ---
 
@@ -67,88 +148,57 @@ disabled={selectedToken?.chain === "internal" && currentBalance !== null && qa >
 
 | File | Thay đổi |
 |------|----------|
-| `src/components/Donate/EnhancedDonateModal.tsx` | Fix z-index dropdown, button disabled logic, pointer-events |
+| `src/components/Donate/EnhancedDonateModal.tsx` | Fix search logic + thêm pointer-events cho search input |
+| `src/index.css` | Thêm pointer-events và isolation cho hologram-input |
 
 ---
 
 ## 🔧 Chi Tiết Code Changes
 
-### EnhancedDonateModal.tsx
+### 1. EnhancedDonateModal.tsx
 
-**1. Fix Search Results Dropdown (dòng 340):**
-```tsx
-// Thay đổi z-50 thành z-[10003] và thêm styles
-<div className="absolute z-[10003] w-full mt-1 bg-white dark:bg-gray-900 border border-cosmic-cyan/30 rounded-xl shadow-lg shadow-cyan-500/10 max-h-48 overflow-y-auto">
-```
+**Dòng 136-157 - Sửa search useEffect:**
+- Thêm `setSearching(false)` khi query < 2 ký tự
+- Wrap search trong try/catch/finally để đảm bảo `searching` luôn được reset
+- Thêm error logging
 
-**2. Fix Button trong search results (dòng 347-366):**
-```tsx
-<button
-  key={result.id}
-  type="button"  // Thêm type="button" để tránh form submission
-  onClick={() => handleSelectReceiver(result)}
-  className="w-full flex items-center gap-3 p-3 hover:bg-accent transition-colors cursor-pointer"
->
-```
+**Dòng 331-335 - Thêm pointer-events cho search input:**
+- Thêm `pointer-events-auto` vào className
 
-**3. Fix Quick Amount Buttons disabled logic (dòng 433):**
-```tsx
-disabled={selectedToken?.chain === "internal" && currentBalance !== null && currentBalance > 0 && qa > currentBalance}
-```
-Giải thích: Chỉ disable khi:
-- Token là internal (FUN MONEY, etc.)
-- Có balance (không null)  
-- Balance > 0 (có số dư)
-- Amount > balance (vượt quá số dư)
+### 2. index.css
 
-**4. Thêm pointer-events cho các interactive elements:**
-```tsx
-// Input amount
-<Input
-  type="text"
-  inputMode="decimal"
-  placeholder="Hoặc nhập số tùy chọn..."
-  value={amount}
-  onChange={(e) => handleAmountChange(e.target.value)}
-  className="text-lg font-bold text-center hologram-input pointer-events-auto"
-/>
-
-// Textarea
-<Textarea
-  placeholder="Gửi lời nhắn đến người nhận..."
-  value={message}
-  onChange={(e) => setMessage(e.target.value)}
-  maxLength={200}
-  rows={3}
-  className="hologram-input pr-10 resize-none pointer-events-auto"
-/>
-```
+**Dòng 423-435 - Cập nhật .hologram-input:**
+- Thêm `pointer-events: auto !important;`
+- Thêm `isolation: isolate;` để tạo stacking context riêng
 
 ---
 
 ## 🧪 Testing Checklist
 
-Sau khi fix, cần test:
+Sau khi fix:
 
-1. **Người nhận:**
-   - [ ] Nhập tên → dropdown hiển thị users
-   - [ ] Click user → user được chọn, dropdown đóng
+1. **Tìm kiếm người nhận:**
+   - [ ] Nhập 1 ký tự → không có loading spinner
+   - [ ] Nhập 2+ ký tự → có loading spinner
+   - [ ] Có kết quả → hiển thị dropdown với users
+   - [ ] Không có kết quả → loading spinner biến mất
+   - [ ] Xóa hết input → loading spinner biến mất
+
+2. **Chọn người nhận:**
+   - [ ] Click vào user trong dropdown → user được chọn
    - [ ] Hiển thị avatar + tên người nhận
 
-2. **Chọn Token:**
-   - [ ] Click dropdown → hiện tất cả tokens
-   - [ ] Click CAMLY COIN → token đổi sang CAMLY
-   - [ ] Balance hiển thị đúng theo token
+3. **Input Số tiền:**
+   - [ ] Click vào input → có thể focus
+   - [ ] Gõ số → số hiển thị
 
-3. **Số tiền:**
-   - [ ] Click 10/50/100/500 → số được chọn
-   - [ ] Nhập số vào input → số hiển thị
-   - [ ] Slider kéo → số thay đổi
-
-4. **Lời nhắn:**
-   - [ ] Click vào textarea → có thể focus
+4. **Textarea Lời nhắn:**
+   - [ ] Click vào textarea → có thể focus  
    - [ ] Gõ chữ → chữ hiển thị
-   - [ ] Click emoji → emoji được thêm
+
+5. **Select Token:**
+   - [ ] Click dropdown → hiển thị danh sách tokens
+   - [ ] Chọn token khác → token được đổi
 
 ---
 
@@ -156,9 +206,8 @@ Sau khi fix, cần test:
 
 | Vấn đề | Nguyên nhân | Fix |
 |--------|-------------|-----|
-| Không chọn được người nhận | z-index thấp (z-50 < z-10002) | Tăng lên z-[10003] |
-| Không chọn token khác | Có thể do Select component | Verify và fix nếu cần |
-| Không chọn số tiền | Buttons bị disabled khi balance=0 | Fix disabled logic |
-| Không nhập lời nhắn | Có thể bị event blocking | Thêm pointer-events-auto |
+| Loading spinner hiển thị mãi | `searching` không được reset khi query < 2 | Thêm `setSearching(false)` |
+| Không nhập được input | CSS hologram blocking events | Thêm `pointer-events: auto !important` |
+| Click user không chọn được | Đã fix ở bản trước với `type="button"` | Verify hoạt động |
 
-**Thời gian thực hiện:** ~10 phút
+**Thời gian thực hiện:** ~5-10 phút
