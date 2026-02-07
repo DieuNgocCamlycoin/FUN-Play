@@ -1,462 +1,221 @@
 
-
-# Triển Khai Hệ Thống Nhắn Tin (Messenger) - Facebook-Style
+# FUN PLAY WALLET - Hợp Nhất Trung Tâm Tài Chính
 
 ## Tổng Quan
 
-Xây dựng hệ thống chat 1-1 realtime tương tự Facebook Messenger, tích hợp sâu với hệ thống Thưởng & Tặng. Database đã sẵn có (`user_chats`, `chat_messages`) và edge function `create-donation` đã tự động tạo tin nhắn donation.
+Refactor và hợp nhất 3 components riêng lẻ trên Header (Kết nối ví, Giá CAMLY, Claim) thành 1 nút **"WALLET"** duy nhất, dẫn đến trang **FUN PLAY WALLET** - Trung tâm Tài chính cho toàn bộ hệ sinh thái FUN PLAY.
 
 ---
 
-## 1. Database - Cập Nhật Schema
+## 1. Thay Đổi Header
 
-### 1.1 Thêm Cột `last_message_at` và `last_message_preview`
+### 1.1 Xóa/Thay Thế Components
 
-Bảng `user_chats` hiện tại chỉ có `updated_at`. Cần thêm:
+| Hiện Tại | Sau Khi Refactor |
+|----------|------------------|
+| `<FunWalletMiniWidget />` | ❌ Xóa |
+| `<CAMLYMiniWidget />` | ❌ Xóa |
+| `<UnifiedClaimButton />` | ❌ Xóa |
+| (không có) | ✅ `<WalletButton />` mới |
 
-```sql
--- Thêm cột để hiển thị danh sách chat hiệu quả hơn
-ALTER TABLE user_chats 
-ADD COLUMN IF NOT EXISTS last_message_at timestamp with time zone DEFAULT now(),
-ADD COLUMN IF NOT EXISTS last_message_preview text;
+### 1.2 WalletButton Component Mới
 
--- Index để sort theo tin nhắn mới nhất
-CREATE INDEX IF NOT EXISTS idx_user_chats_last_message ON user_chats(last_message_at DESC);
-
--- Enable realtime cho chat_messages
-ALTER PUBLICATION supabase_realtime ADD TABLE chat_messages;
-```
-
-### 1.2 Trigger Tự Động Cập Nhật `last_message_at`
-
-```sql
-CREATE OR REPLACE FUNCTION update_chat_last_message()
-RETURNS TRIGGER AS $$
-BEGIN
-  UPDATE user_chats 
-  SET 
-    last_message_at = NEW.created_at,
-    last_message_preview = LEFT(NEW.content, 50),
-    updated_at = NEW.created_at
-  WHERE id = NEW.chat_id;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-CREATE TRIGGER on_chat_message_insert
-AFTER INSERT ON chat_messages
-FOR EACH ROW EXECUTE FUNCTION update_chat_last_message();
-```
+- **Icon**: Sử dụng ảnh FUN Wallet được cung cấp (sẽ copy vào `public/images/fun-play-wallet-icon.png`)
+- **Label**: "WALLET"
+- **Style**: Giữ nguyên vị trí, gradient pastel, glow effect như nút Claim hiện tại
+- **Logic**:
+  - Nếu chưa đăng nhập → Redirect `/auth`
+  - Nếu đã đăng nhập → Navigate `/wallet`
+  - Hiển thị badge số pending rewards (nếu có)
 
 ---
 
-## 2. Frontend - Cấu Trúc Components
+## 2. Trang FUN PLAY WALLET (`/wallet`)
 
-### 2.1 Thư Mục Mới
+### Layout Tổng Thể
 
 ```text
-src/
-├── pages/
-│   └── Messages.tsx              # Trang chính /messages
-├── components/
-│   └── Chat/
-│       ├── ChatLayout.tsx        # Layout 2 cột (desktop) / stack (mobile)
-│       ├── ChatSidebar.tsx       # Danh sách cuộc trò chuyện (cột trái)
-│       ├── ChatWindow.tsx        # Khung chat chính (cột phải)
-│       ├── ChatHeader.tsx        # Header: avatar, tên, nút tặng
-│       ├── ChatMessageList.tsx   # Danh sách tin nhắn scroll
-│       ├── ChatMessageItem.tsx   # Một tin nhắn (text/donation/system)
-│       ├── ChatInput.tsx         # Ô nhập tin nhắn + nút gửi
-│       ├── ChatDonationCard.tsx  # Card tin nhắn donation đặc biệt
-│       └── ChatEmptyState.tsx    # Trạng thái chưa có chat
-└── hooks/
-    ├── useChats.ts               # CRUD danh sách chat
-    └── useChatMessages.ts        # CRUD + realtime tin nhắn
-```
-
-### 2.2 Route Mới
-
-```tsx
-// Thêm vào App.tsx
-<Route path="/messages" element={<Messages />} />
-<Route path="/messages/:chatId" element={<Messages />} />
-```
-
----
-
-## 3. Layout Chi Tiết
-
-### 3.1 Desktop Layout (lg+)
-
-```text
-┌───────────────────────────────────────────────────────────────┐
-│ HEADER (giống hiện tại, thêm icon 💬)                        │
-├─────────────────┬─────────────────────────────────────────────┤
-│                 │ CHAT HEADER                                │
-│  CHAT SIDEBAR   │ Avatar | Tên | Online | [🎁] [ℹ️]          │
-│  (320px fixed)  ├─────────────────────────────────────────────┤
-│                 │                                             │
-│  [🔍 Tìm kiếm]  │  MESSAGE LIST                              │
-│                 │  ┌─────────────────────────────────────────┐│
-│  ┌───────────┐  │  │ Bubble trái (người kia)                ││
-│  │ Avatar    │  │  │ Bubble phải (mình)                     ││
-│  │ Tên       │  │  │ Card donation (gradient border)        ││
-│  │ Preview   │  │  └─────────────────────────────────────────┘│
-│  │ Time 🔴   │  │                                             │
-│  └───────────┘  │  INPUT FOOTER                              │
-│  ┌───────────┐  │  ┌─────────────────────────────────────────┐│
-│  │ ...       │  │  │ 📷 | [Nhắn tin yêu thương...] | 💖     ││
-│  └───────────┘  │  └─────────────────────────────────────────┘│
-└─────────────────┴─────────────────────────────────────────────┘
-```
-
-### 3.2 Mobile Layout
-
-- Trang `/messages`: Hiển thị `ChatSidebar` fullscreen
-- Tap vào chat → Navigate `/messages/:chatId` → `ChatWindow` fullscreen
-- Back button để quay lại danh sách
-
----
-
-## 4. Components Chi Tiết
-
-### 4.1 ChatLayout.tsx
-
-```tsx
-// Desktop: 2 cột side-by-side
-// Mobile: Stack (sidebar hoặc window tùy route)
-<MainLayout showBottomNav={false}>
-  <div className="flex h-[calc(100vh-56px)]">
-    {/* Sidebar - hidden on mobile when viewing chat */}
-    <ChatSidebar className="w-80 border-r hidden md:flex" />
-    
-    {/* Window */}
-    {selectedChatId ? (
-      <ChatWindow chatId={selectedChatId} />
-    ) : (
-      <ChatEmptyState />
-    )}
-  </div>
-</MainLayout>
-```
-
-### 4.2 ChatSidebar.tsx
-
-```tsx
-// State: chats, searchQuery, unreadCounts
-// UI:
-// - Search bar với glass effect
-// - List items với:
-//   - Avatar + online indicator
-//   - Display name
-//   - Last message preview (truncate 50 chars)
-//   - Time (relative: "2 phút", "Hôm qua")
-//   - Unread badge (red dot với số)
-// - Active chat: border hologram gradient
-// - Hover: glow effect
-
-interface ChatItem {
-  id: string;
-  otherUser: {
-    id: string;
-    username: string;
-    display_name: string;
-    avatar_url: string;
-  };
-  lastMessage: string;
-  lastMessageAt: Date;
-  unreadCount: number;
-}
-```
-
-### 4.3 ChatMessageItem.tsx
-
-**Text Message:**
-```tsx
-<div className={cn(
-  "max-w-[70%] p-3 rounded-2xl",
-  isMe 
-    ? "ml-auto bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-br-sm"
-    : "mr-auto bg-muted rounded-bl-sm"
-)}>
-  {content}
-  <span className="text-[10px] opacity-70 ml-2">{time}</span>
-</div>
-```
-
-**Donation Message (ChatDonationCard):**
-```tsx
-<div className="p-4 rounded-xl bg-gradient-to-br from-amber-500/10 via-pink-500/10 to-purple-500/10 border-2 border-amber-500/40">
-  <div className="flex items-center gap-2 mb-2">
-    <Gift className="w-5 h-5 text-amber-500" />
-    <span className="font-bold text-amber-600">Lì xì</span>
-  </div>
-  <p className="font-medium">{senderName} đã tặng {amount} {tokenSymbol}</p>
-  {message && <p className="text-sm italic mt-1">"{message}"</p>}
-  <Button size="sm" variant="outline" className="mt-2" onClick={() => navigate(deepLink)}>
-    Xem biên nhận
-  </Button>
-</div>
-```
-
-### 4.4 ChatInput.tsx
-
-```tsx
-// Features:
-// - Enter để gửi, Shift+Enter xuống dòng
-// - Emoji picker (reuse từ EMOJI_LIST trong EnhancedDonateModal)
-// - Optimistic UI: tin nhắn hiện ngay, đánh dấu "đang gửi"
-// - Auto-scroll xuống cuối khi gửi
-```
-
-### 4.5 ChatHeader.tsx
-
-```tsx
-<div className="h-16 border-b flex items-center justify-between px-4 bg-background/95 backdrop-blur">
-  {/* Mobile back button */}
-  <Button variant="ghost" size="icon" className="md:hidden">
-    <ArrowLeft />
-  </Button>
-  
-  {/* User info */}
-  <div className="flex items-center gap-3">
-    <Avatar className="h-10 w-10 ring-2 ring-primary/30">
-      <AvatarImage src={user.avatar_url} />
-    </Avatar>
-    <div>
-      <p className="font-medium">{user.display_name}</p>
-      <p className="text-xs text-muted-foreground">
-        {isOnline ? "Đang hoạt động" : `Hoạt động ${lastSeen}`}
-      </p>
-    </div>
-  </div>
-  
-  {/* Actions */}
-  <div className="flex gap-2">
-    <Button variant="ghost" size="icon" onClick={openDonateModal}>
-      <Gift className="h-5 w-5 text-amber-500" />
-    </Button>
-    <Button variant="ghost" size="icon" onClick={() => navigate(`/user/${user.id}`)}>
-      <Info className="h-5 w-5" />
-    </Button>
-  </div>
-</div>
+┌─────────────────────────────────────────────────────────────────┐
+│ HEADER: FUN PLAY WALLET                    [Kết nối ví] [Back] │
+├─────────────────────────────────────────────────────────────────┤
+│ SECTION 1: TỔNG QUAN & GIÁ CAMLY                               │
+│ ┌───────────────────────────────────────────────────────────┐  │
+│ │ Giá: $0.00000123  (+5.2% 24h)  [DexScreener] [BSCScan]    │  │
+│ │ Chart với timeframe: 5p | 15p | 1h | 1d                   │  │
+│ └───────────────────────────────────────────────────────────┘  │
+├─────────────────────────────────────────────────────────────────┤
+│ SECTION 2: CLAIM REWARDS                                        │
+│ ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐    │
+│ │ Tổng CAMLY      │ │ Có thể Claim    │ │ Đang chờ duyệt │    │
+│ │ 391,000         │ │ 214,000 ✅      │ │ 177,000 ⏳     │    │
+│ └─────────────────┘ └─────────────────┘ └─────────────────┘    │
+│ [==========Threshold Progress 200K==========]                   │
+│ [                  CLAIM CAMLY                   ]              │
+├─────────────────────────────────────────────────────────────────┤
+│ SECTION 3: TOP SPONSOR (MẠNH THƯỜNG QUÂN)                      │
+│ Avatar | Username | Total Donated | Token                       │
+├─────────────────────────────────────────────────────────────────┤
+│ SECTION 4: LỊCH SỬ GIAO DỊCH                                   │
+│ Filter: [Token ▾] [Thời gian ▾] [Gửi/Nhận ▾] [Search]          │
+│ Table: Thời gian | Gửi | Nhận | Token | Số tiền | Trạng thái  │
+├─────────────────────────────────────────────────────────────────┤
+│ SECTION 5: EXPORT                                               │
+│ [Export CSV] [Export PDF]                                       │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 5. Hooks
+## 3. Chi Tiết Các Section
 
-### 5.1 useChats.ts
+### Section 1: Giá CAMLY & Chart
 
-```typescript
-export const useChats = () => {
-  const [chats, setChats] = useState<ChatItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
+- **Data Source**: 
+  - Giá CAMLY từ `useCryptoPrices` hook
+  - Chart: Embed DexScreener iframe hoặc fetch từ API
+- **Contract**: `0x0910320181889fefde0bb1ca63962b0a8882e413`
+- **Buttons**:
+  - "View on DexScreener" → `https://dexscreener.com/bsc/0x0910320181889fefde0bb1ca63962b0a8882e413`
+  - "View on BSCScan" → `https://bscscan.com/token/0x0910320181889fefde0bb1ca63962b0a8882e413`
+- **Timeframes**: 5p, 15p, 1h, 1d tabs
 
-  const fetchChats = async () => {
-    // Query user_chats where user1_id or user2_id = user.id
-    // Join profiles để lấy thông tin người kia
-    // Sort by last_message_at DESC
-  };
+### Section 2: Claim Rewards
 
-  const findOrCreateChat = async (otherUserId: string) => {
-    // Check existing chat
-    // Create new if not exists
-    // Return chat_id
-  };
+- **Cards**:
+  1. **Tổng CAMLY đang có**: Tổng từ `profiles.total_camly_rewards`
+  2. **Có thể Claim (đã duyệt)**: Từ `profiles.approved_reward`
+  3. **Đang chờ duyệt**: Từ `profiles.pending_rewards`
+  4. **Đã Claim**: Tổng từ `claim_requests` where status = 'success'
+- **Progress Bar**: Hiển thị tiến độ đến ngưỡng 200,000 CAMLY
+- **Claim Button**: Logic từ `ClaimRewardsModal` component, mở modal khi click
+- **Wallet Connection**: Nếu chưa kết nối ví → Hiển thị nút "Kết nối ví để claim"
 
-  // Realtime subscription for new chats
-  useEffect(() => {
-    const channel = supabase
-      .channel('my-chats')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'user_chats',
-        filter: `user1_id=eq.${user.id}` // Need OR logic
-      }, handleChatChange)
-      .subscribe();
-  }, [user?.id]);
+### Section 3: Top Sponsor
 
-  return { chats, loading, fetchChats, findOrCreateChat };
-};
-```
+- **Data**: Từ `useTopSponsors` hook (đã có sẵn)
+- **Display**: Avatar, Username (link profile), Tổng đã donate, Token
+- **Style**: Glassmorphism cards
 
-### 5.2 useChatMessages.ts
+### Section 4: Lịch Sử Giao Dịch
 
-```typescript
-export const useChatMessages = (chatId: string) => {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [loading, setLoading] = useState(true);
+- **Data Sources**:
+  - `reward_transactions` (rewards nhận được)
+  - `donation_transactions` (donations gửi/nhận)
+  - `wallet_transactions` (on-chain transactions)
+- **Columns**:
+  - Thời gian
+  - Người gửi (username + avatar, link profile)
+  - Người nhận (username + avatar, link profile)
+  - Token (CAMLY, FUN MONEY, etc.)
+  - Số tiền
+  - Trạng thái (badge: Thành công, Đang xử lý, Thất bại)
+  - Link BSC (nếu có tx_hash)
+- **Filters**:
+  - Token dropdown
+  - Thời gian (7d, 30d, All)
+  - Gửi/Nhận toggle
+- **Search**: By username, address, tx_hash
 
-  const fetchMessages = async () => {
-    // Query chat_messages where chat_id = chatId
-    // Order by created_at ASC
-    // Include sender profile info
-  };
+### Section 5: Export
 
-  const sendMessage = async (content: string) => {
-    // Optimistic UI: add message immediately
-    // Insert to database
-    // Update on error
-  };
-
-  const markAsRead = async () => {
-    // Update is_read = true for messages where sender_id != user.id
-  };
-
-  // Realtime subscription
-  useEffect(() => {
-    const channel = supabase
-      .channel(`chat-${chatId}`)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'chat_messages',
-        filter: `chat_id=eq.${chatId}`
-      }, handleNewMessage)
-      .subscribe();
-  }, [chatId]);
-
-  return { messages, loading, sendMessage, markAsRead };
-};
-```
+- **CSV Export**: Logic đã có trong Wallet.tsx hiện tại
+- **PDF Export**: Sử dụng jsPDF + autoTable
+- **Data Included**: Thời gian, Gửi, Nhận, Token, Số tiền, Trạng thái, Tx hash, Link BSC, Link Profile
 
 ---
 
-## 6. Header Entry Point
+## 4. Files Cần Tạo/Sửa
 
-### 6.1 Thêm Icon Tin Nhắn Vào Header
+| File | Thay Đổi |
+|------|----------|
+| **Mới** `public/images/fun-play-wallet-icon.png` | Copy từ user-uploads://3.png |
+| **Mới** `src/components/Wallet/WalletButton.tsx` | Nút WALLET mới cho header |
+| **Mới** `src/components/Wallet/WalletPageHeader.tsx` | Header cho trang Wallet |
+| **Mới** `src/components/Wallet/CAMLYPriceSection.tsx` | Section 1: Giá & Chart |
+| **Mới** `src/components/Wallet/ClaimRewardsSection.tsx` | Section 2: Claim |
+| **Mới** `src/components/Wallet/TopSponsorsSection.tsx` | Section 3: Top Sponsors |
+| **Mới** `src/components/Wallet/TransactionHistorySection.tsx` | Section 4: Lịch sử |
+| **Mới** `src/components/Wallet/ExportSection.tsx` | Section 5: Export |
+| **Mới** `src/hooks/useWalletTransactions.ts` | Hook tổng hợp giao dịch |
+| **Sửa** `src/pages/Wallet.tsx` | **Refactor hoàn toàn** - Layout mới với 5 sections |
+| **Sửa** `src/components/Layout/Header.tsx` | Thay thế 3 widgets bằng WalletButton |
+| **Sửa** `src/components/Layout/MobileHeader.tsx` | Thay thế widgets bằng WalletButton |
+| **Giữ** `src/components/Rewards/ClaimRewardsModal.tsx` | Vẫn dùng làm modal khi click Claim |
+| **Giữ** `src/hooks/useTopSponsors.ts` | Dùng cho Section 3 |
+| **Giữ** `src/hooks/useCryptoPrices.tsx` | Dùng cho giá CAMLY |
 
-```tsx
-// Trong Header.tsx, thêm sau Bell icon:
-<TooltipProvider>
-  <Tooltip>
-    <TooltipTrigger asChild>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="relative"
-        onClick={() => navigate("/messages")}
-      >
-        <MessageCircle className="h-5 w-5" />
-        {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-white text-[10px] flex items-center justify-center">
-            {unreadCount > 9 ? "9+" : unreadCount}
-          </span>
-        )}
-      </Button>
-    </TooltipTrigger>
-    <TooltipContent>Tin nhắn</TooltipContent>
-  </Tooltip>
-</TooltipProvider>
-```
+---
 
-### 6.2 User Dropdown - Thêm "Nhắn Tin"
+## 5. Responsive Design
 
-```tsx
-// Khi click vào profile người khác, thêm vào dropdown:
-<DropdownMenuItem onClick={() => handleStartChat(userId)}>
-  <MessageCircle className="mr-2 h-4 w-4" />
-  Nhắn tin
-</DropdownMenuItem>
-```
+### Desktop (lg+)
+
+- 2 cột layout cho Section 2 (Claim + Stats)
+- Full-width chart
+- Table với đầy đủ columns
+
+### Tablet (md)
+
+- 2 cột cho claim stats
+- Table responsive
+
+### Mobile
+
+- Stack layout
+- Horizontal scroll cho table
+- Bottom sheet cho filters
+
+---
+
+## 6. Realtime Updates
+
+- **Rewards**: Subscribe `reward_transactions`, `profiles`
+- **Donations**: Subscribe `donation_transactions`
+- **Wallet**: Subscribe `wallet_transactions`
+- **Prices**: Polling mỗi 30s từ `useCryptoPrices`
 
 ---
 
 ## 7. Styling - Design System FUN PLAY
 
-### 7.1 Glass Effect cho Sidebar
-
-```css
-.chat-sidebar {
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(16px);
-  border-right: 1px solid rgba(0, 231, 255, 0.2);
-}
-```
-
-### 7.2 Active Chat Item
-
-```css
-.chat-item-active {
-  background: linear-gradient(135deg, 
-    rgba(192, 132, 252, 0.1),
-    rgba(236, 72, 153, 0.1),
-    rgba(0, 231, 255, 0.1)
-  );
-  border: 1px solid rgba(192, 132, 252, 0.3);
-  box-shadow: 0 0 20px rgba(192, 132, 252, 0.2);
-}
-```
-
-### 7.3 My Message Bubble
-
-```css
-.message-bubble-me {
-  background: linear-gradient(135deg, #8B5CF6, #EC4899);
-  border-radius: 20px 20px 4px 20px;
-  color: white;
-}
-
-.message-bubble-other {
-  background: #F3F4F6;
-  border-radius: 20px 20px 20px 4px;
-}
-```
+- **Background**: Glassmorphism với gradient cyan-purple-pink
+- **Cards**: `bg-white/90 backdrop-blur-xl border border-white/20`
+- **Glow Effects**: `shadow-[0_0_30px_rgba(0,231,255,0.3)]`
+- **Buttons**: Gradient pastel với shimmer animation
+- **Badge Colors**:
+  - Thành công: Green gradient
+  - Đang xử lý: Yellow/Amber
+  - Thất bại: Red
 
 ---
 
-## 8. Files Cần Tạo/Sửa
+## 8. Testing Checklist
 
-| File | Thay Đổi |
-|------|----------|
-| **Database Migration** | Thêm `last_message_at`, trigger, enable realtime |
-| `src/pages/Messages.tsx` | **MỚI** - Trang chính |
-| `src/components/Chat/ChatLayout.tsx` | **MỚI** |
-| `src/components/Chat/ChatSidebar.tsx` | **MỚI** |
-| `src/components/Chat/ChatWindow.tsx` | **MỚI** |
-| `src/components/Chat/ChatHeader.tsx` | **MỚI** |
-| `src/components/Chat/ChatMessageList.tsx` | **MỚI** |
-| `src/components/Chat/ChatMessageItem.tsx` | **MỚI** |
-| `src/components/Chat/ChatInput.tsx` | **MỚI** |
-| `src/components/Chat/ChatDonationCard.tsx` | **MỚI** |
-| `src/components/Chat/ChatEmptyState.tsx` | **MỚI** |
-| `src/hooks/useChats.ts` | **MỚI** |
-| `src/hooks/useChatMessages.ts` | **MỚI** |
-| `src/components/Layout/Header.tsx` | Thêm icon 💬 |
-| `src/components/Layout/MobileHeader.tsx` | Thêm icon 💬 |
-| `src/App.tsx` | Thêm route `/messages` |
+- [ ] Click nút WALLET trên header → Navigate đến `/wallet`
+- [ ] Trang Wallet hiển thị đầy đủ 5 sections
+- [ ] Giá CAMLY hiển thị realtime với % thay đổi 24h
+- [ ] Chart hoạt động với các timeframe
+- [ ] Claim section hiển thị đúng số liệu từ profile
+- [ ] Click "Claim" → Mở modal claim (nếu đủ ngưỡng)
+- [ ] Top Sponsors hiển thị đúng ranking
+- [ ] Lịch sử giao dịch load đầy đủ với filters
+- [ ] Click username → Navigate đến profile
+- [ ] Click tx hash → Mở BSCScan
+- [ ] Export CSV/PDF hoạt động
+- [ ] Responsive trên mobile
+- [ ] Badge số rewards hiển thị trên nút WALLET
+- [ ] Header desktop không còn 3 widgets cũ
+- [ ] Header mobile không còn 3 widgets cũ
 
 ---
 
-## 9. Testing Checklist
+## 9. Kết Quả Mong Đợi
 
-- [ ] Vào `/messages` → Hiển thị danh sách chat (có thể rỗng)
-- [ ] Tặng thưởng cho ai đó → Tự động tạo chat + tin nhắn donation
-- [ ] Vào chat → Thấy tin nhắn donation với card đẹp
-- [ ] Gửi tin nhắn text → Hiện realtime
-- [ ] Người khác gửi → Nhận realtime, badge unread
-- [ ] Click "Xem biên nhận" trong donation → Mở `/receipt/xxx`
-- [ ] Click avatar → Mở profile
-- [ ] Click 🎁 trong chat header → Mở modal tặng thưởng
-- [ ] Mobile: Danh sách → Tap → Chat fullscreen → Back
-- [ ] Desktop: 2 cột hoạt động mượt
-- [ ] Search chat hoạt động
-
----
-
-## Kết Quả Mong Đợi
-
-| Tính Năng | Mô Tả |
-|-----------|-------|
-| Entry Point | Icon 💬 ở header + dropdown "Nhắn tin" |
-| Danh Sách Chat | Sort theo tin nhắn mới nhất, badge unread |
-| Chat Realtime | Tin nhắn mới hiện ngay, không reload |
-| Donation Integration | Tin nhắn donation tự động, card premium |
-| Design | Glassmorphism, hologram gradient, 5D vibe |
-| Responsive | Desktop 2 cột, Mobile fullscreen |
-| UX | Giống Facebook Messenger |
-
+| Trước | Sau |
+|-------|-----|
+| 3 widgets riêng lẻ (FunWallet, CAMLY, Claim) | 1 nút WALLET duy nhất |
+| Trang Wallet cũ với nhiều tabs | Trang Wallet mới với 5 sections rõ ràng |
+| Phải navigate nhiều nơi | Tất cả trong 1 trang |
+| Không có Top Sponsors | Có bảng Top Sponsor |
+| Export cơ bản | Export đầy đủ với profile links |
+| Không embed DexScreener | Có chart với timeframes |
