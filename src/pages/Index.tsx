@@ -268,7 +268,7 @@ const Index = () => {
       {/* Main content - 3 column layout with fixed right sidebar */}
       <main className={`pt-14 pb-20 lg:pb-0 transition-all duration-300 ${
         isSidebarExpanded ? 'lg:pl-60' : 'lg:pl-16'
-      } lg:pr-80`}>
+      } lg:pr-[280px]`}>
         {/* Center content area - SCROLLABLE */}
         <div className="h-[calc(100vh-3.5rem)] overflow-y-auto lg:h-auto lg:overflow-visible">
           <CategoryChips />

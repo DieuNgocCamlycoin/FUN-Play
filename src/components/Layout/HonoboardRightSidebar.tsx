@@ -15,7 +15,7 @@ export const HonoboardRightSidebar = ({ className }: HonoboardRightSidebarProps)
   return (
     <aside 
       className={cn(
-        "hidden lg:flex flex-col w-80 shrink-0 h-[calc(100vh-3.5rem)]",
+        "hidden lg:flex flex-col w-[280px] shrink-0 h-[calc(100vh-3.5rem)]",
         "fixed right-0 top-14 z-40",
         "bg-gradient-to-b from-white via-white to-[#F0FDFF]",
         "border-l border-border/50",
@@ -23,9 +23,9 @@ export const HonoboardRightSidebar = ({ className }: HonoboardRightSidebarProps)
         className
       )}
     >
-      <ScrollArea className="flex-1 px-4 py-4 overflow-x-hidden">
+      <ScrollArea className="flex-1 px-3 py-3 overflow-x-hidden">
         {/* 3 Separate Cards stacked vertically */}
-        <div className="space-y-4">
+        <div className="space-y-3">
           {/* 1. Honor Board Card */}
           <HonorBoardCard stats={stats} loading={loading} />
 
@@ -37,8 +37,8 @@ export const HonoboardRightSidebar = ({ className }: HonoboardRightSidebarProps)
         </div>
 
         {/* FUN Play Branding */}
-        <div className="mt-6 p-3 text-center">
-          <p className="text-xs text-muted-foreground">
+        <div className="mt-4 p-2 text-center">
+          <p className="text-[10px] text-muted-foreground">
             Powered by <span className="font-semibold bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] to-[#FFD700] bg-clip-text text-transparent">FUN Play</span>
           </p>
         </div>

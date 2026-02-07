@@ -37,7 +37,7 @@ const RankingItem = ({ rank, user, index }: RankingItemProps) => {
       whileHover={{ x: 6, scale: 1.02 }}
       onClick={() => navigate(`/channel/${user.id}`)}
       className={cn(
-        "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-300",
+        "w-full flex items-center gap-2 px-2.5 py-2 rounded-xl transition-all duration-300",
         isTopThree 
           ? "bg-gradient-to-r from-[#7A2BFF]/10 via-[#FF00E5]/10 to-[#FFD700]/15 border border-[#FFD700]/30"
           : "bg-gradient-to-r from-[#00E7FF]/5 to-[#7A2BFF]/5 border border-[#7A2BFF]/20",
@@ -45,28 +45,28 @@ const RankingItem = ({ rank, user, index }: RankingItemProps) => {
       )}
     >
       {/* Rank Badge */}
-      <span className="text-lg font-bold min-w-[32px]">{getRankBadge(rank)}</span>
+      <span className="text-base font-bold min-w-[28px]">{getRankBadge(rank)}</span>
 
       {/* Avatar */}
       <Avatar className={cn(
-        "h-9 w-9 border-2",
+        "h-8 w-8 border-2",
         isTopThree ? "border-[#FFD700] shadow-[0_0_12px_rgba(255,215,0,0.5)]" : "border-[#7A2BFF]/50"
       )}>
         <AvatarImage src={user.avatar_url || undefined} />
-        <AvatarFallback className="bg-gradient-to-br from-[#7A2BFF] to-[#FF00E5] text-white text-xs font-bold">
+        <AvatarFallback className="bg-gradient-to-br from-[#7A2BFF] to-[#FF00E5] text-white text-[10px] font-bold">
           {(user.display_name || user.username).charAt(0).toUpperCase()}
         </AvatarFallback>
       </Avatar>
 
       {/* Name */}
-      <span className="flex-1 text-left text-sm font-semibold text-[#7A2BFF] truncate">
+      <span className="flex-1 text-left text-xs font-semibold text-[#7A2BFF] truncate">
         {user.display_name || user.username}
       </span>
 
       {/* CAMLY Amount */}
-      <div className="flex items-center gap-1">
-        <Coins className="h-3.5 w-3.5 text-[#FFD700]" />
-        <span className="text-sm font-black text-[#FFD700]">
+      <div className="flex items-center gap-0.5">
+        <Coins className="h-3 w-3 text-[#FFD700]" />
+        <span className="text-xs font-black text-[#FFD700]">
           {formatRewards(user.total_camly_rewards)}
         </span>
       </div>
@@ -88,7 +88,7 @@ export const TopRankingCard = ({ className }: TopRankingCardProps) => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.1, duration: 0.5, type: "spring" }}
       className={cn(
-        "relative p-5 rounded-2xl overflow-hidden",
+        "relative p-4 rounded-2xl overflow-hidden",
         "bg-white/85 backdrop-blur-xl",
         "border-2 border-transparent",
         "shadow-[0_0_30px_rgba(0,231,255,0.3)]",
@@ -101,29 +101,29 @@ export const TopRankingCard = ({ className }: TopRankingCardProps) => {
       }}
     >
       {/* Header */}
-      <div className="flex items-center justify-center gap-2 mb-4">
-        <Trophy className="h-5 w-5 text-[#FFD700] drop-shadow-[0_0_10px_rgba(255,215,0,0.8)]" />
-        <h2 className="text-lg font-black italic bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] to-[#FF00E5] bg-clip-text text-transparent">
+      <div className="flex items-center justify-center gap-1.5 mb-3">
+        <Trophy className="h-4 w-4 text-[#FFD700] drop-shadow-[0_0_10px_rgba(255,215,0,0.8)]" />
+        <h2 className="text-base font-black italic bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] to-[#FF00E5] bg-clip-text text-transparent">
           TOP RANKING
         </h2>
       </div>
 
       {/* Ranking List */}
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         {loading ? (
           [...Array(5)].map((_, i) => (
             <div
               key={i}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-muted animate-pulse"
+              className="flex items-center gap-2 px-2.5 py-2 rounded-xl bg-muted animate-pulse"
             >
-              <div className="w-8 h-5 rounded bg-muted-foreground/20" />
-              <div className="w-9 h-9 rounded-full bg-muted-foreground/20" />
-              <div className="flex-1 h-4 rounded bg-muted-foreground/20" />
-              <div className="w-12 h-4 rounded bg-muted-foreground/20" />
+              <div className="w-7 h-4 rounded bg-muted-foreground/20" />
+              <div className="w-8 h-8 rounded-full bg-muted-foreground/20" />
+              <div className="flex-1 h-3 rounded bg-muted-foreground/20" />
+              <div className="w-10 h-3 rounded bg-muted-foreground/20" />
             </div>
           ))
         ) : users.length === 0 ? (
-          <p className="text-center text-sm text-muted-foreground py-4">
+          <p className="text-center text-xs text-muted-foreground py-3">
             No ranking data yet
           </p>
         ) : (
@@ -134,14 +134,14 @@ export const TopRankingCard = ({ className }: TopRankingCardProps) => {
       </div>
 
       {/* View All Button */}
-      <motion.div whileTap={{ scale: 0.97 }} className="mt-4">
+      <motion.div whileTap={{ scale: 0.97 }} className="mt-3">
         <Button
           onClick={() => navigate("/leaderboard")}
           variant="ghost"
-          className="w-full text-[#7A2BFF] hover:text-[#FF00E5] hover:bg-[#7A2BFF]/10 font-semibold"
+          className="w-full h-9 text-xs text-[#7A2BFF] hover:text-[#FF00E5] hover:bg-[#7A2BFF]/10 font-semibold"
         >
           View All Ranking
-          <ChevronRight className="h-4 w-4 ml-1" />
+          <ChevronRight className="h-3.5 w-3.5 ml-1" />
         </Button>
       </motion.div>
     </motion.div>
