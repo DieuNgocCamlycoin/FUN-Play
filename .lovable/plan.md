@@ -1,167 +1,313 @@
 
-# 🛠️ Fix Dropdown Bị Che Khuất Trong Modal "Thưởng & Tặng"
+# 🎁 Hoàn Thiện Modal "Thưởng & Tặng" Siêu Xịn Sò
 
-## 📊 Phân Tích Nguyên Nhân
+## 📊 Phân Tích Hiện Tại
 
-### Vấn đề hiện tại:
-| Component | z-index hiện tại | Vấn đề |
-|-----------|------------------|--------|
-| DialogOverlay | `z-[10001]` | ✅ OK |
-| DialogContent | `z-[10002]` | ✅ OK |
-| SelectContent | `z-50` | ❌ Thấp hơn modal! |
-| DropdownMenuContent | `z-50` | ❌ Thấp hơn modal! |
-| PopoverContent | `z-50` | ❌ Thấp hơn modal! |
-
-**Root cause:** Shadcn/ui Select component sử dụng Portal để render dropdown ra ngoài parent, NHƯNG z-index chỉ là `z-50` (= 50), trong khi Dialog có z-index là `10002`. Do đó dropdown bị che khuất phía dưới modal!
+**Modal hiện tại (`EnhancedDonateModal.tsx`):**
+- ✅ Có 5 steps riêng biệt (receiver → token → amount → message → success)
+- ✅ Đã có confetti khi success
+- ❌ Các bước tách rời, không hiển thị cùng lúc
+- ❌ Thiếu viền hologram cho inputs
+- ❌ Success đơn giản, thiếu GIF/nhạc/auto post
+- ❌ Không có emoji picker trong textarea
+- ❌ Không có slider cho amount
 
 ---
 
-## ✅ Giải Pháp Fix Toàn Diện
+## ✅ Kế Hoạch Triển Khai
 
-### 1. Tăng z-index cho SelectContent (select.tsx)
+### 1. Modal Tặng & Thưởng (Full Fields Cùng Lúc)
 
-**File:** `src/components/ui/select.tsx`
+**File:** `src/components/Donate/EnhancedDonateModal.tsx`
 
-**Thay đổi dòng 68-69:**
-- Cũ: `z-50`
-- Mới: `z-[10003]` (cao hơn DialogContent z-[10002])
+**Thay đổi chính:**
+- Loại bỏ hệ thống step-by-step, hiển thị tất cả fields trên 1 màn hình
+- Layout responsive: 
+  - Desktop: Grid 2 cột (sender + receiver cột trái, token + amount + message cột phải)
+  - Mobile: Stack dọc, scroll nếu cần
 
-**Thêm styles:**
-- Background solid: `bg-white dark:bg-gray-900` (không transparent)
-- Border gradient: `border-2 border-cosmic-cyan/30`
-- Shadow glow: `shadow-[0_0_20px_rgba(0,231,255,0.3)]`
-- Rounded: `rounded-xl`
-
-### 2. Tăng z-index cho DropdownMenuContent (dropdown-menu.tsx)
-
-**File:** `src/components/ui/dropdown-menu.tsx`
-
-**Thay đổi dòng 63-64:**
-- Cũ: `z-50`
-- Mới: `z-[10003]`
-
-**Thêm styles tương tự:**
-- `bg-white dark:bg-gray-900`
-- `border border-cosmic-cyan/30`
-- `shadow-lg`
-
-### 3. Tăng z-index cho PopoverContent (popover.tsx)
-
-**File:** `src/components/ui/popover.tsx`
-
-**Thay đổi dòng 19-20:**
-- Cũ: `z-50`
-- Mới: `z-[10003]`
-
-**Thêm styles:**
-- `bg-white dark:bg-gray-900`
-- `border border-cosmic-cyan/30`
-
-### 4. Tăng z-index cho DropdownMenuSubContent (dropdown-menu.tsx)
-
-**Thay đổi dòng 46-47:**
-- Cũ: `z-50`
-- Mới: `z-[10004]` (cao hơn parent dropdown)
-
----
-
-## 🎨 Design System Compliance
-
-Tất cả dropdown sẽ được style theo FUN PLAY Design System v1.0:
-
+**Cấu trúc mới:**
 ```text
-Background:     bg-white dark:bg-gray-900 (solid, không transparent)
-Border:         border border-cosmic-cyan/30 (gradient cyan subtle)
-Shadow:         shadow-lg shadow-cyan-500/10 (glow effect nhẹ)
-Rounded:        rounded-xl (bo góc đẹp)
-Animation:      Giữ nguyên fade-in/zoom-in hiện tại
-Max-height:     max-h-96 (384px, scroll nếu dài)
+┌─────────────────────────────────────────────────────────────┐
+│ 🎁 Thưởng & Tặng                              [X]           │
+├─────────────────────────────────────────────────────────────┤
+│ ┌─────────────────┐  ┌──────────────────────────────────┐   │
+│ │ [Avatar] Bạn    │  │ 🔍 Tìm người nhận...             │   │
+│ │ @username       │  │ [Avatar dropdown list]           │   │
+│ └─────────────────┘  └──────────────────────────────────┘   │
+├─────────────────────────────────────────────────────────────┤
+│ [Dropdown Token] FUN MONEY ▼  │ Số dư: 1000 FUNM           │
+├─────────────────────────────────────────────────────────────┤
+│ [10] [50] [100] [500] [Custom ___]                          │
+│ [═══════════════●═══════════] 250 FUNM                      │
+├─────────────────────────────────────────────────────────────┤
+│ ┌──────────────────────────────────────────────────────┐    │
+│ │ Lời nhắn yêu thương 💖                               │    │
+│ │ ________________________________________________    │    │
+│ │ [😊] Emoji picker                              0/200 │    │
+│ └──────────────────────────────────────────────────────┘    │
+├─────────────────────────────────────────────────────────────┤
+│          [ 🎁 Tặng Ngay - 250 FUNM → @receiver ]            │
+└─────────────────────────────────────────────────────────────┘
 ```
 
+### 2. Viền Hologram Input (Toàn Hệ Thống)
+
+**File:** `src/index.css`
+
+**Thêm CSS class mới:**
+```css
+/* Hologram border for inputs - global apply */
+.hologram-input {
+  position: relative;
+  border: 1px solid transparent;
+  background-image: 
+    linear-gradient(white, white),
+    linear-gradient(135deg, #00E7FF, #7A2BFF, #FF00E5, #FFD700);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  transition: all 0.3s ease;
+}
+
+.hologram-input:focus {
+  box-shadow: 
+    0 0 10px rgba(0, 231, 255, 0.4),
+    0 0 20px rgba(122, 43, 255, 0.3),
+    0 0 30px rgba(255, 0, 229, 0.2);
+  animation: pulse-glow 1.5s ease-in-out infinite;
+}
+```
+
+**Files cần update:**
+- `src/components/ui/input.tsx` - Thêm `hologram-input` class vào base styles
+- `src/components/ui/textarea.tsx` - Tương tự
+- `src/components/ui/select.tsx` - Thêm cho SelectTrigger
+
+### 3. Success State Siêu Xịn
+
+**Tính năng mới:**
+
+| Feature | Chi tiết |
+|---------|----------|
+| GIF ăn mừng | Hiển thị GIF animation (configurable URL) |
+| Pháo hoa | Enhanced confetti với nhiều màu hơn, duration lâu hơn |
+| Nhạc "RICH RICH RICH" | Sử dụng `useSoundEffects` hook với `celebrate()` sound |
+| Auto Post | Button "Chia sẻ lên Profile" tạo post tự động |
+| Modal không tự đóng | Giữ nguyên cho user chụp hình, có nút X để tắt |
+
+**Success State UI:**
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                                                     [X]     │
+│                    🎉 [GIF Animation] 🎉                    │
+│                                                             │
+│              ✨ Tặng Thành Công! ✨                         │
+│                                                             │
+│   Bạn đã lan tỏa 250 FUNM đến @receiver 💖                 │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │ [Avatar Sender] → [Avatar Receiver]                 │    │
+│  │ "Lời nhắn yêu thương từ bạn..."                     │    │
+│  │ TX: 0x1234... [🔗]                                  │    │
+│  └─────────────────────────────────────────────────────┘    │
+│                                                             │
+│  [ 📋 Copy Link ]  [ 🌟 Chia Sẻ Lên Profile ]              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 4. Auto Post Lên Profile
+
+**Logic:**
+1. Khi user bấm "Chia sẻ lên Profile"
+2. Tạo post mới trong bảng `posts` với:
+   - `content`: "{DisplayName} vừa tặng {amount} {symbol} cho @{receiver} 💖 #FUNGift"
+   - `image_url`: null (hoặc GIF nếu có)
+3. Navigate đến post mới hoặc hiển thị toast success
+
+**Code snippet:**
+```typescript
+const handleShareToProfile = async () => {
+  const postContent = `${senderName} vừa tặng ${amount} ${symbol} cho @${receiverUsername} với lời nhắn: "${message}" 💖 #FUNGift`;
+  
+  const { data: channel } = await supabase
+    .from("channels")
+    .select("id")
+    .eq("user_id", user.id)
+    .single();
+    
+  await supabase.from("posts").insert({
+    user_id: user.id,
+    channel_id: channel.id,
+    content: postContent,
+    image_url: null,
+  });
+  
+  toast({ title: "Đã chia sẻ lên Profile!" });
+};
+```
+
+### 5. Tính Năng Bổ Sung
+
+**a. Emoji Picker trong Textarea:**
+- Sử dụng component `EmojiPicker` đã có sẵn trong project
+- Thêm nút 😊 cạnh textarea
+- Click → hiển thị emoji grid → chọn → insert vào message
+
+**b. Slider Amount:**
+```tsx
+<Slider
+  min={1}
+  max={Math.min(currentBalance || 1000, 10000)}
+  step={1}
+  value={[parseFloat(amount) || 0]}
+  onValueChange={(v) => setAmount(v[0].toString())}
+  className="hologram-input"
+/>
+```
+
+**c. Token Priority (FUN MONEY trước):**
+- Sort tokens: `tokens.sort((a, b) => a.priority - b.priority)`
+- Ensure `donate_tokens` table có FUN MONEY priority = 1
+
 ---
 
-## 📁 Files Cần Chỉnh Sửa
+## 📁 Files Cần Tạo/Chỉnh Sửa
 
-| File | Thay đổi |
-|------|----------|
-| `src/components/ui/select.tsx` | `z-50` → `z-[10003]` + styles |
-| `src/components/ui/dropdown-menu.tsx` | `z-50` → `z-[10003]` + `z-[10004]` cho SubContent |
-| `src/components/ui/popover.tsx` | `z-50` → `z-[10003]` + styles |
+| File | Hành động | Mô tả |
+|------|-----------|-------|
+| `src/components/Donate/EnhancedDonateModal.tsx` | **Major Rewrite** | Modal full-fields + success siêu xịn |
+| `src/components/Donate/DonationSuccessOverlay.tsx` | **New** | Component success riêng với GIF/confetti/sound |
+| `src/index.css` | **Edit** | Thêm `.hologram-input` class |
+| `src/components/ui/input.tsx` | **Edit** | Thêm hologram border class |
+| `src/components/ui/textarea.tsx` | **Edit** | Thêm hologram border class |
+| `src/components/ui/slider.tsx` | **Edit** | Thêm hologram glow effect |
 
 ---
 
 ## 🔧 Chi Tiết Code Changes
 
-### select.tsx (dòng 68-69)
+### EnhancedDonateModal.tsx (Major Rewrite)
+
+**Xóa:**
+- State `step` và logic step-by-step
+- AnimatePresence với key từng step
+
+**Thêm:**
+- Single-page layout với tất cả fields
+- Slider component cho amount
+- Emoji picker integration
+- Enhanced confetti settings
+- Sound effect on success
+- Share to profile button
+- Modal không auto-close
+
+### DonationSuccessOverlay.tsx (New Component)
+
 ```tsx
-// Thay đổi className trong SelectContent
-className={cn(
-  "relative z-[10003] max-h-96 min-w-[8rem] overflow-hidden rounded-xl border border-cosmic-cyan/30 bg-white dark:bg-gray-900 text-popover-foreground shadow-lg shadow-cyan-500/10 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
-  position === "popper" && "...",
-  className,
-)}
+interface SuccessOverlayProps {
+  transaction: DonationTransaction;
+  sender: { name: string; avatar: string };
+  receiver: { name: string; avatar: string };
+  token: DonationToken;
+  message?: string;
+  onClose: () => void;
+  onShare: () => void;
+}
+
+// Features:
+// - Full-screen overlay với backdrop blur
+// - GIF animation (configurable URL)
+// - Enhanced confetti (multiple bursts)
+// - Celebration sound effect
+// - Transaction details card
+// - Copy link + Share buttons
+// - X button to close (không auto-close)
 ```
 
-### dropdown-menu.tsx (dòng 63-65)
-```tsx
-// Thay đổi className trong DropdownMenuContent
-className={cn(
-  "z-[10003] min-w-[8rem] overflow-hidden rounded-xl border border-cosmic-cyan/30 bg-white dark:bg-gray-900 p-1 text-popover-foreground shadow-lg shadow-cyan-500/10 data-[state=open]:animate-in data-[state=closed]:animate-out ...",
-  className,
-)}
-```
+### index.css Additions
 
-### dropdown-menu.tsx (dòng 46-48 - SubContent)
-```tsx
-// Thay đổi className trong DropdownMenuSubContent
-className={cn(
-  "z-[10004] min-w-[8rem] overflow-hidden rounded-xl border border-cosmic-cyan/30 bg-white dark:bg-gray-900 p-1 text-popover-foreground shadow-lg ...",
-  className,
-)}
-```
+```css
+/* Hologram Input Border - Applied globally */
+.hologram-input,
+.hologram-input-trigger {
+  position: relative;
+  border: 1px solid transparent !important;
+  background: 
+    linear-gradient(hsl(var(--background)), hsl(var(--background))) padding-box,
+    linear-gradient(135deg, 
+      hsl(var(--cosmic-cyan)), 
+      hsl(var(--cosmic-magenta)), 
+      hsl(var(--cosmic-gold))
+    ) border-box !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
 
-### popover.tsx (dòng 19-21)
-```tsx
-// Thay đổi className trong PopoverContent
-className={cn(
-  "z-[10003] w-72 rounded-xl border border-cosmic-cyan/30 bg-white dark:bg-gray-900 p-4 text-popover-foreground shadow-lg shadow-cyan-500/10 outline-none data-[state=open]:animate-in ...",
-  className,
-)}
+.hologram-input:focus,
+.hologram-input-trigger:focus,
+.hologram-input:focus-within {
+  box-shadow: 
+    0 0 8px hsla(var(--cosmic-cyan), 0.5),
+    0 0 16px hsla(var(--cosmic-magenta), 0.3),
+    0 0 24px hsla(var(--cosmic-gold), 0.2);
+  animation: input-glow-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes input-glow-pulse {
+  0%, 100% { 
+    box-shadow: 
+      0 0 8px hsla(var(--cosmic-cyan), 0.5),
+      0 0 16px hsla(var(--cosmic-magenta), 0.3);
+  }
+  50% { 
+    box-shadow: 
+      0 0 12px hsla(var(--cosmic-cyan), 0.7),
+      0 0 24px hsla(var(--cosmic-magenta), 0.5),
+      0 0 32px hsla(var(--cosmic-gold), 0.3);
+  }
+}
 ```
 
 ---
 
 ## 🧪 Testing Checklist
 
-Sau khi fix, test các trường hợp:
+1. **Modal Flow:**
+   - [ ] Mở modal → tất cả fields hiển thị cùng lúc
+   - [ ] Search người nhận → dropdown hiển thị avatar + tên
+   - [ ] Chọn token → dropdown đẹp, FUN MONEY đầu tiên
+   - [ ] Nhập amount → slider + quick buttons hoạt động
+   - [ ] Viết lời nhắn → emoji picker hoạt động
+   - [ ] Validate amount <= balance
 
-1. **Modal Thưởng & Tặng:**
-   - [ ] Mở modal → bấm chọn token → dropdown nổi hoàn toàn trên modal
-   - [ ] Dropdown hiển thị đầy đủ 4 token (FUNM, CAMLY, BNB, USDT)
-   - [ ] Scroll mượt nếu có nhiều token
-   - [ ] Click chọn token → dropdown đóng, token được chọn
+2. **Viền Hologram:**
+   - [ ] Tất cả input có viền gradient mảnh
+   - [ ] Focus → glow effect + pulse animation
+   - [ ] Áp dụng cho select trigger
 
-2. **Các dropdown khác:**
-   - [ ] Dropdown trong Header (user menu)
-   - [ ] Dropdown trong Wallet page
-   - [ ] Popover/Datepicker trong forms
-   - [ ] Tất cả đều nổi trên các modal khác
+3. **Success State:**
+   - [ ] GIF animation hiển thị
+   - [ ] Confetti pháo hoa nhiều màu
+   - [ ] Nhạc celebration tự động phát
+   - [ ] Modal không tự đóng
+   - [ ] Nút X để đóng modal
+   - [ ] Copy link hoạt động
+   - [ ] Share to profile tạo post mới
 
-3. **Mobile:**
-   - [ ] Dropdown responsive, không bị tràn màn hình
-   - [ ] Touch-friendly, dễ chọn
+4. **Responsive:**
+   - [ ] Desktop: Grid layout đẹp
+   - [ ] Mobile: Stack dọc, scroll mượt
 
 ---
 
 ## 📊 Tổng Kết
 
-| Trước Fix | Sau Fix |
-|-----------|---------|
-| Dropdown z-50 (50) | Dropdown z-[10003] (10003) |
-| Bị che bởi Dialog z-[10002] | Nổi trên Dialog |
-| Không style đẹp | Gradient border + glow shadow |
-| Có thể transparent | Background solid |
+| Trước | Sau |
+|-------|-----|
+| 5 steps tách rời | 1 màn hình full fields |
+| Input border đơn giản | Hologram gradient border + glow |
+| Success chỉ có confetti | GIF + Confetti + Sound + Auto Post |
+| Modal tự đóng | Giữ nguyên cho chụp hình |
+| Không có emoji picker | Có emoji picker trong message |
+| Không có slider | Slider + Quick amount buttons |
 
-**Thời gian thực hiện:** ~10 phút
-
-Kế hoạch này sẽ fix dứt điểm vấn đề dropdown bị che khuất trong modal, áp dụng cho toàn bộ hệ thống và đảm bảo Design System consistency!
+**Thời gian ước tính:** ~30-40 phút
