@@ -21,9 +21,10 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useHapticFeedback } from "@/hooks/useHapticFeedback";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, ArrowUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatViews, formatTimestamp } from "@/lib/formatters";
+import { AnimatePresence, motion } from "framer-motion";
 
 interface Video {
   id: string;
@@ -57,12 +58,32 @@ const Index = () => {
   const [currentMusicUrl, setCurrentMusicUrl] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState("Tất cả");
   const [visibleCount, setVisibleCount] = useState(VIDEOS_PER_PAGE);
+  const [showScrollTop, setShowScrollTop] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const { successFeedback } = useHapticFeedback();
+
+  // Scroll-to-top listener (mobile only)
+  useEffect(() => {
+    if (!isMobile) return;
+    const handleScroll = () => {
+      const y = window.scrollY;
+      setShowScrollTop(prev => {
+        if (!prev && y > 500) return true;
+        if (prev && y < 200) return false;
+        return prev;
+      });
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [isMobile]);
+
+  const scrollToTop = useCallback(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
 
   // Reset visible count when category changes
   useEffect(() => {
@@ -374,6 +395,7 @@ const Index = () => {
                       isVerified={video.channels?.is_verified}
                       views={formatViews(video.view_count)}
                       timestamp={formatTimestamp(video.created_at)}
+                      videoUrl={video.video_url}
                       onPlay={handlePlayVideo}
                     />
                   ))}
@@ -400,6 +422,23 @@ const Index = () => {
           autoPlay={true}
         />
       )}
+
+      {/* Mobile Scroll-to-Top Button */}
+      <AnimatePresence>
+        {isMobile && showScrollTop && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            transition={{ duration: 0.2 }}
+            onClick={scrollToTop}
+            className="fixed bottom-20 right-3 z-40 h-10 w-10 rounded-full bg-gradient-to-br from-cosmic-sapphire to-cosmic-cyan shadow-lg flex items-center justify-center border border-glow-cyan/50 active:scale-95 transition-transform"
+            aria-label="Cuộn lên đầu trang"
+          >
+            <ArrowUp className="h-5 w-5 text-white" />
+          </motion.button>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

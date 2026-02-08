@@ -228,7 +228,7 @@ export const useAdminVideoStats = (
 
 // Helper functions
 export const formatFileSize = (bytes: number | null): string => {
-  if (!bytes || bytes === 0) return "N/A";
+  if (!bytes || bytes === 0) return "Không có";
   const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
   return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${sizes[i]}`;
