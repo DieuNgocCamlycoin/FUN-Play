@@ -162,7 +162,7 @@ export default function Channel() {
           .maybeSingle();
 
         if (pError) throw pError;
-        if (!pData) throw new Error("User not found");
+        if (!pData) throw new Error("Không tìm thấy người dùng");
 
         profileData = pData;
 
@@ -183,7 +183,7 @@ export default function Channel() {
           .maybeSingle();
 
         if (cError) throw cError;
-        if (!cData) throw new Error("Channel not found");
+        if (!cData) throw new Error("Không tìm thấy kênh");
 
         channelData = cData;
 
@@ -194,7 +194,7 @@ export default function Channel() {
           .eq("id", cData.user_id)
           .maybeSingle();
 
-        if (!pData) throw new Error("Profile not found");
+        if (!pData) throw new Error("Không tìm thấy hồ sơ");
         profileData = pData;
       }
 

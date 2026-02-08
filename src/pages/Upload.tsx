@@ -36,7 +36,7 @@ export default function Upload() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-foreground">Loading...</div>
+        <div className="text-foreground">Đang tải...</div>
       </div>
     );
   }

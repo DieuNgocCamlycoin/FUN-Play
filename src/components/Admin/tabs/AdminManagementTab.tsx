@@ -64,7 +64,7 @@ const AdminManagementTab = () => {
           const profile = profiles?.find((p) => p.id === r.user_id);
           return {
             id: r.user_id,
-            username: profile?.username || "Unknown",
+            username: profile?.username || "Không xác định",
             display_name: profile?.display_name,
             avatar_url: profile?.avatar_url,
             role: r.role as "owner" | "admin",

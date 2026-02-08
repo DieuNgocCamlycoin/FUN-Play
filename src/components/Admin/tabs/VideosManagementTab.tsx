@@ -252,7 +252,7 @@ function VideoApprovalContent() {
                         <h3 className="font-semibold truncate">{video.title}</h3>
                         <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
                           <User className="w-3 h-3" />
-                          <span>{video.profiles?.display_name || video.profiles?.username || "Unknown"}</span>
+                          <span>{video.profiles?.display_name || video.profiles?.username || "Không xác định"}</span>
                           <span>•</span>
                           <span>{new Date(video.created_at).toLocaleDateString("vi-VN")}</span>
                         </div>

@@ -116,7 +116,7 @@ const WatchLater = () => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-medium line-clamp-2 group-hover:text-primary transition-colors">{item.video.title}</h3>
-                  <p className="text-sm text-muted-foreground mt-1">{item.video.channels?.name || 'Unknown Channel'}</p>
+                  <p className="text-sm text-muted-foreground mt-1">{item.video.channels?.name || 'Kênh chưa xác định'}</p>
                   <p className="text-xs text-muted-foreground">{formatViews(item.video.view_count)}</p>
                 </div>
                 {/* Kebab menu */}

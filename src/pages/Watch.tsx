@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { ThumbsUp, ThumbsDown, Share2, MoreHorizontal, Gift, Bookmark, Flag, EyeOff } from "lucide-react";
+import { ThumbsUp, ThumbsDown, Share2, MoreHorizontal, Gift, Bookmark, Flag, EyeOff, RectangleHorizontal } from "lucide-react";
 import { DonateModal } from "@/components/Donate/DonateModal";
 import { ShareModal } from "@/components/Video/ShareModal";
 import { MiniProfileCard } from "@/components/Video/MiniProfileCard";
@@ -81,6 +81,7 @@ export default function Watch() {
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [showMiniProfile, setShowMiniProfile] = useState(false);
   const [playlistModalOpen, setPlaylistModalOpen] = useState(false);
+  const [isTheaterMode, setIsTheaterMode] = useState(false);
   const [showMiniPlayer, setShowMiniPlayer] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -235,7 +236,7 @@ export default function Watch() {
       // View reward is now handled in EnhancedVideoPlayer based on watch time policy
     } catch (error: any) {
       toast({
-        title: "Error loading video",
+        title: "Lỗi tải video",
         description: error.message,
         variant: "destructive",
       });
@@ -517,7 +518,7 @@ export default function Watch() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-foreground">Loading...</div>
+        <div className="text-foreground">Đang tải...</div>
       </div>
     );
   }
@@ -525,7 +526,7 @@ export default function Watch() {
   if (!video) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-foreground">Video not found</div>
+        <div className="text-foreground">Không tìm thấy video</div>
       </div>
     );
   }
@@ -602,7 +603,7 @@ export default function Watch() {
 
       <main className={`pt-14 transition-all duration-300 ${isSidebarExpanded ? "lg:pl-60" : "lg:pl-16"}`}>
         <div className="max-w-[1920px] mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6 p-6">
+          <div className={`grid gap-6 p-6 ${isTheaterMode ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-[1fr_400px]'}`}>
             {/* Main Content */}
             <div className="space-y-4">
               {/* Video Player */}
@@ -748,6 +749,19 @@ export default function Watch() {
                   >
                     <Gift className="h-4 w-4 text-glow-gold" />
                     Tặng
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    className={`rounded-full hidden lg:flex ${
+                      isTheaterMode 
+                        ? "bg-cosmic-cyan/20 text-cosmic-cyan border-cosmic-cyan/30" 
+                        : "bg-muted/50 hover:bg-muted/70"
+                    }`}
+                    onClick={() => setIsTheaterMode(!isTheaterMode)}
+                    title={isTheaterMode ? "Chế độ mặc định" : "Chế độ rạp phim"}
+                  >
+                    <RectangleHorizontal className="h-4 w-4" />
                   </Button>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>

@@ -200,7 +200,7 @@ export const useAdminVideoStats = (
               id: video.user_id,
               displayName: video.profiles?.display_name,
               avatarUrl: video.profiles?.avatar_url,
-              username: video.profiles?.username || "unknown",
+              username: video.profiles?.username || "không_xác_định",
             },
           }));
           setVideos(formattedVideos);
