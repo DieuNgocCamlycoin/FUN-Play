@@ -174,6 +174,65 @@ export type Database = {
         }
         Relationships: []
       }
+      api_keys: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          key_hash: string
+          last_used_at: string | null
+          platform_name: string
+          rate_limit_per_minute: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          key_hash: string
+          last_used_at?: string | null
+          platform_name: string
+          rate_limit_per_minute?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          key_hash?: string
+          last_used_at?: string | null
+          platform_name?: string
+          rate_limit_per_minute?: number
+        }
+        Relationships: []
+      }
+      api_rate_limits: {
+        Row: {
+          api_key_id: string
+          id: string
+          request_count: number
+          window_start: string
+        }
+        Insert: {
+          api_key_id: string
+          id?: string
+          request_count?: number
+          window_start?: string
+        }
+        Update: {
+          api_key_id?: string
+          id?: string
+          request_count?: number
+          window_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_rate_limits_api_key_id_fkey"
+            columns: ["api_key_id"]
+            isOneToOne: false
+            referencedRelation: "api_keys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       blacklisted_wallets: {
         Row: {
           created_at: string | null
