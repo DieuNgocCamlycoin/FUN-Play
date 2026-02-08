@@ -1,53 +1,63 @@
 
-# Sửa lỗi các nút Filter Chips không hiển thị màu trắng
+# Cập nhật viền và màu chữ Filter Chips Bar theo màu xanh logo FUN Play
 
-## Nguyên nhân
+## Tình trạng hiện tại
 
-Các nút chưa được chọn sử dụng `variant="secondary"` của component `Button`. Variant này có sẵn gradient nền tím-hồng mạnh:
+Các chip chưa chọn (default) hiện tại có:
+- **Viền**: Mỏng (`border` = 1px), màu cyan nhạt (`border-[#22D3EE]/30`)
+- **Chữ**: Màu `#0284C7` (sky blue)
 
-```
-bg-gradient-to-r from-cosmic-magenta to-divine-rose-gold
-```
+## Màu xanh logo FUN Play
 
-Class tùy chỉnh `bg-white/90` không thể ghi đè được gradient này vì Tailwind xử lý `background-image` (gradient) ưu tiên hơn `background-color` (white). Đây là lý do các nút hiển thị tím-hồng thay vì trắng.
+Logo FUN Play sử dụng màu **Cosmic Sapphire** (`#0066FF`), đã được định nghĩa trong hệ thống thiết kế:
+- CSS Variable: `--cosmic-sapphire: 216 100% 50%`
+- Tailwind token: `fun-blue` hoặc `cosmic-sapphire`
 
-Tương tự, chip được chọn dùng `variant="default"` cũng có gradient riêng có thể xung đột.
+## Thay đổi
 
-## Giải pháp
+### File duy nhất: `src/components/Layout/CategoryChips.tsx`
 
-Đổi cả hai trạng thái sang `variant="ghost"` -- variant này không có màu nền mặc định, cho phép các class tùy chỉnh hoạt động đúng.
+**Chip mặc định (chưa chọn) -- dòng 35:**
 
-## File cần chỉnh sửa
+| Thuộc tính | Hiện tại | Sau cập nhật |
+|------------|----------|--------------|
+| Viền dày | `border` (1px) | `border-2` (2px) |
+| Màu viền | `border-[#22D3EE]/30` (cyan nhạt) | `border-[#0066FF]/40` (xanh logo) |
+| Màu chữ | `text-[#0284C7]` (sky blue) | `text-[#0066FF]` (xanh logo) |
+| Hover viền | `hover:border-[#22D3EE]/50` | `hover:border-[#0066FF]/60` |
+| Hover chữ | `hover:text-[#0369A1]` | `hover:text-[#0052CC]` (xanh logo đậm hơn) |
 
-**File duy nhất:** `src/components/Layout/CategoryChips.tsx`
+**Chip được chọn (selected) -- dòng 34:**
 
-### Thay đổi chi tiết
+| Thuộc tính | Hiện tại | Sau cập nhật |
+|------------|----------|--------------|
+| Viền dày | `border` (1px) | `border-2` (2px) |
+| (Giữ nguyên gradient nền và chữ trắng) | | |
 
-**Dòng 30:** Thay đổi variant cho cả hai trạng thái từ điều kiện `selected === category ? "default" : "secondary"` thành `"ghost"` cho tất cả.
+## Chi tiết kỹ thuật
 
-```tsx
-// Hiện tại (dòng 30):
-variant={selected === category ? "default" : "secondary"}
+Thay đổi class CSS trên dòng 34 và 35 của file `CategoryChips.tsx`:
 
-// Thay thành:
-variant="ghost"
-```
+**Dòng 34 (chip selected):** Đổi `border border-transparent` thanh `border-2 border-transparent`
 
-Việc này loại bỏ hoàn toàn các gradient nền và shadow từ variant gốc, để các class tùy chỉnh (gradient Teal-Cyan-Blue cho chip được chọn, nền trắng cho chip mặc định) hoạt động đúng.
-
-Không cần thay đổi gì khác -- các class CSS tùy chỉnh ở dòng 34-35 đã đúng rồi.
+**Dòng 35 (chip default):** Đổi toàn bộ:
+- `border border-[#22D3EE]/30` thanh `border-2 border-[#0066FF]/40`
+- `text-[#0284C7]` thanh `text-[#0066FF]`
+- `hover:text-[#0369A1]` thanh `hover:text-[#0052CC]`
+- `hover:border-[#22D3EE]/50` thanh `hover:border-[#0066FF]/60`
 
 ## Tóm tắt
 
 | Hạng mục | Chi tiết |
 |----------|----------|
 | File cần sửa | 1 (`CategoryChips.tsx`) |
-| Thay đổi | 1 dòng (dòng 30) |
+| Thay đổi | 2 dòng (dòng 34 và 35) |
 | Cơ sở dữ liệu | Không |
-| Đồng bộ Mobile | Tu dong (component dung chung) |
+| Đồng bộ Mobile | Tự động (component dùng chung) |
 
-## Ket qua
+## Kết quả
 
-- Chip duoc chon: Gradient Teal-Cyan-Blue (giong nut WALLET) voi chu trang
-- Chip mac dinh: Nen trang sach se voi chu xanh Cyan va vien Cyan nhe
-- Khong con hieu ung tim-hong tu variant cu
+- Viền các chip dày hơn (2px thay vì 1px), rõ ràng hơn trên mobile
+- Màu viền và chữ sử dụng đúng màu xanh logo FUN Play (#0066FF)
+- Chip được chọn giữ nguyên gradient Teal-Cyan-Blue với viền dày hơn
+- Áp dụng đồng thời cho cả Desktop và Mobile
