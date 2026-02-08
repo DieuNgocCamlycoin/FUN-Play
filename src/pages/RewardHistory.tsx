@@ -325,7 +325,7 @@ export default function RewardHistory() {
                   <SelectItem value="like">Thích video</SelectItem>
                   <SelectItem value="comment">Bình luận</SelectItem>
                   <SelectItem value="share">Chia sẻ</SelectItem>
-                  <SelectItem value="upload">Upload</SelectItem>
+                  <SelectItem value="upload">Tải lên</SelectItem>
                   <SelectItem value="first_upload">Video đầu tiên</SelectItem>
                   <SelectItem value="signup">Đăng ký</SelectItem>
                   <SelectItem value="wallet_connect">Kết nối ví</SelectItem>

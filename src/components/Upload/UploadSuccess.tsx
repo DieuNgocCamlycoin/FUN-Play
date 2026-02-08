@@ -68,7 +68,7 @@ export function UploadSuccess({ videoId, onViewVideo, onUploadAnother, onClose }
   };
 
   const shareToX = () => {
-    const text = `Check out my new video on FUN PLAY! ✨ ${shortUrl}`;
+    const text = `Xem video mới của tôi trên FUN PLAY! ✨ ${shortUrl}`;
     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank');
   };
 
@@ -77,7 +77,7 @@ export function UploadSuccess({ videoId, onViewVideo, onUploadAnother, onClose }
   };
 
   const shareToTelegram = () => {
-    const text = `Check out my new video! ✨`;
+    const text = `Xem video mới của tôi! ✨`;
     window.open(`https://t.me/share/url?url=${encodeURIComponent(shortUrl)}&text=${encodeURIComponent(text)}`, '_blank');
   };
 
@@ -222,7 +222,7 @@ export function UploadSuccess({ videoId, onViewVideo, onUploadAnother, onClose }
         className="text-xs text-muted-foreground flex items-center justify-center gap-1"
       >
         <Sparkles className="w-3 h-3 text-[hsl(var(--cosmic-gold))]" />
-        Share link này để lan tỏa ánh sáng nhé!
+        Chia sẻ link này để lan tỏa ánh sáng nhé!
         <Sparkles className="w-3 h-3 text-[hsl(var(--cosmic-gold))]" />
       </motion.p>
 

@@ -251,7 +251,7 @@ export default function AIMusicDetail() {
             </h2>
             <div className="text-sm text-gray-700 space-y-1">
               <p>{music.style}</p>
-              <p className="text-gray-500">Loại: {music.instrumental ? "Instrumental" : music.voice_type || "Vocal"}</p>
+              <p className="text-gray-500">Loại: {music.instrumental ? "Nhạc không lời" : music.voice_type || "Có giọng hát"}</p>
             </div>
           </div>
         </div>
