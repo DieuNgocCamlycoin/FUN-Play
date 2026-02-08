@@ -166,7 +166,7 @@ export function UpNextSidebar({ onVideoSelect }: UpNextSidebarProps) {
               size="icon"
               className={`h-8 w-8 rounded-full ${session.shuffle ? "text-primary bg-primary/20" : ""}`}
               onClick={() => setShuffle(!session.shuffle)}
-              title="Shuffle"
+              title="Xáo trộn"
             >
               <Shuffle className="h-4 w-4" />
             </Button>
@@ -176,7 +176,7 @@ export function UpNextSidebar({ onVideoSelect }: UpNextSidebarProps) {
               size="icon"
               className={`h-8 w-8 rounded-full ${session.repeat !== "off" ? "text-primary bg-primary/20" : ""}`}
               onClick={cycleRepeat}
-              title={`Repeat: ${session.repeat}`}
+              title={session.repeat === "off" ? "Lặp lại: tắt" : session.repeat === "all" ? "Lặp lại: tất cả" : "Lặp lại: một bài"}
             >
               {getRepeatIcon()}
             </Button>

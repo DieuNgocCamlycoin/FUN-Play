@@ -114,7 +114,7 @@ export default function CAMLYPrice() {
     
     if (navigator.share) {
       try {
-        await navigator.share({ title: "CAMLY Token Price", text, url: window.location.href });
+        await navigator.share({ title: "Giá Token CAMLY", text, url: window.location.href });
       } catch (error) {
         // User cancelled
       }

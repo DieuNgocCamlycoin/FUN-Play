@@ -63,7 +63,7 @@ const REWARD_TYPE_MAP: Record<string, { icon: any; label: string; color: string 
   like: { icon: ThumbsUp, label: "Thích video", color: "text-pink-500" },
   comment: { icon: MessageSquare, label: "Bình luận", color: "text-green-500" },
   share: { icon: Share2, label: "Chia sẻ", color: "text-purple-500" },
-  upload: { icon: Upload, label: "Upload video", color: "text-orange-500" },
+  upload: { icon: Upload, label: "Tải lên video", color: "text-orange-500" },
   first_upload: { icon: Gift, label: "Video đầu tiên", color: "text-yellow-500" },
   signup: { icon: Gift, label: "Đăng ký tài khoản", color: "text-cyan-500" },
   wallet_connect: { icon: Wallet, label: "Kết nối ví", color: "text-emerald-500" },

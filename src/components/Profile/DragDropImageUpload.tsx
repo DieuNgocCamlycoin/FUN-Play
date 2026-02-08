@@ -33,8 +33,8 @@ export function DragDropImageUpload({
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       toast({
-        title: "Authentication required",
-        description: "Please log in to upload files",
+        title: "Yêu cầu đăng nhập",
+        description: "Vui lòng đăng nhập để tải ảnh lên",
         variant: "destructive",
       });
       return;
@@ -44,8 +44,8 @@ export function DragDropImageUpload({
     const fileSizeMB = file.size / (1024 * 1024);
     if (fileSizeMB > maxSizeMB) {
       toast({
-        title: "File too large",
-        description: `Please select an image under ${maxSizeMB}MB`,
+        title: "File quá lớn",
+        description: `Vui lòng chọn ảnh dưới ${maxSizeMB}MB`,
         variant: "destructive",
       });
       return;
@@ -54,8 +54,8 @@ export function DragDropImageUpload({
     // Validate file type
     if (!file.type.startsWith("image/")) {
       toast({
-        title: "Invalid file type",
-        description: "Please select an image file",
+        title: "Định dạng file không hợp lệ",
+        description: "Vui lòng chọn file hình ảnh",
         variant: "destructive",
       });
       return;
@@ -68,8 +68,8 @@ export function DragDropImageUpload({
       setPreviewUrl(result.publicUrl);
       onImageUploaded(result.publicUrl);
       toast({
-        title: "Upload successful",
-        description: "Your image has been uploaded to cloud storage",
+        title: "Tải ảnh thành công",
+        description: "Hình ảnh đã được tải lên thành công",
       });
     }
   };
@@ -160,7 +160,7 @@ export function DragDropImageUpload({
               <>
                 <Upload className="h-8 w-8 text-muted-foreground mb-2" />
                 <p className="text-sm text-muted-foreground text-center">
-                  Drag & drop or click to upload
+                  Kéo thả hoặc nhấn để tải ảnh lên
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   Max {maxSizeMB}MB
