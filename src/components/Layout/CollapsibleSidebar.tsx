@@ -25,7 +25,7 @@ interface NavItem {
 // FUN Platforms - Always visible
 const funPlatformItems: NavItem[] = [
   { 
-    customIcon: '/images/fun-rich-logo.png',
+    customIcon: '/images/fun-rich-logo.png?v=2',
     label: "FUN.RICH", 
     href: "https://fun.rich/",
     external: true
@@ -43,7 +43,7 @@ const funPlatformItems: NavItem[] = [
     external: true
   },
   { 
-    customIcon: '/images/fun-wallet-logo.png',
+    customIcon: '/images/fun-wallet-logo.png?v=2',
     label: "FUN Wallet", 
     href: "/fun-wallet",
     isWallet: true
