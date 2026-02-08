@@ -2,115 +2,113 @@
 
 # System Check Report & Fix Plan for FUN Play
 
-## Current Status: System is Running Well
+## Current Status: System Running Stable
 
-After thorough inspection of all files, console logs, network requests, and visual verification on mobile (390x844), the system is operating normally with **no critical runtime errors**. All previous fixes (safe-area CSS, FUN Money navigation, realtime subscription stability, mobile header cleanup) are working correctly.
+After thorough inspection of console logs, network requests, visual mobile testing (390x844), and code review across 30+ files, the system has **no critical runtime errors**. All previous fixes (safe-area CSS, FUN Money navigation, realtime subscription stability, mobile header alignment) are working correctly. Network requests all return 200. No JavaScript errors in console.
 
 ## Issues Found
 
-### Issue 1: Index Page Mobile pt-14 Mismatch (Medium Priority)
-The `Index.tsx` page uses its own layout (not `MainLayout`) and still uses `pt-14` (56px) for mobile padding-top, while the `MobileHeader` height is `h-12` (48px). This creates an 8px gap between header and content on the home page.
+### Issue 1: Missing `/search` Route (High Priority - Functional Bug)
+Both `Header.tsx` and `MobileHeader.tsx` navigate to `/search?q=...` when the user submits a search query, but **no `/search` route is defined** in `App.tsx`. This means:
+- Users who search are sent to the 404 "Not Found" page
+- Search is fundamentally broken on both mobile and desktop
 
-**Root Cause:** `MainLayout.tsx` was fixed to `pt-12` in the last update, but `Index.tsx` has its own inline layout that wasn't updated.
+**Fix:** Create a basic `Search.tsx` page that reads the `q` query parameter and searches for videos by title. Register it as a lazy-loaded route in `App.tsx`.
 
-**Fix:** Change `pt-14` to `pt-12` in `Index.tsx` line 269 to match the mobile header height.
+### Issue 2: `NFTGallery.tsx` Wrong Padding & Layout Pattern (Medium Priority)
+The NFT Gallery page uses `pt-16` (64px) instead of the standard `pt-12 lg:pt-14`. It also uses `ml-64` (margin-left) instead of the standardized `pl-64` (padding-left), and uses `sidebarOpen ? "ml-64" : "ml-0"` which causes a jarring layout shift. On mobile, it renders the desktop Header/Sidebar instead of `MobileHeader`/`MobileDrawer`.
 
-### Issue 2: Subscriptions Page Same pt-14 Mismatch (Medium Priority)
-`Subscriptions.tsx` also uses its own layout with `pt-14 pb-20` on lines 173 and 204, creating the same 8px gap on mobile.
+**Fix:** Wrap the NFT Gallery in `MainLayout` to get consistent header, sidebar, and mobile layout behavior, and fix the padding to match the standard pattern.
 
-**Fix:** Change `pt-14` to `pt-12` on both occurrences in `Subscriptions.tsx`.
+### Issue 3: `YourVideos.tsx` Still Uses `pt-14` Without Responsive Prefix (Medium Priority)
+Line 135 uses `pt-14 lg:pl-64` which creates the 8px gap on mobile since `MobileHeader` is `h-12`.
 
-### Issue 3: Multiple Pages Still Using Old pt-14 Pattern (Medium Priority)
-Many pages that manage their own layouts (not using `MainLayout`) still use `pt-14` for mobile:
-- `Meditate.tsx` (line 155)
-- `ManagePosts.tsx` (line 130)
-- `EditVideo.tsx` (line 120)
-- `CreateMusic.tsx` (line 55)
-- `ManagePlaylists.tsx` (line 227)
-- `WatchLater.tsx` (line 49)
-- `EditPost.tsx` (line 147)
-- `Referral.tsx` (line 59)
-- `CreatePost.tsx` (line 119)
-- `ManageChannel.tsx` (line 145)
-- `MyAIMusic.tsx` (lines 148, 163)
+**Fix:** Change to `pt-12 lg:pt-14`.
 
-**Note:** These pages use the old `Sidebar` component (not `CollapsibleSidebar`) and also use `lg:pl-64` instead of the standardized `lg:pl-60` / `lg:pl-16`. However, since they only appear on desktop with the old sidebar, the `pt-14` is correct for the desktop Header (`h-14`). The issue is that on mobile, these pages share the same `MobileHeader` which is `h-12`.
+### Issue 4: `UserDashboard.tsx` Has No Layout Wrapper (Medium Priority)
+This page uses `min-h-screen bg-background p-4` with no `Header`, `Sidebar`, `MobileHeader`, or `MobileBottomNav`. On mobile, it has no navigation and no way to go back except the browser back button.
 
-**Fix:** Change to `pt-12 lg:pt-14` for all these pages to align mobile header height while preserving desktop header spacing.
+**Fix:** Wrap in `MainLayout` to provide consistent navigation on all devices.
 
-### Issue 4: TokenLifecyclePanel Grid Layout with `contents` (Low Priority)
-The `className="contents"` pattern on the state wrapper div makes the arrow connectors work correctly as separate grid items on both mobile and desktop. However, on mobile (single-column grid `grid-cols-1`), the `hidden md:flex` desktop arrow and the `flex md:hidden` mobile arrow render as expected. **This is working correctly now** -- verified visually.
+### Issue 5: `ProfileSettings.tsx` Uses `pt-20` (Excessive Top Padding) (Low Priority)
+Line 328 uses `pt-20` (80px) which leaves a large gap below the `h-14` desktop header. On mobile, this creates a 32px gap (80px - 48px header). Also uses desktop `Header` directly without mobile layout support.
 
-### Issue 5: Deprecated PWA Meta Tag (Low Priority)
-Console shows: `<meta name="apple-mobile-web-app-capable" content="yes"> is deprecated. Please include <meta name="mobile-web-app-capable" content="yes">`.
+**Fix:** Change to `pt-12 lg:pt-14` and wrap with consistent mobile layout pattern, or use `MainLayout`.
 
-**Fix:** Update `index.html` to use the modern meta tag.
+### Issue 6: `Playlist.tsx` Desktop-Only Path Still `pt-14` (No Fix Needed)
+Line 550 uses `pt-14` but this rendering path is desktop-only (line 544 explicitly checks `!isMobile`), so `pt-14` matches the desktop `h-14` header correctly.
 
-### Issue 6: WalletConnect CSP Error (Non-Critical, No Fix Needed)
-Console shows `Framing 'https://secure.walletconnect.org/' violates CSP`. This is a known WalletConnect v2 issue in iframed preview environments only. Does not affect the published app.
+### Issue 7: `Watch.tsx` Desktop-Only Path Still `pt-14` (No Fix Needed)
+Line 543 uses `pt-14` but this is the desktop rendering path (mobile uses `MobileWatchView` at line 481), so `pt-14` is correct.
+
+### Issue 8: WalletConnect CSP Error (Non-Critical, No Fix Needed)
+Known WalletConnect v2 framing issue in preview environment. Does not affect the published app.
 
 ---
 
 ## Implementation Plan
 
-### Phase 1: Fix Index Page Mobile Padding
-**File:** `src/pages/Index.tsx`
-- Change `pt-14 pb-20` to `pt-12 pb-20` (line 269) -- only the mobile portion needs the fix since `lg:pt` is not specified separately here, but the desktop Header is `h-14` so we need `pt-12 lg:pt-14 pb-20 lg:pb-0`
+### Phase 1: Create Search Page (High Priority)
 
-### Phase 2: Fix Subscriptions Page Mobile Padding
-**File:** `src/pages/Subscriptions.tsx`
-- Change both occurrences of `pt-14` to `pt-12 lg:pt-14` (lines 173 and 204)
+**New File:** `src/pages/Search.tsx`
+- Create a search results page that reads the `q` parameter from URL
+- Query the `videos` table with `title.ilike.%query%`
+- Display results using existing `VideoCard` component
+- Wrap in `MainLayout` for consistent layout
+- Show "No results found" state when empty
+- Include search input at the top for refining queries
 
-### Phase 3: Fix All Remaining Pages Mobile Padding
-Update the following files to use `pt-12 lg:pt-14` instead of `pt-14`:
-- `src/pages/Meditate.tsx`
-- `src/pages/ManagePosts.tsx`
-- `src/pages/EditVideo.tsx`
-- `src/pages/CreateMusic.tsx`
-- `src/pages/ManagePlaylists.tsx`
-- `src/pages/WatchLater.tsx`
-- `src/pages/EditPost.tsx`
-- `src/pages/Referral.tsx`
-- `src/pages/CreatePost.tsx`
-- `src/pages/ManageChannel.tsx`
-- `src/pages/MyAIMusic.tsx`
-- `src/pages/Studio.tsx`
-- `src/pages/Playlist.tsx`
+**File:** `src/App.tsx`
+- Add lazy import: `const Search = lazy(() => import("./pages/Search"))`
+- Add route: `<Route path="/search" element={<Search />} />`
 
-### Phase 4: Fix Deprecated PWA Meta Tag
-**File:** `index.html`
-- Replace `<meta name="apple-mobile-web-app-capable" content="yes">` with `<meta name="mobile-web-app-capable" content="yes">`
-- Keep the apple-specific tag for backward compatibility but add the modern one
+### Phase 2: Fix NFTGallery Layout (Medium Priority)
+
+**File:** `src/pages/NFTGallery.tsx`
+- Remove manual `Header` and `Sidebar` imports
+- Wrap content in `MainLayout`
+- Remove the broken `pt-16` and `ml-64` / `ml-0` sidebar logic
+- Let `MainLayout` handle all responsive layout
+
+### Phase 3: Fix YourVideos Mobile Padding (Medium Priority)
+
+**File:** `src/pages/YourVideos.tsx`
+- Change line 135 from `pt-14 lg:pl-64` to `pt-12 lg:pt-14 lg:pl-64`
+
+### Phase 4: Fix UserDashboard Layout (Medium Priority)
+
+**File:** `src/pages/UserDashboard.tsx`
+- Import and wrap with `MainLayout`
+- Remove standalone `min-h-screen bg-background p-4 md:p-8`
+- Keep inner content structure but add proper padding
+
+### Phase 5: Fix ProfileSettings Layout (Low Priority)
+
+**File:** `src/pages/ProfileSettings.tsx`
+- Replace manual `Header` usage with `MainLayout`
+- Change `pt-20` to standard responsive padding
+- Add mobile bottom nav support through `MainLayout`
 
 ---
 
-## Files Modified (Total: ~16)
+## Files Modified (Total: 6)
 
-| File | Change | Priority |
-|------|--------|----------|
-| `src/pages/Index.tsx` | Fix `pt-14` to `pt-12 lg:pt-14` | Medium |
-| `src/pages/Subscriptions.tsx` | Fix `pt-14` to `pt-12 lg:pt-14` (2 places) | Medium |
-| `src/pages/Meditate.tsx` | Fix `pt-14` to `pt-12 lg:pt-14` | Medium |
-| `src/pages/ManagePosts.tsx` | Fix `pt-14` to `pt-12 lg:pt-14` | Medium |
-| `src/pages/EditVideo.tsx` | Fix `pt-14` to `pt-12 lg:pt-14` | Medium |
-| `src/pages/CreateMusic.tsx` | Fix `pt-14` to `pt-12 lg:pt-14` | Medium |
-| `src/pages/ManagePlaylists.tsx` | Fix `pt-14` to `pt-12 lg:pt-14` | Medium |
-| `src/pages/WatchLater.tsx` | Fix `pt-14` to `pt-12 lg:pt-14` | Medium |
-| `src/pages/EditPost.tsx` | Fix `pt-14` to `pt-12 lg:pt-14` | Medium |
-| `src/pages/Referral.tsx` | Fix `pt-14` to `pt-12 lg:pt-14` | Medium |
-| `src/pages/CreatePost.tsx` | Fix `pt-14` to `pt-12 lg:pt-14` | Medium |
-| `src/pages/ManageChannel.tsx` | Fix `pt-14` to `pt-12 lg:pt-14` | Medium |
-| `src/pages/MyAIMusic.tsx` | Fix `pt-14` to `pt-12 lg:pt-14` (2 places) | Medium |
-| `src/pages/Studio.tsx` | Fix `pt-14` to `pt-12 lg:pt-14` | Medium |
-| `src/pages/Playlist.tsx` | Fix `pt-14` to `pt-12 lg:pt-14` (2 places) | Medium |
-| `index.html` | Add modern PWA meta tag | Low |
+| # | File | Change | Priority |
+|---|------|--------|----------|
+| 1 | `src/pages/Search.tsx` (NEW) | Create search results page | High |
+| 2 | `src/App.tsx` | Add /search route | High |
+| 3 | `src/pages/NFTGallery.tsx` | Use MainLayout, fix pt-16/ml-64 | Medium |
+| 4 | `src/pages/YourVideos.tsx` | Fix pt-14 to pt-12 lg:pt-14 | Medium |
+| 5 | `src/pages/UserDashboard.tsx` | Wrap with MainLayout | Medium |
+| 6 | `src/pages/ProfileSettings.tsx` | Use MainLayout, fix pt-20 | Low |
 
 ---
 
 ## Summary
 
-The system is healthy overall. The previous round of fixes (realtime subscription stability, safe-area CSS, FUN Money navigation, mobile header declutter) are all working correctly.
+The system is running stably with no runtime errors. The most impactful issue found is the **broken search functionality** -- users who search are sent to a 404 page because the `/search` route was never created. This affects every user on both mobile and desktop.
 
-The remaining issues are all related to **mobile header/content alignment** -- 15+ pages use the old `pt-14` padding which creates an 8px gap below the `h-12` mobile header. The fix is straightforward: change `pt-14` to `pt-12 lg:pt-14` across all affected pages so mobile uses 48px (matching the header) and desktop uses 56px (matching the desktop header).
+The remaining issues are layout inconsistencies: 3 pages (NFTGallery, UserDashboard, ProfileSettings) don't use `MainLayout` and therefore lack proper mobile navigation (no MobileHeader, no bottom nav), and 1 page (YourVideos) has the old `pt-14` padding mismatch.
 
-No database changes needed. All fixes are frontend-only CSS adjustments.
+No database changes are needed. All fixes are frontend-only.
+
