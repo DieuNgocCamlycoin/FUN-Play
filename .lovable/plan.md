@@ -1,35 +1,44 @@
 
-# Thay logo FUN Wallet va FUN.RICH trong menu
 
-## Muc tieu
+# Buoc cache trinh duyet de hien thi logo moi cho FUN Wallet va FUN.RICH
 
-Thay the logo cua 2 muc trong menu dieu huong:
-1. **FUN Wallet** - Thay logo cu (`/images/fun-wallet-logo.png`) bang logo moi (hinh vi xanh voi chu "Fun")
-2. **FUN.RICH** (FUN. Phong Phu) - Thay logo cu (`/images/fun-rich-logo.png`) bang logo moi (hinh tron xanh la "FUN Profile WEB3")
+## Van de
+
+Cac file anh `fun-wallet-logo.png` va `fun-rich-logo.png` da duoc thay the thanh cong trong thu muc `public/images/`, nhung trinh duyet van hien thi logo cu do bo nho dem (cache). Can them tham so version vao duong dan anh de buoc trinh duyet tai lai anh moi.
+
+## Giai phap
+
+Them `?v=2` vao cuoi duong dan cua 2 logo trong tat ca 3 file component. Day la ky thuat "cache busting" pho bien de buoc trinh duyet tai lai tai nguyen moi.
 
 ## Danh sach thay doi
 
-### Buoc 1: Copy anh moi vao thu muc du an
-- Copy `user-uploads://3-2.png` thanh `public/images/fun-wallet-logo.png` (ghi de logo cu)
-- Copy `user-uploads://6.png` thanh `public/images/fun-rich-logo.png` (ghi de logo cu)
+### 1. `src/components/Layout/Sidebar.tsx`
+- Dong 37: `/images/fun-rich-logo.png` thanh `/images/fun-rich-logo.png?v=2`
+- Dong 55: `/images/fun-wallet-logo.png` thanh `/images/fun-wallet-logo.png?v=2`
 
-### Buoc 2: Khong can sua code
-Vi ten file giu nguyen (ghi de truc tiep), tat ca 3 file dang tham chieu den cung duong dan cu se tu dong hien thi logo moi:
-- `src/components/Layout/Sidebar.tsx` - dung `/images/fun-wallet-logo.png` va `/images/fun-rich-logo.png`
-- `src/components/Layout/CollapsibleSidebar.tsx` - dung `/images/fun-wallet-logo.png` va `/images/fun-rich-logo.png`
-- `src/components/Layout/MobileDrawer.tsx` - dung `/images/fun-wallet-logo.png` va `/images/fun-rich-logo.png`
+### 2. `src/components/Layout/CollapsibleSidebar.tsx`
+- Dong 28: `/images/fun-rich-logo.png` thanh `/images/fun-rich-logo.png?v=2`
+- Dong 46: `/images/fun-wallet-logo.png` thanh `/images/fun-wallet-logo.png?v=2`
+
+### 3. `src/components/Layout/MobileDrawer.tsx`
+- Dong 39: `/images/fun-rich-logo.png` thanh `/images/fun-rich-logo.png?v=2`
+- Dong 57: `/images/fun-wallet-logo.png` thanh `/images/fun-wallet-logo.png?v=2`
 
 ## Tom tat
 
 | Hang muc | Chi tiet |
 |----------|----------|
-| File anh can copy | 2 file |
-| File code can sua | 0 file (ghi de truc tiep ten file cu) |
+| File can sua | 3 file |
+| Tong thay doi | 6 cho (2 logo x 3 file) |
 | Co so du lieu | Khong |
-| Dong bo Mobile | Co (MobileDrawer dung cung duong dan) |
+| Dong bo Mobile | Co |
+
+## Chi tiet ky thuat
+
+Thay doi duy nhat la them `?v=2` vao cuoi chuoi `customIcon` cua 2 muc FUN.RICH va FUN Wallet trong mang `funPlatformItems` cua moi file. Ky thuat nay khong anh huong den duong dan file thuc te, chi buoc trinh duyet nhan dien day la URL moi va tai lai anh thay vi dung ban cache cu.
 
 ## Ket qua
 
-- Logo FUN Wallet trong menu se hien thi hinh vi xanh voi chu "Fun" moi
-- Logo FUN.RICH trong menu se hien thi hinh tron xanh la "FUN Profile WEB3" moi
-- Cap nhat dong thoi tren Desktop (Sidebar, CollapsibleSidebar) va Mobile (MobileDrawer)
+- Logo FUN Wallet moi (hinh vi xanh voi chu "Fun") se hien thi ngay lap tuc cho tat ca nguoi dung
+- Logo FUN.RICH moi (hinh tron xanh la "FUN Profile WEB3") se hien thi ngay lap tuc
+- Khong can nguoi dung tu xoa cache hay reload trang
