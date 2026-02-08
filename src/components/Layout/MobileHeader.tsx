@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { WalletButton } from "@/components/Wallet/WalletButton";
-import { AngelChat } from "@/components/Mascot/AngelChat";
+
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { useNavigate } from "react-router-dom";
@@ -44,7 +44,7 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
   const suggestionsDebounceRef = useRef<NodeJS.Timeout | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
-  const [angelChatOpen, setAngelChatOpen] = useState(false);
+  
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const isMobile = useIsMobile();
 
@@ -251,7 +251,7 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => setAngelChatOpen(true)}
+                  onClick={() => window.open("https://angel.fun.rich", "_blank")}
                   className="h-7 w-7 relative rounded-full overflow-hidden"
                 >
                   <div className="absolute inset-0 rounded-full bg-gradient-to-r from-[#FFD700]/30 to-[#FFA500]/30 animate-pulse" />
@@ -381,8 +381,6 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
         </TooltipProvider>
       </div>
 
-      {/* ANGEL AI Chat */}
-      <AngelChat isOpen={angelChatOpen} onClose={() => setAngelChatOpen(false)} />
 
       {/* Upload Modal */}
       {isMobile ? (
