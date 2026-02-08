@@ -192,7 +192,7 @@ export default function FunMoney() {
                   
                   <div className="space-y-2">
                     <p className="text-sm font-medium">5 Trụ Cột Ánh Sáng:</p>
-                    <div className="grid grid-cols-5 gap-2 text-center text-xs">
+                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 text-center text-xs">
                       {[
                         { key: 'S', name: 'Service', emoji: '🙏' },
                         { key: 'T', name: 'Truth', emoji: '💎' },

@@ -196,11 +196,11 @@ export function TokenLifecyclePanel({
           compactMode ? "grid-cols-1" : "grid-cols-1 md:grid-cols-3"
         )}>
           {states.map((state, index) => (
-            <div key={state.status} className="flex items-center">
+            <div key={state.status} className="contents">
               {/* State Card */}
               <div 
                 className={cn(
-                  "flex-1 p-4 rounded-xl transition-all cursor-pointer",
+                  "p-4 rounded-xl transition-all cursor-pointer",
                   "border border-border/50 hover:border-border",
                   state.bgColor,
                   state.count > 0 && state.glowColor,
@@ -254,11 +254,13 @@ export function TokenLifecyclePanel({
                 </div>
               </div>
 
-              {/* Arrow between states */}
+              {/* Vertical arrow between states on mobile, horizontal on desktop */}
               {index < states.length - 1 && !compactMode && (
                 <>
-                  <ArrowRight className="w-6 h-6 mx-2 text-muted-foreground shrink-0 hidden md:block" />
-                  <div className="flex justify-center md:hidden my-1">
+                  <div className="hidden md:flex items-center justify-center">
+                    <ArrowRight className="w-6 h-6 text-muted-foreground" />
+                  </div>
+                  <div className="flex md:hidden items-center justify-center py-1">
                     <ArrowRight className="w-5 h-5 text-muted-foreground rotate-90" />
                   </div>
                 </>
