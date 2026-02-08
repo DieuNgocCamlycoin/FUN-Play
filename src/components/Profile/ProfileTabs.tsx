@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProfilePostsTab } from "./ProfilePostsTab";
 import { ProfileVideosTab } from "./ProfileVideosTab";
 import { ProfilePlaylistsTab } from "./ProfilePlaylistsTab";
-import { FileText, Video, Zap, Radio, ListMusic } from "lucide-react";
+import { FileText, Video, Zap, Radio, ListMusic, Info, Calendar, Eye } from "lucide-react";
 import { motion } from "framer-motion";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ProfileTabsProps {
   userId: string;
@@ -15,13 +16,56 @@ interface ProfileTabsProps {
 export const ProfileTabs = ({ userId, channelId, isOwnProfile }: ProfileTabsProps) => {
   const [activeTab, setActiveTab] = useState("posts");
 
+  const [aboutData, setAboutData] = useState<{
+    description: string | null;
+    created_at: string;
+    total_views: number;
+    is_verified: boolean;
+  } | null>(null);
+
   const tabs = [
     { id: "posts", label: "Bài viết", icon: FileText },
     { id: "videos", label: "Video", icon: Video },
     { id: "shorts", label: "Shorts", icon: Zap },
     { id: "livestream", label: "Livestream", icon: Radio },
     { id: "playlists", label: "Playlist", icon: ListMusic },
+    { id: "about", label: "Giới thiệu", icon: Info },
   ];
+
+  useEffect(() => {
+    if (activeTab === "about" && !aboutData) {
+      fetchAboutData();
+    }
+  }, [activeTab, userId]);
+
+  const fetchAboutData = async () => {
+    try {
+      // Get channel info
+      const { data: channelData } = await supabase
+        .from("channels")
+        .select("description, created_at, is_verified")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      // Get total views from all videos
+      const { data: viewsData } = await supabase
+        .from("videos")
+        .select("view_count")
+        .eq("user_id", userId)
+        .eq("is_public", true);
+
+      const totalViews = viewsData?.reduce((sum, v) => sum + (v.view_count || 0), 0) || 0;
+
+      setAboutData({
+        description: channelData?.description || null,
+        created_at: channelData?.created_at || new Date().toISOString(),
+        total_views: totalViews,
+        is_verified: channelData?.is_verified || false,
+      });
+    } catch (err) {
+      console.error("Error fetching about data:", err);
+    }
+  };
 
   return (
     <motion.div
@@ -79,6 +123,46 @@ export const ProfileTabs = ({ userId, channelId, isOwnProfile }: ProfileTabsProp
 
         <TabsContent value="playlists" className="mt-0">
           <ProfilePlaylistsTab userId={userId} isOwnProfile={isOwnProfile} />
+        </TabsContent>
+
+        <TabsContent value="about" className="mt-0">
+          {aboutData ? (
+            <div className="max-w-2xl space-y-6 py-4">
+              {/* Description */}
+              {aboutData.description && (
+                <div>
+                  <h3 className="text-lg font-semibold text-foreground mb-2">Mô tả</h3>
+                  <p className="text-muted-foreground whitespace-pre-wrap">{aboutData.description}</p>
+                </div>
+              )}
+
+              {/* Stats */}
+              <div className="space-y-3">
+                <h3 className="text-lg font-semibold text-foreground">Thống kê</h3>
+                <div className="flex items-center gap-3 text-muted-foreground">
+                  <Calendar className="w-5 h-5" />
+                  <span>Tham gia {new Date(aboutData.created_at).toLocaleDateString("vi-VN", { year: "numeric", month: "long", day: "numeric" })}</span>
+                </div>
+                <div className="flex items-center gap-3 text-muted-foreground">
+                  <Eye className="w-5 h-5" />
+                  <span>{aboutData.total_views.toLocaleString()} lượt xem</span>
+                </div>
+                {aboutData.is_verified && (
+                  <div className="flex items-center gap-3 text-muted-foreground">
+                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                    </svg>
+                    <span>Kênh đã xác minh</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <Info className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
+              <p className="text-muted-foreground">Đang tải thông tin...</p>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </motion.div>

@@ -4,15 +4,12 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 const categories = [
   "Tất cả",
   "Âm nhạc",
-  "Trực tiếp",
-  "Danh sách kết hợp",
+  "Thiền",
   "Trò chơi",
   "Podcast",
   "Tin tức",
   "Thiên nhiên",
-  "Thủ công",
   "Mới tải lên gần đây",
-  "Đã xem",
   "Đề xuất mới",
 ];
 

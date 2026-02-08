@@ -27,7 +27,9 @@ interface VideoActionsBarProps {
   onSubscribe: () => void;
   likeCount: number;
   hasLiked: boolean;
+  hasDisliked?: boolean;
   onLike: () => void;
+  onDislike?: () => void;
   onShare: () => void;
   videoUrl: string;
   videoTitle: string;
@@ -43,7 +45,9 @@ export function VideoActionsBar({
   onSubscribe,
   likeCount,
   hasLiked,
+  hasDisliked = false,
   onLike,
+  onDislike,
   onShare,
   videoUrl,
   videoTitle,
@@ -216,10 +220,13 @@ export function VideoActionsBar({
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => lightTap()}
-              className="rounded-full rounded-l-none h-10 px-4 hover:bg-muted"
+              onClick={() => { lightTap(); onDislike?.(); }}
+              className={cn(
+                "rounded-full rounded-l-none h-10 px-4 hover:bg-muted",
+                hasDisliked && "text-cosmic-magenta"
+              )}
             >
-              <ThumbsDown className="h-5 w-5" />
+              <ThumbsDown className={cn("h-5 w-5", hasDisliked && "fill-current")} />
             </Button>
           </div>
 
