@@ -1,87 +1,90 @@
 
-# Sửa Bố Cục 3 Thẻ Token Lifecycle (LOCKED / ACTIVATED / FLOWING)
 
-## Vấn đề hiện tại
-Lưới (grid) hiện tại dùng `grid-cols-3` trên desktop nhưng thực tế có **5 phần tử** trong grid (3 thẻ + 2 mũi tên), dẫn đến:
-- Hàng 1: LOCKED | mũi tên | ACTIVATED
-- Hàng 2: mũi tên | FLOWING | (trống)
+# Fix: Nút "Connecting" Nhấp Nháy Liên Tục trên Trang FUN Money
 
-Kết quả: thẻ FLOWING bị rơi xuống hàng thứ 2, mũi tên bị lệch.
+## Nguyên nhân gốc
 
-## Giải pháp
-Chuyển từ CSS Grid sang **Flexbox** cho phần lifecycle states, giúp kiểm soát tốt hơn việc căn chỉnh 3 thẻ + 2 mũi tên trên cùng 1 hàng.
+Console log cho thấy kênh Realtime đang bị tạo-hủy liên tục trong vòng lặp vô hạn:
+```text
+SUBSCRIBED -> CLOSED -> SUBSCRIBED -> CLOSED -> ...
+```
 
-### Desktop (>=768px)
-- Dùng `flex` với hướng ngang (row)
-- 3 thẻ có chiều rộng bằng nhau (`flex-1`)
-- 2 mũi tên ngang nhỏ gọn giữa các thẻ (`shrink-0`)
-- Tất cả nằm trên 1 hàng, căn giữa dọc
+Nguyên nhân kỹ thuật:
+- Trong `FunMoneyPage.tsx`, callback `onUpdate` truyền vào hook `useMintRequestRealtime` là một **inline arrow function**, tạo reference mới mỗi lần render.
+- Trong hook `useMintRequestRealtime.ts`, `handleUpdate` phụ thuộc vào `onUpdate` qua `useCallback`.
+- `useEffect` (dòng 148) có `handleUpdate` trong dependency array, nên mỗi khi `handleUpdate` thay đổi reference, effect chạy lại, **hủy kênh cũ** (CLOSED) rồi **tạo kênh mới** (SUBSCRIBED), rồi lại render, lại hủy...
 
 ```text
-[ LOCKED ] --> [ ACTIVATED ] --> [ FLOWING ]
+render -> onUpdate moi -> handleUpdate moi -> useEffect chay lai
+  -> huy kenh cu (CLOSED) -> tao kenh moi -> SUBSCRIBED
+  -> connectionStatus thay doi -> render lai -> lap lai...
 ```
 
-### Mobile (<768px)
-- Dùng `flex` với hướng dọc (column)
-- 3 thẻ xếp chồng đầy đủ chiều rộng
-- Mũi tên xoay 90 độ, chỉ xuống dưới giữa các thẻ
+## Giai phap
+
+Su dung **ref pattern** de luu tru callback `onUpdate`, tranh viec thay doi callback gay re-run useEffect.
+
+## Chi tiet ky thuat
+
+### File 1: `src/hooks/useMintRequestRealtime.ts`
+
+**Thay doi:** Dung `useRef` de luu tru `onUpdate` callback thay vi dua vao dependency cua `useCallback`/`useEffect`.
+
+- Them mot `onUpdateRef = useRef(onUpdate)` va cap nhat ref moi render
+- `handleUpdate` se goi `onUpdateRef.current()` thay vi `onUpdate` truc tiep, va khong can dependency
+- Xoa `handleUpdate` va `handleStatusChange` khoi dependency array cua `useEffect`, thay bang ref pattern
+
+Cu the:
 
 ```text
-[ LOCKED    ]
-     |
-[ ACTIVATED ]
-     |
-[ FLOWING   ]
+// Truoc (gay vong lap):
+const handleUpdate = useCallback(() => {
+  ...onUpdate()...
+}, [onUpdate]);  // <-- thay doi moi render
+
+useEffect(() => {
+  ...
+}, [userId, enabled, handleUpdate, handleStatusChange]);
+// handleUpdate thay doi -> effect re-run -> kenh bi huy/tao lai
+
+// Sau (on dinh):
+const onUpdateRef = useRef(onUpdate);
+onUpdateRef.current = onUpdate;  // cap nhat moi render nhung khong gay re-render
+
+const handleUpdate = useCallback(() => {
+  ...onUpdateRef.current()...
+}, []);  // khong dependency -> khong thay doi
+
+useEffect(() => {
+  ...
+}, [userId, enabled]);  // chi re-run khi userId hoac enabled thay doi
 ```
 
-## Chi tiết kỹ thuật
+Tuong tu cho `handleStatusChange` - chuyen sang dung ref hoac xoa khoi dependency array (vi no da khong co external dependency nao thay doi).
 
-### File sửa: `src/components/FunMoney/TokenLifecyclePanel.tsx`
+### File 2: `src/pages/FunMoneyPage.tsx`
 
-**Thay doi 1:** Thay the container grid bang flex layout
+**Thay doi nho (optional nhung tot):** Boc callback `onUpdate` trong `useCallback` de dam bao an toan:
 
-Dong 193-197 hien tai:
-```
-<div className={cn(
-  "grid gap-3 mb-6",
-  compactMode ? "grid-cols-1" : "grid-cols-1 md:grid-cols-3"
-)}>
-```
-
-Doi thanh:
-```
-<div className={cn(
-  "flex mb-6 gap-3",
-  compactMode ? "flex-col" : "flex-col md:flex-row md:items-stretch"
-)}>
+```text
+const handleRealtimeUpdate = useCallback(() => {
+  fetchRequests();
+  refetchActivity();
+}, [fetchRequests, refetchActivity]);
 ```
 
-**Thay doi 2:** Sua wrapper cua moi state card
-
-Dong 199 hien tai: `<div key={state.status} className="contents">`
-
-Doi thanh: `<React.Fragment key={state.status}>`
-
-Va bo `</div>` cuoi, doi thanh `</React.Fragment>`
-
-**Thay doi 3:** Them `flex-1` cho moi state card de chia deu chieu rong
-
-Dong 201-208: Them class `flex-1 min-w-0` vao state card div
-
-**Thay doi 4:** Don gian hoa phan mui ten
-
-Dong 257-266 hien tai: 2 div rieng biet cho desktop/mobile
-
-Doi thanh 1 div duy nhat:
-```
-{index < states.length - 1 && !compactMode && (
-  <div className="flex items-center justify-center shrink-0 py-1 md:py-0 md:px-1">
-    <ArrowRight className="w-5 h-5 md:w-6 md:h-6 text-muted-foreground rotate-90 md:rotate-0" />
-  </div>
-)}
-```
+Roi truyen `onUpdate: handleRealtimeUpdate` thay vi inline function.
 
 ## Tong ket
-- Chi sua **1 file** duy nhat: `TokenLifecyclePanel.tsx`
-- Thay doi nho, tap trung vao phan layout (dong 193-268)
-- Ket qua: 3 the nam tren 1 hang tren desktop, xep doc tren mobile, mui ten dung vi tri
+
+| File | Hanh dong | Muc do thay doi |
+|------|-----------|-----------------|
+| `src/hooks/useMintRequestRealtime.ts` | Sua - Dung ref pattern cho callbacks | Nho (10-15 dong) |
+| `src/pages/FunMoneyPage.tsx` | Sua - Boc callback trong useCallback | Rat nho (3-5 dong) |
+
+## Ket qua mong doi
+
+- Kenh Realtime chi tao **1 lan** khi component mount (hoac khi userId thay doi)
+- Nut "Connecting" se chuyen sang "Live" (xanh la) va **giu nguyen** thay vi nhap nhay
+- Khong con vong lap SUBSCRIBED/CLOSED trong console
+
