@@ -1,53 +1,58 @@
 
-# Đổi màu tiêu đề trang sang màu xanh logo FUN Play (#0066FF)
+
+# Đổi màu chữ và icon trong menu sang màu xanh logo FUN Play (#0066FF)
 
 ## Tình trạng hiện tại
 
-Các tiêu đề trang hiện đang sử dụng gradient cầu vồng (`text-transparent bg-clip-text bg-gradient-to-r from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta`). Cần đổi sang màu xanh logo đơn sắc `#0066FF` để đồng nhất với hệ thống thiết kế.
+Các menu điều hướng (sidebar, drawer, bottom nav) hiện đang sử dụng màu `text-sky-700` (xanh trời đậm) cho cả icon và chữ. Cần đổi sang màu xanh logo FUN Play `#0066FF` (Cosmic Sapphire) để đồng nhất với thiết kế đã cập nhật trước đó (Filter Chips, tiêu đề trang).
 
 ## Danh sách thay đổi
 
-### 1. `src/components/Video/ContinueWatching.tsx` (dòng 33)
-- **Tiêu đề:** "Tiếp tục xem"
-- **Hiện tại:** `text-transparent bg-clip-text bg-gradient-to-r from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta`
-- **Sau:** `text-[#0066FF]`
+### 1. `src/components/Layout/Sidebar.tsx` (Desktop Sidebar)
+- Đổi tất cả `text-sky-700` thanh `text-[#0066FF]` cho icon va text trong menu items
+- Ap dung cho: FUN Ecosystem items, Main nav, Library, Leaderboard, Manage, Wallet sections
 
-### 2. `src/pages/WatchLater.tsx` (dòng 57)
-- **Tiêu đề:** "Xem sau"
-- **Hiện tại:** `text-transparent bg-clip-text bg-gradient-to-r from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta`
-- **Sau:** `text-[#0066FF]`
+### 2. `src/components/Layout/CollapsibleSidebar.tsx` (Desktop Collapsible Sidebar)
+- Doi `text-sky-700` thanh `text-[#0066FF]` trong NavButton component (icon va text)
+- Ap dung cho tat ca sections: FUN Ecosystem, Main nav, Library, Rewards, Manage
 
-### 3. `src/pages/WatchHistory.tsx` (dòng 105)
-- **Tiêu đề:** "Lịch sử xem"
-- **Hiện tại:** `text-transparent bg-clip-text bg-gradient-to-r from-cosmic-magenta via-cosmic-cyan to-cosmic-sapphire`
-- **Sau:** `text-[#0066FF]`
+### 3. `src/components/Layout/MobileDrawer.tsx` (Mobile Drawer Menu)
+- Doi `text-sky-700` thanh `text-[#0066FF]` trong NavButton va FunPlatformButton components
+- Ap dung cho tat ca sections trong mobile drawer
 
-### 4. `src/pages/Subscriptions.tsx` (dòng 135)
-- **Tiêu đề:** "Kênh đã đăng ký"
-- **Hiện tại:** `text-transparent bg-clip-text bg-gradient-to-r from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta`
-- **Sau:** `text-[#0066FF]`
+### 4. `src/components/Layout/MobileBottomNav.tsx` (Mobile Bottom Navigation)
+- Doi mau inactive items tu `text-muted-foreground` thanh `text-[#0066FF]` de dong nhat
+- Giu nguyen `text-primary` cho active state
 
-### 5. `src/pages/Index.tsx` (dòng 378)
-- **Tiêu đề:** "Chưa có video nào" (trạng thái trống)
-- **Hiện tại:** `text-transparent bg-clip-text bg-gradient-to-r from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta`
-- **Sau:** `text-[#0066FF]`
+## Tom tat
 
-### 6. `src/pages/Index.tsx` (dòng 354)
-- **Chữ "FUN Play"** trong banner đăng nhập
-- **Hiện tại:** `text-transparent bg-clip-text bg-gradient-to-r from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta`
-- **Sau:** `text-[#0066FF]`
-
-## Tóm tắt
-
-| Hạng mục | Chi tiết |
+| Hang muc | Chi tiet |
 |----------|----------|
-| File cần sửa | 4 file |
-| Tổng thay đổi | 6 chỗ |
-| Cơ sở dữ liệu | Không |
-| Đồng bộ Mobile | Tự động (component dùng chung) |
+| File can sua | 4 file |
+| Tong thay doi | ~12 cho (text-sky-700 va text-muted-foreground) |
+| Co so du lieu | Khong |
+| Dong bo Mobile | Co (MobileDrawer + MobileBottomNav) |
 
-## Kết quả
+## Chi tiet ky thuat
 
-- Tất cả tiêu đề trang hiển thị màu xanh logo `#0066FF` thay vì gradient cầu vồng
-- Giao diện đồng nhất với Filter Chips Bar và các thành phần khác đã cập nhật
-- Áp dụng đồng thời cho cả Desktop và Mobile
+### Sidebar.tsx
+- Dong icon: `text-sky-700` -> `text-[#0066FF]` (khoang 6 cho)
+- Dong text: `text-sky-700` -> `text-[#0066FF]` (khoang 6 cho)
+
+### CollapsibleSidebar.tsx
+- NavButton icon (dong 135): `text-sky-700` -> `text-[#0066FF]`
+- NavButton text (dong 138): `text-sky-700` -> `text-[#0066FF]`
+
+### MobileDrawer.tsx
+- NavButton icon (dong 141): `text-sky-700` -> `text-[#0066FF]`
+- NavButton text (dong 143): `text-sky-700` -> `text-[#0066FF]`
+- FunPlatformButton text (dong 169): `text-sky-700` -> `text-[#0066FF]`
+
+### MobileBottomNav.tsx
+- Inactive nav items (dong 68): `text-muted-foreground` -> `text-[#0066FF]`
+
+## Ket qua
+
+- Tat ca icon va text trong menu dieu huong se hien thi mau xanh logo #0066FF
+- Dong nhat voi Filter Chips Bar va tieu de trang da cap nhat truoc do
+- Ap dung dong thoi cho Desktop (Sidebar, CollapsibleSidebar) va Mobile (Drawer, BottomNav)
