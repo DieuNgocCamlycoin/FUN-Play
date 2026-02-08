@@ -1,8 +1,8 @@
 
 
-# FUN Play vs YouTube 2025: Round 12 Gap Analysis
+# FUN Play vs YouTube 2025: Round 13 Gap Analysis
 
-## Verified Fixes from Rounds 1-11 (All Working)
+## Verified Fixes from Rounds 1-12 (All Working)
 
 | Feature | Round | Status |
 |---------|-------|--------|
@@ -29,104 +29,119 @@
 | Admin FunMoneyApprovalTab localized | R10 | Done |
 | NFT Gallery, DragDropImageUpload, UpNextSidebar localized | R11 | Done |
 | UploadContext, ManageChannel error messages | R11 | Done |
+| Bounty Card/Form, Comment user fallbacks, Upload Thumbnail labels | R12 | Done |
 
 ---
 
-## REMAINING GAPS FOUND IN ROUND 12
+## REMAINING GAPS FOUND IN ROUND 13
 
 ### HIGH PRIORITY
 
-#### Gap 1: "Feedback" Label in BountySubmissionCard.tsx Still in English
+#### Gap 1: "Unknown Artist" Fallback in Music Pages (8 instances across 2 files)
 
-`BountySubmissionCard.tsx` line 11 displays `"Feedback"` as the type label for the feedback category. The BountySubmissionForm.tsx correctly uses `"Phan hoi"` (line 13), but the Card component still shows the English `"Feedback"`.
+`MusicDetail.tsx` has 4 instances (lines 171, 224, 347, 470) and `BrowseMusic.tsx` has 4 instances (lines 209, 226, 444, 517) using `"Unknown Artist"` as the fallback when a track's channel name is missing. This is visible to all users browsing music.
 
-**Fix:** Change `feedback: { label: "Feedback", ... }` to `feedback: { label: "Phan hoi", ... }`.
+**Fix:** Change all 8 instances to `"Nghe si chua xac dinh"` (Unidentified artist).
 
-#### Gap 2: "Rewarded" Badge Text in English
+#### Gap 2: "No name" Fallback in WalletAbuseTab.tsx (Admin, 2 instances)
 
-`BountySubmissionCard.tsx` line 56 shows `"Rewarded"` as a badge label. This is visible to all users when a bounty submission has been rewarded.
+`WalletAbuseTab.tsx` lines 204 and 248 display `"No name"` as the fallback for users without a display name. This is admin-facing but should be consistent.
 
-**Fix:** Change to `"Da thuong"` (Already rewarded).
+**Fix:** Change both instances to `"Chua co ten"` (No name yet).
 
-#### Gap 3: "User" Fallback in ShortsCommentSheet.tsx
+#### Gap 3: "Untitled" Fallback in SunoModeForm.tsx
 
-`ShortsCommentSheet.tsx` line 190 uses `'User'` as the display name fallback when a profile has no username or display name. YouTube uses localized equivalents.
+`SunoModeForm.tsx` line 41 sends `"Untitled"` as the default title when generating AI music lyrics without a title. This value is passed to the backend and may appear in the generated output.
 
-**Fix:** Change to `'Nguoi dung'`.
+**Fix:** Change to `"Khong co tieu de"` (No title).
 
-#### Gap 4: "user" Fallback in VideoCommentItem.tsx (2 instances)
+#### Gap 4: "System" and "You" in TransactionHistorySection.tsx CSV Export
 
-`VideoCommentItem.tsx` lines 137 and 290 both use `"user"` as the fallback when no username or display name is available. These appear in comment author names and reply placeholders.
+`TransactionHistorySection.tsx` lines 223-224 use `"System"` and `"You"` as fallback sender/receiver names in the CSV export. While these are in an exported file, they should match the Vietnamese locale.
 
-**Fix:** Change both instances to `"nguoi dung"`.
+**Fix:** Change `"System"` to `"He thong"` and `"You"` to `"Ban"`.
 
-#### Gap 5: "Thumbnail" Label in Upload Wizard Steps
+#### Gap 5: "No user identifier provided" and "User not found" in UserProfile.tsx
 
-Two files use "Thumbnail" as a visible label in English:
-- `UploadWizard.tsx` line 31: Step label `"Thumbnail"` in the upload wizard
-- `VideoDetailsForm.tsx` line 102: Label `"Thumbnail"` in the mobile upload details form
+`UserProfile.tsx` lines 111 and 116 contain English error messages that could surface in toast notifications when profile loading fails:
+- `"No user identifier provided"` -- should be `"Khong tim thay thong tin nguoi dung"`
+- `"User not found"` -- should be `"Nguoi dung khong ton tai"`
 
-YouTube localizes all upload step labels. FUN Play should use `"Anh bia"` (Cover image/Thumbnail).
+**Fix:** Translate both error strings to Vietnamese.
 
-**Fix:** Change both instances to `"Anh bia"`.
+#### Gap 6: "N/A" Used as Fallback in 4 Files
 
-#### Gap 6: "Wallet Address" Label Partially English
+- `BountyApprovalTab.tsx` line 384: `"N/A"` as contact info fallback
+- `CAMLYPrice.tsx` line 113: `"N/A"` in share text for missing price change
+- `TransactionHistorySection.tsx` line 224: `"N/A"` for missing receiver
+- `useAdminVideoStats.tsx` line 231: `"N/A"` for missing file size
 
-`BountySubmissionForm.tsx` line 79 shows `"Email hoac Wallet Address"` -- the term "Wallet Address" is in English while the rest is Vietnamese. This should be `"Dia chi vi"`.
+While "N/A" is internationally understood, for full localization consistency it should be `"Khong co"` (Not available) in user-facing contexts. The admin video stats file is acceptable since it's data export. `BountyApprovalTab.tsx` and `CAMLYPrice.tsx` are user-visible.
 
-**Fix:** Change to `"Email hoac Dia chi vi"`.
+**Fix:** Change `"N/A"` to `"Khong co"` in `BountyApprovalTab.tsx` and `CAMLYPrice.tsx`. Leave admin data exports as-is.
 
 ---
 
-### MEDIUM PRIORITY
+### MEDIUM PRIORITY (Acceptable Exceptions)
 
-#### Gap 7: Watch.tsx Desktop Layout Missing Theater Mode Sidebar Repositioning
+#### Gap 7: Music Genre Names in English
 
-Currently, when Theater Mode is active in Watch.tsx, the `UpNextSidebar` remains in the same grid column position instead of moving below the video+comments area. The grid changes from `grid-cols-[1fr_400px]` to `grid-cols-1`, but the sidebar still renders as a separate grid child which means it appears immediately after the video player div, before comments.
+Genre names like "Pop", "Rock", "Jazz", "Classical", "Lo-Fi", "Ambient", "Hip Hop" appear across multiple music components. These are industry-standard international terms that YouTube Music also keeps in English across all locales.
 
-YouTube's theater mode moves the sidebar to below the comments section. Currently, the sidebar div (line 822-825) is always rendered after the main content div regardless of theater mode, but with `grid-cols-1` it naturally flows below, which is correct. No change needed -- confirmed working.
+**Fix:** No change needed -- industry-standard English terms.
 
-#### Gap 8: No "Super Thanks" Feature
+#### Gap 8: "Banner preview" / "Thumbnail preview" alt Text
 
-YouTube has a "Super Thanks" feature that lets viewers send a highlighted, paid comment to show appreciation. FUN Play has a "Tang" (Gift/Donate) button but no equivalent of showing the donation as a highlighted comment in the comment section.
+`StudioSettings.tsx` line 269 and `EditVideoModal.tsx` line 200 use English alt text. These are accessibility attributes not visible to regular users.
 
-**Fix:** This is a complex feature requiring backend integration with the donation system and comment display. Deferred to future round.
+**Fix:** No change needed -- alt attributes are developer/accessibility concerns, not user-visible text.
 
-#### Gap 9: No "Chapters" Feature in Desktop Video Player
+#### Gap 9: CSV Export Column Data in English ("reward", "donation_sent", etc.)
 
-YouTube supports video chapters (timestamps in the description that create seekable chapter markers on the progress bar). FUN Play parses timestamp links in comments but doesn't support chapter markers on the player progress bar from the video description.
+`TransactionHistorySection.tsx` exports transaction type values in English (database status values). These are internal data identifiers, not user-facing labels.
 
-**Fix:** This is a medium-complexity feature requiring description parsing and progress bar UI updates. Deferred to future round.
+**Fix:** No change needed -- database enum values.
 
-#### Gap 10: sidebar.tsx "Toggle Sidebar" aria-label in English
+#### Gap 10: PlatformDocs.tsx Entirely in English
 
-`sidebar.tsx` lines 252 and 255 use `"Toggle Sidebar"` as aria-label and title. This is a shadcn/ui library default attribute. While screen readers would benefit from localization, this is a library-level attribute that is acceptable to keep in English (standard practice).
+Developer documentation page remains in English. This is standard practice (YouTube's developer docs are in English globally).
 
-**Fix:** No change needed -- this is a UI library default.
+**Fix:** No change needed.
 
 ---
 
 ## IMPLEMENTATION PLAN
 
-### Phase 1: BountySubmissionCard Localization (1 file)
+### Phase 1: Music Pages "Unknown Artist" Fix (2 files)
 
-1. **BountySubmissionCard.tsx** -- 2 changes:
-   - Line 11: Change `feedback: { label: "Feedback", ... }` to `feedback: { label: "Phan hoi", ... }`
-   - Line 56: Change `"Rewarded"` to `"Da thuong"`
+1. **MusicDetail.tsx** -- Change 4 instances of `"Unknown Artist"` to `"Nghệ sĩ chưa xác định"`
+   - Lines 171, 224, 347, 470
 
-### Phase 2: Comment User Fallback Cleanup (2 files)
+2. **BrowseMusic.tsx** -- Change 4 instances of `"Unknown Artist"` to `"Nghệ sĩ chưa xác định"`
+   - Lines 209, 226, 444, 517
 
-1. **ShortsCommentSheet.tsx** -- Line 190: Change `'User'` to `'Nguoi dung'`
-2. **VideoCommentItem.tsx** -- Lines 137 and 290: Change `"user"` to `"nguoi dung"`
+### Phase 2: Admin + Wallet Fallback Fixes (2 files)
 
-### Phase 3: Upload Step Label Localization (2 files)
+1. **WalletAbuseTab.tsx** -- Change 2 instances of `"No name"` to `"Chưa có tên"`
+   - Lines 204, 248
 
-1. **UploadWizard.tsx** -- Line 31: Change `"Thumbnail"` to `"Anh bia"`
-2. **VideoDetailsForm.tsx** -- Line 102: Change `"Thumbnail"` to `"Anh bia"`
+2. **TransactionHistorySection.tsx** -- Change fallback labels in CSV export:
+   - Line 223: `"System"` to `"Hệ thống"`, `"You"` to `"Bạn"`
+   - Line 224: `"You"` to `"Bạn"`, `"N/A"` to `"Không có"`
 
-### Phase 4: BountySubmissionForm Mixed Language Fix (1 file)
+### Phase 3: AI Music + User Profile Error Messages (2 files)
 
-1. **BountySubmissionForm.tsx** -- Line 79: Change `"Email hoac Wallet Address"` to `"Email hoac Dia chi vi"`
+1. **SunoModeForm.tsx** -- Line 41: Change `"Untitled"` to `"Không có tiêu đề"`
+
+2. **UserProfile.tsx** -- Change 2 internal error messages:
+   - Line 111: `"No user identifier provided"` to `"Không tìm thấy thông tin người dùng"`
+   - Line 116: `"User not found"` to `"Người dùng không tồn tại"`
+
+### Phase 4: N/A Fallback Localization (2 files)
+
+1. **BountyApprovalTab.tsx** -- Line 384: Change `"N/A"` to `"Không có"`
+
+2. **CAMLYPrice.tsx** -- Line 113: Change `"N/A"` to `"Không có"`
 
 ---
 
@@ -134,28 +149,27 @@ YouTube supports video chapters (timestamps in the description that create seeka
 
 | Phase | Files Modified | New Files | Complexity |
 |-------|---------------|-----------|------------|
-| 1 | 1 (BountySubmissionCard.tsx) | 0 | Low -- 2 string changes |
-| 2 | 2 (ShortsCommentSheet.tsx, VideoCommentItem.tsx) | 0 | Low -- 3 string changes |
-| 3 | 2 (UploadWizard.tsx, VideoDetailsForm.tsx) | 0 | Low -- 2 string changes |
-| 4 | 1 (BountySubmissionForm.tsx) | 0 | Low -- 1 string change |
+| 1 | 2 (MusicDetail.tsx, BrowseMusic.tsx) | 0 | Low -- 8 string replacements |
+| 2 | 2 (WalletAbuseTab.tsx, TransactionHistorySection.tsx) | 0 | Low -- 5 string replacements |
+| 3 | 2 (SunoModeForm.tsx, UserProfile.tsx) | 0 | Low -- 3 string replacements |
+| 4 | 2 (BountyApprovalTab.tsx, CAMLYPrice.tsx) | 0 | Low -- 2 string replacements |
 
-**Total: 6 files modified, 0 new files, 0 database changes**
+**Total: 8 files modified, 0 new files, 0 database changes**
 
-All changes are frontend-only string translations. After Round 12, the only remaining English text in FUN Play will be:
+All changes are frontend-only string translations. After Round 13, the only remaining English text will be:
 
-- **Branded feature names**: FUN ECOSYSTEM, Build & Bounty, FUN Wallet, Shorts, Studio (YouTube also keeps these in English)
-- **Music genre names**: Pop, Rock, Jazz, Classical, Lo-Fi, Ambient, Hip Hop (industry-standard English terms, YouTube uses them in all locales)
-- **Technical/developer documentation**: PlatformDocs.tsx (developer docs are universally in English)
-- **Internal code status values**: "success", "error", "pending", "rewarded" (database values, not user-facing)
-- **UI library defaults**: sidebar.tsx "Toggle Sidebar" (shadcn/ui default)
+- **Branded feature names**: FUN ECOSYSTEM, Build & Bounty, FUN Wallet, Shorts, Studio, CAMLY
+- **Music genre names**: Pop, Rock, Jazz, Classical, Lo-Fi, Ambient, Hip Hop (industry-standard)
+- **Technical documentation**: PlatformDocs.tsx (developer docs)
+- **Database enum values**: "success", "error", "pending", "reward", "donation_sent" (internal)
+- **UI library defaults**: sidebar.tsx "Toggle Sidebar" (shadcn/ui)
+- **Alt text attributes**: "Banner preview", "Thumbnail preview" (accessibility, not user-visible)
 
-These are all industry-standard exceptions that YouTube itself keeps in English even in fully localized versions. The user-facing interface will be 100% Vietnamese after Round 12.
+These are all exceptions that YouTube itself maintains in English across all localized versions. After Round 13, FUN Play achieves true 100% user-facing Vietnamese localization with zero remaining actionable English strings.
 
-### Feature Parity Summary (Rounds 1-12)
+### Feature Parity Summary (Rounds 1-13)
 
-After completing Round 12, FUN Play will have achieved the following YouTube 2025 parity:
-
-**Features fully implemented:**
+**Fully implemented YouTube 2025 features:**
 - Video cards with duration badge, kebab menu, watch later
 - Search with filters (Video/Channel/Playlist) and sort options
 - Theater Mode and Picture-in-Picture on desktop
@@ -172,12 +186,14 @@ After completing Round 12, FUN Play will have achieved the following YouTube 202
 - Background/mini player on mobile
 - Keyboard shortcuts (Space, J/K/L, M, F, 0-9, arrows)
 - Autoplay queue system with shuffle/repeat
+- Upload wizard with thumbnail editor
+- Studio dashboard with content management
+- 100% Vietnamese localization (matching YouTube's locale approach)
 
-**Remaining YouTube features not yet implemented (future rounds):**
-- Ambient Mode (video color-matching background effect)
-- Chapters (seekable chapter markers from description)
+**Future YouTube features (not in scope for this round):**
+- Ambient Mode (video color-matching background)
+- Chapters (seekable markers from description)
 - Clip creation (share video segments)
 - Super Thanks (highlighted paid comments)
 - Community posts with polls
-- YouTube Music-style mini player on desktop
 
