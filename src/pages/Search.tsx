@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { formatViews, formatTimestamp, formatDuration } from "@/lib/formatters";
+import { formatViews, formatViewsShort, formatTimestamp, formatDuration } from "@/lib/formatters";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { MainLayout } from "@/components/Layout/MainLayout";
@@ -307,7 +307,7 @@ const Search = () => {
                         )}
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        {(ch.subscriber_count || 0).toLocaleString()} người đăng ký
+                        {formatViewsShort(ch.subscriber_count)} người đăng ký
                       </p>
                       {ch.description && (
                         <p className="text-sm text-muted-foreground line-clamp-1 mt-0.5">{ch.description}</p>

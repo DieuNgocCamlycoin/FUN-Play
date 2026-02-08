@@ -31,6 +31,7 @@ interface ChannelData {
   banner_url: string | null;
   subscriber_count: number;
   user_id: string;
+  is_verified?: boolean;
 }
 
 export default function Channel() {
