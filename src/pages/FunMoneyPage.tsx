@@ -96,14 +96,14 @@ export default function FunMoney() {
 
   return (
     <MainLayout>
-      <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+      <div className="max-w-6xl mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-6">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-black bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+          <div className="min-w-0">
+            <h1 className="text-2xl sm:text-3xl font-black bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 bg-clip-text text-transparent">
               FUN Money
             </h1>
-            <p className="text-muted-foreground mt-1">
+            <p className="text-sm sm:text-base text-muted-foreground mt-1">
               Proof of Pure Love Protocol - Nhận token từ hoạt động của bạn
             </p>
           </div>
@@ -158,18 +158,18 @@ export default function FunMoney() {
 
         {/* Main Content */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-3 w-full max-w-md">
-            <TabsTrigger value="overview" className="gap-2">
-              <Sparkles className="w-4 h-4" />
-              Tổng Quan
+          <TabsList className="grid grid-cols-3 w-full max-w-md mx-auto">
+            <TabsTrigger value="overview" className="gap-1.5 text-xs sm:text-sm">
+              <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="truncate">Tổng Quan</span>
             </TabsTrigger>
-            <TabsTrigger value="breakdown" className="gap-2">
-              <Info className="w-4 h-4" />
-              Chi Tiết
+            <TabsTrigger value="breakdown" className="gap-1.5 text-xs sm:text-sm">
+              <Info className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="truncate">Chi Tiết</span>
             </TabsTrigger>
-            <TabsTrigger value="history" className="gap-2">
-              <FileText className="w-4 h-4" />
-              Lịch Sử
+            <TabsTrigger value="history" className="gap-1.5 text-xs sm:text-sm">
+              <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="truncate">Lịch Sử</span>
             </TabsTrigger>
           </TabsList>
 

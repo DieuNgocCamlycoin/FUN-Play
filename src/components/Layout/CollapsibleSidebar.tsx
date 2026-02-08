@@ -70,6 +70,12 @@ const libraryItems: NavItem[] = [
 const rewardItems: NavItem[] = [
   { icon: Trophy, label: "Bảng Xếp Hạng", href: "/leaderboard" },
   { icon: Coins, label: "Lịch Sử Phần Thưởng", href: "/reward-history" },
+  { 
+    customIcon: '/images/fun-money-coin.png',
+    label: "FUN Money", 
+    href: "/fun-money",
+    isFunMoney: true
+  },
   { icon: UserPlus, label: "Giới Thiệu Bạn Bè", href: "/referral" },
   { icon: Award, label: "Build & Bounty", href: "/build-bounty", special: true },
 ];
