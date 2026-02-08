@@ -167,7 +167,7 @@ export const WalletButton = ({ compact = false, className }: WalletButtonProps) 
       <Button
         onClick={handleClick}
         className={cn(
-          "relative gap-2 font-bold transition-all duration-300 overflow-hidden rounded-full px-5 py-2",
+          "relative gap-2 font-bold transition-all duration-300 overflow-hidden rounded-full px-4 h-10",
           "bg-[linear-gradient(90deg,#5EEAD4_0%,#22D3EE_35%,#06B6D4_50%,#0EA5E9_75%,#0284C7_100%)]",
           "text-white",
           "hover:brightness-110 hover:saturate-125 hover:-translate-y-0.5 hover:shadow-[0_8px_30px_rgba(34,211,238,0.5)]",
@@ -192,12 +192,12 @@ export const WalletButton = ({ compact = false, className }: WalletButtonProps) 
           <img 
             src="/images/fun-play-wallet-icon.png" 
             alt="Wallet" 
-            className="h-11 w-11 rounded-full -ml-2 drop-shadow-lg"
+            className="h-6 w-6 rounded-full drop-shadow-lg"
           />
         </div>
         
         <span 
-          className="relative z-10 font-bold text-white tracking-wide text-lg"
+          className="relative z-10 font-bold text-white tracking-wide text-base"
           style={{
             textShadow: "0 0 10px rgba(255,255,255,0.5), 0 1px 2px rgba(0,0,0,0.2)"
           }}
