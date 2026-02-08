@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useRewardStatistics, useRewardHistory } from "@/hooks/useRewardStatistics";
 import { useRewardConfig } from "@/hooks/useRewardConfig";
+import { MainLayout } from "@/components/Layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -47,7 +48,6 @@ const UserDashboard = () => {
   const { configs } = useRewardConfig();
   const [showClaimModal, setShowClaimModal] = useState(false);
 
-  // Get limits from config or use defaults
   const getDailyLimit = (key: string, fallback: number) => {
     const config = configs.find(c => c.config_key === key);
     return config ? Number(config.config_value) : fallback;
@@ -61,19 +61,23 @@ const UserDashboard = () => {
 
   if (authLoading || statsLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-pulse text-xl">Đang tải...</div>
-      </div>
+      <MainLayout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="animate-pulse text-xl">Đang tải...</div>
+        </div>
+      </MainLayout>
     );
   }
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Card className="p-8">
-          <p className="text-lg">Vui lòng đăng nhập để xem dashboard</p>
-        </Card>
-      </div>
+      <MainLayout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <Card className="p-8">
+            <p className="text-lg">Vui lòng đăng nhập để xem dashboard</p>
+          </Card>
+        </div>
+      </MainLayout>
     );
   }
 
@@ -89,8 +93,8 @@ const UserDashboard = () => {
   })) || [];
 
   return (
-    <div className="min-h-screen bg-background p-4 md:p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <MainLayout>
+      <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
           <div>
@@ -104,7 +108,6 @@ const UserDashboard = () => {
 
         {/* Main Stats Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Total Earned Card */}
           <Card className="bg-gradient-to-br from-[#00E7FF]/10 via-[#7A2BFF]/10 to-[#FF00E5]/10 border-2 border-[#FFD700]/30">
             <CardContent className="p-8 text-center">
               <div className="flex items-center justify-center gap-3 mb-2">
@@ -117,8 +120,6 @@ const UserDashboard = () => {
               <p className="text-sm text-muted-foreground mt-2">CAMLY Tokens</p>
             </CardContent>
           </Card>
-
-          {/* Pending Rewards Widget */}
           <PendingRewardsWidget 
             userId={user.id} 
             onClaimClick={() => setShowClaimModal(true)} 
@@ -366,12 +367,11 @@ const UserDashboard = () => {
         </Card>
       </div>
 
-      {/* Claim Modal */}
       <ClaimRewardsModal 
         open={showClaimModal} 
         onOpenChange={setShowClaimModal} 
       />
-    </div>
+    </MainLayout>
   );
 };
 

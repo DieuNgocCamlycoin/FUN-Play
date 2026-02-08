@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Save, Play, Pause, Lock } from "lucide-react";
-import { Header } from "@/components/Layout/Header";
+import { MainLayout } from "@/components/Layout/MainLayout";
 import { DragDropImageUpload } from "@/components/Profile/DragDropImageUpload";
 import { ProfileCompletionIndicator } from "@/components/Profile/ProfileCompletionIndicator";
 import { ChangePasswordForm } from "@/components/Profile/ChangePasswordForm";
@@ -312,20 +312,17 @@ export default function ProfileSettings() {
 
   if (loading || loadingProfile) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header onMenuClick={() => {}} />
-        <div className="flex items-center justify-center pt-20">
+      <MainLayout>
+        <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-foreground">Loading...</div>
         </div>
-      </div>
+      </MainLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header onMenuClick={() => {}} />
-      
-      <main className="pt-20 pb-10 px-4">
+    <MainLayout>
+      <main className="pb-10 px-4">
         <div className="max-w-2xl mx-auto">
           {/* Header */}
           <div className="flex items-center gap-4 mb-6">
@@ -519,6 +516,6 @@ export default function ProfileSettings() {
           </div>
         </div>
       </main>
-    </div>
+    </MainLayout>
   );
 }
