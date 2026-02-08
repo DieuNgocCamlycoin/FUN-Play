@@ -226,7 +226,7 @@ const Playlist = () => {
             <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
           </>
         )}
-        <main className={cn(isMobile ? "pt-0" : "pt-14 lg:pl-64")}>
+        <main className={cn(isMobile ? "pt-0" : "pt-12 lg:pt-14 lg:pl-64")}>
           <div className="max-w-7xl mx-auto p-6">
             <div className="flex gap-6">
               <Skeleton className="w-80 h-96 rounded-xl" />
@@ -252,7 +252,7 @@ const Playlist = () => {
             <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
           </>
         )}
-        <main className={cn(isMobile ? "pt-14" : "pt-14 lg:pl-64")}>
+        <main className={cn(isMobile ? "pt-12" : "pt-12 lg:pt-14 lg:pl-64")}>
           {isMobile && (
             <div className="fixed top-0 left-0 right-0 z-50 bg-background border-b">
               <div className="flex items-center p-2">

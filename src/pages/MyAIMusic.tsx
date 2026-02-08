@@ -145,7 +145,7 @@ export default function MyAIMusic() {
       <div className="min-h-screen bg-background">
         <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
         <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-        <main className="pt-14 lg:pl-64 flex items-center justify-center min-h-[80vh]">
+        <main className="pt-12 lg:pt-14 lg:pl-64 flex items-center justify-center min-h-[80vh]">
           <div className="text-center">
             <Music className="w-16 h-16 mx-auto mb-4 text-muted-foreground/30" />
             <p className="text-muted-foreground">Vui lòng đăng nhập để xem nhạc AI của bạn</p>
@@ -160,7 +160,7 @@ export default function MyAIMusic() {
       <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <main className="pt-14 lg:pl-64">
+      <main className="pt-12 lg:pt-14 lg:pl-64">
         <div className="max-w-6xl mx-auto p-6">
           <div className="flex items-center justify-between mb-6">
             <div>

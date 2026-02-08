@@ -170,7 +170,7 @@ const Subscriptions = () => {
           <MobileBottomNav />
         </div>
 
-        <main className="pt-14 pb-20 lg:pb-0 lg:pl-64 flex items-center justify-center min-h-[80vh]">
+        <main className="pt-12 lg:pt-14 pb-20 lg:pb-0 lg:pl-64 flex items-center justify-center min-h-[80vh]">
           <div className="text-center">
             <Users className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
             <h2 className="text-xl font-semibold mb-2">Đăng nhập để xem đăng ký</h2>
@@ -201,7 +201,7 @@ const Subscriptions = () => {
         <MobileBottomNav />
       </div>
 
-      <main className="pt-14 pb-20 lg:pb-0 lg:pl-64">
+      <main className="pt-12 lg:pt-14 pb-20 lg:pb-0 lg:pl-64">
         <div className="max-w-7xl mx-auto p-6">
           {/* Header */}
           <div className="flex items-center gap-4 mb-6">

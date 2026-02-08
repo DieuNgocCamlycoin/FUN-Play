@@ -68,7 +68,7 @@ const Studio = () => {
     <div className="min-h-screen bg-background">
       <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
       
-      <div className="flex pt-14">
+      <div className="flex pt-12 lg:pt-14">
         <StudioSidebar
           isOpen={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
