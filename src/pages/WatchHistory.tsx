@@ -102,7 +102,7 @@ const WatchHistory = () => {
                 <History className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cosmic-magenta via-cosmic-cyan to-cosmic-sapphire">
+                <h1 className="text-2xl font-bold text-[#0066FF]">
                   Lịch sử xem
                 </h1>
                 <p className="text-sm text-muted-foreground">

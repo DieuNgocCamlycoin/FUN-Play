@@ -54,7 +54,7 @@ const WatchLater = () => {
               <Clock className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta">
+              <h1 className="text-2xl font-bold text-[#0066FF]">
                 Xem sau
               </h1>
               <p className="text-sm text-muted-foreground">
