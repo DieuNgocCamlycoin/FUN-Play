@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Gift, Search, Loader2, X, Smile } from "lucide-react";
+import { Search, Loader2, X, Smile } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -550,10 +550,8 @@ export const EnhancedDonateModal = ({
                   !isValidAmount
                 }
               >
-                {loading ? (
+                {loading && (
                   <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                ) : (
-                  <Gift className="h-5 w-5 mr-2" />
                 )}
                 {loading ? "Đang xử lý..." : `Tặng ${amount || "0"} ${selectedToken?.symbol || ""} →`}
               </Button>
