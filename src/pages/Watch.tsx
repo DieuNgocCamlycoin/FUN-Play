@@ -30,7 +30,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { formatViews, formatTimestamp } from "@/lib/formatters";
+import { formatViews, formatViewsShort, formatTimestamp } from "@/lib/formatters";
 
 interface Video {
   id: string;
@@ -687,7 +687,7 @@ export default function Watch() {
                         )}
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        {(video.channels.subscriber_count || 0).toLocaleString()} người đăng ký
+                        {formatViewsShort(video.channels.subscriber_count)} người đăng ký
                       </p>
                     </div>
                     {showMiniProfile && (
@@ -731,7 +731,7 @@ export default function Watch() {
                       onClick={handleLike}
                     >
                       <ThumbsUp className={`h-4 w-4 ${hasLiked ? "fill-current" : ""}`} />
-                      <span className="font-semibold">{video.like_count || 0}</span>
+                      <span className="font-semibold">{formatViewsShort(video.like_count)}</span>
                     </Button>
                     <div className="w-px h-6 bg-border"></div>
                     <Button
