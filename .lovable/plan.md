@@ -2,87 +2,77 @@
 
 # System Check Report & Fix Plan for FUN Play
 
-## Current Status: System is Healthy
+## Current Status: One Functional Bug Found
 
-After comprehensive inspection of console logs, network requests, visual mobile testing (390x844) across 12+ pages, and code review across 30+ files, the system has **no critical runtime errors**. All previous fixes are working correctly:
+After comprehensive testing across 15+ pages on mobile (390x844), reviewing all console logs, and analyzing network requests, the system is running stably overall. All previous fixes are verified working:
 
-- Search page: Working, no 400 errors, correct query pattern
-- Mobile header alignment: All 15+ pages properly using `pt-12 lg:pt-14`
-- MainLayout standardization: NFTGallery, UserDashboard, ProfileSettings, CAMLYPrice, DownloadedVideos all properly wrapped
+- Search page: Working correctly, no errors
+- MainLayout standardization: All pages properly wrapped
+- Mobile header alignment: Consistent `pt-12 lg:pt-14` across all pages
 - Safe-area CSS, FUN Money navigation, realtime subscriptions: All stable
-- All network API calls return 200
 
 ## Issue Found
 
-### PlatformDocs Page Missing Mobile Navigation (Medium Priority)
+### Wallet Transaction History Returns 400 Errors (Medium-High Priority)
 
-**File:** `src/pages/PlatformDocs.tsx`
+**Console logs confirm two 400 errors on the `/wallet` page:**
 
-The Platform Documentation page (`/docs/platform`) uses a raw `min-h-screen bg-background` wrapper with no `MainLayout`. On mobile, this means:
+```
+Failed to load resource: 400 - donation_transactions?select=*,receiver:receiver_id(...)
+Failed to load resource: 400 - donation_transactions?select=*,sender:sender_id(...)
+```
 
-- No MobileHeader at the top
-- No MobileBottomNav at the bottom
-- No way to navigate away except the browser back button
-- No hamburger menu or drawer navigation
+**Root Cause:** The `TransactionHistorySection.tsx` component tries to join `profiles` data using PostgREST relationship syntax:
+- `receiver:receiver_id(id, username, display_name, avatar_url)`
+- `sender:sender_id(id, username, display_name, avatar_url)`
+- `token:token_id(symbol)`
 
-On desktop, it also lacks the standard Header and CollapsibleSidebar.
+However, the `donation_transactions` table has **zero foreign keys** in the database. The `sender_id` and `receiver_id` columns are plain UUID columns with no FK constraint to `profiles`, and `token_id` has no FK to `donate_tokens`. PostgREST cannot resolve joins without foreign keys, so it returns 400.
 
-**Fix:** Wrap the PlatformDocs content in `MainLayout` to provide consistent navigation on all devices. Keep the inner content structure (gradient header, tabs, sections) intact.
+**Impact:** Users see an empty transaction history on the Wallet page. The reward transactions still load (separate table, no joins), but all donation transactions fail silently.
+
+**Fix:** Use the same proven "separate queries" pattern from `Search.tsx` and `Index.tsx`:
+1. Query `donation_transactions` with flat select (no joins)
+2. Collect unique `sender_id`, `receiver_id`, and `token_id` values
+3. Run separate queries to `profiles` and `donate_tokens` tables
+4. Merge the data using maps
 
 ### Non-Issues (Already Working / Known Preview-Only)
-
-- WalletConnect CSP framing error: Preview environment only, does not affect published app
+- WalletConnect CSP framing: Preview environment only
 - Manifest CORS error: Preview environment only
+- Facebook image CORS: External resource, not fixable
 - PostMessage warnings: Lovable editor environment artifacts
-- HEAD request ERRs in network panel: Normal Supabase Realtime subscription checks
-- `Watch.tsx` line 543 uses `pt-14`: Correct, this is the desktop-only rendering path
-- `Playlist.tsx` line 550 uses `pt-14`: Correct, this is the desktop-only rendering path
-- `InstallPWA.tsx` no MainLayout: Intentional, standalone PWA install guide with back button
-- `Receipt.tsx` no MainLayout: Intentional, standalone shareable receipt page
-- `Shorts.tsx` no MainLayout: Intentional, fullscreen TikTok-style experience
-- `Auth.tsx` no MainLayout: Intentional, standalone login/signup page
-- `AIMusicDetail.tsx` no MainLayout: Intentional, fullscreen music player with back button
+- All other pages (Home, Search, Profile, Settings, Leaderboard, Meditate, Subscriptions, CAMLYPrice, Downloads, Docs, NFTGallery, Bounty, BrowseMusic, Messages, FunMoney): All working with proper layouts and no errors
 
 ---
 
 ## Implementation Plan
 
-### Phase 1: Wrap PlatformDocs in MainLayout
+### Phase 1: Fix Transaction History 400 Errors
 
-**File:** `src/pages/PlatformDocs.tsx`
+**File:** `src/components/Wallet/TransactionHistorySection.tsx`
 
-1. Import `MainLayout` from `@/components/Layout/MainLayout`
-2. Wrap the outer `<div className="min-h-screen bg-background">` content inside `<MainLayout>`
-3. Remove the `min-h-screen bg-background` wrapper (MainLayout provides the background)
-4. Keep all inner content intact (gradient header, tabs, collapsible sections, code blocks)
+**Changes to the `fetchTransactions` function (lines 86-138):**
 
-**Before:**
-```tsx
-return (
-  <div className="min-h-screen bg-background">
-    {/* Header */}
-    <div className="bg-gradient-to-r ...">
-      ...
-    </div>
-    ...
-  </div>
-);
-```
+1. Replace the sent donations query (lines 87-96):
+   - Change from: `.select("*, receiver:receiver_id(...), token:token_id(...)")`
+   - Change to: `.select("*")` (flat select, no joins)
 
-**After:**
-```tsx
-return (
-  <MainLayout>
-    <div>
-      {/* Header */}
-      <div className="bg-gradient-to-r ...">
-        ...
-      </div>
-      ...
-    </div>
-  </MainLayout>
-);
-```
+2. Replace the received donations query (lines 114-123):
+   - Change from: `.select("*, sender:sender_id(...), token:token_id(...)")`
+   - Change to: `.select("*")` (flat select, no joins)
+
+3. After fetching both donation sets, collect unique user IDs and token IDs:
+   - Extract all `sender_id` and `receiver_id` values
+   - Extract all `token_id` values
+   - Query `profiles` table with `.in("id", userIds)` to get display names and avatars
+   - Query `donate_tokens` table with `.in("id", tokenIds)` to get token symbols
+   - Build lookup maps: `profilesMap[id]` and `tokensMap[id]`
+
+4. Update the transaction building logic (lines 98-137):
+   - Use `profilesMap[d.receiver_id]` instead of `d.receiver as any`
+   - Use `profilesMap[d.sender_id]` instead of `d.sender as any`
+   - Use `tokensMap[d.token_id]?.symbol` instead of `(d.token as any)?.symbol`
 
 ---
 
@@ -90,15 +80,22 @@ return (
 
 | # | File | Change | Priority |
 |---|------|--------|----------|
-| 1 | `src/pages/PlatformDocs.tsx` | Wrap with MainLayout for mobile navigation | Medium |
+| 1 | `src/components/Wallet/TransactionHistorySection.tsx` | Fix 400 errors by removing invalid FK joins | Medium-High |
 
 ---
 
+## Technical Details
+
+The fix follows the exact same pattern already used successfully in:
+- `src/pages/Search.tsx` (profiles loaded separately after video query)
+- `src/pages/Index.tsx` (profiles loaded separately after video query)
+
+This approach is safer than adding foreign key constraints because:
+- Adding FKs could fail if there are orphaned records (sender/receiver IDs that don't exist in profiles)
+- No database migration needed
+- Frontend-only change
+
 ## Summary
 
-The system is in excellent shape. All previous rounds of fixes (search functionality, mobile header alignment, MainLayout standardization, safe-area CSS, realtime stability) are verified working correctly across all tested pages.
-
-The only remaining issue is the **PlatformDocs page** (`/docs/platform`) which lacks mobile navigation (no header, no bottom nav). Wrapping it in `MainLayout` will provide consistent navigation on all devices.
-
-No database changes needed. Single file frontend-only fix.
+The system is in excellent health after all previous rounds of fixes. The only remaining functional bug is the **Wallet transaction history** showing empty results due to invalid PostgREST join syntax (no foreign keys exist on the `donation_transactions` table). The fix uses the proven "separate queries + lookup map" pattern already established in the codebase. Single file change, no database modifications needed.
 
