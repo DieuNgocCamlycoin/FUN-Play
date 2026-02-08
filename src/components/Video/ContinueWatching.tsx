@@ -30,7 +30,7 @@ export const ContinueWatching = () => {
 
   return (
     <section className="mb-8">
-      <h2 className="text-xl font-bold mb-4 text-[#0066FF]">
+      <h2 className="text-xl font-bold mb-4 text-[#004eac]">
         Tiếp tục xem
       </h2>
       <ScrollArea className="w-full whitespace-nowrap">

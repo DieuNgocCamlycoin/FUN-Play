@@ -65,7 +65,7 @@ export const MobileBottomNav = () => {
                     ? "relative"
                     : isActive
                     ? "text-primary"
-                    : "text-[#0066FF] hover:text-[#0066FF]/80"
+                    : "text-[#004eac] hover:text-[#004eac]/80"
                 )}
               >
                 {isCreateButton ? (

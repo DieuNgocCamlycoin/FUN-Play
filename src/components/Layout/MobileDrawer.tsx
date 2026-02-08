@@ -138,9 +138,9 @@ export const MobileDrawer = ({ isOpen, onClose }: MobileDrawerProps) => {
           className="h-6 w-6 rounded-full shadow-md object-cover ring-2 ring-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.4)]"
         />
       ) : item.icon ? (
-        <item.icon className="h-6 w-6 text-[#0066FF]" />
+        <item.icon className="h-6 w-6 text-[#004eac]" />
       ) : null}
-      <span className="text-[#0066FF] font-medium">
+      <span className="text-[#004eac] font-medium">
         {item.label}
       </span>
       {item.external && (
@@ -166,7 +166,7 @@ export const MobileDrawer = ({ isOpen, onClose }: MobileDrawerProps) => {
           className="h-6 w-6 rounded-full shadow-md object-cover ring-2 ring-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.4)]"
         />
       )}
-      <span className="text-[#0066FF] font-semibold">
+      <span className="text-[#004eac] font-semibold">
         {item.label}
       </span>
       {item.external && (

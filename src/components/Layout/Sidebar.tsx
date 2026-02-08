@@ -154,7 +154,7 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                       )}
                     />
                   )}
-                  <span className="text-[#0066FF] font-semibold">
+                  <span className="text-[#004eac] font-semibold">
                     {item.label}
                   </span>
                   {item.external && (
@@ -179,9 +179,9 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                   )}
                 >
                   {item.icon && (
-                    <item.icon className="h-5 w-5 text-[#0066FF]" />
+                    <item.icon className="h-5 w-5 text-[#004eac]" />
                   )}
-                  <span className="text-[#0066FF] font-medium">
+                  <span className="text-[#004eac] font-medium">
                     {item.label}
                   </span>
                 </Button>
@@ -202,8 +202,8 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                     location.pathname === item.href && "bg-primary/10 text-primary font-semibold"
                   )}
                 >
-                  <item.icon className="h-5 w-5 text-[#0066FF]" />
-                  <span className="text-[#0066FF]">{item.label}</span>
+                  <item.icon className="h-5 w-5 text-[#004eac]" />
+                  <span className="text-[#004eac]">{item.label}</span>
                 </Button>
               ))}
             </div>
@@ -220,8 +220,8 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                   location.pathname === "/leaderboard" && "bg-primary/10 text-primary font-semibold"
                 )}
               >
-                <Trophy className="h-5 w-5 text-[#0066FF]" />
-                <span className="text-[#0066FF]">Bảng Xếp Hạng</span>
+                <Trophy className="h-5 w-5 text-[#004eac]" />
+                <span className="text-[#004eac]">Bảng Xếp Hạng</span>
               </Button>
               <Button
                 variant="ghost"
@@ -231,8 +231,8 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                   location.pathname === "/reward-history" && "bg-primary/10 text-primary font-semibold"
                 )}
               >
-                <Coins className="h-5 w-5 text-[#0066FF]" />
-                <span className="text-[#0066FF]">Lịch Sử Phần Thưởng</span>
+                <Coins className="h-5 w-5 text-[#004eac]" />
+                <span className="text-[#004eac]">Lịch Sử Phần Thưởng</span>
               </Button>
               <Button
                 variant="ghost"
@@ -242,8 +242,8 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                   location.pathname === "/referral" && "bg-primary/10 text-primary font-semibold"
                 )}
               >
-                <UserPlus className="h-5 w-5 text-[#0066FF]" />
-                <span className="text-[#0066FF]">Giới Thiệu Bạn Bè</span>
+                <UserPlus className="h-5 w-5 text-[#004eac]" />
+                <span className="text-[#004eac]">Giới Thiệu Bạn Bè</span>
               </Button>
             </div>
 
@@ -259,8 +259,8 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                     location.pathname === item.href && "bg-primary/10 text-primary font-semibold"
                   )}
                 >
-                  <item.icon className="h-5 w-5 text-[#0066FF]" />
-                  <span className="text-[#0066FF]">{item.label}</span>
+                  <item.icon className="h-5 w-5 text-[#004eac]" />
+                  <span className="text-[#004eac]">{item.label}</span>
                 </Button>
               ))}
             </div>
@@ -277,8 +277,8 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                   location.pathname === "/wallet" && "bg-primary/10 text-primary font-semibold"
                 )}
               >
-                <Wallet className="h-5 w-5 text-[#0066FF]" />
-                <span className="text-[#0066FF]">Ví</span>
+                <Wallet className="h-5 w-5 text-[#004eac]" />
+                <span className="text-[#004eac]">Ví</span>
               </Button>
             </div>
           </div>
