@@ -22,7 +22,7 @@ const CreatePost = () => {
   const navigate = useNavigate();
   const { uploadToR2 } = useR2Upload({ folder: 'posts' });
 
-  if (loading) return <div className="flex items-center justify-center h-screen">Loading...</div>;
+  if (loading) return <div className="flex items-center justify-center h-screen">Đang tải...</div>;
   if (!user) { navigate("/auth"); return null; }
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {

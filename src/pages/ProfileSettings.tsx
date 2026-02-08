@@ -314,7 +314,7 @@ export default function ProfileSettings() {
     return (
       <MainLayout>
         <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="text-foreground">Loading...</div>
+          <div className="text-foreground">Đang tải...</div>
         </div>
       </MainLayout>
     );

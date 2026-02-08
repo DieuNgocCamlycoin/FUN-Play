@@ -92,7 +92,7 @@ export const ContinueWatching = () => {
                   {item.video.title}
                 </h3>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {item.video.channels?.name || 'Unknown Channel'}
+                  {item.video.channels?.name || 'Kênh chưa xác định'}
                 </p>
               </div>
             </div>

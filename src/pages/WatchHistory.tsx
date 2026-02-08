@@ -242,7 +242,7 @@ const WatchHistory = () => {
                           {item.video.title}
                         </h3>
                         <p className="text-sm text-muted-foreground mt-1">
-                          {item.video.channels?.name || 'Unknown Channel'}
+                          {item.video.channels?.name || 'Kênh chưa xác định'}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {formatViews(item.video.view_count)} • {formatTimestamp(item.watched_at)}

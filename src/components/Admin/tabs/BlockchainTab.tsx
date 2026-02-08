@@ -148,7 +148,7 @@ const BlockchainTab = () => {
                   {claims.map((claim) => (
                     <TableRow key={claim.id}>
                       <TableCell className="font-medium">
-                        {claim.user_name || "Unknown"}
+                        {claim.user_name || "Không xác định"}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">

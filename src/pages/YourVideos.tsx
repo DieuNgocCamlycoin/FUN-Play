@@ -56,7 +56,7 @@ const YourVideos = () => {
     } catch (error: any) { console.error("Error deleting video:", error); toast({ title: "Lỗi", description: "Không thể xóa video", variant: "destructive" }); }
   };
 
-  if (loading) return <div className="flex items-center justify-center h-screen">Loading...</div>;
+  if (loading) return <div className="flex items-center justify-center h-screen">Đang tải...</div>;
 
   return (
     <MainLayout>

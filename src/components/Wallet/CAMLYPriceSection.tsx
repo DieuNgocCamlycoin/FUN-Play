@@ -89,7 +89,7 @@ export const CAMLYPriceSection = () => {
               <div className="flex items-center gap-3 mt-1">
                 {loading && priceHistory.length === 0 ? (
                   <span className="text-2xl font-bold text-gray-400 animate-pulse">
-                    Loading...
+                    Đang tải...
                   </span>
                 ) : (
                   <>

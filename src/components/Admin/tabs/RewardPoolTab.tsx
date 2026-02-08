@@ -95,7 +95,7 @@ const RewardPoolTab = () => {
       setClaims(
         data?.map(c => ({
           ...c,
-          username: profileMap.get(c.user_id) || "Unknown"
+          username: profileMap.get(c.user_id) || "Không xác định"
         })) || []
       );
     } catch (error) {
