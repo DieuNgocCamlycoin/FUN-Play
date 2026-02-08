@@ -1,7 +1,7 @@
 
-# FUN Play vs YouTube 2025: Round 17 Gap Analysis
+# FUN Play vs YouTube 2025: Round 18 Gap Analysis
 
-## Verified Fixes from Rounds 1-16 (All Working)
+## Verified Fixes from Rounds 1-17 (All Working)
 
 | Feature | Round | Status |
 |---------|-------|--------|
@@ -42,117 +42,110 @@
 | Mobile Ambient Mode glow effect | R16 | Done |
 | Mobile chapter pills in DescriptionDrawer | R16 | Done |
 | PlayerSettingsDrawer ambient toggle | R16 | Done |
+| PlayerSettingsDrawer "Ambient Mode" label fix | R17 | Done |
+| Admin formatFileSize "N/A" fix | R17 | Done |
+| Desktop video thumbnail hover preview | R17 | Done |
+| Mobile scroll-to-top button | R17 | Done |
 
 ---
 
-## Build Error Note
+## REMAINING GAPS FOUND IN ROUND 18
 
-The current build error (`429 Too Many Requests` from Cloudflare R2 during deployment) is a temporary rate-limiting issue from the CDN provider, not a code error. It will resolve automatically on retry. No code changes are needed for this.
+### HIGH PRIORITY (Feature Parity)
 
----
+#### Gap 1: Mobile Search Missing Autocomplete Suggestions
 
-## REMAINING GAPS FOUND IN ROUND 17
+The desktop `Header.tsx` (lines 88-107, 178-192) implements live search suggestions -- as the user types, it fetches matching video titles from the database and displays them as clickable dropdown items below the search bar. This matches YouTube's desktop experience.
 
-### HIGH PRIORITY (Localization)
+However, the mobile `MobileHeader.tsx` (lines 106-113, 364-382) has NO autocomplete suggestions at all. The mobile search is a plain input that only navigates to `/search?q=...` on submit. YouTube's mobile app shows search suggestions as you type, identically to the desktop experience.
 
-#### Gap 1: "Ambient Mode" English Label in PlayerSettingsDrawer.tsx
+**Fix:** Add autocomplete suggestions to `MobileHeader.tsx` with the same debounced search logic used in `Header.tsx`. Display suggestions as a dropdown list below the search input in the mobile search mode overlay.
 
-`PlayerSettingsDrawer.tsx` line 107 shows `"Ambient Mode"` as the toggle label text. The section header (line 103) correctly says `"Che do anh sang"` in Vietnamese, but the actual label inside the row still says English `"Ambient Mode"`.
+#### Gap 2: Subscriptions Page Videos Missing Hover Preview
 
-**Fix:** Change line 107 from `"Ambient Mode"` to `"Che do anh sang"` (matching the section header).
+The `Subscriptions.tsx` page (line 196-209) renders `VideoCard` components but does NOT pass the `videoUrl` prop. Since Round 17 added hover preview support to `VideoCard` (muted auto-play on 500ms hover), Subscriptions videos cannot use this feature.
 
-#### Gap 2: "N/A" in formatFileSize Helper (Admin)
+The Subscriptions query (lines 79-84) fetches videos but only selects `id, title, thumbnail_url, view_count, created_at, duration, channel_id` -- missing `video_url`.
 
-`useAdminVideoStats.tsx` line 231 returns `"N/A"` when file size is null or 0. This appears in the admin Video Management table and CSV exports. While "N/A" is somewhat universal, other admin components already use `"Khong co"`.
+**Fix:** Add `video_url` to the video select query and pass it to `VideoCard` as the `videoUrl` prop.
 
-**Fix:** Change `"N/A"` to `"Khong co"` for consistency.
+#### Gap 3: Shorts Page Duration Filter Too Restrictive
 
-### MEDIUM PRIORITY (Feature Enhancements)
+The Shorts page (`Shorts.tsx` line 379) uses `.or('duration.lt.60,category.eq.shorts')` which only catches videos under 60 seconds OR explicitly categorized as shorts. However, the upload system (`UploadWizard.tsx` line 106, `MobileUploadFlow.tsx` line 149) defines shorts as vertical/square videos with `duration <= 180` seconds (3 minutes).
 
-#### Gap 3: No Video Thumbnail Hover Preview on Desktop
+YouTube treats Shorts as videos up to 3 minutes. While properly uploaded shorts get the `category=shorts` tag and appear correctly, older or migrated videos between 60-180s that are vertical but not tagged as shorts will NOT appear in the Shorts feed.
 
-YouTube 2025 shows a short animated preview (3-5 second GIF-like loop) when hovering over video thumbnails on the homepage and search results. This helps users decide whether to click a video without reading the title.
+**Fix:** Update the Shorts query from `duration.lt.60` to `duration.lte.180` to align with the upload definition and YouTube's standard.
 
-FUN Play's `VideoCard.tsx` only scales the thumbnail image on hover (line 141: `group-hover:scale-110`) and shows a play button overlay, but does not show any animated video preview.
+### MEDIUM PRIORITY (UX Refinement)
 
-**Implementation approach:** When a user hovers over a video card for more than 500ms, start playing a muted, low-resolution snippet of the video in the thumbnail area. This would require loading the video URL on hover and using a `<video>` element to auto-play muted. Since video URLs are stored in the database, this is frontend-only but requires careful performance optimization to avoid excessive bandwidth usage.
+#### Gap 4: Search Results Desktop List Missing Hover Preview
 
-**Trade-off considerations:**
-- Significant bandwidth cost (each hover loads video data)
-- Mobile devices should be excluded (hover is not relevant)
-- Could cause performance issues with many visible cards
-- YouTube pre-generates short preview clips server-side; FUN Play would need to play from the beginning of the actual video
+The `Search.tsx` desktop layout (lines 308-348) uses a custom list view with raw `<img>` thumbnails, not `VideoCard`. This means hover previews don't work in desktop search results. YouTube's search results do show hover previews.
 
-**Recommendation:** Implement a lightweight version that plays the first few seconds of the video on hover (desktop only), with a loading delay and abort-on-mouse-leave to minimize bandwidth.
-
-#### Gap 4: No "Scroll to Top" Button on Mobile
-
-YouTube's mobile app shows a "scroll to top" button when the user scrolls down significantly on the homepage. FUN Play does not implement this convenience feature.
-
-**Implementation approach:** Add a floating "scroll to top" button that appears after scrolling down more than 500px on the Index page (mobile only). Use `window.scrollTo({ top: 0, behavior: 'smooth' })` with a fade-in/out animation.
+**Fix:** Add hover preview logic (same as VideoCard) to the search results desktop thumbnails. This requires fetching `video_url` in the search query and adding hover state management.
 
 ---
 
 ### ACCEPTABLE EXCEPTIONS (No Change Needed)
 
-- **Branded feature names**: FUN ECOSYSTEM, Build and Bounty, FUN Wallet, Shorts, Studio, CAMLY
+- **Branded feature names**: FUN ECOSYSTEM, Build and Bounty, FUN Wallet, Shorts, Studio, CAMLY, MINT, PPLP Protocol
 - **Music genre names**: Pop, Rock, Jazz, Classical, Lo-Fi, Ambient, Hip Hop
 - **Technical documentation**: PlatformDocs.tsx
 - **Database enum values**: "success", "error", "pending", "reward"
 - **UI library defaults**: sidebar.tsx "Toggle Sidebar" (shadcn/ui internal)
 - **Alt text attributes**: Non-visible accessibility labels
 - **React internal keys**: labelEn values
-- **File size units**: "Bytes", "KB", "MB", "GB", "TB" (international standard)
-- **Code comments**: Vietnamese comments like `Keo xuong de thu nho` are already correct
+- **File size units**: Bytes, KB, MB, GB, TB
+- **Tooltip branded terms**: "Mint FUN Money - PPLP Protocol", "ANGEL AI"
 
 ---
 
 ## IMPLEMENTATION PLAN
 
-### Phase 1: PlayerSettingsDrawer Label Fix (1 file, 1 change)
+### Phase 1: Mobile Search Autocomplete Suggestions (1 file)
 
-**File:** `src/components/Video/PlayerSettingsDrawer.tsx`
-- Line 107: Change `"Ambient Mode"` to `"Chế độ ánh sáng"`
+**File:** `src/components/Layout/MobileHeader.tsx`
 
-### Phase 2: formatFileSize "N/A" Fix (1 file, 1 change)
+Add live search suggestions identical to the desktop Header:
+- Add `suggestions` state (`Array<{ id: string; title: string }>`)
+- Add `showSuggestions` state (boolean)
+- Add a `useEffect` with 300ms debounce that queries `videos` table on `searchQuery` changes (min 2 chars), matching on title with `.ilike`, limited to 5 results
+- When `isSearchOpen` is true and `suggestions.length > 0`, render a dropdown list below the search input
+- Each suggestion item displays a Search icon and the video title
+- Clicking a suggestion navigates to `/watch/{videoId}` and closes search
+- Clear suggestions when search is closed or query is empty
+- Style the suggestions dropdown with `bg-card border border-border rounded-lg shadow-lg` positioned absolutely below the search form
 
-**File:** `src/hooks/useAdminVideoStats.tsx`
-- Line 231: Change `"N/A"` to `"Không có"`
+### Phase 2: Subscriptions Hover Preview (1 file)
 
-### Phase 3: Video Thumbnail Hover Preview - Desktop Only (1 file)
+**File:** `src/pages/Subscriptions.tsx`
 
-**File:** `src/components/Video/VideoCard.tsx`
+- Line 82: Add `video_url` to the video select query:
+  Change from `'id, title, thumbnail_url, view_count, created_at, duration, channel_id'`
+  to `'id, title, thumbnail_url, video_url, view_count, created_at, duration, channel_id'`
+- Line 196-209: Pass `videoUrl={video.video_url}` to the `VideoCard` component
+- Update the `latestVideos` type to include `video_url: string`
 
-Add a hover preview feature that plays the first few seconds of a video when the user hovers over the thumbnail for 500ms. Desktop only (skip on mobile/touch devices).
+### Phase 3: Shorts Duration Filter Fix (1 file)
 
-Technical implementation:
-- Add `onMouseEnter` / `onMouseLeave` handlers to the thumbnail `div` (line 135)
-- On mouse enter, start a 500ms timer. If still hovering after 500ms, render a `<video>` element over the thumbnail with `muted autoPlay` and the video's URL
-- On mouse leave, immediately abort: clear timer, remove video element
-- Use `preload="none"` initially to avoid bandwidth waste
-- Add a subtle fade transition between static thumbnail and video preview
-- Skip entirely on touch devices (check `matchMedia('(hover: hover)')`)
-- The video element only needs to show the first ~5 seconds
+**File:** `src/pages/Shorts.tsx`
 
-Changes needed:
-- Add state: `showPreview` (boolean), `hoverTimeout` (ref)
-- Add `videoUrl` prop to `VideoCardProps` interface (optional, for backward compatibility)
-- Render conditional `<video>` element when `showPreview` is true
-- Cleanup timeout on unmount
+- Line 379: Change `.or('duration.lt.60,category.eq.shorts')` to `.or('duration.lte.180,category.eq.shorts')`
+  This aligns the Shorts feed with the upload definition (vertical/square videos up to 3 minutes)
 
-### Phase 4: Scroll-to-Top Button on Mobile Homepage (1 file)
+### Phase 4: Search Desktop Hover Preview (1 file)
 
-**File:** `src/pages/Index.tsx`
+**File:** `src/pages/Search.tsx`
 
-Add a floating "scroll to top" button for mobile users.
-
-Technical implementation:
-- Add `showScrollTop` state tracked via `window.addEventListener('scroll', ...)`
-- Show button when `window.scrollY > 500` and hide when `< 200` (with hysteresis to avoid flickering)
-- Render a circular floating button with `ArrowUp` icon in the bottom-right corner (above the mobile bottom nav)
-- Use `framer-motion` AnimatePresence for smooth fade-in/out
-- Position: `fixed bottom-20 right-3 z-40` (above MobileBottomNav's z-50)
-- Only render on mobile (`useIsMobile()`)
+- Add `video_url` to the video search query (line 105): add `video_url` to the select list
+- Add hover preview state and logic to the desktop search results (lines 308-348):
+  - Add `previewVideoId` state to track which result is being hovered
+  - Add `hoverTimeoutRef` for the 500ms delay
+  - Add `onMouseEnter`/`onMouseLeave` handlers to thumbnail divs
+  - Render a `<video>` element over the thumbnail when preview is active
+  - Skip on touch devices using `matchMedia('(hover: hover)')`
+- Update the `SearchVideo` interface (line 20-29) to include `video_url: string`
 
 ---
 
@@ -160,28 +153,34 @@ Technical implementation:
 
 | Phase | Files Modified | New Files | Complexity |
 |-------|---------------|-----------|------------|
-| 1 | 1 (PlayerSettingsDrawer.tsx) | 0 | Low - 1 string change |
-| 2 | 1 (useAdminVideoStats.tsx) | 0 | Low - 1 string change |
-| 3 | 1 (VideoCard.tsx) | 0 | Medium - hover preview with video element |
-| 4 | 1 (Index.tsx) | 0 | Low - scroll listener + floating button |
+| 1 | 1 (MobileHeader.tsx) | 0 | Medium -- debounced search + dropdown UI |
+| 2 | 1 (Subscriptions.tsx) | 0 | Low -- add field to query + pass prop |
+| 3 | 1 (Shorts.tsx) | 0 | Low -- 1 filter value change |
+| 4 | 1 (Search.tsx) | 0 | Medium -- hover preview + query update |
 
 **Total: 4 files modified, 0 new files, 0 database changes**
 
-### Localization Status After Round 17
-
-After Phases 1-2, user-facing English strings are reduced to:
-- Branded feature names (YouTube standard)
-- Music genre names (international standard)
-- Technical documentation (developer-facing)
-- Database values and internal code identifiers
-- UI library defaults (shadcn/ui)
-- File size units (Bytes, KB, MB, etc.)
-
-### Feature Parity Progress After Round 17
+### Feature Parity Progress After Round 18
 
 **Newly added YouTube 2025 features:**
-- Video thumbnail hover preview on desktop
-- Scroll-to-top floating button on mobile
+- Mobile search autocomplete suggestions (parity with desktop)
+- Hover preview on Subscriptions page
+- Correct Shorts duration filter (up to 3 minutes)
+- Hover preview on desktop search results
 
 **Remaining YouTube features for future rounds:**
-- Clip creation (share video segments) - requires backend
+- Clip creation (share video segments) -- requires backend
+- Super Thanks (highlighted paid comments) -- skipped per user request
+- Community posts with polls -- not implementing per user request
+
+### Localization Status
+
+User-facing English strings are now exclusively:
+- Branded feature names (YouTube standard)
+- Music genre names (international standard)
+- Technical/developer documentation
+- Database values and internal code identifiers
+- UI library defaults (shadcn/ui)
+- File size units (international standard)
+
+This matches YouTube's own localization approach for non-English markets.
