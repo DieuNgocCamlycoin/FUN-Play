@@ -146,12 +146,7 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                     <img 
                       src={item.customIcon} 
                       alt={item.label} 
-                      className={cn(
-                        "h-6 w-6 rounded-full shadow-md object-cover ring-2",
-                        item.isFunMoney 
-                          ? "ring-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.4)]" 
-                          : "ring-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.4)]"
-                      )}
+                      className="h-7 w-7 rounded-full object-cover"
                     />
                   )}
                   <span className="text-[#004eac] font-semibold">
