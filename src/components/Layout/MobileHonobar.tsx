@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Users, Video, Eye, MessageSquare, Coins, Crown, ChevronDown, ChevronUp } from "lucide-react";
 import { useHonobarStats } from "@/hooks/useHonobarStats";
+import { formatViewsShort } from "@/lib/formatters";
 import { CounterAnimation } from "./CounterAnimation";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -16,11 +17,6 @@ export const MobileHonobar = () => {
     { icon: Coins, label: "Quỹ", value: stats.camlyPool, type: "camly" },
   ];
 
-  const formatCompact = (value: number) => {
-    if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
-    if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
-    return value.toString();
-  };
 
   if (loading) {
     return (
@@ -105,10 +101,10 @@ export const MobileHonobar = () => {
                           {item.label}
                         </span>
                         <span className="text-[10px] font-bold bg-gradient-to-r from-[#00E7FF] to-[#FFD700] bg-clip-text text-transparent tabular-nums leading-none">
-                          {item.type === "number" && formatCompact(item.value as number)}
+                        {item.type === "number" && formatViewsShort(item.value as number)}
                           {item.type === "camly" && (
                             <>
-                              {formatCompact(item.value as number)}
+                              {formatViewsShort(item.value as number)}
                               <span className="text-[6px] ml-0.5 text-[#FFD700]">C</span>
                             </>
                           )}

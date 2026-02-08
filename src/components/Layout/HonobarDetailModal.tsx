@@ -11,17 +11,13 @@ import { useTopSponsors } from "@/hooks/useTopSponsors";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CounterAnimation } from "@/components/Layout/CounterAnimation";
 import { cn } from "@/lib/utils";
+import { formatViewsShort } from "@/lib/formatters";
 
 interface HonobarDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-const formatNumber = (num: number): string => {
-  if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
-  if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
-  return num.toLocaleString();
-};
 
 const getRankBadge = (rank: number): string => {
   if (rank === 1) return "🥇";
@@ -157,7 +153,7 @@ const ModalContent = ({ stats, loading, ranking, rankingLoading, sponsors, spons
                   {user.display_name || user.username}
                 </span>
                 <span className="text-sm font-bold text-[#FFD700]">
-                  {formatNumber(user.total_camly_rewards)} CAMLY
+                  {formatViewsShort(user.total_camly_rewards)} CAMLY
                 </span>
               </div>
             ))}
@@ -211,7 +207,7 @@ const ModalContent = ({ stats, loading, ranking, rankingLoading, sponsors, spons
                   {sponsor.displayName || sponsor.username}
                 </span>
                 <span className="text-sm font-bold text-[#FFD700]">
-                  {formatNumber(sponsor.totalDonated)}
+                  {formatViewsShort(sponsor.totalDonated)}
                 </span>
               </div>
             ))}
@@ -247,11 +243,11 @@ const ModalContent = ({ stats, loading, ranking, rankingLoading, sponsors, spons
         <div className="grid grid-cols-2 gap-2 text-sm">
           <div className="flex justify-between items-center p-2 rounded-lg bg-gradient-to-r from-[#F0FDFF] to-[#FFF8F0]">
             <span className="text-muted-foreground text-xs">CAMLY đã phân phối:</span>
-            <span className="font-bold text-[#7A2BFF]">{formatNumber(stats.totalRewards)}</span>
+            <span className="font-bold text-[#7A2BFF]">{formatViewsShort(stats.totalRewards)}</span>
           </div>
           <div className="flex justify-between items-center p-2 rounded-lg bg-gradient-to-r from-[#F0FDFF] to-[#FFF8F0]">
             <span className="text-muted-foreground text-xs">Lượt đăng ký:</span>
-            <span className="font-bold text-[#7A2BFF]">{formatNumber(stats.totalSubscriptions)}</span>
+            <span className="font-bold text-[#7A2BFF]">{formatViewsShort(stats.totalSubscriptions)}</span>
           </div>
         </div>
       </motion.div>

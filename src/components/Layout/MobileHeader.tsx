@@ -182,7 +182,7 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
                   <DropdownMenuContent align="end" className="w-44 bg-background border-border">
                     <DropdownMenuItem onClick={() => setUploadModalOpen(true)} className="gap-2">
                       <Upload className="h-4 w-4" />
-                      Upload Video
+                      Tải video lên
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => navigate("/create-music")} className="gap-2">
                       <Music className="h-4 w-4" />
@@ -301,7 +301,7 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
                             ) : (
                               <Shield className="h-4 w-4" />
                             )}
-                            Admin Dashboard
+                            Bảng điều khiển
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                         </>
@@ -324,7 +324,7 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
                     size="sm"
                     className="h-7 text-xs px-2 font-medium"
                   >
-                    Sign In
+                    Đăng nhập
                   </Button>
                 )}
               </TooltipTrigger>

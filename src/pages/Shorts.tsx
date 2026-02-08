@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { Heart, MessageCircle, Share2, User, Volume2, VolumeX, Play, Pause, ChevronUp, ChevronDown } from 'lucide-react';
+import { Heart, MessageCircle, Share2, User, Volume2, VolumeX, Play, Pause, ChevronUp, ChevronDown, ThumbsDown, Bookmark, MoreVertical, Flag, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { toast } from 'sonner';
@@ -12,6 +12,12 @@ import { ArrowLeft } from 'lucide-react';
 import { ShareModal } from '@/components/Video/ShareModal';
 import { ShortsCommentSheet } from '@/components/Video/ShortsCommentSheet';
 import { motion, AnimatePresence } from 'framer-motion';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface ShortVideo {
   id: string;
@@ -40,16 +46,28 @@ const ShortsVideoItem = ({
   video, 
   isActive, 
   onLike,
+  onDislike,
   onShare,
   onComment,
-  isLiked 
+  onSave,
+  onSubscribe,
+  isLiked,
+  isDisliked,
+  isSaved,
+  isSubscribed,
 }: { 
   video: ShortVideo; 
   isActive: boolean;
   onLike: () => void;
+  onDislike: () => void;
   onShare: () => void;
   onComment: () => void;
+  onSave: () => void;
+  onSubscribe: () => void;
   isLiked: boolean;
+  isDisliked: boolean;
+  isSaved: boolean;
+  isSubscribed: boolean;
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -141,7 +159,7 @@ const ShortsVideoItem = ({
       </AnimatePresence>
 
       {/* Right side actions */}
-      <div className="absolute right-3 bottom-32 flex flex-col items-center gap-5">
+      <div className="absolute right-3 bottom-32 flex flex-col items-center gap-4">
         {/* Avatar */}
         <button onClick={goToChannel} className="relative">
           <Avatar className="w-12 h-12 border-2 border-white">
@@ -174,6 +192,23 @@ const ShortsVideoItem = ({
           </span>
         </button>
 
+        {/* Dislike */}
+        <button 
+          onClick={(e) => { e.stopPropagation(); onDislike(); }}
+          className="flex flex-col items-center"
+        >
+          <div className={cn(
+            "w-12 h-12 rounded-full bg-white/10 backdrop-blur flex items-center justify-center transition-all",
+            isDisliked && "bg-blue-500/20"
+          )}>
+            <ThumbsDown className={cn(
+              "w-6 h-6",
+              isDisliked ? "fill-blue-400 text-blue-400" : "text-white"
+            )} />
+          </div>
+          <span className="text-white text-[10px] mt-1">Không thích</span>
+        </button>
+
         {/* Comment */}
         <button 
           onClick={(e) => { e.stopPropagation(); onComment(); }}
@@ -195,7 +230,24 @@ const ShortsVideoItem = ({
           <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur flex items-center justify-center">
             <Share2 className="w-7 h-7 text-white" />
           </div>
-          <span className="text-white text-xs mt-1 font-medium">Chia sẻ</span>
+          <span className="text-white text-[10px] mt-1">Chia sẻ</span>
+        </button>
+
+        {/* Save / Bookmark */}
+        <button 
+          onClick={(e) => { e.stopPropagation(); onSave(); }}
+          className="flex flex-col items-center"
+        >
+          <div className={cn(
+            "w-12 h-12 rounded-full bg-white/10 backdrop-blur flex items-center justify-center transition-all",
+            isSaved && "bg-yellow-500/20"
+          )}>
+            <Bookmark className={cn(
+              "w-6 h-6",
+              isSaved ? "fill-yellow-400 text-yellow-400" : "text-white"
+            )} />
+          </div>
+          <span className="text-white text-[10px] mt-1">Lưu</span>
         </button>
 
         {/* Mute toggle */}
@@ -211,6 +263,30 @@ const ShortsVideoItem = ({
             )}
           </div>
         </button>
+
+        {/* More options */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button 
+              onClick={(e) => e.stopPropagation()}
+              className="flex flex-col items-center"
+            >
+              <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur flex items-center justify-center">
+                <MoreVertical className="w-6 h-6 text-white" />
+              </div>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem onClick={() => toast.info('Cảm ơn bạn đã báo cáo. Chúng tôi sẽ xem xét nội dung này.')}>
+              <Flag className="mr-2 h-4 w-4" />
+              Báo cáo
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => toast.info('Chúng tôi sẽ không đề xuất nội dung tương tự.')}>
+              <EyeOff className="mr-2 h-4 w-4" />
+              Không quan tâm
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Bottom info overlay */}
@@ -226,12 +302,16 @@ const ShortsVideoItem = ({
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                // Subscribe logic placeholder - would need subscription state
-                toast.success('Đã đăng ký kênh!');
+                onSubscribe();
               }}
-              className="px-3 py-1 rounded-full bg-white text-black text-xs font-semibold hover:bg-white/90 transition-colors"
+              className={cn(
+                "px-3 py-1 rounded-full text-xs font-semibold transition-colors",
+                isSubscribed
+                  ? "bg-white/20 text-white/80 hover:bg-white/30"
+                  : "bg-white text-black hover:bg-white/90"
+              )}
             >
-              Đăng ký
+              {isSubscribed ? "Đã đăng ký" : "Đăng ký"}
             </button>
           </div>
           <p className="text-white text-sm line-clamp-2">{video.title}</p>
@@ -249,6 +329,9 @@ export default function Shorts() {
   const navigate = useNavigate();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [likedVideos, setLikedVideos] = useState<Set<string>>(new Set());
+  const [dislikedVideos, setDislikedVideos] = useState<Set<string>>(new Set());
+  const [savedVideos, setSavedVideos] = useState<Set<string>>(new Set());
+  const [subscribedChannels, setSubscribedChannels] = useState<Set<string>>(new Set());
   const [shareVideoId, setShareVideoId] = useState<string | null>(null);
   const [commentVideoId, setCommentVideoId] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -287,23 +370,71 @@ export default function Shorts() {
     }
   });
 
-  // Fetch user's liked videos
+  // Fetch user's liked & disliked videos
   useEffect(() => {
     if (!user) return;
     
-    const fetchLikes = async () => {
+    const fetchLikesAndDislikes = async () => {
       const { data } = await supabase
         .from('likes')
-        .select('video_id')
+        .select('video_id, is_dislike')
         .eq('user_id', user.id)
-        .eq('is_dislike', false);
+        .not('video_id', 'is', null);
       
       if (data) {
-        setLikedVideos(new Set(data.map(l => l.video_id).filter(Boolean) as string[]));
+        const likes = new Set<string>();
+        const dislikes = new Set<string>();
+        data.forEach(l => {
+          if (l.video_id) {
+            if (l.is_dislike) {
+              dislikes.add(l.video_id);
+            } else {
+              likes.add(l.video_id);
+            }
+          }
+        });
+        setLikedVideos(likes);
+        setDislikedVideos(dislikes);
       }
     };
     
-    fetchLikes();
+    fetchLikesAndDislikes();
+  }, [user]);
+
+  // Fetch user's subscriptions
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchSubscriptions = async () => {
+      const { data } = await supabase
+        .from('subscriptions')
+        .select('channel_id')
+        .eq('subscriber_id', user.id);
+      
+      if (data) {
+        setSubscribedChannels(new Set(data.map(s => s.channel_id)));
+      }
+    };
+
+    fetchSubscriptions();
+  }, [user]);
+
+  // Fetch user's watch later (saved) videos
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchSaved = async () => {
+      const { data } = await supabase
+        .from('watch_later')
+        .select('video_id')
+        .eq('user_id', user.id);
+      
+      if (data) {
+        setSavedVideos(new Set(data.map(w => w.video_id)));
+      }
+    };
+
+    fetchSaved();
   }, [user]);
 
   // Handle scroll to detect current video
@@ -340,15 +471,100 @@ export default function Shorts() {
     const isLiked = likedVideos.has(videoId);
     
     if (isLiked) {
-      await supabase.from('likes').delete().eq('user_id', user.id).eq('video_id', videoId);
+      await supabase.from('likes').delete().eq('user_id', user.id).eq('video_id', videoId).eq('is_dislike', false);
       setLikedVideos(prev => {
         const next = new Set(prev);
         next.delete(videoId);
         return next;
       });
     } else {
+      // Remove dislike if exists
+      if (dislikedVideos.has(videoId)) {
+        await supabase.from('likes').delete().eq('user_id', user.id).eq('video_id', videoId).eq('is_dislike', true);
+        setDislikedVideos(prev => {
+          const next = new Set(prev);
+          next.delete(videoId);
+          return next;
+        });
+      }
       await supabase.from('likes').insert({ user_id: user.id, video_id: videoId, is_dislike: false });
       setLikedVideos(prev => new Set(prev).add(videoId));
+    }
+  };
+
+  const handleDislike = async (videoId: string) => {
+    if (!user) {
+      toast.error('Vui lòng đăng nhập');
+      return;
+    }
+
+    const isDisliked = dislikedVideos.has(videoId);
+    
+    if (isDisliked) {
+      await supabase.from('likes').delete().eq('user_id', user.id).eq('video_id', videoId).eq('is_dislike', true);
+      setDislikedVideos(prev => {
+        const next = new Set(prev);
+        next.delete(videoId);
+        return next;
+      });
+    } else {
+      // Remove like if exists
+      if (likedVideos.has(videoId)) {
+        await supabase.from('likes').delete().eq('user_id', user.id).eq('video_id', videoId).eq('is_dislike', false);
+        setLikedVideos(prev => {
+          const next = new Set(prev);
+          next.delete(videoId);
+          return next;
+        });
+      }
+      await supabase.from('likes').insert({ user_id: user.id, video_id: videoId, is_dislike: true });
+      setDislikedVideos(prev => new Set(prev).add(videoId));
+    }
+  };
+
+  const handleSubscribe = async (channelId: string) => {
+    if (!user) {
+      toast.error('Vui lòng đăng nhập để đăng ký kênh');
+      return;
+    }
+
+    const isSub = subscribedChannels.has(channelId);
+
+    if (isSub) {
+      await supabase.from('subscriptions').delete().eq('subscriber_id', user.id).eq('channel_id', channelId);
+      setSubscribedChannels(prev => {
+        const next = new Set(prev);
+        next.delete(channelId);
+        return next;
+      });
+      toast.success('Đã hủy đăng ký kênh');
+    } else {
+      await supabase.from('subscriptions').insert({ subscriber_id: user.id, channel_id: channelId });
+      setSubscribedChannels(prev => new Set(prev).add(channelId));
+      toast.success('Đã đăng ký kênh!');
+    }
+  };
+
+  const handleSave = async (videoId: string) => {
+    if (!user) {
+      toast.error('Vui lòng đăng nhập để lưu video');
+      return;
+    }
+
+    const isSaved = savedVideos.has(videoId);
+
+    if (isSaved) {
+      await supabase.from('watch_later').delete().eq('user_id', user.id).eq('video_id', videoId);
+      setSavedVideos(prev => {
+        const next = new Set(prev);
+        next.delete(videoId);
+        return next;
+      });
+      toast.success('Đã xóa khỏi Xem sau');
+    } else {
+      await supabase.from('watch_later').insert({ user_id: user.id, video_id: videoId });
+      setSavedVideos(prev => new Set(prev).add(videoId));
+      toast.success('Đã lưu vào Xem sau');
     }
   };
 
@@ -421,9 +637,15 @@ export default function Shorts() {
               video={video}
               isActive={index === currentIndex}
               isLiked={likedVideos.has(video.id)}
+              isDisliked={dislikedVideos.has(video.id)}
+              isSaved={savedVideos.has(video.id)}
+              isSubscribed={subscribedChannels.has(video.channel_id)}
               onLike={() => handleLike(video.id)}
+              onDislike={() => handleDislike(video.id)}
               onShare={() => setShareVideoId(video.id)}
               onComment={() => setCommentVideoId(video.id)}
+              onSave={() => handleSave(video.id)}
+              onSubscribe={() => handleSubscribe(video.channel_id)}
             />
           </div>
         ))}

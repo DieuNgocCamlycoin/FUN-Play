@@ -337,7 +337,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
                     ) : (
                       <Shield className="mr-2 h-4 w-4" />
                     )}
-                    Admin Dashboard
+                    Bảng điều khiển
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                 </>
@@ -353,18 +353,18 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate("/settings")}>
                 <Settings className="mr-2 h-4 w-4" />
-                Settings
+                Cài đặt
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={signOut}>
                 <LogOut className="mr-2 h-4 w-4" />
-                Sign Out
+                Đăng xuất
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (
           <Button onClick={() => navigate("/auth")} size="sm" variant="default">
-            Sign In
+            Đăng nhập
           </Button>
         )}
       </div>
