@@ -250,8 +250,8 @@ const Playlist = () => {
             <h2 className="text-2xl font-bold mb-2">Không tìm thấy danh sách phát</h2>
             <p className="text-muted-foreground">Danh sách phát này không tồn tại hoặc đã bị xóa.</p>
           </div>
-        </main>
-      </div>
+        </div>
+        </MainLayout>
     );
   }
 
@@ -527,11 +527,8 @@ const Playlist = () => {
 
   // Desktop Layout
   return (
-    <div className="min-h-screen bg-background">
-      <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      
-      <main className="pt-14 lg:pl-64">
+    <MainLayout>
+      <main>
         <div className="max-w-7xl mx-auto p-4 lg:p-6">
           <div className="flex flex-col lg:flex-row gap-6">
             {/* Playlist Info Card */}
@@ -783,7 +780,7 @@ const Playlist = () => {
           />
         </>
       )}
-    </div>
+    </MainLayout>
   );
 };
 
