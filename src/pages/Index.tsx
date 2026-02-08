@@ -351,7 +351,7 @@ const Index = () => {
             <div className="glass-card mx-4 mt-4 rounded-xl border border-cosmic-magenta/50 p-4 shadow-[0_0_50px_rgba(217,0,255,0.5)]">
               <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
                 <p className="text-foreground font-medium text-center sm:text-left">
-                  Tham gia <span className="text-transparent bg-clip-text bg-gradient-to-r from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta font-bold">FUN Play</span> để tải video, đăng ký kênh và tặng quà cho nhà sáng tạo!
+                  Tham gia <span className="text-[#0066FF] font-bold">FUN Play</span> để tải video, đăng ký kênh và tặng quà cho nhà sáng tạo!
                 </p>
                 <Button 
                   onClick={() => navigate("/auth")} 
@@ -375,7 +375,7 @@ const Index = () => {
               </div>
             ) : videos.length === 0 ? (
               <div className="text-center py-16 glass-card rounded-2xl mx-auto max-w-2xl shadow-[0_0_60px_rgba(0,102,255,0.5)]">
-                <p className="text-foreground text-xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta">Chưa có video nào</p>
+                <p className="text-xl font-bold mb-2 text-[#0066FF]">Chưa có video nào</p>
                 <p className="text-sm text-muted-foreground mt-2">Hãy tải video đầu tiên lên và khám phá vũ trụ âm nhạc đầy năng lượng tình yêu!</p>
               </div>
             ) : (
