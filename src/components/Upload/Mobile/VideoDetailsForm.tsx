@@ -99,7 +99,7 @@ export function VideoDetailsForm({
       id: "thumbnail",
       icon: Image,
       iconColor: "text-muted-foreground",
-      label: "Thumbnail",
+      label: "Ảnh bìa",
       value: thumbnailPreview ? "Đã chọn" : null,
       preview: thumbnailPreview,
       onClick: onEditThumbnail,
