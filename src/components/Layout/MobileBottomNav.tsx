@@ -65,7 +65,7 @@ export const MobileBottomNav = () => {
                     ? "relative"
                     : isActive
                     ? "text-primary"
-                    : "text-muted-foreground hover:text-foreground"
+                    : "text-[#0066FF] hover:text-[#0066FF]/80"
                 )}
               >
                 {isCreateButton ? (
