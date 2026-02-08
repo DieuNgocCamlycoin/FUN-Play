@@ -1,4 +1,5 @@
 import { X, ThumbsUp, Eye, Calendar } from "lucide-react";
+import { formatViewsShort } from "@/lib/formatters";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { motion, AnimatePresence } from "framer-motion";
@@ -24,11 +25,6 @@ export function DescriptionDrawer({
   createdAt,
   channelName,
 }: DescriptionDrawerProps) {
-  const formatNumber = (num: number) => {
-    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
-    if (num >= 1000) return `${(num / 1000).toFixed(1)}N`;
-    return num.toString();
-  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("vi-VN", {
@@ -98,7 +94,7 @@ export function DescriptionDrawer({
                   <div className="flex-1 text-center">
                     <div className="flex items-center justify-center gap-1 text-foreground font-semibold">
                       <ThumbsUp className="h-4 w-4" />
-                      <span>{formatNumber(likeCount)}</span>
+                      <span>{formatViewsShort(likeCount)}</span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">Lượt thích</p>
                   </div>
@@ -108,7 +104,7 @@ export function DescriptionDrawer({
                   <div className="flex-1 text-center">
                     <div className="flex items-center justify-center gap-1 text-foreground font-semibold">
                       <Eye className="h-4 w-4" />
-                      <span>{formatNumber(viewCount)}</span>
+                      <span>{formatViewsShort(viewCount)}</span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">Lượt xem</p>
                   </div>

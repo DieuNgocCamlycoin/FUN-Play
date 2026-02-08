@@ -368,7 +368,7 @@ const Index = () => {
                       channelId={video.channels?.id}
                       thumbnail={video.thumbnail_url || undefined}
                       title={video.title}
-                      channel={video.channels?.name || "Unknown Channel"}
+                      channel={video.channels?.name || "Kênh chưa xác định"}
                       avatarUrl={video.profiles?.avatar_url || undefined}
                       duration={video.duration}
                       isVerified={video.channels?.is_verified}

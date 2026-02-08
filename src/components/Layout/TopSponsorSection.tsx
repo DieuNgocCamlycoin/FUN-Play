@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useTopSponsors } from "@/hooks/useTopSponsors";
+import { formatViewsShort } from "@/lib/formatters";
 import { CounterAnimation } from "@/components/Layout/CounterAnimation";
 import { cn } from "@/lib/utils";
 
@@ -14,11 +15,6 @@ const getRankBadge = (rank: number): string => {
   return `${rank}.`;
 };
 
-const formatNumber = (num: number): string => {
-  if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
-  if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
-  return num.toLocaleString();
-};
 
 export const TopSponsorSection = () => {
   const navigate = useNavigate();
@@ -107,7 +103,7 @@ export const TopSponsorSection = () => {
               </div>
               <div className="text-right">
                 <span className="text-xs font-bold text-[#FFD700] drop-shadow-[0_0_3px_rgba(255,215,0,0.4)]">
-                  {formatNumber(sponsor.totalDonated)}
+                  {formatViewsShort(sponsor.totalDonated)}
                 </span>
               </div>
             </motion.div>
