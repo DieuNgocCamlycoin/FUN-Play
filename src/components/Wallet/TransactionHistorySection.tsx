@@ -83,56 +83,77 @@ export const TransactionHistorySection = () => {
         });
       }
 
-      // Fetch sent donations
+      // Fetch sent donations (flat query, no joins)
       const { data: sentDonations } = await supabase
         .from("donation_transactions")
-        .select(`
-          *,
-          receiver:receiver_id(id, username, display_name, avatar_url),
-          token:token_id(symbol)
-        `)
+        .select("*")
         .eq("sender_id", user.id)
         .order("created_at", { ascending: false })
         .limit(50);
 
+      // Fetch received donations (flat query, no joins)
+      const { data: receivedDonations } = await supabase
+        .from("donation_transactions")
+        .select("*")
+        .eq("receiver_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      // Collect unique user IDs and token IDs for separate lookups
+      const userIds = new Set<string>();
+      const tokenIds = new Set<string>();
+
+      [...(sentDonations || []), ...(receivedDonations || [])].forEach(d => {
+        if (d.sender_id) userIds.add(d.sender_id);
+        if (d.receiver_id) userIds.add(d.receiver_id);
+        if (d.token_id) tokenIds.add(d.token_id);
+      });
+
+      // Fetch profiles and tokens in parallel
+      const [profilesRes, tokensRes] = await Promise.all([
+        userIds.size > 0
+          ? supabase.from("profiles").select("id, username, display_name, avatar_url").in("id", Array.from(userIds))
+          : Promise.resolve({ data: [] }),
+        tokenIds.size > 0
+          ? supabase.from("donate_tokens").select("id, symbol").in("id", Array.from(tokenIds))
+          : Promise.resolve({ data: [] }),
+      ]);
+
+      // Build lookup maps
+      const profilesMap: Record<string, { id: string; username: string; display_name: string; avatar_url: string }> = {};
+      (profilesRes.data || []).forEach(p => { profilesMap[p.id] = p; });
+
+      const tokensMap: Record<string, { id: string; symbol: string }> = {};
+      (tokensRes.data || []).forEach(t => { tokensMap[t.id] = t; });
+
+      // Build sent donation transactions
       if (sentDonations) {
         sentDonations.forEach(d => {
           allTransactions.push({
             id: d.id,
             type: "donation_sent",
             amount: d.amount,
-            token: (d.token as any)?.symbol || "CAMLY",
+            token: tokensMap[d.token_id]?.symbol || "CAMLY",
             status: d.status,
             created_at: d.created_at,
             tx_hash: d.tx_hash,
-            receiver: d.receiver as any,
+            receiver: profilesMap[d.receiver_id] || undefined,
           });
         });
       }
 
-      // Fetch received donations
-      const { data: receivedDonations } = await supabase
-        .from("donation_transactions")
-        .select(`
-          *,
-          sender:sender_id(id, username, display_name, avatar_url),
-          token:token_id(symbol)
-        `)
-        .eq("receiver_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(50);
-
+      // Build received donation transactions
       if (receivedDonations) {
         receivedDonations.forEach(d => {
           allTransactions.push({
             id: d.id,
             type: "donation_received",
             amount: d.amount,
-            token: (d.token as any)?.symbol || "CAMLY",
+            token: tokensMap[d.token_id]?.symbol || "CAMLY",
             status: d.status,
             created_at: d.created_at,
             tx_hash: d.tx_hash,
-            sender: d.sender as any,
+            sender: profilesMap[d.sender_id] || undefined,
           });
         });
       }
