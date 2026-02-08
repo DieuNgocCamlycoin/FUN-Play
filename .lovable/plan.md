@@ -1,37 +1,53 @@
 
-
-# Giảm độ dày viền các nút Filter Chips trên Mobile
+# Đổi màu tiêu đề trang sang màu xanh logo FUN Play (#0066FF)
 
 ## Tình trạng hiện tại
 
-Các chip hiện đang sử dụng `border-2` (2px) cho cả trạng thái được chọn và mặc định. Người dùng muốn viền mỏng hơn một chút.
+Các tiêu đề trang hiện đang sử dụng gradient cầu vồng (`text-transparent bg-clip-text bg-gradient-to-r from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta`). Cần đổi sang màu xanh logo đơn sắc `#0066FF` để đồng nhất với hệ thống thiết kế.
 
-## Giải pháp
+## Danh sách thay đổi
 
-Giảm độ dày viền từ `border-2` (2px) xuống `border-[1.5px]` -- một mức trung gian giữa 1px (quá mỏng) và 2px (quá dày), phù hợp cho hiển thị trên mobile.
+### 1. `src/components/Video/ContinueWatching.tsx` (dòng 33)
+- **Tiêu đề:** "Tiếp tục xem"
+- **Hiện tại:** `text-transparent bg-clip-text bg-gradient-to-r from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta`
+- **Sau:** `text-[#0066FF]`
 
-## File cần chỉnh sửa
+### 2. `src/pages/WatchLater.tsx` (dòng 57)
+- **Tiêu đề:** "Xem sau"
+- **Hiện tại:** `text-transparent bg-clip-text bg-gradient-to-r from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta`
+- **Sau:** `text-[#0066FF]`
 
-**File duy nhất:** `src/components/Layout/CategoryChips.tsx`
+### 3. `src/pages/WatchHistory.tsx` (dòng 105)
+- **Tiêu đề:** "Lịch sử xem"
+- **Hiện tại:** `text-transparent bg-clip-text bg-gradient-to-r from-cosmic-magenta via-cosmic-cyan to-cosmic-sapphire`
+- **Sau:** `text-[#0066FF]`
 
-### Thay đổi chi tiết
+### 4. `src/pages/Subscriptions.tsx` (dòng 135)
+- **Tiêu đề:** "Kênh đã đăng ký"
+- **Hiện tại:** `text-transparent bg-clip-text bg-gradient-to-r from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta`
+- **Sau:** `text-[#0066FF]`
 
-**Dòng 34 (chip selected):** Đổi `border-2` thành `border-[1.5px]`
+### 5. `src/pages/Index.tsx` (dòng 378)
+- **Tiêu đề:** "Chưa có video nào" (trạng thái trống)
+- **Hiện tại:** `text-transparent bg-clip-text bg-gradient-to-r from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta`
+- **Sau:** `text-[#0066FF]`
 
-**Dòng 35 (chip default):** Đổi `border-2` thành `border-[1.5px]`
+### 6. `src/pages/Index.tsx` (dòng 354)
+- **Chữ "FUN Play"** trong banner đăng nhập
+- **Hiện tại:** `text-transparent bg-clip-text bg-gradient-to-r from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta`
+- **Sau:** `text-[#0066FF]`
 
 ## Tóm tắt
 
 | Hạng mục | Chi tiết |
 |----------|----------|
-| File cần sửa | 1 (`CategoryChips.tsx`) |
-| Thay đổi | 2 chỗ trên dòng 34 và 35 |
+| File cần sửa | 4 file |
+| Tổng thay đổi | 6 chỗ |
 | Cơ sở dữ liệu | Không |
 | Đồng bộ Mobile | Tự động (component dùng chung) |
 
 ## Kết quả
 
-- Viền mỏng hơn (1.5px thay vì 2px), trông thanh thoát hơn trên mobile
-- Vẫn đủ rõ ràng để nhìn thấy viền xanh logo (#0066FF)
-- Giữ nguyên tất cả màu sắc và gradient đã thiết lập
-
+- Tất cả tiêu đề trang hiển thị màu xanh logo `#0066FF` thay vì gradient cầu vồng
+- Giao diện đồng nhất với Filter Chips Bar và các thành phần khác đã cập nhật
+- Áp dụng đồng thời cho cả Desktop và Mobile
