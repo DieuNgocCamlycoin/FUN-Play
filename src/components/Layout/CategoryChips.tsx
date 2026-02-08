@@ -3,6 +3,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 const categories = [
   "Tất cả",
+  "Xu hướng",
   "Âm nhạc",
   "Thiền",
   "Trò chơi",

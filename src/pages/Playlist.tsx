@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Header } from "@/components/Layout/Header";
-import { Sidebar } from "@/components/Layout/Sidebar";
+import { MainLayout } from "@/components/Layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { usePlaylistOperations, PlaylistWithVideos, PlaylistVideo } from "@/hooks/usePlaylistOperations";
@@ -76,7 +75,6 @@ const Playlist = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [playlist, setPlaylist] = useState<PlaylistWithVideos | null>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [addVideoOpen, setAddVideoOpen] = useState(false);
@@ -219,40 +217,26 @@ const Playlist = () => {
   // Loading state
   if (loading && !playlist) {
     return (
-      <div className="min-h-screen bg-background">
-        {!isMobile && (
-          <>
-            <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
-            <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-          </>
-        )}
-        <main className={cn(isMobile ? "pt-0" : "pt-12 lg:pt-14 lg:pl-64")}>
-          <div className="max-w-7xl mx-auto p-6">
-            <div className="flex gap-6">
-              <Skeleton className="w-80 h-96 rounded-xl" />
-              <div className="flex-1 space-y-4">
-                <Skeleton className="h-20 w-full" />
-                <Skeleton className="h-20 w-full" />
-                <Skeleton className="h-20 w-full" />
-              </div>
+      <MainLayout showBottomNav={false}>
+        <div className="max-w-7xl mx-auto p-6">
+          <div className="flex gap-6">
+            <Skeleton className="w-80 h-96 rounded-xl" />
+            <div className="flex-1 space-y-4">
+              <Skeleton className="h-20 w-full" />
+              <Skeleton className="h-20 w-full" />
+              <Skeleton className="h-20 w-full" />
             </div>
           </div>
-        </main>
-      </div>
+        </div>
+      </MainLayout>
     );
   }
 
   // Not found state
   if (!playlist) {
     return (
-      <div className="min-h-screen bg-background">
-        {!isMobile && (
-          <>
-            <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
-            <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-          </>
-        )}
-        <main className={cn(isMobile ? "pt-12" : "pt-12 lg:pt-14 lg:pl-64")}>
+      <MainLayout showBottomNav={false}>
+        <div>
           {isMobile && (
             <div className="fixed top-0 left-0 right-0 z-50 bg-background border-b">
               <div className="flex items-center p-2">
