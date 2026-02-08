@@ -1,183 +1,158 @@
 
 
-# FUN Play vs YouTube 2025: Round 6 Gap Analysis
+# FUN Play vs YouTube 2025: Round 7 Gap Analysis
 
-## Verified Fixes from Rounds 1-5 (All Working)
+## Verified Fixes from Rounds 1-6 (All Working)
 
 | Feature | Round | Status |
 |---------|-------|--------|
-| Video duration badge on thumbnails | R1 | Done |
-| Three-dot kebab menu on video cards | R1 | Done |
-| Desktop description expand/collapse | R1 | Done |
-| Search filters + Sort | R1 | Done |
-| Working dislike button (desktop + mobile) | R1+R3 | Done |
-| Category chips with filtering logic | R1+R2 | Done |
-| Notifications page with realtime | R1 | Done |
-| Bell icon with unread badge (desktop + mobile) | R1+R2 | Done |
-| Channel "About" tab | R1 | Done |
-| Verified badge system | R1 | Done |
-| 14 pages migrated to MainLayout | R2 | Done |
-| "Xu huong" + "Moi tai len" + "De xuat moi" chips | R2 | Done |
+| Video duration badge, kebab menu, description expand | R1 | Done |
+| Search filters, Dislike button, Category chips | R1+R2+R3 | Done |
+| Notifications page + Bell icon + realtime | R1+R2 | Done |
+| Channel "About" tab + Verified badge | R1 | Done |
+| 14+ pages migrated to MainLayout | R2 | Done |
 | Watch.tsx CollapsibleSidebar + channel avatar | R3+R4 | Done |
-| LikedVideos query includes + passes duration | R3+R4 | Done |
-| VideoCard kebab "Xem sau" connected to useWatchLater | R3 | Done |
-| MobileWatchView receives dislike + avatar props | R3+R4 | Done |
-| WatchHistory search bar + clear toast | R3 | Done |
-| Shorts back button + desktop nav arrows | R3 | Done |
-| Shared formatters.ts created | R4 | Done |
-| LikedVideos hero section with Play all / Shuffle | R4 | Done |
-| Subscriptions uses VideoCard component | R4 | Done |
-| Index.tsx infinite scroll with sentinel observer | R4 | Done |
-| WatchLater + WatchHistory kebab menus | R4 | Done |
-| Watch.tsx "Save" button + "..." dropdown on desktop | R4 | Done |
-| Formatter consolidation (8 files) | R5 | Done |
-| Library.tsx hub page created | R5 | Done |
-| UpNextSidebar Vietnamese localization | R5 | Done |
-| Notifications category filter tabs | R5 | Done |
-| Subscriptions channel management kebab | R5 | Done |
+| LikedVideos hero + Subscriptions VideoCard | R4+R5 | Done |
+| Index.tsx infinite scroll with sentinel | R4 | Done |
+| Shared formatters.ts created + consolidated (8 files) | R4+R5 | Done |
+| Library.tsx hub page, UpNextSidebar Vietnamese | R5 | Done |
+| Notifications filter tabs, Subscriptions kebab | R5 | Done |
+| CollapsibleSidebar + MobileBottomNav Vietnamese | R6 | Done |
+| Index.tsx CTA banner Vietnamese | R6 | Done |
+| WatchLater page title Vietnamese | R6 | Done |
+| HonobarDetailModal + MobileHonobar Vietnamese labels | R6 | Done |
+| VideoCard + AddVideoToPlaylistModal shared formatters | R6 | Done |
+| Shorts subscribe button added | R6 | Done |
+| VideoActionsBar share label added | R6 | Done |
 
 ---
 
-## REMAINING GAPS FOUND IN ROUND 6
+## REMAINING GAPS FOUND IN ROUND 7
 
 ### HIGH PRIORITY
 
-#### Gap 1: Sidebar Navigation Labels Still in English
+#### Gap 1: Desktop Header Still Has English Text
 
-The `CollapsibleSidebar.tsx` and `Sidebar.tsx` (legacy) use English labels for navigation items:
-- "Home", "Shorts", "Subscriptions" (line 54-56 of CollapsibleSidebar)
-- "Library", "History", "Watch later", "Liked videos" (lines 62-67)
-- "Studio", "Wallet" (lines 83-88)
+The desktop `Header.tsx` (lines 340-368) contains multiple English strings:
+- Line 340: `"Admin Dashboard"` -- should be "Bảng điều khiển"
+- Line 356: `"Settings"` -- should be "Cài đặt"
+- Line 361: `"Sign Out"` -- should be "Đăng xuất"
+- Line 367: `"Sign In"` -- should be "Đăng nhập"
 
-The `MobileDrawer.tsx` correctly uses Vietnamese ("Trang chu", "Kenh dang ky", etc.), but the desktop sidebar does not.
+The MobileHeader.tsx (line 328) also has `"Sign In"` in English.
 
-YouTube localizes all navigation to the user's language. FUN Play should be consistent -- the MobileDrawer already has Vietnamese labels, but the desktop sidebar is in English.
+YouTube localizes all UI text. The MobileDrawer already uses Vietnamese ("Cài đặt", "Đăng xuất"), but the desktop header profile dropdown and MobileHeader sign-in button do not match.
 
-**Fix:** Translate all sidebar labels in `CollapsibleSidebar.tsx` to Vietnamese, matching `MobileDrawer.tsx` labels (e.g., "Trang chu", "Lich su", "Xem sau", "Video da thich").
+**Fix:** Translate all remaining English strings in Header.tsx and MobileHeader.tsx to Vietnamese.
 
-#### Gap 2: Home Page CTA Banner in English
+#### Gap 2: MobileHeader "Upload Video" Dropdown Uses English
 
-`Index.tsx` lines 333-339 contain English text:
-- "Join FUN Play to upload videos, subscribe to channels, and tip creators!"
-- "Sign In / Sign Up"
+`MobileHeader.tsx` line 185 shows `"Upload Video"` in the Create dropdown. The desktop Header.tsx correctly uses `"Tải video lên"` (line 242), but the mobile version was not updated.
 
-All other pages use Vietnamese for their CTAs and buttons.
+**Fix:** Change "Upload Video" to "Tải video lên" in MobileHeader.tsx.
 
-**Fix:** Translate to Vietnamese:
-- "Tham gia FUN Play de tai video, dang ky kenh va tang qua cho nha sang tao!"
-- "Dang nhap / Dang ky"
+#### Gap 3: DescriptionDrawer Has Local `formatNumber` with "N" Abbreviation
 
-#### Gap 3: MobileBottomNav Uses English "Home" Label
+`DescriptionDrawer.tsx` (line 27) defines a local `formatNumber` function that uses "N" for thousands (e.g., "1.5N") instead of "K". This is inconsistent with the shared `formatViewsShort` which uses "K". This drawer is shown on mobile when tapping "...xem them" under videos.
 
-`MobileBottomNav.tsx` line 19 uses `"Home"` as the label. YouTube's mobile bottom nav localizes this label.
+**Fix:** Import `formatViewsShort` from `@/lib/formatters` and remove the local `formatNumber`.
 
-**Fix:** Change `"Home"` to `"Trang chu"` in MobileBottomNav to match MobileDrawer.
+#### Gap 4: TopSponsorSection + HonobarDetailModal Still Have Local `formatNumber`
 
-#### Gap 4: WatchLater Page Title Still in English
+Both `TopSponsorSection.tsx` (line 17) and `HonobarDetailModal.tsx` (line 20) define identical local `formatNumber` functions. These were identified in Round 6 but were not replaced with shared imports.
 
-`WatchLater.tsx` line 58 displays `"Watch Later"` as the page title. Should be `"Xem sau"`.
+**Fix:** Import `formatViewsShort` from `@/lib/formatters` and remove both local `formatNumber` definitions.
 
-**Fix:** Translate the page title and any remaining English strings in `WatchLater.tsx`.
+#### Gap 5: MobileHonobar Has Local `formatCompact` Function
 
-#### Gap 5: VideoCard Has Local `formatDuration` Instead of Shared
+`MobileHonobar.tsx` (line 19) defines `formatCompact` which is identical to `formatViewsShort` from formatters.ts.
 
-`VideoCard.tsx` lines 41-48 define a local `formatDuration` function identical to the shared one in `formatters.ts`. This was missed in Round 5's formatter consolidation.
+**Fix:** Import `formatViewsShort` from `@/lib/formatters` and remove the local `formatCompact`.
 
-**Fix:** Import `formatDuration` from `@/lib/formatters` and remove the local definition.
+#### Gap 6: Index.tsx "Unknown Channel" Fallback in English
 
-#### Gap 6: AddVideoToPlaylistModal Has Local `formatDuration`
+`Index.tsx` line 371 uses `"Unknown Channel"` as a fallback for missing channel names. This should be in Vietnamese.
 
-`AddVideoToPlaylistModal.tsx` line 32 defines a local `formatDuration` identical to the shared version.
+**Fix:** Change to `"Kenh chua xac dinh"` (Kenh chua xac dinh).
 
-**Fix:** Import `formatDuration` from `@/lib/formatters` and remove the local definition.
+#### Gap 7: Shorts Subscribe Button is Non-Functional Placeholder
 
-#### Gap 7: useAdminVideoStats Has Local `formatDuration`
+The subscribe button added in Round 6 on `Shorts.tsx` (lines 226-235) is a **placeholder** -- it just shows `toast.success('Da dang ky kenh!')` without actually subscribing. The comment on line 229 says "Subscribe logic placeholder - would need subscription state". YouTube Shorts has a fully working subscribe/unsubscribe toggle.
 
-`useAdminVideoStats.tsx` line 237 defines a local `formatDuration`. While this is admin-only, it should still use the shared version for consistency.
-
-**Fix:** Import `formatDuration` from `@/lib/formatters` and remove the local export.
+**Fix:** Implement real subscribe/unsubscribe logic using the existing `subscriptions` table pattern (insert/delete from `subscriptions` table), with proper state tracking per video's channel. The subscribe state needs to be tracked per channel in the Shorts component.
 
 ---
 
 ### MEDIUM PRIORITY
 
-#### Gap 8: Notifications.tsx Has Local `timeAgo` Function Instead of Shared `formatTimestamp`
+#### Gap 8: MobileHeader Create Dropdown Items Partially English
 
-`Notifications.tsx` lines 125-135 define a local `timeAgo` function that duplicates `formatTimestamp` from `formatters.ts`, but with fewer time ranges (missing "nam truoc" / years ago).
+`MobileHeader.tsx` line 185 has `"Upload Video"` (English), while lines 189 and 193 correctly use Vietnamese ("Tao Nhac AI", "Tao Bai Viet"). The `"Admin Dashboard"` label on line 304 is also in English.
 
-**Fix:** Import `formatTimestamp` from `@/lib/formatters` and replace the local `timeAgo` function.
+**Fix:** Translate "Upload Video" to "Tai video len" and "Admin Dashboard" to "Bang dieu khien".
 
-#### Gap 9: TopSponsorSection Has Local `formatNumber`
+#### Gap 9: Shorts Page Has No Dislike Button
 
-`TopSponsorSection.tsx` line 17 defines a local `formatNumber` function. This could use `formatViewsShort` from formatters.
+YouTube Shorts displays a Dislike button below the Like button on the right action bar. FUN Play Shorts (`ShortsVideoItem`) only shows Like, Comment, Share, and Mute -- there is no Dislike button.
 
-**Fix:** Import `formatViewsShort` from `@/lib/formatters` and remove the local `formatNumber`.
+**Fix:** Add a Dislike button between Like and Comment on the Shorts right action bar, with proper toggle logic using the `likes` table with `is_dislike: true`.
 
-#### Gap 10: HonobarDetailModal and MobileHonobar Use English Stats Labels
+#### Gap 10: Shorts Page Has No "Save" / Bookmark Button
 
-`HonobarDetailModal.tsx` uses English labels: "USERS", "COMMENTS", "VIEWS", "VIDEOS", "CAMLY POOL".
-`MobileHonobar.tsx` uses English labels: "Users", "Video", "Views", "Comments", "Pool".
+YouTube Shorts has a "Save" action icon to save the short to a playlist or Watch Later. FUN Play Shorts has no such button.
 
-**Fix:** Translate to Vietnamese: "NGUOI DUNG", "BINH LUAN", "LUOT XEM", "VIDEO", "QUY CAMLY".
+**Fix:** Add a Bookmark/Save button in the right action bar of ShortsVideoItem. Connect it to the `SaveToPlaylistDrawer` or `useWatchLater` hook.
 
-#### Gap 11: Shorts Page Missing Subscribe Button
+#### Gap 11: Shorts Page Has No "Report" / "Not Interested" Menu
 
-YouTube Shorts shows a subscribe button next to the channel name on each Short. FUN Play's Shorts page (`ShortsVideoItem`) shows channel name and avatar but has no subscribe button.
+YouTube Shorts has a three-dot "..." menu with "Not interested", "Don't recommend channel", and "Report" options. FUN Play Shorts has no such menu.
 
-**Fix:** Add a small "Dang ky" (Subscribe) button next to the channel name in `ShortsVideoItem`.
-
-#### Gap 12: No "Chia se" (Share) Action Label on Mobile Watch Actions
-
-YouTube shows text labels under each action icon (Like, Dislike, Share, Download, Save). FUN Play's `VideoActionsBar` shows icons with counts but no text labels under Share and Save buttons.
-
-**Fix:** Add small text labels under the action icons in `VideoActionsBar` to match YouTube's layout.
+**Fix:** Add a `MoreVertical` icon button at the bottom of the right action bar, with a dropdown containing "Bao cao" (Report) and "Khong quan tam" (Not interested) options.
 
 ---
 
 ## IMPLEMENTATION PLAN
 
-### Phase 1: Complete Vietnamese Localization (5 files)
+### Phase 1: Desktop Header + MobileHeader Vietnamese Localization (2 files)
 
-All navigation and static text should be consistently in Vietnamese.
+1. **Header.tsx** -- Translate remaining English strings:
+   - "Admin Dashboard" -> "Bảng điều khiển"
+   - "Settings" -> "Cài đặt"
+   - "Sign Out" -> "Đăng xuất"
+   - "Sign In" -> "Đăng nhập"
 
-1. **CollapsibleSidebar.tsx** -- Translate all navigation labels:
-   - "Home" -> "Trang chu"
-   - "Subscriptions" -> "Kenh dang ky"
-   - "Library" -> "Thu vien"
-   - "History" -> "Lich su"
-   - "Watch later" -> "Xem sau"
-   - "Liked videos" -> "Video da thich"
-   - "Studio" -> "Studio" (universal term, keep as-is)
-   - "Wallet" -> "Vi" (or keep "Wallet" as brand term)
-   - "Navigation" section header -> "Dieu huong"
+2. **MobileHeader.tsx** -- Translate:
+   - "Upload Video" -> "Tải video lên"
+   - "Admin Dashboard" -> "Bảng điều khiển"
+   - "Sign In" -> "Đăng nhập"
 
-2. **MobileBottomNav.tsx** -- Change "Home" to "Trang chu", "Shorts" stays (brand name).
+### Phase 2: Final Formatter Consolidation (4 files)
 
-3. **Index.tsx** -- Translate the guest CTA banner:
-   - "Join FUN Play to upload videos..." -> "Tham gia FUN Play de tai video, dang ky kenh va tang qua cho nha sang tao!"
-   - "Sign In / Sign Up" -> "Dang nhap / Dang ky"
+Replace all remaining local formatter functions:
 
-4. **WatchLater.tsx** -- Change "Watch Later" title to "Xem sau".
+1. **DescriptionDrawer.tsx** -- Import `formatViewsShort` from `@/lib/formatters`. Remove local `formatNumber` (line 27). Update usages at lines 101 and 111.
+2. **TopSponsorSection.tsx** -- Import `formatViewsShort` from `@/lib/formatters`. Remove local `formatNumber` (line 17).
+3. **HonobarDetailModal.tsx** -- Import `formatViewsShort` from `@/lib/formatters`. Remove local `formatNumber` (line 20).
+4. **MobileHonobar.tsx** -- Import `formatViewsShort` from `@/lib/formatters`. Remove local `formatCompact` (line 19). Update usages.
 
-5. **HonobarDetailModal.tsx + MobileHonobar.tsx** -- Translate stats labels to Vietnamese.
+### Phase 3: Index.tsx English Fallback Fix (1 file)
 
-### Phase 2: Final Formatter Consolidation (5 files)
+1. **Index.tsx** -- Change `"Unknown Channel"` to `"Kênh chưa xác định"` (line 371).
 
-Complete the remaining local formatter functions:
+### Phase 4: Shorts Feature Parity (1 file)
 
-1. **VideoCard.tsx** -- Import `formatDuration` from `@/lib/formatters`. Remove local `formatDuration` (lines 41-48).
-2. **AddVideoToPlaylistModal.tsx** -- Import `formatDuration` from `@/lib/formatters`. Remove local `formatDuration` (line 32).
-3. **useAdminVideoStats.tsx** -- Import `formatDuration` from `@/lib/formatters`. Remove local export.
-4. **Notifications.tsx** -- Import `formatTimestamp` from `@/lib/formatters`. Replace local `timeAgo` function (lines 125-135).
-5. **TopSponsorSection.tsx** -- Import `formatViewsShort` from `@/lib/formatters`. Remove local `formatNumber` (line 17).
+Enhance `Shorts.tsx` to match YouTube Shorts functionality:
 
-### Phase 3: Shorts Subscribe Button (1 file)
+1. **Real Subscribe/Unsubscribe Logic** -- Replace the placeholder toast with actual Supabase insert/delete on the `subscriptions` table. Track subscription state per channel using a `Set` similar to `likedVideos`. Show "Da dang ky" when subscribed, toggle on click.
 
-1. **Shorts.tsx** -- Add a compact "Dang ky" subscribe button next to the channel avatar/name in `ShortsVideoItem`. Include subscribe/unsubscribe logic using existing Supabase subscription pattern.
+2. **Dislike Button** -- Add a ThumbsDown / dislike button between Like and Comment in the right action bar. Track dislike state alongside like state using the existing `likes` table with `is_dislike: true`.
 
-### Phase 4: Mobile Watch Action Labels (1 file)
+3. **Save/Bookmark Button** -- Add a Bookmark icon button to the right action bar. Connect to `useWatchLater` hook to save the current Short to Watch Later.
 
-1. **VideoActionsBar.tsx** -- Add small text labels under each action button ("Thich", "Khong thich", "Chia se", "Tai xuong", "Luu") to match YouTube's mobile watch page layout.
+4. **More Options Menu** -- Add a MoreVertical (three-dot) icon button at the bottom of the right action bar with a dropdown containing:
+   - "Bao cao" (Report)
+   - "Khong quan tam" (Not interested)
+   Both show a toast confirmation (matching Watch.tsx behavior).
 
 ---
 
@@ -185,14 +160,17 @@ Complete the remaining local formatter functions:
 
 | Phase | Files Modified | New Files | Complexity |
 |-------|---------------|-----------|------------|
-| 1 | 5 | 0 | Low -- text translations only |
-| 2 | 5 | 0 | Low -- mechanical import replacement |
-| 3 | 1 | 0 | Medium -- add subscribe logic |
-| 4 | 1 | 0 | Low -- add text labels |
+| 1 | 2 (Header.tsx, MobileHeader.tsx) | 0 | Low -- text changes |
+| 2 | 4 (DescriptionDrawer, TopSponsorSection, HonobarDetailModal, MobileHonobar) | 0 | Low -- import replacement |
+| 3 | 1 (Index.tsx) | 0 | Low -- single string |
+| 4 | 1 (Shorts.tsx) | 0 | Medium -- subscribe logic + 3 new action buttons |
 
-**Total: 12 files modified, 0 new files, 0 database changes**
+**Total: 8 files modified, 0 new files, 0 database changes**
 
-All changes are frontend-only. The most impactful changes are Phase 1 (completing Vietnamese localization across all navigation surfaces) and Phase 2 (finishing the formatter consolidation that has been progressively cleaned up over Rounds 4-5). Phases 3-4 are feature polish items that improve YouTube parity on Shorts and mobile Watch pages.
+All changes are frontend-only. The highest-impact changes are:
+1. Header/MobileHeader Vietnamese localization (most visible English text remaining in the app)
+2. Shorts feature parity (subscribe, dislike, save, report -- bringing Shorts to full YouTube feature level)
+3. Final formatter consolidation (eliminates the last 4 files with redundant local formatting functions)
 
-After this Round 6, the remaining gaps between FUN Play and YouTube will be primarily in areas requiring database schema changes (notification preferences, recommendation algorithm) or backend infrastructure (video processing pipeline, automated thumbnails), which are outside the scope of frontend-only fixes.
+After Round 7, the FUN Play platform will have complete Vietnamese localization across all visible UI surfaces, zero remaining duplicate formatter functions, and Shorts will have full feature parity with YouTube Shorts action bar.
 
