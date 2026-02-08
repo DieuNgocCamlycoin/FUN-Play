@@ -1,208 +1,98 @@
 
 
-# FUN Play vs YouTube 2025: Round 24 Gap Analysis
+# FUN Play vs YouTube 2025: Round 25 Gap Analysis
 
-## Verified Fixes from Rounds 1-23 (All Working)
+## Verified Fixes from Rounds 1-24 (All Working)
 
-All 60+ fixes from previous rounds remain functional, including:
+All 65+ fixes from previous rounds remain functional, including:
 - Video cards, kebab menus, hover previews across all pages (R1-R19)
 - Complete Vietnamese localization (R6-R18)
 - Approval status filters on all public feeds (R18-R22)
 - Shorts channel name + verified badge + avatar + @handle dual-line (R21-R22)
 - Desktop/mobile search channel name priority + formatDuration (R21-R22)
-- LikedVideos verified badge (R22)
-- Watch page desktop verified badge + ProfileVideosTab verified + avatar (R23)
-- Subscriptions channel header verified badge (R23)
+- LikedVideos, Watch, ProfileVideosTab, Subscriptions verified badges (R22-R23)
+- Mobile Watch verified badge + Channel page verified badge (R24)
+- WatchHistory + WatchLater clickable channel names + verified badges (R24)
 
 ---
 
-## REMAINING GAPS FOUND IN ROUND 24
+## REMAINING GAPS FOUND IN ROUND 25
 
-### HIGH PRIORITY (Feature Consistency)
+### HIGH PRIORITY (Number Format Consistency)
 
-#### Gap 1: Mobile Watch Page Missing Verified Badge Next to Channel Name
+#### Gap 1: Watch Page Desktop Like Count Shows Raw Number Instead of Abbreviated Format
 
-The `MobileWatchView` component's `Video` interface (lines 25-29) defines channels as `{ id, name, subscriber_count }` but does NOT include `is_verified`. The `VideoActionsBar` component (which displays the channel info on mobile Watch) also does not accept or display a verified badge.
+`Watch.tsx` line 734 displays the like count as `{video.like_count || 0}`, which renders the full raw number (e.g., "12345"). YouTube uses abbreviated format on the like button ("12.3K"). The mobile VideoActionsBar already uses `formatViewsShort(likeCount)` correctly, but the desktop Watch page does not.
 
-Watch.tsx already fetches `is_verified` (Round 23), and the desktop view shows the badge correctly. But the mobile view silently drops it because the MobileWatchView interface and VideoActionsBar do not propagate `is_verified`.
+**Fix:** Change line 734 from `{video.like_count || 0}` to `{formatViewsShort(video.like_count)}`. The `formatViewsShort` function is already imported in Watch.tsx.
 
-YouTube always shows verified badges on the mobile Watch page next to the channel name.
+#### Gap 2: Watch Page Desktop Subscriber Count Shows Full Number Instead of Abbreviated
 
-**Fix:**
-1. Add `is_verified?: boolean` to MobileWatchView's Video interface (channels type)
-2. Pass `isVerified` from MobileWatchView to VideoActionsBar
-3. Add `isVerified` prop to VideoActionsBar interface
-4. Display verified badge SVG next to channel name in VideoActionsBar (line 126-127)
+`Watch.tsx` line 690 displays `{(video.channels.subscriber_count || 0).toLocaleString()} nguoi dang ky`, which shows "1,000 nguoi dang ky" instead of YouTube's standard abbreviated format "1K nguoi dang ky". YouTube always uses abbreviated subscriber counts on the Watch page channel info area.
 
-#### Gap 2: Channel Page (ProfileInfo) Missing Verified Badge Next to Display Name
+**Fix:** Change line 690 from `{(video.channels.subscriber_count || 0).toLocaleString()} nguoi dang ky` to `{formatViewsShort(video.channels.subscriber_count)} nguoi dang ky`.
 
-The Channel page (`Channel.tsx`) fetches full channel data including all fields, but the `ProfileInfo` component's interface (lines 24-27) does not include `is_verified`. The display name (line 90-92) has no verified badge next to it.
+#### Gap 3: Desktop Comment Count Shows Raw Number
 
-YouTube always shows a verified checkmark next to the channel name on channel pages.
+`VideoCommentList.tsx` line 105 displays `{totalCount} binh luan` as a raw number. YouTube abbreviates comment counts when they reach thousands (e.g., "1.2K binh luan" instead of "1200 binh luan").
 
-The "About" tab in ProfileTabs already shows a verified badge (confirmed in Round 23 scan), but the main channel name header area does not.
+**Fix:** Import `formatViewsShort` from `@/lib/formatters` in `VideoCommentList.tsx` and change line 105 from `{totalCount} binh luan` to `{formatViewsShort(totalCount)} binh luan`.
 
-**Fix:**
-1. Add `is_verified?: boolean` to ProfileInfo's channel interface
-2. Pass `is_verified` from Channel.tsx (which already has the data from `channels.*` query)
-3. Display verified badge SVG next to the display name in ProfileInfo (line 90-92)
+### MEDIUM PRIORITY (Mobile Consistency)
 
-#### Gap 3: WatchHistory Channel Names Not Clickable
+#### Gap 4: Mobile CommentsCard Comment Count Shows Raw Number
 
-`WatchHistory.tsx` line 244-245 displays the channel name as plain text (`<p>` tag). YouTube's history page makes channel names clickable, navigating to the channel page.
+`CommentsCard.tsx` line 28 displays `{commentCount}` as raw number. Same issue as Gap 3 -- YouTube abbreviates all counts.
 
-The `useWatchHistory` hook (line 61-64) already fetches `channels(id, name)`, so the channel ID is available for navigation.
+**Fix:** Import `formatViewsShort` from `@/lib/formatters` and change line 28 from `{commentCount}` to `{formatViewsShort(commentCount)}`.
 
-**Fix:** Wrap the channel name in an onClick handler that navigates to `/channel/{channelId}`.
+#### Gap 5: Subscriptions Page Subscriber Count Shows Raw Number
 
-### MEDIUM PRIORITY (UX Polish)
+`Subscriptions.tsx` line 176 displays `{sub.channel.subscriber_count || 0} nguoi dang ky` as a raw number. YouTube always uses abbreviated subscriber counts.
 
-#### Gap 4: WatchLater Channel Names Not Clickable
-
-`WatchLater.tsx` line 119 displays the channel name as plain text. Same issue as Gap 3 -- YouTube makes channel names clickable on all list views.
-
-**Fix:** Wrap the channel name in an onClick handler that navigates to `/channel/{channelId}`.
-
-#### Gap 5: WatchHistory and WatchLater Missing Verified Badge
-
-Neither `WatchHistory.tsx` nor `WatchLater.tsx` display verified badges next to channel names. The hooks (`useWatchHistory.ts` and `useWatchLater.ts`) do not fetch `is_verified` from the channels table.
-
-YouTube shows verified badges consistently everywhere.
-
-**Fix:**
-1. Update `useWatchHistory.ts` to add `is_verified` to the channels select (line 62)
-2. Update `useWatchLater.ts` to add `is_verified` to the channels select (line 56)
-3. Update both interfaces to include `is_verified`
-4. Display verified badge SVG next to channel names in WatchHistory and WatchLater pages
+**Fix:** Import `formatViewsShort` from `@/lib/formatters` (already imported as `formatViews`) and change line 176 from `{sub.channel.subscriber_count || 0}` to `{formatViewsShort(sub.channel.subscriber_count)}`.
 
 ---
 
 ### ACCEPTABLE EXCEPTIONS (No Change Needed)
 
-- Watch History does not filter by `approval_status` -- correct (personal history)
-- Continue Watching does not filter by `approval_status` -- correct (personal history)
+- Watch page description view count uses `toLocaleString()` for detailed view -- matches YouTube behavior (description shows full number)
+- Watch History/Watch Later do not filter by `approval_status` -- correct (personal history)
 - Console log messages remain in English (developer-facing)
-- All branded terms, music genres, technical docs, database values remain in English
+- All branded terms, music genres, technical docs remain in English
 
 ---
 
 ## IMPLEMENTATION PLAN
 
-### Phase 1: Mobile Watch Verified Badge (2 files)
+### Phase 1: Watch Page Desktop Number Formatting (1 file)
 
-**File: `src/components/Video/Mobile/MobileWatchView.tsx`**
+**File:** `src/pages/Watch.tsx`
 
-1. Update the Video interface (lines 25-29) to add `is_verified`:
-   - Change channels type to `{ id: string; name: string; subscriber_count: number; is_verified?: boolean; }`
+1. **Like count (line 734):** Change `{video.like_count || 0}` to `{formatViewsShort(video.like_count)}`
 
-2. Pass `isVerified={video.channels.is_verified}` to VideoActionsBar (line 162)
+2. **Subscriber count (line 690):** Change `{(video.channels.subscriber_count || 0).toLocaleString()} nguoi dang ky` to `{formatViewsShort(video.channels.subscriber_count)} nguoi dang ky`
 
-**File: `src/components/Video/Mobile/VideoActionsBar.tsx`**
+Note: `formatViewsShort` needs to be added to the import. Currently only `formatViews` and `formatTimestamp` are imported (line 33).
 
-1. Add `isVerified?: boolean` to VideoActionsBarProps interface (line 22-38)
+### Phase 2: Comment Count Formatting (2 files)
 
-2. Accept `isVerified` in the destructured props (line 40-56)
+**File:** `src/components/Video/Comments/VideoCommentList.tsx`
 
-3. Display verified badge SVG after channel name (line 126-127):
-   ```
-   <div className="flex items-center gap-1">
-     <p className="text-sm font-semibold text-foreground truncate">
-       {channelName}
-     </p>
-     {isVerified && (
-       <svg className="w-4 h-4 text-muted-foreground shrink-0" viewBox="0 0 24 24" fill="currentColor">
-         <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-       </svg>
-     )}
-   </div>
-   ```
+1. Add import: `import { formatViewsShort } from "@/lib/formatters";`
+2. Line 105: Change `{totalCount} binh luan` to `{formatViewsShort(totalCount)} binh luan`
 
-### Phase 2: Channel Page Verified Badge (2 files)
+**File:** `src/components/Video/Mobile/CommentsCard.tsx`
 
-**File: `src/components/Profile/ProfileInfo.tsx`**
+1. Add import: `import { formatViewsShort } from "@/lib/formatters";`
+2. Line 28: Change `{commentCount}` to `{formatViewsShort(commentCount)}`
 
-1. Update the channel interface (lines 24-27) to include `is_verified`:
-   ```
-   channel: {
-     id: string;
-     subscriber_count: number;
-     is_verified?: boolean;
-   } | null;
-   ```
+### Phase 3: Subscriptions Subscriber Count (1 file)
 
-2. Display verified badge next to the display name (line 90-92):
-   ```
-   <div className="flex items-center gap-2">
-     <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold ...">
-       {displayName}
-     </h1>
-     {channel?.is_verified && (
-       <svg className="w-5 h-5 md:w-6 md:h-6 text-muted-foreground shrink-0" viewBox="0 0 24 24" fill="currentColor">
-         <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-       </svg>
-     )}
-   </div>
-   ```
+**File:** `src/pages/Subscriptions.tsx`
 
-**File: `src/pages/Channel.tsx`**
-
-- No changes needed -- Channel.tsx already fetches all channel fields via `select("*")` which includes `is_verified`.
-
-### Phase 3: WatchHistory + WatchLater Clickable Channels + Verified Badges (4 files)
-
-**File: `src/hooks/useWatchHistory.ts`**
-
-1. Update channels select (line 62) from `channels (id, name)` to `channels (id, name, is_verified)`
-2. Update the WatchHistoryVideo interface to include `is_verified?: boolean` in the channels type
-
-**File: `src/hooks/useWatchLater.ts`**
-
-1. Update channels select (line 56) from `channels (id, name)` to `channels (id, name, is_verified)`
-2. Update the WatchLaterVideo interface to include `is_verified?: boolean` in the channels type
-
-**File: `src/pages/WatchHistory.tsx`**
-
-1. Line 244-245: Make channel name clickable:
-   ```
-   <p
-     className="text-sm text-muted-foreground mt-1 cursor-pointer hover:text-foreground transition-colors"
-     onClick={(e) => {
-       e.stopPropagation();
-       if (item.video.channels?.id) navigate(`/channel/${item.video.channels.id}`);
-     }}
-   >
-     <span className="flex items-center gap-1">
-       {item.video.channels?.name || 'Kenh chua xac dinh'}
-       {item.video.channels?.is_verified && (
-         <svg className="w-3.5 h-3.5 text-muted-foreground shrink-0" viewBox="0 0 24 24" fill="currentColor">
-           <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-         </svg>
-       )}
-     </span>
-   </p>
-   ```
-
-**File: `src/pages/WatchLater.tsx`**
-
-1. Line 119: Make channel name clickable + add verified badge:
-   ```
-   <p
-     className="text-sm text-muted-foreground mt-1 cursor-pointer hover:text-foreground transition-colors"
-     onClick={(e) => {
-       e.stopPropagation();
-       if (item.video.channels?.id) navigate(`/channel/${item.video.channels.id}`);
-     }}
-   >
-     <span className="flex items-center gap-1">
-       {item.video.channels?.name || 'Kenh chua xac dinh'}
-       {item.video.channels?.is_verified && (
-         <svg className="w-3.5 h-3.5 text-muted-foreground shrink-0" viewBox="0 0 24 24" fill="currentColor">
-           <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-         </svg>
-       )}
-     </span>
-   </p>
-   ```
+1. Add `formatViewsShort` to the existing import from `@/lib/formatters` (line 10)
+2. Line 176: Change `{sub.channel.subscriber_count || 0} nguoi dang ky` to `{formatViewsShort(sub.channel.subscriber_count)} nguoi dang ky`
 
 ---
 
@@ -210,22 +100,21 @@ YouTube shows verified badges consistently everywhere.
 
 | Phase | Files Modified | New Files | Complexity |
 |-------|---------------|-----------|------------|
-| 1 | 2 (MobileWatchView, VideoActionsBar) | 0 | Low -- add is_verified prop + badge SVG |
-| 2 | 1 (ProfileInfo) | 0 | Low -- add is_verified to interface + badge SVG |
-| 3 | 4 (useWatchHistory, useWatchLater, WatchHistory, WatchLater) | 0 | Medium -- update hooks + clickable names + badges |
+| 1 | 1 (Watch.tsx) | 0 | Low -- add import + swap 2 format calls |
+| 2 | 2 (VideoCommentList, CommentsCard) | 0 | Low -- add import + swap format calls |
+| 3 | 1 (Subscriptions.tsx) | 0 | Low -- add to import + swap 1 format call |
 
-**Total: 7 files modified, 0 new files, 0 database changes**
+**Total: 4 files modified, 0 new files, 0 database changes**
 
-### Feature Parity Progress After Round 24
+### Feature Parity Progress After Round 25
 
 **Newly added YouTube 2025 consistency:**
-- Verified badge on mobile Watch page (VideoActionsBar)
-- Verified badge on Channel page header (ProfileInfo)
-- Clickable channel names on Watch History
-- Clickable channel names on Watch Later
-- Verified badges on Watch History items
-- Verified badges on Watch Later items
+- Abbreviated like count on desktop Watch page (e.g., "1.2K" instead of "1200")
+- Abbreviated subscriber count on desktop Watch page channel info
+- Abbreviated comment count on desktop and mobile
+- Abbreviated subscriber count on Subscriptions page channel headers
 
 ### System Maturity Assessment
 
-After 24 rounds of progressive analysis, FUN Play has reached near-complete verified badge and channel branding parity with YouTube 2025. These remaining gaps are purely cosmetic consistency fixes -- ensuring the checkmark and clickable channel names appear on every single page where YouTube shows them. The core architecture, data integrity, localization, and content management are all production-ready.
+After 25 rounds of progressive analysis, FUN Play has reached a very high level of consistency with YouTube 2025. The gaps found in this round are purely about number display formatting -- ensuring all counts use the abbreviated format ("1K", "1.2M") that YouTube standardizes across its entire interface. These are straightforward one-line fixes with zero risk of regression.
+
