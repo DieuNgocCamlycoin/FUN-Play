@@ -1,8 +1,8 @@
 
 
-# FUN Play vs YouTube 2025: Round 5 Gap Analysis
+# FUN Play vs YouTube 2025: Round 6 Gap Analysis
 
-## Verified Fixes from Rounds 1-4 (All Working)
+## Verified Fixes from Rounds 1-5 (All Working)
 
 | Feature | Round | Status |
 |---------|-------|--------|
@@ -30,164 +30,154 @@
 | Index.tsx infinite scroll with sentinel observer | R4 | Done |
 | WatchLater + WatchHistory kebab menus | R4 | Done |
 | Watch.tsx "Save" button + "..." dropdown on desktop | R4 | Done |
+| Formatter consolidation (8 files) | R5 | Done |
+| Library.tsx hub page created | R5 | Done |
+| UpNextSidebar Vietnamese localization | R5 | Done |
+| Notifications category filter tabs | R5 | Done |
+| Subscriptions channel management kebab | R5 | Done |
 
 ---
 
-## REMAINING GAPS FOUND IN ROUND 5
+## REMAINING GAPS FOUND IN ROUND 6
 
 ### HIGH PRIORITY
 
-#### Gap 1: Duplicate `formatViews` / `formatTimestamp` Still in 6 Files
+#### Gap 1: Sidebar Navigation Labels Still in English
 
-Despite creating `src/lib/formatters.ts` in Round 4, six files still define their own local `formatViews` or `formatTimestamp` functions instead of importing from the shared utility:
+The `CollapsibleSidebar.tsx` and `Sidebar.tsx` (legacy) use English labels for navigation items:
+- "Home", "Shorts", "Subscriptions" (line 54-56 of CollapsibleSidebar)
+- "Library", "History", "Watch later", "Liked videos" (lines 62-67)
+- "Studio", "Wallet" (lines 83-88)
 
-1. `src/pages/Playlist.tsx` -- local `formatViews` (line 47) and `formatTimeAgo` (line 54)
-2. `src/components/Video/UpNextSidebar.tsx` -- local `formatViews` (line 87) returning "0 views" (English)
-3. `src/components/Video/Mobile/VideoInfoSection.tsx` -- local `formatViews` (line 24) using "N" for thousands and local `formatTimestamp` (line 30)
-4. `src/components/Meditation/MeditationVideoGrid.tsx` -- local `formatViews` (line 30)
-5. `src/pages/MusicDetail.tsx` -- local `formatViews` (line 240)
-6. `src/pages/BrowseMusic.tsx` -- local `formatViews` (line 246)
+The `MobileDrawer.tsx` correctly uses Vietnamese ("Trang chu", "Kenh dang ky", etc.), but the desktop sidebar does not.
 
-Additionally, `VideoActionsBar.tsx` (line 64) has a local `formatNumber` function.
+YouTube localizes all navigation to the user's language. FUN Play should be consistent -- the MobileDrawer already has Vietnamese labels, but the desktop sidebar is in English.
 
-This means the same number "1500 views" could display as "1.5K", "1.5N", "1.5K luot xem", or "1,500" depending on which page the user is on.
+**Fix:** Translate all sidebar labels in `CollapsibleSidebar.tsx` to Vietnamese, matching `MobileDrawer.tsx` labels (e.g., "Trang chu", "Lich su", "Xem sau", "Video da thich").
 
-**Fix:** Replace all local definitions with imports from `@/lib/formatters`. For cases needing a short format without "luot xem" suffix, use the existing `formatViewsShort` export.
+#### Gap 2: Home Page CTA Banner in English
 
-#### Gap 2: `ContinueWatching.tsx` Has Local `formatDuration` Instead of Shared
+`Index.tsx` lines 333-339 contain English text:
+- "Join FUN Play to upload videos, subscribe to channels, and tip creators!"
+- "Sign In / Sign Up"
 
-`ContinueWatching.tsx` (line 14) defines its own `formatDuration` function. The shared `formatters.ts` already exports `formatDuration` with identical logic.
+All other pages use Vietnamese for their CTAs and buttons.
 
-**Fix:** Replace the local function with `import { formatDuration } from "@/lib/formatters"`.
+**Fix:** Translate to Vietnamese:
+- "Tham gia FUN Play de tai video, dang ky kenh va tang qua cho nha sang tao!"
+- "Dang nhap / Dang ky"
 
-#### Gap 3: Playlist.tsx Also Has Local `formatDuration` and `formatTotalDuration`
+#### Gap 3: MobileBottomNav Uses English "Home" Label
 
-`Playlist.tsx` (lines 27-45) defines both `formatDuration` and `formatTotalDuration` locally. The `formatDuration` is identical to the shared one.
+`MobileBottomNav.tsx` line 19 uses `"Home"` as the label. YouTube's mobile bottom nav localizes this label.
 
-**Fix:** Import `formatDuration` from `@/lib/formatters`. Keep `formatTotalDuration` local since it is unique (converts seconds to "X gio Y phut" format).
+**Fix:** Change `"Home"` to `"Trang chu"` in MobileBottomNav to match MobileDrawer.
 
-#### Gap 4: Watch.tsx Desktop Missing MobileHeader/MobileDrawer/MobileBottomNav
+#### Gap 4: WatchLater Page Title Still in English
 
-The Watch page (desktop view starting at line 586) renders `Header` and `CollapsibleSidebar` for desktop only, inside `hidden lg:block`. However, there is **no mobile header, drawer, or bottom nav** rendered for the desktop layout path. On mobile, the `MobileWatchView` component is used instead (which has its own layout). This works because `isMobile` gates which view renders. However, if a user resizes their browser window from mobile to desktop width, the desktop view would appear with no way to navigate (no header visible on small screen transitions).
+`WatchLater.tsx` line 58 displays `"Watch Later"` as the page title. Should be `"Xem sau"`.
 
-YouTube handles this by always rendering a consistent app shell. Since FUN Play uses separate mobile/desktop rendering paths, this is a minor edge case, but worth noting.
+**Fix:** Translate the page title and any remaining English strings in `WatchLater.tsx`.
 
-**Fix:** This is acceptable for now since `isMobile` hook handles breakpoint switching. No change needed.
+#### Gap 5: VideoCard Has Local `formatDuration` Instead of Shared
 
-#### Gap 5: No Notification Settings / Preference Management
+`VideoCard.tsx` lines 41-48 define a local `formatDuration` function identical to the shared one in `formatters.ts`. This was missed in Round 5's formatter consolidation.
 
-**YouTube behavior:** Users can manage notification preferences per channel (All, Personalized, None) and globally in Settings.
+**Fix:** Import `formatDuration` from `@/lib/formatters` and remove the local definition.
 
-**FUN Play current:** The `VideoActionsBar` (mobile) already shows a Bell dropdown with "Tat ca thong bao", "Ca nhan hoa", "Khong nhan" options, but they are non-functional placeholder `DropdownMenuItems` with no `onClick` handlers. There is no `notification_preferences` table or logic.
+#### Gap 6: AddVideoToPlaylistModal Has Local `formatDuration`
 
-**Fix:** This requires database changes (new table) and is out of scope for a code-only gap fix. Document as future work.
+`AddVideoToPlaylistModal.tsx` line 32 defines a local `formatDuration` identical to the shared version.
 
-#### Gap 6: No "Library" Page -- Route `/library` Redirects to Home
+**Fix:** Import `formatDuration` from `@/lib/formatters` and remove the local definition.
 
-**YouTube behavior:** The Library page shows Watch History, Watch Later, Liked Videos, Playlists, and Downloads in a grid/list layout.
+#### Gap 7: useAdminVideoStats Has Local `formatDuration`
 
-**FUN Play current:** In `App.tsx` line 116, the `/library` route renders `<Index />` (the home page). The sidebar links to `/library` but it just shows the home feed. There is no dedicated Library page.
+`useAdminVideoStats.tsx` line 237 defines a local `formatDuration`. While this is admin-only, it should still use the shared version for consistency.
 
-**Fix:** Create a new `Library.tsx` page that acts as a hub linking to Watch History, Watch Later, Liked Videos, Playlists, and Downloaded Videos. This matches YouTube's Library tab.
-
-#### Gap 7: Notification Page Has No Category Tabs
-
-**YouTube behavior:** The Notifications page has category tabs at the top: "All", "Mentions", "From your subscriptions".
-
-**FUN Play current:** `Notifications.tsx` shows a flat list of all notifications with no filtering or category tabs. Users cannot filter by notification type.
-
-**Fix:** Add horizontal filter tabs at the top of the Notifications page. Filter by `type` field (e.g., "all", "comment", "subscription", "reward").
+**Fix:** Import `formatDuration` from `@/lib/formatters` and remove the local export.
 
 ---
 
 ### MEDIUM PRIORITY
 
-#### Gap 8: UpNextSidebar Uses English Text ("Up Next", "views", "Now Playing")
+#### Gap 8: Notifications.tsx Has Local `timeAgo` Function Instead of Shared `formatTimestamp`
 
-**YouTube behavior:** YouTube localizes all UI text to the user's language.
+`Notifications.tsx` lines 125-135 define a local `timeAgo` function that duplicates `formatTimestamp` from `formatters.ts`, but with fewer time ranges (missing "nam truoc" / years ago).
 
-**FUN Play current:** The `UpNextSidebar.tsx` component uses English throughout: "Up Next" (line 167), "Now Playing" (line 211), "views" (line 292), "No more videos in queue" (line 314), "videos played this session" (line 323). This is inconsistent with the rest of the app which uses Vietnamese.
+**Fix:** Import `formatTimestamp` from `@/lib/formatters` and replace the local `timeAgo` function.
 
-**Fix:** Translate all English strings in UpNextSidebar to Vietnamese: "Tiep theo", "Dang phat", "luot xem", "Het video trong hang doi", "video da phat trong phien nay".
+#### Gap 9: TopSponsorSection Has Local `formatNumber`
 
-#### Gap 9: Subscriptions Page Missing "Manage" Link Per Channel
+`TopSponsorSection.tsx` line 17 defines a local `formatNumber` function. This could use `formatViewsShort` from formatters.
 
-**YouTube behavior:** Each channel section in Subscriptions has a kebab menu with "Manage subscription" and "Unsubscribe" options.
+**Fix:** Import `formatViewsShort` from `@/lib/formatters` and remove the local `formatNumber`.
 
-**FUN Play current:** The Subscriptions page shows channel headers with avatars and subscriber counts, but there is no kebab menu or "Manage/Unsubscribe" option on the channel row. Users must visit the channel page to unsubscribe.
+#### Gap 10: HonobarDetailModal and MobileHonobar Use English Stats Labels
 
-**Fix:** Add a `DropdownMenu` kebab button to each channel header row in `Subscriptions.tsx` with "Go to channel" and "Unsubscribe" options.
+`HonobarDetailModal.tsx` uses English labels: "USERS", "COMMENTS", "VIEWS", "VIDEOS", "CAMLY POOL".
+`MobileHonobar.tsx` uses English labels: "Users", "Video", "Views", "Comments", "Pool".
 
-#### Gap 10: VideoCard Skeleton Missing YouTube-Style Shimmer
+**Fix:** Translate to Vietnamese: "NGUOI DUNG", "BINH LUAN", "LUOT XEM", "VIDEO", "QUY CAMLY".
 
-**YouTube behavior:** Loading skeletons have a smooth shimmer/pulse animation that closely matches the final card shape (rounded thumbnail, circular avatar, text lines).
+#### Gap 11: Shorts Page Missing Subscribe Button
 
-**FUN Play current:** `VideoCard` skeleton (lines 76-88) uses the `Skeleton` component which has basic pulse animation. The shapes are close but:
-- No separate rounded-full avatar skeleton on the left
-- Text skeleton widths are approximate
-- The glass-card border style on skeletons doesn't match non-loading cards
+YouTube Shorts shows a subscribe button next to the channel name on each Short. FUN Play's Shorts page (`ShortsVideoItem`) shows channel name and avatar but has no subscribe button.
 
-**Fix:** Minor CSS refinement. Low priority since pulse animation already exists.
+**Fix:** Add a small "Dang ky" (Subscribe) button next to the channel name in `ShortsVideoItem`.
 
-#### Gap 11: Mobile Profile Page (Profile.tsx) Not Using MainLayout
+#### Gap 12: No "Chia se" (Share) Action Label on Mobile Watch Actions
 
-The mobile Profile page (`src/pages/Profile.tsx`) directly renders `MobileBottomNav` as a standalone import (line 13) and does not use `MainLayout`. It builds its own layout manually. While this works because it's a mobile-specific page with a unique design, it's inconsistent with the other pages.
+YouTube shows text labels under each action icon (Like, Dislike, Share, Download, Save). FUN Play's `VideoActionsBar` shows icons with counts but no text labels under Share and Save buttons.
 
-**Fix:** Since Profile.tsx is intentionally a mobile-only hub with custom layout (no sidebar), this is acceptable. The `MobileBottomNav` is manually included. No change needed.
+**Fix:** Add small text labels under the action icons in `VideoActionsBar` to match YouTube's layout.
 
 ---
 
 ## IMPLEMENTATION PLAN
 
-### Phase 1: Complete Formatter Consolidation (8 files)
+### Phase 1: Complete Vietnamese Localization (5 files)
 
-Replace all remaining local `formatViews`, `formatTimestamp`, `formatDuration` with imports from `@/lib/formatters`:
+All navigation and static text should be consistently in Vietnamese.
 
-1. **Playlist.tsx** -- Import `formatViews`, `formatDuration` from formatters. Remove local `formatViews` (line 47) and `formatDuration` (line 27). Keep local `formatTotalDuration` (unique).
-2. **UpNextSidebar.tsx** -- Import `formatViewsShort`, `formatDuration` from formatters. Remove local `formatViews` (line 87) and `formatDuration` (line 80).
-3. **VideoInfoSection.tsx** -- Import `formatViewsShort`, `formatTimestamp` from formatters. Remove local `formatViews` (line 24) and `formatTimestamp` (line 30).
-4. **MeditationVideoGrid.tsx** -- Import `formatViewsShort` from formatters. Remove local `formatViews` (line 30).
-5. **MusicDetail.tsx** -- Import `formatViewsShort` from formatters. Remove local `formatViews` (line 240).
-6. **BrowseMusic.tsx** -- Import `formatViewsShort` from formatters. Remove local `formatViews` (line 246).
-7. **ContinueWatching.tsx** -- Import `formatDuration` from formatters. Remove local `formatDuration` (line 14).
-8. **VideoActionsBar.tsx** -- Import `formatViewsShort` from formatters. Remove local `formatNumber` (line 64). Update usages.
+1. **CollapsibleSidebar.tsx** -- Translate all navigation labels:
+   - "Home" -> "Trang chu"
+   - "Subscriptions" -> "Kenh dang ky"
+   - "Library" -> "Thu vien"
+   - "History" -> "Lich su"
+   - "Watch later" -> "Xem sau"
+   - "Liked videos" -> "Video da thich"
+   - "Studio" -> "Studio" (universal term, keep as-is)
+   - "Wallet" -> "Vi" (or keep "Wallet" as brand term)
+   - "Navigation" section header -> "Dieu huong"
 
-### Phase 2: New Library Page (1 new file + 1 edit)
+2. **MobileBottomNav.tsx** -- Change "Home" to "Trang chu", "Shorts" stays (brand name).
 
-1. **Create `src/pages/Library.tsx`** -- A hub page with cards/links to:
-   - Watch History (/history)
-   - Watch Later (/watch-later)
-   - Liked Videos (/liked)
-   - Playlists (/manage-playlists)
-   - Downloaded Videos (/downloads)
-   - Your Videos (/your-videos)
-   Uses `MainLayout` wrapper.
+3. **Index.tsx** -- Translate the guest CTA banner:
+   - "Join FUN Play to upload videos..." -> "Tham gia FUN Play de tai video, dang ky kenh va tang qua cho nha sang tao!"
+   - "Sign In / Sign Up" -> "Dang nhap / Dang ky"
 
-2. **Update `App.tsx`** -- Change the `/library` route from `<Index />` to the new `<Library />` component.
+4. **WatchLater.tsx** -- Change "Watch Later" title to "Xem sau".
 
-### Phase 3: UpNextSidebar Vietnamese Localization (1 file)
+5. **HonobarDetailModal.tsx + MobileHonobar.tsx** -- Translate stats labels to Vietnamese.
 
-1. **UpNextSidebar.tsx** -- Translate all English strings to Vietnamese:
-   - "Up Next" -> "Tiep theo"
-   - "Now Playing" -> "Dang phat"
-   - "Autoplay" -> "Tu dong phat"
-   - "No more videos in queue" -> "Khong con video trong hang doi"
-   - "videos played this session" -> "video da phat"
+### Phase 2: Final Formatter Consolidation (5 files)
 
-### Phase 4: Notification Category Tabs (1 file)
+Complete the remaining local formatter functions:
 
-1. **Notifications.tsx** -- Add horizontal filter tabs:
-   - "Tat ca" (All) -- default, shows everything
-   - "Binh luan" (Comments) -- filter by type = 'comment'
-   - "Kenh dang ky" (Subscriptions) -- filter by type = 'subscription'
-   - "Phan thuong" (Rewards) -- filter by type = 'reward'
-   Client-side filtering on the already-fetched notifications array.
+1. **VideoCard.tsx** -- Import `formatDuration` from `@/lib/formatters`. Remove local `formatDuration` (lines 41-48).
+2. **AddVideoToPlaylistModal.tsx** -- Import `formatDuration` from `@/lib/formatters`. Remove local `formatDuration` (line 32).
+3. **useAdminVideoStats.tsx** -- Import `formatDuration` from `@/lib/formatters`. Remove local export.
+4. **Notifications.tsx** -- Import `formatTimestamp` from `@/lib/formatters`. Replace local `timeAgo` function (lines 125-135).
+5. **TopSponsorSection.tsx** -- Import `formatViewsShort` from `@/lib/formatters`. Remove local `formatNumber` (line 17).
 
-### Phase 5: Subscriptions Channel Management (1 file)
+### Phase 3: Shorts Subscribe Button (1 file)
 
-1. **Subscriptions.tsx** -- Add a kebab `DropdownMenu` to each channel header row with:
-   - "Chuyen den kenh" (Go to channel) -- navigates to channel page
-   - "Huy dang ky" (Unsubscribe) -- calls unsubscribe API and removes from list
+1. **Shorts.tsx** -- Add a compact "Dang ky" subscribe button next to the channel avatar/name in `ShortsVideoItem`. Include subscribe/unsubscribe logic using existing Supabase subscription pattern.
+
+### Phase 4: Mobile Watch Action Labels (1 file)
+
+1. **VideoActionsBar.tsx** -- Add small text labels under each action button ("Thich", "Khong thich", "Chia se", "Tai xuong", "Luu") to match YouTube's mobile watch page layout.
 
 ---
 
@@ -195,13 +185,14 @@ Replace all remaining local `formatViews`, `formatTimestamp`, `formatDuration` w
 
 | Phase | Files Modified | New Files | Complexity |
 |-------|---------------|-----------|------------|
-| 1 | 8 | 0 | Low -- mechanical import replacement |
-| 2 | 1 (App.tsx) | 1 (Library.tsx) | Low -- simple hub page |
-| 3 | 1 (UpNextSidebar.tsx) | 0 | Low -- text changes |
-| 4 | 1 (Notifications.tsx) | 0 | Medium -- UI filter tabs |
-| 5 | 1 (Subscriptions.tsx) | 0 | Low -- add dropdown menu |
+| 1 | 5 | 0 | Low -- text translations only |
+| 2 | 5 | 0 | Low -- mechanical import replacement |
+| 3 | 1 | 0 | Medium -- add subscribe logic |
+| 4 | 1 | 0 | Low -- add text labels |
 
-**Total: ~12 files modified, 1 new file, 0 database changes**
+**Total: 12 files modified, 0 new files, 0 database changes**
 
-All changes are frontend-only. The biggest impact is Phase 1 (completing formatter consolidation across 8 files to eliminate inconsistent number formatting) and Phase 2 (creating a proper Library page that currently just shows the home feed). Phases 3-5 are polish items that improve Vietnamese localization and feature completeness.
+All changes are frontend-only. The most impactful changes are Phase 1 (completing Vietnamese localization across all navigation surfaces) and Phase 2 (finishing the formatter consolidation that has been progressively cleaned up over Rounds 4-5). Phases 3-4 are feature polish items that improve YouTube parity on Shorts and mobile Watch pages.
+
+After this Round 6, the remaining gaps between FUN Play and YouTube will be primarily in areas requiring database schema changes (notification preferences, recommendation algorithm) or backend infrastructure (video processing pipeline, automated thumbnails), which are outside the scope of frontend-only fixes.
 
