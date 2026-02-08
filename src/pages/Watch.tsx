@@ -651,6 +651,13 @@ export default function Watch() {
                 {video.title}
               </h1>
 
+              {/* View Count & Timestamp */}
+              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <span>{formatViews(video.view_count)}</span>
+                <span>•</span>
+                <span>{formatTimestamp(video.created_at)}</span>
+              </div>
+
               {/* Channel Info & Actions */}
               <div className="flex items-center justify-between flex-wrap gap-4">
                 <div className="flex items-center gap-3">
@@ -817,7 +824,7 @@ export default function Watch() {
                 <div className="flex items-center gap-2 text-sm font-semibold text-foreground mb-2">
                   <span>{(video.view_count || 0).toLocaleString()} lượt xem</span>
                   <span>•</span>
-                  <span>{new Date(video.created_at).toLocaleDateString("vi-VN")}</span>
+                  <span>{new Date(video.created_at).toLocaleDateString("vi-VN", { day: "numeric", month: "short", year: "numeric" })}</span>
                 </div>
                 <p className={`text-sm text-foreground whitespace-pre-wrap ${
                   !isDescriptionExpanded ? "line-clamp-3" : ""
