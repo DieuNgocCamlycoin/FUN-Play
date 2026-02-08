@@ -596,6 +596,43 @@ body > [data-w3m-modal] {
   border-radius: calc(1.25rem - 2px);
 }
 
+/* Tet Decorations - Falling Petals */
+@keyframes tet-fall {
+  0% {
+    transform: translateY(-20px) rotate(0deg) translateX(0px);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.7;
+  }
+  90% {
+    opacity: 0.7;
+  }
+  100% {
+    transform: translateY(100vh) rotate(720deg) translateX(40px);
+    opacity: 0;
+  }
+}
+
+@keyframes tet-sway {
+  0%, 100% { transform: translateX(0px); }
+  25% { transform: translateX(15px); }
+  75% { transform: translateX(-15px); }
+}
+
+@keyframes tet-banner-shimmer {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+.tet-petal {
+  animation: tet-fall linear infinite;
+}
+
+.tet-petal > div {
+  animation: tet-sway 3s ease-in-out infinite;
+}
+
 /* Safe Area utilities for iPhone notch/dynamic island */
 .safe-area-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0px);
