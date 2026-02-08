@@ -331,7 +331,11 @@ export function decodeRevertError(data: string | null): string {
       const hexString = data.slice(10);
       const length = parseInt(hexString.slice(64, 128), 16);
       const messageHex = hexString.slice(128, 128 + length * 2);
-      const message = Buffer.from(messageHex, 'hex').toString('utf8');
+      // Browser-compatible hex-to-string conversion (no Buffer)
+      const bytes = new Uint8Array(
+        (messageHex.match(/.{1,2}/g) || []).map(b => parseInt(b, 16))
+      );
+      const message = new TextDecoder().decode(bytes);
       return `Revert: "${message}"`;
     } catch {
       return "Error(string) - Could not decode";
@@ -351,7 +355,11 @@ export function decodeRevertError(data: string | null): string {
   };
 
   for (const [key, desc] of Object.entries(knownErrors)) {
-    if (data.toLowerCase().includes(Buffer.from(key).toString('hex').toLowerCase())) {
+    // Browser-compatible string-to-hex conversion (no Buffer)
+    const keyHex = Array.from(new TextEncoder().encode(key))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+    if (data.toLowerCase().includes(keyHex.toLowerCase())) {
       return `${key}: ${desc}`;
     }
   }
