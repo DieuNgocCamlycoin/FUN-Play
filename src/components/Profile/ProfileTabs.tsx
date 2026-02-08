@@ -145,7 +145,7 @@ export const ProfileTabs = ({ userId, channelId, isOwnProfile }: ProfileTabsProp
                 </div>
                 <div className="flex items-center gap-3 text-muted-foreground">
                   <Eye className="w-5 h-5" />
-                  <span>{aboutData.total_views.toLocaleString()} lượt xem</span>
+                  <span>{aboutData.total_views.toLocaleString("vi-VN")} lượt xem</span>
                 </div>
                 {aboutData.is_verified && (
                   <div className="flex items-center gap-3 text-muted-foreground">

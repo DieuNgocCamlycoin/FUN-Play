@@ -12,6 +12,7 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { MobileBottomNav } from "@/components/Layout/MobileBottomNav";
 import { CreatePlaylistModal } from "@/components/Playlist/CreatePlaylistModal";
+import { formatViewsShort } from "@/lib/formatters";
 
 interface ChannelInfo {
   id: string;
@@ -158,7 +159,7 @@ const Profile = () => {
           <p className="text-sm text-muted-foreground">@{username}</p>
           
           <p className="text-sm text-muted-foreground mt-1">
-            {channel?.subscriber_count || 0} người đăng ký • {channel?.video_count || 0} video
+            {formatViewsShort(channel?.subscriber_count || 0)} người đăng ký • {channel?.video_count || 0} video
           </p>
           
           <Button
