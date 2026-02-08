@@ -1,10 +1,10 @@
 
 
-# FUN Play vs YouTube 2025: Round 29 Gap Analysis
+# FUN Play vs YouTube 2025: Round 30 Gap Analysis
 
-## Verified Fixes from Rounds 1-28 (All Working)
+## Verified Fixes from Rounds 1-29 (All Working)
 
-All 82+ fixes from previous rounds remain functional, including:
+All 87+ fixes from previous rounds remain functional, including:
 - Video cards, kebab menus, hover previews across all pages (R1-R19)
 - Complete Vietnamese localization (R6-R18)
 - Approval status filters on all public feeds (R18-R22)
@@ -16,118 +16,96 @@ All 82+ fixes from previous rounds remain functional, including:
 - Desktop Watch clickable hashtags in description (R28)
 - ShortsCommentSheet abbreviated comment count (R28)
 - Header search suggestions filter by approval_status (R28)
+- MiniProfileCard subscriber count abbreviated (R29)
+- Desktop description box uses explicit "vi-VN" locale (R29)
+- UpNextSidebar, Shorts, MeditationVideoGrid use standardized formatViews() (R29)
 
 ---
 
-## REMAINING GAPS FOUND IN ROUND 29
+## REMAINING GAPS FOUND IN ROUND 30
 
 ### HIGH PRIORITY
 
-#### Gap 1: MiniProfileCard Subscriber Count Uses `.toLocaleString()` Instead of Abbreviated Format
+#### Gap 1: Mobile Profile Page Subscriber Count Uses Raw Number Instead of Abbreviated Format
 
-In `MiniProfileCard.tsx` line 113, the subscriber count is displayed as:
+In `Profile.tsx` line 161, the subscriber count is displayed as:
 ```
-{subscriberCount.toLocaleString()} nguoi dang ky
-```
-
-This shows "1,234" instead of YouTube's abbreviated "1.2K". The MiniProfileCard is the hover popup that appears on desktop when you mouse over a channel name on the Watch page. YouTube always uses abbreviated subscriber counts in these hover popups.
-
-**Fix:** Import `formatViewsShort` from `@/lib/formatters` and change line 113 from `{subscriberCount.toLocaleString()} nguoi dang ky` to `{formatViewsShort(subscriberCount)} nguoi dang ky`.
-
-#### Gap 2: Desktop Watch Page Description Box View Count Should Show Full Number with Vietnamese Locale
-
-In `Watch.tsx` line 825, the description box view count is:
-```
-{(video.view_count || 0).toLocaleString()} luot xem
+{channel?.subscriber_count || 0} nguoi dang ky
 ```
 
-`.toLocaleString()` without locale produces format based on browser default (could be "1,234" English-style). YouTube's Vietnamese interface consistently uses the locale-specific format. This should explicitly pass `"vi-VN"` to ensure consistent Vietnamese formatting across all browsers.
+This shows "1234 nguoi dang ky" (raw number, no formatting at all -- no commas, no abbreviation). YouTube's mobile profile page always shows abbreviated subscriber counts (e.g., "1.2K"). This is the last remaining unformatted subscriber count in the entire codebase.
 
-**Fix:** Change line 825 from `{(video.view_count || 0).toLocaleString()}` to `{(video.view_count || 0).toLocaleString("vi-VN")}` to ensure consistent Vietnamese number formatting regardless of browser locale.
+**Fix:** Import `formatViewsShort` from `@/lib/formatters` and change line 161 from `{channel?.subscriber_count || 0} nguoi dang ky` to `{formatViewsShort(channel?.subscriber_count || 0)} nguoi dang ky`.
+
+#### Gap 2: ProfileTabs "About" Section Total Views Uses `.toLocaleString()` Without Explicit Locale
+
+In `ProfileTabs.tsx` line 148, the total views in the "About" tab is displayed as:
+```
+{aboutData.total_views.toLocaleString()} luot xem
+```
+
+Similar to the issue fixed in Round 29 for Watch.tsx, this uses `.toLocaleString()` without an explicit locale, which produces browser-dependent formatting. For consistency with the Vietnamese interface, this should use `"vi-VN"` locale explicitly.
+
+**Fix:** Change line 148 from `{aboutData.total_views.toLocaleString()} luot xem` to `{aboutData.total_views.toLocaleString("vi-VN")} luot xem`.
 
 ### MEDIUM PRIORITY
 
-#### Gap 3: UpNextSidebar View Count Uses `formatViewsShort` + Separate "luot xem" -- Inconsistent with formatViews Pattern
+#### Gap 3: Mobile DescriptionDrawer Stats Missing Explicit "vi-VN" Locale
 
-In `UpNextSidebar.tsx` line 281:
+In `DescriptionDrawer.tsx` lines 109 and 119, the like count and view count use `.toLocaleString()` without locale:
 ```
-{formatViewsShort(video.view_count)} luot xem
-```
-
-This is the same inconsistency fixed in Round 28 for VideoInfoSection. The desktop UpNextSidebar should use `formatViews(video.view_count)` which already includes "luot xem" in its output, keeping the codebase DRY and consistent.
-
-**Fix:** Replace the import of `formatViewsShort` with `formatViews` in UpNextSidebar.tsx, and change line 281 from `{formatViewsShort(video.view_count)} luot xem` to `{formatViews(video.view_count)}`.
-
-#### Gap 4: Shorts View Count Uses `formatViewsShort` + Separate "luot xem" -- Same Inconsistency
-
-In `Shorts.tsx` line 359:
-```
-{formatViewsShort(video.view_count)} luot xem
+{likeCount.toLocaleString()}
+{viewCount.toLocaleString()}
 ```
 
-Same pattern inconsistency. Should use `formatViews(video.view_count)` for consistency. Note that `formatViewsShort` is still needed in Shorts.tsx for like_count and comment_count (which don't need "luot xem" suffix), so both imports should be kept.
+These were changed from `formatViewsShort()` to `.toLocaleString()` in Round 27, which was correct (description should show full numbers). However, like the Watch.tsx fix in Round 29, these should explicitly pass `"vi-VN"` for consistent Vietnamese formatting.
 
-**Fix:** Add `formatViews` to the import in Shorts.tsx (keep `formatViewsShort` for like/comment counts), and change line 359 from `{formatViewsShort(video.view_count)} luot xem` to `{formatViews(video.view_count)}`.
+**Fix:** Change line 109 from `{likeCount.toLocaleString()}` to `{likeCount.toLocaleString("vi-VN")}` and line 119 from `{viewCount.toLocaleString()}` to `{viewCount.toLocaleString("vi-VN")}`.
 
-#### Gap 5: Meditation Video Grid Uses `formatViewsShort` + Separate "luot xem"
+#### Gap 4: ProfileTabs "About" Join Date Missing YouTube-Style Format
 
-In `MeditationVideoGrid.tsx` line 119:
+In `ProfileTabs.tsx` line 144, the join date is:
 ```
-{formatViewsShort(video.view_count)} luot xem
+{new Date(aboutData.created_at).toLocaleDateString("vi-VN", { year: "numeric", month: "long", day: "numeric" })}
 ```
 
-Same pattern. Should use `formatViews()` for consistency.
-
-**Fix:** Replace the import of `formatViewsShort` with `formatViews` in MeditationVideoGrid.tsx, and change line 119 to `{formatViews(video.view_count)}`.
+This produces "15 thang 1 2025" (with "thang" spelled out in full). YouTube's "About" section uses a shorter date format. However, upon review, YouTube does use the full month name in the About section. This is acceptable as-is.
 
 ---
 
 ### ACCEPTABLE EXCEPTIONS (No Change Needed)
 
-- Desktop description box view count uses `.toLocaleString()` -- correct (YouTube shows full number in description); we are only adding explicit locale
-- Mobile DescriptionDrawer uses `.toLocaleString()` -- correct (R27)
+- Desktop description box view count uses `.toLocaleString("vi-VN")` -- correct (R29)
 - Admin/internal dashboard counts use `.toLocaleString()` -- correct (admin views show exact numbers)
 - CAMLY reward amounts use `.toLocaleString()` -- correct (token balances need precision)
-- YourVideos/ManagePosts raw comment_count numbers -- correct (admin/management table views show raw counts)
+- Wallet transaction amounts use `.toLocaleString()` -- correct (financial precision)
 - Console log messages remain in English (developer-facing)
+- ProfileTabs join date uses full month name -- correct (YouTube "About" uses full dates)
+- TopRankingSection has its own local abbreviation function -- acceptable (isolated component)
 
 ---
 
 ## IMPLEMENTATION PLAN
 
-### Phase 1: MiniProfileCard Subscriber Count Fix (1 file)
+### Phase 1: Mobile Profile Subscriber Count Fix (1 file)
 
-**File:** `src/components/Video/MiniProfileCard.tsx`
+**File:** `src/pages/Profile.tsx`
 
-1. **Add import:** `import { formatViewsShort } from "@/lib/formatters";`
-2. **Subscriber count (line 113):** Change from `{subscriberCount.toLocaleString()} nguoi dang ky` to `{formatViewsShort(subscriberCount)} nguoi dang ky`
+1. **Add import (line ~1-15 area):** Add `import { formatViewsShort } from "@/lib/formatters";`
+2. **Subscriber count (line 161):** Change from `{channel?.subscriber_count || 0} nguoi dang ky` to `{formatViewsShort(channel?.subscriber_count || 0)} nguoi dang ky`
 
-### Phase 2: Desktop Watch Description Locale Fix (1 file)
+### Phase 2: ProfileTabs Total Views Locale Fix (1 file)
 
-**File:** `src/pages/Watch.tsx`
+**File:** `src/components/Profile/ProfileTabs.tsx`
 
-1. **View count in description (line 825):** Change from `{(video.view_count || 0).toLocaleString()}` to `{(video.view_count || 0).toLocaleString("vi-VN")}`
+1. **Total views (line 148):** Change from `{aboutData.total_views.toLocaleString()} luot xem` to `{aboutData.total_views.toLocaleString("vi-VN")} luot xem`
 
-### Phase 3: UpNextSidebar formatViews Consistency (1 file)
+### Phase 3: Mobile DescriptionDrawer Locale Fix (1 file)
 
-**File:** `src/components/Video/UpNextSidebar.tsx`
+**File:** `src/components/Video/Mobile/DescriptionDrawer.tsx`
 
-1. **Import update (line 21):** Change from `import { formatDuration, formatViewsShort } from "@/lib/formatters";` to `import { formatDuration, formatViews } from "@/lib/formatters";`
-2. **View count (line 281):** Change from `{formatViewsShort(video.view_count)} luot xem` to `{formatViews(video.view_count)}`
-
-### Phase 4: Shorts View Count formatViews Consistency (1 file)
-
-**File:** `src/pages/Shorts.tsx`
-
-1. **Import update (line 5):** Add `formatViews` to the existing import: `import { formatViewsShort, formatViews } from "@/lib/formatters";`
-2. **View count (line 359):** Change from `{formatViewsShort(video.view_count)} luot xem` to `{formatViews(video.view_count)}`
-
-### Phase 5: Meditation Video Grid formatViews Consistency (1 file)
-
-**File:** `src/components/Meditation/MeditationVideoGrid.tsx`
-
-1. **Import update:** Change `formatViewsShort` to `formatViews` in the import
-2. **View count (line 119):** Change from `{formatViewsShort(video.view_count)} luot xem` to `{formatViews(video.view_count)}`
+1. **Like count (line 109):** Change from `{likeCount.toLocaleString()}` to `{likeCount.toLocaleString("vi-VN")}`
+2. **View count (line 119):** Change from `{viewCount.toLocaleString()}` to `{viewCount.toLocaleString("vi-VN")}`
 
 ---
 
@@ -135,22 +113,20 @@ Same pattern. Should use `formatViews()` for consistency.
 
 | Phase | Files Modified | New Files | Complexity |
 |-------|---------------|-----------|------------|
-| 1 | 1 (MiniProfileCard.tsx) | 0 | Low -- add import + swap 1 format call |
-| 2 | 1 (Watch.tsx) | 0 | Low -- add locale parameter |
-| 3 | 1 (UpNextSidebar.tsx) | 0 | Low -- swap import + format call |
-| 4 | 1 (Shorts.tsx) | 0 | Low -- add import + swap 1 format call |
-| 5 | 1 (MeditationVideoGrid.tsx) | 0 | Low -- swap import + format call |
+| 1 | 1 (Profile.tsx) | 0 | Low -- add import + swap format call |
+| 2 | 1 (ProfileTabs.tsx) | 0 | Low -- add locale parameter |
+| 3 | 1 (DescriptionDrawer.tsx) | 0 | Low -- add locale parameter to 2 calls |
 
-**Total: 5 files modified, 0 new files, 0 database changes**
+**Total: 3 files modified, 0 new files, 0 database changes**
 
-### Feature Parity Progress After Round 29
+### Feature Parity Progress After Round 30
 
 **Newly added YouTube 2025 consistency:**
-- MiniProfileCard hover popup uses abbreviated subscriber count (1.2K format)
-- Desktop description box uses explicit Vietnamese locale for view count formatting
-- UpNextSidebar, Shorts page, and Meditation grid all use the standardized `formatViews()` function for view counts (DRY principle)
+- Mobile Profile page subscriber count uses abbreviated format (1.2K) instead of raw numbers
+- ProfileTabs "About" total views uses explicit "vi-VN" locale
+- Mobile DescriptionDrawer like/view counts use explicit "vi-VN" locale for consistent formatting
 
 ### System Maturity Assessment
 
-After 29 rounds of progressive analysis, FUN Play has reached near-complete feature and UI parity with YouTube 2025. The remaining gaps found in this round are purely about code consistency -- ensuring every instance of "luot xem" display uses the same `formatViews()` function rather than `formatViewsShort() + " luot xem"`, and ensuring the last holdout of `.toLocaleString()` for subscriber counts (MiniProfileCard) is converted to the abbreviated format. These are zero-risk, mechanical fixes.
+After 30 rounds of progressive analysis, FUN Play has reached near-complete feature and UI parity with YouTube 2025. The gaps found in this round are the final straggling instances of unformatted numbers (Profile.tsx) and missing locale parameters. Once these three files are updated, the entire user-facing number formatting system will be fully standardized across all pages and components. These are zero-risk, mechanical fixes with no behavioral changes.
 
