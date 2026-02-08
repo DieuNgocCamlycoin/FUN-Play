@@ -28,7 +28,7 @@ type Step = "upload" | "metadata" | "thumbnail" | "preview" | "uploading" | "suc
 const STEPS = [
   { id: "upload", label: "Video", icon: Upload },
   { id: "metadata", label: "Thông tin", icon: FileVideo },
-  { id: "thumbnail", label: "Thumbnail", icon: Image },
+  { id: "thumbnail", label: "Ảnh bìa", icon: Image },
   { id: "preview", label: "Xem trước", icon: Eye },
 ];
 

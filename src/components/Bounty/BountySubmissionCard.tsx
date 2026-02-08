@@ -8,7 +8,7 @@ import type { BountySubmission } from "@/hooks/useBountySubmissions";
 const TYPE_CONFIG: Record<string, { label: string; bgColor: string; textColor: string }> = {
   idea: { label: "💡 Ý tưởng", bgColor: "bg-yellow-100", textColor: "text-yellow-700" },
   bug: { label: "🐛 Báo lỗi", bgColor: "bg-red-100", textColor: "text-red-600" },
-  feedback: { label: "💬 Feedback", bgColor: "bg-blue-100", textColor: "text-blue-600" },
+  feedback: { label: "💬 Phản hồi", bgColor: "bg-blue-100", textColor: "text-blue-600" },
   feature: { label: "✨ Đề xuất tính năng", bgColor: "bg-green-100", textColor: "text-green-600" },
   // Fallbacks
   bug_report: { label: "🐛 Báo Lỗi", bgColor: "bg-red-100", textColor: "text-red-600" },
@@ -53,7 +53,7 @@ export function BountySubmissionCard({
           </Badge>
           {isRewarded && (
             <Badge className="text-[11px] font-medium bg-green-100 text-green-600 border-0 rounded-full px-2.5 py-0.5">
-              ✅ Rewarded
+              ✅ Đã thưởng
             </Badge>
           )}
         </div>

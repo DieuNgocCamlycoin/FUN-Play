@@ -134,7 +134,7 @@ export function VideoCommentItem({
             className="font-semibold text-sm text-foreground cursor-pointer hover:text-primary transition-colors"
             onClick={navigateToChannel}
           >
-            @{comment.profiles.username || comment.profiles.display_name || "user"}
+            @{comment.profiles.username || comment.profiles.display_name || "người dùng"}
           </span>
           {isCreator && (
             <Badge variant="secondary" className="text-xs h-5 bg-muted/80">
@@ -287,7 +287,7 @@ export function VideoCommentItem({
             >
               <VideoCommentInput
                 onSubmit={handleReply}
-                placeholder={`Phản hồi @${comment.profiles.username || comment.profiles.display_name || "user"}...`}
+                placeholder={`Phản hồi @${comment.profiles.username || comment.profiles.display_name || "người dùng"}...`}
                 autoFocus
                 showCancel
                 onCancel={() => setIsReplying(false)}

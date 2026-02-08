@@ -76,7 +76,7 @@ export function BountySubmissionForm({ onSubmit, isSubmitting }: BountySubmissio
         {/* Contact info */}
         <div className="space-y-1.5">
           <label className="text-sm text-foreground/80">
-            Email hoặc Wallet Address <span className="text-destructive">*</span>
+            Email hoặc Địa chỉ ví <span className="text-destructive">*</span>
           </label>
           <Input
             placeholder="email@example.com hoặc 0x..."
