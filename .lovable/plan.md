@@ -1,61 +1,66 @@
 
-
-# Xoa FUN Wallet khoi menu va doi ten FUN.RICH thanh FUN PROFILE
+# Can bang chieu cao 3 nut THUONG & TANG, MINT va WALLET tren header
 
 ## Van de hien tai
 
-Trong phan FUN ECOSYSTEM cua menu, hien tai co 4 muc:
-1. FUN.RICH (lien ket ngoai)
-2. FUN FARM (lien ket ngoai)
-3. FUN PLANET (lien ket ngoai)
-4. FUN Wallet (lien ket noi bo /fun-wallet)
+Ba nut chinh tren thanh header co kich thuoc khong dong deu:
 
-Nguoi dung muon:
-- Xoa muc **FUN Wallet** khoi menu hoan toan
-- Doi ten **FUN.RICH** thanh **FUN PROFILE**
+- **THUONG & TANG**: `px-4 py-2`, icon `h-4 w-4`, text `text-base` -- nut nho nhat
+- **MINT**: `px-4 py-2 h-auto`, icon `h-5 w-5`, text `text-base` -- vua
+- **WALLET**: `px-5 py-2`, icon `h-11 w-11`, text `text-lg` -- nut lon nhat (vi icon vi rat lon)
+
+Nut WALLET co icon kich thuoc `h-11 w-11` (44px) lam no cao hon han 2 nut con lai. Can chuan hoa ca 3 nut ve cung mot chieu cao co dinh.
 
 ## Giai phap
 
-Chinh sua mang `funPlatformItems` trong ca 3 file navigation de xoa muc FUN Wallet va doi ten FUN.RICH thanh FUN PROFILE.
+Chuan hoa ca 3 nut ve cung kich thuoc: chieu cao co dinh `h-10` (40px), padding `px-4 py-0`, icon `h-5 w-5`, text `text-sm font-extrabold`. Giam icon WALLET tu `h-11` xuong `h-6` de vua voi chieu cao nut.
 
 ## Chi tiet thay doi
 
-### 1. `src/components/Layout/Sidebar.tsx`
+### 1. `src/components/Donate/GlobalDonateButton.tsx` (Nut THUONG & TANG - Desktop)
 
-**Mang `funPlatformItems` (dong 35-60):**
-- Dong 38: Doi label `"FUN.RICH"` thanh `"FUN PROFILE"`
-- Xoa muc FUN Wallet (dong 54-59): xoa khoi mang
+**Dong 59-73** - Default variant:
+- Them chieu cao co dinh: `h-10`
+- Giu icon: `h-4 w-4` (da phu hop)
+- Giu text: `text-base font-extrabold`
+- Giu padding: `px-4 py-2`
+- Khong doi gi nhieu vi nut nay la co so can bang
 
-### 2. `src/components/Layout/CollapsibleSidebar.tsx`
+### 2. `src/components/Layout/Header.tsx` (Nut MINT)
 
-**Mang `funPlatformItems` (dong 26-51):**
-- Dong 29: Doi label `"FUN.RICH"` thanh `"FUN PROFILE"`
-- Xoa muc FUN Wallet (dong 45-50): xoa khoi mang
+**Dong 203-224** - MINT button:
+- Them chieu cao co dinh: `h-10` (thay `h-auto`)
+- Giu icon: `h-5 w-5`
+- Giu text: `text-base font-extrabold`
+- Giu padding: `px-4`
 
-### 3. `src/components/Layout/MobileDrawer.tsx`
+### 3. `src/components/Wallet/WalletButton.tsx` (Nut WALLET - Desktop)
 
-**Mang `funPlatformItems` (dong 37-62):**
-- Dong 40: Doi label `"FUN.RICH"` thanh `"FUN PROFILE"`
-- Xoa muc FUN Wallet (dong 56-61): xoa khoi mang
+**Dong 167-222** - Full version:
+- Them chieu cao co dinh: `h-10` (khop voi 2 nut kia)
+- Giam icon tu `h-11 w-11` xuong `h-6 w-6` (phu hop voi chieu cao nut)
+- Xoa `-ml-2` (khong can vi icon nho hon)
+- Doi text tu `text-lg` xuong `text-base` (khop voi MINT va THUONG & TANG)
+- Doi padding tu `px-5` xuong `px-4` (khop voi cac nut khac)
+
+### 4. Mobile - Khong co loi hien thi
+
+Tren mobile, MobileHeader chi hien thi WalletButton o che do `compact` (icon nho `h-7 w-7`). Cac nut MINT va THUONG & TANG khong hien thi tren mobile header (chi hien tren desktop `hidden md:flex`). Do do khong co van de can chinh tren mobile cho 3 nut nay.
 
 ## Tom tat
 
 | Hang muc | Chi tiet |
 |----------|----------|
 | File can sua | 3 file |
-| Muc xoa | FUN Wallet (xoa khoi ca 3 file) |
-| Muc doi ten | FUN.RICH thanh FUN PROFILE (ca 3 file) |
+| Thay doi chinh | Chuan hoa chieu cao `h-10`, icon, va text size |
+| WALLET icon | `h-11 w-11` giam xuong `h-6 w-6` |
+| WALLET text | `text-lg` giam xuong `text-base` |
+| MINT height | `h-auto` doi thanh `h-10` |
+| Mobile | Khong can thay doi (chi hien compact wallet icon) |
 | Co so du lieu | Khong |
-| Dong bo Mobile | Co (MobileDrawer) |
-
-## Luu y
-
-- Trang `/fun-wallet` van ton tai va co the truy cap truc tiep qua URL, chi xoa khoi menu dieu huong
-- Cac style gradient dac biet cua FUN Wallet (`isWallet`, `bg-gradient-to-r from-yellow-500/10...`) se khong con duoc su dung trong menu nhung co the giu lai trong code de tranh anh huong den cac noi khac
-- Logo `/images/fun-rich-logo.png?v=2` van duoc giu nguyen, chi doi nhan hien thi
 
 ## Ket qua
 
-- Menu FUN ECOSYSTEM chi con 3 muc: **FUN PROFILE**, FUN FARM, FUN PLANET
-- Hien thi dong nhat tren Desktop (Sidebar, CollapsibleSidebar) va Mobile (MobileDrawer)
-
+- Ca 3 nut THUONG & TANG, MINT, WALLET se co cung chieu cao 40px (`h-10`)
+- Text va icon dong deu, tao cam giac can doi va chuyen nghiep
+- Giao dien header gon gang, khong bi le do nut WALLET lon bat thuong
