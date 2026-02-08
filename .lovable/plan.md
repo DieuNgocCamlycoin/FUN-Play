@@ -1,69 +1,77 @@
 
-# Xóa hiệu ứng phát sáng (glow) trên Filter Chips Bar
+# Đồng bộ màu Filter Chips Bar theo nút WALLET trên Header
 
-## Vấn đề hiện tại
+## Tổng quan
 
-Các nút trên **Filter Chips Bar** đang hiển thị hiệu ứng phát sáng (glow) rực rỡ màu xanh dương và tím hồng xung quanh viền. Nguyên nhân là component `CategoryChips` sử dụng component `Button` với 2 variant có sẵn hiệu ứng glow mạnh:
+Tất cả các nút trên **Filter Chips Bar** sẽ được cập nhật để sử dụng cùng bảng màu Teal-Cyan-Blue holographic của nút **WALLET** trên Header Bar. Thay đổi áp dụng đồng bộ cho cả Desktop và Mobile (cùng 1 component).
 
-- **variant="default"** (chip được chọn): có `shadow-[0_0_40px_rgba(0,102,255,0.8)]` và gradient nền xanh-tím
-- **variant="secondary"** (chip mặc định): có `shadow-[0_0_30px_rgba(217,0,255,0.7)]` và gradient nền tím-hồng
+## Màu nút WALLET hiện tại (tham chiếu)
 
-Dù className tùy chỉnh đã cố ghi đè bằng `bg-white` và `shadow-md`, nhưng các hiệu ứng glow từ variant gốc vẫn "rò rỉ" qua do thứ tự ưu tiên CSS.
+Nút WALLET sử dụng gradient ngang 5 điểm:
+```
+#5EEAD4 (Teal nhạt) → #22D3EE (Cyan) → #06B6D4 (Cyan đậm) → #0EA5E9 (Sky) → #0284C7 (Blue)
+```
 
-## Giải pháp
+## Thiết kế mới
 
-Thêm `shadow-none` vào className của cả hai trạng thái (selected và default) để triệt để xóa bỏ hiệu ứng glow từ variant gốc, sau đó chỉ áp dụng lại shadow nhẹ nếu cần.
+### Chip được chọn (Selected State)
+- **Nền**: Gradient Teal-Cyan-Blue giống hệt nút WALLET
+- **Chữ**: Trắng đậm (`text-white font-semibold`)
+- **Viền**: Không viền rõ (`border-transparent`)
+- **Không glow** -- giữ sạch sẽ theo yêu cầu trước đó (`!shadow-none`)
 
----
+### Chip mặc định (Default State)
+- **Nền**: Nền trắng trong suốt (`bg-white/90`)
+- **Chữ**: Màu Cyan đậm (`text-[#0284C7]`) -- lấy từ điểm cuối gradient WALLET
+- **Viền**: Viền Cyan nhẹ (`border-[#22D3EE]/30`)
+- **Hover**: Viền Cyan đậm hơn + chữ đậm hơn
+- **Không glow** (`!shadow-none`)
 
-## Kế hoạch triển khai
+## File cần chỉnh sửa
 
-### File cần chỉnh sửa
-
-**File:** `src/components/Layout/CategoryChips.tsx`
+**File duy nhất:** `src/components/Layout/CategoryChips.tsx`
 
 ### Thay đổi chi tiết
 
-1. **Chip được chọn (Selected State) -- dòng 34:**
+1. **Chip được chọn (dòng 34):**
    - Hiện tại:
      ```
-     bg-white text-sky-700 shadow-md border border-sky-200 hover:bg-white
+     bg-white text-sky-700 !shadow-none border border-sky-200
+     hover:bg-white hover:!shadow-none
      ```
    - Thay thành:
      ```
-     bg-white text-sky-700 shadow-none border border-sky-200 hover:bg-white hover:shadow-none
+     bg-[linear-gradient(90deg,#5EEAD4_0%,#22D3EE_35%,#06B6D4_50%,#0EA5E9_75%,#0284C7_100%)]
+     text-white font-semibold border border-transparent
+     !shadow-none hover:brightness-110 hover:!shadow-none
      ```
-   - `shadow-none` sẽ ghi đè hoàn toàn `shadow-[0_0_40px_...]` từ variant default
 
-2. **Chip mặc định (Default State) -- dòng 35:**
+2. **Chip mặc định (dòng 35):**
    - Hiện tại:
      ```
-     bg-white/80 text-sky-600 border border-gray-200 hover:bg-white hover:text-sky-700 hover:shadow-sm
+     bg-white/80 text-sky-600 border border-gray-200
+     !shadow-none hover:bg-white hover:text-sky-700 hover:!shadow-none
      ```
    - Thay thành:
      ```
-     bg-white/80 text-sky-600 border border-gray-200 shadow-none hover:bg-white hover:text-sky-700 hover:shadow-none
+     bg-white/90 text-[#0284C7] border border-[#22D3EE]/30
+     !shadow-none hover:bg-white hover:text-[#0369A1]
+     hover:border-[#22D3EE]/50 hover:!shadow-none
      ```
-   - `shadow-none` sẽ ghi đè hoàn toàn `shadow-[0_0_30px_...]` từ variant secondary
 
-3. **Cả hai trạng thái** -- thêm thêm các lớp ghi đè để đảm bảo không còn hiệu ứng glow nào từ variant gốc:
-   - Thêm `!shadow-none` (dùng `!important` của Tailwind) nếu `shadow-none` thông thường không đủ mạnh để ghi đè
-
----
-
-## Tóm tắt kỹ thuật
+## Tóm tắt
 
 | Hạng mục | Chi tiết |
 |----------|----------|
 | File cần sửa | 1 (`CategoryChips.tsx`) |
 | File mới | 0 |
-| Thay đổi cơ sở dữ liệu | Không |
-| Độ phức tạp | Rất thấp -- chỉ thêm `shadow-none` |
+| Cơ sở dữ liệu | Không thay đổi |
+| Độ phức tạp | Rất thấp -- chỉ thay đổi CSS classes |
 | Đồng bộ Mobile | Tự động (component dùng chung) |
 
-## Kết quả sau cập nhật
+## Kết quả
 
-- Tất cả hiệu ứng phát sáng (glow) xung quanh các nút Filter Chips sẽ được xóa bỏ hoàn toàn
-- Các nút sẽ hiển thị sạch sẽ với nền trắng, không còn ánh sáng xanh/tím tỏa ra xung quanh
-- Giao diện đồng nhất trên cả desktop và mobile
-- Không ảnh hưởng đến các nút Button khác trong toàn bộ dự án (chỉ ghi đè tại CategoryChips)
+- Chip được chọn sẽ có gradient Teal-Cyan-Blue **giống hệt** nút WALLET, chữ trắng nổi bật
+- Chip mặc định có chữ xanh Cyan đậm với viền Cyan nhẹ, hài hòa với tông màu chung
+- Không có hiệu ứng glow (đã xóa từ trước)
+- Desktop và Mobile đồng bộ 100%
