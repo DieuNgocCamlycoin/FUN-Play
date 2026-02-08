@@ -1,0 +1,322 @@
+import { useState, useEffect, useMemo } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Globe, Users, Wallet, Ban, RefreshCw, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+
+interface IPUser {
+  id: string;
+  username: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  wallet_address: string | null;
+  pending_rewards: number;
+  banned: boolean;
+}
+
+interface IPGroup {
+  ip_hash: string;
+  users: IPUser[];
+  total_accounts: number;
+  total_pending: number;
+  distinct_wallets: number;
+  action_types: string[];
+}
+
+interface IPAbuseDetectionTabProps {
+  onBan: (userId: string, reason: string) => Promise<boolean>;
+  loading: boolean;
+}
+
+const IPAbuseDetectionTab = ({ onBan, loading }: IPAbuseDetectionTabProps) => {
+  const [ipGroups, setIpGroups] = useState<IPGroup[]>([]);
+  const [fetching, setFetching] = useState(true);
+
+  const fetchIPGroups = async () => {
+    setFetching(true);
+    try {
+      // Fetch all IP tracking records
+      const { data: ipRecords, error: ipError } = await supabase
+        .from("ip_tracking")
+        .select("ip_hash, user_id, action_type, wallet_address");
+
+      if (ipError) throw ipError;
+
+      if (!ipRecords || ipRecords.length === 0) {
+        setIpGroups([]);
+        setFetching(false);
+        return;
+      }
+
+      // Group by ip_hash
+      const grouped: Record<string, { userIds: Set<string>; wallets: Set<string>; actions: Set<string> }> = {};
+      
+      ipRecords.forEach((r) => {
+        if (!grouped[r.ip_hash]) {
+          grouped[r.ip_hash] = { userIds: new Set(), wallets: new Set(), actions: new Set() };
+        }
+        if (r.user_id) grouped[r.ip_hash].userIds.add(r.user_id);
+        if (r.wallet_address) grouped[r.ip_hash].wallets.add(r.wallet_address.toLowerCase());
+        if (r.action_type) grouped[r.ip_hash].actions.add(r.action_type);
+      });
+
+      // Filter: only IPs with more than 1 user
+      const suspiciousIPs = Object.entries(grouped).filter(
+        ([_, g]) => g.userIds.size > 1
+      );
+
+      if (suspiciousIPs.length === 0) {
+        setIpGroups([]);
+        setFetching(false);
+        return;
+      }
+
+      // Collect all user IDs to fetch profiles
+      const allUserIds = new Set<string>();
+      suspiciousIPs.forEach(([_, g]) => g.userIds.forEach((id) => allUserIds.add(id)));
+
+      const { data: profiles, error: profileError } = await supabase
+        .from("profiles")
+        .select("id, username, display_name, avatar_url, wallet_address, pending_rewards, banned")
+        .in("id", Array.from(allUserIds));
+
+      if (profileError) throw profileError;
+
+      const profileMap: Record<string, IPUser> = {};
+      profiles?.forEach((p) => {
+        profileMap[p.id] = {
+          id: p.id,
+          username: p.username,
+          display_name: p.display_name,
+          avatar_url: p.avatar_url,
+          wallet_address: p.wallet_address,
+          pending_rewards: p.pending_rewards || 0,
+          banned: p.banned || false,
+        };
+      });
+
+      // Build IP groups
+      const groups: IPGroup[] = suspiciousIPs
+        .map(([ipHash, g]) => {
+          const users = Array.from(g.userIds)
+            .map((uid) => profileMap[uid])
+            .filter(Boolean);
+
+          return {
+            ip_hash: ipHash,
+            users,
+            total_accounts: users.length,
+            total_pending: users.reduce((sum, u) => sum + (u.pending_rewards || 0), 0),
+            distinct_wallets: g.wallets.size,
+            action_types: Array.from(g.actions),
+          };
+        })
+        .sort((a, b) => b.total_accounts - a.total_accounts);
+
+      setIpGroups(groups);
+    } catch (error) {
+      console.error("Error fetching IP groups:", error);
+      toast.error("Lỗi khi tải dữ liệu IP tracking");
+    } finally {
+      setFetching(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchIPGroups();
+  }, []);
+
+  const handleBanAll = async (users: IPUser[], reason: string) => {
+    const unbannedUsers = users.filter((u) => !u.banned);
+    for (const user of unbannedUsers) {
+      await onBan(user.id, reason);
+    }
+    toast.success(`Đã ban ${unbannedUsers.length} users`);
+    fetchIPGroups();
+  };
+
+  // Stats
+  const totalSuspiciousIPs = ipGroups.length;
+  const totalAccountsInvolved = ipGroups.reduce((sum, g) => sum + g.total_accounts, 0);
+  const totalRiskCAMLY = ipGroups.reduce((sum, g) => sum + g.total_pending, 0);
+
+  if (fetching) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+        <span className="ml-2 text-muted-foreground">Đang phân tích IP...</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/30">
+          <CardContent className="p-4 text-center">
+            <Globe className="w-7 h-7 mx-auto text-blue-500 mb-1" />
+            <div className="text-2xl font-bold">{totalSuspiciousIPs}</div>
+            <div className="text-xs text-muted-foreground">IP nghi ngờ</div>
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-to-br from-red-500/10 to-red-500/5 border-red-500/30">
+          <CardContent className="p-4 text-center">
+            <Users className="w-7 h-7 mx-auto text-red-500 mb-1" />
+            <div className="text-2xl font-bold">{totalAccountsInvolved}</div>
+            <div className="text-xs text-muted-foreground">Accounts liên quan</div>
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-to-br from-purple-500/10 to-purple-500/5 border-purple-500/30">
+          <CardContent className="p-4 text-center">
+            <Wallet className="w-7 h-7 mx-auto text-purple-500 mb-1" />
+            <div className="text-2xl font-bold">
+              {ipGroups.reduce((sum, g) => sum + g.distinct_wallets, 0)}
+            </div>
+            <div className="text-xs text-muted-foreground">Ví liên quan</div>
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-to-br from-amber-500/10 to-amber-500/5 border-amber-500/30">
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-amber-500">
+              {totalRiskCAMLY.toLocaleString()}
+            </div>
+            <div className="text-xs text-muted-foreground">CAMLY rủi ro</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Refresh */}
+      <div className="flex justify-end">
+        <Button variant="outline" size="sm" onClick={fetchIPGroups} disabled={fetching}>
+          <RefreshCw className={`w-4 h-4 mr-1 ${fetching ? "animate-spin" : ""}`} />
+          Làm mới
+        </Button>
+      </div>
+
+      {/* IP Groups */}
+      <div className="space-y-4">
+        {ipGroups.map((group) => {
+          const unbannedCount = group.users.filter((u) => !u.banned).length;
+          return (
+            <Card key={group.ip_hash} className="border-blue-500/30">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center justify-between text-sm">
+                  <span className="flex items-center gap-2">
+                    <Globe className="w-4 h-4 text-blue-500" />
+                    <span className="font-mono text-xs">
+                      IP: {group.ip_hash.slice(0, 8)}...{group.ip_hash.slice(-6)}
+                    </span>
+                    <Badge variant="secondary" className="text-xs">
+                      {group.total_accounts} accounts
+                    </Badge>
+                    {group.distinct_wallets > 0 && (
+                      <Badge variant="outline" className="text-xs text-purple-500">
+                        {group.distinct_wallets} ví
+                      </Badge>
+                    )}
+                  </span>
+                  {unbannedCount > 0 && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button size="sm" variant="destructive" disabled={loading}>
+                          <Ban className="w-4 h-4 mr-1" />
+                          Ban tất cả ({unbannedCount})
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Ban tất cả users cùng IP?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            {unbannedCount} users chưa bị ban sẽ bị ban.
+                            <br />
+                            Tổng pending: {group.total_pending.toLocaleString()} CAMLY
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Hủy</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleBanAll(group.users, "IP chung - Multi-account abuse")}
+                          >
+                            Xác nhận Ban
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {group.users.map((user) => (
+                    <div
+                      key={user.id}
+                      className={`flex items-center gap-3 p-2 rounded ${
+                        user.banned ? "bg-red-500/10 opacity-60" : "bg-muted/30"
+                      }`}
+                    >
+                      <Avatar className="w-8 h-8">
+                        <AvatarImage src={user.avatar_url || undefined} />
+                        <AvatarFallback>
+                          {(user.display_name || user.username)?.[0] || "?"}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-sm truncate">
+                          {user.display_name || user.username}
+                          {user.banned && (
+                            <Badge variant="destructive" className="ml-2 text-[10px]">
+                              Đã ban
+                            </Badge>
+                          )}
+                        </div>
+                        {user.wallet_address && (
+                          <div className="text-[10px] text-muted-foreground font-mono truncate">
+                            {user.wallet_address.slice(0, 8)}...{user.wallet_address.slice(-6)}
+                          </div>
+                        )}
+                      </div>
+                      <Badge variant="outline" className="text-amber-500 text-xs">
+                        {(user.pending_rewards || 0).toLocaleString()}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Actions: {group.action_types.join(", ")}</span>
+                  <span>Tổng pending: {group.total_pending.toLocaleString()} CAMLY</span>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+
+        {ipGroups.length === 0 && (
+          <div className="text-center py-8 text-muted-foreground">
+            <Globe className="w-12 h-12 mx-auto mb-3 opacity-30" />
+            <p>Chưa có dữ liệu IP tracking</p>
+            <p className="text-xs mt-1">
+              Dữ liệu sẽ được thu thập khi người dùng đăng ký, đăng nhập hoặc kết nối ví
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default IPAbuseDetectionTab;

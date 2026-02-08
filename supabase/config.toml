@@ -71,3 +71,12 @@ verify_jwt = false
 
 [functions.public-video-api]
 verify_jwt = false
+
+[functions.track-ip]
+verify_jwt = false
+
+[functions.create-donation]
+verify_jwt = false
+
+[functions.confirm-bsc-donation]
+verify_jwt = false

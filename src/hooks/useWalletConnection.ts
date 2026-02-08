@@ -85,6 +85,11 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
           wallet_type: type === 'metamask' ? 'MetaMask' : type === 'bitget' ? 'Bitget Wallet' : 'Unknown',
         })
         .eq('id', user.id);
+      
+      // Track IP for wallet connection (non-blocking)
+      supabase.functions.invoke('track-ip', {
+        body: { action_type: 'wallet_connect', wallet_address: walletAddress },
+      }).catch(e => console.warn('[Wallet] track-ip failed:', e));
     } catch (error) {
       console.error('Failed to save wallet to DB:', error);
     }
