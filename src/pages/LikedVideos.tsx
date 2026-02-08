@@ -233,6 +233,7 @@ const LikedVideos = () => {
                 userId={video.user_id}
                 avatarUrl={video.profiles?.avatar_url || undefined}
                 duration={video.duration}
+                videoUrl={video.video_url}
               />
             ))}
           </div>

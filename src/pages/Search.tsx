@@ -405,6 +405,7 @@ const Search = () => {
                       avatarUrl={video.profile?.avatar_url || undefined}
                       duration={video.duration}
                       isVerified={video.channels?.is_verified}
+                      videoUrl={video.video_url || undefined}
                     />
                   ))}
                 </div>
