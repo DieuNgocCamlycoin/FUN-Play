@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import {
@@ -12,11 +12,13 @@ import { PlayerSettingsDrawer } from "./PlayerSettingsDrawer";
 import { useHapticFeedback } from "@/hooks/useHapticFeedback";
 import { useAutoReward } from "@/hooks/useAutoReward";
 import { useAuth } from "@/hooks/useAuth";
+import { parseChapters, getCurrentChapter, type Chapter } from "@/lib/parseChapters";
 
 interface YouTubeMobilePlayerProps {
   videoUrl: string;
   videoId: string;
   title: string;
+  description?: string | null;
   onEnded?: () => void;
   onPrevious?: () => void;
   onNext?: () => void;
@@ -25,12 +27,15 @@ interface YouTubeMobilePlayerProps {
   onMinimize?: () => void;
   onPlayStateChange?: (isPlaying: boolean) => void;
   onTimeUpdate?: (currentTime: number, duration: number) => void;
+  onAmbientColor?: (color: string | null) => void;
+  exposeSeek?: (seekFn: (time: number) => void) => void;
 }
 
 export function YouTubeMobilePlayer({
   videoUrl,
   videoId,
   title,
+  description,
   onEnded,
   onPrevious,
   onNext,
@@ -39,6 +44,8 @@ export function YouTubeMobilePlayer({
   onMinimize,
   onPlayStateChange,
   onTimeUpdate,
+  onAmbientColor,
+  exposeSeek,
 }: YouTubeMobilePlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -70,6 +77,17 @@ export function YouTubeMobilePlayer({
   const tapTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const tapCountRef = useRef(0);
   const lastTapXRef = useRef(0);
+
+  // Ambient mode
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const ambientIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [ambientEnabled, setAmbientEnabled] = useState(() => {
+    try { return localStorage.getItem('funplay_ambient_mode') === 'true'; } catch { return false; }
+  });
+
+  // Chapters
+  const chapters = useMemo(() => parseChapters(description), [description]);
+  const currentChapter = useMemo(() => getCurrentChapter(chapters, currentTime), [chapters, currentTime]);
 
   // Skip amount changed from 10s to 15s
   const SKIP_SECONDS = 15;
@@ -351,6 +369,62 @@ export function YouTubeMobilePlayer({
     lastTimeRef.current = 0;
   }, [videoId]);
 
+  // Expose seek function to parent
+  useEffect(() => {
+    exposeSeek?.((time: number) => seekTo(time));
+  }, [exposeSeek]);
+
+  // Ambient Mode: sample dominant color from video frames
+  useEffect(() => {
+    if (!ambientEnabled || !videoRef.current || !onAmbientColor) {
+      onAmbientColor?.(null);
+      if (ambientIntervalRef.current) {
+        clearInterval(ambientIntervalRef.current);
+        ambientIntervalRef.current = null;
+      }
+      return;
+    }
+
+    const canvas = canvasRef.current || document.createElement('canvas');
+    if (!canvasRef.current) (canvasRef as any).current = canvas;
+    canvas.width = 4;
+    canvas.height = 4;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return;
+
+    const sampleColor = () => {
+      const video = videoRef.current;
+      if (!video || video.paused || video.readyState < 2) return;
+      try {
+        ctx.drawImage(video, 0, 0, 4, 4);
+        const imageData = ctx.getImageData(0, 0, 4, 4).data;
+        let r = 0, g = 0, b = 0;
+        const pixels = 16;
+        for (let i = 0; i < imageData.length; i += 4) {
+          r += imageData[i];
+          g += imageData[i + 1];
+          b += imageData[i + 2];
+        }
+        r = Math.round(r / pixels);
+        g = Math.round(g / pixels);
+        b = Math.round(b / pixels);
+        onAmbientColor(`${r}, ${g}, ${b}`);
+      } catch {
+        // CORS or other errors
+      }
+    };
+
+    ambientIntervalRef.current = setInterval(sampleColor, 2000);
+    sampleColor();
+
+    return () => {
+      if (ambientIntervalRef.current) {
+        clearInterval(ambientIntervalRef.current);
+        ambientIntervalRef.current = null;
+      }
+    };
+  }, [ambientEnabled, videoUrl, onAmbientColor]);
+
   const opacity = isDragging ? Math.max(0.3, 1 - dragY / 300) : 1;
   const scale = isDragging ? Math.max(0.7, 1 - dragY / 600) : 1;
   
@@ -388,13 +462,26 @@ export function YouTubeMobilePlayer({
           webkit-playsinline="true"
         />
 
-        {/* Thin progress bar always visible at bottom edge (when controls hidden) - Gradient theo Design System */}
+        {/* Hidden canvas for ambient color sampling */}
+        <canvas ref={canvasRef} className="hidden" width={4} height={4} />
+
+        {/* Thin progress bar always visible at bottom edge (when controls hidden) */}
         {!showControls && (
           <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-white/20 z-30">
             <div 
               className="h-full bg-gradient-to-r from-cosmic-magenta to-cosmic-cyan transition-all duration-100"
               style={{ width: `${progressPercentage}%` }}
             />
+            {/* Chapter markers on thin bar */}
+            {chapters.length > 0 && duration > 0 && chapters.map((chapter, idx) => (
+              idx > 0 ? (
+                <div
+                  key={idx}
+                  className="absolute top-0 h-full w-[2px] bg-white/80 z-10"
+                  style={{ left: `${(chapter.time / duration) * 100}%` }}
+                />
+              ) : null
+            ))}
           </div>
         )}
 
@@ -518,9 +605,23 @@ export function YouTubeMobilePlayer({
           </div>
 
           {/* Bottom controls - Time + Progress + Fullscreen */}
-          <div className="absolute bottom-0 inset-x-0 p-3 space-y-2">
-            {/* Progress bar */}
-            <div className="px-2">
+          <div className="absolute bottom-0 inset-x-0 p-3 space-y-1">
+            {/* Progress bar with chapter markers */}
+            <div className="px-2 relative">
+              {/* Chapter markers overlay */}
+              {chapters.length > 0 && duration > 0 && (
+                <div className="absolute inset-0 z-10 pointer-events-none flex items-center">
+                  {chapters.map((chapter, idx) => (
+                    idx > 0 ? (
+                      <div
+                        key={idx}
+                        className="absolute h-4 w-[2px] bg-white/70"
+                        style={{ left: `${(chapter.time / duration) * 100}%` }}
+                      />
+                    ) : null
+                  ))}
+                </div>
+              )}
               <Slider
                 value={[currentTime]}
                 max={duration || 100}
@@ -530,6 +631,13 @@ export function YouTubeMobilePlayer({
                 onClick={(e) => e.stopPropagation()}
               />
             </div>
+
+            {/* Current chapter title */}
+            {currentChapter && chapters.length > 0 && (
+              <div className="px-2 text-white/70 text-xs truncate">
+                {currentChapter.title}
+              </div>
+            )}
 
             {/* Time & Fullscreen */}
             <div className="flex items-center justify-between px-2">
@@ -572,6 +680,11 @@ export function YouTubeMobilePlayer({
         onSpeedChange={setPlaybackSpeed}
         loopMode={loopMode}
         onLoopChange={setLoopMode}
+        ambientEnabled={ambientEnabled}
+        onAmbientToggle={(enabled) => {
+          setAmbientEnabled(enabled);
+          localStorage.setItem('funplay_ambient_mode', String(enabled));
+        }}
       />
     </>
   );

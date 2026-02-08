@@ -61,7 +61,9 @@ export function MobileWatchView({
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [ambientColor, setAmbientColor] = useState<string | null>(null);
   const playerRef = useRef<HTMLDivElement>(null);
+  const playerSeekRef = useRef<((time: number) => void) | null>(null);
 
   // Use new hook for comments
   const { comments, totalCount } = useVideoComments({ videoId: video.id, videoOwnerId: video.user_id });
@@ -94,6 +96,10 @@ export function MobileWatchView({
     }
   };
 
+  const handleSeekToChapter = (seconds: number) => {
+    playerSeekRef.current?.(seconds);
+  };
+
   // Get latest comment for preview
   const latestComment = comments.length > 0 ? {
     profiles: {
@@ -111,6 +117,7 @@ export function MobileWatchView({
           videoUrl={video.video_url}
           videoId={video.id}
           title={video.title}
+          description={video.description}
           onEnded={onVideoEnd}
           onPrevious={handlePrevious}
           onNext={handleNext}
@@ -122,8 +129,20 @@ export function MobileWatchView({
             setCurrentTime(time);
             setDuration(dur);
           }}
+          onAmbientColor={setAmbientColor}
+          exposeSeek={(fn) => { playerSeekRef.current = fn; }}
         />
       </div>
+
+      {/* Ambient Mode glow effect */}
+      {ambientColor && (
+        <div
+          className="w-full h-20 -mt-1 pointer-events-none transition-all duration-1000"
+          style={{
+            background: `linear-gradient(to bottom, rgba(${ambientColor}, 0.25) 0%, transparent 100%)`,
+          }}
+        />
+      )}
 
       {/* Scrollable Content */}
       <ScrollArea className="flex-1">
@@ -135,6 +154,7 @@ export function MobileWatchView({
           likeCount={video.like_count}
           createdAt={video.created_at}
           channelName={video.channels.name}
+          onSeekToChapter={handleSeekToChapter}
         />
 
         {/* Actions Bar */}

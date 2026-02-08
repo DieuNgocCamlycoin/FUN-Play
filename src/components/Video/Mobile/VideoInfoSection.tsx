@@ -10,6 +10,7 @@ interface VideoInfoSectionProps {
   likeCount: number;
   createdAt: string;
   channelName: string;
+  onSeekToChapter?: (seconds: number) => void;
 }
 
 export function VideoInfoSection({
@@ -19,10 +20,9 @@ export function VideoInfoSection({
   likeCount,
   createdAt,
   channelName,
+  onSeekToChapter,
 }: VideoInfoSectionProps) {
   const [showDescriptionDrawer, setShowDescriptionDrawer] = useState(false);
-
-  // formatViewsShort and formatTimestamp imported from @/lib/formatters
 
   return (
     <>
@@ -54,6 +54,7 @@ export function VideoInfoSection({
         likeCount={likeCount}
         createdAt={createdAt}
         channelName={channelName}
+        onSeekToChapter={onSeekToChapter}
       />
     </>
   );
