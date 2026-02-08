@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { MainLayout } from "@/components/Layout/MainLayout";
 import { VideoCard } from "@/components/Video/VideoCard";
@@ -7,30 +7,30 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Search as SearchIcon } from "lucide-react";
 
-interface SearchResult {
+interface SearchVideo {
   id: string;
   title: string;
   thumbnail_url: string | null;
-  view_count: number;
+  view_count: number | null;
   created_at: string;
   user_id: string;
-  profiles?: {
-    display_name: string | null;
-    username: string;
-    avatar_url: string | null;
-  };
-  channels?: {
+  channels: {
     id: string;
     name: string;
-  };
+  } | null;
+}
+
+interface ProfileInfo {
+  display_name: string | null;
+  username: string;
+  avatar_url: string | null;
 }
 
 const Search = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
   const query = searchParams.get("q") || "";
   const [localQuery, setLocalQuery] = useState(query);
-  const [results, setResults] = useState<SearchResult[]>([]);
+  const [results, setResults] = useState<(SearchVideo & { profile?: ProfileInfo })[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -45,20 +45,41 @@ const Search = () => {
   const performSearch = async (q: string) => {
     setLoading(true);
     try {
-      const { data, error } = await (supabase
+      // Step 1: Query videos (same pattern as Index.tsx)
+      const { data, error } = await supabase
         .from("videos")
-        .select(`
-          id, title, thumbnail_url, view_count, created_at, user_id,
-          profiles!videos_user_id_fkey(display_name, username, avatar_url),
-          channels(id, name)
-        `) as any)
+        .select("id, title, thumbnail_url, view_count, created_at, user_id, channels(id, name)")
+        .eq("is_public", true)
+        .eq("approval_status", "approved")
         .or(`title.ilike.%${q}%,description.ilike.%${q}%`)
-        .eq("status", "published")
         .order("created_at", { ascending: false })
         .limit(50);
 
       if (error) throw error;
-      setResults((data as any[]) || []);
+
+      if (!data || data.length === 0) {
+        setResults([]);
+        return;
+      }
+
+      // Step 2: Fetch profiles separately (same pattern as Index.tsx)
+      const userIds = [...new Set(data.map(v => v.user_id))];
+      const { data: profilesData } = await supabase
+        .from("profiles")
+        .select("id, display_name, username, avatar_url")
+        .in("id", userIds);
+
+      const profilesMap = new Map(
+        profilesData?.map(p => [p.id, { display_name: p.display_name, username: p.username, avatar_url: p.avatar_url }]) || []
+      );
+
+      // Step 3: Merge results
+      const merged = data.map(video => ({
+        ...video,
+        profile: profilesMap.get(video.user_id),
+      }));
+
+      setResults(merged);
     } catch (err) {
       console.error("Search error:", err);
       setResults([]);
@@ -74,7 +95,8 @@ const Search = () => {
     }
   };
 
-  const formatViews = (count: number) => {
+  const formatViews = (count: number | null) => {
+    if (!count) return "0 lượt xem";
     if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M lượt xem`;
     if (count >= 1000) return `${(count / 1000).toFixed(1)}K lượt xem`;
     return `${count} lượt xem`;
@@ -138,12 +160,12 @@ const Search = () => {
                 videoId={video.id}
                 thumbnail={video.thumbnail_url || undefined}
                 title={video.title}
-                channel={video.profiles?.display_name || video.profiles?.username || "Unknown"}
-                views={formatViews(video.view_count || 0)}
+                channel={video.profile?.display_name || video.profile?.username || "Unknown"}
+                views={formatViews(video.view_count)}
                 timestamp={timeAgo(video.created_at)}
                 userId={video.user_id}
                 channelId={video.channels?.id}
-                avatarUrl={video.profiles?.avatar_url || undefined}
+                avatarUrl={video.profile?.avatar_url || undefined}
               />
             ))}
           </div>
