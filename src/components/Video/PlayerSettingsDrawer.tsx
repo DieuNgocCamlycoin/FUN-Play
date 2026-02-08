@@ -2,7 +2,8 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { Repeat, Repeat1 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Repeat, Repeat1, Sun } from "lucide-react";
 
 interface PlayerSettingsDrawerProps {
   open: boolean;
@@ -11,6 +12,8 @@ interface PlayerSettingsDrawerProps {
   onSpeedChange: (speed: number) => void;
   loopMode: "off" | "all" | "one";
   onLoopChange: (mode: "off" | "all" | "one") => void;
+  ambientEnabled?: boolean;
+  onAmbientToggle?: (enabled: boolean) => void;
 }
 
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
@@ -22,6 +25,8 @@ export function PlayerSettingsDrawer({
   onSpeedChange,
   loopMode,
   onLoopChange,
+  ambientEnabled,
+  onAmbientToggle,
 }: PlayerSettingsDrawerProps) {
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
@@ -91,6 +96,23 @@ export function PlayerSettingsDrawer({
               </div>
             </RadioGroup>
           </div>
+
+          {/* Ambient Mode */}
+          {onAmbientToggle !== undefined && (
+            <div className="space-y-3">
+              <Label className="text-base font-medium">Chế độ ánh sáng</Label>
+              <div className="flex items-center justify-between p-3 rounded-lg hover:bg-muted transition-colors">
+                <Label className="cursor-pointer flex items-center gap-2">
+                  <Sun className="h-4 w-4" />
+                  Ambient Mode
+                </Label>
+                <Switch
+                  checked={ambientEnabled}
+                  onCheckedChange={onAmbientToggle}
+                />
+              </div>
+            </div>
+          )}
         </div>
       </DrawerContent>
     </Drawer>

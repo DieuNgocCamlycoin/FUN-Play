@@ -3,6 +3,7 @@ import { formatViewsShort } from "@/lib/formatters";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { motion, AnimatePresence } from "framer-motion";
+import { parseChapters } from "@/lib/parseChapters";
 
 interface DescriptionDrawerProps {
   isOpen: boolean;
@@ -13,6 +14,7 @@ interface DescriptionDrawerProps {
   likeCount: number;
   createdAt: string;
   channelName: string;
+  onSeekToChapter?: (seconds: number) => void;
 }
 
 export function DescriptionDrawer({
@@ -24,6 +26,7 @@ export function DescriptionDrawer({
   likeCount,
   createdAt,
   channelName,
+  onSeekToChapter,
 }: DescriptionDrawerProps) {
 
   const formatDate = (dateString: string) => {
@@ -42,6 +45,15 @@ export function DescriptionDrawer({
   };
 
   const hashtags = extractHashtags(description);
+  const chapters = parseChapters(description);
+
+  const formatChapterTime = (seconds: number) => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
 
   return (
     <AnimatePresence>
@@ -119,6 +131,27 @@ export function DescriptionDrawer({
                     <p className="text-xs text-muted-foreground mt-0.5">Ngày đăng</p>
                   </div>
                 </div>
+
+                {/* Chapter Pills */}
+                {chapters.length > 0 && (
+                  <div className="-mx-4 px-4 overflow-x-auto scrollbar-hide">
+                    <div className="flex gap-2 py-1">
+                      {chapters.map((chapter, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => {
+                            onSeekToChapter?.(chapter.time);
+                            onClose();
+                          }}
+                          className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-muted hover:bg-muted/80 rounded-full text-sm transition-colors active:scale-95"
+                        >
+                          <span className="text-primary font-medium">{formatChapterTime(chapter.time)}</span>
+                          <span className="text-foreground whitespace-nowrap">{chapter.title}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Channel */}
                 <p className="text-sm text-muted-foreground">
