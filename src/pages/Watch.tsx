@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Header } from "@/components/Layout/Header";
-import { Sidebar } from "@/components/Layout/Sidebar";
+import { CollapsibleSidebar } from "@/components/Layout/CollapsibleSidebar";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -55,7 +55,8 @@ interface RecommendedVideo {
 
 export default function Watch() {
   const { id } = useParams();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
+  const [channelAvatarUrl, setChannelAvatarUrl] = useState<string | null>(null);
   const [video, setVideo] = useState<Video | null>(null);
   const [recommendedVideos, setRecommendedVideos] = useState<RecommendedVideo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -203,6 +204,18 @@ export default function Watch() {
 
       if (error) throw error;
       setVideo(data);
+
+      // Fetch channel owner's avatar
+      if (data?.user_id) {
+        const { data: profileData } = await supabase
+          .from("profiles")
+          .select("avatar_url")
+          .eq("id", data.user_id)
+          .maybeSingle();
+        if (profileData?.avatar_url) {
+          setChannelAvatarUrl(profileData.avatar_url);
+        }
+      }
 
       // Increment view count
       await supabase
@@ -543,10 +556,13 @@ export default function Watch() {
           video={video}
           isSubscribed={isSubscribed}
           hasLiked={hasLiked}
+          hasDisliked={hasDisliked}
           onSubscribe={handleSubscribe}
           onLike={handleLike}
+          onDislike={handleDislike}
           onShare={() => setShareModalOpen(true)}
           onVideoEnd={handleVideoEnd}
+          channelAvatarUrl={channelAvatarUrl}
         />
         <ShareModal
           isOpen={shareModalOpen}
@@ -588,10 +604,12 @@ export default function Watch() {
       />
 
       <div className="min-h-screen bg-background">
-        <Header onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
-        <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+        <div className="hidden lg:block">
+          <Header onMenuClick={() => setIsSidebarExpanded(prev => !prev)} />
+          <CollapsibleSidebar isExpanded={isSidebarExpanded} />
+        </div>
 
-      <main className="pt-14 lg:pl-64">
+      <main className={`pt-14 transition-all duration-300 ${isSidebarExpanded ? "lg:pl-60" : "lg:pl-16"}`}>
         <div className="max-w-[1920px] mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6 p-6">
             {/* Main Content */}

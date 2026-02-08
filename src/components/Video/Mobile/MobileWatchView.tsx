@@ -33,20 +33,26 @@ interface MobileWatchViewProps {
   video: Video;
   isSubscribed: boolean;
   hasLiked: boolean;
+  hasDisliked?: boolean;
   onSubscribe: () => void;
   onLike: () => void;
+  onDislike?: () => void;
   onShare: () => void;
   onVideoEnd: () => void;
+  channelAvatarUrl?: string | null;
 }
 
 export function MobileWatchView({
   video,
   isSubscribed,
   hasLiked,
+  hasDisliked = false,
   onSubscribe,
   onLike,
+  onDislike,
   onShare,
   onVideoEnd,
+  channelAvatarUrl,
 }: MobileWatchViewProps) {
   const navigate = useNavigate();
   const { session, nextVideo, previousVideo, getUpNext } = useVideoPlayback();
@@ -135,12 +141,15 @@ export function MobileWatchView({
         <VideoActionsBar
           channelId={video.channels.id}
           channelName={video.channels.name}
+          channelAvatar={channelAvatarUrl}
           subscriberCount={video.channels.subscriber_count}
           isSubscribed={isSubscribed}
           onSubscribe={onSubscribe}
           likeCount={video.like_count}
           hasLiked={hasLiked}
+          hasDisliked={hasDisliked}
           onLike={onLike}
+          onDislike={onDislike}
           onShare={onShare}
           videoUrl={video.video_url}
           videoTitle={video.title}

@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import { ShareModal } from '@/components/Video/ShareModal';
 import { ShortsCommentSheet } from '@/components/Video/ShortsCommentSheet';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -232,6 +233,7 @@ const ShortsVideoItem = ({
 
 export default function Shorts() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [likedVideos, setLikedVideos] = useState<Set<string>>(new Set());
   const [shareVideoId, setShareVideoId] = useState<string | null>(null);
@@ -357,6 +359,16 @@ export default function Shorts() {
 
   return (
     <div className="fixed inset-0 bg-black">
+      {/* Back/Home button */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="absolute top-4 left-4 z-30 w-10 h-10 rounded-full bg-black/40 hover:bg-black/60 text-white backdrop-blur-sm"
+        onClick={() => navigate(-1)}
+      >
+        <ArrowLeft className="w-5 h-5" />
+      </Button>
+
       {/* Navigation arrows - Desktop only */}
       <div className="hidden md:flex absolute left-4 top-1/2 -translate-y-1/2 z-20 flex-col gap-4">
         <Button
