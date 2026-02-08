@@ -1,34 +1,21 @@
 
-# Cập nhật màu chữ Filter Chips Bar đồng bộ với nút WALLET (Desktop & Mobile)
+# Sửa lỗi các nút Filter Chips không hiển thị màu trắng
 
-## Tình trạng hiện tại
+## Nguyên nhân
 
-Component `CategoryChips` hiện tại sử dụng màu chữ xanh sky cơ bản:
-- **Chip được chọn**: `text-sky-700` (#0369A1) trên nền trắng
-- **Chip mặc định**: `text-sky-600` (#0284C7) trên nền trắng mờ
+Các nút chưa được chọn sử dụng `variant="secondary"` của component `Button`. Variant này có sẵn gradient nền tím-hồng mạnh:
 
-Component này được sử dụng chung cho cả Desktop và Mobile tại `src/pages/Index.tsx` (dòng 341), nên mọi thay đổi sẽ **tự động áp dụng cho cả hai giao diện**.
+```
+bg-gradient-to-r from-cosmic-magenta to-divine-rose-gold
+```
 
-## Màu nút WALLET (tham chiếu)
+Class tùy chỉnh `bg-white/90` không thể ghi đè được gradient này vì Tailwind xử lý `background-image` (gradient) ưu tiên hơn `background-color` (white). Đây là lý do các nút hiển thị tím-hồng thay vì trắng.
 
-Nút WALLET trên Header sử dụng:
-- **Gradient nền**: `#5EEAD4` (Teal nhạt) -> `#22D3EE` (Cyan) -> `#06B6D4` (Cyan đậm) -> `#0EA5E9` (Sky) -> `#0284C7` (Blue)
-- **Chữ**: Trắng đậm (`text-white font-bold`)
+Tương tự, chip được chọn dùng `variant="default"` cũng có gradient riêng có thể xung đột.
 
-## Thiết kế mới
+## Giải pháp
 
-### Chip được chọn (Selected)
-- **Nền**: Gradient Teal-Cyan-Blue giống hệt nút WALLET: `bg-[linear-gradient(90deg,#5EEAD4_0%,#22D3EE_35%,#06B6D4_50%,#0EA5E9_75%,#0284C7_100%)]`
-- **Chữ**: Trắng đậm (`text-white font-semibold`) -- giống nút WALLET
-- **Viền**: Trong suốt (`border-transparent`)
-- **Không glow** (`!shadow-none`)
-
-### Chip mặc định (Default)
-- **Nền**: Nền trắng trong suốt (`bg-white/90`)
-- **Chữ**: Cyan đậm (`text-[#0284C7]`) -- lấy từ điểm cuối gradient WALLET
-- **Viền**: Cyan nhẹ (`border-[#22D3EE]/30`)
-- **Hover**: Chữ đậm hơn (`hover:text-[#0369A1]`) + viền rõ hơn (`hover:border-[#22D3EE]/50`)
-- **Không glow** (`!shadow-none`)
+Đổi cả hai trạng thái sang `variant="ghost"` -- variant này không có màu nền mặc định, cho phép các class tùy chỉnh hoạt động đúng.
 
 ## File cần chỉnh sửa
 
@@ -36,27 +23,31 @@ Nút WALLET trên Header sử dụng:
 
 ### Thay đổi chi tiết
 
-1. **Chip được chọn (dòng 34):**
-   - Hiện tại: `bg-white text-sky-700 !shadow-none border border-sky-200 hover:bg-white hover:!shadow-none`
-   - Thay thành: `bg-[linear-gradient(90deg,#5EEAD4_0%,#22D3EE_35%,#06B6D4_50%,#0EA5E9_75%,#0284C7_100%)] text-white font-semibold border border-transparent !shadow-none hover:brightness-110 hover:!shadow-none`
+**Dòng 30:** Thay đổi variant cho cả hai trạng thái từ điều kiện `selected === category ? "default" : "secondary"` thành `"ghost"` cho tất cả.
 
-2. **Chip mặc định (dòng 35):**
-   - Hiện tại: `bg-white/80 text-sky-600 border border-gray-200 !shadow-none hover:bg-white hover:text-sky-700 hover:!shadow-none`
-   - Thay thành: `bg-white/90 text-[#0284C7] border border-[#22D3EE]/30 !shadow-none hover:bg-white hover:text-[#0369A1] hover:border-[#22D3EE]/50 hover:!shadow-none`
+```tsx
+// Hiện tại (dòng 30):
+variant={selected === category ? "default" : "secondary"}
+
+// Thay thành:
+variant="ghost"
+```
+
+Việc này loại bỏ hoàn toàn các gradient nền và shadow từ variant gốc, để các class tùy chỉnh (gradient Teal-Cyan-Blue cho chip được chọn, nền trắng cho chip mặc định) hoạt động đúng.
+
+Không cần thay đổi gì khác -- các class CSS tùy chỉnh ở dòng 34-35 đã đúng rồi.
 
 ## Tóm tắt
 
 | Hạng mục | Chi tiết |
 |----------|----------|
 | File cần sửa | 1 (`CategoryChips.tsx`) |
-| File mới | 0 |
-| Cơ sở dữ liệu | Không thay đổi |
-| Độ phức tạp | Rất thấp -- chỉ thay đổi CSS classes |
-| Đồng bộ Mobile | Tự động (component dùng chung cho cả Desktop và Mobile) |
+| Thay đổi | 1 dòng (dòng 30) |
+| Cơ sở dữ liệu | Không |
+| Đồng bộ Mobile | Tu dong (component dung chung) |
 
-## Kết quả sau cập nhật
+## Ket qua
 
-- Chip được chọn sẽ có gradient Teal-Cyan-Blue giống hệt nút WALLET, chữ trắng nổi bật
-- Chip mặc định có chữ xanh Cyan và viền Cyan nhẹ, hài hòa với tông màu WALLET
-- Giao diện đồng nhất 100% trên cả Desktop và Mobile (không cần sửa riêng cho mobile)
-- Không có hiệu ứng glow (giữ nguyên `!shadow-none`)
+- Chip duoc chon: Gradient Teal-Cyan-Blue (giong nut WALLET) voi chu trang
+- Chip mac dinh: Nen trang sach se voi chu xanh Cyan va vien Cyan nhe
+- Khong con hieu ung tim-hong tu variant cu
