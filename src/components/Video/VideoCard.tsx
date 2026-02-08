@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Play, Edit, Share2, ListPlus, MoreVertical, Clock, Flag, EyeOff, Bookmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -33,11 +33,15 @@ interface VideoCardProps {
   avatarUrl?: string;
   duration?: number | null;
   isVerified?: boolean;
+  videoUrl?: string;
   onPlay?: (videoId: string) => void;
   isLoading?: boolean;
 }
 
 import { formatDuration } from "@/lib/formatters";
+
+// Check if device supports hover (desktop)
+const supportsHover = typeof window !== "undefined" && window.matchMedia("(hover: hover)").matches;
 
 export const VideoCard = ({
   thumbnail,
@@ -51,6 +55,7 @@ export const VideoCard = ({
   avatarUrl,
   duration,
   isVerified,
+  videoUrl,
   onPlay,
   isLoading = false,
 }: VideoCardProps) => {
@@ -61,7 +66,38 @@ export const VideoCard = ({
   const { toggleWatchLater } = useWatchLater();
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [playlistModalOpen, setPlaylistModalOpen] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const videoPreviewRef = useRef<HTMLVideoElement | null>(null);
   const isOwner = user?.id === userId;
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    };
+  }, []);
+
+  const handleMouseEnter = useCallback(() => {
+    if (!supportsHover || !videoUrl) return;
+    hoverTimeoutRef.current = setTimeout(() => {
+      setShowPreview(true);
+    }, 500);
+  }, [videoUrl]);
+
+  const handleMouseLeave = useCallback(() => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    setShowPreview(false);
+    // Pause and unload video to free bandwidth
+    if (videoPreviewRef.current) {
+      videoPreviewRef.current.pause();
+      videoPreviewRef.current.removeAttribute("src");
+      videoPreviewRef.current.load();
+    }
+  }, []);
 
   // Loading skeleton
   if (isLoading) {
@@ -132,30 +168,51 @@ export const VideoCard = ({
   return (
     <Card className="group overflow-hidden bg-white/95 dark:bg-white/90 backdrop-blur-sm border-2 border-white/30 hover:border-white/50 transition-all duration-500 cursor-pointer relative shadow-lg">
       {/* Thumbnail */}
-      <div className="relative aspect-video overflow-hidden rounded-t-lg" onClick={handlePlay}>
+      <div
+        className="relative aspect-video overflow-hidden rounded-t-lg"
+        onClick={handlePlay}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
         {thumbnail ? (
           <LazyImage
             src={thumbnail}
             alt={title || 'Video thumbnail'}
             aspectRatio="video"
-            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+            className={`w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ${showPreview ? 'opacity-0' : 'opacity-100'}`}
           />
         ) : (
-          <VideoPlaceholder className="group-hover:scale-110 transition-transform duration-700" />
+          <VideoPlaceholder className={`group-hover:scale-110 transition-transform duration-700 ${showPreview ? 'opacity-0' : 'opacity-100'}`} />
+        )}
+
+        {/* Video hover preview - desktop only */}
+        {showPreview && videoUrl && (
+          <video
+            ref={videoPreviewRef}
+            src={videoUrl}
+            muted
+            autoPlay
+            playsInline
+            preload="auto"
+            className="absolute inset-0 w-full h-full object-cover animate-in fade-in duration-300"
+            onError={() => setShowPreview(false)}
+          />
         )}
         
-        {/* Play button overlay */}
-        <div className="absolute inset-0 flex items-center justify-center bg-background/40 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-          <Button
-            size="icon"
-            className="h-16 w-16 rounded-full bg-gradient-to-br from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta divine-glow border-2 border-glow-cyan shadow-[0_0_60px_rgba(0,255,255,1)]"
-          >
-            <Play className="h-8 w-8 fill-current text-foreground" />
-          </Button>
-        </div>
+        {/* Play button overlay - hide when preview is playing */}
+        {!showPreview && (
+          <div className="absolute inset-0 flex items-center justify-center bg-background/40 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+            <Button
+              size="icon"
+              className="h-16 w-16 rounded-full bg-gradient-to-br from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta divine-glow border-2 border-glow-cyan shadow-[0_0_60px_rgba(0,255,255,1)]"
+            >
+              <Play className="h-8 w-8 fill-current text-foreground" />
+            </Button>
+          </div>
+        )}
 
-        {/* Duration badge - YouTube style */}
-        {durationStr && (
+        {/* Duration badge - YouTube style - hide when preview playing */}
+        {durationStr && !showPreview && (
           <span className="absolute bottom-1.5 right-1.5 bg-black/80 text-white text-xs font-medium px-1.5 py-0.5 rounded">
             {durationStr}
           </span>

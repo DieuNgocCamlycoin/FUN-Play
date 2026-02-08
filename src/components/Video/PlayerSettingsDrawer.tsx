@@ -104,7 +104,7 @@ export function PlayerSettingsDrawer({
               <div className="flex items-center justify-between p-3 rounded-lg hover:bg-muted transition-colors">
                 <Label className="cursor-pointer flex items-center gap-2">
                   <Sun className="h-4 w-4" />
-                  Ambient Mode
+                  Chế độ ánh sáng
                 </Label>
                 <Switch
                   checked={ambientEnabled}
