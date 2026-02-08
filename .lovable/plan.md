@@ -1,7 +1,7 @@
 
-# FUN Play vs YouTube 2025: Round 18 Gap Analysis
+# FUN Play vs YouTube 2025: Round 19 Gap Analysis
 
-## Verified Fixes from Rounds 1-17 (All Working)
+## Verified Fixes from Rounds 1-18 (All Working)
 
 | Feature | Round | Status |
 |---------|-------|--------|
@@ -46,44 +46,56 @@
 | Admin formatFileSize "N/A" fix | R17 | Done |
 | Desktop video thumbnail hover preview | R17 | Done |
 | Mobile scroll-to-top button | R17 | Done |
+| Mobile search autocomplete suggestions | R18 | Done |
+| Subscriptions hover preview | R18 | Done |
+| Shorts duration filter (3 min) | R18 | Done |
+| Desktop search hover preview | R18 | Done |
 
 ---
 
-## REMAINING GAPS FOUND IN ROUND 18
+## REMAINING GAPS FOUND IN ROUND 19
 
-### HIGH PRIORITY (Feature Parity)
+### HIGH PRIORITY (Feature Consistency)
 
-#### Gap 1: Mobile Search Missing Autocomplete Suggestions
+#### Gap 1: LikedVideos Page Missing Hover Preview (videoUrl prop)
 
-The desktop `Header.tsx` (lines 88-107, 178-192) implements live search suggestions -- as the user types, it fetches matching video titles from the database and displays them as clickable dropdown items below the search bar. This matches YouTube's desktop experience.
+`LikedVideos.tsx` (line 224-236) renders `VideoCard` components and fetches `video_url` in its query (line 64), but does NOT pass `videoUrl` to `VideoCard`. This means the hover preview feature added in Round 17 does not work on the Liked Videos page.
 
-However, the mobile `MobileHeader.tsx` (lines 106-113, 364-382) has NO autocomplete suggestions at all. The mobile search is a plain input that only navigates to `/search?q=...` on submit. YouTube's mobile app shows search suggestions as you type, identically to the desktop experience.
+YouTube shows hover previews consistently on all pages that display video cards.
 
-**Fix:** Add autocomplete suggestions to `MobileHeader.tsx` with the same debounced search logic used in `Header.tsx`. Display suggestions as a dropdown list below the search input in the mobile search mode overlay.
+**Fix:** Pass `videoUrl={video.video_url}` to `VideoCard` in `LikedVideos.tsx`.
 
-#### Gap 2: Subscriptions Page Videos Missing Hover Preview
+#### Gap 2: Mobile Search VideoCard Missing Hover Preview (videoUrl prop)
 
-The `Subscriptions.tsx` page (line 196-209) renders `VideoCard` components but does NOT pass the `videoUrl` prop. Since Round 17 added hover preview support to `VideoCard` (muted auto-play on 500ms hover), Subscriptions videos cannot use this feature.
+`Search.tsx` (lines 393-409) renders `VideoCard` on mobile with `videoUrl` missing from props. The video data has `video_url` available from the query (line 130) but it is not passed to the mobile VideoCard instances.
 
-The Subscriptions query (lines 79-84) fetches videos but only selects `id, title, thumbnail_url, view_count, created_at, duration, channel_id` -- missing `video_url`.
+**Fix:** Pass `videoUrl={video.video_url || undefined}` to the mobile `VideoCard` in `Search.tsx`.
 
-**Fix:** Add `video_url` to the video select query and pass it to `VideoCard` as the `videoUrl` prop.
+#### Gap 3: ProfileVideosTab Missing Channel Name + videoUrl
 
-#### Gap 3: Shorts Page Duration Filter Too Restrictive
+`ProfileVideosTab.tsx` (lines 96-106) renders `VideoCard` with minimal props -- it passes only `videoId`, `title`, `thumbnail`, `views`, and `timestamp`. Missing props: `channel`, `channelId`, `userId`, `duration`, `videoUrl`. This means:
+- No channel name displayed under videos on Channel/Profile pages
+- No hover preview on profile video cards
+- No duration badge
+- No kebab menu functionality (missing userId for ownership check)
 
-The Shorts page (`Shorts.tsx` line 379) uses `.or('duration.lt.60,category.eq.shorts')` which only catches videos under 60 seconds OR explicitly categorized as shorts. However, the upload system (`UploadWizard.tsx` line 106, `MobileUploadFlow.tsx` line 149) defines shorts as vertical/square videos with `duration <= 180` seconds (3 minutes).
+YouTube's channel page shows full video cards with channel info, duration, and previews.
 
-YouTube treats Shorts as videos up to 3 minutes. While properly uploaded shorts get the `category=shorts` tag and appear correctly, older or migrated videos between 60-180s that are vertical but not tagged as shorts will NOT appear in the Shorts feed.
+**Fix:** Update the query to include `video_url, channel_id, user_id` and the related `channels(name, id)`. Pass the full set of props to `VideoCard`.
 
-**Fix:** Update the Shorts query from `duration.lt.60` to `duration.lte.180` to align with the upload definition and YouTube's standard.
+#### Gap 4: ProfileVideosTab Shorts Duration Filter Inconsistent
 
-### MEDIUM PRIORITY (UX Refinement)
+`ProfileVideosTab.tsx` (line 48) uses `query.lt("duration", 60)` for shorts, meaning only videos under 60 seconds. However, the Shorts page (Round 18 fix) now uses `duration.lte.180` and upload system defines shorts as videos up to 180 seconds.
 
-#### Gap 4: Search Results Desktop List Missing Hover Preview
+**Fix:** Change line 48 from `.lt("duration", 60)` to `.lte("duration", 180)` and line 50 from `.or("duration.gte.60,duration.is.null")` to `.or("duration.gt.180,duration.is.null")` to be consistent.
 
-The `Search.tsx` desktop layout (lines 308-348) uses a custom list view with raw `<img>` thumbnails, not `VideoCard`. This means hover previews don't work in desktop search results. YouTube's search results do show hover previews.
+### MEDIUM PRIORITY (UX Polish)
 
-**Fix:** Add hover preview logic (same as VideoCard) to the search results desktop thumbnails. This requires fetching `video_url` in the search query and adding hover state management.
+#### Gap 5: MobileHeader Search Suggestions Already Existed Before Round 18
+
+Looking at the current code, `MobileHeader.tsx` already had search suggestions state and logic (lines 39-44, 106-131 in the provided file). Round 18 may have duplicated this logic. The code should be verified for duplicate state/effects, but based on the current file view, the suggestions feature is functional with proper debouncing. No code change needed -- just verification.
+
+**Status:** No change needed if working correctly.
 
 ---
 
@@ -98,54 +110,48 @@ The `Search.tsx` desktop layout (lines 308-348) uses a custom list view with raw
 - **React internal keys**: labelEn values
 - **File size units**: Bytes, KB, MB, GB, TB
 - **Tooltip branded terms**: "Mint FUN Money - PPLP Protocol", "ANGEL AI"
+- **Console log messages**: Developer-facing debug output
 
 ---
 
 ## IMPLEMENTATION PLAN
 
-### Phase 1: Mobile Search Autocomplete Suggestions (1 file)
+### Phase 1: LikedVideos Hover Preview Fix (1 file, 1 change)
 
-**File:** `src/components/Layout/MobileHeader.tsx`
+**File:** `src/pages/LikedVideos.tsx`
 
-Add live search suggestions identical to the desktop Header:
-- Add `suggestions` state (`Array<{ id: string; title: string }>`)
-- Add `showSuggestions` state (boolean)
-- Add a `useEffect` with 300ms debounce that queries `videos` table on `searchQuery` changes (min 2 chars), matching on title with `.ilike`, limited to 5 results
-- When `isSearchOpen` is true and `suggestions.length > 0`, render a dropdown list below the search input
-- Each suggestion item displays a Search icon and the video title
-- Clicking a suggestion navigates to `/watch/{videoId}` and closes search
-- Clear suggestions when search is closed or query is empty
-- Style the suggestions dropdown with `bg-card border border-border rounded-lg shadow-lg` positioned absolutely below the search form
+- Line 224-236: Add `videoUrl={video.video_url}` to the `VideoCard` component props. The data already includes `video_url` from the query.
 
-### Phase 2: Subscriptions Hover Preview (1 file)
-
-**File:** `src/pages/Subscriptions.tsx`
-
-- Line 82: Add `video_url` to the video select query:
-  Change from `'id, title, thumbnail_url, view_count, created_at, duration, channel_id'`
-  to `'id, title, thumbnail_url, video_url, view_count, created_at, duration, channel_id'`
-- Line 196-209: Pass `videoUrl={video.video_url}` to the `VideoCard` component
-- Update the `latestVideos` type to include `video_url: string`
-
-### Phase 3: Shorts Duration Filter Fix (1 file)
-
-**File:** `src/pages/Shorts.tsx`
-
-- Line 379: Change `.or('duration.lt.60,category.eq.shorts')` to `.or('duration.lte.180,category.eq.shorts')`
-  This aligns the Shorts feed with the upload definition (vertical/square videos up to 3 minutes)
-
-### Phase 4: Search Desktop Hover Preview (1 file)
+### Phase 2: Search Mobile VideoCard Hover Preview (1 file, 1 change)
 
 **File:** `src/pages/Search.tsx`
 
-- Add `video_url` to the video search query (line 105): add `video_url` to the select list
-- Add hover preview state and logic to the desktop search results (lines 308-348):
-  - Add `previewVideoId` state to track which result is being hovered
-  - Add `hoverTimeoutRef` for the 500ms delay
-  - Add `onMouseEnter`/`onMouseLeave` handlers to thumbnail divs
-  - Render a `<video>` element over the thumbnail when preview is active
-  - Skip on touch devices using `matchMedia('(hover: hover)')`
-- Update the `SearchVideo` interface (line 20-29) to include `video_url: string`
+- Lines 393-409: Add `videoUrl={video.video_url || undefined}` to the mobile `VideoCard` component. The query already fetches `video_url` (line 130).
+
+### Phase 3: ProfileVideosTab Full Props + Duration Fix (1 file)
+
+**File:** `src/components/Profile/ProfileVideosTab.tsx`
+
+1. Update the video data interface to include additional fields:
+   - Add `video_url`, `user_id`, and `channel_id` to the `VideoData` interface
+
+2. Update the query (line 35) to include additional fields:
+   - Change from `"id, title, thumbnail_url, view_count, created_at, duration"` to `"id, title, thumbnail_url, video_url, view_count, created_at, duration, user_id, channel_id, channels(name, id)"`
+
+3. Update the Shorts filter (line 48):
+   - Change `.lt("duration", 60)` to `.lte("duration", 180)`
+
+4. Update the regular video filter (line 50):
+   - Change `.or("duration.gte.60,duration.is.null")` to `.or("duration.gt.180,duration.is.null")`
+
+5. Update the VideoCard rendering (lines 98-106) to pass full props:
+   - Add `videoUrl={video.video_url || undefined}`
+   - Add `channel={video.channels?.name || undefined}`
+   - Add `channelId={video.channels?.id || video.channel_id}`
+   - Add `userId={video.user_id}`
+   - Add `duration={video.duration}`
+   - Update `views` to use `formatViews` from `@/lib/formatters` instead of raw `toLocaleString()`
+   - Update `timestamp` to use `formatTimestamp` from `@/lib/formatters`
 
 ---
 
@@ -153,20 +159,19 @@ Add live search suggestions identical to the desktop Header:
 
 | Phase | Files Modified | New Files | Complexity |
 |-------|---------------|-----------|------------|
-| 1 | 1 (MobileHeader.tsx) | 0 | Medium -- debounced search + dropdown UI |
-| 2 | 1 (Subscriptions.tsx) | 0 | Low -- add field to query + pass prop |
-| 3 | 1 (Shorts.tsx) | 0 | Low -- 1 filter value change |
-| 4 | 1 (Search.tsx) | 0 | Medium -- hover preview + query update |
+| 1 | 1 (LikedVideos.tsx) | 0 | Low -- add 1 prop |
+| 2 | 1 (Search.tsx) | 0 | Low -- add 1 prop |
+| 3 | 1 (ProfileVideosTab.tsx) | 0 | Medium -- query update + prop additions + filter fix |
 
-**Total: 4 files modified, 0 new files, 0 database changes**
+**Total: 3 files modified, 0 new files, 0 database changes**
 
-### Feature Parity Progress After Round 18
+### Feature Parity Progress After Round 19
 
-**Newly added YouTube 2025 features:**
-- Mobile search autocomplete suggestions (parity with desktop)
-- Hover preview on Subscriptions page
-- Correct Shorts duration filter (up to 3 minutes)
-- Hover preview on desktop search results
+**Newly added YouTube 2025 consistency:**
+- Hover preview on Liked Videos page
+- Hover preview on mobile Search results
+- Full VideoCard props on Channel/Profile pages (channel name, duration, hover preview)
+- Consistent Shorts duration filter (180s) across Profile tabs
 
 **Remaining YouTube features for future rounds:**
 - Clip creation (share video segments) -- requires backend
@@ -175,12 +180,9 @@ Add live search suggestions identical to the desktop Header:
 
 ### Localization Status
 
-User-facing English strings are now exclusively:
-- Branded feature names (YouTube standard)
-- Music genre names (international standard)
-- Technical/developer documentation
-- Database values and internal code identifiers
+No new English strings found. All user-facing text remains fully localized to Vietnamese. Remaining English consists only of:
+- Branded/international terms (YouTube standard)
+- Technical documentation (developer-facing)
+- Database values and code identifiers
 - UI library defaults (shadcn/ui)
 - File size units (international standard)
-
-This matches YouTube's own localization approach for non-English markets.
