@@ -80,7 +80,7 @@ export function MintRequestList({
         </div>
 
         {/* Filters */}
-        <div className="flex gap-2 mt-3 flex-wrap">
+        <div className="flex gap-2 mt-3 overflow-x-auto scrollbar-hide flex-nowrap pb-1">
           {FILTERS.map(({ value, label, icon: Icon }) => (
             <Button
               key={value}

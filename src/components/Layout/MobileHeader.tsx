@@ -1,4 +1,4 @@
-import { Search, Bell, Menu, X, Plus, Upload, Music, FileText, Download, Shield, Crown, Settings, LogOut, MessageCircle } from "lucide-react";
+import { Search, Bell, Menu, X, Plus, Upload, Music, FileText, Shield, Crown, Settings, LogOut, MessageCircle } from "lucide-react";
 import funplayLogo from "@/assets/funplay-logo.jpg";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -220,26 +220,6 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
               </TooltipTrigger>
               <TooltipContent side="bottom" className="text-xs">
                 ANGEL AI ✨
-              </TooltipContent>
-            </Tooltip>
-
-            {/* Download App - with pulse animation */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => navigate("/install")}
-                  className="h-7 w-7 relative text-green-500 hover:text-green-400 hover:bg-green-500/10 group"
-                >
-                  <Download className="h-3.5 w-3.5 relative z-10" />
-                  {/* Pulse ring animation */}
-                  <span className="absolute inset-0 rounded-md bg-green-500/20 animate-ping" />
-                  <span className="absolute inset-0.5 rounded-md bg-green-500/10 animate-pulse" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="text-xs">
-                Tải App FUN Play
               </TooltipContent>
             </Tooltip>
 

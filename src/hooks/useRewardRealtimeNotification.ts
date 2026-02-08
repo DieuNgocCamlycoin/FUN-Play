@@ -4,13 +4,15 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import confetti from "canvas-confetti";
 import { showLocalNotification, requestNotificationPermission } from "@/lib/pushNotifications";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 
 export const useRewardRealtimeNotification = () => {
   const { user } = useAuth();
   const hasRequestedPermission = useRef(false);
+  const channelRef = useRef<RealtimeChannel | null>(null);
+  const subscribedUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    // Request notification permission on mount
     if (!hasRequestedPermission.current) {
       hasRequestedPermission.current = true;
       requestNotificationPermission();
@@ -18,27 +20,39 @@ export const useRewardRealtimeNotification = () => {
   }, []);
 
   useEffect(() => {
-    if (!user?.id) return;
+    const userId = user?.id;
+
+    // If already subscribed for this user, skip
+    if (userId && subscribedUserIdRef.current === userId && channelRef.current) {
+      return;
+    }
+
+    // Cleanup previous channel if user changed
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+      subscribedUserIdRef.current = null;
+    }
+
+    if (!userId) return;
 
     const channel = supabase
-      .channel('reward-approval-notification')
+      .channel(`reward-approval-${userId}`)
       .on(
         'postgres_changes',
         {
           event: 'UPDATE',
           schema: 'public',
           table: 'reward_transactions',
-          filter: `user_id=eq.${user.id}`
+          filter: `user_id=eq.${userId}`
         },
         (payload) => {
           const oldData = payload.old as { approved?: boolean };
           const newData = payload.new as { approved?: boolean; amount?: number; reward_type?: string };
 
-          // Check if approved changed from false to true
           if (newData.approved === true && oldData.approved === false) {
             const amount = newData.amount || 0;
             
-            // Trigger confetti
             confetti({
               particleCount: 100,
               spread: 70,
@@ -46,14 +60,12 @@ export const useRewardRealtimeNotification = () => {
               colors: ['#FFD700', '#FFA500', '#FF6347', '#00CED1', '#9370DB']
             });
 
-            // Show toast notification
             toast({
               title: "🎉 Reward đã được duyệt!",
               description: `+${amount.toLocaleString('vi-VN')} CAMLY có thể claim ngay! Vào trang Wallet để nhận thưởng.`,
               duration: 8000,
             });
 
-            // Show browser notification
             showLocalNotification(
               "🎉 Reward đã được duyệt!",
               {
@@ -63,20 +75,23 @@ export const useRewardRealtimeNotification = () => {
               }
             );
 
-            // Dispatch event để UI cập nhật ngay lập tức
             window.dispatchEvent(new CustomEvent("camly-reward", { 
-              detail: { 
-                approved: true, 
-                amount 
-              } 
+              detail: { approved: true, amount } 
             }));
           }
         }
       )
       .subscribe();
 
+    channelRef.current = channel;
+    subscribedUserIdRef.current = userId;
+
     return () => {
-      supabase.removeChannel(channel);
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+        subscribedUserIdRef.current = null;
+      }
     };
   }, [user?.id]);
 };
