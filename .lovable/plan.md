@@ -1,31 +1,35 @@
 
-# Rút gọn placeholder ô tìm kiếm thành "Tìm kiếm"
+# Thay logo FUN Wallet va FUN.RICH trong menu
 
-## Tình trạng hiện tại
+## Muc tieu
 
-- **Desktop** (`src/components/Layout/Header.tsx`, dòng 166): placeholder là `"Tìm kiếm hoặc dán link YouTube..."` — quá dài, cần đổi.
-- **Mobile** (`src/components/Layout/MobileHeader.tsx`, dòng 416): placeholder là `"Tìm kiếm video..."` — cũng cần đổi cho đồng nhất.
+Thay the logo cua 2 muc trong menu dieu huong:
+1. **FUN Wallet** - Thay logo cu (`/images/fun-wallet-logo.png`) bang logo moi (hinh vi xanh voi chu "Fun")
+2. **FUN.RICH** (FUN. Phong Phu) - Thay logo cu (`/images/fun-rich-logo.png`) bang logo moi (hinh tron xanh la "FUN Profile WEB3")
 
-## Danh sách thay đổi
+## Danh sach thay doi
 
-### 1. `src/components/Layout/Header.tsx` (dòng 166)
-- **Hiện tại:** `placeholder="Tìm kiếm hoặc dán link YouTube..."`
-- **Sau:** `placeholder="Tìm kiếm"`
+### Buoc 1: Copy anh moi vao thu muc du an
+- Copy `user-uploads://3-2.png` thanh `public/images/fun-wallet-logo.png` (ghi de logo cu)
+- Copy `user-uploads://6.png` thanh `public/images/fun-rich-logo.png` (ghi de logo cu)
 
-### 2. `src/components/Layout/MobileHeader.tsx` (dòng 416)
-- **Hiện tại:** `placeholder="Tìm kiếm video..."`
-- **Sau:** `placeholder="Tìm kiếm"`
+### Buoc 2: Khong can sua code
+Vi ten file giu nguyen (ghi de truc tiep), tat ca 3 file dang tham chieu den cung duong dan cu se tu dong hien thi logo moi:
+- `src/components/Layout/Sidebar.tsx` - dung `/images/fun-wallet-logo.png` va `/images/fun-rich-logo.png`
+- `src/components/Layout/CollapsibleSidebar.tsx` - dung `/images/fun-wallet-logo.png` va `/images/fun-rich-logo.png`
+- `src/components/Layout/MobileDrawer.tsx` - dung `/images/fun-wallet-logo.png` va `/images/fun-rich-logo.png`
 
-## Tóm tắt
+## Tom tat
 
-| Hạng mục | Chi tiết |
+| Hang muc | Chi tiet |
 |----------|----------|
-| File cần sửa | 2 file |
-| Tổng thay đổi | 2 chỗ |
-| Cơ sở dữ liệu | Không |
-| Đồng bộ Mobile | Có |
+| File anh can copy | 2 file |
+| File code can sua | 0 file (ghi de truc tiep ten file cu) |
+| Co so du lieu | Khong |
+| Dong bo Mobile | Co (MobileDrawer dung cung duong dan) |
 
-## Kết quả
+## Ket qua
 
-- Ô tìm kiếm trên cả Desktop và Mobile sẽ hiển thị placeholder ngắn gọn: **"Tìm kiếm"**
-- Chức năng tìm kiếm và dán link YouTube vẫn hoạt động bình thường (chỉ thay đổi placeholder, không ảnh hưởng logic)
+- Logo FUN Wallet trong menu se hien thi hinh vi xanh voi chu "Fun" moi
+- Logo FUN.RICH trong menu se hien thi hinh tron xanh la "FUN Profile WEB3" moi
+- Cap nhat dong thoi tren Desktop (Sidebar, CollapsibleSidebar) va Mobile (MobileDrawer)
