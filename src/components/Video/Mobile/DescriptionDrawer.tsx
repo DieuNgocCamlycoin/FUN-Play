@@ -106,7 +106,7 @@ export function DescriptionDrawer({
                   <div className="flex-1 text-center">
                     <div className="flex items-center justify-center gap-1 text-foreground font-semibold">
                       <ThumbsUp className="h-4 w-4" />
-                      <span>{formatViewsShort(likeCount)}</span>
+                      <span>{likeCount.toLocaleString()}</span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">Lượt thích</p>
                   </div>
@@ -116,7 +116,7 @@ export function DescriptionDrawer({
                   <div className="flex-1 text-center">
                     <div className="flex items-center justify-center gap-1 text-foreground font-semibold">
                       <Eye className="h-4 w-4" />
-                      <span>{formatViewsShort(viewCount)}</span>
+                      <span>{viewCount.toLocaleString()}</span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">Lượt xem</p>
                   </div>
