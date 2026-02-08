@@ -216,11 +216,24 @@ const ShortsVideoItem = ({
       {/* Bottom info overlay */}
       <div className="absolute left-0 right-16 bottom-20 p-4">
         <div className="space-y-2">
-          <button onClick={goToChannel} className="flex items-center gap-2">
-            <span className="text-white font-bold text-base">
-              @{video.profile?.username || 'user'}
-            </span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={goToChannel} className="flex items-center gap-2">
+              <span className="text-white font-bold text-base">
+                @{video.profile?.username || 'user'}
+              </span>
+            </button>
+            {/* Subscribe button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                // Subscribe logic placeholder - would need subscription state
+                toast.success('Đã đăng ký kênh!');
+              }}
+              className="px-3 py-1 rounded-full bg-white text-black text-xs font-semibold hover:bg-white/90 transition-colors"
+            >
+              Đăng ký
+            </button>
+          </div>
           <p className="text-white text-sm line-clamp-2">{video.title}</p>
         </div>
       </div>

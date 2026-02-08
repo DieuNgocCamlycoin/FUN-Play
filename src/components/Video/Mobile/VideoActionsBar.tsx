@@ -227,14 +227,15 @@ export function VideoActionsBar({
             </Button>
           </div>
 
-          {/* Share button - Icon only */}
+          {/* Share button */}
           <Button
             variant="ghost"
-            size="icon"
+            size="sm"
             onClick={() => { lightTap(); onShare(); }}
-            className="rounded-full bg-muted/80 h-10 w-10 shrink-0 hover:bg-muted"
+            className="rounded-full bg-muted/80 h-10 px-4 gap-1.5 shrink-0 hover:bg-muted"
           >
             <Share2 className="h-5 w-5" />
+            <span className="text-sm font-medium">Chia sẻ</span>
           </Button>
 
           {/* Donate button - Premium Gold with Mirror Shimmer */}
