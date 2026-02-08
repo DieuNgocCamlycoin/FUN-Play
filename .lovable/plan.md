@@ -1,44 +1,52 @@
 
+# Xoa vien vang va phong to logo trong menu FUN ECOSYSTEM
 
-# Buoc cache trinh duyet de hien thi logo moi cho FUN Wallet va FUN.RICH
+## Van de hien tai
 
-## Van de
-
-Cac file anh `fun-wallet-logo.png` va `fun-rich-logo.png` da duoc thay the thanh cong trong thu muc `public/images/`, nhung trinh duyet van hien thi logo cu do bo nho dem (cache). Can them tham so version vao duong dan anh de buoc trinh duyet tai lai anh moi.
+Tat ca logo trong phan FUN ECOSYSTEM (FUN.RICH, FUN FARM, FUN PLANET, FUN Wallet, FUN Money) dang co:
+- Vien vang `ring-2 ring-yellow-400` hoac vien cyan `ring-2 ring-cyan-400` bao quanh
+- Hieu ung phat sang vang `shadow-[0_0_8px_rgba(250,204,21,0.4)]`
+- Kich thuoc nho (`h-5 w-5` hoac `h-6 w-6`)
 
 ## Giai phap
 
-Them `?v=2` vao cuoi duong dan cua 2 logo trong tat ca 3 file component. Day la ky thuat "cache busting" pho bien de buoc trinh duyet tai lai tai nguyen moi.
+Xoa toan bo vien vang/cyan va hieu ung glow, tang kich thuoc logo de hien thi ro rang hon.
 
-## Danh sach thay doi
+## Chi tiet thay doi
 
 ### 1. `src/components/Layout/Sidebar.tsx`
-- Dong 37: `/images/fun-rich-logo.png` thanh `/images/fun-rich-logo.png?v=2`
-- Dong 55: `/images/fun-wallet-logo.png` thanh `/images/fun-wallet-logo.png?v=2`
+**Dong 149-154** - Phan render logo trong FUN ECOSYSTEM:
+- Xoa: `ring-2`, `ring-yellow-400`, `ring-cyan-400`, `shadow-[0_0_8px_rgba(250,204,21,0.4)]`, `shadow-[0_0_8px_rgba(34,211,238,0.4)]`
+- Tang kich thuoc tu `h-6 w-6` len `h-7 w-7`
+- Giu lai: `rounded-full`, `object-cover`
 
 ### 2. `src/components/Layout/CollapsibleSidebar.tsx`
-- Dong 28: `/images/fun-rich-logo.png` thanh `/images/fun-rich-logo.png?v=2`
-- Dong 46: `/images/fun-wallet-logo.png` thanh `/images/fun-wallet-logo.png?v=2`
+**Dong 127-132** - Phan NavButton render logo:
+- Xoa: `ring-2`, `ring-yellow-400`, `ring-cyan-400`, `shadow-md`, `shadow-[0_0_8px_...]`
+- Tang kich thuoc tu `h-5 w-5` len `h-7 w-7` (che do mo rong) va `h-6 w-6` (che do thu gon/compact giu nguyen phu hop)
 
 ### 3. `src/components/Layout/MobileDrawer.tsx`
-- Dong 39: `/images/fun-rich-logo.png` thanh `/images/fun-rich-logo.png?v=2`
-- Dong 57: `/images/fun-wallet-logo.png` thanh `/images/fun-wallet-logo.png?v=2`
+**Dong 134-139** - NavButton (dung cho FUN Money va cac muc reward):
+- Xoa: `ring-2 ring-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.4)]`
+- Tang kich thuoc tu `h-6 w-6` len `h-7 w-7`
+
+**Dong 162-167** - FunPlatformButton (dung cho FUN.RICH, FUN FARM, FUN PLANET, FUN Wallet):
+- Xoa: `ring-2 ring-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.4)]`
+- Tang kich thuoc tu `h-6 w-6` len `h-7 w-7`
 
 ## Tom tat
 
 | Hang muc | Chi tiet |
 |----------|----------|
 | File can sua | 3 file |
-| Tong thay doi | 6 cho (2 logo x 3 file) |
+| Tong thay doi | 4 cho (styling logo) |
+| Hieu ung xoa | ring-2, ring-yellow-400, ring-cyan-400, shadow glow |
+| Kich thuoc moi | h-7 w-7 (tang tu h-5/h-6) |
+| Dong bo Mobile | Co (MobileDrawer) |
 | Co so du lieu | Khong |
-| Dong bo Mobile | Co |
-
-## Chi tiet ky thuat
-
-Thay doi duy nhat la them `?v=2` vao cuoi chuoi `customIcon` cua 2 muc FUN.RICH va FUN Wallet trong mang `funPlatformItems` cua moi file. Ky thuat nay khong anh huong den duong dan file thuc te, chi buoc trinh duyet nhan dien day la URL moi va tai lai anh thay vi dung ban cache cu.
 
 ## Ket qua
 
-- Logo FUN Wallet moi (hinh vi xanh voi chu "Fun") se hien thi ngay lap tuc cho tat ca nguoi dung
-- Logo FUN.RICH moi (hinh tron xanh la "FUN Profile WEB3") se hien thi ngay lap tuc
-- Khong can nguoi dung tu xoa cache hay reload trang
+- Logo hien thi sach se, khong con vien vang/cyan bao quanh
+- Logo lon hon va ro rang hon trong menu
+- Ap dung dong nhat tren Desktop (Sidebar, CollapsibleSidebar) va Mobile (MobileDrawer)
