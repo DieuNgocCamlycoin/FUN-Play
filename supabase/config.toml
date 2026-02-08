@@ -68,3 +68,6 @@ verify_jwt = false
 
 [functions.download-ai-music]
 verify_jwt = false
+
+[functions.public-video-api]
+verify_jwt = false
