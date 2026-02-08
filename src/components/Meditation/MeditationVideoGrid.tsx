@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { Play, Clock, Eye } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { VideoPlaceholder } from "@/components/Video/VideoPlaceholder";
-import { formatDuration, formatViewsShort } from "@/lib/formatters";
+import { formatDuration, formatViews } from "@/lib/formatters";
 
 interface Video {
   id: string;
@@ -116,7 +116,7 @@ export const MeditationVideoGrid = ({ videos, isLoading, onVideoSelect }: Medita
             </h3>
             <div className="flex items-center gap-2 text-xs text-slate-500">
               <Eye className="w-3 h-3" />
-              <span>{formatViewsShort(video.view_count)} lượt xem</span>
+              <span>{formatViews(video.view_count)}</span>
             </div>
           </div>
         </motion.div>

@@ -822,7 +822,7 @@ export default function Watch() {
                 onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
               >
                 <div className="flex items-center gap-2 text-sm font-semibold text-foreground mb-2">
-                  <span>{(video.view_count || 0).toLocaleString()} lượt xem</span>
+                  <span>{(video.view_count || 0).toLocaleString("vi-VN")} lượt xem</span>
                   <span>•</span>
                   <span>{new Date(video.created_at).toLocaleDateString("vi-VN", { day: "numeric", month: "short", year: "numeric" })}</span>
                 </div>

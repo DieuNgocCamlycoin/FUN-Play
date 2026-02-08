@@ -18,7 +18,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { VideoPlaceholder } from "./VideoPlaceholder";
-import { formatDuration, formatViewsShort } from "@/lib/formatters";
+import { formatDuration, formatViews } from "@/lib/formatters";
 
 interface UpNextSidebarProps {
   onVideoSelect?: (video: VideoItem) => void;
@@ -278,7 +278,7 @@ export function UpNextSidebar({ onVideoSelect }: UpNextSidebarProps) {
                   {video.channel_name}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {formatViewsShort(video.view_count)} lượt xem
+                  {formatViews(video.view_count)}
                 </p>
               </div>
 
