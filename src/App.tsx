@@ -71,6 +71,7 @@ const AIMusicDetail = lazy(() => import("./pages/AIMusicDetail"));
 const Messages = lazy(() => import("./pages/Messages"));
 const FunMoneyPage = lazy(() => import("./pages/FunMoneyPage"));
 const Search = lazy(() => import("./pages/Search"));
+const Notifications = lazy(() => import("./pages/Notifications"));
 
 const queryClient = new QueryClient();
 
@@ -166,6 +167,7 @@ function AppContent() {
             <Route path="/messages" element={<Messages />} />
             <Route path="/messages/:chatId" element={<Messages />} />
             <Route path="/search" element={<Search />} />
+            <Route path="/notifications" element={<Notifications />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>

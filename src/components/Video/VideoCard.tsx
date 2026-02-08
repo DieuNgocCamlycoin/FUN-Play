@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Play, Volume2, Edit, Share2, ListPlus } from "lucide-react";
+import { Play, Edit, Share2, ListPlus, MoreVertical, Clock, Flag, EyeOff, Bookmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,6 +12,13 @@ import { WatchLaterButton } from "./WatchLaterButton";
 import { LazyImage } from "@/components/ui/LazyImage";
 import { useHapticFeedback } from "@/hooks/useHapticFeedback";
 import { VideoPlaceholder } from "./VideoPlaceholder";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface VideoCardProps {
   thumbnail?: string;
@@ -23,9 +30,21 @@ interface VideoCardProps {
   userId?: string;
   channelId?: string;
   avatarUrl?: string;
+  duration?: number | null;
+  isVerified?: boolean;
   onPlay?: (videoId: string) => void;
   isLoading?: boolean;
 }
+
+// Format seconds to MM:SS or HH:MM:SS
+const formatDuration = (seconds: number | null | undefined): string => {
+  if (!seconds || seconds <= 0) return "";
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  if (h > 0) return `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  return `${m}:${s.toString().padStart(2, "0")}`;
+};
 
 export const VideoCard = ({
   thumbnail,
@@ -37,13 +56,15 @@ export const VideoCard = ({
   userId,
   channelId,
   avatarUrl,
+  duration,
+  isVerified,
   onPlay,
   isLoading = false,
 }: VideoCardProps) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
-  const { lightTap, mediumTap } = useHapticFeedback();
+  const { lightTap } = useHapticFeedback();
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [playlistModalOpen, setPlaylistModalOpen] = useState(false);
   const isOwner = user?.id === userId;
@@ -66,7 +87,7 @@ export const VideoCard = ({
   }
 
   const handlePlay = () => {
-    lightTap(); // Haptic feedback
+    lightTap();
     if (onPlay && videoId) {
       onPlay(videoId);
     }
@@ -84,8 +105,7 @@ export const VideoCard = ({
     setShareModalOpen(true);
   };
 
-  const handleAddToPlaylist = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleAddToPlaylist = () => {
     lightTap();
     if (!user) {
       toast({
@@ -105,19 +125,19 @@ export const VideoCard = ({
     }
   };
 
+  const handleNotInterested = () => {
+    lightTap();
+    toast({
+      title: "Đã ẩn video",
+      description: "Video này sẽ không hiển thị nữa",
+    });
+  };
+
+  const durationStr = formatDuration(duration);
+
   return (
     <Card className="group overflow-hidden bg-white/95 dark:bg-white/90 backdrop-blur-sm border-2 border-white/30 hover:border-white/50 transition-all duration-500 cursor-pointer relative shadow-lg">
-      {/* Rainbow diamond sparkle effect on hover */}
-      <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-        <div className="absolute top-1/4 left-1/4 w-3 h-3 bg-glow-sapphire rounded-full animate-[sparkle_1s_ease-in-out_infinite] shadow-[0_0_20px_rgba(0,102,255,1)]" />
-        <div className="absolute top-1/3 right-1/3 w-2.5 h-2.5 bg-glow-cyan rounded-full animate-[sparkle_1.2s_ease-in-out_infinite_0.2s] shadow-[0_0_18px_rgba(0,255,255,1)]" />
-        <div className="absolute bottom-1/4 right-1/4 w-3 h-3 bg-glow-magenta rounded-full animate-[sparkle_1.4s_ease-in-out_infinite_0.4s] shadow-[0_0_20px_rgba(217,0,255,1)]" />
-        <div className="absolute top-1/2 left-1/3 w-2 h-2 bg-divine-rose-gold rounded-full animate-[sparkle_1.1s_ease-in-out_infinite_0.3s] shadow-[0_0_15px_rgba(255,183,246,1)]" />
-        <div className="absolute bottom-1/3 left-1/2 w-2.5 h-2.5 bg-glow-gold rounded-full animate-[sparkle_1.3s_ease-in-out_infinite_0.5s] shadow-[0_0_18px_rgba(255,215,0,1)]" />
-        <div className="absolute top-2/3 right-1/2 w-2 h-2 bg-glow-white rounded-full animate-[sparkle_0.9s_ease-in-out_infinite_0.6s] shadow-[0_0_15px_rgba(255,255,255,1)]" />
-      </div>
-
-      {/* Thumbnail with Lazy Loading */}
+      {/* Thumbnail */}
       <div className="relative aspect-video overflow-hidden rounded-t-lg" onClick={handlePlay}>
         {thumbnail ? (
           <LazyImage
@@ -130,10 +150,7 @@ export const VideoCard = ({
           <VideoPlaceholder className="group-hover:scale-110 transition-transform duration-700" />
         )}
         
-        {/* Rainbow prism halo overlay on hover */}
-        <div className="absolute inset-0 bg-gradient-to-br from-glow-sapphire/30 via-glow-cyan/25 via-glow-magenta/25 to-divine-rose-gold/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-        
-        {/* Play button overlay with cosmic divine glow */}
+        {/* Play button overlay */}
         <div className="absolute inset-0 flex items-center justify-center bg-background/40 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500">
           <Button
             size="icon"
@@ -142,6 +159,13 @@ export const VideoCard = ({
             <Play className="h-8 w-8 fill-current text-foreground" />
           </Button>
         </div>
+
+        {/* Duration badge - YouTube style */}
+        {durationStr && (
+          <span className="absolute bottom-1.5 right-1.5 bg-black/80 text-white text-xs font-medium px-1.5 py-0.5 rounded">
+            {durationStr}
+          </span>
+        )}
 
         {/* Edit button for owner */}
         {isOwner && (
@@ -157,35 +181,13 @@ export const VideoCard = ({
 
         {/* Watch Later button */}
         {videoId && (
-          <div className="absolute top-2 right-24 opacity-0 group-hover:opacity-100 transition-all duration-300">
+          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
             <WatchLaterButton videoId={videoId} />
           </div>
         )}
-
-        {/* Add to Playlist button */}
-        {user && (
-          <Button
-            size="icon"
-            className="absolute top-2 right-12 h-8 w-8 bg-cosmic-cyan/90 hover:bg-cosmic-cyan border border-glow-cyan text-foreground opacity-0 group-hover:opacity-100 transition-all duration-300 shadow-[0_0_40px_rgba(0,255,255,0.9)]"
-            onClick={handleAddToPlaylist}
-            title="Thêm vào danh sách phát"
-          >
-            <ListPlus className="h-4 w-4" />
-          </Button>
-        )}
-
-        {/* Share button with sapphire glow */}
-        <Button
-          size="icon"
-          className="absolute top-2 right-2 h-8 w-8 bg-cosmic-sapphire/90 hover:bg-cosmic-sapphire border border-glow-sapphire text-foreground opacity-0 group-hover:opacity-100 transition-all duration-300 shadow-[0_0_40px_rgba(0,102,255,0.9)]"
-          onClick={handleShare}
-          title="Chia sẻ video"
-        >
-          <Share2 className="h-4 w-4" />
-        </Button>
       </div>
 
-      {/* Info with glassmorphism - Compact Layout */}
+      {/* Info section */}
       <div className="p-3 flex gap-2 bg-white/80">
         <div className="flex-shrink-0" onClick={handleChannelClick}>
           {avatarUrl ? (
@@ -201,23 +203,67 @@ export const VideoCard = ({
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-sm leading-snug line-clamp-1 text-gray-900 group-hover:text-cosmic-cyan transition-colors duration-300">
+          <h3 className="font-semibold text-sm leading-snug line-clamp-2 text-gray-900 group-hover:text-cosmic-cyan transition-colors duration-300">
             {title}
           </h3>
-          <div className="flex items-center justify-between gap-2 mt-0.5">
+          <div className="flex items-center gap-1 mt-0.5">
             <p 
               className="text-xs text-gray-600 group-hover:text-divine-rose-gold transition-colors duration-300 cursor-pointer hover:underline truncate"
               onClick={handleChannelClick}
             >
               {channel}
             </p>
-            <div className="flex items-center gap-1 text-[11px] text-gray-500 group-hover:text-cosmic-magenta shrink-0 transition-colors duration-300">
-              <span>{views}</span>
-              <span className="text-cosmic-sapphire">•</span>
-              <span>{timestamp}</span>
-            </div>
+            {isVerified && (
+              <svg className="w-3.5 h-3.5 text-gray-500 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+              </svg>
+            )}
+          </div>
+          <div className="flex items-center gap-1 text-[11px] text-gray-500 group-hover:text-cosmic-magenta transition-colors duration-300">
+            <span>{views}</span>
+            <span className="text-cosmic-sapphire">•</span>
+            <span>{timestamp}</span>
           </div>
         </div>
+
+        {/* Kebab menu - YouTube three-dot menu */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-gray-500 hover:text-gray-700"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52">
+            {videoId && (
+              <DropdownMenuItem onClick={() => { lightTap(); /* WatchLater handled by button */ }}>
+                <Clock className="mr-2 h-4 w-4" />
+                Xem sau
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem onClick={handleAddToPlaylist}>
+              <Bookmark className="mr-2 h-4 w-4" />
+              Lưu vào danh sách phát
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => { lightTap(); setShareModalOpen(true); }}>
+              <Share2 className="mr-2 h-4 w-4" />
+              Chia sẻ
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleNotInterested}>
+              <EyeOff className="mr-2 h-4 w-4" />
+              Không quan tâm
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => { lightTap(); toast({ title: "Đã báo cáo", description: "Cảm ơn bạn đã phản hồi" }); }}>
+              <Flag className="mr-2 h-4 w-4" />
+              Báo cáo
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <ShareModal

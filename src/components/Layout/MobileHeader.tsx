@@ -247,7 +247,7 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
                   variant="ghost" 
                   size="icon" 
                   className="h-7 w-7 relative"
-                  onClick={() => navigate("/reward-history")}
+                  onClick={() => navigate("/notifications")}
                 >
                   <Bell className="h-3.5 w-3.5" />
                   {notificationCount > 0 && (

@@ -29,11 +29,14 @@ interface Video {
   thumbnail_url: string | null;
   video_url: string;
   view_count: number | null;
+  duration: number | null;
+  category: string | null;
   created_at: string;
   user_id: string;
   channels: {
     name: string;
     id: string;
+    is_verified: boolean;
   };
   profiles: {
     wallet_address: string | null;
@@ -48,6 +51,7 @@ const Index = () => {
   const [videos, setVideos] = useState<Video[]>([]);
   const [loadingVideos, setLoadingVideos] = useState(true);
   const [currentMusicUrl, setCurrentMusicUrl] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState("Tất cả");
   const { toast } = useToast();
   const { user, loading } = useAuth();
   const navigate = useNavigate();
@@ -75,11 +79,14 @@ const Index = () => {
           thumbnail_url,
           video_url,
           view_count,
+          duration,
+          category,
           created_at,
           user_id,
           channels (
             name,
-            id
+            id,
+            is_verified
           )
         `)
         .eq("is_public", true)
@@ -271,7 +278,7 @@ const Index = () => {
       } lg:pr-[260px]`}>
         {/* Center content area - SCROLLABLE */}
         <div className="h-[calc(100vh-3.5rem)] overflow-y-auto lg:h-auto lg:overflow-visible">
-          <CategoryChips />
+          <CategoryChips selected={selectedCategory} onSelect={setSelectedCategory} />
           
           {/* Mobile 3-Card Layout */}
           <div className="lg:hidden px-4 mb-4 space-y-3">
@@ -313,7 +320,25 @@ const Index = () => {
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-5">
-                {videos.map((video) => (
+                {videos
+                  .filter((video) => {
+                    if (selectedCategory === "Tất cả") return true;
+                    const categoryMap: Record<string, string[]> = {
+                      "Âm nhạc": ["music"],
+                      "Thiền": ["light_meditation", "sound_therapy", "mantra"],
+                      "Podcast": ["podcast"],
+                      "Trò chơi": ["gaming"],
+                      "Tin tức": ["news"],
+                      "Thiên nhiên": ["nature"],
+                      "Mới tải lên gần đây": [],
+                      "Đề xuất mới": [],
+                    };
+                    const cats = categoryMap[selectedCategory];
+                    if (!cats) return true;
+                    if (cats.length === 0) return true; // special filters
+                    return cats.includes(video.category || "");
+                  })
+                  .map((video) => (
                   <VideoCard
                     key={video.id}
                     videoId={video.id}
@@ -323,6 +348,8 @@ const Index = () => {
                     title={video.title}
                     channel={video.channels?.name || "Unknown Channel"}
                     avatarUrl={video.profiles?.avatar_url || undefined}
+                    duration={video.duration}
+                    isVerified={video.channels?.is_verified}
                     views={formatViews(video.view_count)}
                     timestamp={formatTimestamp(video.created_at)}
                     onPlay={handlePlayVideo}

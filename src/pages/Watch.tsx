@@ -68,6 +68,8 @@ export default function Watch() {
   });
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [hasLiked, setHasLiked] = useState(false);
+  const [hasDisliked, setHasDisliked] = useState(false);
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [showMiniProfile, setShowMiniProfile] = useState(false);
   const [showMiniPlayer, setShowMiniPlayer] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -133,6 +135,7 @@ export default function Watch() {
     if (user && video) {
       checkSubscription();
       checkLikeStatus();
+      checkDislikeStatus();
     }
   }, [user, video]);
 
@@ -341,7 +344,6 @@ export default function Watch() {
 
   const checkLikeStatus = async () => {
     if (!user || !id) return;
-
     try {
       const { data } = await supabase
         .from("likes")
@@ -350,10 +352,59 @@ export default function Watch() {
         .eq("user_id", user.id)
         .eq("is_dislike", false)
         .maybeSingle();
-
       setHasLiked(!!data);
     } catch (error) {
       console.error("Error checking like status:", error);
+    }
+  };
+
+  const checkDislikeStatus = async () => {
+    if (!user || !id) return;
+    try {
+      const { data } = await supabase
+        .from("likes")
+        .select("id")
+        .eq("video_id", id)
+        .eq("user_id", user.id)
+        .eq("is_dislike", true)
+        .maybeSingle();
+      setHasDisliked(!!data);
+    } catch (error) {
+      console.error("Error checking dislike status:", error);
+    }
+  };
+
+  const handleDislike = async () => {
+    if (!user) { navigate("/auth"); return; }
+    try {
+      if (hasDisliked) {
+        // Un-dislike
+        await supabase.from("likes").delete()
+          .eq("video_id", id).eq("user_id", user.id).eq("is_dislike", true);
+        await supabase.from("videos")
+          .update({ dislike_count: Math.max(0, (video?.dislike_count || 1) - 1) })
+          .eq("id", id);
+        setHasDisliked(false);
+      } else {
+        // Remove like if exists
+        if (hasLiked) {
+          await supabase.from("likes").delete()
+            .eq("video_id", id).eq("user_id", user.id).eq("is_dislike", false);
+          await supabase.from("videos")
+            .update({ like_count: Math.max(0, (video?.like_count || 1) - 1) })
+            .eq("id", id);
+          setHasLiked(false);
+        }
+        // Add dislike
+        await supabase.from("likes").insert({ video_id: id, user_id: user.id, is_dislike: true });
+        await supabase.from("videos")
+          .update({ dislike_count: (video?.dislike_count || 0) + 1 })
+          .eq("id", id);
+        setHasDisliked(true);
+      }
+      fetchVideo();
+    } catch (error: any) {
+      toast({ title: "Lỗi", description: error.message, variant: "destructive" });
     }
   };
 
@@ -645,9 +696,12 @@ export default function Watch() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="rounded-full rounded-l-none hover:bg-cosmic-magenta/20"
+                      className={`rounded-full rounded-l-none hover:bg-cosmic-magenta/20 ${
+                        hasDisliked ? "text-cosmic-magenta" : ""
+                      }`}
+                      onClick={handleDislike}
                     >
-                      <ThumbsDown className="h-4 w-4" />
+                      <ThumbsDown className={`h-4 w-4 ${hasDisliked ? "fill-current" : ""}`} />
                     </Button>
                   </div>
                   <Button
@@ -678,16 +732,26 @@ export default function Watch() {
                 </div>
               </div>
 
-              {/* Description */}
-              <div className="bg-muted rounded-xl p-4">
+              {/* Description - YouTube style expand/collapse */}
+              <div
+                className="bg-muted rounded-xl p-4 cursor-pointer hover:bg-muted/80 transition-colors"
+                onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
+              >
                 <div className="flex items-center gap-2 text-sm font-semibold text-foreground mb-2">
                   <span>{(video.view_count || 0).toLocaleString()} lượt xem</span>
                   <span>•</span>
                   <span>{new Date(video.created_at).toLocaleDateString("vi-VN")}</span>
                 </div>
-                <p className="text-sm text-foreground whitespace-pre-wrap">
+                <p className={`text-sm text-foreground whitespace-pre-wrap ${
+                  !isDescriptionExpanded ? "line-clamp-3" : ""
+                }`}>
                   {video.description}
                 </p>
+                {video.description && video.description.length > 150 && (
+                  <button className="text-sm font-semibold text-muted-foreground mt-2 hover:text-foreground">
+                    {isDescriptionExpanded ? "Thu gọn" : "...xem thêm"}
+                  </button>
+                )}
               </div>
 
               {/* Comments Section - New Component */}

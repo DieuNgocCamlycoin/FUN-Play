@@ -282,7 +282,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
           </Tooltip>
         </TooltipProvider>
         
-        <Button variant="ghost" size="icon" className="hidden md:flex">
+        <Button variant="ghost" size="icon" className="hidden md:flex" onClick={() => navigate("/notifications")}>
           <Bell className="h-5 w-5" />
         </Button>
         
