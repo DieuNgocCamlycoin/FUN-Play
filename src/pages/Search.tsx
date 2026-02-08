@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { formatViews, formatTimestamp } from "@/lib/formatters";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,6 +21,7 @@ interface SearchVideo {
   id: string;
   title: string;
   thumbnail_url: string | null;
+  video_url: string | null;
   view_count: number | null;
   duration: number | null;
   created_at: string;
@@ -68,6 +69,30 @@ const Search = () => {
   const [loading, setLoading] = useState(false);
   const [activeFilter, setActiveFilter] = useState<FilterTab>("all");
   const [sortBy, setSortBy] = useState<SortOption>("relevance");
+  const [previewVideoId, setPreviewVideoId] = useState<string | null>(null);
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const canHover = typeof window !== 'undefined' && window.matchMedia?.('(hover: hover)')?.matches;
+
+  const handleThumbnailMouseEnter = useCallback((videoId: string) => {
+    if (!canHover) return;
+    hoverTimeoutRef.current = setTimeout(() => {
+      setPreviewVideoId(videoId);
+    }, 500);
+  }, [canHover]);
+
+  const handleThumbnailMouseLeave = useCallback(() => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    setPreviewVideoId(null);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     setLocalQuery(query);
@@ -102,7 +127,7 @@ const Search = () => {
   const searchVideos = async (q: string) => {
     let query = supabase
       .from("videos")
-      .select("id, title, thumbnail_url, view_count, duration, created_at, user_id, channels(id, name, is_verified)")
+      .select("id, title, thumbnail_url, video_url, view_count, duration, created_at, user_id, channels(id, name, is_verified)")
       .eq("is_public", true)
       .eq("approval_status", "approved")
       .or(`title.ilike.%${q}%,description.ilike.%${q}%`);
@@ -306,8 +331,12 @@ const Search = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-4">
                   {videoResults.map((video) => (
                     <div key={video.id} className="hidden lg:flex gap-4 cursor-pointer group" onClick={() => navigate(`/watch/${video.id}`)}>
-                      {/* Thumbnail */}
-                      <div className="relative w-[360px] shrink-0 aspect-video rounded-xl overflow-hidden">
+                      {/* Thumbnail with hover preview */}
+                      <div
+                        className="relative w-[360px] shrink-0 aspect-video rounded-xl overflow-hidden"
+                        onMouseEnter={() => handleThumbnailMouseEnter(video.id)}
+                        onMouseLeave={handleThumbnailMouseLeave}
+                      >
                         {video.thumbnail_url ? (
                           <img src={video.thumbnail_url} alt={video.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                         ) : (
@@ -315,8 +344,20 @@ const Search = () => {
                             <Video className="w-8 h-8 text-muted-foreground" />
                           </div>
                         )}
+                        {/* Hover video preview */}
+                        {previewVideoId === video.id && video.video_url && (
+                          <video
+                            src={video.video_url}
+                            className="absolute inset-0 w-full h-full object-cover z-10"
+                            autoPlay
+                            muted
+                            loop
+                            playsInline
+                            preload="auto"
+                          />
+                        )}
                         {video.duration && video.duration > 0 && (
-                          <span className="absolute bottom-1.5 right-1.5 bg-black/80 text-white text-xs font-medium px-1.5 py-0.5 rounded">
+                          <span className="absolute bottom-1.5 right-1.5 bg-black/80 text-white text-xs font-medium px-1.5 py-0.5 rounded z-20">
                             {video.duration >= 3600
                               ? `${Math.floor(video.duration / 3600)}:${Math.floor((video.duration % 3600) / 60).toString().padStart(2, "0")}:${(video.duration % 60).toString().padStart(2, "0")}`
                               : `${Math.floor(video.duration / 60)}:${(video.duration % 60).toString().padStart(2, "0")}`}

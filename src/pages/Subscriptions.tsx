@@ -31,6 +31,7 @@ interface SubscribedChannel {
     id: string;
     title: string;
     thumbnail_url: string | null;
+    video_url: string | null;
     view_count: number | null;
     created_at: string;
     duration: number | null;
@@ -78,7 +79,7 @@ const Subscriptions = () => {
         const channelIds = subsData.map((s: any) => s.channel_id);
         const { data: videosData } = await supabase
           .from('videos')
-          .select('id, title, thumbnail_url, view_count, created_at, duration, channel_id')
+          .select('id, title, thumbnail_url, video_url, view_count, created_at, duration, channel_id')
           .in('channel_id', channelIds)
           .eq('is_public', true)
           .order('created_at', { ascending: false });
@@ -198,6 +199,7 @@ const Subscriptions = () => {
                         videoId={video.id}
                         title={video.title}
                         thumbnail={video.thumbnail_url || undefined}
+                        videoUrl={video.video_url || undefined}
                         channel={sub.channel.name}
                         channelId={sub.channel.id}
                         userId={sub.channel.user_id}

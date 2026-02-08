@@ -376,7 +376,7 @@ export default function Shorts() {
         `)
         .eq('is_public', true)
         .eq('approval_status', 'approved')
-        .or('duration.lt.60,category.eq.shorts')
+        .or('duration.lte.180,category.eq.shorts')
         .order('created_at', { ascending: false })
         .limit(50);
 
