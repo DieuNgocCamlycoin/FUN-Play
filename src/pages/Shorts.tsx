@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { formatViewsShort } from '@/lib/formatters';
+import { formatViewsShort, formatViews } from '@/lib/formatters';
 import { Heart, MessageCircle, Share2, User, Volume2, VolumeX, Play, Pause, ChevronUp, ChevronDown, ThumbsDown, Bookmark, MoreVertical, Flag, EyeOff, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -356,7 +356,7 @@ const ShortsVideoItem = ({
           {/* View count */}
           <div className="flex items-center gap-1.5 text-white/70 text-xs">
             <Eye className="w-3.5 h-3.5" />
-            <span>{formatViewsShort(video.view_count)} lượt xem</span>
+            <span>{formatViews(video.view_count)}</span>
           </div>
         </div>
       </div>

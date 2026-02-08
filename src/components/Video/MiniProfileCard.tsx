@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { formatViewsShort } from "@/lib/formatters";
 
 interface MiniProfileCardProps {
   channelId: string;
@@ -110,7 +111,7 @@ export const MiniProfileCard = ({
         <div className="flex-1">
           <h3 className="font-bold text-foreground">{channelName}</h3>
           <p className="text-sm text-muted-foreground">
-            {subscriberCount.toLocaleString()} người đăng ký
+            {formatViewsShort(subscriberCount)} người đăng ký
           </p>
         </div>
       </div>
