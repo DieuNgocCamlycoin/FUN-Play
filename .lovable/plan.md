@@ -1,8 +1,8 @@
 
 
-# FUN Play vs YouTube 2025: Round 10 Gap Analysis
+# FUN Play vs YouTube 2025: Round 11 Gap Analysis
 
-## Verified Fixes from Rounds 1-9 (All Working)
+## Verified Fixes from Rounds 1-10 (All Working)
 
 | Feature | Round | Status |
 |---------|-------|--------|
@@ -25,169 +25,136 @@
 | NotFound page localized | R9 | Done |
 | Theater Mode + PiP on desktop player | R9 | Done |
 | All admin Unknown fallbacks localized | R9 | Done |
+| FUN Money components fully localized | R10 | Done |
+| Admin FunMoneyApprovalTab localized | R10 | Done |
 
 ---
 
-## REMAINING GAPS FOUND IN ROUND 10
+## REMAINING GAPS FOUND IN ROUND 11
 
 ### HIGH PRIORITY
 
-#### Gap 1: Upload.tsx Still Has English Labels
+#### Gap 1: "NFT Gallery" Label Still in English in 2 Sidebar Files
 
-`Upload.tsx` line 591 has `"Description"` (English label) and line 596 has `"Tell viewers about your video"` (English placeholder). The Title field on line 577 correctly uses Vietnamese ("Tieu de (bat buoc)"). This inconsistency is visible to every user who uploads a video on the fallback upload page.
+Both `Sidebar.tsx` (line 68) and `CollapsibleSidebar.tsx` (line 67) display `"NFT Gallery"` as the nav label. The `MobileDrawer.tsx` already correctly uses `"Bo su tap NFT"`. This inconsistency means desktop users see English while mobile users see Vietnamese.
 
-**Fix:** Change Label to "Mo ta" and placeholder to "Mo ta noi dung video cua ban".
+**Fix:** Change both instances to `"Bo su tap NFT"` to match the MobileDrawer.
 
-#### Gap 2: MintRequestForm.tsx Entirely in English
+#### Gap 2: DragDropImageUpload.tsx Entirely in English
 
-The entire `MintRequestForm.tsx` component contains English text throughout:
-- Line 58: `'Please connect your wallet first'`
-- Line 63: `'Please provide a description'`
-- Line 83: `'Request submitted successfully!'`
-- Line 94: `'Request Submitted!'`
-- Line 95: `'Estimated amount: ...'`
-- Line 96: `'Waiting for admin approval...'`
-- Line 102: `'Submit Another'`
-- Line 114: `'Submit Mint Request'` (card title)
-- Line 125: `'Connect wallet to submit request'`
-- Line 126: `'Connect Wallet'` (button)
-- Line 132: `'Description *'` (label)
-- Line 136: `'Describe your action and its impact...'` (placeholder)
-- Line 142: `'Proof URL (optional)'` (label)
-- Line 152: `'Self-Assessment Scores'` (label)
-- Line 156: `'Service'`, `'Truth'`, `'Healing'`, `'Contribution'`, `'Unity'` (pillar names)
-- Line 172: `'Unity Signals'` (label)
-- Line 188: `'Submit Request'` (button)
+This component (used on Profile Settings for avatar/banner uploads) has 5 user-facing English strings:
+- Line 36: `"Authentication required"`
+- Line 37: `"Please log in to upload files"`
+- Line 47: `"File too large"`
+- Line 48: `` `Please select an image under ${maxSizeMB}MB` ``
+- Line 57: `"Invalid file type"`
+- Line 58: `"Please select an image file"`
+- Line 71: `"Upload successful"`
+- Line 72: `"Your image has been uploaded to cloud storage"`
+- Line 163: `"Drag & drop or click to upload"`
 
-**Fix:** Translate all strings to Vietnamese.
+**Fix:** Translate all 9 strings to Vietnamese.
 
-#### Gap 3: FunMoneyApprovalTab.tsx (Admin) Mostly in English
+#### Gap 3: RewardHistory.tsx Has "Upload video" Label in English
 
-The admin FUN Money approval tab has extensive English text:
-- Line 110: `'Request approved! Ready for minting.'`
-- Line 113: `'Failed to approve request'`
-- Line 120: `'Please provide a rejection reason'`
-- Line 125: `'Request rejected'`
-- Line 129: `'Failed to reject request'`
-- Line 136: `'Please connect your wallet first'`
-- Line 280: `'FUN Money Requests'` (title)
-- Line 296: `'Pending'` (tab)
-- Line 303: `'Approved'` (tab)
-- Line 304: `'Minted'` (tab)
-- Line 305: `'Rejected'` (tab)
-- Line 306: `'All'` (tab)
-- Line 314: `'Search by platform, action, wallet...'` (placeholder)
-- Line 333: `'No requests found'`
-- Line 354: `'Request Details'` (title)
-- Line 372: `'Select a request to view details'`
-- Line 541: `'Light Score'` (label)
-- Line 609: `'Transaction'` (label)
-- Line 617: `'View on BSCScan'`
-- Line 625: `'Reason'` (label)
-- Line 638: `'Approve Request'` (button)
-- Line 643: `'Rejection reason (required)'` (placeholder)
-- Line 655: `'Reject Request'` (button)
-- Line 671: `'Minting...'` (button loading)
-- Line 676: `'Sign & Mint On-Chain'` (button)
-- Line 682: `'Connect wallet to mint'`
+Line 66: `label: "Upload video"` in the REWARD_TYPE_MAP. All other reward type labels are in Vietnamese. This one was missed.
 
-**Fix:** Translate all admin UI strings to Vietnamese.
+**Fix:** Change to `"Tai len video"`.
 
-#### Gap 4: TokenLifecyclePanel.tsx Has Mixed English
+#### Gap 4: UpNextSidebar.tsx Has English Tooltips
 
-`TokenLifecyclePanel.tsx` has English labels:
-- Line 147: `'Token Lifecycle'` (title)
-- Line 280: `'Total Value'`
-- Line 290: `'Light Score'`
-- Line 300: `'Unity Score'`
-- Line 319: `'Refresh'` (button)
+Two button tooltips are in English:
+- Line 169: `title="Shuffle"` (should be "Xao tron")
+- Line 179: `` title={`Repeat: ${session.repeat}`} `` (should use Vietnamese labels: "Lap lai: tat/tat ca/mot")
 
-**Fix:** Translate to Vietnamese: "Vong doi Token", "Tong gia tri", "Diem Anh Sang", "Diem Doan Ket", "Lam moi".
+**Fix:** Translate tooltip titles to Vietnamese.
 
-#### Gap 5: MintRequestCard.tsx Has English Labels
+#### Gap 5: CAMLYPrice.tsx Share Title in English
 
-`MintRequestCard.tsx` lines 107-109 show:
-- `Light:` (should be "AS:")
-- `Unity:` (should be "DK:")
+Line 117: `title: "CAMLY Token Price"` in the `navigator.share()` call. This is the share sheet title visible to users when sharing.
 
-**Fix:** Translate score labels to Vietnamese abbreviations.
+**Fix:** Change to `"Gia Token CAMLY"`.
+
+#### Gap 6: ManageChannel.tsx Internal Error in English
+
+Line 50: `throw new Error("Failed to upload banner")`. This error message could surface in the toast description since line 54 uses `error.message`.
+
+**Fix:** Change to `"Tai banner that bai"`.
+
+#### Gap 7: UploadContext.tsx Internal Error in English
+
+Line 190: `reject(new Error("Upload failed"))`. This error could surface in upload error toasts.
+
+**Fix:** Change to `"Tai len that bai"`.
 
 ---
 
 ### MEDIUM PRIORITY
 
-#### Gap 6: MintableCard.tsx + LightActivityBreakdown.tsx English Labels
+#### Gap 8: NFTGallery.tsx Page Title and Mock Data in English
 
-`MintableCard.tsx` line 151: `'Light Score'`
-`LightActivityBreakdown.tsx` line 154: `'Total Light Score'`
+The page title (`line 104`) shows `"NFT Gallery"` -- should match the sidebar label. The mock NFT data (lines 43, 52, 61, 70) has English descriptions like "The first FUN Play Genesis NFT collection", "Awarded to top content creators". While this is placeholder data, users currently see it.
 
-These are FUN Play-specific terms but should be localized for consistency.
+**Fix:** Change page title to `"Bo su tap NFT"`. Translate mock NFT descriptions to Vietnamese.
 
-**Fix:** Use "Diem Anh Sang" and "Tong Diem Anh Sang".
+#### Gap 9: PlatformDocs.tsx Entirely in English
 
-#### Gap 7: useFunMoneyMintRequest.ts Has English Error Messages
+The Platform Documentation page (`/docs/platform`) has extensive English text throughout (section titles like "Core Values", "Project Links", "AI Integration", table headers, technical descriptions). However, this is a developer/technical documentation page, not a regular user-facing page. YouTube's equivalent developer docs are also primarily in English.
 
-`useFunMoneyMintRequest.ts` line 183: `'Failed to submit request'`
+**Fix:** No change needed -- developer documentation in English is standard practice and acceptable.
 
-**Fix:** Change to Vietnamese error message.
+#### Gap 10: Build and Bounty Page Title in Sidebar
 
-#### Gap 8: Watch.tsx Desktop Missing Mobile Navigation Elements
+The `CollapsibleSidebar.tsx` (line 80) and `MobileDrawer.tsx` (line 83) both show `"Build & Bounty"` as the label. This is a branded feature name. However, the Bounty page itself uses the same title. Since it is a brand/feature name (like "YouTube Shorts"), it is acceptable to keep in English.
 
-Watch.tsx desktop layout (line 598-602) includes Header and CollapsibleSidebar for desktop but lacks MobileHeader and MobileBottomNav for mobile viewport. While the mobile view delegates to `MobileWatchView`, this is intentional for immersive viewing (matching YouTube where bottom nav is hidden during playback). No change needed -- confirmed by design.
-
-#### Gap 9: No "Clip" Feature on Desktop Watch Page
-
-YouTube desktop has a "Clip" button that allows users to create short clips from videos to share. FUN Play has no equivalent feature.
-
-**Fix:** This is a complex feature requiring backend clip creation. Marking as future enhancement -- not part of this round.
-
-#### Gap 10: No Ambient Mode on Desktop Watch Page
-
-YouTube has an "Ambient Mode" that subtly changes the background color of the watch page to match the colors in the video. This creates a cinematic effect.
-
-**Fix:** This is a visual enhancement that could be added by sampling the video's dominant color and applying it as a subtle background gradient behind the player area. Medium complexity but high visual impact. Deferred to future round to keep scope manageable.
+**Fix:** No change needed -- this is a branded feature name.
 
 ---
 
 ## IMPLEMENTATION PLAN
 
-### Phase 1: Upload.tsx Label Fix (1 file)
+### Phase 1: Sidebar NFT Label Fix (2 files)
 
-1. **Upload.tsx** -- Fix remaining English text:
-   - Line 591: `"Description"` to `"Mo ta"`
-   - Line 596: `"Tell viewers about your video"` to `"Mo ta noi dung video cua ban"`
+1. **Sidebar.tsx** -- Line 68: Change `"NFT Gallery"` to `"Bo su tap NFT"`
+2. **CollapsibleSidebar.tsx** -- Line 67: Change `"NFT Gallery"` to `"Bo su tap NFT"`
 
-### Phase 2: FUN Money Components Full Localization (4 files)
+### Phase 2: DragDropImageUpload Full Localization (1 file)
 
-1. **MintRequestForm.tsx** -- Full Vietnamese translation of all 18+ English strings including form labels, button text, toast messages, pillar names, and status messages.
+1. **DragDropImageUpload.tsx** -- Translate all 9 English strings:
+   - `"Authentication required"` to `"Yeu cau dang nhap"`
+   - `"Please log in to upload files"` to `"Vui long dang nhap de tai anh len"`
+   - `"File too large"` to `"File qua lon"`
+   - `` `Please select an image under ${maxSizeMB}MB` `` to `` `Vui long chon anh duoi ${maxSizeMB}MB` ``
+   - `"Invalid file type"` to `"Dinh dang file khong hop le"`
+   - `"Please select an image file"` to `"Vui long chon file hinh anh"`
+   - `"Upload successful"` to `"Tai anh thanh cong"`
+   - `"Your image has been uploaded to cloud storage"` to `"Hinh anh da duoc tai len thanh cong"`
+   - `"Drag & drop or click to upload"` to `"Keo tha hoac nhan de tai anh len"`
 
-2. **TokenLifecyclePanel.tsx** -- Translate:
-   - `"Token Lifecycle"` to `"Vong doi Token"`
-   - `"Total Value"` to `"Tong gia tri"`
-   - `"Light Score"` to `"Diem Anh Sang"`
-   - `"Unity Score"` to `"Diem Doan Ket"`
-   - `"Refresh"` to `"Lam moi"`
+### Phase 3: Reward History + Share Title Fix (2 files)
 
-3. **MintRequestCard.tsx** -- Translate:
-   - `"Light:"` to `"AS:"`
-   - `"Unity:"` to `"DK:"`
+1. **RewardHistory.tsx** -- Line 66: Change `"Upload video"` to `"Tai len video"`
+2. **CAMLYPrice.tsx** -- Line 117: Change `"CAMLY Token Price"` to `"Gia Token CAMLY"`
 
-4. **LightActivityBreakdown.tsx** -- Translate `"Total Light Score"` to `"Tong Diem Anh Sang"`
+### Phase 4: UpNextSidebar Tooltip Localization (1 file)
 
-### Phase 3: Admin FunMoneyApprovalTab Localization (1 file)
+1. **UpNextSidebar.tsx** -- Two changes:
+   - Line 169: `title="Shuffle"` to `title="Xao tron"`
+   - Line 179: `` title={`Repeat: ${session.repeat}`} `` to a Vietnamese mapping: `title={session.repeat === "off" ? "Lap lai: tat" : session.repeat === "all" ? "Lap lai: tat ca" : "Lap lai: mot bai"}`
 
-1. **FunMoneyApprovalTab.tsx** -- Full Vietnamese translation of 25+ English strings including:
-   - Tab labels: "Pending" to "Cho duyet", "Approved" to "Da duyet", "Minted" to "Da mint", "Rejected" to "Tu choi", "All" to "Tat ca"
-   - Button labels: "Approve Request" to "Duyet yeu cau", "Reject Request" to "Tu choi yeu cau"
-   - Toast messages, placeholders, and panel labels
+### Phase 5: Internal Error Message Cleanup (2 files)
 
-### Phase 4: FUN Money Hook Error Messages (1 file)
+1. **ManageChannel.tsx** -- Line 50: Change `"Failed to upload banner"` to `"Tai banner that bai"`
+2. **UploadContext.tsx** -- Line 190: Change `"Upload failed"` to `"Tai len that bai"`
 
-1. **useFunMoneyMintRequest.ts** -- Change `'Failed to submit request'` to `'Gui yeu cau that bai'`
+### Phase 6: NFTGallery Page Title + Mock Data Localization (1 file)
 
-### Phase 5: MintableCard Localization (1 file)
-
-1. **MintableCard.tsx** -- Change `'Light Score'` label to `'Diem Anh Sang'`
+1. **NFTGallery.tsx** -- Changes:
+   - Line 104: `"NFT Gallery"` to `"Bo su tap NFT"`
+   - Line 43: `"The first FUN Play Genesis NFT collection"` to `"Bo su tap NFT dau tien cua FUN Play"`
+   - Line 52: `"Awarded to top content creators"` to `"Trao cho nhung nha sang tao hang dau"`
+   - Line 61: `"For the true believers"` to `"Danh cho nhung nguoi tin tuong"`
+   - Line 70: `"Mystical aurora themed artwork"` to `"Tac pham nghe thuat cuc quang huyen bi"`
 
 ---
 
@@ -195,15 +162,21 @@ YouTube has an "Ambient Mode" that subtly changes the background color of the wa
 
 | Phase | Files Modified | New Files | Complexity |
 |-------|---------------|-----------|------------|
-| 1 | 1 (Upload.tsx) | 0 | Low -- 2 string changes |
-| 2 | 4 (MintRequestForm, TokenLifecyclePanel, MintRequestCard, LightActivityBreakdown) | 0 | Medium -- full form translation |
-| 3 | 1 (FunMoneyApprovalTab.tsx) | 0 | Medium -- 25+ string changes |
-| 4 | 1 (useFunMoneyMintRequest.ts) | 0 | Low -- 1 string change |
-| 5 | 1 (MintableCard.tsx) | 0 | Low -- 1 string change |
+| 1 | 2 (Sidebar.tsx, CollapsibleSidebar.tsx) | 0 | Low -- 1 string each |
+| 2 | 1 (DragDropImageUpload.tsx) | 0 | Low -- 9 string translations |
+| 3 | 2 (RewardHistory.tsx, CAMLYPrice.tsx) | 0 | Low -- 1 string each |
+| 4 | 1 (UpNextSidebar.tsx) | 0 | Low -- 2 tooltip translations |
+| 5 | 2 (ManageChannel.tsx, UploadContext.tsx) | 0 | Low -- 1 string each |
+| 6 | 1 (NFTGallery.tsx) | 0 | Low -- 5 string translations |
 
-**Total: 8 files modified, 0 new files, 0 database changes**
+**Total: 9 files modified, 0 new files, 0 database changes**
 
-All changes are frontend-only string translations. The main pages (Watch, Index, Channel, Profile, Notifications, Library, Shorts) and core navigation are now fully localized from Rounds 1-9. Round 10 targets the FUN Money ecosystem components and admin panel -- the last remaining areas with English text.
+All changes are frontend-only string translations. After Round 11, the remaining English text in the entire FUN Play application will be limited to:
+- Branded feature names (FUN ECOSYSTEM, Build and Bounty, FUN Wallet, Shorts, Studio)
+- Music genre names (Pop, Rock, Jazz, Classical, Lo-Fi, Ambient, Hip Hop)
+- Technical/developer documentation (PlatformDocs.tsx)
+- Internal code status values ("success", "error", "pending")
+- UI library default attributes (sidebar.tsx "Toggle Sidebar")
 
-After Round 10, FUN Play will have zero remaining English strings across the entire application including all FUN Money components, admin panels, and edge-case fallbacks. The platform will achieve complete Vietnamese localization parity with YouTube's localized experience.
+These are all industry-standard exceptions that YouTube itself does not localize. The user-facing interface will be 100% Vietnamese.
 
