@@ -1,31 +1,31 @@
 
 
-# Cập nhật màu sắc Filter Chips Bar theo thương hiệu FUN Play
+# Cập nhật màu sắc Filter Chips Bar theo Logo FUN Play
 
 ## Tổng quan
 
-Bạn muốn cập nhật thanh **Filter Chips Bar** (Category Chips) để sử dụng màu sắc từ logo dự án thay vì màu xanh sky hiện tại. Logo FUN Play sử dụng bảng màu **Aurora Gradient** đặc trưng của theme "Heavenly Aurora Bliss" với 4 màu cosmic chính:
+Thanh **Filter Chips Bar** (Category Chips) hiện tại sử dụng màu xanh sky (`sky-600`, `sky-700`) không phù hợp với thương hiệu FUN Play. Cần cập nhật để sử dụng 3 màu chính từ logo dự án:
 
-- **Cosmic Cyan**: `#00E7FF` (xanh cyan rực rỡ)
-- **Cosmic Sapphire**: `#7A2BFF` (tím sapphire)
-- **Cosmic Magenta**: `#FF00E5` (hồng magenta)
-- **Cosmic Gold**: `#FFD700` (vàng kim)
+- **Xanh dương (Blue)**: `#0066FF` (Cosmic Sapphire)
+- **Vàng kim (Yellow/Gold)**: `#FFD700` (Cosmic Gold)  
+- **Hồng nhẹ (Light Pink)**: `#FFB7F6` (Divine Pink)
 
 ## Thiết kế mới
 
 ### Chip được chọn (Selected State)
-- **Background**: Gradient aurora từ Cyan → Sapphire → Magenta
-- **Text**: Màu trắng với font đậm
-- **Border**: Viền gradient với hiệu ứng glow nhẹ
-- **Shadow**: Ánh sáng phát ra màu cyan/magenta
+- **Nền**: Gradient 3 màu từ logo: Xanh dương → Hồng nhẹ → Vàng kim
+- **Chữ**: Màu trắng đậm (font-semibold) để nổi bật trên nền gradient
+- **Viền**: Viền xanh nhẹ với độ trong suốt (`border-[#00BFFF]/40`)
+- **Bóng**: Hiệu ứng phát sáng màu xanh (`shadow-[0_0_12px_rgba(0,102,255,0.35)]`)
 
 ### Chip mặc định (Default State)
-- **Background**: Nền trắng trong suốt 80% với viền gradient nhẹ
-- **Text**: Màu tím đậm (`#7A2BFF`)
-- **Hover**: Hiệu ứng glow nhẹ khi di chuột
+- **Nền**: Nền trắng trong suốt 90% (`bg-white/90`)
+- **Chữ**: Màu xanh dương đậm từ logo (`text-[#0066FF]`)
+- **Viền**: Viền hồng nhẹ (`border-[#FFB7F6]/30`)
+- **Hover**: Viền chuyển sang xanh + hiệu ứng phát sáng nhẹ
 
-### Đồng bộ Desktop & Mobile
-Component `CategoryChips` được sử dụng chung cho cả desktop và mobile trên trang Index, nên chỉ cần cập nhật một file duy nhất để đồng bộ toàn bộ.
+### Đồng bộ Desktop và Mobile
+Component `CategoryChips` được sử dụng chung cho cả desktop và mobile trên trang chủ (chỉ có 1 file duy nhất), nên chỉ cần cập nhật 1 file là đồng bộ toàn bộ.
 
 ---
 
@@ -38,24 +38,26 @@ Component `CategoryChips` được sử dụng chung cho cả desktop và mobile
 ### Thay đổi chi tiết
 
 1. **Chip được chọn (Selected):**
-   - Thay `bg-white text-sky-700 shadow-md border border-sky-200` 
-   - Thành gradient aurora với glow effect:
+   - Thay: `bg-white text-sky-700 shadow-md border border-sky-200 hover:bg-white`
+   - Thành:
    ```
-   bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] to-[#FF00E5]
+   bg-gradient-to-r from-[#0066FF] via-[#FFB7F6] to-[#FFD700]
    text-white font-semibold
-   shadow-[0_0_15px_rgba(0,231,255,0.4)]
-   border border-[#00E7FF]/40
+   shadow-[0_0_12px_rgba(0,102,255,0.35)]
+   border border-[#00BFFF]/40
+   hover:shadow-[0_0_18px_rgba(0,102,255,0.5)]
    ```
 
 2. **Chip mặc định (Default):**
-   - Thay `bg-white/80 text-sky-600 border border-gray-200`
-   - Thành glassmorphism với accent aurora:
+   - Thay: `bg-white/80 text-sky-600 border border-gray-200 hover:bg-white hover:text-sky-700 hover:shadow-sm`
+   - Thành:
    ```
-   bg-white/90 backdrop-blur-sm
-   text-[#7A2BFF] 
-   border border-[#7A2BFF]/20
-   hover:border-[#00E7FF]/50
-   hover:shadow-[0_0_10px_rgba(0,231,255,0.3)]
+   bg-white/90
+   text-[#0066FF]
+   border border-[#FFB7F6]/30
+   hover:bg-white hover:text-[#0055DD]
+   hover:border-[#00BFFF]/50
+   hover:shadow-[0_0_8px_rgba(0,102,255,0.2)]
    ```
 
 ---
@@ -66,15 +68,15 @@ Component `CategoryChips` được sử dụng chung cho cả desktop và mobile
 |----------|----------|
 | File cần sửa | 1 (CategoryChips.tsx) |
 | File mới | 0 |
-| Thay đổi database | Không |
-| Độ phức tạp | Thấp - chỉ thay đổi styling |
+| Thay đổi cơ sở dữ liệu | Không |
+| Độ phức tạp | Thấp — chỉ thay đổi styling |
 | Đồng bộ Mobile | Tự động (component dùng chung) |
 
 ### Kết quả sau cập nhật
 
-- Filter Chips Bar sẽ sử dụng bảng màu Aurora Gradient phù hợp với logo FUN Play
-- Chip được chọn có hiệu ứng gradient cầu vồng nổi bật
-- Chip mặc định có viền tím nhẹ với hover effect phát sáng
+- Filter Chips Bar sẽ sử dụng 3 màu chính từ logo FUN Play: xanh dương, vàng kim, hồng nhẹ
+- Chip được chọn có hiệu ứng gradient cầu vồng 3 màu nổi bật
+- Chip mặc định có chữ xanh dương với viền hồng nhẹ
 - Giao diện đồng nhất trên cả desktop và mobile
 - Phù hợp với tinh thần "5D Light Economy" của dự án
 
