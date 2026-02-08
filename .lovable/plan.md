@@ -1,8 +1,7 @@
 
+# FUN Play vs YouTube 2025: Round 16 Gap Analysis
 
-# FUN Play vs YouTube 2025: Round 14 Gap Analysis
-
-## Verified Fixes from Rounds 1-13 (All Working)
+## Verified Fixes from Rounds 1-15 (All Working)
 
 | Feature | Round | Status |
 |---------|-------|--------|
@@ -15,7 +14,7 @@
 | LikedVideos hero + Subscriptions VideoCard | R4-R5 | Done |
 | Index.tsx infinite scroll with sentinel | R4 | Done |
 | Shared formatters.ts fully consolidated | R4-R8 | Done |
-| Library.tsx hub, UpNextSidebar Vietnamese | R5 | Done |
+| Library hub, UpNextSidebar Vietnamese | R5 | Done |
 | Notifications filter tabs, Subscriptions kebab | R5 | Done |
 | All sidebar/nav/header fully localized | R6-R8 | Done |
 | Shorts subscribe/dislike/save/report/progress | R6-R8 | Done |
@@ -30,70 +29,64 @@
 | Music "Unknown Artist", WalletAbuse, SunoForm | R13 | Done |
 | TransactionHistory CSV, UserProfile errors | R13 | Done |
 | BountyApprovalTab + CAMLYPrice "N/A" | R13 | Done |
+| WatchLaterButton fully localized | R14 | Done |
+| Admin CSV headers (Videos, Users, Overview) | R14 | Done |
+| Ambient Mode on desktop video player | R14 | Done |
+| Video Chapters with progress bar markers | R14 | Done |
+| "Copy Link" buttons fully localized | R15 | Done |
+| Social share texts translated | R15 | Done |
+| AI Music "Instrumental"/"Vocal" labels | R15 | Done |
+| RewardHistory "Upload" filter label | R15 | Done |
 
 ---
 
-## REMAINING GAPS FOUND IN ROUND 14
+## REMAINING GAPS FOUND IN ROUND 16
 
 ### HIGH PRIORITY
 
-#### Gap 1: "Watch Later" Mixed Language in WatchLaterButton.tsx (3 instances)
+#### Gap 1: "Loading..." English on Index.tsx Homepage
 
-`WatchLaterButton.tsx` has 3 remaining English strings visible to users:
-- Line 38: `"Da them Watch Later"` -- mixed Vietnamese + English, should be fully Vietnamese
-- Line 89: `title="Xoa khoi Watch Later"` -- mixed Vietnamese + English in tooltip
-- Line 89: `title="Them vao Watch Later"` -- mixed Vietnamese + English in tooltip
+`Index.tsx` line 275 displays `"Loading..."` while checking authentication state. This is the very first thing users see on the homepage while the app initializes.
 
-The "menu" variant (line 38) shows "Da them Watch Later" as visible text when a video is already saved. The "icon" variant tooltips (line 89) show on hover.
+**Fix:** Change `"Loading..."` to `"Dang tai..."` (Loading...).
 
-**Fix:** Change all 3 instances:
-- Line 38: `"Da them Watch Later"` to `"Da them vao Xem sau"`
-- Line 89: `"Xoa khoi Watch Later"` to `"Xoa khoi danh sach Xem sau"` and `"Them vao Watch Later"` to `"Them vao Xem sau"`
+#### Gap 2: Mobile Player Missing Chapter Support
 
-#### Gap 2: Admin VideosManagementTab CSV Headers in English
+The desktop `EnhancedVideoPlayer.tsx` has full chapter support (parsing timestamps from descriptions, displaying markers on progress bar, showing chapter tooltips). However, the mobile `YouTubeMobilePlayer.tsx` has NO chapter support at all -- it does not accept a `description` prop, does not parse chapters, and does not render chapter markers on its progress bar.
 
-`VideosManagementTab.tsx` line 354 exports CSV with English headers: `["Title", "Uploader", "File Size", "Duration", "Views", "Category", "Upload Date"]`. Also line 361: `"N/A"` for missing category.
+YouTube's mobile app shows chapter markers and chapter titles on the mobile player identically to desktop.
 
-While this is admin-only, OverviewTab.tsx already uses Vietnamese CSV headers (e.g., "Ngay", "Nguoi dung hoat dong"), creating inconsistency within the admin panel.
+**Fix:** Add chapter support to `YouTubeMobilePlayer.tsx`:
+- Accept a `description` prop
+- Parse chapters using the existing `parseChapters` utility
+- Render chapter marker dividers on the mobile progress bar
+- Show the current chapter title below the progress bar when controls are visible
+- Pass `video.description` from `MobileWatchView.tsx`
 
-**Fix:** Translate headers to `["Tieu de", "Nguoi tai len", "Kich thuoc", "Thoi luong", "Luot xem", "The loai", "Ngay tai len"]`. Change `"N/A"` to `"Khong co"`.
+#### Gap 3: Mobile Player Missing Ambient Mode Support
 
-#### Gap 3: Admin AllUsersTab CSV Headers in English
+The desktop player has Ambient Mode (color sampling from video frames, glow effect behind player). The mobile `MobileWatchView.tsx` does not implement ambient mode at all. On YouTube's mobile app, Ambient Mode creates a subtle color glow below the player that blends into the scrollable content area.
 
-`AllUsersTab.tsx` lines 39-50 export CSV with English headers: `["ID", "Username", "Display Name", "Total CAMLY", "Pending", "Approved", "Videos", "Comments", "Wallet", "Banned"]`.
+**Fix:** Add ambient mode to the mobile watch experience:
+- Add `onAmbientColor` callback to `YouTubeMobilePlayer.tsx` with canvas-based color sampling (same technique as desktop)
+- In `MobileWatchView.tsx`, apply the ambient color as a soft gradient glow below the video player area
+- Persist preference using the same localStorage key (`funplay_ambient_mode`)
 
-**Fix:** Translate to `["ID", "Ten dang nhap", "Ten hien thi", "Tong CAMLY", "Cho duyet", "Da duyet", "Video", "Binh luan", "Vi", "Bi cam"]`.
+#### Gap 4: Mobile DescriptionDrawer Missing Chapters Display
 
-#### Gap 4: Admin OverviewTab CSV Headers Partially English
+When a video has chapters in its description (timestamps like `0:00 Intro`), YouTube's mobile app shows clickable chapter pills in the description drawer. FUN Play's `DescriptionDrawer.tsx` displays raw description text with no chapter parsing or interactive timestamps.
 
-`OverviewTab.tsx` lines 54 and 64 have mixed-language CSV headers:
-- Line 54: `['Rank', 'Ten', 'So Video', 'Luot Xem', 'CAMLY Nhan']` -- "Rank" is English
-- Line 64: `['Rank', 'Ten', 'Tong CAMLY']` -- "Rank" is English
-
-**Fix:** Change `"Rank"` to `"Thu hang"` in both lines.
+**Fix:** Parse chapters from the description in `DescriptionDrawer.tsx` and render them as a horizontally scrollable list of tappable chapter pills above the raw description text. Tapping a chapter pill should close the drawer and seek to that timestamp.
 
 ---
 
-### MEDIUM PRIORITY (Feature Gaps)
+### MEDIUM PRIORITY
 
-#### Gap 5: No Ambient Mode on Desktop Video Player
+#### Gap 5: Missing "Clip" Feature (Video Segment Sharing)
 
-YouTube 2025 has "Ambient Mode" which extracts dominant colors from the playing video and creates a soft, matching glow effect on the page background behind the player. This creates an immersive viewing experience.
+YouTube allows users to create 5-60 second clips from videos and share them with unique URLs. FUN Play does not implement this feature.
 
-FUN Play's `EnhancedVideoPlayer.tsx` and `Watch.tsx` do not implement any color extraction or ambient background effect.
-
-**Implementation approach:** Use a hidden canvas element to periodically sample the video frame's dominant color, then apply a CSS `box-shadow` or radial gradient to the player container background. This is a visual-only enhancement with no backend changes.
-
-#### Gap 6: No Video Chapters Support
-
-YouTube supports chapters via timestamps in video descriptions (e.g., `0:00 Intro`, `2:30 Main topic`). These timestamps create seekable markers on the progress bar, allowing viewers to jump between sections.
-
-FUN Play already parses timestamp links in comments but does not:
-1. Parse timestamps from video descriptions
-2. Display chapter markers on the progress bar
-3. Show chapter titles when hovering over the progress bar
-
-**Implementation approach:** Parse the video description for timestamp patterns (`MM:SS` or `H:MM:SS` followed by text), render visual markers on the progress bar, and show chapter titles on hover. Frontend-only, no backend changes.
+**Fix:** Deferred to future round -- requires backend support for clip storage/URL generation and a range selection UI in the video player.
 
 ---
 
@@ -105,72 +98,70 @@ FUN Play already parses timestamp links in comments but does not:
 - **Database enum values**: "success", "error", "pending", "reward"
 - **UI library defaults**: sidebar.tsx "Toggle Sidebar"
 - **Alt text attributes**: "Banner preview", "Thumbnail preview"
-- **React key props**: `labelEn` values in Honobar.tsx and RewardStats.tsx (used as keys, not displayed)
+- **React internal keys**: labelEn values
 
 ---
 
 ## IMPLEMENTATION PLAN
 
-### Phase 1: WatchLaterButton.tsx Localization (1 file, 3 string changes)
+### Phase 1: Index.tsx Loading Text Fix (1 file, 1 change)
 
-**File:** `src/components/Video/WatchLaterButton.tsx`
-- Line 38: Change `"Da them Watch Later"` to `"Da them vao Xem sau"`
-- Line 89 (first): Change `"Xoa khoi Watch Later"` to `"Xoa khoi danh sach Xem sau"`
-- Line 89 (second): Change `"Them vao Watch Later"` to `"Them vao Xem sau"`
+**File:** `src/pages/Index.tsx`
+- Line 275: Change `"Loading..."` to `"Đang tải..."`
 
-### Phase 2: Admin CSV Export Headers Localization (3 files)
+### Phase 2: Mobile Chapter Support (2 files)
 
-**File 1:** `src/components/Admin/tabs/VideosManagementTab.tsx`
-- Line 354: Translate CSV headers to Vietnamese
-- Line 361: Change `"N/A"` to `"Khong co"`
+#### File 1: `src/components/Video/YouTubeMobilePlayer.tsx`
+- Add `description?: string` prop to the component interface
+- Import `parseChapters`, `getCurrentChapter`, and `Chapter` type from `@/lib/parseChapters`
+- Parse chapters with `useMemo(() => parseChapters(description), [description])`
+- Compute current chapter with `useMemo(() => getCurrentChapter(chapters, currentTime), [chapters, currentTime])`
+- Render chapter marker dividers (thin white vertical lines) on the progress bar (both the "always visible thin bar" and the "controls visible" progress area)
+- When controls are visible and chapters exist, show the current chapter title as a small label below the progress bar
 
-**File 2:** `src/components/Admin/tabs/AllUsersTab.tsx`
-- Lines 39-50: Translate CSV headers to Vietnamese
+#### File 2: `src/components/Video/Mobile/MobileWatchView.tsx`
+- Pass `video.description` to `YouTubeMobilePlayer` as the `description` prop
 
-**File 3:** `src/components/Admin/tabs/OverviewTab.tsx`
-- Line 54: Change `"Rank"` to `"Thu hang"`
-- Line 64: Change `"Rank"` to `"Thu hang"`
+### Phase 3: Mobile Ambient Mode (2 files)
 
-### Phase 3: Ambient Mode for Desktop Video Player (2 files)
+#### File 1: `src/components/Video/YouTubeMobilePlayer.tsx`
+- Add `onAmbientColor?: (color: string | null) => void` prop
+- Add a hidden `<canvas>` ref for color sampling
+- Add ambient mode state (read from localStorage `funplay_ambient_mode`)
+- Add a `useEffect` that samples the video's dominant color every 2 seconds (same technique as `EnhancedVideoPlayer.tsx`: draw video to 4x4 canvas, average pixel RGB)
+- Call `onAmbientColor` with the sampled color string
+- Add "Ambient Mode" toggle to `PlayerSettingsDrawer.tsx`
 
-Add a subtle ambient glow effect that samples the video's dominant color and applies it as a background glow behind the player.
+#### File 2: `src/components/Video/Mobile/MobileWatchView.tsx`
+- Add `ambientColor` state
+- Pass `onAmbientColor={setAmbientColor}` to `YouTubeMobilePlayer`
+- Below the video player `div`, render a subtle gradient glow div that uses the ambient color:
+  ```
+  background: linear-gradient(to bottom, rgba(${ambientColor}, 0.2) 0%, transparent 100%)
+  ```
+- Height: ~80px, positioned directly below the player with smooth color transitions
 
-**File 1:** `src/components/Video/EnhancedVideoPlayer.tsx`
-- Add a hidden canvas and `useEffect` that samples the video frame every 2 seconds
-- Extract the dominant color using a simple pixel averaging technique
-- Expose the extracted color via a callback prop or CSS custom property
+#### File 3: `src/components/Video/PlayerSettingsDrawer.tsx`
+- Add `ambientEnabled` and `onAmbientToggle` props
+- Add an "Ambient Mode" / "Che do anh sang" toggle section after the Loop section
 
-**File 2:** `src/pages/Watch.tsx`
-- Add an ambient glow `div` behind the video player container
-- Apply the extracted color as a radial gradient or box-shadow
-- Only visible when Ambient Mode is active (toggle in player settings)
-- Add "Che do moi truong" (Ambient Mode) toggle to the settings dropdown
+### Phase 4: DescriptionDrawer Chapter Pills (1 file)
 
-Technical details:
-- Use `CanvasRenderingContext2D.drawImage()` to sample video frames
-- Average pixel colors from a downscaled (4x4 pixel) version for performance
-- Apply as `background: radial-gradient(ellipse at center, ${ambientColor}20 0%, transparent 70%)`
-- Throttle sampling to every 2 seconds to minimize CPU impact
-- Disable in Theater Mode (where a dark background is preferred)
+#### File: `src/components/Video/Mobile/DescriptionDrawer.tsx`
+- Import `parseChapters` and `Chapter` from `@/lib/parseChapters`
+- Add `onSeekToChapter?: (seconds: number) => void` prop
+- Parse chapters from the description text
+- If chapters exist, render a horizontally scrollable row of chapter "pills" between the stats row and the description text
+- Each pill shows the timestamp and chapter title (e.g., "0:00 Intro", "2:30 Main Topic")
+- Tapping a pill calls `onSeekToChapter` with the chapter's time in seconds
+- Pass `onSeekToChapter` from `MobileWatchView.tsx` (which should close the drawer and seek the player)
 
-### Phase 4: Video Chapters (3 files)
+#### File: `src/components/Video/Mobile/MobileWatchView.tsx` (additional changes)
+- Pass `onSeekToChapter` to `DescriptionDrawer` (via `VideoInfoSection`)
+- Implement seeking by updating `YouTubeMobilePlayer` to expose a seek function via ref or callback
 
-Parse timestamps from video descriptions and render chapter markers on the progress bar.
-
-**File 1:** Create `src/lib/parseChapters.ts`
-- Utility function to parse timestamps from description text
-- Regex pattern: `/^(\d{1,2}:)?(\d{1,2}):(\d{2})\s+(.+)$/gm`
-- Returns array of `{ time: number, title: string }` objects
-- Validates that chapters are in ascending time order
-
-**File 2:** `src/components/Video/EnhancedVideoPlayer.tsx`
-- Accept `description` prop (or `chapters` array)
-- Render chapter markers as small dots/lines on the progress bar
-- Show chapter title in a tooltip on hover over the progress bar
-- Highlight the current chapter segment on the progress bar
-
-**File 3:** `src/pages/Watch.tsx`
-- Pass `video.description` to `EnhancedVideoPlayer` for chapter parsing
+#### File: `src/components/Video/Mobile/VideoInfoSection.tsx`
+- Pass through `onSeekToChapter` prop to `DescriptionDrawer`
 
 ---
 
@@ -178,30 +169,24 @@ Parse timestamps from video descriptions and render chapter markers on the progr
 
 | Phase | Files Modified | New Files | Complexity |
 |-------|---------------|-----------|------------|
-| 1 | 1 (WatchLaterButton.tsx) | 0 | Low -- 3 string changes |
-| 2 | 3 (VideosManagementTab, AllUsersTab, OverviewTab) | 0 | Low -- CSV header translations |
-| 3 | 2 (EnhancedVideoPlayer.tsx, Watch.tsx) | 0 | Medium -- canvas color extraction + CSS glow |
-| 4 | 2 (EnhancedVideoPlayer.tsx, Watch.tsx) | 1 (parseChapters.ts) | Medium -- timestamp parsing + progress bar markers |
+| 1 | 1 (Index.tsx) | 0 | Low -- 1 string change |
+| 2 | 2 (YouTubeMobilePlayer.tsx, MobileWatchView.tsx) | 0 | Medium -- chapter parsing + progress bar markers |
+| 3 | 3 (YouTubeMobilePlayer.tsx, MobileWatchView.tsx, PlayerSettingsDrawer.tsx) | 0 | Medium -- canvas color sampling + ambient glow |
+| 4 | 3 (DescriptionDrawer.tsx, VideoInfoSection.tsx, MobileWatchView.tsx) | 0 | Medium -- chapter pills + seek callback |
 
-**Total: 5 files modified, 1 new file, 0 database changes**
+**Total: 6 unique files modified, 0 new files, 0 database changes**
 
-### Localization Completion After Round 14
+Note: `YouTubeMobilePlayer.tsx` and `MobileWatchView.tsx` are modified across multiple phases (changes are cumulative).
 
-After Phases 1-2, the only remaining English text in FUN Play will be:
-- Branded feature names (industry-standard, YouTube keeps these in English)
-- Music genre names (internationally recognized terms)
-- Technical documentation (developer-facing)
-- Internal code identifiers (database values, React keys)
-- UI library defaults (shadcn/ui)
+### Feature Parity Progress After Round 16
 
-### Feature Parity Progress After Round 14
-
-**Newly implemented YouTube 2025 features:**
-- Ambient Mode (video color-matching background glow)
-- Video Chapters (seekable markers from description timestamps)
+**Newly added YouTube 2025 features:**
+- Mobile chapter markers on progress bar (parity with desktop)
+- Mobile Ambient Mode glow effect (parity with desktop)
+- Interactive chapter pills in mobile description drawer
+- Final localization fix (Index.tsx "Loading..." to Vietnamese)
 
 **Remaining YouTube features for future rounds:**
-- Clip creation (share video segments)
-- Super Thanks (highlighted paid comments)
-- Community posts with polls
-
+- Clip creation (share video segments) -- requires backend
+- Super Thanks (highlighted paid comments) -- skipped per user request
+- Community posts with polls -- not implementing per user request
