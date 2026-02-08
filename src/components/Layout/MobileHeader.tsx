@@ -122,6 +122,7 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
           .from('videos')
           .select('id, title')
           .eq('is_public', true)
+          .eq('approval_status', 'approved')
           .ilike('title', `%${searchQuery.trim()}%`)
           .order('view_count', { ascending: false })
           .limit(5);

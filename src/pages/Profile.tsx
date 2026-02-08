@@ -159,7 +159,7 @@ const Profile = () => {
           <p className="text-sm text-muted-foreground">@{username}</p>
           
           <p className="text-sm text-muted-foreground mt-1">
-            {formatViewsShort(channel?.subscriber_count || 0)} người đăng ký • {channel?.video_count || 0} video
+            {formatViewsShort(channel?.subscriber_count || 0)} người đăng ký • {formatViewsShort(channel?.video_count || 0)} video
           </p>
           
           <Button
