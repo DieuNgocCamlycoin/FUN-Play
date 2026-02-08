@@ -1,107 +1,69 @@
 
+# Xóa hiệu ứng phát sáng (glow) trên Filter Chips Bar
 
-# Đồng bộ Filter Chips Bar: Chip chọn = màu MINT, Chip mặc định = màu WALLET
+## Vấn đề hiện tại
 
-## Tổng quan
+Các nút trên **Filter Chips Bar** đang hiển thị hiệu ứng phát sáng (glow) rực rỡ màu xanh dương và tím hồng xung quanh viền. Nguyên nhân là component `CategoryChips` sử dụng component `Button` với 2 variant có sẵn hiệu ứng glow mạnh:
 
-Cập nhật **Filter Chips Bar** để:
-- **Chip được chọn (pressed)**: Sử dụng bảng màu **vàng kim Premium** giống nút **MINT** trên Header
-- **Chip mặc định (not pressed)**: Sử dụng bảng màu **xanh Teal-Cyan-Blue** giống nút **WALLET** trên Header
+- **variant="default"** (chip được chọn): có `shadow-[0_0_40px_rgba(0,102,255,0.8)]` và gradient nền xanh-tím
+- **variant="secondary"** (chip mặc định): có `shadow-[0_0_30px_rgba(217,0,255,0.7)]` và gradient nền tím-hồng
 
-Thay đổi áp dụng đồng bộ cho cả Desktop và Mobile (cùng 1 component).
+Dù className tùy chỉnh đã cố ghi đè bằng `bg-white` và `shadow-md`, nhưng các hiệu ứng glow từ variant gốc vẫn "rò rỉ" qua do thứ tự ưu tiên CSS.
 
----
+## Giải pháp
 
-## Màu tham chiếu từ Header
-
-### Nút MINT (dùng cho chip được chọn)
-- Gradient dọc vàng kim: `from-[#FFEA00] via-[#FFD700] to-[#E5A800]`
-- Chữ màu nâu vàng đậm: `text-[#7C5800]`
-- Viền vàng nhạt: `border-[#FFEA00]/60`
-- Bóng phát sáng vàng: `shadow-[0_0_15px_rgba(255,215,0,0.4),inset_0_2px_4px_rgba(255,255,255,0.6),inset_0_-1px_2px_rgba(0,0,0,0.1)]`
-- Hiệu ứng Mirror Shimmer (dải sáng trắng chạy qua)
-
-### Nút WALLET (dùng cho chip mặc định)
-- Gradient ngang xanh: `#5EEAD4 -> #22D3EE -> #06B6D4 -> #0EA5E9 -> #0284C7`
-- Chữ trắng: `text-white`
+Thêm `shadow-none` vào className của cả hai trạng thái (selected và default) để triệt để xóa bỏ hiệu ứng glow từ variant gốc, sau đó chỉ áp dụng lại shadow nhẹ nếu cần.
 
 ---
 
-## Thiết kế mới chi tiết
+## Kế hoạch triển khai
 
-### Chip được chọn (Selected) -- Phong cách "MINT Gold"
-- **Nền**: Gradient vàng kim dọc `bg-gradient-to-b from-[#FFEA00] via-[#FFD700] to-[#E5A800]`
-- **Chữ**: Nâu vàng đậm `text-[#7C5800] font-extrabold`
-- **Viền**: Vàng nhạt `border-[#FFEA00]/60`
-- **Bóng**: Ánh sáng vàng kim `shadow-[0_0_15px_rgba(255,215,0,0.4),inset_0_2px_4px_rgba(255,255,255,0.6),inset_0_-1px_2px_rgba(0,0,0,0.1)]`
-- **Hiệu ứng**: Mirror Shimmer (dải sáng trắng chạy qua liên tục)
-- **Hover**: Tăng cường bóng + phóng nhẹ `hover:scale-105`
+### File cần chỉnh sửa
 
-### Chip mặc định (Default) -- Phong cách "WALLET Teal"
-- **Nền**: Gradient ngang xanh `bg-[linear-gradient(90deg,#5EEAD4_0%,#22D3EE_35%,#06B6D4_50%,#0EA5E9_75%,#0284C7_100%)]`
-- **Chữ**: Trắng `text-white font-semibold`
-- **Viền**: Trong suốt `border-transparent`
-- **Hover**: Tăng sáng `hover:brightness-110`
-- **Không glow**: `!shadow-none`
-
----
-
-## File cần chỉnh sửa
-
-**File duy nhất:** `src/components/Layout/CategoryChips.tsx`
+**File:** `src/components/Layout/CategoryChips.tsx`
 
 ### Thay đổi chi tiết
 
-1. **Chip được chọn (dòng 33-34):**
+1. **Chip được chọn (Selected State) -- dòng 34:**
    - Hiện tại:
      ```
-     bg-[linear-gradient(90deg,#5EEAD4_0%,#22D3EE_35%,#06B6D4_50%,#0EA5E9_75%,#0284C7_100%)]
-     text-white font-semibold border border-transparent !shadow-none
-     hover:brightness-110 hover:!shadow-none
+     bg-white text-sky-700 shadow-md border border-sky-200 hover:bg-white
      ```
    - Thay thành:
      ```
-     bg-gradient-to-b from-[#FFEA00] via-[#FFD700] to-[#E5A800]
-     text-[#7C5800] font-extrabold border border-[#FFEA00]/60
-     shadow-[0_0_15px_rgba(255,215,0,0.4),inset_0_2px_4px_rgba(255,255,255,0.6),inset_0_-1px_2px_rgba(0,0,0,0.1)]
-     hover:shadow-[0_0_25px_rgba(255,234,0,0.6)] hover:scale-105
+     bg-white text-sky-700 shadow-none border border-sky-200 hover:bg-white hover:shadow-none
      ```
-   - Thêm phần tử Mirror Shimmer overlay bên trong chip (giống nút MINT), cần cấu trúc lại JSX để bọc nội dung chip trong `relative overflow-hidden` và thêm `<span>` shimmer
+   - `shadow-none` sẽ ghi đè hoàn toàn `shadow-[0_0_40px_...]` từ variant default
 
-2. **Chip mặc định (dòng 35):**
+2. **Chip mặc định (Default State) -- dòng 35:**
    - Hiện tại:
      ```
-     bg-white/90 text-[#0284C7] font-medium border border-[#22D3EE]/30
-     !shadow-none hover:bg-white hover:text-[#0369A1]
-     hover:border-[#22D3EE]/50 hover:!shadow-none
+     bg-white/80 text-sky-600 border border-gray-200 hover:bg-white hover:text-sky-700 hover:shadow-sm
      ```
    - Thay thành:
      ```
-     bg-[linear-gradient(90deg,#5EEAD4_0%,#22D3EE_35%,#06B6D4_50%,#0EA5E9_75%,#0284C7_100%)]
-     text-white font-semibold border border-transparent
-     !shadow-none hover:brightness-110 hover:!shadow-none
+     bg-white/80 text-sky-600 border border-gray-200 shadow-none hover:bg-white hover:text-sky-700 hover:shadow-none
      ```
+   - `shadow-none` sẽ ghi đè hoàn toàn `shadow-[0_0_30px_...]` từ variant secondary
 
-3. **Cấu trúc JSX**: Thay đổi nội dung bên trong `<Button>` để thêm hiệu ứng Mirror Shimmer cho chip được chọn:
-   - Bọc text trong `<span className="relative z-10">`
-   - Thêm `<span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-mirror-shimmer" />` khi chip đang được chọn
+3. **Cả hai trạng thái** -- thêm thêm các lớp ghi đè để đảm bảo không còn hiệu ứng glow nào từ variant gốc:
+   - Thêm `!shadow-none` (dùng `!important` của Tailwind) nếu `shadow-none` thông thường không đủ mạnh để ghi đè
 
 ---
 
-## Tóm tắt
+## Tóm tắt kỹ thuật
 
 | Hạng mục | Chi tiết |
 |----------|----------|
 | File cần sửa | 1 (`CategoryChips.tsx`) |
 | File mới | 0 |
 | Thay đổi cơ sở dữ liệu | Không |
-| Độ phức tạp | Thấp -- thay đổi CSS + thêm shimmer overlay |
+| Độ phức tạp | Rất thấp -- chỉ thêm `shadow-none` |
 | Đồng bộ Mobile | Tự động (component dùng chung) |
 
-## Kết quả
+## Kết quả sau cập nhật
 
-- Chip được chọn sẽ có màu **vàng kim sang trọng** giống hệt nút MINT, với hiệu ứng Mirror Shimmer chạy qua
-- Chip mặc định sẽ có gradient **xanh Teal-Cyan-Blue** giống hệt nút WALLET, chữ trắng
-- Desktop và Mobile đồng bộ 100%
-- Tạo sự hài hòa thị giác hoàn hảo giữa Filter Chips Bar và Header Bar
-
+- Tất cả hiệu ứng phát sáng (glow) xung quanh các nút Filter Chips sẽ được xóa bỏ hoàn toàn
+- Các nút sẽ hiển thị sạch sẽ với nền trắng, không còn ánh sáng xanh/tím tỏa ra xung quanh
+- Giao diện đồng nhất trên cả desktop và mobile
+- Không ảnh hưởng đến các nút Button khác trong toàn bộ dự án (chỉ ghi đè tại CategoryChips)
