@@ -2,113 +2,97 @@
 
 # System Check Report & Fix Plan for FUN Play
 
-## Current Status: System Running Stable
+## Current Status: One Critical Bug Found
 
-After thorough inspection of console logs, network requests, visual mobile testing (390x844), and code review across 30+ files, the system has **no critical runtime errors**. All previous fixes (safe-area CSS, FUN Money navigation, realtime subscription stability, mobile header alignment) are working correctly. Network requests all return 200. No JavaScript errors in console.
+After comprehensive inspection of console logs, network requests, database schema, visual testing on mobile (390x844), and code review across 30+ files, the system is stable overall. However, one **critical functional bug** was found along with 2 medium-priority layout issues.
 
 ## Issues Found
 
-### Issue 1: Missing `/search` Route (High Priority - Functional Bug)
-Both `Header.tsx` and `MobileHeader.tsx` navigate to `/search?q=...` when the user submits a search query, but **no `/search` route is defined** in `App.tsx`. This means:
-- Users who search are sent to the 404 "Not Found" page
-- Search is fundamentally broken on both mobile and desktop
+### Issue 1: CRITICAL - Search Page Returns 400 Error (Broken Search)
+**Console log confirms:** `Failed to load resource: the server responded with a status of 400` on the `/search` endpoint.
 
-**Fix:** Create a basic `Search.tsx` page that reads the `q` query parameter and searches for videos by title. Register it as a lazy-loaded route in `App.tsx`.
+**Root Causes (2 bugs in Search.tsx):**
+1. The query uses `.eq("status", "published")` but the `videos` table does **NOT have a `status` column**. The correct column is `approval_status` with value `"approved"`.
+2. The query uses `profiles!videos_user_id_fkey(display_name, username, avatar_url)` to join profiles, but the `videos_user_id_fkey` foreign key references `auth.users`, NOT `profiles`. This FK hint is invalid and causes the 400 error.
 
-### Issue 2: `NFTGallery.tsx` Wrong Padding & Layout Pattern (Medium Priority)
-The NFT Gallery page uses `pt-16` (64px) instead of the standard `pt-12 lg:pt-14`. It also uses `ml-64` (margin-left) instead of the standardized `pl-64` (padding-left), and uses `sidebarOpen ? "ml-64" : "ml-0"` which causes a jarring layout shift. On mobile, it renders the desktop Header/Sidebar instead of `MobileHeader`/`MobileDrawer`.
+**How Index.tsx solves this correctly:** It queries videos with only `channels(name, id)` join, then does a **separate query** to fetch profiles using `.in("id", userIds)`. The Search page must follow this same proven pattern.
 
-**Fix:** Wrap the NFT Gallery in `MainLayout` to get consistent header, sidebar, and mobile layout behavior, and fix the padding to match the standard pattern.
+**Fix:**
+- Remove the `profiles!videos_user_id_fkey` join from the select
+- Change `.eq("status", "published")` to `.eq("is_public", true).eq("approval_status", "approved")`
+- Add a separate profiles query (same pattern as Index.tsx) to get display names and avatars
 
-### Issue 3: `YourVideos.tsx` Still Uses `pt-14` Without Responsive Prefix (Medium Priority)
-Line 135 uses `pt-14 lg:pl-64` which creates the 8px gap on mobile since `MobileHeader` is `h-12`.
+### Issue 2: CAMLYPrice Page Missing Mobile Navigation (Medium Priority)
+`CAMLYPrice.tsx` does not use `MainLayout`. On mobile, it has:
+- No MobileHeader
+- No MobileBottomNav
+- No way to navigate away except the back button
+- Uses its own custom header with `sticky top-0`
 
-**Fix:** Change to `pt-12 lg:pt-14`.
+**Fix:** Wrap in `MainLayout` and remove the custom header, letting MainLayout provide consistent navigation.
 
-### Issue 4: `UserDashboard.tsx` Has No Layout Wrapper (Medium Priority)
-This page uses `min-h-screen bg-background p-4` with no `Header`, `Sidebar`, `MobileHeader`, or `MobileBottomNav`. On mobile, it has no navigation and no way to go back except the browser back button.
+### Issue 3: DownloadedVideos Page Missing MainLayout (Medium Priority)
+`DownloadedVideos.tsx` manually imports `MobileBottomNav` but doesn't use `MainLayout`. This means:
+- No desktop sidebar navigation
+- Inconsistent header behavior
+- Manual `pb-20` bottom padding to account for nav
 
-**Fix:** Wrap in `MainLayout` to provide consistent navigation on all devices.
+**Fix:** Wrap in `MainLayout` and remove the manual `MobileBottomNav` import and manual bottom padding.
 
-### Issue 5: `ProfileSettings.tsx` Uses `pt-20` (Excessive Top Padding) (Low Priority)
-Line 328 uses `pt-20` (80px) which leaves a large gap below the `h-14` desktop header. On mobile, this creates a 32px gap (80px - 48px header). Also uses desktop `Header` directly without mobile layout support.
-
-**Fix:** Change to `pt-12 lg:pt-14` and wrap with consistent mobile layout pattern, or use `MainLayout`.
-
-### Issue 6: `Playlist.tsx` Desktop-Only Path Still `pt-14` (No Fix Needed)
-Line 550 uses `pt-14` but this rendering path is desktop-only (line 544 explicitly checks `!isMobile`), so `pt-14` matches the desktop `h-14` header correctly.
-
-### Issue 7: `Watch.tsx` Desktop-Only Path Still `pt-14` (No Fix Needed)
-Line 543 uses `pt-14` but this is the desktop rendering path (mobile uses `MobileWatchView` at line 481), so `pt-14` is correct.
-
-### Issue 8: WalletConnect CSP Error (Non-Critical, No Fix Needed)
-Known WalletConnect v2 framing issue in preview environment. Does not affect the published app.
+### Non-Issues (Already Working Correctly)
+- WalletConnect CSP framing: Known preview-only issue, does not affect published app
+- Manifest CORS error: Preview environment only
+- PostMessage warnings: Lovable editor environment artifacts
+- All network API calls return 200 (except the search 400)
+- Previous fixes (realtime stability, safe-area, mobile header alignment) all verified working
 
 ---
 
 ## Implementation Plan
 
-### Phase 1: Create Search Page (High Priority)
+### Phase 1: Fix Search Page 400 Error (Critical)
 
-**New File:** `src/pages/Search.tsx`
-- Create a search results page that reads the `q` parameter from URL
-- Query the `videos` table with `title.ilike.%query%`
-- Display results using existing `VideoCard` component
-- Wrap in `MainLayout` for consistent layout
-- Show "No results found" state when empty
-- Include search input at the top for refining queries
+**File:** `src/pages/Search.tsx`
+- Remove `profiles!videos_user_id_fkey` from the select query
+- Change `.eq("status", "published")` to `.eq("is_public", true).eq("approval_status", "approved")`
+- Add separate profiles query after getting video results (following the Index.tsx pattern):
+  1. Extract unique `user_id` values from results
+  2. Query `profiles` table with `.in("id", userIds)` to get `display_name, username, avatar_url`
+  3. Create a profilesMap and merge into results
+- This follows the exact same proven pattern used by `Index.tsx`
 
-**File:** `src/App.tsx`
-- Add lazy import: `const Search = lazy(() => import("./pages/Search"))`
-- Add route: `<Route path="/search" element={<Search />} />`
+### Phase 2: Fix CAMLYPrice Layout (Medium)
 
-### Phase 2: Fix NFTGallery Layout (Medium Priority)
+**File:** `src/pages/CAMLYPrice.tsx`
+- Import and wrap content with `MainLayout`
+- Remove the custom sticky header (the back button, token name, share/refresh buttons)
+- Keep the inner content structure (price card, chart, alerts, token info)
 
-**File:** `src/pages/NFTGallery.tsx`
-- Remove manual `Header` and `Sidebar` imports
-- Wrap content in `MainLayout`
-- Remove the broken `pt-16` and `ml-64` / `ml-0` sidebar logic
-- Let `MainLayout` handle all responsive layout
+### Phase 3: Fix DownloadedVideos Layout (Medium)
 
-### Phase 3: Fix YourVideos Mobile Padding (Medium Priority)
-
-**File:** `src/pages/YourVideos.tsx`
-- Change line 135 from `pt-14 lg:pl-64` to `pt-12 lg:pt-14 lg:pl-64`
-
-### Phase 4: Fix UserDashboard Layout (Medium Priority)
-
-**File:** `src/pages/UserDashboard.tsx`
-- Import and wrap with `MainLayout`
-- Remove standalone `min-h-screen bg-background p-4 md:p-8`
-- Keep inner content structure but add proper padding
-
-### Phase 5: Fix ProfileSettings Layout (Low Priority)
-
-**File:** `src/pages/ProfileSettings.tsx`
-- Replace manual `Header` usage with `MainLayout`
-- Change `pt-20` to standard responsive padding
-- Add mobile bottom nav support through `MainLayout`
+**File:** `src/pages/DownloadedVideos.tsx`
+- Import and wrap content with `MainLayout`
+- Remove the manual `MobileBottomNav` import and usage at line 197
+- Remove the manual `pb-20` padding (MainLayout handles this)
+- Keep the custom header bar but remove the `sticky top-0` since MainLayout provides the header
 
 ---
 
-## Files Modified (Total: 6)
+## Files Modified (Total: 3)
 
 | # | File | Change | Priority |
 |---|------|--------|----------|
-| 1 | `src/pages/Search.tsx` (NEW) | Create search results page | High |
-| 2 | `src/App.tsx` | Add /search route | High |
-| 3 | `src/pages/NFTGallery.tsx` | Use MainLayout, fix pt-16/ml-64 | Medium |
-| 4 | `src/pages/YourVideos.tsx` | Fix pt-14 to pt-12 lg:pt-14 | Medium |
-| 5 | `src/pages/UserDashboard.tsx` | Wrap with MainLayout | Medium |
-| 6 | `src/pages/ProfileSettings.tsx` | Use MainLayout, fix pt-20 | Low |
+| 1 | `src/pages/Search.tsx` | Fix 400 error: wrong column name, invalid FK join | Critical |
+| 2 | `src/pages/CAMLYPrice.tsx` | Wrap with MainLayout for mobile navigation | Medium |
+| 3 | `src/pages/DownloadedVideos.tsx` | Use MainLayout instead of manual nav | Medium |
 
 ---
 
 ## Summary
 
-The system is running stably with no runtime errors. The most impactful issue found is the **broken search functionality** -- users who search are sent to a 404 page because the `/search` route was never created. This affects every user on both mobile and desktop.
+The most critical issue is the **broken search functionality** -- every search query returns a 400 database error because the Search page references a non-existent `status` column and uses an invalid foreign key hint for the profiles join. Users see "0 results" for every search. The fix aligns the query with the proven pattern used by Index.tsx.
 
-The remaining issues are layout inconsistencies: 3 pages (NFTGallery, UserDashboard, ProfileSettings) don't use `MainLayout` and therefore lack proper mobile navigation (no MobileHeader, no bottom nav), and 1 page (YourVideos) has the old `pt-14` padding mismatch.
+The remaining 2 issues are pages (CAMLYPrice, DownloadedVideos) that don't use `MainLayout`, causing them to lack proper mobile navigation (no bottom nav, no consistent header).
 
-No database changes are needed. All fixes are frontend-only.
+No database changes needed. All fixes are frontend-only.
 
