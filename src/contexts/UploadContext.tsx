@@ -187,7 +187,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
               }
             };
             xhr.onload = () =>
-              xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error("Upload failed"));
+              xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error("Tải lên thất bại"));
             xhr.onerror = () => reject(new Error("Lỗi mạng"));
             xhr.open("PUT", presignData.presignedUrl);
             xhr.timeout = 30 * 60 * 1000;

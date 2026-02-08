@@ -64,7 +64,7 @@ const libraryItems: NavItem[] = [
   { icon: Video, label: "Video của bạn", href: "/your-videos" },
   { icon: Clock, label: "Xem sau", href: "/watch-later" },
   { icon: ThumbsUp, label: "Video đã thích", href: "/liked" },
-  { icon: Image, label: "NFT Gallery", href: "/nft-gallery" },
+  { icon: Image, label: "Bộ sưu tập NFT", href: "/nft-gallery" },
 ];
 
 const rewardItems: NavItem[] = [

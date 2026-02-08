@@ -40,7 +40,7 @@ const NFTGallery = () => {
         {
           id: "1",
           name: "FUN Play Genesis #001",
-          description: "The first FUN Play Genesis NFT collection",
+          description: "Bộ sưu tập NFT đầu tiên của FUN Play",
           image: "https://images.unsplash.com/photo-1634973357973-f2ed2657db3c?w=400",
           collection: "FUN Play Genesis",
           tokenId: "001",
@@ -49,7 +49,7 @@ const NFTGallery = () => {
         {
           id: "2",
           name: "Cosmic Creator Badge",
-          description: "Awarded to top content creators",
+          description: "Trao cho những nhà sáng tạo hàng đầu",
           image: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400",
           collection: "FUN Play Badges",
           tokenId: "042",
@@ -58,7 +58,7 @@ const NFTGallery = () => {
         {
           id: "3",
           name: "Diamond Hands #777",
-          description: "For the true believers",
+          description: "Dành cho những người tin tưởng",
           image: "https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=400",
           collection: "Diamond Hands",
           tokenId: "777",
@@ -67,7 +67,7 @@ const NFTGallery = () => {
         {
           id: "4",
           name: "Aurora Spirit",
-          description: "Mystical aurora themed artwork",
+          description: "Tác phẩm nghệ thuật cực quang huyền bí",
           image: "https://images.unsplash.com/photo-1579762715118-a6f1d4b934f1?w=400",
           collection: "Aurora Spirits",
           tokenId: "156",
@@ -101,7 +101,7 @@ const NFTGallery = () => {
             </div>
             <div>
               <h1 className="text-3xl font-bold bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] to-[#FFD700] bg-clip-text text-transparent">
-                NFT Gallery
+                Bộ sưu tập NFT
               </h1>
               <p className="text-muted-foreground">Bộ sưu tập NFT của bạn</p>
             </div>

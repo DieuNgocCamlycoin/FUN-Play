@@ -47,7 +47,7 @@ const ManageChannel = () => {
     try {
       setSaving(true);
       let bannerUrl = currentBannerUrl;
-      if (banner) { const result = await uploadToR2(banner, `banner-${user?.id}-${Date.now()}`); if (result) bannerUrl = result.publicUrl; else throw new Error("Failed to upload banner"); }
+      if (banner) { const result = await uploadToR2(banner, `banner-${user?.id}-${Date.now()}`); if (result) bannerUrl = result.publicUrl; else throw new Error("Tải banner thất bại"); }
       const { error } = await supabase.from("channels").update({ name: name.trim(), description: description.trim() || null, banner_url: bannerUrl }).eq("id", channelId);
       if (error) throw error;
       toast({ title: "Thành công", description: "Kênh đã được cập nhật" }); fetchChannel();
