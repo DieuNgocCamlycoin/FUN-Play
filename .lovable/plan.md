@@ -1,66 +1,154 @@
 
-# Can bang chieu cao 3 nut THUONG & TANG, MINT va WALLET tren header
+# Tạo Backend Function `public-video-api` - API Chia Sẻ Video Công Khai
 
-## Van de hien tai
+## Mục tiêu
 
-Ba nut chinh tren thanh header co kich thuoc khong dong deu:
+Tạo một Backend Function (Edge Function) tên `public-video-api` cho phép các nền tảng bên ngoài (như Fun Profile / fun.rich) truy vấn dữ liệu video công khai từ Fun Play thông qua REST API, có xác thực bằng API key và giới hạn tần suất gọi (rate limit).
 
-- **THUONG & TANG**: `px-4 py-2`, icon `h-4 w-4`, text `text-base` -- nut nho nhat
-- **MINT**: `px-4 py-2 h-auto`, icon `h-5 w-5`, text `text-base` -- vua
-- **WALLET**: `px-5 py-2`, icon `h-11 w-11`, text `text-lg` -- nut lon nhat (vi icon vi rat lon)
+## Tổng quan kiến trúc
 
-Nut WALLET co icon kich thuoc `h-11 w-11` (44px) lam no cao hon han 2 nut con lai. Can chuan hoa ca 3 nut ve cung mot chieu cao co dinh.
+```text
++-------------------+         +---------------------+         +-----------+
+| Nền tảng bên ngoài| ------> | public-video-api    | ------> | Database  |
+| (Fun Profile,..   |  HTTP   | (Backend Function)  |  Query  | (videos,  |
+|                   |  +key   |                     |         |  profiles,|
++-------------------+         +---------------------+         |  channels)|
+                                     |                        +-----------+
+                                     v
+                              Rate Limit Check
+                              (bảng api_rate_limits)
+```
 
-## Giai phap
+## Chi tiết kỹ thuật
 
-Chuan hoa ca 3 nut ve cung kich thuoc: chieu cao co dinh `h-10` (40px), padding `px-4 py-0`, icon `h-5 w-5`, text `text-sm font-extrabold`. Giam icon WALLET tu `h-11` xuong `h-6` de vua voi chieu cao nut.
+### 1. Tạo bảng `api_keys` trong cơ sở dữ liệu
 
-## Chi tiet thay doi
+Bảng lưu trữ API key cho các nền tảng đối tác:
 
-### 1. `src/components/Donate/GlobalDonateButton.tsx` (Nut THUONG & TANG - Desktop)
+| Cột | Kiểu | Mô tả |
+|-----|------|-------|
+| id | uuid | Khóa chính |
+| key_hash | text | Hash SHA-256 của API key (không lưu key gốc) |
+| platform_name | text | Tên nền tảng (ví dụ: "fun_profile") |
+| is_active | boolean | Trạng thái hoạt động |
+| rate_limit_per_minute | integer | Giới hạn số request/phút (mặc định: 60) |
+| created_at | timestamptz | Ngày tạo |
+| last_used_at | timestamptz | Lần sử dụng gần nhất |
 
-**Dong 59-73** - Default variant:
-- Them chieu cao co dinh: `h-10`
-- Giu icon: `h-4 w-4` (da phu hop)
-- Giu text: `text-base font-extrabold`
-- Giu padding: `px-4 py-2`
-- Khong doi gi nhieu vi nut nay la co so can bang
+### 2. Tạo bảng `api_rate_limits` trong cơ sở dữ liệu
 
-### 2. `src/components/Layout/Header.tsx` (Nut MINT)
+Bảng theo dõi tần suất gọi API:
 
-**Dong 203-224** - MINT button:
-- Them chieu cao co dinh: `h-10` (thay `h-auto`)
-- Giu icon: `h-5 w-5`
-- Giu text: `text-base font-extrabold`
-- Giu padding: `px-4`
+| Cột | Kiểu | Mô tả |
+|-----|------|-------|
+| id | uuid | Khóa chính |
+| api_key_id | uuid | Liên kết đến bảng api_keys |
+| window_start | timestamptz | Thời điểm bắt đầu cửa sổ đếm |
+| request_count | integer | Số request trong cửa sổ hiện tại |
 
-### 3. `src/components/Wallet/WalletButton.tsx` (Nut WALLET - Desktop)
+### 3. Tạo Backend Function `public-video-api`
 
-**Dong 167-222** - Full version:
-- Them chieu cao co dinh: `h-10` (khop voi 2 nut kia)
-- Giam icon tu `h-11 w-11` xuong `h-6 w-6` (phu hop voi chieu cao nut)
-- Xoa `-ml-2` (khong can vi icon nho hon)
-- Doi text tu `text-lg` xuong `text-base` (khop voi MINT va THUONG & TANG)
-- Doi padding tu `px-5` xuong `px-4` (khop voi cac nut khac)
+Function sẽ hỗ trợ các endpoint sau:
 
-### 4. Mobile - Khong co loi hien thi
+**GET /public-video-api** với các query parameters:
 
-Tren mobile, MobileHeader chi hien thi WalletButton o che do `compact` (icon nho `h-7 w-7`). Cac nut MINT va THUONG & TANG khong hien thi tren mobile header (chi hien tren desktop `hidden md:flex`). Do do khong co van de can chinh tren mobile cho 3 nut nay.
+| Tham số | Kiểu | Bắt buộc | Mô tả |
+|---------|------|----------|-------|
+| action | string | Co | Loại hành động: `list_videos`, `get_video`, `get_user_videos`, `get_user_profile` |
+| user_id | string | Tùy action | ID người dùng (cho `get_user_videos`, `get_user_profile`) |
+| video_id | string | Tùy action | ID video (cho `get_video`) |
+| page | number | Không | Trang (mặc định: 1) |
+| limit | number | Không | Số kết quả/trang (mặc định: 20, tối đa: 50) |
+| category | string | Không | Lọc theo danh mục |
 
-## Tom tat
+**Xác thực:**
+- Header `X-API-Key` chứa API key
+- So sánh hash SHA-256 của key với `key_hash` trong bảng `api_keys`
+- Kiểm tra `is_active = true`
 
-| Hang muc | Chi tiet |
-|----------|----------|
-| File can sua | 3 file |
-| Thay doi chinh | Chuan hoa chieu cao `h-10`, icon, va text size |
-| WALLET icon | `h-11 w-11` giam xuong `h-6 w-6` |
-| WALLET text | `text-lg` giam xuong `text-base` |
-| MINT height | `h-auto` doi thanh `h-10` |
-| Mobile | Khong can thay doi (chi hien compact wallet icon) |
-| Co so du lieu | Khong |
+**Rate Limiting:**
+- Sử dụng cửa sổ 1 phút (sliding window)
+- Mặc định 60 request/phút
+- Trả về header `X-RateLimit-Remaining` và `X-RateLimit-Reset`
+- Nếu vượt giới hạn: trả về HTTP 429 (Too Many Requests)
 
-## Ket qua
+**Dữ liệu trả về (chỉ video công khai):**
 
-- Ca 3 nut THUONG & TANG, MINT, WALLET se co cung chieu cao 40px (`h-10`)
-- Text va icon dong deu, tao cam giac can doi va chuyen nghiep
-- Giao dien header gon gang, khong bi le do nut WALLET lon bat thuong
+Cho `get_user_videos`:
+```text
+{
+  "success": true,
+  "data": {
+    "videos": [
+      {
+        "id": "...",
+        "title": "...",
+        "description": "...",
+        "thumbnail_url": "...",
+        "video_url": "...",
+        "duration": 120,
+        "view_count": 1500,
+        "like_count": 42,
+        "category": "...",
+        "created_at": "...",
+        "channel": {
+          "id": "...",
+          "name": "..."
+        },
+        "user": {
+          "id": "...",
+          "username": "...",
+          "display_name": "...",
+          "avatar_url": "..."
+        }
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 45,
+      "has_more": true
+    }
+  }
+}
+```
+
+### 4. Tạo API Key đầu tiên
+
+Sau khi tạo xong function và bảng, sẽ tự động tạo một API key mẫu cho nền tảng Fun Profile. Key sẽ được hiển thị trong console log một lần duy nhất (sau đó chỉ lưu hash).
+
+### 5. Cập nhật cấu hình
+
+Thêm function mới vào `supabase/config.toml` với `verify_jwt = false` (vì API này dùng xác thực bằng API key riêng, không dùng JWT).
+
+## Bảo mật
+
+- API key được hash SHA-256 trước khi lưu vào database
+- Chỉ trả về video có `is_public = true`
+- Không bao giờ trả về thông tin nhạy cảm (wallet, rewards, email...)
+- Rate limiting ngăn chặn lạm dụng API
+- RLS được bật trên cả hai bảng mới (`api_keys`, `api_rate_limits`)
+- Chỉ service role mới đọc/ghi được bảng `api_keys`
+
+## Các file cần tạo/sửa
+
+| File | Hành động |
+|------|-----------|
+| `supabase/functions/public-video-api/index.ts` | Tạo mới - Backend Function chính |
+| `supabase/config.toml` | Cập nhật - Thêm cấu hình cho function mới |
+| Database migration | Tạo bảng `api_keys` và `api_rate_limits` với RLS |
+
+## Cách đội Fun Profile sử dụng API
+
+Sau khi triển khai xong, con sẽ cung cấp cho đội Fun Profile:
+
+1. **URL endpoint** của API
+2. **API Key** (được tạo tự động)
+3. **Tài liệu hướng dẫn** các action và tham số
+
+Ví dụ gọi API từ Fun Profile:
+```text
+GET /public-video-api?action=get_user_videos&user_id=xxx&page=1&limit=20
+Headers:
+  X-API-Key: fp_xxxxxxxxxxxxxxxx
+```
