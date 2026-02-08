@@ -1,6 +1,7 @@
 /**
  * Light Activity Hook
  * Automatically calculates user's light activity and mintable FUN
+ * Uses server-side RPC for accurate aggregation (no 1000-row limit)
  */
 
 import { useState, useCallback, useEffect } from 'react';
@@ -31,34 +32,19 @@ interface CamlyEarned {
 }
 
 export interface LightActivity {
-  // Activity counts
   activityCounts: ActivityCounts;
   totalActivities: number;
-  
-  // CAMLY earned
   camlyEarned: CamlyEarned;
-  
-  // Calculated pillars (auto from activities)
   pillars: PillarScores;
-  
-  // Unity signals (derived)
   unitySignals: Partial<UnitySignals>;
-  
-  // Scores
   lightScore: number;
   unityScore: number;
   integrityScore: number;
-  
-  // Mintable FUN
-  mintableFun: string; // formatted
+  mintableFun: string;
   mintableFunAtomic: string;
   mintableFunUsd: string;
-  
-  // Status
   canMint: boolean;
   mintBlockReason?: string;
-  
-  // Profile info
   accountAgeDays: number;
   isVerified: boolean;
   hasPendingRequest: boolean;
@@ -74,16 +60,14 @@ export interface UseLightActivityReturn {
 
 // ===== CONSTANTS =====
 
-const CAMLY_TO_FUN_RATE = 0.01; // 1 CAMLY = 0.01 FUN
+const CAMLY_TO_FUN_RATE = 0.01;
 const MIN_LIGHT_SCORE = 60;
 const MIN_ACTIVITIES = 10;
-const FUN_PRICE_USD = 0.10; // Estimated
+const FUN_PRICE_USD = 0.10;
+const MINT_COOLDOWN_HOURS = 24;
 
 // ===== HELPER FUNCTIONS =====
 
-/**
- * Calculate pillars automatically from activity data
- */
 function calculatePillarsFromActivity(
   counts: ActivityCounts,
   accountAgeDays: number,
@@ -92,47 +76,33 @@ function calculatePillarsFromActivity(
 ): PillarScores {
   const totalActivities = counts.views + counts.likes + counts.comments + counts.shares + counts.uploads;
   
-  // S (Service): Based on uploads and quality comments
   const S = Math.min(100, Math.round(
-    (counts.uploads * 15) + 
-    (counts.comments * 2) + 
-    30 // base
+    (counts.uploads * 15) + (counts.comments * 2) + 30
   ));
   
-  // T (Truth): Based on verification, account age
   const T = Math.min(100, Math.round(
     (isVerified ? 30 : 0) +
-    (Math.min(accountAgeDays, 365) / 365 * 40) +
-    30 // base
+    (Math.min(accountAgeDays, 365) / 365 * 40) + 30
   ));
   
-  // H (Healing): Based on positive ratio (likes given)
   const H = Math.min(100, Math.round(
     Math.min(counts.likes, 100) * 0.5 +
-    Math.min(counts.views, 500) * 0.05 +
-    30 // base
+    Math.min(counts.views, 500) * 0.05 + 30
   ));
   
-  // C (Contribution): Based on total engagement
   const C = Math.min(100, Math.round(
     Math.log10(totalActivities + 1) * 20 +
-    Math.log10(totalCamly + 1) * 5 +
-    30 // base
+    Math.log10(totalCamly + 1) * 5 + 30
   ));
   
-  // U (Unity): Based on community interactions
   const U = Math.min(100, Math.round(
     Math.min(counts.comments, 50) * 1 +
-    Math.min(counts.shares, 20) * 2 +
-    20 // base
+    Math.min(counts.shares, 20) * 2 + 20
   ));
   
   return { S, T, H, C, U };
 }
 
-/**
- * Derive unity signals from activity
- */
 function deriveUnitySignals(counts: ActivityCounts): Partial<UnitySignals> {
   return {
     collaboration: counts.uploads >= 3,
@@ -142,33 +112,21 @@ function deriveUnitySignals(counts: ActivityCounts): Partial<UnitySignals> {
   };
 }
 
-/**
- * Calculate mintable FUN from activities
- */
 function calculateMintableFun(
   totalCamly: number,
   lightScore: number,
   integrityScore: number,
   unityMultiplier: number
 ): { atomic: string; formatted: string; usd: string } {
-  // Base FUN = CAMLY * rate
   const baseFun = totalCamly * CAMLY_TO_FUN_RATE;
-  
-  // Apply light score and multipliers
   const multiplier = (lightScore / 100) * integrityScore * unityMultiplier;
   const finalFun = baseFun * multiplier;
-  
-  // Convert to atomic (18 decimals)
   const atomicBigInt = BigInt(Math.floor(finalFun * 1e18));
-  
-  // Format for display
-  const formatted = finalFun.toFixed(2);
-  const usd = (finalFun * FUN_PRICE_USD).toFixed(2);
   
   return {
     atomic: atomicBigInt.toString(),
-    formatted,
-    usd
+    formatted: finalFun.toFixed(2),
+    usd: (finalFun * FUN_PRICE_USD).toFixed(2)
   };
 }
 
@@ -189,26 +147,21 @@ export function useLightActivity(userId: string | undefined): UseLightActivityRe
     setError(null);
 
     try {
-      // Fetch all data in parallel
+      // Fetch all data in parallel - using RPC for activity summary
       const [
         profileResult,
-        transactionsResult,
+        activitySummaryResult,
         pendingRequestResult
       ] = await Promise.all([
-        // User profile
         supabase
           .from('profiles')
           .select('created_at, avatar_verified, suspicious_score, last_fun_mint_at')
           .eq('id', userId)
           .single(),
         
-        // Reward transactions
-        supabase
-          .from('reward_transactions')
-          .select('reward_type, amount, approved, status')
-          .eq('user_id', userId),
+        // Use server-side RPC to avoid 1000-row limit
+        supabase.rpc('get_user_activity_summary', { p_user_id: userId }),
         
-        // Check pending mint requests
         supabase
           .from('mint_requests')
           .select('id')
@@ -218,41 +171,28 @@ export function useLightActivity(userId: string | undefined): UseLightActivityRe
       ]);
 
       if (profileResult.error) throw profileResult.error;
-      if (transactionsResult.error) throw transactionsResult.error;
+      if (activitySummaryResult.error) throw activitySummaryResult.error;
 
       const profile = profileResult.data;
-      const transactions = transactionsResult.data || [];
+      const summary = activitySummaryResult.data as Record<string, number> | null;
       const hasPendingRequest = (pendingRequestResult.data?.length || 0) > 0;
+
+      // Parse activity summary from RPC
+      const activityCounts: ActivityCounts = {
+        views: Number(summary?.views || 0),
+        likes: Number(summary?.likes || 0),
+        comments: Number(summary?.comments || 0),
+        shares: Number(summary?.shares || 0),
+        uploads: Number(summary?.uploads || 0)
+      };
+
+      const totalCamly = Number(summary?.total_camly || 0);
+      const approvedCamly = Number(summary?.approved_camly || 0);
+      const pendingCamly = Number(summary?.pending_camly || 0);
 
       // Calculate account age
       const createdAt = new Date(profile.created_at);
       const accountAgeDays = Math.floor((Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
-
-      // Aggregate activity counts and CAMLY
-      const activityCounts: ActivityCounts = { views: 0, likes: 0, comments: 0, shares: 0, uploads: 0 };
-      let totalCamly = 0;
-      let pendingCamly = 0;
-      let approvedCamly = 0;
-
-      transactions.forEach((tx: any) => {
-        const type = tx.reward_type?.toUpperCase();
-        const amount = tx.amount || 0;
-        
-        totalCamly += amount;
-        if (tx.approved) {
-          approvedCamly += amount;
-        } else {
-          pendingCamly += amount;
-        }
-
-        switch (type) {
-          case 'VIEW': activityCounts.views++; break;
-          case 'LIKE': activityCounts.likes++; break;
-          case 'COMMENT': activityCounts.comments++; break;
-          case 'SHARE': activityCounts.shares++; break;
-          case 'UPLOAD': activityCounts.uploads++; break;
-        }
-      });
 
       const totalActivities = activityCounts.views + activityCounts.likes + 
         activityCounts.comments + activityCounts.shares + activityCounts.uploads;
@@ -265,16 +205,16 @@ export function useLightActivity(userId: string | undefined): UseLightActivityRe
       const lightScore = calculateLightScore(pillars);
       const unityScore = calculateUnityScore(unitySignals);
       const integrityScore = calculateIntegrityMultiplier(
-        1 - (profile.suspicious_score || 0) / 10, // Convert to 0-1 scale
-        false, // hasStake - not implemented yet
-        1.0 // behaviorScore
+        1 - (profile.suspicious_score || 0) / 10,
+        false,
+        1.0
       );
       const unityMultiplier = calculateUnityMultiplier(unityScore, unitySignals);
 
       // Calculate mintable FUN
       const mintable = calculateMintableFun(totalCamly, lightScore, integrityScore, unityMultiplier);
 
-      // Determine if user can mint
+      // Determine if user can mint (with cooldown enforcement)
       let canMint = true;
       let mintBlockReason: string | undefined;
 
@@ -293,6 +233,14 @@ export function useLightActivity(userId: string | undefined): UseLightActivityRe
       } else if (parseFloat(mintable.formatted) < 1) {
         canMint = false;
         mintBlockReason = 'Số FUN có thể mint quá nhỏ (< 1 FUN)';
+      } else if (profile.last_fun_mint_at) {
+        // Enforce 24-hour cooldown between mints
+        const lastMint = new Date(profile.last_fun_mint_at);
+        const hoursSinceLastMint = (Date.now() - lastMint.getTime()) / (1000 * 60 * 60);
+        if (hoursSinceLastMint < MINT_COOLDOWN_HOURS) {
+          canMint = false;
+          mintBlockReason = `Cần đợi ${Math.ceil(MINT_COOLDOWN_HOURS - hoursSinceLastMint)} giờ nữa để mint tiếp`;
+        }
       }
 
       setActivity({
@@ -328,7 +276,6 @@ export function useLightActivity(userId: string | undefined): UseLightActivityRe
     }
   }, [userId]);
 
-  // Auto-fetch on mount and userId change
   useEffect(() => {
     fetchActivity();
   }, [fetchActivity]);
