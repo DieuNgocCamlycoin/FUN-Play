@@ -2,7 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { Heart, MessageCircle, Share2, User, Volume2, VolumeX, Play, Pause, ChevronUp, ChevronDown, ThumbsDown, Bookmark, MoreVertical, Flag, EyeOff } from 'lucide-react';
+import { formatViewsShort } from '@/lib/formatters';
+import { Heart, MessageCircle, Share2, User, Volume2, VolumeX, Play, Pause, ChevronUp, ChevronDown, ThumbsDown, Bookmark, MoreVertical, Flag, EyeOff, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { toast } from 'sonner';
@@ -73,23 +74,37 @@ const ShortsVideoItem = ({
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const [showPlayButton, setShowPlayButton] = useState(false);
+  const [progress, setProgress] = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
+    const vid = videoRef.current;
+    if (!vid) return;
+
+    const handleTimeUpdate = () => {
+      if (vid.duration > 0) {
+        setProgress((vid.currentTime / vid.duration) * 100);
+      }
+    };
+
+    vid.addEventListener('timeupdate', handleTimeUpdate);
 
     if (isActive) {
-      video.play().then(() => {
+      vid.play().then(() => {
         setIsPlaying(true);
       }).catch(() => {
         setIsPlaying(false);
       });
     } else {
-      video.pause();
-      video.currentTime = 0;
+      vid.pause();
+      vid.currentTime = 0;
       setIsPlaying(false);
+      setProgress(0);
     }
+
+    return () => {
+      vid.removeEventListener('timeupdate', handleTimeUpdate);
+    };
   }, [isActive]);
 
   const togglePlay = () => {
@@ -315,11 +330,24 @@ const ShortsVideoItem = ({
             </button>
           </div>
           <p className="text-white text-sm line-clamp-2">{video.title}</p>
+          {/* View count */}
+          <div className="flex items-center gap-1.5 text-white/70 text-xs">
+            <Eye className="w-3.5 h-3.5" />
+            <span>{formatViewsShort(video.view_count)} lượt xem</span>
+          </div>
         </div>
       </div>
 
       {/* Gradient overlay for readability */}
       <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/80 to-transparent pointer-events-none" />
+
+      {/* Progress bar */}
+      <div className="absolute inset-x-0 bottom-0 h-[3px] z-20">
+        <div
+          className="h-full bg-gradient-to-r from-[hsl(var(--cosmic-magenta))] to-[hsl(var(--cosmic-cyan))] transition-[width] duration-100"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
     </div>
   );
 };
@@ -598,41 +626,43 @@ export default function Shorts() {
         <ArrowLeft className="w-5 h-5" />
       </Button>
 
-      {/* Navigation arrows - Desktop only */}
-      <div className="hidden md:flex absolute left-4 top-1/2 -translate-y-1/2 z-20 flex-col gap-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white"
-          onClick={() => scrollToVideo(currentIndex - 1)}
-          disabled={currentIndex === 0}
-        >
-          <ChevronUp className="w-6 h-6" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white"
-          onClick={() => scrollToVideo(currentIndex + 1)}
-          disabled={currentIndex === videos.length - 1}
-        >
-          <ChevronDown className="w-6 h-6" />
-        </Button>
-      </div>
-
-      {/* Video container with snap scroll */}
-      <div
-        ref={containerRef}
-        className="h-full w-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide"
-        onScroll={handleScroll}
-        style={{ scrollSnapType: 'y mandatory' }}
-      >
-        {videos.map((video, index) => (
-          <div 
-            key={video.id} 
-            className="h-full w-full"
-            style={{ scrollSnapAlign: 'start' }}
+      {/* Desktop centered layout wrapper */}
+      <div className="h-full w-full flex items-center justify-center">
+        {/* Navigation arrows - Desktop only, positioned outside video */}
+        <div className="hidden md:flex flex-col gap-4 mr-4 z-20">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white"
+            onClick={() => scrollToVideo(currentIndex - 1)}
+            disabled={currentIndex === 0}
           >
+            <ChevronUp className="w-6 h-6" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white"
+            onClick={() => scrollToVideo(currentIndex + 1)}
+            disabled={currentIndex === videos.length - 1}
+          >
+            <ChevronDown className="w-6 h-6" />
+          </Button>
+        </div>
+
+        {/* Video container with snap scroll - Centered on desktop */}
+        <div
+          ref={containerRef}
+          className="h-full w-full md:max-w-[420px] md:rounded-2xl md:overflow-hidden overflow-y-scroll snap-y snap-mandatory scrollbar-hide relative"
+          onScroll={handleScroll}
+          style={{ scrollSnapType: 'y mandatory' }}
+        >
+          {videos.map((video, index) => (
+            <div 
+              key={video.id} 
+              className="h-full w-full"
+              style={{ scrollSnapAlign: 'start' }}
+            >
             <ShortsVideoItem
               video={video}
               isActive={index === currentIndex}
@@ -649,6 +679,7 @@ export default function Shorts() {
             />
           </div>
         ))}
+        </div>
       </div>
 
       {/* Progress indicator */}
@@ -675,7 +706,7 @@ export default function Shorts() {
         return (
           <ShareModal
             videoId={shareVideoId}
-            videoTitle={video?.title || 'Short Video'}
+            videoTitle={video?.title || 'Video Shorts'}
             thumbnailUrl={video?.thumbnail_url || undefined}
             userId={user?.id}
             contentType="video"

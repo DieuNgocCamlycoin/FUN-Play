@@ -101,7 +101,7 @@ export const useChats = () => {
           id: chat.id,
           otherUser: {
             id: otherUserId,
-            username: otherProfile?.username || "Unknown",
+            username: otherProfile?.username || "Người dùng",
             display_name: otherProfile?.display_name,
             avatar_url: otherProfile?.avatar_url,
           },

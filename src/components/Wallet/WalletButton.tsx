@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { formatViewsShort } from "@/lib/formatters";
 import {
   Tooltip,
   TooltipContent,
@@ -96,12 +97,6 @@ export const WalletButton = ({ compact = false, className }: WalletButtonProps) 
   const totalRewards = pendingRewards + approvedRewards;
   const hasRewards = totalRewards > 0;
 
-  // Format number with K/M suffix
-  const formatNumber = (num: number): string => {
-    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
-    if (num >= 1000) return `${(num / 1000).toFixed(0)}K`;
-    return num.toFixed(0);
-  };
 
   // Compact version for mobile
   if (compact) {
@@ -142,7 +137,7 @@ export const WalletButton = ({ compact = false, className }: WalletButtonProps) 
                       boxShadow: "0 0 8px rgba(255, 215, 0, 0.6)"
                     }}
                   >
-                    {formatNumber(totalRewards)}
+                    {formatViewsShort(totalRewards)}
                   </motion.span>
                 )}
               </AnimatePresence>

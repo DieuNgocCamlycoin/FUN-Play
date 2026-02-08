@@ -78,8 +78,8 @@ export default function ProfileSettings() {
       }
     } catch (error: any) {
       toast({
-        title: "Error",
-        description: error.message || "Failed to load profile",
+        title: "Lỗi",
+        description: error.message || "Không thể tải thông tin cá nhân",
         variant: "destructive",
       });
     } finally {
@@ -333,7 +333,7 @@ export default function ProfileSettings() {
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <h1 className="text-2xl font-bold text-foreground">Profile Settings</h1>
+            <h1 className="text-2xl font-bold text-foreground">Cài đặt hồ sơ</h1>
           </div>
 
           {/* Profile Completion Indicator */}
@@ -350,22 +350,22 @@ export default function ProfileSettings() {
           <div className="bg-card border border-border rounded-lg p-6 shadow-lg">
             <form onSubmit={handleSave} className="space-y-6">
               <div>
-                <Label htmlFor="displayName">Display Name</Label>
+                <Label htmlFor="displayName">Tên hiển thị</Label>
                 <Input
                   id="displayName"
                   type="text"
-                  placeholder="Your display name"
+                  placeholder="Tên hiển thị của bạn"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                   className="mt-1"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  This is how your name will appear on your channel and comments
+                  Đây là tên sẽ hiển thị trên kênh và bình luận của bạn
                 </p>
               </div>
 
               <div>
-                <Label htmlFor="walletAddress">Wallet Address (BSC)</Label>
+                <Label htmlFor="walletAddress">Địa chỉ ví (BSC)</Label>
                 <Input
                   id="walletAddress"
                   type="text"
@@ -375,7 +375,7 @@ export default function ProfileSettings() {
                   className="mt-1 font-mono text-sm"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Your BSC wallet address where you'll receive tips
+                  Địa chỉ ví BSC để nhận donate từ người xem
                 </p>
               </div>
 
@@ -398,16 +398,16 @@ export default function ProfileSettings() {
               />
 
               <div>
-                <Label htmlFor="bio">Bio</Label>
+                <Label htmlFor="bio">Giới thiệu</Label>
                 <Textarea
                   id="bio"
-                  placeholder="Tell viewers about yourself..."
+                  placeholder="Giới thiệu về bản thân bạn..."
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
                   className="mt-1 min-h-[100px]"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Write a short bio for your channel
+                  Viết mô tả ngắn cho kênh của bạn
                 </p>
               </div>
 
@@ -492,7 +492,7 @@ export default function ProfileSettings() {
                   variant="outline"
                   onClick={() => navigate("/")}
                 >
-                  Cancel
+                  Hủy
                 </Button>
                 <Button
                   type="submit"
@@ -500,7 +500,7 @@ export default function ProfileSettings() {
                   className="gap-2"
                 >
                   <Save className="h-4 w-4" />
-                  {saving ? "Saving..." : "Save Changes"}
+                  {saving ? "Đang lưu..." : "Lưu thay đổi"}
                 </Button>
               </div>
             </form>
