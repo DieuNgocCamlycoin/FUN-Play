@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { formatTimestamp } from "@/lib/formatters";
 
 interface Notification {
   id: string;
@@ -122,17 +123,6 @@ const Notifications = () => {
     if (notif.link) navigate(notif.link);
   };
 
-  const timeAgo = (dateStr: string) => {
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) return "Vừa xong";
-    if (mins < 60) return `${mins} phút trước`;
-    const hours = Math.floor(mins / 60);
-    if (hours < 24) return `${hours} giờ trước`;
-    const days = Math.floor(hours / 24);
-    if (days < 30) return `${days} ngày trước`;
-    return `${Math.floor(days / 30)} tháng trước`;
-  };
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
@@ -221,7 +211,7 @@ const Notifications = () => {
                     </p>
                   )}
                   <p className="text-[11px] text-muted-foreground mt-1">
-                    {timeAgo(notif.created_at)}
+                    {formatTimestamp(notif.created_at)}
                   </p>
                 </div>
 

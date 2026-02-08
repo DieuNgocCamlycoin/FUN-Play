@@ -330,13 +330,13 @@ const Index = () => {
             <div className="glass-card mx-4 mt-4 rounded-xl border border-cosmic-magenta/50 p-4 shadow-[0_0_50px_rgba(217,0,255,0.5)]">
               <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
                 <p className="text-foreground font-medium text-center sm:text-left">
-                  Join <span className="text-transparent bg-clip-text bg-gradient-to-r from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta font-bold">FUN Play</span> to upload videos, subscribe to channels, and tip creators!
+                  Tham gia <span className="text-transparent bg-clip-text bg-gradient-to-r from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta font-bold">FUN Play</span> để tải video, đăng ký kênh và tặng quà cho nhà sáng tạo!
                 </p>
                 <Button 
                   onClick={() => navigate("/auth")} 
                   className="bg-gradient-to-r from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta hover:shadow-[0_0_70px_rgba(0,255,255,1)] transition-all duration-500 border border-glow-cyan"
                 >
-                  Sign In / Sign Up
+                  Đăng nhập / Đăng ký
                 </Button>
               </div>
             </div>

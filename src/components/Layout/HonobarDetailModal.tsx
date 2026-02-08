@@ -70,11 +70,11 @@ interface ModalContentProps {
 
 const ModalContent = ({ stats, loading, ranking, rankingLoading, sponsors, sponsorsLoading, onDonate }: ModalContentProps) => {
   const statItems = [
-    { icon: Users, label: "USERS", value: stats.totalUsers },
-    { icon: MessageSquare, label: "COMMENTS", value: stats.totalComments },
-    { icon: Eye, label: "VIEWS", value: stats.totalViews },
-    { icon: Video, label: "VIDEOS", value: stats.totalVideos },
-    { icon: Coins, label: "CAMLY POOL", value: stats.camlyPool },
+    { icon: Users, label: "NGƯỜI DÙNG", value: stats.totalUsers },
+    { icon: MessageSquare, label: "BÌNH LUẬN", value: stats.totalComments },
+    { icon: Eye, label: "LƯỢT XEM", value: stats.totalViews },
+    { icon: Video, label: "VIDEO", value: stats.totalVideos },
+    { icon: Coins, label: "QUỸ CAMLY", value: stats.camlyPool },
   ];
 
   return (
@@ -120,7 +120,7 @@ const ModalContent = ({ stats, loading, ranking, rankingLoading, sponsors, spons
       >
         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
           <Medal className="w-4 h-4 text-[#FFD700]" />
-          <span className="font-semibold uppercase tracking-wide">Top 5 Ranking</span>
+          <span className="font-semibold uppercase tracking-wide">Bảng Xếp Hạng Top 5</span>
         </div>
         
         {rankingLoading ? (
@@ -133,7 +133,7 @@ const ModalContent = ({ stats, loading, ranking, rankingLoading, sponsors, spons
             ))}
           </div>
         ) : ranking.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-2">No rankings yet</p>
+          <p className="text-sm text-muted-foreground text-center py-2">Chưa có bảng xếp hạng</p>
         ) : (
           <div className="space-y-1">
             {ranking.slice(0, 5).map((user, index) => (
@@ -174,7 +174,7 @@ const ModalContent = ({ stats, loading, ranking, rankingLoading, sponsors, spons
       >
         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
           <Gem className="w-4 h-4 text-[#FF00E5]" />
-          <span className="font-semibold uppercase tracking-wide">Top Sponsors</span>
+          <span className="font-semibold uppercase tracking-wide">Top Mạnh Thường Quân</span>
         </div>
         
         {sponsorsLoading ? (
@@ -187,7 +187,7 @@ const ModalContent = ({ stats, loading, ranking, rankingLoading, sponsors, spons
             ))}
           </div>
         ) : sponsors.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-2">No sponsors yet</p>
+          <p className="text-sm text-muted-foreground text-center py-2">Chưa có mạnh thường quân</p>
         ) : (
           <div className="space-y-1">
             {sponsors.slice(0, 5).map((sponsor, index) => (
@@ -228,7 +228,7 @@ const ModalContent = ({ stats, loading, ranking, rankingLoading, sponsors, spons
             border-0 rounded-full"
         >
           <Heart className="h-4 w-4 mr-2 fill-white" />
-          Donate to Project
+          Ủng hộ dự án
         </Button>
       </motion.div>
 
@@ -246,11 +246,11 @@ const ModalContent = ({ stats, loading, ranking, rankingLoading, sponsors, spons
         
         <div className="grid grid-cols-2 gap-2 text-sm">
           <div className="flex justify-between items-center p-2 rounded-lg bg-gradient-to-r from-[#F0FDFF] to-[#FFF8F0]">
-            <span className="text-muted-foreground text-xs">CAMLY Distributed:</span>
+            <span className="text-muted-foreground text-xs">CAMLY đã phân phối:</span>
             <span className="font-bold text-[#7A2BFF]">{formatNumber(stats.totalRewards)}</span>
           </div>
           <div className="flex justify-between items-center p-2 rounded-lg bg-gradient-to-r from-[#F0FDFF] to-[#FFF8F0]">
-            <span className="text-muted-foreground text-xs">Subscriptions:</span>
+            <span className="text-muted-foreground text-xs">Lượt đăng ký:</span>
             <span className="font-bold text-[#7A2BFF]">{formatNumber(stats.totalSubscriptions)}</span>
           </div>
         </div>

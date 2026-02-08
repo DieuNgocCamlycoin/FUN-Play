@@ -55,7 +55,7 @@ const WatchLater = () => {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta">
-                Watch Later
+                Xem sau
               </h1>
               <p className="text-sm text-muted-foreground">
                 {watchLaterList.length} video • {formatDuration(totalDuration)} tổng thời lượng
@@ -91,7 +91,7 @@ const WatchLater = () => {
           <div className="text-center py-20">
             <Clock className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
             <h2 className="text-xl font-semibold mb-2">Chưa có video nào</h2>
-            <p className="text-muted-foreground mb-4">Thêm video vào Watch Later để xem sau</p>
+            <p className="text-muted-foreground mb-4">Thêm video vào danh sách Xem sau</p>
             <Button onClick={() => navigate('/')}>Khám phá video</Button>
           </div>
         ) : (

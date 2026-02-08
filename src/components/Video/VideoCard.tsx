@@ -37,15 +37,7 @@ interface VideoCardProps {
   isLoading?: boolean;
 }
 
-// Format seconds to MM:SS or HH:MM:SS
-const formatDuration = (seconds: number | null | undefined): string => {
-  if (!seconds || seconds <= 0) return "";
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = Math.floor(seconds % 60);
-  if (h > 0) return `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
-  return `${m}:${s.toString().padStart(2, "0")}`;
-};
+import { formatDuration } from "@/lib/formatters";
 
 export const VideoCard = ({
   thumbnail,
@@ -135,7 +127,7 @@ export const VideoCard = ({
     });
   };
 
-  const durationStr = formatDuration(duration);
+  const durationStr = duration && duration > 0 ? formatDuration(duration) : "";
 
   return (
     <Card className="group overflow-hidden bg-white/95 dark:bg-white/90 backdrop-blur-sm border-2 border-white/30 hover:border-white/50 transition-all duration-500 cursor-pointer relative shadow-lg">

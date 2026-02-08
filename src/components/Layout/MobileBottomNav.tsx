@@ -16,7 +16,7 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { icon: Home, label: "Home", href: "/" },
+  { icon: Home, label: "Trang chủ", href: "/" },
   { icon: Zap, label: "Shorts", href: "/shorts" },
   { icon: Plus, label: "Tạo", href: null, isCreate: true },
   { icon: Users, label: "Đăng ký", href: "/subscriptions" },

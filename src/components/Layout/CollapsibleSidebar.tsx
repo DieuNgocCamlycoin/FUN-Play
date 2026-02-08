@@ -51,19 +51,19 @@ const funPlatformItems: NavItem[] = [
 ];
 
 const mainNavItems: NavItem[] = [
-  { icon: Home, label: "Home", href: "/" },
+  { icon: Home, label: "Trang chủ", href: "/" },
   { icon: Zap, label: "Shorts", href: "/shorts" },
-  { icon: Users, label: "Subscriptions", href: "/subscriptions" },
-  { icon: Sparkles, label: "Meditate with Father", href: "/meditate", special: true },
+  { icon: Users, label: "Kênh đăng ký", href: "/subscriptions" },
+  { icon: Sparkles, label: "Thiền cùng Cha", href: "/meditate", special: true },
   { icon: Music, label: "Tạo Nhạc Ánh Sáng", href: "/create-music", special: true },
 ];
 
 const libraryItems: NavItem[] = [
-  { icon: Library, label: "Library", href: "/library" },
-  { icon: History, label: "History", href: "/history" },
+  { icon: Library, label: "Thư viện", href: "/library" },
+  { icon: History, label: "Lịch sử", href: "/history" },
   { icon: Video, label: "Video của bạn", href: "/your-videos" },
-  { icon: Clock, label: "Watch later", href: "/watch-later" },
-  { icon: ThumbsUp, label: "Liked videos", href: "/liked" },
+  { icon: Clock, label: "Xem sau", href: "/watch-later" },
+  { icon: ThumbsUp, label: "Video đã thích", href: "/liked" },
   { icon: Image, label: "NFT Gallery", href: "/nft-gallery" },
 ];
 
@@ -85,7 +85,7 @@ const manageItems: NavItem[] = [
   { icon: Tv, label: "Quản lý kênh", href: "/manage-channel" },
   { icon: ListVideo, label: "Danh sách phát", href: "/manage-playlists" },
   { icon: FileText, label: "Bài viết của bạn", href: "/manage-posts" },
-  { icon: Wallet, label: "Wallet", href: "/wallet" },
+  { icon: Wallet, label: "Ví", href: "/wallet" },
 ];
 
 export const CollapsibleSidebar = ({ isExpanded }: CollapsibleSidebarProps) => {
@@ -189,7 +189,7 @@ export const CollapsibleSidebar = ({ isExpanded }: CollapsibleSidebarProps) => {
                     variant="ghost" 
                     className="w-full justify-between px-4 py-2 text-xs text-muted-foreground hover:bg-muted/50"
                   >
-                    <span>Navigation</span>
+                    <span>Điều hướng</span>
                     {sectionsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                   </Button>
                 </CollapsibleTrigger>

@@ -9,11 +9,11 @@ export const MobileHonobar = () => {
   const [isExpanded, setIsExpanded] = useState(true);
 
   const statItems = [
-    { icon: Users, label: "Users", value: stats.totalUsers, type: "number" },
+    { icon: Users, label: "Người dùng", value: stats.totalUsers, type: "number" },
     { icon: Video, label: "Video", value: stats.totalVideos, type: "number" },
-    { icon: Eye, label: "Views", value: stats.totalViews, type: "number" },
-    { icon: MessageSquare, label: "Comments", value: stats.totalComments, type: "number" },
-    { icon: Coins, label: "Pool", value: stats.camlyPool, type: "camly" },
+    { icon: Eye, label: "Lượt xem", value: stats.totalViews, type: "number" },
+    { icon: MessageSquare, label: "Bình luận", value: stats.totalComments, type: "number" },
+    { icon: Coins, label: "Quỹ", value: stats.camlyPool, type: "camly" },
   ];
 
   const formatCompact = (value: number) => {
