@@ -1,7 +1,7 @@
 
-# FUN Play vs YouTube 2025: Round 16 Gap Analysis
+# FUN Play vs YouTube 2025: Round 17 Gap Analysis
 
-## Verified Fixes from Rounds 1-15 (All Working)
+## Verified Fixes from Rounds 1-16 (All Working)
 
 | Feature | Round | Status |
 |---------|-------|--------|
@@ -32,61 +32,64 @@
 | WatchLaterButton fully localized | R14 | Done |
 | Admin CSV headers (Videos, Users, Overview) | R14 | Done |
 | Ambient Mode on desktop video player | R14 | Done |
-| Video Chapters with progress bar markers | R14 | Done |
+| Video Chapters with progress bar markers (desktop) | R14 | Done |
 | "Copy Link" buttons fully localized | R15 | Done |
 | Social share texts translated | R15 | Done |
 | AI Music "Instrumental"/"Vocal" labels | R15 | Done |
 | RewardHistory "Upload" filter label | R15 | Done |
+| Index.tsx "Loading..." localized | R16 | Done |
+| Mobile chapter markers + chapter title display | R16 | Done |
+| Mobile Ambient Mode glow effect | R16 | Done |
+| Mobile chapter pills in DescriptionDrawer | R16 | Done |
+| PlayerSettingsDrawer ambient toggle | R16 | Done |
 
 ---
 
-## REMAINING GAPS FOUND IN ROUND 16
+## Build Error Note
 
-### HIGH PRIORITY
-
-#### Gap 1: "Loading..." English on Index.tsx Homepage
-
-`Index.tsx` line 275 displays `"Loading..."` while checking authentication state. This is the very first thing users see on the homepage while the app initializes.
-
-**Fix:** Change `"Loading..."` to `"Dang tai..."` (Loading...).
-
-#### Gap 2: Mobile Player Missing Chapter Support
-
-The desktop `EnhancedVideoPlayer.tsx` has full chapter support (parsing timestamps from descriptions, displaying markers on progress bar, showing chapter tooltips). However, the mobile `YouTubeMobilePlayer.tsx` has NO chapter support at all -- it does not accept a `description` prop, does not parse chapters, and does not render chapter markers on its progress bar.
-
-YouTube's mobile app shows chapter markers and chapter titles on the mobile player identically to desktop.
-
-**Fix:** Add chapter support to `YouTubeMobilePlayer.tsx`:
-- Accept a `description` prop
-- Parse chapters using the existing `parseChapters` utility
-- Render chapter marker dividers on the mobile progress bar
-- Show the current chapter title below the progress bar when controls are visible
-- Pass `video.description` from `MobileWatchView.tsx`
-
-#### Gap 3: Mobile Player Missing Ambient Mode Support
-
-The desktop player has Ambient Mode (color sampling from video frames, glow effect behind player). The mobile `MobileWatchView.tsx` does not implement ambient mode at all. On YouTube's mobile app, Ambient Mode creates a subtle color glow below the player that blends into the scrollable content area.
-
-**Fix:** Add ambient mode to the mobile watch experience:
-- Add `onAmbientColor` callback to `YouTubeMobilePlayer.tsx` with canvas-based color sampling (same technique as desktop)
-- In `MobileWatchView.tsx`, apply the ambient color as a soft gradient glow below the video player area
-- Persist preference using the same localStorage key (`funplay_ambient_mode`)
-
-#### Gap 4: Mobile DescriptionDrawer Missing Chapters Display
-
-When a video has chapters in its description (timestamps like `0:00 Intro`), YouTube's mobile app shows clickable chapter pills in the description drawer. FUN Play's `DescriptionDrawer.tsx` displays raw description text with no chapter parsing or interactive timestamps.
-
-**Fix:** Parse chapters from the description in `DescriptionDrawer.tsx` and render them as a horizontally scrollable list of tappable chapter pills above the raw description text. Tapping a chapter pill should close the drawer and seek to that timestamp.
+The current build error (`429 Too Many Requests` from Cloudflare R2 during deployment) is a temporary rate-limiting issue from the CDN provider, not a code error. It will resolve automatically on retry. No code changes are needed for this.
 
 ---
 
-### MEDIUM PRIORITY
+## REMAINING GAPS FOUND IN ROUND 17
 
-#### Gap 5: Missing "Clip" Feature (Video Segment Sharing)
+### HIGH PRIORITY (Localization)
 
-YouTube allows users to create 5-60 second clips from videos and share them with unique URLs. FUN Play does not implement this feature.
+#### Gap 1: "Ambient Mode" English Label in PlayerSettingsDrawer.tsx
 
-**Fix:** Deferred to future round -- requires backend support for clip storage/URL generation and a range selection UI in the video player.
+`PlayerSettingsDrawer.tsx` line 107 shows `"Ambient Mode"` as the toggle label text. The section header (line 103) correctly says `"Che do anh sang"` in Vietnamese, but the actual label inside the row still says English `"Ambient Mode"`.
+
+**Fix:** Change line 107 from `"Ambient Mode"` to `"Che do anh sang"` (matching the section header).
+
+#### Gap 2: "N/A" in formatFileSize Helper (Admin)
+
+`useAdminVideoStats.tsx` line 231 returns `"N/A"` when file size is null or 0. This appears in the admin Video Management table and CSV exports. While "N/A" is somewhat universal, other admin components already use `"Khong co"`.
+
+**Fix:** Change `"N/A"` to `"Khong co"` for consistency.
+
+### MEDIUM PRIORITY (Feature Enhancements)
+
+#### Gap 3: No Video Thumbnail Hover Preview on Desktop
+
+YouTube 2025 shows a short animated preview (3-5 second GIF-like loop) when hovering over video thumbnails on the homepage and search results. This helps users decide whether to click a video without reading the title.
+
+FUN Play's `VideoCard.tsx` only scales the thumbnail image on hover (line 141: `group-hover:scale-110`) and shows a play button overlay, but does not show any animated video preview.
+
+**Implementation approach:** When a user hovers over a video card for more than 500ms, start playing a muted, low-resolution snippet of the video in the thumbnail area. This would require loading the video URL on hover and using a `<video>` element to auto-play muted. Since video URLs are stored in the database, this is frontend-only but requires careful performance optimization to avoid excessive bandwidth usage.
+
+**Trade-off considerations:**
+- Significant bandwidth cost (each hover loads video data)
+- Mobile devices should be excluded (hover is not relevant)
+- Could cause performance issues with many visible cards
+- YouTube pre-generates short preview clips server-side; FUN Play would need to play from the beginning of the actual video
+
+**Recommendation:** Implement a lightweight version that plays the first few seconds of the video on hover (desktop only), with a loading delay and abort-on-mouse-leave to minimize bandwidth.
+
+#### Gap 4: No "Scroll to Top" Button on Mobile
+
+YouTube's mobile app shows a "scroll to top" button when the user scrolls down significantly on the homepage. FUN Play does not implement this convenience feature.
+
+**Implementation approach:** Add a floating "scroll to top" button that appears after scrolling down more than 500px on the Index page (mobile only). Use `window.scrollTo({ top: 0, behavior: 'smooth' })` with a fade-in/out animation.
 
 ---
 
@@ -96,72 +99,60 @@ YouTube allows users to create 5-60 second clips from videos and share them with
 - **Music genre names**: Pop, Rock, Jazz, Classical, Lo-Fi, Ambient, Hip Hop
 - **Technical documentation**: PlatformDocs.tsx
 - **Database enum values**: "success", "error", "pending", "reward"
-- **UI library defaults**: sidebar.tsx "Toggle Sidebar"
-- **Alt text attributes**: "Banner preview", "Thumbnail preview"
+- **UI library defaults**: sidebar.tsx "Toggle Sidebar" (shadcn/ui internal)
+- **Alt text attributes**: Non-visible accessibility labels
 - **React internal keys**: labelEn values
+- **File size units**: "Bytes", "KB", "MB", "GB", "TB" (international standard)
+- **Code comments**: Vietnamese comments like `Keo xuong de thu nho` are already correct
 
 ---
 
 ## IMPLEMENTATION PLAN
 
-### Phase 1: Index.tsx Loading Text Fix (1 file, 1 change)
+### Phase 1: PlayerSettingsDrawer Label Fix (1 file, 1 change)
+
+**File:** `src/components/Video/PlayerSettingsDrawer.tsx`
+- Line 107: Change `"Ambient Mode"` to `"Chế độ ánh sáng"`
+
+### Phase 2: formatFileSize "N/A" Fix (1 file, 1 change)
+
+**File:** `src/hooks/useAdminVideoStats.tsx`
+- Line 231: Change `"N/A"` to `"Không có"`
+
+### Phase 3: Video Thumbnail Hover Preview - Desktop Only (1 file)
+
+**File:** `src/components/Video/VideoCard.tsx`
+
+Add a hover preview feature that plays the first few seconds of a video when the user hovers over the thumbnail for 500ms. Desktop only (skip on mobile/touch devices).
+
+Technical implementation:
+- Add `onMouseEnter` / `onMouseLeave` handlers to the thumbnail `div` (line 135)
+- On mouse enter, start a 500ms timer. If still hovering after 500ms, render a `<video>` element over the thumbnail with `muted autoPlay` and the video's URL
+- On mouse leave, immediately abort: clear timer, remove video element
+- Use `preload="none"` initially to avoid bandwidth waste
+- Add a subtle fade transition between static thumbnail and video preview
+- Skip entirely on touch devices (check `matchMedia('(hover: hover)')`)
+- The video element only needs to show the first ~5 seconds
+
+Changes needed:
+- Add state: `showPreview` (boolean), `hoverTimeout` (ref)
+- Add `videoUrl` prop to `VideoCardProps` interface (optional, for backward compatibility)
+- Render conditional `<video>` element when `showPreview` is true
+- Cleanup timeout on unmount
+
+### Phase 4: Scroll-to-Top Button on Mobile Homepage (1 file)
 
 **File:** `src/pages/Index.tsx`
-- Line 275: Change `"Loading..."` to `"Đang tải..."`
 
-### Phase 2: Mobile Chapter Support (2 files)
+Add a floating "scroll to top" button for mobile users.
 
-#### File 1: `src/components/Video/YouTubeMobilePlayer.tsx`
-- Add `description?: string` prop to the component interface
-- Import `parseChapters`, `getCurrentChapter`, and `Chapter` type from `@/lib/parseChapters`
-- Parse chapters with `useMemo(() => parseChapters(description), [description])`
-- Compute current chapter with `useMemo(() => getCurrentChapter(chapters, currentTime), [chapters, currentTime])`
-- Render chapter marker dividers (thin white vertical lines) on the progress bar (both the "always visible thin bar" and the "controls visible" progress area)
-- When controls are visible and chapters exist, show the current chapter title as a small label below the progress bar
-
-#### File 2: `src/components/Video/Mobile/MobileWatchView.tsx`
-- Pass `video.description` to `YouTubeMobilePlayer` as the `description` prop
-
-### Phase 3: Mobile Ambient Mode (2 files)
-
-#### File 1: `src/components/Video/YouTubeMobilePlayer.tsx`
-- Add `onAmbientColor?: (color: string | null) => void` prop
-- Add a hidden `<canvas>` ref for color sampling
-- Add ambient mode state (read from localStorage `funplay_ambient_mode`)
-- Add a `useEffect` that samples the video's dominant color every 2 seconds (same technique as `EnhancedVideoPlayer.tsx`: draw video to 4x4 canvas, average pixel RGB)
-- Call `onAmbientColor` with the sampled color string
-- Add "Ambient Mode" toggle to `PlayerSettingsDrawer.tsx`
-
-#### File 2: `src/components/Video/Mobile/MobileWatchView.tsx`
-- Add `ambientColor` state
-- Pass `onAmbientColor={setAmbientColor}` to `YouTubeMobilePlayer`
-- Below the video player `div`, render a subtle gradient glow div that uses the ambient color:
-  ```
-  background: linear-gradient(to bottom, rgba(${ambientColor}, 0.2) 0%, transparent 100%)
-  ```
-- Height: ~80px, positioned directly below the player with smooth color transitions
-
-#### File 3: `src/components/Video/PlayerSettingsDrawer.tsx`
-- Add `ambientEnabled` and `onAmbientToggle` props
-- Add an "Ambient Mode" / "Che do anh sang" toggle section after the Loop section
-
-### Phase 4: DescriptionDrawer Chapter Pills (1 file)
-
-#### File: `src/components/Video/Mobile/DescriptionDrawer.tsx`
-- Import `parseChapters` and `Chapter` from `@/lib/parseChapters`
-- Add `onSeekToChapter?: (seconds: number) => void` prop
-- Parse chapters from the description text
-- If chapters exist, render a horizontally scrollable row of chapter "pills" between the stats row and the description text
-- Each pill shows the timestamp and chapter title (e.g., "0:00 Intro", "2:30 Main Topic")
-- Tapping a pill calls `onSeekToChapter` with the chapter's time in seconds
-- Pass `onSeekToChapter` from `MobileWatchView.tsx` (which should close the drawer and seek the player)
-
-#### File: `src/components/Video/Mobile/MobileWatchView.tsx` (additional changes)
-- Pass `onSeekToChapter` to `DescriptionDrawer` (via `VideoInfoSection`)
-- Implement seeking by updating `YouTubeMobilePlayer` to expose a seek function via ref or callback
-
-#### File: `src/components/Video/Mobile/VideoInfoSection.tsx`
-- Pass through `onSeekToChapter` prop to `DescriptionDrawer`
+Technical implementation:
+- Add `showScrollTop` state tracked via `window.addEventListener('scroll', ...)`
+- Show button when `window.scrollY > 500` and hide when `< 200` (with hysteresis to avoid flickering)
+- Render a circular floating button with `ArrowUp` icon in the bottom-right corner (above the mobile bottom nav)
+- Use `framer-motion` AnimatePresence for smooth fade-in/out
+- Position: `fixed bottom-20 right-3 z-40` (above MobileBottomNav's z-50)
+- Only render on mobile (`useIsMobile()`)
 
 ---
 
@@ -169,24 +160,28 @@ YouTube allows users to create 5-60 second clips from videos and share them with
 
 | Phase | Files Modified | New Files | Complexity |
 |-------|---------------|-----------|------------|
-| 1 | 1 (Index.tsx) | 0 | Low -- 1 string change |
-| 2 | 2 (YouTubeMobilePlayer.tsx, MobileWatchView.tsx) | 0 | Medium -- chapter parsing + progress bar markers |
-| 3 | 3 (YouTubeMobilePlayer.tsx, MobileWatchView.tsx, PlayerSettingsDrawer.tsx) | 0 | Medium -- canvas color sampling + ambient glow |
-| 4 | 3 (DescriptionDrawer.tsx, VideoInfoSection.tsx, MobileWatchView.tsx) | 0 | Medium -- chapter pills + seek callback |
+| 1 | 1 (PlayerSettingsDrawer.tsx) | 0 | Low - 1 string change |
+| 2 | 1 (useAdminVideoStats.tsx) | 0 | Low - 1 string change |
+| 3 | 1 (VideoCard.tsx) | 0 | Medium - hover preview with video element |
+| 4 | 1 (Index.tsx) | 0 | Low - scroll listener + floating button |
 
-**Total: 6 unique files modified, 0 new files, 0 database changes**
+**Total: 4 files modified, 0 new files, 0 database changes**
 
-Note: `YouTubeMobilePlayer.tsx` and `MobileWatchView.tsx` are modified across multiple phases (changes are cumulative).
+### Localization Status After Round 17
 
-### Feature Parity Progress After Round 16
+After Phases 1-2, user-facing English strings are reduced to:
+- Branded feature names (YouTube standard)
+- Music genre names (international standard)
+- Technical documentation (developer-facing)
+- Database values and internal code identifiers
+- UI library defaults (shadcn/ui)
+- File size units (Bytes, KB, MB, etc.)
+
+### Feature Parity Progress After Round 17
 
 **Newly added YouTube 2025 features:**
-- Mobile chapter markers on progress bar (parity with desktop)
-- Mobile Ambient Mode glow effect (parity with desktop)
-- Interactive chapter pills in mobile description drawer
-- Final localization fix (Index.tsx "Loading..." to Vietnamese)
+- Video thumbnail hover preview on desktop
+- Scroll-to-top floating button on mobile
 
 **Remaining YouTube features for future rounds:**
-- Clip creation (share video segments) -- requires backend
-- Super Thanks (highlighted paid comments) -- skipped per user request
-- Community posts with polls -- not implementing per user request
+- Clip creation (share video segments) - requires backend
