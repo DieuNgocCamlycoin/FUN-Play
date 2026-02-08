@@ -27,7 +27,7 @@ export const CategoryChips = ({ selected = "Tất cả", onSelect }: CategoryChi
           {categories.map((category) => (
             <Button
               key={category}
-              variant={selected === category ? "default" : "secondary"}
+              variant="ghost"
               size="sm"
               className={`rounded-full px-4 h-8 text-sm font-medium transition-all ${
                 selected === category
