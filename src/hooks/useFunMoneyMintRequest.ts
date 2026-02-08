@@ -180,7 +180,7 @@ export function useMintRequest(): UseMintRequestReturn {
       };
 
     } catch (err: any) {
-      setError(err.message || 'Failed to submit request');
+      setError(err.message || 'Gửi yêu cầu thất bại');
       return null;
     } finally {
       setLoading(false);
@@ -213,7 +213,7 @@ export function useMintRequest(): UseMintRequestReturn {
       return (data || []) as unknown as MintRequest[];
 
     } catch (err: any) {
-      setError(err.message || 'Failed to fetch requests');
+      setError(err.message || 'Không thể tải yêu cầu');
       return [];
     } finally {
       setLoading(false);
@@ -241,7 +241,7 @@ export function useMintRequest(): UseMintRequestReturn {
       return data as unknown as MintRequest;
 
     } catch (err: any) {
-      setError(err.message || 'Failed to fetch request');
+      setError(err.message || 'Không thể tải yêu cầu');
       return null;
     } finally {
       setLoading(false);
@@ -344,7 +344,7 @@ export function useAutoMintRequest(): UseAutoMintRequestReturn {
       return { id: data.id };
 
     } catch (err: any) {
-      setError(err.message || 'Failed to submit auto request');
+      setError(err.message || 'Gửi yêu cầu tự động thất bại');
       return null;
     } finally {
       setLoading(false);
@@ -394,7 +394,7 @@ export function useAdminMintRequest(): UseAdminMintRequestReturn {
       return (data || []) as unknown as MintRequest[];
 
     } catch (err: any) {
-      setError(err.message || 'Failed to fetch requests');
+      setError(err.message || 'Không thể tải yêu cầu');
       return [];
     } finally {
       setLoading(false);
@@ -428,7 +428,7 @@ export function useAdminMintRequest(): UseAdminMintRequestReturn {
       return (data || []) as unknown as MintRequest[];
 
     } catch (err: any) {
-      setError(err.message || 'Failed to fetch requests');
+      setError(err.message || 'Không thể tải yêu cầu');
       return [];
     } finally {
       setLoading(false);
@@ -462,7 +462,7 @@ export function useAdminMintRequest(): UseAdminMintRequestReturn {
       return true;
 
     } catch (err: any) {
-      setError(err.message || 'Failed to update status');
+      setError(err.message || 'Không thể cập nhật trạng thái');
       return false;
     } finally {
       setLoading(false);
@@ -498,7 +498,7 @@ export function useAdminMintRequest(): UseAdminMintRequestReturn {
       return true;
 
     } catch (err: any) {
-      setError(err.message || 'Failed to save mint result');
+      setError(err.message || 'Không thể lưu kết quả mint');
       return false;
     } finally {
       setLoading(false);

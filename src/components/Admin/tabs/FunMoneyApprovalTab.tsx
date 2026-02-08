@@ -107,33 +107,33 @@ export function FunMoneyApprovalTab() {
   const handleApprove = async (request: MintRequest) => {
     const success = await approveRequest(request.id, 'Approved by admin');
     if (success) {
-      toast.success('Request approved! Ready for minting.');
+      toast.success('Đã duyệt yêu cầu! Sẵn sàng mint.');
       setSelectedRequest(null);
     } else {
-      toast.error('Failed to approve request');
+      toast.error('Không thể duyệt yêu cầu');
     }
   };
 
   // Handle reject
   const handleReject = async (request: MintRequest) => {
     if (!rejectReason.trim()) {
-      toast.error('Please provide a rejection reason');
+      toast.error('Vui lòng nhập lý do từ chối');
       return;
     }
     const success = await rejectRequest(request.id, rejectReason);
     if (success) {
-      toast.success('Request rejected');
+      toast.success('Đã từ chối yêu cầu');
       setSelectedRequest(null);
       setRejectReason('');
     } else {
-      toast.error('Failed to reject request');
+      toast.error('Không thể từ chối yêu cầu');
     }
   };
 
   // Handle mint (EIP-712 signing + on-chain)
   const handleMint = async (request: MintRequest) => {
     if (!isConnected || !signer || !provider || !adminAddress) {
-      toast.error('Please connect your wallet first');
+      toast.error('Vui lòng kết nối ví trước');
       return;
     }
 
@@ -148,7 +148,7 @@ export function FunMoneyApprovalTab() {
       );
 
       if (!validation.canMint) {
-        toast.error(`Cannot mint: ${validation.issues.join(', ')}`);
+        toast.error(`Không thể mint: ${validation.issues.join(', ')}`);
         setIsMinting(false);
         return;
       }
@@ -168,14 +168,14 @@ export function FunMoneyApprovalTab() {
       if (saved) {
         toast.success(
           <div className="flex flex-col gap-1">
-            <span>✨ Minted successfully!</span>
+            <span>✨ Mint thành công!</span>
             <a 
               href={`https://testnet.bscscan.com/tx/${txHash}`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs text-blue-400 hover:underline"
             >
-              View on BSCScan →
+              Xem trên BSCScan →
             </a>
           </div>
         );
@@ -184,11 +184,11 @@ export function FunMoneyApprovalTab() {
 
     } catch (err: any) {
       console.error('Mint error:', err);
-      toast.error(`Mint failed: ${err.message?.slice(0, 100)}`);
+      toast.error(`Mint thất bại: ${err.message?.slice(0, 100)}`);
       
       // Mark as failed if it was an on-chain error
       if (request.status === 'approved') {
-        await markAsFailed(request.id, err.message?.slice(0, 200) || 'Unknown error');
+        await markAsFailed(request.id, err.message?.slice(0, 200) || 'Lỗi không xác định');
       }
     } finally {
       setIsMinting(false);
@@ -198,7 +198,7 @@ export function FunMoneyApprovalTab() {
   // Copy to clipboard
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast.success('Copied!');
+    toast.success('Đã sao chép!');
   };
 
   return (
@@ -213,7 +213,7 @@ export function FunMoneyApprovalTab() {
               </div>
               <div>
                 <p className="text-2xl font-bold">{pendingCount}</p>
-                <p className="text-xs text-muted-foreground">Pending</p>
+                <p className="text-xs text-muted-foreground">Chờ duyệt</p>
               </div>
             </div>
           </CardContent>
@@ -229,7 +229,7 @@ export function FunMoneyApprovalTab() {
                 <p className="text-2xl font-bold">
                   {requests.filter(r => r.status === 'minted').length}
                 </p>
-                <p className="text-xs text-muted-foreground">Minted</p>
+                <p className="text-xs text-muted-foreground">Đã mint</p>
               </div>
             </div>
           </CardContent>
@@ -250,7 +250,7 @@ export function FunMoneyApprovalTab() {
                 </div>
                 <div>
                   <p className="text-sm font-medium">
-                    {isConnected ? 'Wallet Connected' : 'Wallet Not Connected'}
+                    {isConnected ? 'Ví đã kết nối' : 'Ví chưa kết nối'}
                   </p>
                   {adminAddress && (
                     <p className="text-xs text-muted-foreground font-mono">
@@ -261,7 +261,7 @@ export function FunMoneyApprovalTab() {
               </div>
               {!isConnected && (
                 <Button size="sm" onClick={connectWallet}>
-                  Connect
+                  Kết nối
                 </Button>
               )}
             </div>
@@ -277,7 +277,7 @@ export function FunMoneyApprovalTab() {
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2">
                 <Coins className="w-5 h-5 text-primary" />
-                FUN Money Requests
+                Yêu cầu FUN Money
               </CardTitle>
               <Button 
                 variant="ghost" 
@@ -293,17 +293,17 @@ export function FunMoneyApprovalTab() {
               <TabsList className="grid grid-cols-5 w-full">
                 <TabsTrigger value="pending" className="gap-1">
                   <Clock className="w-3 h-3" />
-                  Pending
+                  Chờ duyệt
                   {pendingCount > 0 && (
                     <Badge variant="destructive" className="ml-1 h-5 px-1">
                       {pendingCount}
                     </Badge>
                   )}
                 </TabsTrigger>
-                <TabsTrigger value="approved">Approved</TabsTrigger>
-                <TabsTrigger value="minted">Minted</TabsTrigger>
-                <TabsTrigger value="rejected">Rejected</TabsTrigger>
-                <TabsTrigger value="all">All</TabsTrigger>
+                <TabsTrigger value="approved">Đã duyệt</TabsTrigger>
+                <TabsTrigger value="minted">Đã mint</TabsTrigger>
+                <TabsTrigger value="rejected">Từ chối</TabsTrigger>
+                <TabsTrigger value="all">Tất cả</TabsTrigger>
               </TabsList>
             </Tabs>
 
@@ -311,7 +311,7 @@ export function FunMoneyApprovalTab() {
             <div className="relative mt-3">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
-                placeholder="Search by platform, action, wallet..."
+                placeholder="Tìm theo nền tảng, hành động, ví..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9"
@@ -330,7 +330,7 @@ export function FunMoneyApprovalTab() {
               ) : filteredRequests.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <Coins className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p>No requests found</p>
+                  <p>Không tìm thấy yêu cầu</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -351,7 +351,7 @@ export function FunMoneyApprovalTab() {
         {/* Detail Panel */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Request Details</CardTitle>
+            <CardTitle className="text-lg">Chi tiết yêu cầu</CardTitle>
           </CardHeader>
           <CardContent>
             {selectedRequest ? (
@@ -369,7 +369,7 @@ export function FunMoneyApprovalTab() {
             ) : (
               <div className="text-center py-12 text-muted-foreground">
                 <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p>Select a request to view details</p>
+                <p>Chọn một yêu cầu để xem chi tiết</p>
               </div>
             )}
           </CardContent>
@@ -429,7 +429,7 @@ function RequestCard({
             {request.calculated_amount_formatted || formatFunAmount(request.calculated_amount_atomic)}
           </p>
           <p className="text-xs text-muted-foreground">
-            Light: {request.light_score}
+            AS: {request.light_score}
           </p>
         </div>
       </div>
@@ -505,7 +505,7 @@ function RequestDetailPanel({
 
         {/* Wallet */}
         <div className="space-y-1">
-          <label className="text-xs text-muted-foreground">Recipient Wallet</label>
+          <label className="text-xs text-muted-foreground">Ví người nhận</label>
           <div className="flex items-center gap-2">
             <code className="flex-1 p-2 bg-muted rounded text-xs truncate">
               {request.user_wallet_address}
@@ -523,33 +523,33 @@ function RequestDetailPanel({
         {/* Platform & Action */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="text-xs text-muted-foreground">Platform</label>
+            <label className="text-xs text-muted-foreground">Nền tảng</label>
             <p className="font-medium">{request.platform_id}</p>
           </div>
           <div>
-            <label className="text-xs text-muted-foreground">Action</label>
+            <label className="text-xs text-muted-foreground">Hành động</label>
             <p className="font-medium">{request.action_type}</p>
           </div>
         </div>
 
         {/* Scores */}
         <div>
-          <label className="text-xs text-muted-foreground mb-2 block">PPLP Scores</label>
+          <label className="text-xs text-muted-foreground mb-2 block">Điểm PPLP</label>
           <div className="grid grid-cols-2 gap-2">
             <div className="p-2 bg-muted/50 rounded text-center">
               <p className="text-lg font-bold">{request.light_score}</p>
-              <p className="text-xs text-muted-foreground">Light Score</p>
+              <p className="text-xs text-muted-foreground">Điểm Ánh Sáng</p>
             </div>
             <div className="p-2 bg-muted/50 rounded text-center">
               <p className="text-lg font-bold">{request.unity_score}</p>
-              <p className="text-xs text-muted-foreground">Unity Score</p>
+              <p className="text-xs text-muted-foreground">Điểm Đoàn Kết</p>
             </div>
           </div>
         </div>
 
         {/* Pillar Breakdown */}
         <div>
-          <label className="text-xs text-muted-foreground mb-2 block">5 Pillars</label>
+          <label className="text-xs text-muted-foreground mb-2 block">5 Trụ cột</label>
           <div className="space-y-2">
             {Object.entries(pillarScores).map(([key, value]) => (
               <div key={key} className="flex items-center gap-2">
@@ -571,13 +571,13 @@ function RequestDetailPanel({
 
         {/* Multipliers */}
         <div>
-          <label className="text-xs text-muted-foreground mb-2 block">Multipliers</label>
+          <label className="text-xs text-muted-foreground mb-2 block">Hệ số nhân</label>
           <div className="grid grid-cols-4 gap-2">
             {[
-              { key: 'Q', value: request.multiplier_q, label: 'Quality' },
-              { key: 'I', value: request.multiplier_i, label: 'Impact' },
-              { key: 'K', value: request.multiplier_k, label: 'Integrity' },
-              { key: 'Ux', value: request.multiplier_ux, label: 'Unity' }
+              { key: 'Q', value: request.multiplier_q, label: 'Chất lượng' },
+              { key: 'I', value: request.multiplier_i, label: 'Tác động' },
+              { key: 'K', value: request.multiplier_k, label: 'Liêm chính' },
+              { key: 'Ux', value: request.multiplier_ux, label: 'Đoàn kết' }
             ].map(({ key, value, label }) => (
               <div key={key} className="p-2 bg-muted/50 rounded text-center">
                 <p className="font-bold">{Number(value).toFixed(2)}</p>
@@ -590,7 +590,7 @@ function RequestDetailPanel({
         {/* Unity Signals */}
         {unitySignals && Object.keys(unitySignals).length > 0 && (
           <div>
-            <label className="text-xs text-muted-foreground mb-2 block">Unity Signals</label>
+            <label className="text-xs text-muted-foreground mb-2 block">Tín hiệu Đoàn kết</label>
             <div className="flex flex-wrap gap-1">
               {Object.entries(unitySignals).map(([key, value]) => (
                 value && (
@@ -606,7 +606,7 @@ function RequestDetailPanel({
         {/* Tx Hash (if minted) */}
         {request.tx_hash && (
           <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">Transaction</label>
+            <label className="text-xs text-muted-foreground">Giao dịch</label>
             <a
               href={`https://testnet.bscscan.com/tx/${request.tx_hash}`}
               target="_blank"
@@ -614,7 +614,7 @@ function RequestDetailPanel({
               className="flex items-center gap-2 text-blue-400 hover:underline text-sm"
             >
               <ExternalLink className="w-4 h-4" />
-              View on BSCScan
+              Xem trên BSCScan
             </a>
           </div>
         )}
@@ -622,7 +622,7 @@ function RequestDetailPanel({
         {/* Decision Reason (if rejected/failed) */}
         {request.decision_reason && ['rejected', 'failed'].includes(request.status) && (
           <div className="p-3 bg-destructive/10 rounded-lg">
-            <p className="text-xs text-muted-foreground mb-1">Reason</p>
+            <p className="text-xs text-muted-foreground mb-1">Lý do</p>
             <p className="text-sm">{request.decision_reason}</p>
           </div>
         )}
@@ -635,12 +635,12 @@ function RequestDetailPanel({
               onClick={onApprove}
             >
               <CheckCircle className="w-4 h-4" />
-              Approve Request
+              Duyệt yêu cầu
             </Button>
             
             <div className="space-y-2">
               <Textarea
-                placeholder="Rejection reason (required)"
+                placeholder="Lý do từ chối (bắt buộc)"
                 value={rejectReason}
                 onChange={(e) => onRejectReasonChange(e.target.value)}
                 className="resize-none"
@@ -652,7 +652,7 @@ function RequestDetailPanel({
                 onClick={onReject}
               >
                 <XCircle className="w-4 h-4" />
-                Reject Request
+                Từ chối yêu cầu
               </Button>
             </div>
           </div>
@@ -668,18 +668,18 @@ function RequestDetailPanel({
               {isMinting ? (
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin" />
-                  Minting...
+                  Đang mint...
                 </>
               ) : (
                 <>
                   <Zap className="w-4 h-4" />
-                  Sign & Mint On-Chain
+                  Ký & Mint On-Chain
                 </>
               )}
             </Button>
             {!isConnected && (
               <p className="text-xs text-center text-muted-foreground mt-2">
-                Connect wallet to mint
+                Kết nối ví để mint
               </p>
             )}
           </div>

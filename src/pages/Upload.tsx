@@ -588,12 +588,12 @@ export default function Upload() {
 
             {/* Description */}
             <div>
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description">Mô tả</Label>
               <Textarea
                 id="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Tell viewers about your video"
+                placeholder="Mô tả nội dung video của bạn"
                 rows={5}
                 className="mt-1"
               />
