@@ -1,68 +1,73 @@
 
 
-# FUN Play vs YouTube 2025: Round 22 Gap Analysis
+# FUN Play vs YouTube 2025: Round 23 Gap Analysis
 
-## Verified Fixes from Rounds 1-21 (All Working)
+## Verified Fixes from Rounds 1-22 (All Working)
 
-All 50+ fixes from previous rounds remain functional, including:
+All 55+ fixes from previous rounds remain functional, including:
 - Video cards, kebab menus, hover previews across all pages (R1-R19)
 - Complete Vietnamese localization (R6-R18)
-- Approval status filters on Index, Search, Shorts, Subscriptions, LikedVideos, ProfileVideosTab, Watch recommended (R18-R21)
-- Shorts channel name + verified badge (R21)
+- Approval status filters on Index, Search, Shorts, Subscriptions, LikedVideos, ProfileVideosTab, Watch recommended (R18-R22)
+- Shorts channel name + verified badge + avatar + @handle dual-line (R21-R22)
 - Desktop search channel name priority + formatDuration (R21)
+- Mobile search channel name priority (R22)
+- LikedVideos verified badge (R22)
 - YourVideos functional content tabs (R20)
 - Mobile features: scroll-to-top, search suggestions, chapters, ambient mode (R16-R18)
 
 ---
 
-## REMAINING GAPS FOUND IN ROUND 22
+## REMAINING GAPS FOUND IN ROUND 23
 
 ### HIGH PRIORITY (Feature Consistency)
 
-#### Gap 1: Search Mobile VideoCard Shows Profile Name Instead of Channel Name
+#### Gap 1: Watch Page Missing `is_verified` for Channel
 
-`Search.tsx` line 398 passes `channel={video.profile?.display_name || video.profile?.username || "An danh"}` to the mobile `VideoCard`. This was fixed for the desktop list view in Round 21 (now shows `video.channels?.name`), but the mobile VideoCard still uses the profile display name.
+The `Watch.tsx` video query (lines 206-211) fetches `channels(id, name, subscriber_count)` but does NOT include `is_verified`. The Video interface (lines 46-50) also lacks `is_verified`. This means the Watch page desktop view never shows a verified badge next to the channel name, even though YouTube always displays one for verified creators.
 
-YouTube always shows the **channel name** under videos, not the user's personal display name, on all platforms including mobile search results.
+The desktop Watch view (line 678) renders the channel name but has no verified checkmark. The MobileWatchView component receives video data without `is_verified` as well.
 
-**Fix:** Change line 398 from `video.profile?.display_name || video.profile?.username || "An danh"` to `video.channels?.name || video.profile?.display_name || "An danh"` to match the desktop fix from Round 21.
+**Fix:**
+1. Add `is_verified` to the channels select: `channels(id, name, subscriber_count, is_verified)`
+2. Add `is_verified?: boolean` to the Video interface's channels type
+3. Add a verified badge SVG next to the channel name on the desktop Watch page (line 678)
+4. Pass `is_verified` through to the MobileWatchView for mobile display
 
-#### Gap 2: Shorts Missing @handle Below Channel Name
+#### Gap 2: ProfileVideosTab Missing `is_verified` and `avatarUrl` on VideoCard
 
-On YouTube Shorts, the creator info overlay shows both the **channel name** and the **@username handle** on separate lines. Currently, `Shorts.tsx` line 314 shows EITHER the channel name OR the @username (as fallback), but never both together.
+`ProfileVideosTab.tsx` (line 40) queries `channels(name, id)` but does NOT include `is_verified`. The VideoCard rendering (lines 104-116) does not pass `isVerified` or `avatarUrl` props. This means video cards on channel pages never show the verified badge and never show the channel avatar thumbnail.
 
-YouTube Shorts displays:
-```
-Channel Name (verified badge)
-@username
-```
+YouTube always displays verified badges and channel avatars consistently on ALL video cards including those on channel pages.
 
-**Fix:** Update lines 313-315 to display the channel name as primary text, and add a second line showing `@{video.profile?.username}` below it when the channel name is available.
+**Fix:**
+1. Update query to include `is_verified`: `channels(name, id, is_verified)`
+2. Fetch profile avatar data for the userId
+3. Pass `isVerified` and `avatarUrl` to VideoCard
 
-#### Gap 3: Shorts Missing Channel Avatar in Bottom Info Overlay
+#### Gap 3: Watch Page Recommended Videos Missing Duration and Channel ID
 
-YouTube Shorts displays a small channel avatar (round, ~32px) next to the channel name in the bottom info overlay. Currently, the Shorts page shows the avatar ONLY in the right-side action buttons area (line 181), but the bottom info text area (lines 308-345) has no avatar.
+The `RecommendedVideo` interface (lines 53-62) and the `fetchRecommendedVideos` query (lines 253-261) only fetch `id, title, thumbnail_url, view_count, created_at, channels(name)`. Missing fields:
+- `duration` -- no duration badge on recommended video thumbnails
+- `channels.id` -- recommended video channel names are not clickable
+- `user_id` -- no avatar or owner linking
 
-**Fix:** Add a small avatar (32px) next to the channel name button in the bottom info overlay, before the channel name text.
+YouTube's "Up Next" sidebar shows duration badges on every thumbnail and makes channel names clickable.
+
+However, the UpNextSidebar component uses its own VideoPlayback context queue data, not the raw recommended videos. The recommended videos are only used as a fallback. Since the UpNextSidebar already formats duration from its own data source, this gap has limited user impact. **No change in this round** -- the UpNextSidebar handles this via the VideoPlaybackContext.
 
 ### MEDIUM PRIORITY (UX Polish)
 
-#### Gap 4: LikedVideos Missing `isVerified` Prop on VideoCard
+#### Gap 4: Watch Page Desktop -- No Verified Badge Next to Channel Name
 
-`LikedVideos.tsx` line 225-238 renders VideoCard with many props but does NOT include `isVerified`. The video query (line 63-65) fetches `channels(name, id)` but does not include `is_verified`. This means the verified badge checkmark never appears on liked video cards.
+Even after fixing Gap 1 (fetching `is_verified`), the desktop Watch view at line 678 displays the channel name but has no verified badge icon. YouTube shows a small gray checkmark circle next to verified channel names on the Watch page.
 
-YouTube shows verified badges consistently on ALL video cards regardless of the page.
+**Fix:** Add a verified badge SVG after the channel name text at line 678, conditional on `video.channels.is_verified`.
 
-**Fix:**
-1. Update the query select to include `is_verified`: change `channels (name, id)` to `channels (name, id, is_verified)`
-2. Update the Video interface to include `is_verified` in the channels type
-3. Pass `isVerified={video.channels?.is_verified}` to `VideoCard`
+#### Gap 5: Subscriptions Page Missing Verified Badge on Channel Header
 
-#### Gap 5: WatchHistory Missing `isVerified` and Channel Link in Items
+`Subscriptions.tsx` line 168 displays the channel name in each subscription section header but does not show a verified badge, even though the query (line 69) already fetches `is_verified`. YouTube's subscriptions page shows verified checkmarks next to channel names.
 
-`WatchHistory.tsx` line 244-246 displays channel name but does not show a verified badge, and the channel name is not clickable to navigate to the channel page. YouTube's history page shows verified badges and clickable channel names.
-
-**Fix:** This is a minor polish item. The WatchHistory hook would need to fetch channel `is_verified` data. Since this is a lower priority, it can be addressed in a future round. **No change in this round.**
+**Fix:** Add a verified badge SVG after the channel name at line 168, conditional on `sub.channel.is_verified`.
 
 ---
 
@@ -71,6 +76,8 @@ YouTube shows verified badges consistently on ALL video cards regardless of the 
 - Watch page description uses `toLocaleString()` for view counts -- matches YouTube behavior
 - Watch History does not filter by `approval_status` -- correct (personal history)
 - Continue Watching does not filter by `approval_status` -- correct (personal history)
+- WatchHistory missing `is_verified` -- deferred to future round (low priority)
+- WatchLater page does not show `is_verified` -- minor, deferred
 - All branded terms, music genres, technical docs, database values remain in English
 - Console log messages remain in English (developer-facing)
 
@@ -78,38 +85,73 @@ YouTube shows verified badges consistently on ALL video cards regardless of the 
 
 ## IMPLEMENTATION PLAN
 
-### Phase 1: Search Mobile Channel Name Fix (1 file, 1 line)
+### Phase 1: Watch Page Verified Badge (1 file)
 
-**File:** `src/pages/Search.tsx`
+**File:** `src/pages/Watch.tsx`
 
-- Line 398: Change `channel={video.profile?.display_name || video.profile?.username || "An danh"}` to `channel={video.channels?.name || video.profile?.display_name || "An danh"}`
+1. **Interface update (line 46-50):** Add `is_verified?: boolean` to the channels type:
+   ```
+   channels: {
+     id: string;
+     name: string;
+     subscriber_count: number;
+     is_verified?: boolean;
+   };
+   ```
 
-This makes the mobile search results consistent with the desktop fix from Round 21.
+2. **Query update (lines 206-211):** Add `is_verified` to the channels select:
+   ```
+   channels (
+     id,
+     name,
+     subscriber_count,
+     is_verified
+   )
+   ```
 
-### Phase 2: Shorts @handle + Avatar in Bottom Info (1 file)
+3. **Desktop UI (line 678):** Add a verified badge SVG after the channel name text:
+   ```
+   <p className="font-semibold text-foreground hover:text-cosmic-cyan transition-colors">
+     {video.channels.name}
+   </p>
+   {video.channels.is_verified && (
+     <svg className="w-4 h-4 text-muted-foreground shrink-0 ml-1" viewBox="0 0 24 24" fill="currentColor">
+       <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+     </svg>
+   )}
+   ```
+   The channel name container at line 671-683 needs to be updated to include the badge inline.
 
-**File:** `src/pages/Shorts.tsx`
+### Phase 2: ProfileVideosTab Verified Badge + Avatar (1 file)
 
-1. Update the bottom info overlay (lines 308-345) to add a channel avatar:
-   - Add a small `Avatar` (w-8 h-8) next to the channel name button, before the name text
-   - Use `video.profile?.avatar_url` for the avatar image
+**File:** `src/components/Profile/ProfileVideosTab.tsx`
 
-2. Update lines 312-320 to show both channel name AND @handle:
-   - Primary line: channel name + verified badge (existing)
-   - Secondary line: `@{video.profile?.username}` in smaller text below the channel name, only when channel name is available (to avoid duplication when falling back to @username)
+1. **Interface update (line 24):** Add `is_verified` to channels type:
+   ```
+   channels: { name: string; id: string; is_verified?: boolean } | null;
+   ```
 
-### Phase 3: LikedVideos Verified Badge (1 file)
+2. **Query update (line 40):** Change `channels(name, id)` to `channels(name, id, is_verified)`
 
-**File:** `src/pages/LikedVideos.tsx`
+3. **Fetch profiles:** After fetching videos, batch-fetch profile avatars for the video owners (similar to Index.tsx pattern), then pass `avatarUrl` to VideoCard.
 
-1. Line 23-25: Update the `channels` type in the Video interface to include `is_verified`:
-   - Change `channels: { name: string; id: string; }` to `channels: { name: string; id: string; is_verified?: boolean; }`
+4. **VideoCard props (lines 104-116):** Add `isVerified={video.channels?.is_verified}` prop.
 
-2. Line 63-65: Update the query select to include `is_verified`:
-   - Change `channels (name, id)` to `channels (name, id, is_verified)`
+### Phase 3: Subscriptions Verified Badge in Channel Header (1 file)
 
-3. Line 225-238: Add `isVerified` prop to VideoCard:
-   - Add `isVerified={video.channels?.is_verified}` after the existing `duration` prop
+**File:** `src/pages/Subscriptions.tsx`
+
+1. **Channel name display (line 168):** Add a verified badge SVG after `{sub.channel.name}`:
+   ```
+   <div className="flex items-center gap-1">
+     <h2 className="font-semibold hover:text-primary transition-colors">{sub.channel.name}</h2>
+     {sub.channel.is_verified && (
+       <svg className="w-4 h-4 text-muted-foreground shrink-0" viewBox="0 0 24 24" fill="currentColor">
+         <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+       </svg>
+     )}
+   </div>
+   ```
 
 ---
 
@@ -117,19 +159,19 @@ This makes the mobile search results consistent with the desktop fix from Round 
 
 | Phase | Files Modified | New Files | Complexity |
 |-------|---------------|-----------|------------|
-| 1 | 1 (Search.tsx) | 0 | Low -- swap 1 prop value |
-| 2 | 1 (Shorts.tsx) | 0 | Medium -- add avatar + @handle line |
-| 3 | 1 (LikedVideos.tsx) | 0 | Low -- add is_verified to query + interface + prop |
+| 1 | 1 (Watch.tsx) | 0 | Low -- add is_verified to query + interface + badge SVG |
+| 2 | 1 (ProfileVideosTab.tsx) | 0 | Medium -- add is_verified + avatar fetch + props |
+| 3 | 1 (Subscriptions.tsx) | 0 | Low -- add badge SVG next to channel name |
 
 **Total: 3 files modified, 0 new files, 0 database changes**
 
-### Feature Parity Progress After Round 22
+### Feature Parity Progress After Round 23
 
 **Newly added YouTube 2025 consistency:**
-- Channel name (not profile name) on mobile search results
-- @username handle below channel name on Shorts (YouTube dual-line format)
-- Channel avatar in Shorts bottom info overlay
-- Verified badge on Liked Videos page video cards
+- Verified badge on Watch page (desktop and mobile) next to channel name
+- Verified badge on channel page video cards (ProfileVideosTab)
+- Verified badge on Subscriptions page channel headers
+- Channel avatar on channel page video cards
 
 **Remaining YouTube features beyond FUN Play scope:**
 - Clip creation (share video segments) -- requires dedicated backend infrastructure
@@ -139,5 +181,5 @@ This makes the mobile search results consistent with the desktop fix from Round 
 
 ### System Maturity Assessment
 
-After 22 rounds of progressive analysis, FUN Play has reached a very high level of feature maturity. The gaps found in this round are increasingly cosmetic -- a missing avatar, a label preference, and a verified badge on one page. The core architecture, data integrity, mobile experience, and localization are all production-ready for the Vietnamese community.
+After 23 rounds of progressive analysis, FUN Play has reached an exceptionally high level of feature maturity. The gaps found in this round are entirely about verified badge consistency -- ensuring the checkmark appears on every page where YouTube shows it. The core architecture, data integrity, localization, mobile experience, and content management are all production-ready for the Vietnamese community.
 
