@@ -56,7 +56,7 @@ export default function Referral() {
       <Header onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
-      <main className="pt-14 lg:pl-64">
+      <main className="pt-12 lg:pt-14 lg:pl-64">
         <div className="max-w-4xl mx-auto p-6">
           {/* Header */}
           <motion.div initial={{

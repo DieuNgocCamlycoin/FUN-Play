@@ -152,7 +152,7 @@ const Meditate = () => {
       <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <main className="pt-14 lg:pl-60 min-h-screen relative z-10">
+      <main className="pt-12 lg:pt-14 lg:pl-60 min-h-screen relative z-10">
         <div className="p-4 md:p-6">
           {/* Header Section */}
           <div className="text-center mb-8">
