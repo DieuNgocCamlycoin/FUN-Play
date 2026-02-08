@@ -1,8 +1,8 @@
 
 
-# FUN Play vs YouTube 2025: Round 20 Gap Analysis
+# FUN Play vs YouTube 2025: Round 21 Gap Analysis
 
-## Verified Fixes from Rounds 1-19 (All Working)
+## Verified Fixes from Rounds 1-20 (All Working)
 
 | Feature | Round | Status |
 |---------|-------|--------|
@@ -53,97 +53,104 @@
 | Desktop search hover preview | R18 | Done |
 | LikedVideos hover preview | R19 | Done |
 | Search mobile hover preview | R19 | Done |
-| ProfileVideosTab full props (channel, duration, videoUrl) | R19 | Done |
-| ProfileVideosTab shorts duration (180s) | R19 | Done |
+| ProfileVideosTab full props + duration fix | R19 | Done |
+| YourVideos functional content tabs | R20 | Done |
+| Subscriptions approval_status filter | R20 | Done |
+| LikedVideos approval_status filter | R20 | Done |
+| ProfileVideosTab approval_status filter | R20 | Done |
 
 ---
 
-## REMAINING GAPS FOUND IN ROUND 20
+## REMAINING GAPS FOUND IN ROUND 21
 
-### HIGH PRIORITY (Functional Gap)
+### HIGH PRIORITY (Data Integrity)
 
-#### Gap 1: YourVideos.tsx Content Tabs Are Non-Functional
+#### Gap 1: Watch.tsx Recommended Videos Missing Approval Status Filter
 
-`YourVideos.tsx` (lines 66-74) renders 7 content tabs: Video, Shorts, Live Events, Posts, Playlists, Podcasts, Promotions. However, these are all static `<button>` elements with no state management or filtering logic. The "Video" tab appears permanently selected, and clicking any other tab does nothing.
+`Watch.tsx` lines 249-266 fetches recommended videos with `.eq("is_public", true)` but does NOT include `.eq("approval_status", "approved")`. This means the "Up Next" sidebar could display unapproved, pending, or rejected videos to users.
 
-YouTube Studio's content page has functional tabs that filter the content table between Videos, Shorts, Live, and Posts. Users rely on these tabs to manage different content types.
+Every other public video feed (Index, Search, Shorts, Subscriptions, LikedVideos, ProfileVideosTab) already has this filter after Rounds 18-20. The Watch page recommended videos were overlooked.
 
-**Fix:** Add `activeTab` state management. Implement functional filtering for the "Video" and "Shorts" tabs (Video shows `duration > 180 OR duration is null`, Shorts shows `duration <= 180`). Other tabs can display a "coming soon" message. The currently fetched data already includes `duration` but there's no filtering logic in the query.
+YouTube never shows unlisted/flagged content in recommendations.
 
-#### Gap 2: Subscriptions Feed Missing Approval Status Filter
+**Fix:** Add `.eq("approval_status", "approved")` to the `fetchRecommendedVideos` query in `Watch.tsx`.
 
-`Subscriptions.tsx` line 82-85 queries videos with only `.eq('is_public', true)` but does NOT filter by `approval_status`. The homepage (`Index.tsx` line 141), Search (`Search.tsx` line 132), and Shorts (`Shorts.tsx` line 378) all correctly filter with `.eq('approval_status', 'approved')`.
+### HIGH PRIORITY (Feature Consistency)
 
-This means the Subscriptions feed could surface unapproved or pending videos from subscribed channels, which YouTube would never show.
+#### Gap 2: Shorts Page Missing Channel Name in Info Overlay
 
-**Fix:** Add `.eq('approval_status', 'approved')` to the video query in `Subscriptions.tsx`.
+`Shorts.tsx` line 370-397 fetches profiles (avatar_url, username, display_name) for video creators, but does NOT fetch channel data. The bottom info overlay (lines 308-338) shows `@{video.profile?.username}` but never displays the channel name.
 
-#### Gap 3: LikedVideos Missing Approval Status Filter
+On YouTube Shorts, the creator's channel name is prominently displayed. The current implementation only shows the `@username` handle. While this is acceptable, YouTube also shows channel names below or alongside the handle. More importantly, the Shorts page does not fetch the `channels` table at all, which means the `channel_id` used for the subscribe action relies only on the raw `channel_id` field from the video row, without verifying the channel exists.
 
-`LikedVideos.tsx` line 61-68 queries videos with `.eq('is_public', true)` but no `approval_status` filter. If a previously-liked video gets flagged or its approval is revoked, it would still appear in the liked videos list. YouTube hides such videos.
+**Fix:** Add `channels(id, name, is_verified)` to the Shorts video query. Display the channel name in the bottom info overlay alongside the @username handle. This also enables verified badge display on Shorts.
 
-**Fix:** Add `.eq('approval_status', 'approved')` to the video query in `LikedVideos.tsx`.
+#### Gap 3: Shorts Missing Verified Badge
 
-#### Gap 4: ProfileVideosTab Missing Approval Status Filter
+YouTube Shorts shows a verified checkmark next to creator names for verified channels. The `Shorts.tsx` ShortsVideoItem component (lines 308-338) never displays a verified badge because the `channels` data (including `is_verified`) is not fetched.
 
-`ProfileVideosTab.tsx` line 38-42 queries with `.eq('is_public', true)` but no `approval_status` filter. Unapproved or pending videos could appear on public channel pages.
+**Fix:** After fetching channel data (from Gap 2), display a verified badge SVG next to the channel name/username when `video.channel?.is_verified` is true.
 
-**Fix:** Add `.eq('approval_status', 'approved')` to the query in `ProfileVideosTab.tsx`.
+### MEDIUM PRIORITY (UX Polish)
+
+#### Gap 4: Search Desktop List View Shows Profile Name Instead of Channel Name
+
+`Search.tsx` lines 375-387 shows the creator's profile name (`display_name` or `username`) in the desktop search list view. YouTube's search results display the **channel name**, not the user's personal display name. While FUN Play fetches `channels(id, name, is_verified)` with the search query, the desktop list renders profile info instead.
+
+**Fix:** Update the desktop search results to display `video.channels?.name` as the primary label instead of `video.profile?.display_name`, falling back to the profile name only if no channel exists.
+
+#### Gap 5: Search Desktop List View Duration Uses Inline Formatting Instead of Shared Formatter
+
+`Search.tsx` lines 359-364 contains inline duration formatting logic (manual hour/minute/second calculation) instead of using the shared `formatDuration` utility from `@/lib/formatters`. Every other page in the system uses the centralized formatter.
+
+**Fix:** Replace the inline duration formatting with `formatDuration(video.duration)` from `@/lib/formatters`, which is already imported in the file's companion components.
 
 ---
 
 ### ACCEPTABLE EXCEPTIONS (No Change Needed)
 
-- Watch.tsx description box uses `toLocaleString()` for full view count display -- this matches YouTube's behavior in the description area (full numbers, not abbreviated)
-- Subscriber counts use `toLocaleString()` -- acceptable for the Vietnamese community's current scale
-- All branded feature names, music genres, technical documentation, database values, file size units -- remain in English per standard conventions
-- `toLocaleString()` usage in Admin/Web3/FunMoney components -- these are internal dashboard or financial values where full precision is expected
+- Watch history does not filter by `approval_status` -- this is correct behavior since users should see their own history even if a video was later flagged
+- Continue Watching carousel does not filter by `approval_status` -- same user-specific history reasoning
+- `toLocaleString()` for subscriber counts and view counts in the Watch page description -- YouTube uses full numbers in the description area
+- All branded feature names, music genres, technical documentation, database values, file size units remain in English per established standards
+- Console log messages remain in English as developer-facing debug output
 
 ---
 
 ## IMPLEMENTATION PLAN
 
-### Phase 1: YourVideos.tsx Functional Tabs (1 file)
+### Phase 1: Watch.tsx Recommended Videos Approval Filter (1 file, 1 line)
 
-**File:** `src/pages/YourVideos.tsx`
+**File:** `src/pages/Watch.tsx`
 
-1. Add `activeTab` state with type `"video" | "shorts" | "live" | "posts" | "playlists" | "podcast" | "promo"` defaulting to `"video"`
+- Line 263: Add `.eq("approval_status", "approved")` after `.eq("is_public", true)` in the `fetchRecommendedVideos` function.
 
-2. Update the tab buttons (lines 67-74) to:
-   - Wire `onClick` handlers to set `activeTab`
-   - Apply active styling (`border-b-2 border-primary font-medium`) conditionally based on `activeTab`
-   - Keep inactive style as `text-muted-foreground hover:text-foreground`
+This ensures the "Up Next" sidebar only shows approved public videos, matching all other video feeds.
 
-3. Update the `fetchVideos` query (lines 39-41) to filter based on `activeTab`:
-   - When `activeTab === "video"`: add `.or("duration.gt.180,duration.is.null")`
-   - When `activeTab === "shorts"`: add `.lte("duration", 180)`
-   - Add `activeTab` to the `useEffect` dependency array
+### Phase 2: Shorts Channel Data + Verified Badge (1 file)
 
-4. For tabs that don't have content yet (Live, Posts, Playlists, Podcast, Promotions), show a placeholder state:
-   - Display a centered icon with "Sap co" (Coming soon) text
-   - Hide the video table when these tabs are active
+**File:** `src/pages/Shorts.tsx`
 
-5. Update the empty state to show tab-specific messaging:
-   - "Video" tab: "Ban chua co video nao" (existing message)
-   - "Shorts" tab: "Ban chua co Shorts nao"
+1. Update the video query (lines 371-381) to join channels:
+   - Change `channel_id, user_id, duration` to include `channels(id, name, is_verified)` in the select
 
-### Phase 2: Subscriptions Approval Filter (1 file, 1 line)
+2. Update the `ShortVideo` interface (lines 23-44) to include the channel type with `is_verified`:
+   - Add `is_verified: boolean` to the `channel` type
 
-**File:** `src/pages/Subscriptions.tsx`
+3. Map channel data in the query result (lines 394-397):
+   - The channels join will automatically be available
 
-- Line 84: Add `.eq('approval_status', 'approved')` after `.eq('is_public', true)`
+4. Update `ShortsVideoItem` bottom info overlay (lines 308-338):
+   - Display `video.channel?.name` below the @username
+   - Add a verified badge SVG when `video.channel?.is_verified` is true, displayed next to the channel name
 
-### Phase 3: LikedVideos Approval Filter (1 file, 1 line)
+### Phase 3: Search Desktop View Channel Name + formatDuration (1 file)
 
-**File:** `src/pages/LikedVideos.tsx`
+**File:** `src/pages/Search.tsx`
 
-- Line 68: Add `.eq('approval_status', 'approved')` after `.eq('is_public', true)`
+1. Lines 379-381: Change the creator name display from `video.profile?.display_name || video.profile?.username || "An danh"` to `video.channels?.name || video.profile?.display_name || "An danh"` to prioritize channel name.
 
-### Phase 4: ProfileVideosTab Approval Filter (1 file, 1 line)
-
-**File:** `src/components/Profile/ProfileVideosTab.tsx`
-
-- Line 41: Add `.eq('approval_status', 'approved')` after `.eq('is_public', true)`
+2. Lines 359-364: Replace the inline duration formatting block with a simple call to `formatDuration(video.duration)` from `@/lib/formatters` (already used elsewhere in the codebase). Add the import if not already present.
 
 ---
 
@@ -151,36 +158,27 @@ This means the Subscriptions feed could surface unapproved or pending videos fro
 
 | Phase | Files Modified | New Files | Complexity |
 |-------|---------------|-----------|------------|
-| 1 | 1 (YourVideos.tsx) | 0 | Medium -- tab state + query filtering + conditional UI |
-| 2 | 1 (Subscriptions.tsx) | 0 | Low -- add 1 filter line |
-| 3 | 1 (LikedVideos.tsx) | 0 | Low -- add 1 filter line |
-| 4 | 1 (ProfileVideosTab.tsx) | 0 | Low -- add 1 filter line |
+| 1 | 1 (Watch.tsx) | 0 | Low -- add 1 filter line |
+| 2 | 1 (Shorts.tsx) | 0 | Medium -- query update + UI additions |
+| 3 | 1 (Search.tsx) | 0 | Low -- swap label + use shared formatter |
 
-**Total: 4 files modified, 0 new files, 0 database changes**
+**Total: 3 files modified, 0 new files, 0 database changes**
 
-### Feature Parity Progress After Round 20
+### Feature Parity Progress After Round 21
 
 **Newly added YouTube 2025 consistency:**
-- Functional Video/Shorts content tabs in channel management (YourVideos)
-- Consistent `approval_status` filtering across all video listing pages
-- Data quality protection -- unapproved/flagged videos hidden from all public feeds
+- Recommended videos approval_status filter (Watch page "Up Next" sidebar)
+- Channel name + verified badge on Shorts
+- Channel name in desktop search results (instead of profile name)
+- Consistent duration formatting in search results
 
 **Remaining YouTube features beyond FUN Play scope:**
 - Clip creation (share video segments) -- requires dedicated backend infrastructure
 - Super Thanks (highlighted paid comments) -- skipped per user decision
 - Community posts with polls -- not implementing per user decision
-- Live streaming backend -- UI present, backend requires external streaming infrastructure
-
-### Localization Status
-
-No new English strings found. All user-facing text remains fully localized to Vietnamese. The system has achieved comprehensive localization parity with YouTube's Vietnamese interface.
+- Live streaming backend -- UI placeholders present, backend requires external streaming infrastructure
 
 ### System Maturity Assessment
 
-After 20 rounds of progressive analysis, FUN Play has achieved **near-complete feature and interface parity with YouTube 2025** for its core use cases. The remaining differences are either:
-1. Features explicitly declined by the user (Super Thanks, Community Polls)
-2. Features requiring external backend infrastructure beyond the platform's scope (Live streaming, Clip creation)
-3. Scale-dependent optimizations (pre-generated preview clips, AI-powered recommendations)
-
-The platform is production-ready for the Vietnamese community with full localization, mobile parity, and consistent UX across all pages.
+After 21 rounds of progressive analysis, FUN Play has achieved near-complete feature and interface parity with YouTube 2025 for its target use cases. The gaps found in this round are increasingly minor -- a single missing filter line and cosmetic consistency improvements. The system's core architecture, localization, mobile experience, and content management are all production-ready.
 
