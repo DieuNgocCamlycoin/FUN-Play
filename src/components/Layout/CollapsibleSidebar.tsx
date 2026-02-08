@@ -132,10 +132,10 @@ export const CollapsibleSidebar = ({ isExpanded }: CollapsibleSidebarProps) => {
             )}
           />
         ) : item.icon ? (
-          <item.icon className="h-5 w-5 text-[#0066FF] shrink-0" />
+          <item.icon className="h-5 w-5 text-[#004eac] shrink-0" />
         ) : null}
         {!compact && (
-          <span className="text-[#0066FF] font-medium truncate">
+          <span className="text-[#004eac] font-medium truncate">
             {item.label}
           </span>
         )}
