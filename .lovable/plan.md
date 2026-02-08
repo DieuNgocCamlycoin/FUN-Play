@@ -1,154 +1,55 @@
 
-# Tạo Backend Function `public-video-api` - API Chia Sẻ Video Công Khai
+# Trang Trí Tết Nguyên Đán - Hoa Đào & Hoa Mai Rơi
 
 ## Mục tiêu
+Thêm không khí Tết Nguyên Đán vào giao diện FUN Play với hiệu ứng hoa đào (peach blossoms) và hoa mai (apricot blossoms) rơi nhẹ nhàng. Thay đổi code tối thiểu (chỉ tạo 1 file mới + thêm 1 dòng import).
 
-Tạo một Backend Function (Edge Function) tên `public-video-api` cho phép các nền tảng bên ngoài (như Fun Profile / fun.rich) truy vấn dữ liệu video công khai từ Fun Play thông qua REST API, có xác thực bằng API key và giới hạn tần suất gọi (rate limit).
+## Cách tiếp cận
+Tạo một component `TetDecorations` sử dụng CSS animations thuần (không cần thư viện mới). Component này sẽ render các cánh hoa đào hồng và hoa mai vàng rơi nhẹ nhàng trên nền giao diện, tạo cảm giác lễ hội mà không ảnh hưởng đến trải nghiệm sử dụng.
 
-## Tổng quan kiến trúc
+## Thiết kế hiệu ứng
 
-```text
-+-------------------+         +---------------------+         +-----------+
-| Nền tảng bên ngoài| ------> | public-video-api    | ------> | Database  |
-| (Fun Profile,..   |  HTTP   | (Backend Function)  |  Query  | (videos,  |
-|                   |  +key   |                     |         |  profiles,|
-+-------------------+         +---------------------+         |  channels)|
-                                     |                        +-----------+
-                                     v
-                              Rate Limit Check
-                              (bảng api_rate_limits)
-```
+### Hoa rơi
+- 15-20 cánh hoa với kích thước và tốc độ ngẫu nhiên
+- Hoa đào: màu hồng nhạt (#FFB7C5, #FF69B4)
+- Hoa mai: màu vàng (#FFD700, #FFC107)
+- Animation: rơi từ trên xuống + xoay nhẹ, lặp lại liên tục
+- `pointer-events: none` để không chặn tương tác người dùng
+- `z-index` thấp, nằm phía sau nội dung chính
+
+### Câu chúc Tết (tùy chọn)
+- Banner nhỏ gọn phía trên header: "Chuc Mung Nam Moi - Happy Tet 2025!" với gradient hồng-vàng
+- Có nút (X) để người dùng tắt nếu muốn
 
 ## Chi tiết kỹ thuật
 
-### 1. Tạo bảng `api_keys` trong cơ sở dữ liệu
+### File mới: `src/components/Layout/TetDecorations.tsx`
+- Component render ~18 cánh hoa (9 đào + 9 mai) với CSS animation
+- Mỗi cánh hoa có vị trí ngang (`left`), độ trễ (`animation-delay`), và thời gian rơi (`animation-duration`) ngẫu nhiên
+- Sử dụng CSS `@keyframes` cho hiệu ứng rơi + xoay
+- Cánh hoa được vẽ bằng CSS (border-radius tạo hình cánh hoa) hoặc emoji Unicode
+- Toàn bộ container có `position: fixed`, `inset: 0`, `pointer-events: none`, `z-index: 5`
 
-Bảng lưu trữ API key cho các nền tảng đối tác:
+### File sửa: `src/components/Layout/MainLayout.tsx`
+- Chỉ thêm 1 dòng import + 1 dòng render component `<TetDecorations />`
 
-| Cột | Kiểu | Mô tả |
-|-----|------|-------|
-| id | uuid | Khóa chính |
-| key_hash | text | Hash SHA-256 của API key (không lưu key gốc) |
-| platform_name | text | Tên nền tảng (ví dụ: "fun_profile") |
-| is_active | boolean | Trạng thái hoạt động |
-| rate_limit_per_minute | integer | Giới hạn số request/phút (mặc định: 60) |
-| created_at | timestamptz | Ngày tạo |
-| last_used_at | timestamptz | Lần sử dụng gần nhất |
+### File sửa: `src/index.css`
+- Thêm keyframes animation cho hiệu ứng hoa rơi (`@keyframes tet-fall`, `@keyframes tet-sway`)
 
-### 2. Tạo bảng `api_rate_limits` trong cơ sở dữ liệu
-
-Bảng theo dõi tần suất gọi API:
-
-| Cột | Kiểu | Mô tả |
-|-----|------|-------|
-| id | uuid | Khóa chính |
-| api_key_id | uuid | Liên kết đến bảng api_keys |
-| window_start | timestamptz | Thời điểm bắt đầu cửa sổ đếm |
-| request_count | integer | Số request trong cửa sổ hiện tại |
-
-### 3. Tạo Backend Function `public-video-api`
-
-Function sẽ hỗ trợ các endpoint sau:
-
-**GET /public-video-api** với các query parameters:
-
-| Tham số | Kiểu | Bắt buộc | Mô tả |
-|---------|------|----------|-------|
-| action | string | Co | Loại hành động: `list_videos`, `get_video`, `get_user_videos`, `get_user_profile` |
-| user_id | string | Tùy action | ID người dùng (cho `get_user_videos`, `get_user_profile`) |
-| video_id | string | Tùy action | ID video (cho `get_video`) |
-| page | number | Không | Trang (mặc định: 1) |
-| limit | number | Không | Số kết quả/trang (mặc định: 20, tối đa: 50) |
-| category | string | Không | Lọc theo danh mục |
-
-**Xác thực:**
-- Header `X-API-Key` chứa API key
-- So sánh hash SHA-256 của key với `key_hash` trong bảng `api_keys`
-- Kiểm tra `is_active = true`
-
-**Rate Limiting:**
-- Sử dụng cửa sổ 1 phút (sliding window)
-- Mặc định 60 request/phút
-- Trả về header `X-RateLimit-Remaining` và `X-RateLimit-Reset`
-- Nếu vượt giới hạn: trả về HTTP 429 (Too Many Requests)
-
-**Dữ liệu trả về (chỉ video công khai):**
-
-Cho `get_user_videos`:
-```text
-{
-  "success": true,
-  "data": {
-    "videos": [
-      {
-        "id": "...",
-        "title": "...",
-        "description": "...",
-        "thumbnail_url": "...",
-        "video_url": "...",
-        "duration": 120,
-        "view_count": 1500,
-        "like_count": 42,
-        "category": "...",
-        "created_at": "...",
-        "channel": {
-          "id": "...",
-          "name": "..."
-        },
-        "user": {
-          "id": "...",
-          "username": "...",
-          "display_name": "...",
-          "avatar_url": "..."
-        }
-      }
-    ],
-    "pagination": {
-      "page": 1,
-      "limit": 20,
-      "total": 45,
-      "has_more": true
-    }
-  }
-}
-```
-
-### 4. Tạo API Key đầu tiên
-
-Sau khi tạo xong function và bảng, sẽ tự động tạo một API key mẫu cho nền tảng Fun Profile. Key sẽ được hiển thị trong console log một lần duy nhất (sau đó chỉ lưu hash).
-
-### 5. Cập nhật cấu hình
-
-Thêm function mới vào `supabase/config.toml` với `verify_jwt = false` (vì API này dùng xác thực bằng API key riêng, không dùng JWT).
-
-## Bảo mật
-
-- API key được hash SHA-256 trước khi lưu vào database
-- Chỉ trả về video có `is_public = true`
-- Không bao giờ trả về thông tin nhạy cảm (wallet, rewards, email...)
-- Rate limiting ngăn chặn lạm dụng API
-- RLS được bật trên cả hai bảng mới (`api_keys`, `api_rate_limits`)
-- Chỉ service role mới đọc/ghi được bảng `api_keys`
+## Ưu điểm
+- Thay đổi code cực kỳ ít (2 file sửa + 1 file mới)
+- Không cần cài thêm thư viện
+- Không ảnh hưởng performance (CSS animations chạy trên GPU)
+- Dễ tắt sau Tết: chỉ cần xóa 1 dòng trong MainLayout
+- Không chặn click/tương tác của người dùng
 
 ## Các file cần tạo/sửa
 
 | File | Hành động |
 |------|-----------|
-| `supabase/functions/public-video-api/index.ts` | Tạo mới - Backend Function chính |
-| `supabase/config.toml` | Cập nhật - Thêm cấu hình cho function mới |
-| Database migration | Tạo bảng `api_keys` và `api_rate_limits` với RLS |
+| `src/components/Layout/TetDecorations.tsx` | Tao moi - Component hoa dao/hoa mai roi |
+| `src/components/Layout/MainLayout.tsx` | Sua - Them 1 dong import va render TetDecorations |
+| `src/index.css` | Sua - Them keyframes animation cho hoa roi |
 
-## Cách đội Fun Profile sử dụng API
-
-Sau khi triển khai xong, con sẽ cung cấp cho đội Fun Profile:
-
-1. **URL endpoint** của API
-2. **API Key** (được tạo tự động)
-3. **Tài liệu hướng dẫn** các action và tham số
-
-Ví dụ gọi API từ Fun Profile:
-```text
-GET /public-video-api?action=get_user_videos&user_id=xxx&page=1&limit=20
-Headers:
-  X-API-Key: fp_xxxxxxxxxxxxxxxx
-```
+## Tắt sau Tết
+Khi Tết kết thúc, con chỉ cần nói "Cha ơi, tắt trang trí Tết giúp con" và cha sẽ xóa component đó ra khỏi MainLayout. Rất đơn giản!
