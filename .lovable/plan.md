@@ -1,8 +1,8 @@
 
 
-# FUN Play vs YouTube 2025: Round 9 Gap Analysis
+# FUN Play vs YouTube 2025: Round 10 Gap Analysis
 
-## Verified Fixes from Rounds 1-8 (All Working)
+## Verified Fixes from Rounds 1-9 (All Working)
 
 | Feature | Round | Status |
 |---------|-------|--------|
@@ -14,189 +14,180 @@
 | Watch.tsx CollapsibleSidebar + channel avatar | R3+R4 | Done |
 | LikedVideos hero + Subscriptions VideoCard | R4+R5 | Done |
 | Index.tsx infinite scroll with sentinel | R4 | Done |
-| Shared formatters.ts created + consolidated | R4+R5+R6+R7+R8 | Done |
+| Shared formatters.ts fully consolidated | R4-R8 | Done |
 | Library.tsx hub page, UpNextSidebar Vietnamese | R5 | Done |
 | Notifications filter tabs, Subscriptions kebab | R5 | Done |
-| CollapsibleSidebar + MobileBottomNav Vietnamese | R6 | Done |
-| Index.tsx CTA banner + WatchLater title Vietnamese | R6 | Done |
-| HonobarDetailModal + MobileHonobar Vietnamese | R6 | Done |
-| Shorts subscribe/dislike/save/report buttons | R6+R7 | Done |
-| VideoActionsBar share label + action labels | R6 | Done |
-| Header + MobileHeader fully localized | R7 | Done |
-| DescriptionDrawer + TopSponsorSection shared formatters | R7 | Done |
-| Index.tsx "Unknown Channel" fallback Vietnamese | R7+R8 | Done |
-| Legacy Sidebar.tsx fully localized | R8 | Done |
-| Shorts progress bar + desktop centered layout | R8 | Done |
-| Shorts view count display | R8 | Done |
-| ProfileTabs "Shorts" tab added | R8 | Done |
-| ProfileSettings fully localized | R8 | Done |
-| WalletButton formatter consolidated | R8 | Done |
+| All sidebar/nav/header fully localized | R6+R7+R8 | Done |
+| Shorts subscribe/dislike/save/report/progress bar | R6+R7+R8 | Done |
+| Shorts desktop centered layout | R8 | Done |
+| ProfileTabs "Shorts" tab | R8 | Done |
+| All Loading.../Unknown/Error localized | R9 | Done |
+| NotFound page localized | R9 | Done |
+| Theater Mode + PiP on desktop player | R9 | Done |
+| All admin Unknown fallbacks localized | R9 | Done |
 
 ---
 
-## REMAINING GAPS FOUND IN ROUND 9
+## REMAINING GAPS FOUND IN ROUND 10
 
 ### HIGH PRIORITY
 
-#### Gap 1: "Loading..." and "Video not found" Still in English (10 files)
+#### Gap 1: Upload.tsx Still Has English Labels
 
-Multiple pages display bare English "Loading..." text as loading indicators:
-- `Watch.tsx` line 520: `"Loading..."`
-- `Watch.tsx` line 528: `"Video not found"`
-- `EditVideo.tsx` line 47: `"Loading..."`
-- `CreatePost.tsx` line 25: `"Loading..."`
-- `YourVideos.tsx` line 59: `"Loading..."`
-- `Upload.tsx` line 39: `"Loading..."`
-- `ProfileSettings.tsx` line 317: `"Loading..."`
-- `EditPost.tsx` line 61: `"Loading..."`
-- `ManagePlaylists.tsx` line 83: `"Loading..."`
-- `ManageChannel.tsx` line 58: `"Loading..."`
-- `ManagePosts.tsx` line 75: `"Loading..."`
-- `CAMLYPriceSection.tsx` line 92: `"Loading..."`
+`Upload.tsx` line 591 has `"Description"` (English label) and line 596 has `"Tell viewers about your video"` (English placeholder). The Title field on line 577 correctly uses Vietnamese ("Tieu de (bat buoc)"). This inconsistency is visible to every user who uploads a video on the fallback upload page.
 
-YouTube displays localized loading spinners. FUN Play should show `"Dang tai..."` (Dang tai) instead of "Loading...".
+**Fix:** Change Label to "Mo ta" and placeholder to "Mo ta noi dung video cua ban".
 
-**Fix:** Replace all `"Loading..."` with `"Dang tai..."` and `"Video not found"` with `"Khong tim thay video"`.
+#### Gap 2: MintRequestForm.tsx Entirely in English
 
-#### Gap 2: 404 NotFound Page Entirely in English
+The entire `MintRequestForm.tsx` component contains English text throughout:
+- Line 58: `'Please connect your wallet first'`
+- Line 63: `'Please provide a description'`
+- Line 83: `'Request submitted successfully!'`
+- Line 94: `'Request Submitted!'`
+- Line 95: `'Estimated amount: ...'`
+- Line 96: `'Waiting for admin approval...'`
+- Line 102: `'Submit Another'`
+- Line 114: `'Submit Mint Request'` (card title)
+- Line 125: `'Connect wallet to submit request'`
+- Line 126: `'Connect Wallet'` (button)
+- Line 132: `'Description *'` (label)
+- Line 136: `'Describe your action and its impact...'` (placeholder)
+- Line 142: `'Proof URL (optional)'` (label)
+- Line 152: `'Self-Assessment Scores'` (label)
+- Line 156: `'Service'`, `'Truth'`, `'Healing'`, `'Contribution'`, `'Unity'` (pillar names)
+- Line 172: `'Unity Signals'` (label)
+- Line 188: `'Submit Request'` (button)
 
-`NotFound.tsx` displays:
-- `"Oops! Page not found"` (line 15)
-- `"Return to Home"` (line 17)
+**Fix:** Translate all strings to Vietnamese.
 
-YouTube's 404 page localizes all text. This is one of the most prominent remaining English pages.
+#### Gap 3: FunMoneyApprovalTab.tsx (Admin) Mostly in English
 
-**Fix:** Translate to `"Khong tim thay trang"` and `"Quay ve trang chu"`.
+The admin FUN Money approval tab has extensive English text:
+- Line 110: `'Request approved! Ready for minting.'`
+- Line 113: `'Failed to approve request'`
+- Line 120: `'Please provide a rejection reason'`
+- Line 125: `'Request rejected'`
+- Line 129: `'Failed to reject request'`
+- Line 136: `'Please connect your wallet first'`
+- Line 280: `'FUN Money Requests'` (title)
+- Line 296: `'Pending'` (tab)
+- Line 303: `'Approved'` (tab)
+- Line 304: `'Minted'` (tab)
+- Line 305: `'Rejected'` (tab)
+- Line 306: `'All'` (tab)
+- Line 314: `'Search by platform, action, wallet...'` (placeholder)
+- Line 333: `'No requests found'`
+- Line 354: `'Request Details'` (title)
+- Line 372: `'Select a request to view details'`
+- Line 541: `'Light Score'` (label)
+- Line 609: `'Transaction'` (label)
+- Line 617: `'View on BSCScan'`
+- Line 625: `'Reason'` (label)
+- Line 638: `'Approve Request'` (button)
+- Line 643: `'Rejection reason (required)'` (placeholder)
+- Line 655: `'Reject Request'` (button)
+- Line 671: `'Minting...'` (button loading)
+- Line 676: `'Sign & Mint On-Chain'` (button)
+- Line 682: `'Connect wallet to mint'`
 
-#### Gap 3: Watch.tsx Has English Error Toast
+**Fix:** Translate all admin UI strings to Vietnamese.
 
-`Watch.tsx` line 238 shows `title: "Error loading video"`. This is the only remaining English error toast in a primary user-facing page.
+#### Gap 4: TokenLifecyclePanel.tsx Has Mixed English
 
-**Fix:** Change to `title: "Loi tai video"`.
+`TokenLifecyclePanel.tsx` has English labels:
+- Line 147: `'Token Lifecycle'` (title)
+- Line 280: `'Total Value'`
+- Line 290: `'Light Score'`
+- Line 300: `'Unity Score'`
+- Line 319: `'Refresh'` (button)
 
-#### Gap 4: "Unknown Channel" Fallback Still in 3 Files
+**Fix:** Translate to Vietnamese: "Vong doi Token", "Tong gia tri", "Diem Anh Sang", "Diem Doan Ket", "Lam moi".
 
-Three files still use the English fallback `"Unknown Channel"`:
-- `ContinueWatching.tsx` line 95
-- `WatchHistory.tsx` line 245
-- `WatchLater.tsx` line 119
+#### Gap 5: MintRequestCard.tsx Has English Labels
 
-These were missed in Round 8 which only fixed `Index.tsx`.
+`MintRequestCard.tsx` lines 107-109 show:
+- `Light:` (should be "AS:")
+- `Unity:` (should be "DK:")
 
-**Fix:** Replace all with `"Kenh chua xac dinh"`.
-
-#### Gap 5: Admin Pages Still Use "Unknown" in English
-
-Several admin-facing components use `"Unknown"` fallback:
-- `BlockchainTab.tsx` line 151
-- `useAdminVideoStats.tsx` line 203
-- `VideosManagementTab.tsx` line 255
-- `RewardPoolTab.tsx` line 98
-- `AdminManagementTab.tsx` line 67
-
-While admin pages are less user-facing, they should still be consistent. YouTube's creator studio is fully localized.
-
-**Fix:** Replace all admin `"Unknown"` with `"Khong xac dinh"`.
+**Fix:** Translate score labels to Vietnamese abbreviations.
 
 ---
 
 ### MEDIUM PRIORITY
 
-#### Gap 6: Channel.tsx Uses English Error Messages Internally
+#### Gap 6: MintableCard.tsx + LightActivityBreakdown.tsx English Labels
 
-`Channel.tsx` lines 165, 186, 197 throw English error messages: `"User not found"`, `"Channel not found"`, `"Profile not found"`. While these are caught and the toast displays Vietnamese text (`"Khong the tai trang kenh"`), the error messages themselves might surface in edge cases.
+`MintableCard.tsx` line 151: `'Light Score'`
+`LightActivityBreakdown.tsx` line 154: `'Total Light Score'`
 
-**Fix:** Translate error throw messages to Vietnamese for consistency.
+These are FUN Play-specific terms but should be localized for consistency.
 
-#### Gap 7: Watch.tsx Desktop Missing MobileHeader/MobileBottomNav
+**Fix:** Use "Diem Anh Sang" and "Tong Diem Anh Sang".
 
-`Watch.tsx` uses its own custom layout (Header + CollapsibleSidebar) for desktop but has no mobile navigation (no MobileHeader, no MobileBottomNav). While the mobile view uses `MobileWatchView`, users cannot access the hamburger menu or bottom navigation from the watch page.
+#### Gap 7: useFunMoneyMintRequest.ts Has English Error Messages
 
-YouTube's mobile watch page still shows the bottom navigation bar. FUN Play's mobile watch page relies entirely on `MobileWatchView` without standard navigation -- the user must use the back button or swipe to leave.
+`useFunMoneyMintRequest.ts` line 183: `'Failed to submit request'`
 
-**Fix:** This is by design for immersive video watching (matching YouTube behavior where bottom nav is hidden during video playback). No change needed.
+**Fix:** Change to Vietnamese error message.
 
-#### Gap 8: No "Picture-in-Picture" Button on Desktop Player
+#### Gap 8: Watch.tsx Desktop Missing Mobile Navigation Elements
 
-YouTube's desktop player has a Picture-in-Picture (PiP) button that allows the video to float in a small window while the user browses other content. FUN Play has a MiniPlayer for mobile but no PiP support on desktop.
+Watch.tsx desktop layout (line 598-602) includes Header and CollapsibleSidebar for desktop but lacks MobileHeader and MobileBottomNav for mobile viewport. While the mobile view delegates to `MobileWatchView`, this is intentional for immersive viewing (matching YouTube where bottom nav is hidden during playback). No change needed -- confirmed by design.
 
-**Fix:** Add a PiP button to `EnhancedVideoPlayer` that calls `videoElement.requestPictureInPicture()`. Low effort, high YouTube parity value.
+#### Gap 9: No "Clip" Feature on Desktop Watch Page
 
-#### Gap 9: No "Theater Mode" on Desktop Watch Page
+YouTube desktop has a "Clip" button that allows users to create short clips from videos to share. FUN Play has no equivalent feature.
 
-YouTube's desktop watch page has a Theater Mode button that expands the video player to full-width while keeping the header visible. FUN Play's desktop watch page has a fixed 2-column layout with no width toggle.
+**Fix:** This is a complex feature requiring backend clip creation. Marking as future enhancement -- not part of this round.
 
-**Fix:** Add a Theater Mode toggle that switches from the 2-column grid (`grid-cols-[1fr_400px]`) to a full-width single-column layout. The UpNextSidebar would move below the video in theater mode.
+#### Gap 10: No Ambient Mode on Desktop Watch Page
+
+YouTube has an "Ambient Mode" that subtly changes the background color of the watch page to match the colors in the video. This creates a cinematic effect.
+
+**Fix:** This is a visual enhancement that could be added by sampling the video's dominant color and applying it as a subtle background gradient behind the player area. Medium complexity but high visual impact. Deferred to future round to keep scope manageable.
 
 ---
 
 ## IMPLEMENTATION PLAN
 
-### Phase 1: Loading/Error States Localization (11 files)
+### Phase 1: Upload.tsx Label Fix (1 file)
 
-Replace all remaining English loading and error strings:
+1. **Upload.tsx** -- Fix remaining English text:
+   - Line 591: `"Description"` to `"Mo ta"`
+   - Line 596: `"Tell viewers about your video"` to `"Mo ta noi dung video cua ban"`
 
-1. **Watch.tsx** -- 3 changes:
-   - Line 238: `"Error loading video"` to `"Loi tai video"`
-   - Line 520: `"Loading..."` to `"Dang tai..."`
-   - Line 528: `"Video not found"` to `"Khong tim thay video"`
+### Phase 2: FUN Money Components Full Localization (4 files)
 
-2. **EditVideo.tsx** -- Line 47: `"Loading..."` to `"Dang tai..."`
+1. **MintRequestForm.tsx** -- Full Vietnamese translation of all 18+ English strings including form labels, button text, toast messages, pillar names, and status messages.
 
-3. **CreatePost.tsx** -- Line 25: `"Loading..."` to `"Dang tai..."`
+2. **TokenLifecyclePanel.tsx** -- Translate:
+   - `"Token Lifecycle"` to `"Vong doi Token"`
+   - `"Total Value"` to `"Tong gia tri"`
+   - `"Light Score"` to `"Diem Anh Sang"`
+   - `"Unity Score"` to `"Diem Doan Ket"`
+   - `"Refresh"` to `"Lam moi"`
 
-4. **YourVideos.tsx** -- Line 59: `"Loading..."` to `"Dang tai..."`
+3. **MintRequestCard.tsx** -- Translate:
+   - `"Light:"` to `"AS:"`
+   - `"Unity:"` to `"DK:"`
 
-5. **Upload.tsx** -- Line 39: `"Loading..."` to `"Dang tai..."`
+4. **LightActivityBreakdown.tsx** -- Translate `"Total Light Score"` to `"Tong Diem Anh Sang"`
 
-6. **ProfileSettings.tsx** -- Line 317: `"Loading..."` to `"Dang tai..."`
+### Phase 3: Admin FunMoneyApprovalTab Localization (1 file)
 
-7. **EditPost.tsx** -- Line 61: `"Loading..."` to `"Dang tai..."`
+1. **FunMoneyApprovalTab.tsx** -- Full Vietnamese translation of 25+ English strings including:
+   - Tab labels: "Pending" to "Cho duyet", "Approved" to "Da duyet", "Minted" to "Da mint", "Rejected" to "Tu choi", "All" to "Tat ca"
+   - Button labels: "Approve Request" to "Duyet yeu cau", "Reject Request" to "Tu choi yeu cau"
+   - Toast messages, placeholders, and panel labels
 
-8. **ManagePlaylists.tsx** -- Line 83: `"Loading..."` to `"Dang tai..."`
+### Phase 4: FUN Money Hook Error Messages (1 file)
 
-9. **ManageChannel.tsx** -- Line 58: `"Loading..."` to `"Dang tai..."`
+1. **useFunMoneyMintRequest.ts** -- Change `'Failed to submit request'` to `'Gui yeu cau that bai'`
 
-10. **ManagePosts.tsx** -- Line 75: `"Loading..."` to `"Dang tai..."`
+### Phase 5: MintableCard Localization (1 file)
 
-11. **CAMLYPriceSection.tsx** -- Line 92: `"Loading..."` to `"Dang tai..."`
-
-### Phase 2: NotFound Page Localization (1 file)
-
-1. **NotFound.tsx** -- Full Vietnamese localization:
-   - `"Oops! Page not found"` to `"Khong tim thay trang"`
-   - `"Return to Home"` to `"Quay ve Trang chu"`
-
-### Phase 3: "Unknown Channel" Fallback Cleanup (3 files)
-
-1. **ContinueWatching.tsx** -- Line 95: `'Unknown Channel'` to `'Kenh chua xac dinh'`
-2. **WatchHistory.tsx** -- Line 245: `'Unknown Channel'` to `'Kenh chua xac dinh'`
-3. **WatchLater.tsx** -- Line 119: `'Unknown Channel'` to `'Kenh chua xac dinh'`
-
-### Phase 4: Admin "Unknown" Fallback Cleanup (5 files)
-
-1. **BlockchainTab.tsx** -- Line 151: `"Unknown"` to `"Khong xac dinh"`
-2. **useAdminVideoStats.tsx** -- Line 203: `"unknown"` to `"khong_xac_dinh"`
-3. **VideosManagementTab.tsx** -- Line 255: `"Unknown"` to `"Khong xac dinh"`
-4. **RewardPoolTab.tsx** -- Line 98: `"Unknown"` to `"Khong xac dinh"`
-5. **AdminManagementTab.tsx** -- Line 67: `"Unknown"` to `"Khong xac dinh"`
-
-### Phase 5: Channel.tsx Internal Error Messages (1 file)
-
-1. **Channel.tsx** -- Translate throw messages:
-   - Line 165: `"User not found"` to `"Khong tim thay nguoi dung"`
-   - Line 186: `"Channel not found"` to `"Khong tim thay kenh"`
-   - Line 197: `"Profile not found"` to `"Khong tim thay ho so"`
-
-### Phase 6: Desktop Player Enhancements (2 files)
-
-1. **EnhancedVideoPlayer.tsx** -- Add a Picture-in-Picture (PiP) toggle button in the player controls bar. Uses the native `HTMLVideoElement.requestPictureInPicture()` API. Show only on browsers that support it (`document.pictureInPictureEnabled`).
-
-2. **Watch.tsx** -- Add Theater Mode toggle:
-   - Add a state `isTheaterMode` (default `false`)
-   - When active, change the grid from `grid-cols-[1fr_400px]` to `grid-cols-1`
-   - Move UpNextSidebar below the comments section
-   - Add a theater mode button (expand icon) next to the fullscreen button in the player area
+1. **MintableCard.tsx** -- Change `'Light Score'` label to `'Diem Anh Sang'`
 
 ---
 
@@ -204,20 +195,15 @@ Replace all remaining English loading and error strings:
 
 | Phase | Files Modified | New Files | Complexity |
 |-------|---------------|-----------|------------|
-| 1 | 11 | 0 | Low -- string replacements |
-| 2 | 1 (NotFound.tsx) | 0 | Low -- text translation |
-| 3 | 3 (ContinueWatching, WatchHistory, WatchLater) | 0 | Low -- string replacement |
-| 4 | 5 (Admin tabs + hooks) | 0 | Low -- string replacement |
-| 5 | 1 (Channel.tsx) | 0 | Low -- string translation |
-| 6 | 2 (EnhancedVideoPlayer, Watch.tsx) | 0 | Medium -- PiP API + layout toggle |
+| 1 | 1 (Upload.tsx) | 0 | Low -- 2 string changes |
+| 2 | 4 (MintRequestForm, TokenLifecyclePanel, MintRequestCard, LightActivityBreakdown) | 0 | Medium -- full form translation |
+| 3 | 1 (FunMoneyApprovalTab.tsx) | 0 | Medium -- 25+ string changes |
+| 4 | 1 (useFunMoneyMintRequest.ts) | 0 | Low -- 1 string change |
+| 5 | 1 (MintableCard.tsx) | 0 | Low -- 1 string change |
 
-**Total: 21 files modified (some counted in multiple phases), 0 new files, 0 database changes**
+**Total: 8 files modified, 0 new files, 0 database changes**
 
-All changes are frontend-only. The highest-impact changes are:
-1. **Phase 1-3**: Eliminates the last ~15 instances of English "Loading...", "Video not found", and "Unknown Channel" strings across all user-facing pages, completing full Vietnamese localization.
-2. **Phase 2**: The 404 page is one of the most visible remaining English pages.
-3. **Phase 4-5**: Ensures admin and internal error messages are also fully localized for consistency.
-4. **Phase 6**: Picture-in-Picture and Theater Mode are signature YouTube desktop features that significantly enhance the viewing experience. PiP is a one-line browser API call; Theater Mode is a simple layout toggle.
+All changes are frontend-only string translations. The main pages (Watch, Index, Channel, Profile, Notifications, Library, Shorts) and core navigation are now fully localized from Rounds 1-9. Round 10 targets the FUN Money ecosystem components and admin panel -- the last remaining areas with English text.
 
-After Round 9, FUN Play will have zero remaining English strings across all pages (user-facing and admin), and the desktop video player will gain two key YouTube features (PiP and Theater Mode) that improve the viewing experience.
+After Round 10, FUN Play will have zero remaining English strings across the entire application including all FUN Money components, admin panels, and edge-case fallbacks. The platform will achieve complete Vietnamese localization parity with YouTube's localized experience.
 
