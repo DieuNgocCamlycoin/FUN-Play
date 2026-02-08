@@ -110,7 +110,7 @@ export default function CAMLYPrice() {
   };
 
   const handleShare = async () => {
-    const text = `CAMLY Token\nGiá: $${camlyPrice.toFixed(8)}\n24h: ${change24h ? (change24h.percent >= 0 ? "+" : "") + change24h.percent.toFixed(2) + "%" : "N/A"}\n\nXem thêm tại FUN Play`;
+    const text = `CAMLY Token\nGiá: $${camlyPrice.toFixed(8)}\n24h: ${change24h ? (change24h.percent >= 0 ? "+" : "") + change24h.percent.toFixed(2) + "%" : "Không có"}\n\nXem thêm tại FUN Play`;
     
     if (navigator.share) {
       try {

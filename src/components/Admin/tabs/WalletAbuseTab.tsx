@@ -201,7 +201,7 @@ const WalletAbuseTab = ({ users, walletGroups, onBan, isFakeName, loading }: Wal
                     </Avatar>
                     <div className="flex-1 min-w-0">
                       <div className="font-medium truncate">
-                        {user.display_name || user.username || "No name"}
+                        {user.display_name || user.username || "Chưa có tên"}
                       </div>
                       <div className="text-xs text-muted-foreground truncate">{user.id}</div>
                     </div>
@@ -245,7 +245,7 @@ const WalletAbuseTab = ({ users, walletGroups, onBan, isFakeName, loading }: Wal
                     </Avatar>
                     <div className="flex-1 min-w-0">
                       <div className="font-medium truncate text-orange-500">
-                        {user.display_name || "No name"}
+                        {user.display_name || "Chưa có tên"}
                       </div>
                       <div className="text-xs text-muted-foreground">@{user.username}</div>
                     </div>

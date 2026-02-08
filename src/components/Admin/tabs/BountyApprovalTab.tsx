@@ -381,7 +381,7 @@ export default function BountyApprovalTab() {
           {rewardDialog && !rewardDialog.user_id && (
             <div className="flex items-center gap-2 p-3 bg-orange-500/10 rounded border border-orange-500/30 text-sm">
               <AlertTriangle className="w-5 h-5 text-orange-500 shrink-0" />
-              <span>Submission ẩn danh! Không thể tự động thưởng. Liên hệ qua: {rewardDialog.contact_info || "N/A"}</span>
+              <span>Submission ẩn danh! Không thể tự động thưởng. Liên hệ qua: {rewardDialog.contact_info || "Không có"}</span>
             </div>
           )}
 
