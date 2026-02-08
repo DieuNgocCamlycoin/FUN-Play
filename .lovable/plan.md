@@ -1,31 +1,27 @@
 
 
-# Cập nhật màu sắc Filter Chips Bar theo Logo FUN Play
+# Cập nhật hiệu ứng Filter Chips Bar: Gradient Xanh dương → Xanh lá → Vàng
 
 ## Tổng quan
 
-Thanh **Filter Chips Bar** (Category Chips) hiện tại sử dụng màu xanh sky (`sky-600`, `sky-700`) không phù hợp với thương hiệu FUN Play. Cần cập nhật để sử dụng 3 màu chính từ logo dự án:
-
-- **Xanh dương (Blue)**: `#0066FF` (Cosmic Sapphire)
-- **Vàng kim (Yellow/Gold)**: `#FFD700` (Cosmic Gold)  
-- **Hồng nhẹ (Light Pink)**: `#FFB7F6` (Divine Pink)
+Bạn muốn thanh **Filter Chips Bar** có hiệu ứng gradient chạy từ **xanh dương (blue)** sang **xanh lá (green)** rồi đến **vàng (yellow)**, áp dụng đồng bộ trên cả desktop và mobile.
 
 ## Thiết kế mới
 
 ### Chip được chọn (Selected State)
-- **Nền**: Gradient 3 màu từ logo: Xanh dương → Hồng nhẹ → Vàng kim
-- **Chữ**: Màu trắng đậm (font-semibold) để nổi bật trên nền gradient
-- **Viền**: Viền xanh nhẹ với độ trong suốt (`border-[#00BFFF]/40`)
-- **Bóng**: Hiệu ứng phát sáng màu xanh (`shadow-[0_0_12px_rgba(0,102,255,0.35)]`)
+- **Nền**: Gradient 3 màu: Xanh dương (`#0066FF`) → Xanh lá (`#00CC66`) → Vàng kim (`#FFD700`)
+- **Chữ**: Màu trắng đậm (`font-semibold`) để nổi bật trên nền gradient
+- **Viền**: Viền xanh lá nhẹ với độ trong suốt (`border-[#00CC66]/40`)
+- **Bóng**: Hiệu ứng phát sáng xanh lá (`shadow-[0_0_12px_rgba(0,204,102,0.35)]`)
 
 ### Chip mặc định (Default State)
 - **Nền**: Nền trắng trong suốt 90% (`bg-white/90`)
-- **Chữ**: Màu xanh dương đậm từ logo (`text-[#0066FF]`)
-- **Viền**: Viền hồng nhẹ (`border-[#FFB7F6]/30`)
-- **Hover**: Viền chuyển sang xanh + hiệu ứng phát sáng nhẹ
+- **Chữ**: Màu xanh dương đậm (`text-[#0066FF]`)
+- **Viền**: Viền xanh lá nhẹ (`border-[#00CC66]/25`)
+- **Hover**: Viền chuyển sang xanh lá đậm hơn + hiệu ứng phát sáng nhẹ
 
 ### Đồng bộ Desktop và Mobile
-Component `CategoryChips` được sử dụng chung cho cả desktop và mobile trên trang chủ (chỉ có 1 file duy nhất), nên chỉ cần cập nhật 1 file là đồng bộ toàn bộ.
+Component `CategoryChips` được sử dụng chung cho cả desktop và mobile (chỉ có 1 file duy nhất), nên chỉ cần cập nhật 1 file là tự động đồng bộ toàn bộ.
 
 ---
 
@@ -41,11 +37,11 @@ Component `CategoryChips` được sử dụng chung cho cả desktop và mobile
    - Thay: `bg-white text-sky-700 shadow-md border border-sky-200 hover:bg-white`
    - Thành:
    ```
-   bg-gradient-to-r from-[#0066FF] via-[#FFB7F6] to-[#FFD700]
+   bg-gradient-to-r from-[#0066FF] via-[#00CC66] to-[#FFD700]
    text-white font-semibold
-   shadow-[0_0_12px_rgba(0,102,255,0.35)]
-   border border-[#00BFFF]/40
-   hover:shadow-[0_0_18px_rgba(0,102,255,0.5)]
+   shadow-[0_0_12px_rgba(0,204,102,0.35)]
+   border border-[#00CC66]/40
+   hover:shadow-[0_0_18px_rgba(0,204,102,0.5)]
    ```
 
 2. **Chip mặc định (Default):**
@@ -54,10 +50,10 @@ Component `CategoryChips` được sử dụng chung cho cả desktop và mobile
    ```
    bg-white/90
    text-[#0066FF]
-   border border-[#FFB7F6]/30
+   border border-[#00CC66]/25
    hover:bg-white hover:text-[#0055DD]
-   hover:border-[#00BFFF]/50
-   hover:shadow-[0_0_8px_rgba(0,102,255,0.2)]
+   hover:border-[#00CC66]/50
+   hover:shadow-[0_0_8px_rgba(0,204,102,0.2)]
    ```
 
 ---
@@ -74,9 +70,8 @@ Component `CategoryChips` được sử dụng chung cho cả desktop và mobile
 
 ### Kết quả sau cập nhật
 
-- Filter Chips Bar sẽ sử dụng 3 màu chính từ logo FUN Play: xanh dương, vàng kim, hồng nhẹ
-- Chip được chọn có hiệu ứng gradient cầu vồng 3 màu nổi bật
-- Chip mặc định có chữ xanh dương với viền hồng nhẹ
+- Chip được chọn sẽ có gradient rực rỡ chạy từ xanh dương → xanh lá → vàng kim
+- Chip mặc định có chữ xanh dương với viền xanh lá nhẹ
+- Hiệu ứng phát sáng (glow) màu xanh lá khi hover
 - Giao diện đồng nhất trên cả desktop và mobile
-- Phù hợp với tinh thần "5D Light Economy" của dự án
 
