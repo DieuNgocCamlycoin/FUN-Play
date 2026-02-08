@@ -9,7 +9,7 @@ const corsHeaders = {
 // Default reward amounts (fallback if reward_config not available)
 const DEFAULT_REWARD_AMOUNTS: Record<string, number> = {
   VIEW: 5000,
-  LIKE: 2000,
+  LIKE: 5000,
   COMMENT: 5000,
   SHARE: 5000,
   SHORT_VIDEO_UPLOAD: 20000,

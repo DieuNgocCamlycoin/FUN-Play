@@ -408,6 +408,18 @@ export default function Upload() {
       
       const isMeditation = subCategory === 'light_meditation' || subCategory === 'sound_therapy' || subCategory === 'mantra';
       
+      // Get video duration from file metadata BEFORE inserting into DB
+      const videoDuration = await new Promise<number>((resolve) => {
+        const videoEl = document.createElement('video');
+        videoEl.preload = 'metadata';
+        videoEl.onloadedmetadata = () => {
+          resolve(videoEl.duration);
+          URL.revokeObjectURL(videoEl.src);
+        };
+        videoEl.onerror = () => resolve(0);
+        videoEl.src = URL.createObjectURL(videoFile!);
+      });
+
       const { data: videoData, error: videoError } = await supabase.from("videos").insert({
         user_id: user.id,
         channel_id: channelId,
@@ -416,6 +428,7 @@ export default function Upload() {
         video_url: videoUrl,
         thumbnail_url: thumbnailUrl,
         file_size: videoFile.size,
+        duration: videoDuration > 0 ? Math.round(videoDuration) : null,
         is_public: true,
         category: "general",
         sub_category: null,
@@ -436,18 +449,6 @@ export default function Upload() {
         const firstUploadSuccess = await awardFirstUploadReward(user.id, videoData.id);
         if (!firstUploadSuccess) {
           // Already got first upload reward, award duration-based reward
-          // Get video duration from file metadata
-          const videoDuration = await new Promise<number>((resolve) => {
-            const videoEl = document.createElement('video');
-            videoEl.preload = 'metadata';
-            videoEl.onloadedmetadata = () => {
-              resolve(videoEl.duration);
-              URL.revokeObjectURL(videoEl.src);
-            };
-            videoEl.onerror = () => resolve(0);
-            videoEl.src = URL.createObjectURL(videoFile!);
-          });
-          
           const SHORT_VIDEO_MAX_DURATION = 180; // 3 minutes
           if (videoDuration > 0 && videoDuration < SHORT_VIDEO_MAX_DURATION) {
             await awardShortVideoUpload(videoData.id);
