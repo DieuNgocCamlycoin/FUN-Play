@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { MainLayout } from "@/components/Layout/MainLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -63,7 +64,7 @@ const PlatformDocs = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <MainLayout>
       {/* Header */}
       <div className="bg-gradient-to-r from-primary/20 via-accent/20 to-secondary/20 border-b">
         <div className="container mx-auto px-4 py-12">
@@ -1229,7 +1230,7 @@ const PlatformDocs = () => {
           </p>
         </div>
       </div>
-    </div>
+    </MainLayout>
   );
 };
 
