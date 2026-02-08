@@ -144,7 +144,7 @@ export function TokenLifecyclePanel({
             </div>
             <div>
               <h3 className="text-lg font-bold bg-gradient-to-r from-yellow-500 via-amber-500 to-orange-500 bg-clip-text text-transparent">
-                Token Lifecycle
+                Vòng đời Token
               </h3>
               <p className="text-sm text-muted-foreground">
                 Trạng thái FUN tokens của bạn
@@ -277,7 +277,7 @@ export function TokenLifecyclePanel({
               <div className="text-center">
                 <div className="flex items-center justify-center gap-1.5 mb-1">
                   <img src={FUN_COIN_LOGO} alt="" className="w-4 h-4" />
-                  <span className="text-xs text-muted-foreground">Total Value</span>
+                  <span className="text-xs text-muted-foreground">Tổng giá trị</span>
                 </div>
                 <p className="font-bold text-lg bg-gradient-to-r from-yellow-500 to-amber-500 bg-clip-text text-transparent">
                   {formatFunAmount(stats.totalAll.toString())}
@@ -287,7 +287,7 @@ export function TokenLifecyclePanel({
               <div className="text-center">
                 <div className="flex items-center justify-center gap-1.5 mb-1">
                   <Star className="w-4 h-4 text-yellow-500" />
-                  <span className="text-xs text-muted-foreground">Light Score</span>
+                  <span className="text-xs text-muted-foreground">Điểm Ánh Sáng</span>
                 </div>
                 <p className="font-bold text-lg text-foreground">
                   {stats.avgLightScore.toFixed(1)}
@@ -297,7 +297,7 @@ export function TokenLifecyclePanel({
               <div className="text-center">
                 <div className="flex items-center justify-center gap-1.5 mb-1">
                   <Users className="w-4 h-4 text-blue-500" />
-                  <span className="text-xs text-muted-foreground">Unity Score</span>
+                  <span className="text-xs text-muted-foreground">Điểm Đoàn Kết</span>
                 </div>
                 <p className="font-bold text-lg text-foreground">
                   {stats.avgUnityScore.toFixed(1)}
@@ -316,7 +316,7 @@ export function TokenLifecyclePanel({
                 {onRefresh && (
                   <Button variant="ghost" size="sm" onClick={onRefresh}>
                     <RefreshCw className="w-4 h-4 mr-1" />
-                    Refresh
+                    Làm mới
                   </Button>
                 )}
               </div>

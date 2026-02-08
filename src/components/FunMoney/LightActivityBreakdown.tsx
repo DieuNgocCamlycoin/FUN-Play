@@ -87,7 +87,7 @@ export function LightActivityBreakdown({ activity }: LightActivityBreakdownProps
       <CardHeader className="pb-4">
         <CardTitle className="flex items-center gap-2 text-lg">
           <BarChart3 className="w-5 h-5 text-primary" />
-          Light Activity Breakdown
+          Phân tích Hoạt động Ánh Sáng
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -151,7 +151,7 @@ export function LightActivityBreakdown({ activity }: LightActivityBreakdownProps
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-lg">✨</span>
-              <span className="font-bold">Total Light Score</span>
+              <span className="font-bold">Tổng Điểm Ánh Sáng</span>
             </div>
             <span className={cn(
               "text-2xl font-black",

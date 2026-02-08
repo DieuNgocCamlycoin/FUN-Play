@@ -148,7 +148,7 @@ export function MintableCard({ activity, loading, onMintSuccess }: MintableCardP
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground flex items-center gap-1">
-              Light Score
+              Điểm Ánh Sáng
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger>
@@ -261,15 +261,15 @@ export function MintableCard({ activity, loading, onMintSuccess }: MintableCardP
         <div className="grid grid-cols-3 gap-4 pt-4 border-t border-border/50">
           <div className="text-center">
             <p className="text-2xl font-bold text-primary">{activity.totalActivities}</p>
-            <p className="text-xs text-muted-foreground">Activities</p>
+            <p className="text-xs text-muted-foreground">Hoạt động</p>
           </div>
           <div className="text-center">
             <p className="text-2xl font-bold text-primary">{activity.camlyEarned.total.toLocaleString()}</p>
-            <p className="text-xs text-muted-foreground">CAMLY Earned</p>
+            <p className="text-xs text-muted-foreground">CAMLY đã nhận</p>
           </div>
           <div className="text-center">
             <p className="text-2xl font-bold text-primary">{activity.accountAgeDays}d</p>
-            <p className="text-xs text-muted-foreground">Account Age</p>
+            <p className="text-xs text-muted-foreground">Tuổi tài khoản</p>
           </div>
         </div>
       </CardContent>

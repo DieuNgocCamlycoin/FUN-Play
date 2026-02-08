@@ -104,8 +104,8 @@ export function MintRequestCard({ request, onClick, showDetails = false }: MintR
 
         {/* Scores */}
         <div className="flex items-center gap-4 mb-3 text-xs text-muted-foreground">
-          <span>Light: <strong className="text-foreground">{request.light_score}</strong></span>
-          <span>Unity: <strong className="text-foreground">{request.unity_score}</strong></span>
+          <span>AS: <strong className="text-foreground">{request.light_score}</strong></span>
+          <span>ĐK: <strong className="text-foreground">{request.unity_score}</strong></span>
           <span>K: <strong className="text-foreground">{Number(request.multiplier_k).toFixed(2)}</strong></span>
         </div>
 

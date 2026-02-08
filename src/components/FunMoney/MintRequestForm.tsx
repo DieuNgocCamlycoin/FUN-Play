@@ -25,6 +25,21 @@ interface MintRequestFormProps {
   onSuccess?: () => void;
 }
 
+const PILLAR_LABELS: Record<string, string> = {
+  S: 'Phục vụ (Service)',
+  T: 'Chân thật (Truth)',
+  H: 'Chữa lành (Healing)',
+  C: 'Đóng góp (Contribution)',
+  U: 'Đoàn kết (Unity)'
+};
+
+const UNITY_SIGNAL_LABELS: Record<string, string> = {
+  collaboration: 'Hợp tác',
+  beneficiaryConfirmed: 'Người nhận xác nhận',
+  communityEndorsement: 'Cộng đồng ủng hộ',
+  bridgeValue: 'Giá trị cầu nối'
+};
+
 export function MintRequestForm({ 
   platformId = 'FUN_PROFILE', 
   actionType = 'CONTENT_CREATE', 
@@ -55,12 +70,12 @@ export function MintRequestForm({
     e.preventDefault();
     
     if (!isConnected || !address) {
-      toast.error('Please connect your wallet first');
+      toast.error('Vui lòng kết nối ví trước');
       return;
     }
     
     if (!description.trim()) {
-      toast.error('Please provide a description');
+      toast.error('Vui lòng nhập mô tả');
       return;
     }
     
@@ -80,7 +95,7 @@ export function MintRequestForm({
     if (result) {
       setSubmitted(true);
       setResultAmount(result.scoringResult.calculatedAmountFormatted);
-      toast.success('Request submitted successfully!');
+      toast.success('Yêu cầu đã được gửi thành công!');
       onSubmitSuccess?.(result.id);
       onSuccess?.();
     }
@@ -91,15 +106,15 @@ export function MintRequestForm({
       <Card className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950">
         <CardContent className="pt-6 text-center">
           <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto mb-4" />
-          <h3 className="text-lg font-bold text-green-700 dark:text-green-300">Request Submitted!</h3>
-          <p className="text-green-600 dark:text-green-400 mt-2">Estimated amount: {resultAmount}</p>
-          <p className="text-sm text-green-500 dark:text-green-500 mt-1">Waiting for admin approval...</p>
+          <h3 className="text-lg font-bold text-green-700 dark:text-green-300">Đã gửi yêu cầu!</h3>
+          <p className="text-green-600 dark:text-green-400 mt-2">Số lượng ước tính: {resultAmount}</p>
+          <p className="text-sm text-green-500 dark:text-green-500 mt-1">Đang chờ Admin duyệt...</p>
           <Button 
             variant="outline" 
             className="mt-4"
             onClick={() => setSubmitted(false)}
           >
-            Submit Another
+            Gửi yêu cầu khác
           </Button>
         </CardContent>
       </Card>
@@ -111,7 +126,7 @@ export function MintRequestForm({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-primary" />
-          Submit Mint Request
+          Gửi yêu cầu Mint
         </CardTitle>
         <div className="flex gap-2">
           <Badge variant="outline">{platformId}</Badge>
@@ -122,24 +137,24 @@ export function MintRequestForm({
       <CardContent>
         {!isConnected ? (
           <div className="text-center py-4">
-            <p className="text-muted-foreground mb-4">Connect wallet to submit request</p>
-            <Button onClick={connect}>Connect Wallet</Button>
+            <p className="text-muted-foreground mb-4">Kết nối ví để gửi yêu cầu</p>
+            <Button onClick={connect}>Kết nối ví</Button>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Evidence */}
             <div className="space-y-2">
-              <Label>Description *</Label>
+              <Label>Mô tả *</Label>
               <Textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Describe your action and its impact..."
+                placeholder="Mô tả hành động và tác động của bạn..."
                 rows={3}
               />
             </div>
             
             <div className="space-y-2">
-              <Label>Proof URL (optional)</Label>
+              <Label>URL bằng chứng (tùy chọn)</Label>
               <Input
                 value={proofUrl}
                 onChange={(e) => setProofUrl(e.target.value)}
@@ -149,11 +164,11 @@ export function MintRequestForm({
             
             {/* Pillar Scores */}
             <div className="space-y-4">
-              <Label>Self-Assessment Scores</Label>
+              <Label>Điểm tự đánh giá</Label>
               {Object.entries(pillars).map(([key, value]) => (
                 <div key={key} className="space-y-1">
                   <div className="flex justify-between text-sm">
-                    <span>{key === 'S' ? 'Service' : key === 'T' ? 'Truth' : key === 'H' ? 'Healing' : key === 'C' ? 'Contribution' : 'Unity'}</span>
+                    <span>{PILLAR_LABELS[key] || key}</span>
                     <span>{value}</span>
                   </div>
                   <Slider
@@ -169,14 +184,14 @@ export function MintRequestForm({
             
             {/* Unity Signals */}
             <div className="space-y-3">
-              <Label>Unity Signals</Label>
+              <Label>Tín hiệu Đoàn kết</Label>
               {Object.entries(signals).map(([key, checked]) => (
                 <div key={key} className="flex items-center gap-2">
                   <Checkbox
                     checked={checked}
                     onCheckedChange={(c) => setSignals(s => ({ ...s, [key]: !!c }))}
                   />
-                  <span className="text-sm capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
+                  <span className="text-sm">{UNITY_SIGNAL_LABELS[key] || key}</span>
                 </div>
               ))}
             </div>
@@ -185,7 +200,7 @@ export function MintRequestForm({
             
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-              Submit Request
+              Gửi yêu cầu
             </Button>
           </form>
         )}
