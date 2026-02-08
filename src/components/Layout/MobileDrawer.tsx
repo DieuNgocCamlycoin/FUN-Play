@@ -33,11 +33,11 @@ const mainNavItems: NavItem[] = [
   { icon: Music, label: "Tạo Nhạc Ánh Sáng", href: "/create-music", special: true },
 ];
 
-// FUN Platforms - External links + FUN Wallet
+// FUN Platforms - External links
 const funPlatformItems: NavItem[] = [
   { 
     customIcon: '/images/fun-rich-logo.png?v=2',
-    label: "FUN.RICH", 
+    label: "FUN PROFILE", 
     href: "https://fun.rich/",
     external: true
   },
@@ -52,12 +52,6 @@ const funPlatformItems: NavItem[] = [
     label: "FUN PLANET", 
     href: "https://planet.fun.rich/?ref=22282B49",
     external: true
-  },
-  { 
-    customIcon: '/images/fun-wallet-logo.png?v=2',
-    label: "FUN Wallet", 
-    href: "/fun-wallet",
-    isWallet: true
   },
 ];
 
