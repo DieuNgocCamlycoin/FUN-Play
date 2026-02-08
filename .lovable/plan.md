@@ -1,352 +1,142 @@
 
 
-# Kế Hoạch: FUN Money Auto-Mint từ Light Activity
+# System Check Report & Fix Plan for FUN Play
 
-## Phần I: Hiểu Yêu Cầu Mới
+## Issues Found
 
-### Flow Mới (Đơn Giản Hóa)
+### Issue 1: Missing `safe-area-bottom` CSS Class (Mobile - Critical)
+The `MobileBottomNav.tsx` uses a CSS class `safe-area-bottom` but this class is **never defined** in `src/index.css` or any other stylesheet. This means on iPhones with notch/dynamic island, the bottom navigation bar may overlap with the home indicator, causing touch issues.
 
-```text
-TRƯỚC (Phức tạp - User phải điền form):
-┌─────────────────────────────────────────────────────────────────────────────────────┐
-│ User làm activity → User mở FUN Money → User điền form (pillars, evidence, v.v.)   │
-│                                       → Submit → Pending → Admin approve → Mint    │
-└─────────────────────────────────────────────────────────────────────────────────────┘
+**Fix:** Add `safe-area-bottom` utility class to `src/index.css` using `env(safe-area-inset-bottom)`.
 
-SAU (Tự động - User chỉ cần bấm MINT):
-┌─────────────────────────────────────────────────────────────────────────────────────┐
-│ User làm activity → Hệ thống tự động track & tính điểm → Hiển thị "Mintable FUN"   │
-│                   → User bấm MINT → Pending → Admin approve → Mint                  │
-└─────────────────────────────────────────────────────────────────────────────────────┘
-```
+### Issue 2: FUN Money Page Not Accessible from Mobile Navigation
+The `/fun-money` route exists and works, but:
+- The **MobileDrawer** has NO link to FUN Money
+- The **CollapsibleSidebar** (desktop) has NO link to FUN Money
+- Only the **desktop Header** (hidden on mobile via `hidden md:flex`) has a FUN Money button
 
----
+**Fix:** Add FUN Money navigation item to both `MobileDrawer.tsx` and `CollapsibleSidebar.tsx`.
 
-## Phần II: Nguồn Dữ Liệu Light Activity
+### Issue 3: Mobile Header Overcrowded (7+ small buttons in 390px)
+The `MobileHeader.tsx` has too many action buttons squeezed into a tiny space (Wallet, Search, Create, Angel AI, Download, Messages, Notifications, Profile = 8 buttons!). This makes tapping difficult on small screens.
 
-### Dữ Liệu Đã Có (reward_transactions + daily_reward_limits)
+**Fix:** Consolidate by removing the Download button's pulse animation (distracting) and slightly optimize spacing.
 
-| Activity Type | Bảng | Đã Track |
-|---------------|------|----------|
-| VIEW | reward_transactions | View video |
-| LIKE | reward_transactions | Like video |
-| COMMENT | reward_transactions | Comment chất lượng |
-| SHARE | reward_transactions | Share video |
-| UPLOAD | reward_transactions | Upload video |
-| SIGNUP | reward_transactions | Đăng ký tài khoản |
-| WALLET_CONNECT | reward_transactions | Kết nối ví |
+### Issue 4: FunMoneyPage Mobile Layout Issues
+The `FunMoneyPage.tsx` uses `grid-cols-3` for the tab list which gets cramped on small screens. Also the header "FUN Money" text and realtime badge don't wrap well on mobile.
 
-### Thống Kê Mẫu (Từ Database)
+**Fix:** Make the tab list full-width on mobile with proper text sizing, and improve the header's responsive layout.
 
-| Type | Total CAMLY | Activity Count |
-|------|-------------|----------------|
-| LIKE | 73,161,000 | 14,640 |
-| COMMENT | 13,770,000 | 2,754 |
-| SIGNUP | 8,450,000 | 169 |
-| UPLOAD | 4,300,000 | 43 |
-| VIEW | 3,888,000 | 423 |
+### Issue 5: MintableCard Mobile Text Overflow
+The mintable FUN amount uses `text-5xl md:text-6xl` which can overflow on very small screens (320px width). The status badges also wrap poorly.
 
----
+**Fix:** Use `text-4xl sm:text-5xl md:text-6xl` for better scaling.
 
-## Phần III: Công Thức Tính Mintable FUN
+### Issue 6: TokenLifecyclePanel Mobile Layout
+The lifecycle states grid uses `grid-cols-1 md:grid-cols-3` but the arrow indicators between states are hidden on mobile (`hidden md:block`), making the flow less clear.
 
-### Logic Chuyển Đổi CAMLY → FUN
+**Fix:** Add a vertical arrow/connector on mobile between the state cards to maintain visual flow.
 
-```text
-Mintable FUN = f(User's Light Activities)
+### Issue 7: LightActivityBreakdown Tooltip Overflow on Mobile
+Tooltips with `side="right"` on the pillar info icons can go off-screen on mobile devices.
 
-Dựa trên:
-1. Tổng CAMLY đã earn (approved + pending)
-2. Số lượng activities theo loại (view, like, comment, upload, share)
-3. Chất lượng activities (comment length, video duration)
-4. Anti-sybil score (suspicious_score từ profiles)
-5. Account age & verification status
+**Fix:** Change tooltip side to `"top"` on mobile for better visibility.
 
-Công thức đề xuất:
-┌─────────────────────────────────────────────────────────────────────────────────────┐
-│                                                                                     │
-│  Base FUN = (Total CAMLY × Conversion Rate) / 1000                                 │
-│                                                                                     │
-│  Light Score = Tự động tính từ activity breakdown:                                 │
-│    - S (Service): Dựa trên uploads, helpful comments                               │
-│    - T (Truth): Dựa trên verified status, unique content                           │
-│    - H (Healing): Dựa trên positive interactions                                   │
-│    - C (Contribution): Dựa trên total engagement                                   │
-│    - U (Unity): Dựa trên community interactions                                    │
-│                                                                                     │
-│  Final Mintable = Base FUN × (Light Score / 100) × K (Integrity)                   │
-│                                                                                     │
-└─────────────────────────────────────────────────────────────────────────────────────┘
-```
+### Issue 8: WalletConnect CSP Error (Non-Critical)
+Console shows `Framing 'https://secure.walletconnect.org/' violates CSP`. This is a known WalletConnect v2 issue in iframed environments and does not break core functionality.
+
+**Status:** No action needed - this is an environment-specific issue that does not affect the published app.
 
 ---
 
-## Phần IV: UI/UX Mới - Light Activity Dashboard
+## Implementation Plan
 
-### Thiết Kế Trang /fun-money
+### Phase 1: CSS Safe Area Fix
+**File:** `src/index.css`
+- Add `.safe-area-bottom` class with `padding-bottom: env(safe-area-inset-bottom)`
+- Add `.safe-area-top` class for completeness
+- This fixes iPhone notch/dynamic island overlap issues
 
-```text
-┌─────────────────────────────────────────────────────────────────────────────────────┐
-│                           FUN MONEY                                                  │
-│                   Proof of Pure Love Protocol                                        │
-├─────────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                      │
-│  ┌────────────────────────────────────────────────────────────────────────────────┐ │
-│  │                    💎 YOUR MINTABLE FUN                                        │ │
-│  │  ───────────────────────────────────────────────────────────────────────────── │ │
-│  │                                                                                 │ │
-│  │                          ✨ 1,250 FUN ✨                                       │ │
-│  │                    (≈ $125.00 USD estimated)                                    │ │
-│  │                                                                                 │ │
-│  │   Light Score: 78/100  ████████████████████░░░░░                               │ │
-│  │                                                                                 │ │
-│  │           ┌──────────────────────────────────────────────┐                     │ │
-│  │           │         🌟 MINT NOW 🌟                       │                     │ │
-│  │           │    (Tạo yêu cầu mint FUN)                    │                     │ │
-│  │           └──────────────────────────────────────────────┘                     │ │
-│  │                                                                                 │ │
-│  └────────────────────────────────────────────────────────────────────────────────┘ │
-│                                                                                      │
-│  ┌────────────────────────────────────────────────────────────────────────────────┐ │
-│  │                 📊 LIGHT ACTIVITY BREAKDOWN                                    │ │
-│  │  ───────────────────────────────────────────────────────────────────────────── │ │
-│  │                                                                                 │ │
-│  │   🙏 Service (S)        ████████████████░░░░  85    Uploads: 5, Helps: 12      │ │
-│  │   💎 Truth (T)          ████████████████░░░░  82    Verified: Yes              │ │
-│  │   💚 Healing (H)        ██████████████░░░░░░  70    Positive: 89%              │ │
-│  │   🎁 Contribution (C)   ████████████████████  95    Total: 1,250 activities    │ │
-│  │   🤝 Unity (U)          ██████████░░░░░░░░░░  50    Collabs: 3                 │ │
-│  │                                                                                 │ │
-│  │   ─────────────────────────────────────────────────────────────────────────── │ │
-│  │   Total Light Score:    ████████████████░░░░  78                               │ │
-│  │                                                                                 │ │
-│  └────────────────────────────────────────────────────────────────────────────────┘ │
-│                                                                                      │
-│  ┌────────────────────────────────────────────────────────────────────────────────┐ │
-│  │                 📈 ACTIVITY SUMMARY                                            │ │
-│  │  ───────────────────────────────────────────────────────────────────────────── │ │
-│  │                                                                                 │ │
-│  │   Views: 423      Likes: 1,250     Comments: 89     Shares: 17                 │ │
-│  │   Uploads: 5      CAMLY Earned: 95,000                                         │ │
-│  │                                                                                 │ │
-│  └────────────────────────────────────────────────────────────────────────────────┘ │
-│                                                                                      │
-│  [Pending Requests]  [Mint History]                                                  │
-│                                                                                      │
-└─────────────────────────────────────────────────────────────────────────────────────┘
-```
+### Phase 2: Add FUN Money to Mobile Navigation
+**File:** `src/components/Layout/MobileDrawer.tsx`
+- Add FUN Money entry to `rewardItems` array with the FUN Money coin icon
+- Use customIcon: `/images/fun-money-coin.png`
+
+**File:** `src/components/Layout/CollapsibleSidebar.tsx`
+- Add FUN Money entry to `rewardItems` array for desktop sidebar consistency
+
+### Phase 3: Fix FunMoneyPage Mobile Responsiveness
+**File:** `src/pages/FunMoneyPage.tsx`
+- Adjust header layout for mobile (stack vertically)
+- Make tab list scrollable on small screens
+- Improve spacing and padding for mobile
+
+### Phase 4: Fix MintableCard Mobile Display
+**File:** `src/components/FunMoney/MintableCard.tsx`
+- Scale down the main amount text on small screens: `text-4xl sm:text-5xl md:text-6xl`
+- Improve badge wrapping on mobile
+- Make the MINT button more touch-friendly
+
+### Phase 5: Fix TokenLifecyclePanel Mobile Flow
+**File:** `src/components/FunMoney/TokenLifecyclePanel.tsx`
+- Add vertical arrow connectors on mobile between state cards
+- Reduce coin image size on mobile for better fit
+- Make stats grid responsive (`grid-cols-2 sm:grid-cols-3`)
+
+### Phase 6: Fix LightActivityBreakdown Mobile Tooltips
+**File:** `src/components/FunMoney/LightActivityBreakdown.tsx`
+- Change tooltip `side` to `"top"` to prevent off-screen overflow on mobile
+
+### Phase 7: Fix ActivitySummary Mobile Grid
+**File:** `src/components/FunMoney/ActivitySummary.tsx`
+- Keep `grid-cols-2` on mobile (already correct)
+- Ensure text doesn't overflow in stat items
 
 ---
 
-## Phần V: Files Cần Tạo/Sửa
+## Technical Details
 
-### 5.1. Files Mới
-
-| File | Mục đích |
-|------|----------|
-| `src/hooks/useLightActivity.ts` | Hook tính toán light activity & mintable FUN |
-| `src/components/FunMoney/MintableCard.tsx` | Card hiển thị mintable FUN với nút MINT |
-| `src/components/FunMoney/LightActivityBreakdown.tsx` | Breakdown 5 pillars từ activities |
-| `src/components/FunMoney/ActivitySummary.tsx` | Tóm tắt activities của user |
-
-### 5.2. Files Cập Nhật
-
-| File | Thay đổi |
-|------|----------|
-| `src/pages/FunMoneyPage.tsx` | Thay MintRequestForm bằng MintableCard + Breakdown |
-| `src/hooks/useFunMoneyMintRequest.ts` | Thêm submitAutoRequest (không cần form input) |
-| `src/lib/fun-money/pplp-engine.ts` | Thêm calculatePillarsFromActivity() |
-
----
-
-## Phần VI: Chi Tiết Technical
-
-### 6.1. useLightActivity Hook
-
-```typescript
-interface LightActivity {
-  // Activity counts
-  totalViews: number;
-  totalLikes: number;
-  totalComments: number;
-  totalShares: number;
-  totalUploads: number;
-  
-  // CAMLY earned
-  totalCamlyEarned: number;
-  pendingCamly: number;
-  approvedCamly: number;
-  
-  // Calculated pillars (auto từ activities)
-  pillars: {
-    S: number; // Service - từ uploads, helpful comments
-    T: number; // Truth - từ verified, unique content
-    H: number; // Healing - từ positive ratio
-    C: number; // Contribution - từ total activities
-    U: number; // Unity - từ collaborations
-  };
-  
-  // Light score
-  lightScore: number;
-  
-  // Mintable FUN
-  mintableFun: string; // formatted
-  mintableFunAtomic: string;
-  
-  // Status
-  canMint: boolean;
-  mintBlockReason?: string; // "Insufficient activity", "Already pending", etc.
+### Safe Area CSS Addition
+```css
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
-
-export function useLightActivity(userId: string): {
-  activity: LightActivity | null;
-  loading: boolean;
-  refetch: () => Promise<void>;
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0px);
 }
 ```
 
-### 6.2. Công Thức Tính Pillars Tự Động
-
+### Mobile Drawer FUN Money Entry
 ```typescript
-function calculatePillarsFromActivity(activity: ActivityData): PillarScores {
-  // S (Service): Uploads + helpful comments
-  const S = Math.min(100, 
-    (activity.uploads * 15) + 
-    (activity.qualityComments * 2) + 
-    30 // base
-  );
-  
-  // T (Truth): Verified + unique content + account age
-  const T = Math.min(100,
-    (activity.isVerified ? 30 : 0) +
-    (activity.uniqueContentRatio * 40) +
-    (Math.min(activity.accountAgeDays, 365) / 365 * 30)
-  );
-  
-  // H (Healing): Positive interaction ratio
-  const H = Math.min(100,
-    (activity.positiveRatio * 70) +
-    (activity.noReports ? 30 : 0)
-  );
-  
-  // C (Contribution): Total engagement
-  const C = Math.min(100,
-    Math.log10(activity.totalEngagement + 1) * 20 +
-    30 // base
-  );
-  
-  // U (Unity): Collaborations + community
-  const U = Math.min(100,
-    (activity.collaborations * 20) +
-    (activity.communityInteractions * 5) +
-    20 // base
-  );
-  
-  return { S, T, H, C, U };
+// Add to rewardItems in MobileDrawer.tsx
+{
+  customIcon: '/images/fun-money-coin.png',
+  label: "FUN Money",
+  href: "/fun-money",
+  special: true
 }
 ```
 
-### 6.3. MintableCard Component
+### Files Modified (Total: 7)
 
-```typescript
-// Key features:
-// - Hiển thị số FUN có thể mint (lớn, nổi bật)
-// - Progress bar Light Score
-// - Nút MINT lớn với hiệu ứng vàng kim loại
-// - Disabled nếu đã có pending request hoặc không đủ điều kiện
-// - Tooltip giải thích tại sao không thể mint
-```
-
-### 6.4. Quick Mint Flow (1 Click)
-
-```typescript
-const handleQuickMint = async () => {
-  if (!activity || !canMint) return;
-  
-  // Tự động submit với dữ liệu đã tính sẵn
-  const result = await submitAutoRequest({
-    userWalletAddress: address,
-    calculatedPillars: activity.pillars,
-    calculatedLightScore: activity.lightScore,
-    mintableFunAtomic: activity.mintableFunAtomic,
-    activitySummary: {
-      views: activity.totalViews,
-      likes: activity.totalLikes,
-      comments: activity.totalComments,
-      uploads: activity.totalUploads
-    }
-  });
-  
-  if (result) {
-    toast.success("Mint request created!");
-    // Navigate to history or show pending card
-  }
-};
-```
+| File | Change |
+|------|--------|
+| `src/index.css` | Add safe-area CSS utilities |
+| `src/components/Layout/MobileDrawer.tsx` | Add FUN Money nav item |
+| `src/components/Layout/CollapsibleSidebar.tsx` | Add FUN Money nav item |
+| `src/pages/FunMoneyPage.tsx` | Mobile responsive layout fixes |
+| `src/components/FunMoney/MintableCard.tsx` | Mobile text scaling |
+| `src/components/FunMoney/TokenLifecyclePanel.tsx` | Mobile flow arrows |
+| `src/components/FunMoney/LightActivityBreakdown.tsx` | Mobile tooltip fix |
 
 ---
 
-## Phần VII: Database Updates
+## Summary
 
-### 7.1. Thêm Cột Tracking Cho Auto-Mint
+The project is running well overall with no critical runtime errors. The main issues are:
+1. **Missing safe-area CSS** causing potential iPhone layout issues
+2. **FUN Money page inaccessible from mobile** (no nav link in drawer or bottom nav)
+3. **Several mobile responsiveness issues** in the newly created FUN Money components (text overflow, cramped layouts, tooltip positioning)
+4. Minor WalletConnect CSP warning (environment-specific, no fix needed)
 
-```sql
--- Thêm cột để track khi nào user đã mint từ activities
-ALTER TABLE profiles
-ADD COLUMN IF NOT EXISTS last_fun_mint_at TIMESTAMP WITH TIME ZONE,
-ADD COLUMN IF NOT EXISTS total_fun_minted NUMERIC DEFAULT 0;
-
--- Thêm index cho query activities nhanh hơn
-CREATE INDEX IF NOT EXISTS idx_reward_transactions_user_type 
-ON reward_transactions(user_id, reward_type);
-```
-
----
-
-## Phần VIII: Thứ Tự Triển Khai
-
-| Phase | Công việc | Thời gian |
-|-------|-----------|-----------|
-| **Phase 1** | useLightActivity hook (fetch + calculate) | 25 phút |
-| **Phase 2** | calculatePillarsFromActivity trong pplp-engine | 15 phút |
-| **Phase 3** | MintableCard component | 20 phút |
-| **Phase 4** | LightActivityBreakdown component | 15 phút |
-| **Phase 5** | ActivitySummary component | 10 phút |
-| **Phase 6** | Update FunMoneyPage layout | 15 phút |
-| **Phase 7** | submitAutoRequest trong useMintRequest | 15 phút |
-| **Phase 8** | Database migration | 5 phút |
-| **Phase 9** | Testing + refinements | 20 phút |
-
-**Tổng thời gian ước tính:** 2-2.5 giờ
-
----
-
-## Phần IX: So Sánh UX
-
-```text
-TRƯỚC (7 bước, user phải nghĩ):
-1. Mở trang FUN Money
-2. Click "New Request"
-3. Điền description
-4. Điền proof URL
-5. Điều chỉnh 5 sliders (S, T, H, C, U)
-6. Check 4 unity signals
-7. Submit
-
-SAU (2 bước, user chỉ cần nhìn và bấm):
-1. Mở trang FUN Money → Thấy ngay "1,250 FUN có thể mint"
-2. Bấm "MINT NOW" → Done!
-```
-
----
-
-## Tóm Tắt
-
-| Thay đổi | Chi tiết |
-|----------|----------|
-| **Bỏ form thủ công** | Không cần user điền pillars, evidence |
-| **Tự động tính từ activity** | Dựa trên reward_transactions đã track |
-| **1-click mint** | User chỉ bấm MINT, hệ thống làm hết |
-| **Hiển thị trực quan** | Card lớn với số FUN, progress bar Light Score |
-| **Giữ nguyên flow admin** | Pending → Admin review → Approve → Mint on-chain |
-
+All fixes focus on mobile-first improvements following the project's philosophy: "every tap must feel like touching pure light."
