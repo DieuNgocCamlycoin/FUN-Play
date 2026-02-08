@@ -23,18 +23,7 @@ import { AddVideoToPlaylistModal } from "@/components/Playlist/AddVideoToPlaylis
 import { EditPlaylistModal } from "@/components/Playlist/EditPlaylistModal";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-
-const formatDuration = (seconds: number | null): string => {
-  if (!seconds) return "0:00";
-  const hrs = Math.floor(seconds / 3600);
-  const mins = Math.floor((seconds % 3600) / 60);
-  const secs = seconds % 60;
-  if (hrs > 0) {
-    return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  }
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
-};
-
+import { formatDuration, formatViews, formatTimestamp } from "@/lib/formatters";
 const formatTotalDuration = (seconds: number): string => {
   const hrs = Math.floor(seconds / 3600);
   const mins = Math.floor((seconds % 3600) / 60);
@@ -42,27 +31,6 @@ const formatTotalDuration = (seconds: number): string => {
     return `${hrs} giờ ${mins} phút`;
   }
   return `${mins} phút`;
-};
-
-const formatViews = (count: number | null): string => {
-  if (!count) return "0 lượt xem";
-  if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M lượt xem`;
-  if (count >= 1000) return `${(count / 1000).toFixed(1)}K lượt xem`;
-  return `${count} lượt xem`;
-};
-
-const formatTimeAgo = (dateString: string): string => {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-  
-  if (diffInSeconds < 60) return "Vừa xong";
-  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} phút trước`;
-  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} giờ trước`;
-  if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)} ngày trước`;
-  if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 604800)} tuần trước`;
-  if (diffInSeconds < 31536000) return `${Math.floor(diffInSeconds / 2592000)} tháng trước`;
-  return `${Math.floor(diffInSeconds / 31536000)} năm trước`;
 };
 
 const getVisibilityInfo = (is_public: boolean | null) => {

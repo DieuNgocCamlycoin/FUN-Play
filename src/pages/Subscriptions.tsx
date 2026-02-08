@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, ArrowLeft } from 'lucide-react';
+import { Users, ArrowLeft, MoreVertical, ExternalLink, UserMinus } from 'lucide-react';
 import { MainLayout } from '@/components/Layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -8,7 +8,13 @@ import { VideoCard } from '@/components/Video/VideoCard';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { formatViews, formatTimestamp } from '@/lib/formatters';
-
+import { useToast } from '@/hooks/use-toast';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 interface SubscribedChannel {
   id: string;
   channel_id: string;
@@ -36,6 +42,22 @@ const Subscriptions = () => {
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const handleUnsubscribe = async (subId: string, channelName: string) => {
+    try {
+      const { error } = await supabase
+        .from('subscriptions')
+        .delete()
+        .eq('id', subId);
+      if (error) throw error;
+      setSubscriptions(prev => prev.filter(s => s.id !== subId));
+      toast({ title: `Đã hủy đăng ký ${channelName}` });
+    } catch (err) {
+      console.error('Error unsubscribing:', err);
+      toast({ title: "Lỗi hủy đăng ký", variant: "destructive" });
+    }
+  };
 
   useEffect(() => {
     const fetchSubscriptions = async () => {
@@ -134,15 +156,37 @@ const Subscriptions = () => {
           <div className="space-y-10">
             {subscriptions.map((sub) => (
               <div key={sub.id}>
-                <div className="flex items-center gap-3 mb-4 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => navigate(`/channel/${sub.channel.id}`)}>
-                  <Avatar className="w-10 h-10">
-                    <AvatarImage src={sub.channel.profile?.avatar_url || undefined} />
-                    <AvatarFallback className="bg-gradient-to-r from-cosmic-sapphire to-cosmic-cyan text-white">{sub.channel.name?.charAt(0) || 'C'}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <h2 className="font-semibold hover:text-primary transition-colors">{sub.channel.name}</h2>
-                    <p className="text-xs text-muted-foreground">{sub.channel.subscriber_count || 0} người đăng ký</p>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => navigate(`/channel/${sub.channel.id}`)}>
+                    <Avatar className="w-10 h-10">
+                      <AvatarImage src={sub.channel.profile?.avatar_url || undefined} />
+                      <AvatarFallback className="bg-gradient-to-r from-cosmic-sapphire to-cosmic-cyan text-white">{sub.channel.name?.charAt(0) || 'C'}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <h2 className="font-semibold hover:text-primary transition-colors">{sub.channel.name}</h2>
+                      <p className="text-xs text-muted-foreground">{sub.channel.subscriber_count || 0} người đăng ký</p>
+                    </div>
                   </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => navigate(`/channel/${sub.channel.id}`)}>
+                        <ExternalLink className="mr-2 h-4 w-4" />
+                        Chuyển đến kênh
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleUnsubscribe(sub.id, sub.channel.name)}
+                        className="text-destructive focus:text-destructive"
+                      >
+                        <UserMinus className="mr-2 h-4 w-4" />
+                        Hủy đăng ký
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
                 {sub.latestVideos.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-4">Chưa có video nào</p>

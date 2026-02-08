@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { Play, Clock, Eye } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { VideoPlaceholder } from "@/components/Video/VideoPlaceholder";
+import { formatDuration, formatViewsShort } from "@/lib/formatters";
 
 interface Video {
   id: string;
@@ -20,19 +21,7 @@ interface MeditationVideoGridProps {
   onVideoSelect: (video: Video) => void;
 }
 
-const formatDuration = (seconds: number | null) => {
-  if (!seconds) return "0:00";
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  return `${mins}:${secs.toString().padStart(2, "0")}`;
-};
-
-const formatViews = (views: number | null) => {
-  if (!views) return "0";
-  if (views >= 1000000) return `${(views / 1000000).toFixed(1)}M`;
-  if (views >= 1000) return `${(views / 1000).toFixed(1)}K`;
-  return views.toString();
-};
+// formatDuration and formatViewsShort imported from @/lib/formatters
 
 export const MeditationVideoGrid = ({ videos, isLoading, onVideoSelect }: MeditationVideoGridProps) => {
   if (isLoading) {
@@ -127,7 +116,7 @@ export const MeditationVideoGrid = ({ videos, isLoading, onVideoSelect }: Medita
             </h3>
             <div className="flex items-center gap-2 text-xs text-slate-500">
               <Eye className="w-3 h-3" />
-              <span>{formatViews(video.view_count)} lượt xem</span>
+              <span>{formatViewsShort(video.view_count)} lượt xem</span>
             </div>
           </div>
         </motion.div>

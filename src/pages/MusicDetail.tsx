@@ -12,6 +12,7 @@ import { DynamicMeta } from "@/components/SEO/DynamicMeta";
 import { MusicComments } from "@/components/Music/MusicComments";
 import { AddToMusicPlaylistModal } from "@/components/Music/AddToMusicPlaylistModal";
 import { useAutoReward } from "@/hooks/useAutoReward";
+import { formatDuration, formatViewsShort } from "@/lib/formatters";
 import { 
   Play, 
   Pause, 
@@ -230,19 +231,7 @@ export default function MusicDetail() {
     });
   };
 
-  const formatDuration = (seconds: number | null) => {
-    if (!seconds) return "0:00";
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
-
-  const formatViews = (views: number | null) => {
-    if (!views) return "0";
-    if (views >= 1000000) return `${(views / 1000000).toFixed(1)}M`;
-    if (views >= 1000) return `${(views / 1000).toFixed(1)}K`;
-    return views.toString();
-  };
+  // formatDuration and formatViewsShort imported from @/lib/formatters
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("vi-VN", {
@@ -363,11 +352,11 @@ export default function MusicDetail() {
                         <div className="flex flex-wrap gap-4 justify-center md:justify-start text-sm text-muted-foreground">
                           <div className="flex items-center gap-1">
                             <Eye className="w-4 h-4" />
-                            {formatViews(track.view_count)} lượt nghe
+                            {formatViewsShort(track.view_count)} lượt nghe
                           </div>
                           <div className="flex items-center gap-1">
                             <ThumbsUp className="w-4 h-4" />
-                            {formatViews(track.like_count)} lượt thích
+                            {formatViewsShort(track.like_count)} lượt thích
                           </div>
                           <div className="flex items-center gap-1">
                             <Clock className="w-4 h-4" />
@@ -481,7 +470,7 @@ export default function MusicDetail() {
                               {relatedTrack.channels?.name || "Unknown Artist"}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              {formatViews(relatedTrack.view_count)} lượt nghe
+                              {formatViewsShort(relatedTrack.view_count)} lượt nghe
                             </p>
                           </div>
                         </div>

@@ -25,6 +25,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { formatDuration, formatViewsShort } from "@/lib/formatters";
 import {
   Select,
   SelectContent,
@@ -236,19 +237,7 @@ export default function BrowseMusic() {
 
   const hasActiveFilters = searchQuery || selectedGenre !== "all" || sortBy !== "newest" || selectedArtist;
 
-  const formatDuration = (seconds: number | null) => {
-    if (!seconds) return "0:00";
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
-
-  const formatViews = (views: number | null) => {
-    if (!views) return "0";
-    if (views >= 1000000) return `${(views / 1000000).toFixed(1)}M`;
-    if (views >= 1000) return `${(views / 1000).toFixed(1)}K`;
-    return views.toString();
-  };
+  // formatDuration and formatViewsShort imported from @/lib/formatters
 
   return (
     <>
@@ -457,11 +446,11 @@ export default function BrowseMusic() {
                           <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
                             <span className="flex items-center gap-1">
                               <Eye className="w-3 h-3" />
-                              {formatViews(track.view_count)}
+                              {formatViewsShort(track.view_count)}
                             </span>
                             <span className="flex items-center gap-1">
                               <Heart className="w-3 h-3" />
-                              {formatViews(track.like_count)}
+                              {formatViewsShort(track.like_count)}
                             </span>
                           </div>
                         </div>
@@ -533,11 +522,11 @@ export default function BrowseMusic() {
                         <div className="hidden sm:flex items-center gap-4 text-sm text-muted-foreground">
                           <span className="flex items-center gap-1">
                             <Eye className="w-4 h-4" />
-                            {formatViews(track.view_count)}
+                            {formatViewsShort(track.view_count)}
                           </span>
                           <span className="flex items-center gap-1">
                             <Heart className="w-4 h-4" />
-                            {formatViews(track.like_count)}
+                            {formatViewsShort(track.like_count)}
                           </span>
                           <span className="flex items-center gap-1">
                             <Clock className="w-4 h-4" />

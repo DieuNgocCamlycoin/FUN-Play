@@ -72,6 +72,7 @@ const Messages = lazy(() => import("./pages/Messages"));
 const FunMoneyPage = lazy(() => import("./pages/FunMoneyPage"));
 const Search = lazy(() => import("./pages/Search"));
 const Notifications = lazy(() => import("./pages/Notifications"));
+const Library = lazy(() => import("./pages/Library"));
 
 const queryClient = new QueryClient();
 
@@ -113,7 +114,7 @@ function AppContent() {
             <Route path="/profile" element={<Profile />} />
             <Route path="/user/:userId" element={<UserProfile />} />
             <Route path="/u/:username" element={<UserProfile />} />
-            <Route path="/library" element={<Index />} />
+            <Route path="/library" element={<Library />} />
             
             {/* Lazy loaded pages */}
             <Route path="/settings" element={<ProfileSettings />} />

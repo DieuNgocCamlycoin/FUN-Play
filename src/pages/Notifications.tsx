@@ -4,10 +4,11 @@ import { MainLayout } from "@/components/Layout/MainLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Bell, BellOff, Check, CheckCheck, Trash2 } from "lucide-react";
+import { Bell, BellOff, CheckCheck } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 interface Notification {
   id: string;
@@ -26,12 +27,22 @@ interface Notification {
   };
 }
 
+const FILTER_TABS = [
+  { key: "all", label: "Tất cả" },
+  { key: "comment", label: "Bình luận" },
+  { key: "subscription", label: "Kênh đăng ký" },
+  { key: "reward", label: "Phần thưởng" },
+] as const;
+
+type FilterKey = typeof FILTER_TABS[number]["key"];
+
 const Notifications = () => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeFilter, setActiveFilter] = useState<FilterKey>("all");
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -40,7 +51,6 @@ const Notifications = () => {
     }
     if (user) {
       fetchNotifications();
-      // Subscribe to realtime notifications
       const channel = supabase
         .channel('user-notifications')
         .on('postgres_changes', {
@@ -70,7 +80,6 @@ const Notifications = () => {
       if (error) throw error;
 
       if (data && data.length > 0) {
-        // Fetch actor profiles
         const actorIds = [...new Set(data.filter(n => n.actor_id).map(n => n.actor_id!))];
         let actorsMap = new Map();
         if (actorIds.length > 0) {
@@ -127,11 +136,15 @@ const Notifications = () => {
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
+  const filteredNotifications = activeFilter === "all"
+    ? notifications
+    : notifications.filter(n => n.type === activeFilter);
+
   return (
     <MainLayout>
       <div className="max-w-3xl mx-auto p-4 lg:p-6">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-bold text-foreground">Thông báo</h1>
           {unreadCount > 0 && (
             <Button variant="ghost" size="sm" onClick={markAllRead} className="gap-2">
@@ -139,6 +152,24 @@ const Notifications = () => {
               Đánh dấu tất cả đã đọc
             </Button>
           )}
+        </div>
+
+        {/* Category Filter Tabs */}
+        <div className="flex gap-2 mb-4 overflow-x-auto pb-1 scrollbar-hide">
+          {FILTER_TABS.map((tab) => (
+            <Button
+              key={tab.key}
+              variant={activeFilter === tab.key ? "default" : "outline"}
+              size="sm"
+              onClick={() => setActiveFilter(tab.key)}
+              className={cn(
+                "rounded-full shrink-0 text-sm",
+                activeFilter === tab.key && "bg-primary text-primary-foreground"
+              )}
+            >
+              {tab.label}
+            </Button>
+          ))}
         </div>
 
         {/* Loading */}
@@ -157,9 +188,9 @@ const Notifications = () => {
         )}
 
         {/* Notifications list */}
-        {!loading && notifications.length > 0 && (
+        {!loading && filteredNotifications.length > 0 && (
           <div className="space-y-1">
-            {notifications.map((notif) => (
+            {filteredNotifications.map((notif) => (
               <div
                 key={notif.id}
                 onClick={() => handleNotificationClick(notif)}
@@ -169,7 +200,6 @@ const Notifications = () => {
                     : "bg-primary/5 hover:bg-primary/10"
                 }`}
               >
-                {/* Actor avatar or notification icon */}
                 {notif.actor?.avatar_url ? (
                   <Avatar className="h-10 w-10 shrink-0">
                     <AvatarImage src={notif.actor.avatar_url} />
@@ -181,7 +211,6 @@ const Notifications = () => {
                   </div>
                 )}
 
-                {/* Content */}
                 <div className="flex-1 min-w-0">
                   <p className={`text-sm ${notif.is_read ? 'text-foreground' : 'text-foreground font-semibold'}`}>
                     {notif.title}
@@ -196,7 +225,6 @@ const Notifications = () => {
                   </p>
                 </div>
 
-                {/* Thumbnail if available */}
                 {notif.thumbnail_url && (
                   <img
                     src={notif.thumbnail_url}
@@ -205,7 +233,6 @@ const Notifications = () => {
                   />
                 )}
 
-                {/* Unread dot */}
                 {!notif.is_read && (
                   <div className="w-2 h-2 rounded-full bg-primary shrink-0 mt-2" />
                 )}
@@ -215,12 +242,16 @@ const Notifications = () => {
         )}
 
         {/* Empty state */}
-        {!loading && notifications.length === 0 && (
+        {!loading && filteredNotifications.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <BellOff className="w-16 h-16 text-muted-foreground/50 mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Chưa có thông báo</h2>
+            <h2 className="text-xl font-semibold mb-2">
+              {activeFilter === "all" ? "Chưa có thông báo" : "Không có thông báo trong mục này"}
+            </h2>
             <p className="text-muted-foreground max-w-md">
-              Thông báo về video mới, bình luận và hoạt động sẽ xuất hiện ở đây.
+              {activeFilter === "all"
+                ? "Thông báo về video mới, bình luận và hoạt động sẽ xuất hiện ở đây."
+                : "Thử chọn mục khác để xem thông báo."}
             </p>
           </div>
         )}

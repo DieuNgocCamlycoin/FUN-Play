@@ -18,6 +18,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { VideoPlaceholder } from "./VideoPlaceholder";
+import { formatDuration, formatViewsShort } from "@/lib/formatters";
 
 interface UpNextSidebarProps {
   onVideoSelect?: (video: VideoItem) => void;
@@ -77,19 +78,7 @@ export function UpNextSidebar({ onVideoSelect }: UpNextSidebarProps) {
   const upNextVideos = getUpNext(10);
   const queueLength = session.queue.length;
 
-  const formatDuration = (seconds: number | null) => {
-    if (!seconds) return "";
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
-
-  const formatViews = (views: number | null) => {
-    if (!views) return "0 views";
-    if (views >= 1000000) return `${(views / 1000000).toFixed(1)}M`;
-    if (views >= 1000) return `${(views / 1000).toFixed(1)}K`;
-    return views.toString();
-  };
+  // formatDuration and formatViewsShort imported from @/lib/formatters
 
   const handleVideoClick = (video: VideoItem) => {
     if (onVideoSelect) {
@@ -163,7 +152,7 @@ export function UpNextSidebar({ onVideoSelect }: UpNextSidebarProps) {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <ListMusic className="h-5 w-5 text-primary" />
-            <span className="font-semibold text-foreground">Up Next</span>
+            <span className="font-semibold text-foreground">Tiếp theo</span>
             {!playlistInfo && (
               <span className="text-sm text-muted-foreground">
                 ({session.current_index + 1}/{queueLength})
@@ -196,7 +185,7 @@ export function UpNextSidebar({ onVideoSelect }: UpNextSidebarProps) {
 
         {/* Autoplay toggle */}
         <div className="flex items-center justify-between">
-          <span className="text-sm text-muted-foreground">Autoplay</span>
+          <span className="text-sm text-muted-foreground">Tự động phát</span>
           <Switch
             checked={isAutoplayEnabled}
             onCheckedChange={setAutoplay}
@@ -208,7 +197,7 @@ export function UpNextSidebar({ onVideoSelect }: UpNextSidebarProps) {
       {currentVideo && (
         <div className="bg-gradient-to-r from-primary/10 to-primary/5 rounded-xl p-3 border border-primary/20">
           <span className="text-xs font-medium text-primary mb-2 block">
-            Now Playing
+            Đang phát
           </span>
           <div className="flex gap-3">
             <div className="relative w-24 aspect-video rounded-lg overflow-hidden bg-muted flex-shrink-0">
@@ -289,7 +278,7 @@ export function UpNextSidebar({ onVideoSelect }: UpNextSidebarProps) {
                   {video.channel_name}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {formatViews(video.view_count)} views
+                  {formatViewsShort(video.view_count)} lượt xem
                 </p>
               </div>
 
@@ -312,7 +301,7 @@ export function UpNextSidebar({ onVideoSelect }: UpNextSidebarProps) {
         {upNextVideos.length === 0 && (
           <div className="text-center py-8 text-muted-foreground">
             <ListMusic className="h-12 w-12 mx-auto mb-3 opacity-50" />
-            <p className="text-sm">No more videos in queue</p>
+            <p className="text-sm">Không còn video trong hàng đợi</p>
           </div>
         )}
       </ScrollArea>
@@ -320,7 +309,7 @@ export function UpNextSidebar({ onVideoSelect }: UpNextSidebarProps) {
       {/* Queue info */}
       {session.history.length > 1 && (
         <div className="text-xs text-center text-muted-foreground">
-          {session.history.length} videos played this session
+          {session.history.length} video đã phát trong phiên này
         </div>
       )}
     </div>
