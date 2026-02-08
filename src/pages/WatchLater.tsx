@@ -116,7 +116,22 @@ const WatchLater = () => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-medium line-clamp-2 group-hover:text-primary transition-colors">{item.video.title}</h3>
-                  <p className="text-sm text-muted-foreground mt-1">{item.video.channels?.name || 'Kênh chưa xác định'}</p>
+                  <p
+                    className="text-sm text-muted-foreground mt-1 cursor-pointer hover:text-foreground transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (item.video.channels?.id) navigate(`/channel/${item.video.channels.id}`);
+                    }}
+                  >
+                    <span className="flex items-center gap-1">
+                      {item.video.channels?.name || 'Kênh chưa xác định'}
+                      {item.video.channels?.is_verified && (
+                        <svg className="w-3.5 h-3.5 text-muted-foreground shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                        </svg>
+                      )}
+                    </span>
+                  </p>
                   <p className="text-xs text-muted-foreground">{formatViews(item.video.view_count)}</p>
                 </div>
                 {/* Kebab menu */}

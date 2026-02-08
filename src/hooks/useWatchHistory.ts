@@ -21,6 +21,7 @@ interface WatchHistoryVideo {
     channels: {
       id: string;
       name: string;
+      is_verified?: boolean;
     };
   };
 }
@@ -60,7 +61,8 @@ export const useWatchHistory = () => {
             created_at,
             channels (
               id,
-              name
+              name,
+              is_verified
             )
           )
         `)

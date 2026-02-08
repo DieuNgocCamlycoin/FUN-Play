@@ -18,6 +18,7 @@ interface WatchLaterVideo {
     channels: {
       id: string;
       name: string;
+      is_verified?: boolean;
     };
   };
 }
@@ -54,7 +55,8 @@ export const useWatchLater = () => {
             created_at,
             channels (
               id,
-              name
+              name,
+              is_verified
             )
           )
         `)

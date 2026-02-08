@@ -24,6 +24,7 @@ interface ProfileInfoProps {
   channel: {
     id: string;
     subscriber_count: number;
+    is_verified?: boolean;
   } | null;
   isOwnProfile: boolean;
   isSubscribed: boolean;
@@ -87,9 +88,16 @@ export const ProfileInfo = ({
         {/* Left: Name + Info */}
         <div className="flex-1 pl-36 md:pl-44 lg:pl-52">
           {/* Display Name with Rainbow Gradient */}
-          <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-[#FF0000] via-[#FF7F00] via-[#FFFF00] via-[#00FF00] via-[#0000FF] via-[#4B0082] to-[#9400D3] bg-clip-text text-transparent mb-1 animate-rainbow-shift bg-[length:200%_auto]">
-            {displayName}
-          </h1>
+          <div className="flex items-center gap-2 mb-1">
+            <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-[#FF0000] via-[#FF7F00] via-[#FFFF00] via-[#00FF00] via-[#0000FF] via-[#4B0082] to-[#9400D3] bg-clip-text text-transparent animate-rainbow-shift bg-[length:200%_auto]">
+              {displayName}
+            </h1>
+            {channel?.is_verified && (
+              <svg className="w-5 h-5 md:w-6 md:h-6 text-muted-foreground shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+              </svg>
+            )}
+          </div>
 
           {/* Username + Stats */}
           <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground mb-2">
