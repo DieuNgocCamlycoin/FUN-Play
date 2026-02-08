@@ -1,44 +1,37 @@
 
 
-# Thay Logo Camly Coin Bang Hinh Moi
+# Chuyen Angel AI Logo Thanh Link Ngoai - Bo Hop Chat
 
 ## Tong Quan
 
-Con muon thay logo Camly Coin bang hinh moi (dong xu vang voi vien cau vong sang hon). Cha se thay the o tat ca noi hien thi logo Camly Coin, bao gom trang WALLET va tren mobile.
+Khi bam vao logo Angel AI (tren desktop va mobile), thay vi mo hop chat, se chuyen huong den trang web `https://angel.fun.rich` trong tab moi. Dong thoi bo component AngelChat khoi Header va MobileHeader.
 
 ## Chi Tiet Thay Doi
 
-### Thay 3 File Hinh Camly Coin
+### 1. Header Desktop (`src/components/Layout/Header.tsx`)
 
-Copy hinh `user-uploads://Logo.png` de thay the 3 file hinh:
+- **Doi `onClick`**: Tu `() => setAngelChatOpen(true)` thanh `() => window.open("https://angel.fun.rich", "_blank")`
+- **Bo state**: Xoa `angelChatOpen` state va `setAngelChatOpen`
+- **Bo import**: Xoa import `AngelChat` tu `@/components/Mascot/AngelChat`
+- **Bo component**: Xoa dong `<AngelChat isOpen={angelChatOpen} onClose={() => setAngelChatOpen(false)} />`
+- **Cap nhat tooltip**: Tu "Chat voi ANGEL AI" thanh "ANGEL AI" (vi khong con la chat nua)
 
-| File | Noi su dung |
-|------|-------------|
-| `public/images/camly-coin.png` | Trang WALLET (logo ben canh "CAMLY Token"), popup donate, bounty, notifications, token config |
-| `src/assets/camly-coin-logo.png` | SendToFunWalletModal (gui CAMLY den FUN Wallet) |
-| `src/assets/camly-coin-rainbow.png` | CAMLYPriceCard component |
+### 2. Header Mobile (`src/components/Layout/MobileHeader.tsx`)
 
-### Khong Can Thay Doi Code Hay Database
+- **Doi `onClick`**: Tu `() => setAngelChatOpen(true)` thanh `() => window.open("https://angel.fun.rich", "_blank")`
+- **Bo state**: Xoa `angelChatOpen` state va `setAngelChatOpen`
+- **Bo import**: Xoa import `AngelChat` tu `@/components/Mascot/AngelChat`
+- **Bo component**: Xoa dong `<AngelChat isOpen={angelChatOpen} onClose={...} />`
 
-- Trang WALLET: `CAMLYPriceSection.tsx` dong 77 da dung `src="/images/camly-coin.png"` - chi can thay file
-- `CAMLYPriceCard.tsx` dong 8 da import `camly-coin-rainbow.png` - chi can thay file
-- Database `donate_tokens` cho CAMLY da tro den `/images/camly-coin.png` - chi can thay file
-- Mobile tu dong cap nhat vi cung dung cac file nay
+### 3. Khong Can Xoa File
 
-### Noi Logo Moi Se Hien Thi
+Cac file AngelChat, AngelMascot, MobileAngelMascot van giu lai trong codebase vi chung co the duoc su dung trong tuong lai. Chi bo chung ra khoi Header va MobileHeader.
 
-- Trang WALLET: logo ben canh chu "CAMLY Token" va bieu do gia
-- Popup "Thuong & Tang" (phan chon token CAMLY)
-- CAMLYPriceCard component
-- SendToFunWalletModal component
-- Token config (MultiTokenWallet)
-- Rich Notification, Push Notifications, Bounty page
+## Tong Ket
 
-### Thu Tu Thuc Hien
+| File | Thay doi |
+|------|----------|
+| `src/components/Layout/Header.tsx` | Doi onClick thanh link ngoai, bo AngelChat import/state/component |
+| `src/components/Layout/MobileHeader.tsx` | Doi onClick thanh link ngoai, bo AngelChat import/state/component |
 
-1. Copy hinh moi vao `public/images/camly-coin.png`
-2. Copy hinh moi vao `src/assets/camly-coin-logo.png`
-3. Copy hinh moi vao `src/assets/camly-coin-rainbow.png`
-
-Tong cong: 3 file thay the, 0 file code can sua.
-
+Tong cong: 2 file can sua, 0 file moi, 0 thay doi database.
