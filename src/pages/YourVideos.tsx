@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { MoreVertical, Edit, Trash2, EyeOff, Video, Globe, Lock } from "lucide-react";
+import { MoreVertical, Edit, Trash2, EyeOff, Video, Globe, Lock, Zap, Radio, FileText, ListVideo, Podcast, Megaphone } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -22,23 +22,46 @@ interface VideoItem {
   like_count: number | null; comment_count: number | null;
 }
 
+type ContentTab = "video" | "shorts" | "live" | "posts" | "playlists" | "podcast" | "promo";
+
+const TABS: { key: ContentTab; label: string; icon: React.ElementType }[] = [
+  { key: "video", label: "Video", icon: Video },
+  { key: "shorts", label: "Shorts", icon: Zap },
+  { key: "live", label: "Sự kiện phát trực tiếp", icon: Radio },
+  { key: "posts", label: "Bài đăng", icon: FileText },
+  { key: "playlists", label: "Danh sách phát", icon: ListVideo },
+  { key: "podcast", label: "Podcast", icon: Podcast },
+  { key: "promo", label: "Quảng bá", icon: Megaphone },
+];
+
 const YourVideos = () => {
   const [videos, setVideos] = useState<VideoItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteVideoId, setDeleteVideoId] = useState<string | null>(null);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<ContentTab>("video");
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
 
-  useEffect(() => { if (!user) { navigate("/auth"); return; } fetchVideos(); }, [user, navigate]);
+  useEffect(() => { if (!user) { navigate("/auth"); return; } if (activeTab === "video" || activeTab === "shorts") fetchVideos(); }, [user, navigate, activeTab]);
 
   const fetchVideos = async () => {
+    setLoading(true);
     try {
-      const { data, error } = await supabase.from("videos")
-        .select("id, title, description, thumbnail_url, view_count, created_at, is_public, like_count, comment_count")
-        .eq("user_id", user?.id).order("created_at", { ascending: false });
+      let query = supabase.from("videos")
+        .select("id, title, description, thumbnail_url, view_count, created_at, is_public, like_count, comment_count, duration")
+        .eq("user_id", user?.id)
+        .order("created_at", { ascending: false });
+
+      if (activeTab === "video") {
+        query = query.or("duration.gt.180,duration.is.null");
+      } else if (activeTab === "shorts") {
+        query = query.lte("duration", 180);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       setVideos(data || []);
     } catch (error: any) { console.error("Error fetching videos:", error); toast({ title: "Lỗi", description: "Không thể tải video", variant: "destructive" }); }
@@ -63,22 +86,50 @@ const YourVideos = () => {
       <div className="max-w-[1800px] mx-auto p-6">
         <div className="mb-6">
           <h1 className="text-3xl font-semibold mb-2">Nội dung của kênh</h1>
-          <div className="flex gap-4 border-b border-border">
-            <button className="px-4 py-3 border-b-2 border-primary font-medium">Video</button>
-            <button className="px-4 py-3 text-muted-foreground hover:text-foreground">Shorts</button>
-            <button className="px-4 py-3 text-muted-foreground hover:text-foreground">Sự kiện phát trực tiếp</button>
-            <button className="px-4 py-3 text-muted-foreground hover:text-foreground">Bài đăng</button>
-            <button className="px-4 py-3 text-muted-foreground hover:text-foreground">Danh sách phát</button>
-            <button className="px-4 py-3 text-muted-foreground hover:text-foreground">Podcast</button>
-            <button className="px-4 py-3 text-muted-foreground hover:text-foreground">Quảng bá</button>
+          <div className="flex gap-4 border-b border-border overflow-x-auto scrollbar-hide">
+            {TABS.map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`px-4 py-3 whitespace-nowrap transition-colors ${
+                  activeTab === tab.key
+                    ? "border-b-2 border-primary font-medium"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
         </div>
 
-        {videos.length === 0 ? (
+        {activeTab !== "video" && activeTab !== "shorts" ? (
+          <div className="text-center py-16 bg-card rounded-lg border border-border">
+            {(() => {
+              const tab = TABS.find(t => t.key === activeTab);
+              const TabIcon = tab?.icon || Video;
+              return (
+                <>
+                  <TabIcon className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-muted-foreground mb-2 text-lg">{tab?.label}</p>
+                  <p className="text-sm text-muted-foreground">Sắp có</p>
+                </>
+              );
+            })()}
+          </div>
+        ) : videos.length === 0 ? (
           <div className="text-center py-12 bg-card rounded-lg border border-border">
-            <Video className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-            <p className="text-muted-foreground mb-4 text-lg">Bạn chưa có video nào</p>
-            <Button onClick={() => setUploadModalOpen(true)} size="lg">Tải video đầu tiên</Button>
+            {activeTab === "shorts" ? (
+              <Zap className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+            ) : (
+              <Video className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+            )}
+            <p className="text-muted-foreground mb-4 text-lg">
+              {activeTab === "shorts" ? "Bạn chưa có Shorts nào" : "Bạn chưa có video nào"}
+            </p>
+            <Button onClick={() => setUploadModalOpen(true)} size="lg">
+              {activeTab === "shorts" ? "Tải Shorts đầu tiên" : "Tải video đầu tiên"}
+            </Button>
           </div>
         ) : (
           <div className="bg-card border border-border rounded-lg overflow-hidden">
@@ -86,7 +137,7 @@ const YourVideos = () => {
               <TableHeader>
                 <TableRow className="bg-muted/50">
                   <TableHead className="w-12"><input type="checkbox" className="rounded border-border" /></TableHead>
-                  <TableHead className="w-[400px]">Video</TableHead>
+                  <TableHead className="w-[400px]">{activeTab === "shorts" ? "Shorts" : "Video"}</TableHead>
                   <TableHead className="text-center">Chế độ hiển thị</TableHead>
                   <TableHead className="text-center">Hạn chế</TableHead>
                   <TableHead className="text-center">Ngày</TableHead>

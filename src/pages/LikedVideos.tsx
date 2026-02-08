@@ -65,7 +65,8 @@ const LikedVideos = () => {
           channels (name, id)
         `)
         .in("id", videoIds)
-        .eq("is_public", true);
+        .eq("is_public", true)
+        .eq("approval_status", "approved");
 
       if (videosError) throw videosError;
 

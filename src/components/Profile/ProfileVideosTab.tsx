@@ -39,6 +39,7 @@ export const ProfileVideosTab = ({ userId, channelId, type }: ProfileVideosTabPr
         .from("videos")
         .select("id, title, thumbnail_url, video_url, view_count, created_at, duration, user_id, channel_id, channels(name, id)")
         .eq("is_public", true)
+        .eq("approval_status", "approved")
         .order("created_at", { ascending: false });
 
       // Filter by channel or user
