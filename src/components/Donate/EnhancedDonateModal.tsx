@@ -262,8 +262,7 @@ export const EnhancedDonateModal = ({
     <Dialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen) handleClose(); }}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-lg">
-            <Gift className="h-5 w-5 text-amber-500" />
+        <DialogTitle className="flex items-center gap-2 text-lg">
             {showSuccess ? "🎉 Tặng Thành Công!" : "🎁 Thưởng & Tặng"}
           </DialogTitle>
         </DialogHeader>
