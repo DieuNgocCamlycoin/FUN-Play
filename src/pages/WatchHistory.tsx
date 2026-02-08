@@ -1,5 +1,8 @@
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { History, Play, Trash2, ArrowLeft, AlertCircle } from 'lucide-react';
+import { History, Play, Trash2, ArrowLeft, AlertCircle, Search, X } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { useToast } from '@/hooks/use-toast';
 import { MainLayout } from '@/components/Layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import {
@@ -19,6 +22,8 @@ import { VideoPlaceholder } from '@/components/Video/VideoPlaceholder';
 const WatchHistory = () => {
   const { watchHistory, loading, removeFromHistory, clearAllHistory } = useWatchHistory();
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const [searchQuery, setSearchQuery] = useState('');
 
   const formatDuration = (seconds: number | null) => {
     if (!seconds) return '0:00';
@@ -59,8 +64,18 @@ const WatchHistory = () => {
     return Math.min((position / duration) * 100, 100);
   };
 
+  // Filter by search query
+  const filteredHistory = useMemo(() => {
+    if (!searchQuery.trim()) return watchHistory;
+    const q = searchQuery.toLowerCase();
+    return watchHistory.filter(item =>
+      item.video.title.toLowerCase().includes(q) ||
+      (item.video.channels?.name || '').toLowerCase().includes(q)
+    );
+  }, [watchHistory, searchQuery]);
+
   // Group by date
-  const groupedHistory = watchHistory.reduce((groups, item) => {
+  const groupedHistory = filteredHistory.reduce((groups, item) => {
     const date = new Date(item.watched_at);
     const today = new Date();
     const yesterday = new Date(today);
@@ -138,7 +153,12 @@ const WatchHistory = () => {
                   <AlertDialogFooter>
                     <AlertDialogCancel>Hủy</AlertDialogCancel>
                     <AlertDialogAction
-                      onClick={clearAllHistory}
+                      onClick={async () => {
+                        const success = await clearAllHistory();
+                        if (success) {
+                          toast({ title: 'Đã xóa toàn bộ lịch sử', description: 'Lịch sử xem video đã được xóa thành công' });
+                        }
+                      }}
                       className="bg-destructive hover:bg-destructive/90"
                     >
                       Xóa tất cả
@@ -146,6 +166,27 @@ const WatchHistory = () => {
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
+            )}
+          </div>
+
+          {/* Search bar */}
+          <div className="relative mb-6">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Tìm trong lịch sử xem..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 pr-10"
+            />
+            {searchQuery && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                onClick={() => setSearchQuery('')}
+              >
+                <X className="h-4 w-4" />
+              </Button>
             )}
           </div>
 

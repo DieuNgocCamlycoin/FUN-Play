@@ -14,6 +14,7 @@ interface Video {
   thumbnail_url: string | null;
   video_url: string;
   view_count: number | null;
+  duration: number | null;
   created_at: string;
   user_id: string;
   channels: {
@@ -185,6 +186,7 @@ const LikedVideos = () => {
                 timestamp={video.created_at}
                 userId={video.user_id}
                 avatarUrl={video.profiles?.avatar_url || undefined}
+                duration={video.duration}
               />
             ))}
           </div>

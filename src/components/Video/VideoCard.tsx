@@ -11,6 +11,7 @@ import { AddToPlaylistModal } from "@/components/Playlist/AddToPlaylistModal";
 import { WatchLaterButton } from "./WatchLaterButton";
 import { LazyImage } from "@/components/ui/LazyImage";
 import { useHapticFeedback } from "@/hooks/useHapticFeedback";
+import { useWatchLater } from "@/hooks/useWatchLater";
 import { VideoPlaceholder } from "./VideoPlaceholder";
 import {
   DropdownMenu,
@@ -65,6 +66,7 @@ export const VideoCard = ({
   const { user } = useAuth();
   const { toast } = useToast();
   const { lightTap } = useHapticFeedback();
+  const { toggleWatchLater } = useWatchLater();
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [playlistModalOpen, setPlaylistModalOpen] = useState(false);
   const isOwner = user?.id === userId;
@@ -240,7 +242,7 @@ export const VideoCard = ({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52">
             {videoId && (
-              <DropdownMenuItem onClick={() => { lightTap(); /* WatchLater handled by button */ }}>
+              <DropdownMenuItem onClick={() => { lightTap(); if (videoId) toggleWatchLater(videoId); }}>
                 <Clock className="mr-2 h-4 w-4" />
                 Xem sau
               </DropdownMenuItem>
