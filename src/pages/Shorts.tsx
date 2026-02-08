@@ -309,16 +309,33 @@ const ShortsVideoItem = ({
       <div className="absolute left-0 right-16 bottom-20 p-4">
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <button onClick={goToChannel} className="flex items-center gap-2">
-              <span className="text-white font-bold text-base">
-                {video.channel?.name || `@${video.profile?.username || 'user'}`}
-              </span>
-              {video.channel?.is_verified && (
-                <svg className="w-4 h-4 text-white/80 shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-                </svg>
-              )}
+            <button onClick={goToChannel} className="shrink-0">
+              <Avatar className="w-8 h-8 border border-white/30">
+                <AvatarImage src={video.profile?.avatar_url || undefined} alt={video.channel?.name || video.profile?.username} />
+                <AvatarFallback className="bg-white/20 text-white text-xs">
+                  {(video.channel?.name || video.profile?.username)?.[0]?.toUpperCase() || '?'}
+                </AvatarFallback>
+              </Avatar>
             </button>
+            <div className="flex flex-col min-w-0">
+              <div className="flex items-center gap-1.5">
+                <button onClick={goToChannel} className="flex items-center gap-1.5">
+                  <span className="text-white font-bold text-base truncate">
+                    {video.channel?.name || `@${video.profile?.username || 'user'}`}
+                  </span>
+                  {video.channel?.is_verified && (
+                    <svg className="w-4 h-4 text-white/80 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+              {video.channel?.name && video.profile?.username && (
+                <button onClick={goToChannel} className="text-white/60 text-xs text-left truncate">
+                  @{video.profile.username}
+                </button>
+              )}
+            </div>
             {/* Subscribe button */}
             <button
               onClick={(e) => {

@@ -22,6 +22,7 @@ interface Video {
   channels: {
     name: string;
     id: string;
+    is_verified?: boolean;
   };
   profiles: {
     wallet_address: string | null;
@@ -62,7 +63,7 @@ const LikedVideos = () => {
         .from("videos")
         .select(`
           id, title, thumbnail_url, video_url, view_count, duration, created_at, user_id,
-          channels (name, id)
+          channels (name, id, is_verified)
         `)
         .in("id", videoIds)
         .eq("is_public", true)
@@ -234,6 +235,7 @@ const LikedVideos = () => {
                 userId={video.user_id}
                 avatarUrl={video.profiles?.avatar_url || undefined}
                 duration={video.duration}
+                isVerified={video.channels?.is_verified}
                 videoUrl={video.video_url}
               />
             ))}

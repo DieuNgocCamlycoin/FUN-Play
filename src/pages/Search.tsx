@@ -395,7 +395,7 @@ const Search = () => {
                       videoId={video.id}
                       thumbnail={video.thumbnail_url || undefined}
                       title={video.title}
-                      channel={video.profile?.display_name || video.profile?.username || "Ẩn danh"}
+                      channel={video.channels?.name || video.profile?.display_name || "Ẩn danh"}
                       views={formatViews(video.view_count)}
                       timestamp={timeAgo(video.created_at)}
                       userId={video.user_id}
