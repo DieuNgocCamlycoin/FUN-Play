@@ -87,7 +87,7 @@ export function MintRequestList({
               variant={filter === value ? "default" : "outline"}
               size="sm"
               onClick={() => setFilter(value)}
-              className="gap-1.5"
+              className="gap-1.5 whitespace-nowrap"
             >
               <Icon className="w-3 h-3" />
               {label}
