@@ -10,6 +10,7 @@ import { useHapticFeedback } from "@/hooks/useHapticFeedback";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { motion } from "framer-motion";
 import { EnhancedDonateModal } from "@/components/Donate/EnhancedDonateModal";
+import { formatViewsShort } from "@/lib/formatters";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -61,11 +62,7 @@ export function VideoActionsBar({
   const { lightTap, successFeedback } = useHapticFeedback();
   const [showLikeAnimation, setShowLikeAnimation] = useState(false);
 
-  const formatNumber = (num: number) => {
-    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
-    if (num >= 1000) return `${(num / 1000).toFixed(1)}N`;
-    return num.toString();
-  };
+  // formatViewsShort imported from @/lib/formatters
 
   const handleLike = () => {
     successFeedback();
@@ -130,7 +127,7 @@ export function VideoActionsBar({
               {channelName}
             </p>
             <p className="text-xs text-muted-foreground">
-              {formatNumber(subscriberCount)} người đăng ký
+              {formatViewsShort(subscriberCount)} người đăng ký
             </p>
           </div>
 
@@ -206,7 +203,7 @@ export function VideoActionsBar({
                       "h-5 w-5 transition-all duration-200", 
                       hasLiked && "fill-current scale-110"
                     )} />
-                    <span className="font-semibold">{formatNumber(likeCount)}</span>
+                    <span className="font-semibold">{formatViewsShort(likeCount)}</span>
                   </Button>
                 </motion.div>
               </TooltipTrigger>

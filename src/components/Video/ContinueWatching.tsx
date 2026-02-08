@@ -4,6 +4,7 @@ import { useWatchHistory } from '@/hooks/useWatchHistory';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { VideoPlaceholder } from './VideoPlaceholder';
+import { formatDuration } from '@/lib/formatters';
 
 export const ContinueWatching = () => {
   const { continueWatching, removeFromHistory } = useWatchHistory();
@@ -11,12 +12,7 @@ export const ContinueWatching = () => {
 
   if (continueWatching.length === 0) return null;
 
-  const formatDuration = (seconds: number | null) => {
-    if (!seconds) return '0:00';
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
+  // formatDuration imported from @/lib/formatters
 
   const getProgressPercentage = (position: number, duration: number | null) => {
     if (!duration || duration === 0) return 0;

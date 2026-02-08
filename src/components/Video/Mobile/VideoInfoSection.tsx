@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { DescriptionDrawer } from "./DescriptionDrawer";
+import { formatViewsShort, formatTimestamp } from "@/lib/formatters";
 
 interface VideoInfoSectionProps {
   title: string;
@@ -21,25 +22,7 @@ export function VideoInfoSection({
 }: VideoInfoSectionProps) {
   const [showDescriptionDrawer, setShowDescriptionDrawer] = useState(false);
 
-  const formatViews = (views: number) => {
-    if (views >= 1000000) return `${(views / 1000000).toFixed(1)}M`;
-    if (views >= 1000) return `${(views / 1000).toFixed(1)}N`;
-    return views.toString();
-  };
-
-  const formatTimestamp = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffDays === 0) return "Hôm nay";
-    if (diffDays === 1) return "1 ngày trước";
-    if (diffDays < 7) return `${diffDays} ngày trước`;
-    if (diffDays < 30) return `${Math.floor(diffDays / 7)} tuần trước`;
-    if (diffDays < 365) return `${Math.floor(diffDays / 30)} tháng trước`;
-    return `${Math.floor(diffDays / 365)} năm trước`;
-  };
+  // formatViewsShort and formatTimestamp imported from @/lib/formatters
 
   return (
     <>
@@ -54,7 +37,7 @@ export function VideoInfoSection({
           onClick={() => setShowDescriptionDrawer(true)}
           className="flex items-center gap-1 mt-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors w-full text-left"
         >
-          <span>{formatViews(viewCount)} lượt xem</span>
+          <span>{formatViewsShort(viewCount)} lượt xem</span>
           <span>•</span>
           <span>{formatTimestamp(createdAt)}</span>
           <span className="ml-1 text-foreground font-medium">...xem thêm</span>
