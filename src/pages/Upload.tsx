@@ -30,7 +30,7 @@ export default function Upload() {
   const [subCategory, setSubCategory] = useState<VideoSubCategory | "">("");
   const { user, loading } = useAuth();
   const { toast } = useToast();
-  const { awardFirstUploadReward, awardUploadReward } = useAutoReward();
+  const { awardFirstUploadReward, awardShortVideoUpload, awardLongVideoUpload } = useAutoReward();
   const navigate = useNavigate();
 
   if (loading) {
@@ -430,13 +430,30 @@ export default function Upload() {
       setUploadProgress(98);
       setUploadStage("Đang hoàn tất...");
 
-      // Award upload reward
+      // Award upload reward (duration-based)
       if (videoData?.id) {
-        // Try first upload reward (500K), if already rewarded, give regular upload reward (100K)
+        // Try first upload reward (500K)
         const firstUploadSuccess = await awardFirstUploadReward(user.id, videoData.id);
         if (!firstUploadSuccess) {
-          // Already got first upload reward, award regular upload reward
-          await awardUploadReward(videoData.id);
+          // Already got first upload reward, award duration-based reward
+          // Get video duration from file metadata
+          const videoDuration = await new Promise<number>((resolve) => {
+            const videoEl = document.createElement('video');
+            videoEl.preload = 'metadata';
+            videoEl.onloadedmetadata = () => {
+              resolve(videoEl.duration);
+              URL.revokeObjectURL(videoEl.src);
+            };
+            videoEl.onerror = () => resolve(0);
+            videoEl.src = URL.createObjectURL(videoFile!);
+          });
+          
+          const SHORT_VIDEO_MAX_DURATION = 180; // 3 minutes
+          if (videoDuration > 0 && videoDuration < SHORT_VIDEO_MAX_DURATION) {
+            await awardShortVideoUpload(videoData.id);
+          } else {
+            await awardLongVideoUpload(videoData.id);
+          }
         }
       }
 

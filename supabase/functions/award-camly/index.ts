@@ -470,10 +470,10 @@ serve(async (req) => {
       updateFields.view_rewards_earned = (limits?.view_rewards_earned || 0) + amount;
     } else if (type === "LIKE") {
       updateFields.like_count = currentLikeCount + 1;
-      updateFields.view_rewards_earned = (limits?.view_rewards_earned || 0) + amount;
+      updateFields.like_rewards_earned = (limits?.like_rewards_earned || 0) + amount;
     } else if (type === "SHARE") {
       updateFields.share_count = currentShareCount + 1;
-      updateFields.view_rewards_earned = (limits?.view_rewards_earned || 0) + amount;
+      updateFields.share_rewards_earned = (limits?.share_rewards_earned || 0) + amount;
     } else if (type === "COMMENT") {
       updateFields.comment_count = currentCommentCount + 1;
       updateFields.comment_rewards_earned = (limits?.comment_rewards_earned || 0) + amount;

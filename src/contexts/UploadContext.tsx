@@ -260,6 +260,41 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
           videoId: videoData.id,
         });
 
+        // Award upload reward (mobile background upload)
+        try {
+          // Check first upload reward (500K)
+          const { data: profileData } = await supabase
+            .from("profiles")
+            .select("first_upload_rewarded")
+            .eq("id", user.id)
+            .single();
+
+          if (!profileData?.first_upload_rewarded) {
+            // First upload ever - award 500K CAMLY
+            const { data: firstResult } = await supabase.functions.invoke("award-camly", {
+              body: { type: "FIRST_UPLOAD", videoId: videoData.id },
+            });
+            if (firstResult?.success) {
+              await supabase
+                .from("profiles")
+                .update({ first_upload_rewarded: true })
+                .eq("id", user.id);
+            }
+          }
+
+          // Award duration-based upload reward
+          const SHORT_VIDEO_MAX_DURATION = 180; // 3 minutes
+          const uploadType = metadata.duration < SHORT_VIDEO_MAX_DURATION
+            ? "SHORT_VIDEO_UPLOAD"
+            : "LONG_VIDEO_UPLOAD";
+          
+          await supabase.functions.invoke("award-camly", {
+            body: { type: uploadType, videoId: videoData.id },
+          });
+        } catch (rewardError) {
+          console.error("Upload reward error (non-blocking):", rewardError);
+        }
+
         toast({
           title: "Tải lên thành công! 🎉",
           description: `Video "${metadata.title}" đã sẵn sàng.`,
