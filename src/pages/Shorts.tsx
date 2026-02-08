@@ -35,6 +35,7 @@ interface ShortVideo {
     id: string;
     name: string;
     user_id: string;
+    is_verified: boolean;
   };
   profile?: {
     avatar_url: string | null;
@@ -310,8 +311,13 @@ const ShortsVideoItem = ({
           <div className="flex items-center gap-2">
             <button onClick={goToChannel} className="flex items-center gap-2">
               <span className="text-white font-bold text-base">
-                @{video.profile?.username || 'user'}
+                {video.channel?.name || `@${video.profile?.username || 'user'}`}
               </span>
+              {video.channel?.is_verified && (
+                <svg className="w-4 h-4 text-white/80 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                </svg>
+              )}
             </button>
             {/* Subscribe button */}
             <button
@@ -372,7 +378,8 @@ export default function Shorts() {
         .from('videos')
         .select(`
           id, title, video_url, thumbnail_url, view_count, like_count, comment_count,
-          channel_id, user_id, duration
+          channel_id, user_id, duration,
+          channels(id, name, is_verified)
         `)
         .eq('is_public', true)
         .eq('approval_status', 'approved')
@@ -393,6 +400,7 @@ export default function Shorts() {
 
       return (data || []).map(video => ({
         ...video,
+        channel: video.channels ? { id: (video.channels as any).id, name: (video.channels as any).name, user_id: video.user_id, is_verified: (video.channels as any).is_verified } : undefined,
         profile: profileMap.get(video.user_id)
       })) as ShortVideo[];
     }

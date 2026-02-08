@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { formatViews, formatTimestamp } from "@/lib/formatters";
+import { formatViews, formatTimestamp, formatDuration } from "@/lib/formatters";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { MainLayout } from "@/components/Layout/MainLayout";
@@ -358,9 +358,7 @@ const Search = () => {
                         )}
                         {video.duration && video.duration > 0 && (
                           <span className="absolute bottom-1.5 right-1.5 bg-black/80 text-white text-xs font-medium px-1.5 py-0.5 rounded z-20">
-                            {video.duration >= 3600
-                              ? `${Math.floor(video.duration / 3600)}:${Math.floor((video.duration % 3600) / 60).toString().padStart(2, "0")}:${(video.duration % 60).toString().padStart(2, "0")}`
-                              : `${Math.floor(video.duration / 60)}:${(video.duration % 60).toString().padStart(2, "0")}`}
+                            {formatDuration(video.duration)}
                           </span>
                         )}
                       </div>
@@ -377,7 +375,7 @@ const Search = () => {
                             <img src={video.profile.avatar_url} alt="" className="w-6 h-6 rounded-full object-cover" />
                           )}
                           <span className="text-sm text-muted-foreground">
-                            {video.profile?.display_name || video.profile?.username || "Ẩn danh"}
+                            {video.channels?.name || video.profile?.display_name || "Ẩn danh"}
                           </span>
                           {video.channels?.is_verified && (
                             <svg className="w-3.5 h-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="currentColor">

@@ -261,6 +261,7 @@ export default function Watch() {
           )
         `)
         .eq("is_public", true)
+        .eq("approval_status", "approved")
         .neq("id", id)
         .order("created_at", { ascending: false })
         .limit(20);
