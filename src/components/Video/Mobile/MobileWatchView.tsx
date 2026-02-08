@@ -26,6 +26,7 @@ interface Video {
     id: string;
     name: string;
     subscriber_count: number;
+    is_verified?: boolean;
   };
 }
 
@@ -174,6 +175,7 @@ export function MobileWatchView({
           videoUrl={video.video_url}
           videoTitle={video.title}
           videoId={video.id}
+          isVerified={video.channels.is_verified}
         />
 
         {/* Comments Card */}

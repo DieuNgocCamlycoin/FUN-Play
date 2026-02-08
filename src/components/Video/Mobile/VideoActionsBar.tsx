@@ -35,6 +35,7 @@ interface VideoActionsBarProps {
   videoUrl: string;
   videoTitle: string;
   videoId: string;
+  isVerified?: boolean;
 }
 
 export function VideoActionsBar({
@@ -53,6 +54,7 @@ export function VideoActionsBar({
   videoUrl,
   videoTitle,
   videoId,
+  isVerified,
 }: VideoActionsBarProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -123,9 +125,16 @@ export function VideoActionsBar({
             className="flex-1 min-w-0 cursor-pointer"
             onClick={() => navigate(`/channel/${channelId}`)}
           >
-            <p className="text-sm font-semibold text-foreground truncate">
-              {channelName}
-            </p>
+            <span className="flex items-center gap-1">
+              <p className="text-sm font-semibold text-foreground truncate">
+                {channelName}
+              </p>
+              {isVerified && (
+                <svg className="w-4 h-4 text-muted-foreground shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                </svg>
+              )}
+            </span>
             <p className="text-xs text-muted-foreground">
               {formatViewsShort(subscriberCount)} người đăng ký
             </p>
