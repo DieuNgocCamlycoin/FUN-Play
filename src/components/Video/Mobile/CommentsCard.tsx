@@ -1,5 +1,6 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ChevronRight } from "lucide-react";
+import { formatViewsShort } from "@/lib/formatters";
 
 interface LatestCommentPreview {
   profiles: {
@@ -25,7 +26,7 @@ export function CommentsCard({ commentCount, latestComment, onClick }: CommentsC
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-foreground">Bình luận</span>
-          <span className="text-sm text-muted-foreground">{commentCount}</span>
+          <span className="text-sm text-muted-foreground">{formatViewsShort(commentCount)}</span>
         </div>
         <ChevronRight className="h-5 w-5 text-muted-foreground" />
       </div>

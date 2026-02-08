@@ -4,6 +4,7 @@ import { CommentSortDropdown } from "./CommentSortDropdown";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MessageCircle } from "lucide-react";
 import type { VideoComment, SortType } from "@/hooks/useVideoComments";
+import { formatViewsShort } from "@/lib/formatters";
 import { useVideoComments } from "@/hooks/useVideoComments";
 import { motion } from "framer-motion";
 
@@ -102,7 +103,7 @@ export function VideoCommentList(props: VideoCommentListProps) {
       {/* Header with count and sort */}
       <div className="flex items-center gap-3">
         <h2 className="text-xl font-semibold text-foreground">
-          {totalCount} bình luận
+          {formatViewsShort(totalCount)} bình luận
         </h2>
         {onSortChange && (
           <CommentSortDropdown

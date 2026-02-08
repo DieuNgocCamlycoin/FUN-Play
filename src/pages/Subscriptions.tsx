@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { VideoCard } from '@/components/Video/VideoCard';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { formatViews, formatTimestamp } from '@/lib/formatters';
+import { formatViews, formatViewsShort, formatTimestamp } from '@/lib/formatters';
 import { useToast } from '@/hooks/use-toast';
 import {
   DropdownMenu,
@@ -173,7 +173,7 @@ const Subscriptions = () => {
                           </svg>
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground">{sub.channel.subscriber_count || 0} người đăng ký</p>
+                      <p className="text-xs text-muted-foreground">{formatViewsShort(sub.channel.subscriber_count)} người đăng ký</p>
                     </div>
                   </div>
                   <DropdownMenu>
