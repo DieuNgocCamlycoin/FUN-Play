@@ -1,29 +1,32 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Clock, Play, Trash2, ArrowLeft } from 'lucide-react';
+import { Clock, Play, ArrowLeft, MoreVertical, Share2, Bookmark, Trash2 } from 'lucide-react';
 import { MainLayout } from '@/components/Layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { useWatchLater } from '@/hooks/useWatchLater';
 import { useVideoPlayback } from '@/contexts/VideoPlaybackContext';
 import { VideoPlaceholder } from '@/components/Video/VideoPlaceholder';
+import { ShareModal } from '@/components/Video/ShareModal';
+import { AddToPlaylistModal } from '@/components/Playlist/AddToPlaylistModal';
+import { useAuth } from '@/hooks/useAuth';
+import { formatDuration, formatViews } from '@/lib/formatters';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 const WatchLater = () => {
   const { watchLaterList, loading, removeFromWatchLater } = useWatchLater();
   const { createSession } = useVideoPlayback();
   const navigate = useNavigate();
-
-  const formatDuration = (seconds: number | null) => {
-    if (!seconds) return '0:00';
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const formatViews = (views: number | null) => {
-    if (!views) return '0 lượt xem';
-    if (views >= 1000000) return `${(views / 1000000).toFixed(1)}M lượt xem`;
-    if (views >= 1000) return `${(views / 1000).toFixed(1)}K lượt xem`;
-    return `${views} lượt xem`;
-  };
+  const { user } = useAuth();
+  const [shareVideoId, setShareVideoId] = useState<string | null>(null);
+  const [shareVideoTitle, setShareVideoTitle] = useState('');
+  const [playlistVideoId, setPlaylistVideoId] = useState<string | null>(null);
+  const [playlistVideoTitle, setPlaylistVideoTitle] = useState('');
 
   const handlePlayAll = async () => {
     if (watchLaterList.length === 0) return;
@@ -116,19 +119,67 @@ const WatchLater = () => {
                   <p className="text-sm text-muted-foreground mt-1">{item.video.channels?.name || 'Unknown Channel'}</p>
                   <p className="text-xs text-muted-foreground">{formatViews(item.video.view_count)}</p>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={(e) => { e.stopPropagation(); removeFromWatchLater(item.video_id); }}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
+                {/* Kebab menu */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <MoreVertical className="w-4 h-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-52">
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); removeFromWatchLater(item.video_id); }}>
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Xóa khỏi danh sách
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => {
+                      e.stopPropagation();
+                      setPlaylistVideoId(item.video.id);
+                      setPlaylistVideoTitle(item.video.title);
+                    }}>
+                      <Bookmark className="mr-2 h-4 w-4" />
+                      Lưu vào danh sách phát
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={(e) => {
+                      e.stopPropagation();
+                      setShareVideoId(item.video.id);
+                      setShareVideoTitle(item.video.title);
+                    }}>
+                      <Share2 className="mr-2 h-4 w-4" />
+                      Chia sẻ
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {/* Share Modal */}
+      <ShareModal
+        isOpen={!!shareVideoId}
+        onClose={() => setShareVideoId(null)}
+        contentType="video"
+        contentId={shareVideoId || ''}
+        contentTitle={shareVideoTitle}
+        userId={user?.id}
+      />
+
+      {/* Add to Playlist Modal */}
+      {playlistVideoId && (
+        <AddToPlaylistModal
+          open={!!playlistVideoId}
+          onOpenChange={(open) => { if (!open) setPlaylistVideoId(null); }}
+          videoId={playlistVideoId}
+          videoTitle={playlistVideoTitle}
+        />
+      )}
     </MainLayout>
   );
 };

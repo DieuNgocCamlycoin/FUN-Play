@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { formatDuration, formatViews } from "@/lib/formatters";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, MoreVertical, Globe, Lock, Eye, Play, FileText, List, Radio } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -92,18 +93,7 @@ const YourVideosMobile = () => {
     return true;
   });
 
-  const formatDuration = (seconds: number | null) => {
-    if (!seconds) return "";
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
-
-  const formatViews = (count: number) => {
-    if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`;
-    if (count >= 1000) return `${(count / 1000).toFixed(1)}K`;
-    return count.toString();
-  };
+  // formatDuration and formatViews imported from @/lib/formatters
 
   if (authLoading) {
     return (
@@ -259,7 +249,7 @@ const YourVideosMobile = () => {
                       )}
                       <span>{video.is_public ? "Công khai" : "Riêng tư"}</span>
                       <span>•</span>
-                      <span>{formatViews(video.view_count || 0)} lượt xem</span>
+                      <span>{formatViews(video.view_count)}</span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
                       {formatDistanceToNow(new Date(video.created_at), { addSuffix: true, locale: vi })}

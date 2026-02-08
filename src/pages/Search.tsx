@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { formatViews, formatTimestamp } from "@/lib/formatters";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { MainLayout } from "@/components/Layout/MainLayout";
@@ -166,23 +167,9 @@ const Search = () => {
     }
   };
 
-  const formatViews = (count: number | null) => {
-    if (!count) return "0 lượt xem";
-    if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M lượt xem`;
-    if (count >= 1000) return `${(count / 1000).toFixed(1)}K lượt xem`;
-    return `${count} lượt xem`;
-  };
+  // formatViews and formatTimestamp imported from @/lib/formatters
 
-  const timeAgo = (dateStr: string) => {
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const days = Math.floor(diff / 86400000);
-    if (days > 365) return `${Math.floor(days / 365)} năm trước`;
-    if (days > 30) return `${Math.floor(days / 30)} tháng trước`;
-    if (days > 0) return `${days} ngày trước`;
-    const hours = Math.floor(diff / 3600000);
-    if (hours > 0) return `${hours} giờ trước`;
-    return "Vừa xong";
-  };
+  const timeAgo = formatTimestamp;
 
   const filterTabs: { id: FilterTab; label: string; icon: React.ReactNode; count: number }[] = [
     { id: "all", label: "Tất cả", icon: null, count: videoResults.length + channelResults.length + playlistResults.length },

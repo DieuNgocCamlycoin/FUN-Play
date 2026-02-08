@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { History, Play, Trash2, ArrowLeft, AlertCircle, Search, X } from 'lucide-react';
+import { History, Play, Trash2, ArrowLeft, AlertCircle, Search, X, MoreVertical, Bookmark, Share2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 import { MainLayout } from '@/components/Layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import {
@@ -16,44 +17,29 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useWatchHistory } from '@/hooks/useWatchHistory';
 import { VideoPlaceholder } from '@/components/Video/VideoPlaceholder';
+import { ShareModal } from '@/components/Video/ShareModal';
+import { AddToPlaylistModal } from '@/components/Playlist/AddToPlaylistModal';
+import { formatDuration, formatViews, formatTimestamp } from '@/lib/formatters';
 
 const WatchHistory = () => {
   const { watchHistory, loading, removeFromHistory, clearAllHistory } = useWatchHistory();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
-
-  const formatDuration = (seconds: number | null) => {
-    if (!seconds) return '0:00';
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const formatViews = (views: number | null) => {
-    if (!views) return '0 lượt xem';
-    if (views >= 1000000) return `${(views / 1000000).toFixed(1)}M lượt xem`;
-    if (views >= 1000) return `${(views / 1000).toFixed(1)}K lượt xem`;
-    return `${views} lượt xem`;
-  };
-
-  const formatTimestamp = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffMins < 1) return 'Vừa xong';
-    if (diffMins < 60) return `${diffMins} phút trước`;
-    if (diffHours < 24) return `${diffHours} giờ trước`;
-    if (diffDays === 1) return 'Hôm qua';
-    if (diffDays < 7) return `${diffDays} ngày trước`;
-    return date.toLocaleDateString('vi-VN');
-  };
+  const [shareVideoId, setShareVideoId] = useState<string | null>(null);
+  const [shareVideoTitle, setShareVideoTitle] = useState('');
+  const [playlistVideoId, setPlaylistVideoId] = useState<string | null>(null);
+  const [playlistVideoTitle, setPlaylistVideoTitle] = useState('');
 
   const handlePlayVideo = (videoId: string, position: number) => {
     navigate(`/watch/${videoId}?t=${position}`);
@@ -106,193 +92,235 @@ const WatchHistory = () => {
     <MainLayout>
       <div className="max-w-6xl mx-auto p-6">
         {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate(-1)}
-                className="shrink-0"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </Button>
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-r from-cosmic-magenta to-cosmic-cyan flex items-center justify-center">
-                  <History className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cosmic-magenta via-cosmic-cyan to-cosmic-sapphire">
-                    Lịch sử xem
-                  </h1>
-                  <p className="text-sm text-muted-foreground">
-                    {watchHistory.length} video đã xem
-                  </p>
-                </div>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0">
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-r from-cosmic-magenta to-cosmic-cyan flex items-center justify-center">
+                <History className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cosmic-magenta via-cosmic-cyan to-cosmic-sapphire">
+                  Lịch sử xem
+                </h1>
+                <p className="text-sm text-muted-foreground">
+                  {watchHistory.length} video đã xem
+                </p>
               </div>
             </div>
-
-            {/* Clear history */}
-            {watchHistory.length > 0 && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="outline" className="gap-2">
-                    <Trash2 className="w-4 h-4" />
-                    Xóa lịch sử
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle className="flex items-center gap-2">
-                      <AlertCircle className="w-5 h-5 text-destructive" />
-                      Xóa toàn bộ lịch sử?
-                    </AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Hành động này không thể hoàn tác. Toàn bộ lịch sử xem video của bạn sẽ bị xóa vĩnh viễn.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Hủy</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={async () => {
-                        const success = await clearAllHistory();
-                        if (success) {
-                          toast({ title: 'Đã xóa toàn bộ lịch sử', description: 'Lịch sử xem video đã được xóa thành công' });
-                        }
-                      }}
-                      className="bg-destructive hover:bg-destructive/90"
-                    >
-                      Xóa tất cả
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            )}
           </div>
 
-          {/* Search bar */}
-          <div className="relative mb-6">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Tìm trong lịch sử xem..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 pr-10"
-            />
-            {searchQuery && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
-                onClick={() => setSearchQuery('')}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            )}
-          </div>
-
-          {/* Video List */}
-          {loading ? (
-            <div className="space-y-4">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="flex gap-4 animate-pulse">
-                  <div className="w-40 aspect-video bg-muted rounded-lg" />
-                  <div className="flex-1 space-y-2">
-                    <div className="h-4 bg-muted rounded w-3/4" />
-                    <div className="h-3 bg-muted rounded w-1/2" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : watchHistory.length === 0 ? (
-            <div className="text-center py-20">
-              <History className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-              <h2 className="text-xl font-semibold mb-2">Chưa có lịch sử xem</h2>
-              <p className="text-muted-foreground mb-4">
-                Video bạn xem sẽ xuất hiện ở đây
-              </p>
-              <Button onClick={() => navigate('/')}>
-                Khám phá video
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-8">
-              {Object.entries(groupedHistory).map(([date, videos]) => (
-                <div key={date}>
-                  <h2 className="text-lg font-semibold mb-4 text-foreground/80">{date}</h2>
-                  <div className="space-y-3">
-                    {videos.map((item) => (
-                      <div
-                        key={item.id}
-                        className="flex gap-4 p-3 rounded-lg hover:bg-accent/50 transition-colors group cursor-pointer"
-                        onClick={() => handlePlayVideo(item.video_id, item.last_position_seconds)}
-                      >
-                        {/* Thumbnail */}
-                        <div className="relative w-40 aspect-video rounded-lg overflow-hidden bg-muted shrink-0">
-                          {item.video.thumbnail_url ? (
-                            <img
-                              src={item.video.thumbnail_url}
-                              alt={item.video.title}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <VideoPlaceholder />
-                          )}
-                          {/* Progress bar */}
-                          <div className="absolute bottom-0 left-0 right-0 h-1 bg-background/50">
-                            <div
-                              className="h-full bg-primary"
-                              style={{
-                                width: `${getProgressPercentage(item.last_position_seconds, item.video.duration)}%`,
-                              }}
-                            />
-                          </div>
-                          <div className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1 rounded">
-                            {formatDuration(item.video.duration)}
-                          </div>
-                          {/* Play overlay */}
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <Play className="w-8 h-8 text-white fill-white" />
-                          </div>
-                        </div>
-
-                        {/* Info */}
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-medium line-clamp-2 group-hover:text-primary transition-colors">
-                            {item.video.title}
-                          </h3>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {item.video.channels?.name || 'Unknown Channel'}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {formatViews(item.video.view_count)} • {formatTimestamp(item.watched_at)}
-                          </p>
-                          {item.completed && (
-                            <span className="inline-block mt-1 text-xs bg-primary/20 text-primary px-2 py-0.5 rounded">
-                              Đã xem xong
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Remove button */}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            removeFromHistory(item.video_id);
-                          }}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
+          {/* Clear history */}
+          {watchHistory.length > 0 && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  <Trash2 className="w-4 h-4" />
+                  Xóa lịch sử
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="flex items-center gap-2">
+                    <AlertCircle className="w-5 h-5 text-destructive" />
+                    Xóa toàn bộ lịch sử?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Hành động này không thể hoàn tác. Toàn bộ lịch sử xem video của bạn sẽ bị xóa vĩnh viễn.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Hủy</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={async () => {
+                      const success = await clearAllHistory();
+                      if (success) {
+                        toast({ title: 'Đã xóa toàn bộ lịch sử', description: 'Lịch sử xem video đã được xóa thành công' });
+                      }
+                    }}
+                    className="bg-destructive hover:bg-destructive/90"
+                  >
+                    Xóa tất cả
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           )}
         </div>
+
+        {/* Search bar */}
+        <div className="relative mb-6">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Tìm trong lịch sử xem..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 pr-10"
+          />
+          {searchQuery && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+              onClick={() => setSearchQuery('')}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+
+        {/* Video List */}
+        {loading ? (
+          <div className="space-y-4">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="flex gap-4 animate-pulse">
+                <div className="w-40 aspect-video bg-muted rounded-lg" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 bg-muted rounded w-3/4" />
+                  <div className="h-3 bg-muted rounded w-1/2" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : watchHistory.length === 0 ? (
+          <div className="text-center py-20">
+            <History className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+            <h2 className="text-xl font-semibold mb-2">Chưa có lịch sử xem</h2>
+            <p className="text-muted-foreground mb-4">
+              Video bạn xem sẽ xuất hiện ở đây
+            </p>
+            <Button onClick={() => navigate('/')}>
+              Khám phá video
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-8">
+            {Object.entries(groupedHistory).map(([date, videos]) => (
+              <div key={date}>
+                <h2 className="text-lg font-semibold mb-4 text-foreground/80">{date}</h2>
+                <div className="space-y-3">
+                  {videos.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex gap-4 p-3 rounded-lg hover:bg-accent/50 transition-colors group cursor-pointer"
+                      onClick={() => handlePlayVideo(item.video_id, item.last_position_seconds)}
+                    >
+                      {/* Thumbnail */}
+                      <div className="relative w-40 aspect-video rounded-lg overflow-hidden bg-muted shrink-0">
+                        {item.video.thumbnail_url ? (
+                          <img
+                            src={item.video.thumbnail_url}
+                            alt={item.video.title}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <VideoPlaceholder />
+                        )}
+                        {/* Progress bar */}
+                        <div className="absolute bottom-0 left-0 right-0 h-1 bg-background/50">
+                          <div
+                            className="h-full bg-primary"
+                            style={{
+                              width: `${getProgressPercentage(item.last_position_seconds, item.video.duration)}%`,
+                            }}
+                          />
+                        </div>
+                        <div className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1 rounded">
+                          {formatDuration(item.video.duration)}
+                        </div>
+                        {/* Play overlay */}
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <Play className="w-8 h-8 text-white fill-white" />
+                        </div>
+                      </div>
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium line-clamp-2 group-hover:text-primary transition-colors">
+                          {item.video.title}
+                        </h3>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {item.video.channels?.name || 'Unknown Channel'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatViews(item.video.view_count)} • {formatTimestamp(item.watched_at)}
+                        </p>
+                        {item.completed && (
+                          <span className="inline-block mt-1 text-xs bg-primary/20 text-primary px-2 py-0.5 rounded">
+                            Đã xem xong
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Kebab menu */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <MoreVertical className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-52">
+                          <DropdownMenuItem onClick={(e) => {
+                            e.stopPropagation();
+                            removeFromHistory(item.video_id);
+                          }}>
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Xóa khỏi lịch sử
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={(e) => {
+                            e.stopPropagation();
+                            setPlaylistVideoId(item.video.id);
+                            setPlaylistVideoTitle(item.video.title);
+                          }}>
+                            <Bookmark className="mr-2 h-4 w-4" />
+                            Lưu vào danh sách phát
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={(e) => {
+                            e.stopPropagation();
+                            setShareVideoId(item.video.id);
+                            setShareVideoTitle(item.video.title);
+                          }}>
+                            <Share2 className="mr-2 h-4 w-4" />
+                            Chia sẻ
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Share Modal */}
+      <ShareModal
+        isOpen={!!shareVideoId}
+        onClose={() => setShareVideoId(null)}
+        contentType="video"
+        contentId={shareVideoId || ''}
+        contentTitle={shareVideoTitle}
+        userId={user?.id}
+      />
+
+      {/* Add to Playlist Modal */}
+      {playlistVideoId && (
+        <AddToPlaylistModal
+          open={!!playlistVideoId}
+          onOpenChange={(open) => { if (!open) setPlaylistVideoId(null); }}
+          videoId={playlistVideoId}
+          videoTitle={playlistVideoTitle}
+        />
+      )}
     </MainLayout>
   );
 };
