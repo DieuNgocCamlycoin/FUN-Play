@@ -1,11 +1,11 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import {
   Play, Pause, Volume2, VolumeX, Maximize, Minimize,
   SkipBack, SkipForward, Settings, RotateCcw, RotateCw,
   PictureInPicture2, Repeat, Repeat1, Shuffle, ChevronRight,
-  Check, X
+  Check, X, Sun
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -23,11 +23,19 @@ import { useVideoPlayback } from "@/contexts/VideoPlaybackContext";
 import { useWatchHistory } from "@/hooks/useWatchHistory";
 import { useAutoReward } from "@/hooks/useAutoReward";
 import { useAuth } from "@/hooks/useAuth";
+import { parseChapters, getCurrentChapter, type Chapter } from "@/lib/parseChapters";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface EnhancedVideoPlayerProps {
   videoUrl: string;
   videoId: string;
   title: string;
+  description?: string;
   onEnded?: () => void;
   onPrevious?: () => void;
   onNext?: () => void;
@@ -35,6 +43,7 @@ interface EnhancedVideoPlayerProps {
   hasNext?: boolean;
   onPlayStateChange?: (isPlaying: boolean) => void;
   onTimeUpdate?: (currentTime: number, duration: number) => void;
+  onAmbientColor?: (color: string | null) => void;
 }
 
 const PLAYBACK_SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
@@ -58,6 +67,7 @@ export function EnhancedVideoPlayer({
   videoUrl,
   videoId,
   title,
+  description,
   onEnded,
   onPrevious,
   onNext,
@@ -65,12 +75,15 @@ export function EnhancedVideoPlayer({
   hasNext = false,
   onPlayStateChange,
   onTimeUpdate,
+  onAmbientColor,
 }: EnhancedVideoPlayerProps) {
   const navigate = useNavigate();
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const hideControlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const ambientIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Load settings from localStorage
   const loadSettings = (): PlayerSettings => {
@@ -92,7 +105,14 @@ export function EnhancedVideoPlayer({
   const [isPiPActive, setIsPiPActive] = useState(false);
   const [showEndScreen, setShowEndScreen] = useState(false);
   const [viewRewarded, setViewRewarded] = useState(false);
+  const [ambientEnabled, setAmbientEnabled] = useState(() => {
+    try { return localStorage.getItem('funplay_ambient_mode') === 'true'; } catch { return false; }
+  });
+  const [hoveredChapterIdx, setHoveredChapterIdx] = useState<number | null>(null);
   const watchTimeRef = useRef(0);
+
+  // Parse chapters from description
+  const chapters = useMemo(() => parseChapters(description), [description]);
 
   const { 
     session, 
@@ -475,6 +495,64 @@ export function EnhancedVideoPlayer({
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
   }, []);
 
+  // Ambient Mode: sample dominant color from video frames
+  useEffect(() => {
+    if (!ambientEnabled || !videoRef.current || !onAmbientColor) {
+      onAmbientColor?.(null);
+      if (ambientIntervalRef.current) {
+        clearInterval(ambientIntervalRef.current);
+        ambientIntervalRef.current = null;
+      }
+      return;
+    }
+
+    const canvas = canvasRef.current || document.createElement('canvas');
+    if (!canvasRef.current) canvasRef.current = canvas as any;
+    canvas.width = 4;
+    canvas.height = 4;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return;
+
+    const sampleColor = () => {
+      const video = videoRef.current;
+      if (!video || video.paused || video.readyState < 2) return;
+
+      try {
+        ctx.drawImage(video, 0, 0, 4, 4);
+        const imageData = ctx.getImageData(0, 0, 4, 4).data;
+        let r = 0, g = 0, b = 0;
+        const pixels = 16;
+        for (let i = 0; i < imageData.length; i += 4) {
+          r += imageData[i];
+          g += imageData[i + 1];
+          b += imageData[i + 2];
+        }
+        r = Math.round(r / pixels);
+        g = Math.round(g / pixels);
+        b = Math.round(b / pixels);
+        onAmbientColor(`${r}, ${g}, ${b}`);
+      } catch {
+        // CORS or other errors - silently ignore
+      }
+    };
+
+    ambientIntervalRef.current = setInterval(sampleColor, 2000);
+    sampleColor(); // immediate first sample
+
+    return () => {
+      if (ambientIntervalRef.current) {
+        clearInterval(ambientIntervalRef.current);
+        ambientIntervalRef.current = null;
+      }
+    };
+  }, [ambientEnabled, videoUrl, onAmbientColor]);
+
+  // Current chapter for display
+  const currentChapter = useMemo(
+    () => getCurrentChapter(chapters, currentTime),
+    [chapters, currentTime]
+  );
+
   return (
     <div
       ref={containerRef}
@@ -484,6 +562,9 @@ export function EnhancedVideoPlayer({
       onMouseMove={resetControlsTimeout}
       onMouseLeave={() => isPlaying && setShowControls(false)}
     >
+      {/* Hidden canvas for ambient color sampling */}
+      <canvas ref={canvasRef} className="hidden" width={4} height={4} />
+
       {/* Video Element */}
       <video
         ref={videoRef}
@@ -599,6 +680,16 @@ export function EnhancedVideoPlayer({
               className="absolute h-full bg-cosmic-cyan rounded-full"
               style={{ width: `${(currentTime / duration) * 100}%` }}
             />
+            {/* Chapter markers */}
+            {chapters.length > 0 && duration > 0 && chapters.map((chapter, idx) => (
+              idx > 0 && (
+                <div
+                  key={idx}
+                  className="absolute top-0 h-full w-0.5 bg-white/70 z-10"
+                  style={{ left: `${(chapter.time / duration) * 100}%` }}
+                />
+              )
+            ))}
             {/* Slider */}
             <input
               type="range"
@@ -606,14 +697,42 @@ export function EnhancedVideoPlayer({
               max={duration || 0}
               value={currentTime}
               onChange={(e) => seekTo(parseFloat(e.target.value))}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+              onMouseMove={(e) => {
+                if (chapters.length === 0 || !duration) return;
+                const rect = e.currentTarget.getBoundingClientRect();
+                const percent = (e.clientX - rect.left) / rect.width;
+                const hoverTime = percent * duration;
+                let found = -1;
+                for (let i = chapters.length - 1; i >= 0; i--) {
+                  if (hoverTime >= chapters[i].time) { found = i; break; }
+                }
+                setHoveredChapterIdx(found >= 0 ? found : null);
+              }}
+              onMouseLeave={() => setHoveredChapterIdx(null)}
             />
             {/* Thumb indicator */}
             <div
-              className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-cosmic-cyan rounded-full opacity-0 group-hover/progress:opacity-100 transition-opacity"
+              className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-cosmic-cyan rounded-full opacity-0 group-hover/progress:opacity-100 transition-opacity z-10"
               style={{ left: `calc(${(currentTime / duration) * 100}% - 6px)` }}
             />
+            {/* Chapter tooltip on hover */}
+            {hoveredChapterIdx !== null && chapters[hoveredChapterIdx] && (
+              <div
+                className="absolute -top-8 transform -translate-x-1/2 bg-black/90 text-white text-xs px-2 py-1 rounded whitespace-nowrap pointer-events-none z-30"
+                style={{ left: `${(chapters[hoveredChapterIdx].time / duration) * 100}%` }}
+              >
+                {chapters[hoveredChapterIdx].title}
+              </div>
+            )}
           </div>
+
+          {/* Current chapter label */}
+          {currentChapter && chapters.length > 0 && (
+            <div className="text-white/70 text-xs truncate max-w-[200px]">
+              {currentChapter.title}
+            </div>
+          )}
 
           {/* Control buttons */}
           <div className="flex items-center justify-between">
@@ -776,6 +895,25 @@ export function EnhancedVideoPlayer({
                       ))}
                     </DropdownMenuSubContent>
                   </DropdownMenuSub>
+
+                  <DropdownMenuSeparator />
+
+                  {/* Ambient Mode */}
+                  <DropdownMenuItem
+                    onClick={() => {
+                      const newVal = !ambientEnabled;
+                      setAmbientEnabled(newVal);
+                      localStorage.setItem('funplay_ambient_mode', String(newVal));
+                      if (!newVal) onAmbientColor?.(null);
+                    }}
+                    className="flex items-center justify-between"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Sun className="h-4 w-4" />
+                      Chế độ ánh sáng
+                    </span>
+                    {ambientEnabled && <Check className="h-4 w-4" />}
+                  </DropdownMenuItem>
 
                   <DropdownMenuSeparator />
 

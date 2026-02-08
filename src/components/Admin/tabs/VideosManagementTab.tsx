@@ -351,14 +351,14 @@ function VideoStatsContent() {
   );
 
   const handleExportCSV = () => {
-    const headers = ["Title", "Uploader", "File Size", "Duration", "Views", "Category", "Upload Date"];
+    const headers = ["Tiêu đề", "Người tải lên", "Kích thước", "Thời lượng", "Lượt xem", "Thể loại", "Ngày tải lên"];
     const rows = videos.map((v) => [
       v.title,
       v.uploader.displayName || v.uploader.username,
       formatFileSize(v.fileSize),
       formatDuration(v.duration),
       v.viewCount,
-      v.category || "N/A",
+      v.category || "Không có",
       format(new Date(v.createdAt), "yyyy-MM-dd HH:mm"),
     ]);
     const csvContent = [headers.join(","), ...rows.map((r) => r.map((c) => `"${c}"`).join(","))].join("\n");
