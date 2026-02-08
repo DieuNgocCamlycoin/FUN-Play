@@ -1,10 +1,10 @@
 
 
-# FUN Play vs YouTube 2025: Round 27 Gap Analysis
+# FUN Play vs YouTube 2025: Round 28 Gap Analysis
 
-## Verified Fixes from Rounds 1-26 (All Working)
+## Verified Fixes from Rounds 1-27 (All Working)
 
-All 75+ fixes from previous rounds remain functional, including:
+All 78+ fixes from previous rounds remain functional, including:
 - Video cards, kebab menus, hover previews across all pages (R1-R19)
 - Complete Vietnamese localization (R6-R18)
 - Approval status filters on all public feeds (R18-R22)
@@ -13,101 +13,122 @@ All 75+ fixes from previous rounds remain functional, including:
 - All verified badges across Watch, Channel, Shorts, WatchHistory, WatchLater (R22-R24)
 - All number formatting standardized: likes, subscribers, comments abbreviated (R25-R26)
 - Channel page ChannelData interface includes is_verified (R26)
+- Desktop Watch page view count + timestamp below title (R27)
+- YouTube-style description date format "15 thg 1, 2025" (R27)
+- Mobile DescriptionDrawer shows full exact counts (R27)
 
 ---
 
-## REMAINING GAPS FOUND IN ROUND 27
+## REMAINING GAPS FOUND IN ROUND 28
 
-### HIGH PRIORITY (Desktop Watch Page UX Polish)
+### HIGH PRIORITY (Mobile Watch Page View Count Format Inconsistency)
 
-#### Gap 1: Desktop Watch Page -- Video View Count Below Title Missing
+#### Gap 1: Mobile VideoInfoSection Uses `formatViewsShort(viewCount)` + Separate "luot xem" Text -- Produces Redundant/Inconsistent Output
 
-On YouTube, the video view count is shown directly below the title (e.g., "1.2K luot xem" next to the timestamp). In FUN Play's desktop Watch page (`Watch.tsx` lines 649-652), only the title is shown:
-
+In `VideoInfoSection.tsx` line 40, the view count is rendered as:
 ```
-<h1 className="text-xl font-bold text-foreground">
-  {video.title}
-</h1>
+{formatViewsShort(viewCount)} luot xem
 ```
 
-The view count and timestamp only appear later inside the description box (line 818). YouTube shows an abbreviated view count + relative timestamp below the title before the channel info section.
+The `formatViewsShort` function returns just the number (e.g., "1.2K"), then "luot xem" is appended separately. Meanwhile, the desktop Watch page (line 656) uses `formatViews(video.view_count)` which already includes "luot xem" in the output string (e.g., "1.2K luot xem").
 
-**Fix:** Add a metadata line between the title (line 652) and channel info section (line 655) showing `{formatViews(video.view_count)} {bullet} {formatTimestamp(video.created_at)}`.
+On YouTube mobile, the view count below the title shows the same format as desktop: "1.2K luot xem". The current mobile implementation is functionally correct but inconsistent in approach -- it should use `formatViews()` directly like the desktop does, which keeps the codebase DRY and ensures format consistency.
 
-#### Gap 2: Desktop Watch Description Box Uses Full Date Instead of Exact Date + Full Count
+**Fix:** Change `VideoInfoSection.tsx` line 40 from `{formatViewsShort(viewCount)} luot xem` to `{formatViews(viewCount)}`. Also update the import from `formatViewsShort` to `formatViews`.
 
-Watch.tsx line 820 shows `new Date(video.created_at).toLocaleDateString("vi-VN")` which produces a short date like "15/1/2025". YouTube's description box shows the full exact date with a more descriptive format like "15 thg 1, 2025". This is a minor formatting inconsistency.
+#### Gap 2: Desktop Watch Page Hashtags Not Clickable in Description
 
-**Fix:** Change line 820 to use `toLocaleDateString("vi-VN", { day: "numeric", month: "short", year: "numeric" })` for a YouTube-style formatted date like "15 thg 1, 2025".
+YouTube shows clickable hashtags above the description (or within it) that navigate to a search for that hashtag. The mobile `DescriptionDrawer.tsx` (lines 162-173) already renders clickable hashtags extracted from the description. However, the desktop Watch page description box (Watch.tsx lines 820-838) does NOT render clickable hashtags -- it only shows the raw description text with `whitespace-pre-wrap`.
 
-#### Gap 3: Desktop Search Results Missing `approval_status` Filter on Video Search
+**Fix:** Extract and render hashtags from the description in the desktop Watch page, similar to how the mobile DescriptionDrawer does it. Add a hashtag row above the description text that shows clickable hashtag pills linking to `/search?q={hashtag}`.
 
-`Search.tsx` line 131-133 correctly filters with `.eq("approval_status", "approved")` for video results. However, the search also fetches channels (line 149-161) and posts -- there is no issue here actually. Confirmed: this gap does not exist.
+#### Gap 3: Desktop Watch Page Description Date Row Missing "luot xem" Suffix on View Count (Minor Format Mismatch)
+
+The desktop description box (Watch.tsx line 825) shows: `{(video.view_count || 0).toLocaleString()} luot xem`. This is correct (full number in description). However, comparing with the new metadata row added in Round 27 (line 655-658) which uses `formatViews(video.view_count)` (abbreviated + "luot xem"), there is now a slight visual pattern difference: the metadata row above shows abbreviated, the description box below shows full -- this is actually exactly correct YouTube behavior (abbreviated in UI, full in description). Confirmed: no change needed here.
 
 ### MEDIUM PRIORITY (Consistency Polish)
 
-#### Gap 4: Mobile DescriptionDrawer Stats Use formatViewsShort for View Count -- YouTube Shows Full Number
+#### Gap 4: ShortsCommentSheet Comment Count Not Using `formatViewsShort`
 
-In the mobile `DescriptionDrawer.tsx` (line 119), the view count uses `formatViewsShort(viewCount)` which shows "1.2K". However, YouTube's mobile description drawer shows the full exact view count ("1,234 luot xem") in the stats section, because the description is the "detailed" view. The desktop description box (Watch.tsx line 818) correctly uses `.toLocaleString()`.
+In `ShortsCommentSheet.tsx` line 161, the comment count is displayed as raw number: `Binh luan ({commentCount})`. YouTube always abbreviates comment counts in the sheet header. The mobile CommentsDrawer (line 29 of CommentsDrawer.tsx) uses the VideoCommentList component which already formats the count correctly.
 
-This is inconsistent: desktop description shows full number (correct), mobile description shows abbreviated (incorrect).
+**Fix:** Import `formatViewsShort` from `@/lib/formatters` and change line 161 from `Binh luan ({commentCount})` to `Binh luan ({formatViewsShort(commentCount)})`.
 
-**Fix:** Change `DescriptionDrawer.tsx` line 119 from `formatViewsShort(viewCount)` to `viewCount.toLocaleString()` to match YouTube's pattern where the description area shows the exact full count.
+#### Gap 5: Desktop Header Search Suggestions Missing `approval_status` Filter
 
-#### Gap 5: Mobile DescriptionDrawer Like Count Uses formatViewsShort -- YouTube Shows Full Number
+In `Header.tsx` lines 95-101, the search suggestions query fetches videos matching the search query but does NOT filter by `approval_status = "approved"`. This means unapproved videos could appear in search suggestions. The actual Search page (Search.tsx line 132) correctly applies this filter, but the header suggestion dropdown does not.
 
-Same issue as Gap 4. `DescriptionDrawer.tsx` line 109 uses `formatViewsShort(likeCount)`. YouTube shows the full exact like count in the description stats area.
-
-**Fix:** Change line 109 from `formatViewsShort(likeCount)` to `likeCount.toLocaleString()`.
+**Fix:** Add `.eq("approval_status", "approved")` to the search suggestions query in Header.tsx at line 99, between `.eq("is_public", true)` and `.limit(5)`.
 
 ---
 
 ### ACCEPTABLE EXCEPTIONS (No Change Needed)
 
 - Desktop description box view count uses `.toLocaleString()` -- correct (YouTube shows full number in description)
-- Admin/internal dashboard counts use `.toLocaleString()` -- correct (admin views show exact numbers)
-- CAMLY reward amounts use `.toLocaleString()` -- correct (token balances need precision)
+- Mobile DescriptionDrawer shows full counts -- correct (fixed in R27)
+- Admin/internal dashboard counts use `.toLocaleString()` -- correct
+- CAMLY reward amounts use `.toLocaleString()` -- correct
 - Console log messages remain in English (developer-facing)
 - All branded terms, music genres, technical docs remain in English
+- Desktop description date format now uses "15 thg 1, 2025" -- correct (R27)
 
 ---
 
 ## IMPLEMENTATION PLAN
 
-### Phase 1: Desktop Watch Page View Count Below Title (1 file)
+### Phase 1: Mobile VideoInfoSection View Count Fix (1 file)
+
+**File:** `src/components/Video/Mobile/VideoInfoSection.tsx`
+
+1. **Import update (line 4):** Change from:
+   `import { formatViewsShort, formatTimestamp } from "@/lib/formatters";`
+   to:
+   `import { formatViews, formatTimestamp } from "@/lib/formatters";`
+
+2. **View count (line 40):** Change from:
+   `{formatViewsShort(viewCount)} luot xem`
+   to:
+   `{formatViews(viewCount)}`
+
+This makes the mobile info section use the same `formatViews()` function as the desktop Watch page, keeping the codebase DRY.
+
+### Phase 2: Desktop Watch Page Clickable Hashtags (1 file)
 
 **File:** `src/pages/Watch.tsx`
 
-1. **Between title (line 652) and channel info section (line 655):** Add a metadata row:
-   ```
-   <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-     <span>{formatViews(video.view_count)}</span>
-     <span>•</span>
-     <span>{formatTimestamp(video.created_at)}</span>
-   </div>
-   ```
+1. **Inside the description box** (after the date row at line 827, before the description text at line 829): Add a hashtag extraction and display section:
+   - Extract hashtags from `video.description` using the regex `/#\w+/g`
+   - If hashtags are found, render them as clickable pills that navigate to `/search?q={hashtag}`
+   - Style them with `text-primary` to match YouTube's blue hashtag color
 
-2. **Description box date (line 820):** Change from:
+### Phase 3: Shorts Comment Sheet Count Format (1 file)
+
+**File:** `src/components/Video/ShortsCommentSheet.tsx`
+
+1. **Import (line 12):** Add `import { formatViewsShort } from "@/lib/formatters";`
+
+2. **Comment count (line 161):** Change from:
+   `Binh luan ({commentCount})`
+   to:
+   `Binh luan ({formatViewsShort(commentCount)})`
+
+### Phase 4: Desktop Header Search Suggestions Security Fix (1 file)
+
+**File:** `src/components/Layout/Header.tsx`
+
+1. **Search suggestions query (line 99):** Add approval_status filter. Change from:
    ```
-   {new Date(video.created_at).toLocaleDateString("vi-VN")}
+   .eq("is_public", true)
+   .limit(5);
    ```
    to:
    ```
-   {new Date(video.created_at).toLocaleDateString("vi-VN", { day: "numeric", month: "short", year: "numeric" })}
+   .eq("is_public", true)
+   .eq("approval_status", "approved")
+   .limit(5);
    ```
-   This produces "15 thg 1, 2025" instead of "15/1/2025".
 
-Note: `formatViews` is already imported in Watch.tsx (line 33).
-
-### Phase 2: Mobile Description Drawer Full Counts (1 file)
-
-**File:** `src/components/Video/Mobile/DescriptionDrawer.tsx`
-
-1. **View count (line 119):** Change from `{formatViewsShort(viewCount)}` to `{viewCount.toLocaleString()}`
-
-2. **Like count (line 109):** Change from `{formatViewsShort(likeCount)}` to `{likeCount.toLocaleString()}`
-
-This aligns the mobile description stats with YouTube's pattern: abbreviated counts on the main UI, full exact counts inside the description detail view.
+This ensures unapproved videos do not leak into search suggestions.
 
 ---
 
@@ -115,19 +136,22 @@ This aligns the mobile description stats with YouTube's pattern: abbreviated cou
 
 | Phase | Files Modified | New Files | Complexity |
 |-------|---------------|-----------|------------|
-| 1 | 1 (Watch.tsx) | 0 | Low -- add metadata row + change date format |
-| 2 | 1 (DescriptionDrawer.tsx) | 0 | Low -- swap 2 format calls |
+| 1 | 1 (VideoInfoSection.tsx) | 0 | Low -- swap import + format call |
+| 2 | 1 (Watch.tsx) | 0 | Medium -- add hashtag extraction + rendering |
+| 3 | 1 (ShortsCommentSheet.tsx) | 0 | Low -- add import + swap format call |
+| 4 | 1 (Header.tsx) | 0 | Low -- add 1 filter condition |
 
-**Total: 2 files modified, 0 new files, 0 database changes**
+**Total: 4 files modified, 0 new files, 0 database changes**
 
-### Feature Parity Progress After Round 27
+### Feature Parity Progress After Round 28
 
 **Newly added YouTube 2025 consistency:**
-- View count + timestamp metadata visible below video title on desktop Watch page
-- YouTube-style formatted date in description box ("15 thg 1, 2025" format)
-- Mobile description drawer shows full exact counts (matching YouTube's detailed view pattern)
+- Mobile VideoInfoSection uses `formatViews()` consistently with desktop (DRY principle)
+- Desktop Watch page description shows clickable hashtags (matching YouTube's hashtag navigation)
+- Shorts comment sheet header shows abbreviated comment count
+- Desktop header search suggestions filter out unapproved videos (security + UX fix)
 
 ### System Maturity Assessment
 
-After 27 rounds of progressive analysis, FUN Play has reached extremely high feature and UI parity with YouTube 2025. The gaps in this round are purely about presentation polish: making sure the desktop Watch page shows video metadata prominently below the title (as YouTube does), and ensuring the description detail views consistently show full exact numbers while the main UI uses abbreviated counts. These are zero-risk visual adjustments.
+After 28 rounds of progressive analysis, FUN Play has reached extremely high feature and UI parity with YouTube 2025. The gaps found in this round are a mix of code consistency (using the same formatting function across platforms), a missing feature (clickable hashtags in desktop description), a formatting gap (Shorts comment sheet), and a minor security fix (search suggestion filter). These are low-risk changes with clear benefits.
 
