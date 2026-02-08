@@ -77,18 +77,22 @@ export function useMintRequestRealtime({
   const channelRef = useRef<RealtimeChannel | null>(null);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Debounced update handler
+  // Store callbacks in refs to avoid re-triggering useEffect
+  const onUpdateRef = useRef(onUpdate);
+  onUpdateRef.current = onUpdate;
+
+  // Debounced update handler - stable reference via ref pattern
   const handleUpdate = useCallback(() => {
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
     }
     debounceRef.current = setTimeout(() => {
       setLastUpdate(new Date());
-      onUpdate();
+      onUpdateRef.current();
     }, 300);
-  }, [onUpdate]);
+  }, []);
 
-  // Handle status change notifications
+  // Handle status change notifications - stable reference (no external deps)
   const handleStatusChange = useCallback((
     oldStatus: string | undefined,
     newStatus: string,
@@ -101,17 +105,14 @@ export function useMintRequestRealtime({
     if (notification) {
       let message = notification.message;
       
-      // Add reason if rejected
       if (newStatus === 'rejected' && payload.decision_reason) {
         message = `${notification.message}: ${payload.decision_reason}`;
       }
       
-      // Add amount if minted
       if (newStatus === 'minted' && payload.calculated_amount_formatted) {
         message = `${notification.message} (${payload.calculated_amount_formatted} FUN)`;
       }
 
-      // Show toast
       switch (notification.type) {
         case 'success':
           toast.success(message);
@@ -126,13 +127,11 @@ export function useMintRequestRealtime({
           toast.info(message);
       }
 
-      // Trigger confetti if needed
       if (notification.confetti) {
         triggerConfetti();
       }
     }
 
-    // Dispatch custom event for other components
     window.dispatchEvent(new CustomEvent('fun-money-update', {
       detail: {
         requestId: payload.id,
@@ -144,7 +143,7 @@ export function useMintRequestRealtime({
     }));
   }, []);
 
-  // Setup realtime subscription
+  // Setup realtime subscription - only re-run when userId or enabled changes
   useEffect(() => {
     if (!enabled || !userId) {
       setConnectionStatus('disconnected');
@@ -153,7 +152,6 @@ export function useMintRequestRealtime({
 
     setConnectionStatus('connecting');
 
-    // Create channel with unique name
     const channelName = `mint_requests_${userId}_${Date.now()}`;
     
     const channel = supabase
@@ -197,7 +195,6 @@ export function useMintRequestRealtime({
 
     channelRef.current = channel;
 
-    // Cleanup
     return () => {
       if (debounceRef.current) {
         clearTimeout(debounceRef.current);
@@ -207,7 +204,7 @@ export function useMintRequestRealtime({
         channelRef.current = null;
       }
     };
-  }, [userId, enabled, handleUpdate, handleStatusChange]);
+  }, [userId, enabled]);
 
   return {
     isConnected: connectionStatus === 'connected',

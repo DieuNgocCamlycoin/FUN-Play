@@ -66,13 +66,16 @@ export default function FunMoney() {
     setLoadingRequests(false);
   }, [getMyRequests]);
 
+  // Memoized callback for realtime updates - stable reference
+  const handleRealtimeUpdate = useCallback(() => {
+    fetchRequests();
+    refetchActivity();
+  }, [fetchRequests, refetchActivity]);
+
   // Realtime subscription
   const { isConnected, connectionStatus } = useMintRequestRealtime({
     userId: user?.id,
-    onUpdate: () => {
-      fetchRequests();
-      refetchActivity();
-    },
+    onUpdate: handleRealtimeUpdate,
     enabled: !!user,
   });
 
