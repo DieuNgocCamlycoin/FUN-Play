@@ -413,7 +413,7 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Tìm kiếm video..."
+              placeholder="Tìm kiếm"
               className="w-full h-8 text-sm bg-muted border-border focus:border-primary rounded-full"
             />
           </form>

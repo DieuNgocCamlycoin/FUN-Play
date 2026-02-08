@@ -163,7 +163,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
             }}
             onFocus={() => setShowSuggestions(true)}
             onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-            placeholder="Tìm kiếm hoặc dán link YouTube..."
+            placeholder="Tìm kiếm"
             className="w-full pl-4 pr-12 h-10 bg-muted border-border focus:border-primary rounded-full"
           />
           <Button
