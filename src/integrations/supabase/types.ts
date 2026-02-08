@@ -725,8 +725,10 @@ export type Database = {
           date: string
           id: string
           like_count: number | null
+          like_rewards_earned: number
           long_video_count: number | null
           share_count: number | null
+          share_rewards_earned: number
           short_video_count: number | null
           updated_at: string
           upload_rewards_earned: number
@@ -742,8 +744,10 @@ export type Database = {
           date?: string
           id?: string
           like_count?: number | null
+          like_rewards_earned?: number
           long_video_count?: number | null
           share_count?: number | null
+          share_rewards_earned?: number
           short_video_count?: number | null
           updated_at?: string
           upload_rewards_earned?: number
@@ -759,8 +763,10 @@ export type Database = {
           date?: string
           id?: string
           like_count?: number | null
+          like_rewards_earned?: number
           long_video_count?: number | null
           share_count?: number | null
+          share_rewards_earned?: number
           short_video_count?: number | null
           updated_at?: string
           upload_rewards_earned?: number

@@ -502,11 +502,8 @@ export default function Watch() {
 
         setHasLiked(true);
 
-        // Award CAMLY for liking
-        const result = await awardLikeReward(id!);
-        if (result) {
-          setRewardNotif({ amount: 2000, type: 'LIKE', show: true });
-        }
+        // Award CAMLY for liking (silently, 5D Light Economy)
+        await awardLikeReward(id!);
       }
 
       fetchVideo();

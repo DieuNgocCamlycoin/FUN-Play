@@ -185,7 +185,7 @@ export const ShareModal = ({
       awardShare();
       toast({
         title: "Đã copy link!",
-        description: `Link ${getContentTypeLabel()} đã được copy vào clipboard (+2 CAMLY)`,
+        description: `Link ${getContentTypeLabel()} đã được copy vào clipboard ✨`,
       });
     } else {
       toast({
@@ -207,8 +207,8 @@ export const ShareModal = ({
         });
         awardShare();
         toast({
-          title: "Chia sẻ thành công!",
-          description: "+2 CAMLY đã được cộng vào tài khoản",
+          title: "Chia sẻ thành công! ✨",
+          description: "Cảm ơn bạn đã lan tỏa ánh sáng",
         });
       } catch (err) {
         // User cancelled or error
@@ -252,7 +252,7 @@ export const ShareModal = ({
         if (tiktokCopySuccess) {
           toast({
             title: "Link đã được copy!",
-            description: "Dán link vào TikTok để chia sẻ (+2 CAMLY)",
+            description: "Dán link vào TikTok để chia sẻ ✨",
           });
         } else {
           toast({
