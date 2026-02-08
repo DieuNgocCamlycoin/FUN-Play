@@ -11,6 +11,7 @@ import { useAutoReward } from '@/hooks/useAutoReward';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { vi } from 'date-fns/locale';
+import { formatViewsShort } from '@/lib/formatters';
 
 interface Comment {
   id: string;
@@ -158,7 +159,7 @@ export function ShortsCommentSheet({ videoId, isOpen, onClose, commentCount }: S
         <SheetHeader className="pb-4 border-b border-white/10">
           <SheetTitle className="text-white flex items-center gap-2">
             <MessageCircle className="w-5 h-5" />
-            Bình luận ({commentCount})
+            Bình luận ({formatViewsShort(commentCount)})
           </SheetTitle>
         </SheetHeader>
 
