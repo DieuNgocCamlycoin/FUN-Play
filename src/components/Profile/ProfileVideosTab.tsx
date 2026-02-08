@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { VideoCard } from "@/components/Video/VideoCard";
 import { Video, Zap } from "lucide-react";
+import { formatViews, formatTimestamp } from "@/lib/formatters";
 
 interface ProfileVideosTabProps {
   userId: string;
@@ -14,9 +15,13 @@ interface VideoData {
   id: string;
   title: string;
   thumbnail_url: string | null;
+  video_url: string | null;
   view_count: number;
   created_at: string;
   duration: number | null;
+  user_id: string;
+  channel_id: string | null;
+  channels: { name: string; id: string } | null;
 }
 
 export const ProfileVideosTab = ({ userId, channelId, type }: ProfileVideosTabProps) => {
@@ -32,7 +37,7 @@ export const ProfileVideosTab = ({ userId, channelId, type }: ProfileVideosTabPr
     try {
       let query = supabase
         .from("videos")
-        .select("id, title, thumbnail_url, view_count, created_at, duration")
+        .select("id, title, thumbnail_url, video_url, view_count, created_at, duration, user_id, channel_id, channels(name, id)")
         .eq("is_public", true)
         .order("created_at", { ascending: false });
 
@@ -43,11 +48,11 @@ export const ProfileVideosTab = ({ userId, channelId, type }: ProfileVideosTabPr
         query = query.eq("user_id", userId);
       }
 
-      // Filter by type (shorts are typically under 60 seconds)
+      // Filter by type (shorts are videos up to 180 seconds)
       if (type === "shorts") {
-        query = query.lt("duration", 60);
+        query = query.lte("duration", 180);
       } else {
-        query = query.or("duration.gte.60,duration.is.null");
+        query = query.or("duration.gt.180,duration.is.null");
       }
 
       const { data, error } = await query;
@@ -100,8 +105,13 @@ export const ProfileVideosTab = ({ userId, channelId, type }: ProfileVideosTabPr
           videoId={video.id}
           title={video.title}
           thumbnail={video.thumbnail_url || ""}
-          views={`${(video.view_count || 0).toLocaleString()} lượt xem`}
-          timestamp={video.created_at}
+          channel={video.channels?.name || undefined}
+          channelId={video.channels?.id || video.channel_id || undefined}
+          userId={video.user_id}
+          views={formatViews(video.view_count)}
+          timestamp={formatTimestamp(video.created_at)}
+          duration={video.duration}
+          videoUrl={video.video_url || undefined}
         />
       ))}
     </div>
