@@ -24,10 +24,10 @@ interface NavItem {
 }
 
 const mainNavItems: NavItem[] = [
-  { icon: Home, label: "Home", href: "/" },
+  { icon: Home, label: "Trang chủ", href: "/" },
   { icon: Zap, label: "Shorts", href: "/shorts" },
-  { icon: Users, label: "Subscriptions", href: "/subscriptions" },
-  { icon: Sparkles, label: "Meditate with Father", href: "/meditate", special: true },
+  { icon: Users, label: "Kênh đăng ký", href: "/subscriptions" },
+  { icon: Sparkles, label: "Thiền cùng Cha", href: "/meditate", special: true },
   { icon: Music, label: "Tạo Nhạc Ánh Sáng", href: "/create-music", special: true },
 ];
 
@@ -60,11 +60,11 @@ const funPlatformItems: NavItem[] = [
 ];
 
 const libraryItems = [
-  { icon: Library, label: "Library", href: "/library" },
-  { icon: History, label: "History", href: "/history" },
+  { icon: Library, label: "Thư viện", href: "/library" },
+  { icon: History, label: "Lịch sử", href: "/history" },
   { icon: Video, label: "Video của bạn", href: "/your-videos" },
-  { icon: Clock, label: "Watch later", href: "/watch-later" },
-  { icon: ThumbsUp, label: "Liked videos", href: "/liked" },
+  { icon: Clock, label: "Xem sau", href: "/watch-later" },
+  { icon: ThumbsUp, label: "Video đã thích", href: "/liked" },
   { icon: Image, label: "NFT Gallery", href: "/nft-gallery" },
 ];
 
@@ -278,7 +278,7 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                 )}
               >
                 <Wallet className="h-5 w-5 text-sky-700" />
-                <span className="text-sky-700">Wallet</span>
+                <span className="text-sky-700">Ví</span>
               </Button>
             </div>
           </div>

@@ -336,7 +336,7 @@ const Search = () => {
                             <img src={video.profile.avatar_url} alt="" className="w-6 h-6 rounded-full object-cover" />
                           )}
                           <span className="text-sm text-muted-foreground">
-                            {video.profile?.display_name || video.profile?.username || "Unknown"}
+                            {video.profile?.display_name || video.profile?.username || "Ẩn danh"}
                           </span>
                           {video.channels?.is_verified && (
                             <svg className="w-3.5 h-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="currentColor">
@@ -356,7 +356,7 @@ const Search = () => {
                       videoId={video.id}
                       thumbnail={video.thumbnail_url || undefined}
                       title={video.title}
-                      channel={video.profile?.display_name || video.profile?.username || "Unknown"}
+                      channel={video.profile?.display_name || video.profile?.username || "Ẩn danh"}
                       views={formatViews(video.view_count)}
                       timestamp={timeAgo(video.created_at)}
                       userId={video.user_id}

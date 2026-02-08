@@ -226,7 +226,7 @@ const LikedVideos = () => {
                 videoId={video.id}
                 title={video.title}
                 thumbnail={video.thumbnail_url || undefined}
-                channel={video.channels?.name || "Unknown"}
+                channel={video.channels?.name || "Kênh chưa xác định"}
                 channelId={video.channels?.id}
                 views={formatViews(video.view_count)}
                 timestamp={formatTimestamp(video.created_at)}

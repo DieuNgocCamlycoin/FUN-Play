@@ -37,7 +37,7 @@ const CreatePost = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!content.trim()) { toast({ title: "Error", description: "Vui lòng nhập nội dung bài đăng", variant: "destructive" }); return; }
+    if (!content.trim()) { toast({ title: "Lỗi", description: "Vui lòng nhập nội dung bài đăng", variant: "destructive" }); return; }
     try {
       setUploading(true);
       const { data: channels } = await supabase.from("channels").select("id").eq("user_id", user.id).single();
