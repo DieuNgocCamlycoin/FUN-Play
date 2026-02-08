@@ -4,7 +4,6 @@ import { CollapsibleSidebar } from "./CollapsibleSidebar";
 import { MobileHeader } from "./MobileHeader";
 import { MobileDrawer } from "./MobileDrawer";
 import { MobileBottomNav } from "./MobileBottomNav";
-import { TetDecorations } from "./TetDecorations";
 import { cn } from "@/lib/utils";
 
 interface MainLayoutProps {
@@ -23,7 +22,6 @@ export const MainLayout = ({
 
   return (
     <div className="min-h-screen bg-background">
-      <TetDecorations />
       {/* Desktop Header & Sidebar */}
       <div className="hidden lg:block">
         <Header onMenuClick={() => setIsSidebarExpanded(prev => !prev)} />

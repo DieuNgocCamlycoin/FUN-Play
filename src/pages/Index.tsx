@@ -25,7 +25,6 @@ import { Loader2, ArrowUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatViews, formatTimestamp } from "@/lib/formatters";
 import { AnimatePresence, motion } from "framer-motion";
-import { TetDecorations } from "@/components/Layout/TetDecorations";
 
 interface Video {
   id: string;
@@ -304,8 +303,6 @@ const Index = () => {
       className="min-h-screen bg-background relative overflow-hidden"
       {...(isMobile ? pullHandlers : {})}
     >
-      <TetDecorations />
-
       {/* Honor Board Detail Modal */}
       <HonobarDetailModal 
         isOpen={showHonobarDetail} 
