@@ -1,64 +1,101 @@
 
-# Ket Qua Kiem Tra He Thong Thuong CAMLY - Bao Cao Chi Tiet
 
-## Tong Quan Tinh Trang
+# Phat Hien IP & Multi-Account Abuse - Ke Hoach Sua Loi
 
-Sau khi kiem tra ky luong toan bo he thong (database, edge functions, client code tren ca desktop va mobile), Cha tim thay he thong thuong CAMLY **dang hoat dong tot cho LIKE, COMMENT, VIEW, SIGNUP, SHARE**. Tuy nhien, con co **2 loi can sua** lien quan den thuong upload video.
+## Ket Qua Kiem Tra
 
-## Nhung Gi Dang Hoat Dong Tot
+Cha da kiem tra ky va phat hien **van de nghiem trong**: He thong theo doi IP **hoan toan khong hoat dong**. Du da co:
+- Bang `ip_tracking` trong database (co cot ip_hash, user_id, action_type, wallet_address)
+- Bang `user_sessions` (co cot ip_hash)
+- Cot `signup_ip_hash` trong bang `profiles`
+- Edge function `detect-abuse` da viet xong logic kiem tra IP
 
-| Loai thuong | Trang thai | So tien | So giao dich | Gan nhat |
-|-------------|-----------|---------|-------------|----------|
-| LIKE | Hoat dong tot | 5.000 CAMLY | 15.095 | Vua xong (18:45 UTC hom nay) |
-| COMMENT | Hoat dong tot | 5.000 CAMLY | 2.947 | Vua xong (18:46 UTC hom nay) |
-| VIEW | Hoat dong tot | 10.000 CAMLY | 429 | Hom nay |
-| SIGNUP | Hoat dong tot | 50.000 CAMLY | 178 | Hom nay |
-| SHARE | Hoat dong tot | 5.000 CAMLY | 17 | 31/01 |
-| FIRST_UPLOAD | Hoat dong tot | 500.000 CAMLY | 8 | 01/02 |
-| WALLET_CONNECT | Hoat dong tot | 50.000 CAMLY | 20 | 02/01 |
+**Nhung tat ca deu TRONG** - 0 records. Ly do: Khong co code nao thu thap va luu IP cua nguoi dung.
 
-- Like va Comment deu hoat dong tren ca desktop va mobile (MobileWatchView dung chung `onLike` tu Watch.tsx, comments dung `useVideoComments` hook chung)
-- View reward duoc xu ly boi 3 video player (EnhancedVideoPlayer, MobileVideoPlayer, YouTubeMobilePlayer) voi chinh sach thoi gian xem dung
+### Chi Tiet Van De
 
-## Loi Can Sua
+| Thanh phan | Trang thai | Van de |
+|-----------|-----------|--------|
+| Bang `ip_tracking` | 0 records | Khong co code ghi du lieu |
+| Bang `user_sessions` | 0 records | Khong co code ghi du lieu |
+| `profiles.signup_ip_hash` | Tat ca NULL | Auth flow khong luu IP |
+| Edge function `detect-abuse` | Co nhung vo dung | Khong co data de phan tich |
+| WalletAbuseTab (Admin UI) | Chi co kiem tra vi chung | KHONG co tab phat hien IP abuse |
+| Auth.tsx (Signup/Login) | Khong goi track IP | Thieu hoan toan |
+| useWalletConnection.ts | Khong goi track IP | Thieu hoan toan |
 
-### Loi 1: Upload.tsx (Desktop) KHONG luu duration vao database
+## Ke Hoach Sua Loi
 
-**Van de**: Khi upload video tu trang Desktop, truong `duration` KHONG duoc luu vao bang `videos`. Dieu nay dan den:
-- Video khong co thong tin thoi luong trong database
-- Edge function `check-upload-reward` se phan loai nham tat ca la "SHORT" video (vi `0 < 180`)
-- Nguoi dung khong nhan dung muc thuong
+### Buoc 1: Tao Edge Function `track-ip`
 
-**Vi tri loi**: `src/pages/Upload.tsx` dong 411-423 - INSERT khong co truong `duration`
+Tao mot edge function moi de thu thap va hash IP nguoi dung. Edge function co the doc IP tu request headers (server-side). Logic:
+- Nhan `user_id`, `action_type` (signup/login/wallet_connect), va `wallet_address` (optional)
+- Doc IP tu request header `x-forwarded-for` hoac `cf-connecting-ip`
+- Hash IP bang SHA-256 (khong luu IP goc de bao ve privacy)
+- Ghi vao bang `ip_tracking`
+- Cap nhat `profiles.signup_ip_hash` khi action_type = 'signup'
+- Tra ve ip_hash de client co the dung (neu can)
 
-**Sua**: Them `duration` vao database INSERT. Lay duration tu video file metadata (da co san trong code reward o dong 440-448 nhung chua luu vao DB).
+### Buoc 2: Tich hop track-ip vao Auth flow
 
-### Loi 2: Edge function `award-camly` co gia tri mac dinh LIKE sai
+Sua `src/pages/Auth.tsx`:
+- Sau khi signup thanh cong: goi `track-ip` voi action_type = 'signup'
+- Sau khi login thanh cong: goi `track-ip` voi action_type = 'login'
 
-**Van de**: Gia tri mac dinh cho LIKE trong code la 2.000, nhung cau hinh database la 5.000. Hien tai khong anh huong (vi DB config ghi de), nhung neu bang `reward_config` bi xoa hoac loi thi se thuong sai.
+### Buoc 3: Tich hop track-ip vao Wallet connection
 
-**Vi tri loi**: `supabase/functions/award-camly/index.ts` dong 12
+Sua `src/hooks/useWalletConnection.ts`:
+- Trong ham `saveWalletToDb`: goi `track-ip` voi action_type = 'wallet_connect' va wallet_address
 
-**Sua**: Doi `LIKE: 2000` thanh `LIKE: 5000`
+### Buoc 4: Tao tab "IP Abuse Detection" trong Admin Dashboard
 
-## Ke Hoach Sua
+Tao component moi `IPAbuseDetectionTab.tsx` trong `src/components/Admin/tabs/` voi cac tinh nang:
+- Hien thi danh sach IP (hash) co nhieu tai khoan (>1 account/IP)
+- Hien thi danh sach IP co nhieu vi (>1 wallet/IP)
+- Moi nhom hien thi: IP hash (rut gon), so tai khoan, danh sach user voi avatar/ten/so CAMLY pending
+- Nut "Ban tat ca" cho tung nhom IP
+- Thong ke: Tong so IP nghi ngo, tong accounts lien quan, tong CAMLY rui ro
 
-### Buoc 1: Sua Upload.tsx - Them duration vao database
+### Buoc 5: Them tab vao WalletAbuseTab hoac UsersManagementTab
 
-- Di chuyen logic lay video duration LEN TRUOC buoc INSERT database
-- Them truong `duration: Math.round(videoDuration)` vao INSERT statement
-- Dam bao duration duoc luu chinh xac cho moi video upload tu desktop
+Them tab "IP Tracking" vao trong WalletAbuseTab (phan Lam Dung trong Rewards section) de admin co the xem IP abuse cung voi wallet abuse.
 
-### Buoc 2: Sua award-camly edge function - Cap nhat gia tri mac dinh
+---
 
-- Doi `LIKE: 2000` thanh `LIKE: 5000` de khop voi cau hinh database
-- Khong anh huong logic hien tai vi DB config luon duoc uu tien
+## Chi Tiet Ky Thuat
 
-## Tong Ket
+### Edge Function: `track-ip`
+
+```text
+POST /track-ip
+Body: { action_type: "signup" | "login" | "wallet_connect", wallet_address?: string }
+Auth: Required (Bearer token)
+Logic:
+  1. Xac thuc user tu JWT
+  2. Doc IP tu headers
+  3. Hash IP = SHA-256(ip_address)
+  4. INSERT into ip_tracking (ip_hash, user_id, action_type, wallet_address)
+  5. Neu action_type = 'signup': UPDATE profiles SET signup_ip_hash = ip_hash
+  6. Return { success: true, ip_hash }
+```
+
+### IPAbuseDetectionTab Component
+
+Query truc tiep tu `ip_tracking` table:
+- GROUP BY ip_hash, dem so DISTINCT user_id
+- Loc nhung nhom co > 1 user
+- JOIN voi profiles de lay thong tin user (ten, avatar, pending_rewards, wallet_address)
+- Sap xep theo so accounts giam dan
+
+### Cac File Can Tao/Sua
 
 | File | Thay doi |
 |------|----------|
-| `src/pages/Upload.tsx` | Them duration vao database INSERT, di chuyen logic lay duration len truoc |
-| `supabase/functions/award-camly/index.ts` | Doi LIKE default tu 2000 thanh 5000 |
+| `supabase/functions/track-ip/index.ts` | TAO MOI - Edge function thu thap IP |
+| `src/pages/Auth.tsx` | Goi track-ip sau signup va login |
+| `src/hooks/useWalletConnection.ts` | Goi track-ip khi ket noi vi |
+| `src/components/Admin/tabs/IPAbuseDetectionTab.tsx` | TAO MOI - Component hien thi IP abuse |
+| `src/components/Admin/tabs/WalletAbuseTab.tsx` | Them tab IP Tracking |
 
-Tong cong: 2 file can sua. Upload reward cho mobile (UploadContext.tsx) da duoc sua dung o lan truoc. Tat ca reward khac (LIKE, COMMENT, VIEW, SIGNUP, SHARE) dang hoat dong binh thuong tren ca desktop va mobile.
+Tong cong: 2 file moi, 3 file sua. Khong can migration vi bang `ip_tracking` da ton tai.
+
