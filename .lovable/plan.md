@@ -1,63 +1,37 @@
 
-# Cập nhật viền và màu chữ Filter Chips Bar theo màu xanh logo FUN Play
+
+# Giảm độ dày viền các nút Filter Chips trên Mobile
 
 ## Tình trạng hiện tại
 
-Các chip chưa chọn (default) hiện tại có:
-- **Viền**: Mỏng (`border` = 1px), màu cyan nhạt (`border-[#22D3EE]/30`)
-- **Chữ**: Màu `#0284C7` (sky blue)
+Các chip hiện đang sử dụng `border-2` (2px) cho cả trạng thái được chọn và mặc định. Người dùng muốn viền mỏng hơn một chút.
 
-## Màu xanh logo FUN Play
+## Giải pháp
 
-Logo FUN Play sử dụng màu **Cosmic Sapphire** (`#0066FF`), đã được định nghĩa trong hệ thống thiết kế:
-- CSS Variable: `--cosmic-sapphire: 216 100% 50%`
-- Tailwind token: `fun-blue` hoặc `cosmic-sapphire`
+Giảm độ dày viền từ `border-2` (2px) xuống `border-[1.5px]` -- một mức trung gian giữa 1px (quá mỏng) và 2px (quá dày), phù hợp cho hiển thị trên mobile.
 
-## Thay đổi
+## File cần chỉnh sửa
 
-### File duy nhất: `src/components/Layout/CategoryChips.tsx`
+**File duy nhất:** `src/components/Layout/CategoryChips.tsx`
 
-**Chip mặc định (chưa chọn) -- dòng 35:**
+### Thay đổi chi tiết
 
-| Thuộc tính | Hiện tại | Sau cập nhật |
-|------------|----------|--------------|
-| Viền dày | `border` (1px) | `border-2` (2px) |
-| Màu viền | `border-[#22D3EE]/30` (cyan nhạt) | `border-[#0066FF]/40` (xanh logo) |
-| Màu chữ | `text-[#0284C7]` (sky blue) | `text-[#0066FF]` (xanh logo) |
-| Hover viền | `hover:border-[#22D3EE]/50` | `hover:border-[#0066FF]/60` |
-| Hover chữ | `hover:text-[#0369A1]` | `hover:text-[#0052CC]` (xanh logo đậm hơn) |
+**Dòng 34 (chip selected):** Đổi `border-2` thành `border-[1.5px]`
 
-**Chip được chọn (selected) -- dòng 34:**
-
-| Thuộc tính | Hiện tại | Sau cập nhật |
-|------------|----------|--------------|
-| Viền dày | `border` (1px) | `border-2` (2px) |
-| (Giữ nguyên gradient nền và chữ trắng) | | |
-
-## Chi tiết kỹ thuật
-
-Thay đổi class CSS trên dòng 34 và 35 của file `CategoryChips.tsx`:
-
-**Dòng 34 (chip selected):** Đổi `border border-transparent` thanh `border-2 border-transparent`
-
-**Dòng 35 (chip default):** Đổi toàn bộ:
-- `border border-[#22D3EE]/30` thanh `border-2 border-[#0066FF]/40`
-- `text-[#0284C7]` thanh `text-[#0066FF]`
-- `hover:text-[#0369A1]` thanh `hover:text-[#0052CC]`
-- `hover:border-[#22D3EE]/50` thanh `hover:border-[#0066FF]/60`
+**Dòng 35 (chip default):** Đổi `border-2` thành `border-[1.5px]`
 
 ## Tóm tắt
 
 | Hạng mục | Chi tiết |
 |----------|----------|
 | File cần sửa | 1 (`CategoryChips.tsx`) |
-| Thay đổi | 2 dòng (dòng 34 và 35) |
+| Thay đổi | 2 chỗ trên dòng 34 và 35 |
 | Cơ sở dữ liệu | Không |
 | Đồng bộ Mobile | Tự động (component dùng chung) |
 
 ## Kết quả
 
-- Viền các chip dày hơn (2px thay vì 1px), rõ ràng hơn trên mobile
-- Màu viền và chữ sử dụng đúng màu xanh logo FUN Play (#0066FF)
-- Chip được chọn giữ nguyên gradient Teal-Cyan-Blue với viền dày hơn
-- Áp dụng đồng thời cho cả Desktop và Mobile
+- Viền mỏng hơn (1.5px thay vì 2px), trông thanh thoát hơn trên mobile
+- Vẫn đủ rõ ràng để nhìn thấy viền xanh logo (#0066FF)
+- Giữ nguyên tất cả màu sắc và gradient đã thiết lập
+
