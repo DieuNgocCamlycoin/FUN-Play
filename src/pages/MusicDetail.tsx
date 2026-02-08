@@ -168,7 +168,7 @@ export default function MusicDetail() {
         thumbnail_url: track.thumbnail_url,
         video_url: track.video_url,
         duration: track.duration,
-        channelName: track.channels?.name || "Unknown Artist",
+      channelName: track.channels?.name || "Nghệ sĩ chưa xác định",
       };
       playTrack(musicTrack);
     }
@@ -221,7 +221,7 @@ export default function MusicDetail() {
       thumbnail_url: track.thumbnail_url,
       video_url: track.video_url,
       duration: track.duration,
-      channelName: track.channels?.name || "Unknown Artist",
+      channelName: track.channels?.name || "Nghệ sĩ chưa xác định",
     };
     
     addToQueue(musicTrack);
@@ -344,7 +344,7 @@ export default function MusicDetail() {
                             onClick={() => track.channels && navigate(`/channel/${track.channels.id}`)}
                             className="text-lg text-primary hover:underline"
                           >
-                            {track.channels?.name || "Unknown Artist"}
+                            {track.channels?.name || "Nghệ sĩ chưa xác định"}
                           </button>
                         </div>
 
@@ -467,7 +467,7 @@ export default function MusicDetail() {
                           <div className="flex-1 min-w-0">
                             <h3 className="font-medium truncate">{relatedTrack.title}</h3>
                             <p className="text-sm text-muted-foreground truncate">
-                              {relatedTrack.channels?.name || "Unknown Artist"}
+                              {relatedTrack.channels?.name || "Nghệ sĩ chưa xác định"}
                             </p>
                             <p className="text-xs text-muted-foreground">
                               {formatViewsShort(relatedTrack.view_count)} lượt nghe

@@ -108,12 +108,12 @@ export default function UserProfile() {
       } else if (targetUsername) {
         profileQuery = profileQuery.eq("username", targetUsername);
       } else {
-        throw new Error("No user identifier provided");
+        throw new Error("Không tìm thấy thông tin người dùng");
       }
 
       const { data: profileData, error: profileError } = await profileQuery.maybeSingle();
       if (profileError) throw profileError;
-      if (!profileData) throw new Error("User not found");
+      if (!profileData) throw new Error("Người dùng không tồn tại");
 
       setProfile(profileData);
 

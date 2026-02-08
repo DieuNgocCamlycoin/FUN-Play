@@ -206,7 +206,7 @@ export default function BrowseMusic() {
       thumbnail_url: track.thumbnail_url,
       video_url: track.video_url,
       duration: track.duration,
-      channelName: track.channels?.name || "Unknown Artist",
+      channelName: track.channels?.name || "Nghệ sĩ chưa xác định",
     };
 
     if (currentTrack?.id === track.id) {
@@ -223,7 +223,7 @@ export default function BrowseMusic() {
       thumbnail_url: track.thumbnail_url,
       video_url: track.video_url,
       duration: track.duration,
-      channelName: track.channels?.name || "Unknown Artist",
+      channelName: track.channels?.name || "Nghệ sĩ chưa xác định",
     };
     addToQueue(musicTrack);
   };
@@ -441,7 +441,7 @@ export default function BrowseMusic() {
                         <div className="p-3">
                           <h3 className="font-medium truncate mb-1">{track.title}</h3>
                           <p className="text-sm text-muted-foreground truncate">
-                            {track.channels?.name || "Unknown Artist"}
+                            {track.channels?.name || "Nghệ sĩ chưa xác định"}
                           </p>
                           <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
                             <span className="flex items-center gap-1">
@@ -514,7 +514,7 @@ export default function BrowseMusic() {
                             )}
                           </div>
                           <p className="text-sm text-muted-foreground truncate">
-                            {track.channels?.name || "Unknown Artist"}
+                            {track.channels?.name || "Nghệ sĩ chưa xác định"}
                           </p>
                         </div>
 

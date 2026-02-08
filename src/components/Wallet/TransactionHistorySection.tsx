@@ -220,8 +220,8 @@ export const TransactionHistorySection = () => {
   const exportCSV = () => {
     const headers = "Thời gian,Loại,Số tiền,Token,Trạng thái,Người gửi,Người nhận,Tx Hash,Link BSC\n";
     const rows = filteredTransactions.map(t => {
-      const sender = t.sender?.username || (t.type === "reward" ? "System" : "You");
-      const receiver = t.receiver?.username || (t.type === "reward" ? "You" : "N/A");
+      const sender = t.sender?.username || (t.type === "reward" ? "Hệ thống" : "Bạn");
+      const receiver = t.receiver?.username || (t.type === "reward" ? "Bạn" : "Không có");
       const bscLink = t.tx_hash ? `https://bscscan.com/tx/${t.tx_hash}` : "";
       return `"${new Date(t.created_at).toLocaleString("vi-VN")}","${t.type}","${t.amount}","${t.token}","${t.status}","${sender}","${receiver}","${t.tx_hash || ""}","${bscLink}"`;
     }).join("\n");

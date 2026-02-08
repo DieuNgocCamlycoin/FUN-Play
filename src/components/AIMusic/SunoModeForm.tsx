@@ -38,7 +38,7 @@ export function SunoModeForm() {
       const generatedLyrics = await generateLyrics({
         description: prompt,
         style: style,
-        title: title || "Untitled",
+        title: title || "Không có tiêu đề",
       });
       setLyrics(generatedLyrics);
       toast.success("🎵 Đã tạo lời bài hát!");
