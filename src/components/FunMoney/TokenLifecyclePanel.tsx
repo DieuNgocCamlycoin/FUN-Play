@@ -4,7 +4,7 @@
  * With FUN Money logo, animations, and detailed stats
  */
 
-import { useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -192,15 +192,15 @@ export function TokenLifecyclePanel({
 
         {/* Lifecycle States - 3 Columns */}
         <div className={cn(
-          "grid gap-3 mb-6",
-          compactMode ? "grid-cols-1" : "grid-cols-1 md:grid-cols-3"
+          "flex mb-6 gap-3",
+          compactMode ? "flex-col" : "flex-col md:flex-row md:items-stretch"
         )}>
           {states.map((state, index) => (
-            <div key={state.status} className="contents">
+            <React.Fragment key={state.status}>
               {/* State Card */}
               <div 
                 className={cn(
-                  "p-4 rounded-xl transition-all cursor-pointer",
+                  "flex-1 min-w-0 p-4 rounded-xl transition-all cursor-pointer",
                   "border border-border/50 hover:border-border",
                   state.bgColor,
                   state.count > 0 && state.glowColor,
@@ -254,18 +254,13 @@ export function TokenLifecyclePanel({
                 </div>
               </div>
 
-              {/* Vertical arrow between states on mobile, horizontal on desktop */}
+              {/* Arrow between states */}
               {index < states.length - 1 && !compactMode && (
-                <>
-                  <div className="hidden md:flex items-center justify-center">
-                    <ArrowRight className="w-6 h-6 text-muted-foreground" />
-                  </div>
-                  <div className="flex md:hidden items-center justify-center py-1">
-                    <ArrowRight className="w-5 h-5 text-muted-foreground rotate-90" />
-                  </div>
-                </>
+                <div className="flex items-center justify-center shrink-0 py-1 md:py-0 md:px-1">
+                  <ArrowRight className="w-5 h-5 md:w-6 md:h-6 text-muted-foreground rotate-90 md:rotate-0" />
+                </div>
               )}
-            </div>
+            </React.Fragment>
           ))}
         </div>
 
