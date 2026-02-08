@@ -1,7 +1,8 @@
 
-# FUN Play vs YouTube 2025: Round 19 Gap Analysis
 
-## Verified Fixes from Rounds 1-18 (All Working)
+# FUN Play vs YouTube 2025: Round 20 Gap Analysis
+
+## Verified Fixes from Rounds 1-19 (All Working)
 
 | Feature | Round | Status |
 |---------|-------|--------|
@@ -50,108 +51,99 @@
 | Subscriptions hover preview | R18 | Done |
 | Shorts duration filter (3 min) | R18 | Done |
 | Desktop search hover preview | R18 | Done |
+| LikedVideos hover preview | R19 | Done |
+| Search mobile hover preview | R19 | Done |
+| ProfileVideosTab full props (channel, duration, videoUrl) | R19 | Done |
+| ProfileVideosTab shorts duration (180s) | R19 | Done |
 
 ---
 
-## REMAINING GAPS FOUND IN ROUND 19
+## REMAINING GAPS FOUND IN ROUND 20
 
-### HIGH PRIORITY (Feature Consistency)
+### HIGH PRIORITY (Functional Gap)
 
-#### Gap 1: LikedVideos Page Missing Hover Preview (videoUrl prop)
+#### Gap 1: YourVideos.tsx Content Tabs Are Non-Functional
 
-`LikedVideos.tsx` (line 224-236) renders `VideoCard` components and fetches `video_url` in its query (line 64), but does NOT pass `videoUrl` to `VideoCard`. This means the hover preview feature added in Round 17 does not work on the Liked Videos page.
+`YourVideos.tsx` (lines 66-74) renders 7 content tabs: Video, Shorts, Live Events, Posts, Playlists, Podcasts, Promotions. However, these are all static `<button>` elements with no state management or filtering logic. The "Video" tab appears permanently selected, and clicking any other tab does nothing.
 
-YouTube shows hover previews consistently on all pages that display video cards.
+YouTube Studio's content page has functional tabs that filter the content table between Videos, Shorts, Live, and Posts. Users rely on these tabs to manage different content types.
 
-**Fix:** Pass `videoUrl={video.video_url}` to `VideoCard` in `LikedVideos.tsx`.
+**Fix:** Add `activeTab` state management. Implement functional filtering for the "Video" and "Shorts" tabs (Video shows `duration > 180 OR duration is null`, Shorts shows `duration <= 180`). Other tabs can display a "coming soon" message. The currently fetched data already includes `duration` but there's no filtering logic in the query.
 
-#### Gap 2: Mobile Search VideoCard Missing Hover Preview (videoUrl prop)
+#### Gap 2: Subscriptions Feed Missing Approval Status Filter
 
-`Search.tsx` (lines 393-409) renders `VideoCard` on mobile with `videoUrl` missing from props. The video data has `video_url` available from the query (line 130) but it is not passed to the mobile VideoCard instances.
+`Subscriptions.tsx` line 82-85 queries videos with only `.eq('is_public', true)` but does NOT filter by `approval_status`. The homepage (`Index.tsx` line 141), Search (`Search.tsx` line 132), and Shorts (`Shorts.tsx` line 378) all correctly filter with `.eq('approval_status', 'approved')`.
 
-**Fix:** Pass `videoUrl={video.video_url || undefined}` to the mobile `VideoCard` in `Search.tsx`.
+This means the Subscriptions feed could surface unapproved or pending videos from subscribed channels, which YouTube would never show.
 
-#### Gap 3: ProfileVideosTab Missing Channel Name + videoUrl
+**Fix:** Add `.eq('approval_status', 'approved')` to the video query in `Subscriptions.tsx`.
 
-`ProfileVideosTab.tsx` (lines 96-106) renders `VideoCard` with minimal props -- it passes only `videoId`, `title`, `thumbnail`, `views`, and `timestamp`. Missing props: `channel`, `channelId`, `userId`, `duration`, `videoUrl`. This means:
-- No channel name displayed under videos on Channel/Profile pages
-- No hover preview on profile video cards
-- No duration badge
-- No kebab menu functionality (missing userId for ownership check)
+#### Gap 3: LikedVideos Missing Approval Status Filter
 
-YouTube's channel page shows full video cards with channel info, duration, and previews.
+`LikedVideos.tsx` line 61-68 queries videos with `.eq('is_public', true)` but no `approval_status` filter. If a previously-liked video gets flagged or its approval is revoked, it would still appear in the liked videos list. YouTube hides such videos.
 
-**Fix:** Update the query to include `video_url, channel_id, user_id` and the related `channels(name, id)`. Pass the full set of props to `VideoCard`.
+**Fix:** Add `.eq('approval_status', 'approved')` to the video query in `LikedVideos.tsx`.
 
-#### Gap 4: ProfileVideosTab Shorts Duration Filter Inconsistent
+#### Gap 4: ProfileVideosTab Missing Approval Status Filter
 
-`ProfileVideosTab.tsx` (line 48) uses `query.lt("duration", 60)` for shorts, meaning only videos under 60 seconds. However, the Shorts page (Round 18 fix) now uses `duration.lte.180` and upload system defines shorts as videos up to 180 seconds.
+`ProfileVideosTab.tsx` line 38-42 queries with `.eq('is_public', true)` but no `approval_status` filter. Unapproved or pending videos could appear on public channel pages.
 
-**Fix:** Change line 48 from `.lt("duration", 60)` to `.lte("duration", 180)` and line 50 from `.or("duration.gte.60,duration.is.null")` to `.or("duration.gt.180,duration.is.null")` to be consistent.
-
-### MEDIUM PRIORITY (UX Polish)
-
-#### Gap 5: MobileHeader Search Suggestions Already Existed Before Round 18
-
-Looking at the current code, `MobileHeader.tsx` already had search suggestions state and logic (lines 39-44, 106-131 in the provided file). Round 18 may have duplicated this logic. The code should be verified for duplicate state/effects, but based on the current file view, the suggestions feature is functional with proper debouncing. No code change needed -- just verification.
-
-**Status:** No change needed if working correctly.
+**Fix:** Add `.eq('approval_status', 'approved')` to the query in `ProfileVideosTab.tsx`.
 
 ---
 
 ### ACCEPTABLE EXCEPTIONS (No Change Needed)
 
-- **Branded feature names**: FUN ECOSYSTEM, Build and Bounty, FUN Wallet, Shorts, Studio, CAMLY, MINT, PPLP Protocol
-- **Music genre names**: Pop, Rock, Jazz, Classical, Lo-Fi, Ambient, Hip Hop
-- **Technical documentation**: PlatformDocs.tsx
-- **Database enum values**: "success", "error", "pending", "reward"
-- **UI library defaults**: sidebar.tsx "Toggle Sidebar" (shadcn/ui internal)
-- **Alt text attributes**: Non-visible accessibility labels
-- **React internal keys**: labelEn values
-- **File size units**: Bytes, KB, MB, GB, TB
-- **Tooltip branded terms**: "Mint FUN Money - PPLP Protocol", "ANGEL AI"
-- **Console log messages**: Developer-facing debug output
+- Watch.tsx description box uses `toLocaleString()` for full view count display -- this matches YouTube's behavior in the description area (full numbers, not abbreviated)
+- Subscriber counts use `toLocaleString()` -- acceptable for the Vietnamese community's current scale
+- All branded feature names, music genres, technical documentation, database values, file size units -- remain in English per standard conventions
+- `toLocaleString()` usage in Admin/Web3/FunMoney components -- these are internal dashboard or financial values where full precision is expected
 
 ---
 
 ## IMPLEMENTATION PLAN
 
-### Phase 1: LikedVideos Hover Preview Fix (1 file, 1 change)
+### Phase 1: YourVideos.tsx Functional Tabs (1 file)
+
+**File:** `src/pages/YourVideos.tsx`
+
+1. Add `activeTab` state with type `"video" | "shorts" | "live" | "posts" | "playlists" | "podcast" | "promo"` defaulting to `"video"`
+
+2. Update the tab buttons (lines 67-74) to:
+   - Wire `onClick` handlers to set `activeTab`
+   - Apply active styling (`border-b-2 border-primary font-medium`) conditionally based on `activeTab`
+   - Keep inactive style as `text-muted-foreground hover:text-foreground`
+
+3. Update the `fetchVideos` query (lines 39-41) to filter based on `activeTab`:
+   - When `activeTab === "video"`: add `.or("duration.gt.180,duration.is.null")`
+   - When `activeTab === "shorts"`: add `.lte("duration", 180)`
+   - Add `activeTab` to the `useEffect` dependency array
+
+4. For tabs that don't have content yet (Live, Posts, Playlists, Podcast, Promotions), show a placeholder state:
+   - Display a centered icon with "Sap co" (Coming soon) text
+   - Hide the video table when these tabs are active
+
+5. Update the empty state to show tab-specific messaging:
+   - "Video" tab: "Ban chua co video nao" (existing message)
+   - "Shorts" tab: "Ban chua co Shorts nao"
+
+### Phase 2: Subscriptions Approval Filter (1 file, 1 line)
+
+**File:** `src/pages/Subscriptions.tsx`
+
+- Line 84: Add `.eq('approval_status', 'approved')` after `.eq('is_public', true)`
+
+### Phase 3: LikedVideos Approval Filter (1 file, 1 line)
 
 **File:** `src/pages/LikedVideos.tsx`
 
-- Line 224-236: Add `videoUrl={video.video_url}` to the `VideoCard` component props. The data already includes `video_url` from the query.
+- Line 68: Add `.eq('approval_status', 'approved')` after `.eq('is_public', true)`
 
-### Phase 2: Search Mobile VideoCard Hover Preview (1 file, 1 change)
-
-**File:** `src/pages/Search.tsx`
-
-- Lines 393-409: Add `videoUrl={video.video_url || undefined}` to the mobile `VideoCard` component. The query already fetches `video_url` (line 130).
-
-### Phase 3: ProfileVideosTab Full Props + Duration Fix (1 file)
+### Phase 4: ProfileVideosTab Approval Filter (1 file, 1 line)
 
 **File:** `src/components/Profile/ProfileVideosTab.tsx`
 
-1. Update the video data interface to include additional fields:
-   - Add `video_url`, `user_id`, and `channel_id` to the `VideoData` interface
-
-2. Update the query (line 35) to include additional fields:
-   - Change from `"id, title, thumbnail_url, view_count, created_at, duration"` to `"id, title, thumbnail_url, video_url, view_count, created_at, duration, user_id, channel_id, channels(name, id)"`
-
-3. Update the Shorts filter (line 48):
-   - Change `.lt("duration", 60)` to `.lte("duration", 180)`
-
-4. Update the regular video filter (line 50):
-   - Change `.or("duration.gte.60,duration.is.null")` to `.or("duration.gt.180,duration.is.null")`
-
-5. Update the VideoCard rendering (lines 98-106) to pass full props:
-   - Add `videoUrl={video.video_url || undefined}`
-   - Add `channel={video.channels?.name || undefined}`
-   - Add `channelId={video.channels?.id || video.channel_id}`
-   - Add `userId={video.user_id}`
-   - Add `duration={video.duration}`
-   - Update `views` to use `formatViews` from `@/lib/formatters` instead of raw `toLocaleString()`
-   - Update `timestamp` to use `formatTimestamp` from `@/lib/formatters`
+- Line 41: Add `.eq('approval_status', 'approved')` after `.eq('is_public', true)`
 
 ---
 
@@ -159,30 +151,36 @@ Looking at the current code, `MobileHeader.tsx` already had search suggestions s
 
 | Phase | Files Modified | New Files | Complexity |
 |-------|---------------|-----------|------------|
-| 1 | 1 (LikedVideos.tsx) | 0 | Low -- add 1 prop |
-| 2 | 1 (Search.tsx) | 0 | Low -- add 1 prop |
-| 3 | 1 (ProfileVideosTab.tsx) | 0 | Medium -- query update + prop additions + filter fix |
+| 1 | 1 (YourVideos.tsx) | 0 | Medium -- tab state + query filtering + conditional UI |
+| 2 | 1 (Subscriptions.tsx) | 0 | Low -- add 1 filter line |
+| 3 | 1 (LikedVideos.tsx) | 0 | Low -- add 1 filter line |
+| 4 | 1 (ProfileVideosTab.tsx) | 0 | Low -- add 1 filter line |
 
-**Total: 3 files modified, 0 new files, 0 database changes**
+**Total: 4 files modified, 0 new files, 0 database changes**
 
-### Feature Parity Progress After Round 19
+### Feature Parity Progress After Round 20
 
 **Newly added YouTube 2025 consistency:**
-- Hover preview on Liked Videos page
-- Hover preview on mobile Search results
-- Full VideoCard props on Channel/Profile pages (channel name, duration, hover preview)
-- Consistent Shorts duration filter (180s) across Profile tabs
+- Functional Video/Shorts content tabs in channel management (YourVideos)
+- Consistent `approval_status` filtering across all video listing pages
+- Data quality protection -- unapproved/flagged videos hidden from all public feeds
 
-**Remaining YouTube features for future rounds:**
-- Clip creation (share video segments) -- requires backend
-- Super Thanks (highlighted paid comments) -- skipped per user request
-- Community posts with polls -- not implementing per user request
+**Remaining YouTube features beyond FUN Play scope:**
+- Clip creation (share video segments) -- requires dedicated backend infrastructure
+- Super Thanks (highlighted paid comments) -- skipped per user decision
+- Community posts with polls -- not implementing per user decision
+- Live streaming backend -- UI present, backend requires external streaming infrastructure
 
 ### Localization Status
 
-No new English strings found. All user-facing text remains fully localized to Vietnamese. Remaining English consists only of:
-- Branded/international terms (YouTube standard)
-- Technical documentation (developer-facing)
-- Database values and code identifiers
-- UI library defaults (shadcn/ui)
-- File size units (international standard)
+No new English strings found. All user-facing text remains fully localized to Vietnamese. The system has achieved comprehensive localization parity with YouTube's Vietnamese interface.
+
+### System Maturity Assessment
+
+After 20 rounds of progressive analysis, FUN Play has achieved **near-complete feature and interface parity with YouTube 2025** for its core use cases. The remaining differences are either:
+1. Features explicitly declined by the user (Super Thanks, Community Polls)
+2. Features requiring external backend infrastructure beyond the platform's scope (Live streaming, Clip creation)
+3. Scale-dependent optimizations (pre-generated preview clips, AI-powered recommendations)
+
+The platform is production-ready for the Vietnamese community with full localization, mobile parity, and consistent UX across all pages.
+
