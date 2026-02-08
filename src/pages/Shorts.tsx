@@ -204,7 +204,7 @@ const ShortsVideoItem = ({
             )} />
           </div>
           <span className="text-white text-xs mt-1 font-medium">
-            {(video.like_count || 0).toLocaleString()}
+            {formatViewsShort(video.like_count)}
           </span>
         </button>
 
@@ -234,7 +234,7 @@ const ShortsVideoItem = ({
             <MessageCircle className="w-7 h-7 text-white" />
           </div>
           <span className="text-white text-xs mt-1 font-medium">
-            {(video.comment_count || 0).toLocaleString()}
+            {formatViewsShort(video.comment_count)}
           </span>
         </button>
 

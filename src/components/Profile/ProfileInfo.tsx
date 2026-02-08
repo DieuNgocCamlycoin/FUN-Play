@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { EnhancedDonateModal } from "@/components/Donate/EnhancedDonateModal";
 import { motion } from "framer-motion";
+import { formatViewsShort } from "@/lib/formatters";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -103,7 +104,7 @@ export const ProfileInfo = ({
           <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground mb-2">
             <span className="font-medium">@{profile.username}</span>
             <span>•</span>
-            <span>{subscriberCount.toLocaleString()} người theo dõi</span>
+            <span>{formatViewsShort(subscriberCount)} người theo dõi</span>
             <span>•</span>
             <span className="text-[hsl(var(--cosmic-gold))] font-semibold">
               {profile.total_camly_rewards.toLocaleString()} CAMLY
