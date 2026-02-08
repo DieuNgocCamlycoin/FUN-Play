@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, ArrowLeft, Play } from 'lucide-react';
+import { Users, ArrowLeft } from 'lucide-react';
 import { MainLayout } from '@/components/Layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { VideoCard } from '@/components/Video/VideoCard';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { VideoPlaceholder } from '@/components/Video/VideoPlaceholder';
+import { formatViews, formatTimestamp } from '@/lib/formatters';
 
 interface SubscribedChannel {
   id: string;
@@ -17,6 +18,7 @@ interface SubscribedChannel {
     name: string;
     subscriber_count: number | null;
     user_id: string;
+    is_verified: boolean | null;
     profile: { avatar_url: string | null };
   };
   latestVideos: Array<{
@@ -41,7 +43,7 @@ const Subscriptions = () => {
       try {
         const { data: subsData, error: subsError } = await supabase
           .from('subscriptions')
-          .select(`id, channel_id, created_at, channels (id, name, subscriber_count, user_id)`)
+          .select(`id, channel_id, created_at, channels (id, name, subscriber_count, user_id, is_verified)`)
           .eq('subscriber_id', user.id)
           .order('created_at', { ascending: false });
         if (subsError) throw subsError;
@@ -78,31 +80,6 @@ const Subscriptions = () => {
     };
     fetchSubscriptions();
   }, [user]);
-
-  const formatViews = (views: number | null) => {
-    if (!views) return '0 lượt xem';
-    if (views >= 1000000) return `${(views / 1000000).toFixed(1)}M lượt xem`;
-    if (views >= 1000) return `${(views / 1000).toFixed(1)}K lượt xem`;
-    return `${views} lượt xem`;
-  };
-
-  const formatDuration = (seconds: number | null) => {
-    if (!seconds) return '0:00';
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const formatTimestamp = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-    if (diffDays === 0) return 'Hôm nay';
-    if (diffDays === 1) return '1 ngày trước';
-    if (diffDays < 30) return `${diffDays} ngày trước`;
-    if (diffDays < 365) return `${Math.floor(diffDays / 30)} tháng trước`;
-    return `${Math.floor(diffDays / 365)} năm trước`;
-  };
 
   if (!user) {
     return (
@@ -172,23 +149,20 @@ const Subscriptions = () => {
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     {sub.latestVideos.map((video) => (
-                      <div key={video.id} className="group cursor-pointer" onClick={() => navigate(`/watch/${video.id}`)}>
-                        <div className="relative aspect-video rounded-lg overflow-hidden bg-muted">
-                          {video.thumbnail_url ? (
-                            <img src={video.thumbnail_url} alt={video.title} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
-                          ) : (
-                            <VideoPlaceholder className="transition-transform duration-300 group-hover:scale-105" />
-                          )}
-                          <div className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1 rounded">{formatDuration(video.duration)}</div>
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <Play className="w-10 h-10 text-white fill-white" />
-                          </div>
-                        </div>
-                        <div className="mt-2">
-                          <h3 className="font-medium text-sm line-clamp-2 group-hover:text-primary transition-colors">{video.title}</h3>
-                          <p className="text-xs text-muted-foreground mt-1">{formatViews(video.view_count)} • {formatTimestamp(video.created_at)}</p>
-                        </div>
-                      </div>
+                      <VideoCard
+                        key={video.id}
+                        videoId={video.id}
+                        title={video.title}
+                        thumbnail={video.thumbnail_url || undefined}
+                        channel={sub.channel.name}
+                        channelId={sub.channel.id}
+                        userId={sub.channel.user_id}
+                        avatarUrl={sub.channel.profile?.avatar_url || undefined}
+                        duration={video.duration}
+                        isVerified={sub.channel.is_verified || false}
+                        views={formatViews(video.view_count)}
+                        timestamp={formatTimestamp(video.created_at)}
+                      />
                     ))}
                   </div>
                 )}

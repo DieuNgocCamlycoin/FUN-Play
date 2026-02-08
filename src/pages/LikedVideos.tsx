@@ -4,9 +4,11 @@ import { MainLayout } from "@/components/Layout/MainLayout";
 import { VideoCard } from "@/components/Video/VideoCard";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useVideoPlayback } from "@/contexts/VideoPlaybackContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Heart, Loader2 } from "lucide-react";
+import { Heart, Loader2, Play, Shuffle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { formatViews, formatTimestamp } from "@/lib/formatters";
 
 interface Video {
   id: string;
@@ -33,13 +35,13 @@ const LikedVideos = () => {
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const { createSession } = useVideoPlayback();
 
   const fetchLikedVideos = useCallback(async () => {
     if (!user) return;
     
     setLoading(true);
     try {
-      // Get liked video IDs
       const { data: likesData, error: likesError } = await supabase
         .from("likes")
         .select("video_id")
@@ -56,22 +58,11 @@ const LikedVideos = () => {
 
       const videoIds = likesData.map(l => l.video_id).filter(Boolean);
 
-      // Fetch video details
       const { data: videosData, error: videosError } = await supabase
         .from("videos")
         .select(`
-          id,
-          title,
-          thumbnail_url,
-          video_url,
-          view_count,
-          duration,
-          created_at,
-          user_id,
-          channels (
-            name,
-            id
-          )
+          id, title, thumbnail_url, video_url, view_count, duration, created_at, user_id,
+          channels (name, id)
         `)
         .in("id", videoIds)
         .eq("is_public", true);
@@ -79,7 +70,6 @@ const LikedVideos = () => {
       if (videosError) throw videosError;
 
       if (videosData && videosData.length > 0) {
-        // Fetch profiles for wallet_address and avatar
         const userIds = [...new Set(videosData.map(v => v.user_id))];
         const { data: profilesData } = await supabase
           .from("profiles")
@@ -122,7 +112,19 @@ const LikedVideos = () => {
     }
   }, [user, authLoading, fetchLikedVideos]);
 
-  // Not logged in state
+  const handlePlayAll = async () => {
+    if (videos.length === 0) return;
+    await createSession(videos[0].id, 'HOME_FEED', undefined, videos);
+    navigate(`/watch/${videos[0].id}`);
+  };
+
+  const handleShuffle = async () => {
+    if (videos.length === 0) return;
+    const shuffled = [...videos].sort(() => Math.random() - 0.5);
+    await createSession(shuffled[0].id, 'HOME_FEED', undefined, shuffled);
+    navigate(`/watch/${shuffled[0].id}`);
+  };
+
   if (!authLoading && !user) {
     return (
       <MainLayout>
@@ -132,29 +134,73 @@ const LikedVideos = () => {
           <p className="text-muted-foreground text-center mb-4">
             Bạn cần đăng nhập để lưu và xem lại các video yêu thích
           </p>
-          <Button onClick={() => navigate("/auth")}>
-            Đăng nhập
-          </Button>
+          <Button onClick={() => navigate("/auth")}>Đăng nhập</Button>
         </div>
       </MainLayout>
     );
   }
 
+  const firstVideo = videos[0];
+
   return (
     <MainLayout>
       <div className="p-4 lg:p-6">
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
-          <div className="p-3 rounded-full bg-gradient-to-br from-red-500 to-pink-500">
-            <Heart className="h-6 w-6 text-white" fill="white" />
+        {/* Hero Section */}
+        {!loading && videos.length > 0 && (
+          <div className="relative rounded-2xl overflow-hidden mb-6">
+            {/* Blurred background thumbnail */}
+            <div className="absolute inset-0">
+              {firstVideo?.thumbnail_url && (
+                <img
+                  src={firstVideo.thumbnail_url}
+                  alt=""
+                  className="w-full h-full object-cover blur-2xl scale-110 opacity-40"
+                />
+              )}
+              <div className="absolute inset-0 bg-gradient-to-r from-red-500/80 via-pink-500/60 to-purple-500/80" />
+            </div>
+            
+            <div className="relative p-6 lg:p-8 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <div className="p-4 rounded-xl bg-white/20 backdrop-blur-sm">
+                <Heart className="h-8 w-8 text-white" fill="white" />
+              </div>
+              <div className="flex-1">
+                <h1 className="text-2xl lg:text-3xl font-bold text-white">Video đã thích</h1>
+                <p className="text-white/80 mt-1">{videos.length} video</p>
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  onClick={handlePlayAll}
+                  className="gap-2 bg-white text-black hover:bg-white/90 font-semibold"
+                >
+                  <Play className="h-4 w-4 fill-current" />
+                  Phát tất cả
+                </Button>
+                <Button
+                  onClick={handleShuffle}
+                  variant="outline"
+                  className="gap-2 border-white/50 text-white hover:bg-white/20"
+                >
+                  <Shuffle className="h-4 w-4" />
+                  Trộn bài
+                </Button>
+              </div>
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl font-bold">Video đã thích</h1>
-            <p className="text-muted-foreground">
-              {videos.length} video
-            </p>
+        )}
+
+        {/* Simple header for loading/empty */}
+        {(loading || videos.length === 0) && (
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-3 rounded-full bg-gradient-to-br from-red-500 to-pink-500">
+              <Heart className="h-6 w-6 text-white" fill="white" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold">Video đã thích</h1>
+              <p className="text-muted-foreground">{videos.length} video</p>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Content */}
         {loading ? (
@@ -182,8 +228,8 @@ const LikedVideos = () => {
                 thumbnail={video.thumbnail_url || undefined}
                 channel={video.channels?.name || "Unknown"}
                 channelId={video.channels?.id}
-                views={String(video.view_count || 0)}
-                timestamp={video.created_at}
+                views={formatViews(video.view_count)}
+                timestamp={formatTimestamp(video.created_at)}
                 userId={video.user_id}
                 avatarUrl={video.profiles?.avatar_url || undefined}
                 duration={video.duration}

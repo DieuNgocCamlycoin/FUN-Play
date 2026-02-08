@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { ThumbsUp, ThumbsDown, Share2, MoreHorizontal, Gift } from "lucide-react";
+import { ThumbsUp, ThumbsDown, Share2, MoreHorizontal, Gift, Bookmark, Flag, EyeOff } from "lucide-react";
 import { DonateModal } from "@/components/Donate/DonateModal";
 import { ShareModal } from "@/components/Video/ShareModal";
 import { MiniProfileCard } from "@/components/Video/MiniProfileCard";
@@ -23,6 +23,14 @@ import { DynamicMeta } from "@/components/SEO/DynamicMeta";
 import { setGlobalVideoState, setGlobalPlayingState } from "@/components/Video/GlobalVideoPlayer";
 import { MobileWatchView } from "@/components/Video/Mobile/MobileWatchView";
 import { VideoCommentList } from "@/components/Video/Comments/VideoCommentList";
+import { AddToPlaylistModal } from "@/components/Playlist/AddToPlaylistModal";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { formatViews, formatTimestamp } from "@/lib/formatters";
 
 interface Video {
   id: string;
@@ -72,6 +80,7 @@ export default function Watch() {
   const [hasDisliked, setHasDisliked] = useState(false);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [showMiniProfile, setShowMiniProfile] = useState(false);
+  const [playlistModalOpen, setPlaylistModalOpen] = useState(false);
   const [showMiniPlayer, setShowMiniPlayer] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -318,25 +327,7 @@ export default function Watch() {
     return () => window.removeEventListener('globalPlayerClosed', handleGlobalPlayerClosed);
   }, []);
 
-  const formatViews = (views: number | null) => {
-    if (!views) return "0 lượt xem";
-    if (views >= 1000000) return `${(views / 1000000).toFixed(1)}M lượt xem`;
-    if (views >= 1000) return `${(views / 1000).toFixed(1)}K lượt xem`;
-    return `${views} lượt xem`;
-  };
-
-  const formatTimestamp = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffDays === 0) return "Hôm nay";
-    if (diffDays === 1) return "1 ngày trước";
-    if (diffDays < 30) return `${diffDays} ngày trước`;
-    if (diffDays < 365) return `${Math.floor(diffDays / 30)} tháng trước`;
-    return `${Math.floor(diffDays / 365)} năm trước`;
-  };
+  // formatViews and formatTimestamp imported from @/lib/formatters
 
   const checkSubscription = async () => {
     if (!user || !video) return;
@@ -647,12 +638,21 @@ export default function Watch() {
               {/* Channel Info & Actions */}
               <div className="flex items-center justify-between flex-wrap gap-4">
                 <div className="flex items-center gap-3">
-                  <div
-                    className="w-10 h-10 rounded-full bg-gradient-to-br from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta flex items-center justify-center text-foreground font-semibold cursor-pointer hover:shadow-[0_0_40px_rgba(0,255,255,0.7)] transition-shadow"
-                    onClick={() => navigate(`/channel/${video.channels.id}`)}
-                  >
-                    {video.channels.name[0]}
-                  </div>
+                  {channelAvatarUrl ? (
+                    <img
+                      src={channelAvatarUrl}
+                      alt={video.channels.name}
+                      className="w-10 h-10 rounded-full object-cover cursor-pointer hover:shadow-[0_0_40px_rgba(0,255,255,0.7)] transition-shadow"
+                      onClick={() => navigate(`/channel/${video.channels.id}`)}
+                    />
+                  ) : (
+                    <div
+                      className="w-10 h-10 rounded-full bg-gradient-to-br from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta flex items-center justify-center text-foreground font-semibold cursor-pointer hover:shadow-[0_0_40px_rgba(0,255,255,0.7)] transition-shadow"
+                      onClick={() => navigate(`/channel/${video.channels.id}`)}
+                    >
+                      {video.channels.name[0]}
+                    </div>
+                  )}
                   <div className="relative">
                     <div
                       className="cursor-pointer"
@@ -734,19 +734,42 @@ export default function Watch() {
                   <Button
                     variant="secondary"
                     size="sm"
+                    className="rounded-full gap-2 bg-muted/50 hover:bg-muted/70 border border-border"
+                    onClick={() => setPlaylistModalOpen(true)}
+                  >
+                    <Bookmark className="h-4 w-4" />
+                    Lưu
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     className="rounded-full gap-2 bg-gradient-to-r from-glow-gold/20 to-divine-rose-gold/20 hover:from-glow-gold/30 hover:to-divine-rose-gold/30 border border-glow-gold/30"
                     onClick={() => setDonateModalOpen(true)}
                   >
                     <Gift className="h-4 w-4 text-glow-gold" />
                     Tặng
                   </Button>
-                  <Button
-                    variant="secondary"
-                    size="icon"
-                    className="rounded-full bg-muted/50 hover:bg-muted/70"
-                  >
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="secondary"
+                        size="icon"
+                        className="rounded-full bg-muted/50 hover:bg-muted/70"
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-52">
+                      <DropdownMenuItem onClick={() => toast({ title: "Đã báo cáo", description: "Cảm ơn bạn đã phản hồi" })}>
+                        <Flag className="mr-2 h-4 w-4" />
+                        Báo cáo
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => toast({ title: "Đã ẩn", description: "Video này sẽ không được đề xuất nữa" })}>
+                        <EyeOff className="mr-2 h-4 w-4" />
+                        Không quan tâm
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
 
@@ -808,6 +831,15 @@ export default function Watch() {
         creatorName={video?.channels.name || ""}
         channelUserId={video?.user_id}
       />
+
+      {id && (
+        <AddToPlaylistModal
+          open={playlistModalOpen}
+          onOpenChange={setPlaylistModalOpen}
+          videoId={id}
+          videoTitle={video?.title}
+        />
+      )}
       
       <RewardNotification 
         amount={rewardNotif.amount}

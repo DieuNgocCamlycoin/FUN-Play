@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/Layout/Header";
 import { CollapsibleSidebar } from "@/components/Layout/CollapsibleSidebar";
@@ -21,7 +21,9 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useHapticFeedback } from "@/hooks/useHapticFeedback";
 import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { formatViews, formatTimestamp } from "@/lib/formatters";
 
 interface Video {
   id: string;
@@ -44,6 +46,8 @@ interface Video {
   };
 }
 
+const VIDEOS_PER_PAGE = 24;
+
 const Index = () => {
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
@@ -52,11 +56,34 @@ const Index = () => {
   const [loadingVideos, setLoadingVideos] = useState(true);
   const [currentMusicUrl, setCurrentMusicUrl] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState("Tất cả");
+  const [visibleCount, setVisibleCount] = useState(VIDEOS_PER_PAGE);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const { successFeedback } = useHapticFeedback();
+
+  // Reset visible count when category changes
+  useEffect(() => {
+    setVisibleCount(VIDEOS_PER_PAGE);
+  }, [selectedCategory]);
+
+  // Intersection observer for infinite scroll
+  useEffect(() => {
+    const el = loadMoreRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setVisibleCount(prev => prev + VIDEOS_PER_PAGE);
+        }
+      },
+      { threshold: 0.1 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [loadingVideos]);
 
   // Toggle sidebar expanded/collapsed
   const handleMenuClick = () => {
@@ -210,25 +237,37 @@ const Index = () => {
     navigate(`/watch/${videoId}`);
   };
 
-  const formatViews = (views: number | null) => {
-    if (!views) return "0 views";
-    if (views >= 1000000) return `${(views / 1000000).toFixed(1)}M views`;
-    if (views >= 1000) return `${(views / 1000).toFixed(1)}K views`;
-    return `${views} views`;
-  };
+  // Filter and sort videos
+  const filteredVideos = videos
+    .filter((video) => {
+      if (selectedCategory === "Tất cả") return true;
+      if (selectedCategory === "Xu hướng") return true;
+      if (selectedCategory === "Mới tải lên gần đây") {
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        return new Date(video.created_at) >= sevenDaysAgo;
+      }
+      if (selectedCategory === "Đề xuất mới") return true;
+      const categoryMap: Record<string, string[]> = {
+        "Âm nhạc": ["music"],
+        "Thiền": ["light_meditation", "sound_therapy", "mantra"],
+        "Podcast": ["podcast"],
+        "Trò chơi": ["gaming"],
+        "Tin tức": ["news"],
+        "Thiên nhiên": ["nature"],
+      };
+      const cats = categoryMap[selectedCategory];
+      if (!cats) return true;
+      return cats.includes(video.category || "");
+    })
+    .sort((a, b) => {
+      if (selectedCategory === "Xu hướng") return (b.view_count || 0) - (a.view_count || 0);
+      if (selectedCategory === "Đề xuất mới") return Math.random() - 0.5;
+      return 0;
+    });
 
-  const formatTimestamp = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffDays === 0) return "Hôm nay";
-    if (diffDays === 1) return "1 ngày trước";
-    if (diffDays < 30) return `${diffDays} ngày trước`;
-    if (diffDays < 365) return `${Math.floor(diffDays / 30)} tháng trước`;
-    return `${Math.floor(diffDays / 365)} năm trước`;
-  };
+  const visibleVideos = filteredVideos.slice(0, visibleCount);
+  const hasMore = visibleCount < filteredVideos.length;
 
   if (loading) {
     return (
@@ -319,52 +358,33 @@ const Index = () => {
                 <p className="text-sm text-muted-foreground mt-2">Hãy tải video đầu tiên lên và khám phá vũ trụ âm nhạc đầy năng lượng tình yêu!</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-5">
-                {videos
-                  .filter((video) => {
-                    if (selectedCategory === "Tất cả") return true;
-                    if (selectedCategory === "Xu hướng") return true; // sorted below
-                    if (selectedCategory === "Mới tải lên gần đây") {
-                      const sevenDaysAgo = new Date();
-                      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-                      return new Date(video.created_at) >= sevenDaysAgo;
-                    }
-                    if (selectedCategory === "Đề xuất mới") return true; // shuffled below
-                    const categoryMap: Record<string, string[]> = {
-                      "Âm nhạc": ["music"],
-                      "Thiền": ["light_meditation", "sound_therapy", "mantra"],
-                      "Podcast": ["podcast"],
-                      "Trò chơi": ["gaming"],
-                      "Tin tức": ["news"],
-                      "Thiên nhiên": ["nature"],
-                    };
-                    const cats = categoryMap[selectedCategory];
-                    if (!cats) return true;
-                    return cats.includes(video.category || "");
-                  })
-                  .sort((a, b) => {
-                    if (selectedCategory === "Xu hướng") return (b.view_count || 0) - (a.view_count || 0);
-                    if (selectedCategory === "Đề xuất mới") return Math.random() - 0.5;
-                    return 0; // keep original order (created_at DESC)
-                  })
-                  .map((video) => (
-                  <VideoCard
-                    key={video.id}
-                    videoId={video.id}
-                    userId={video.user_id}
-                    channelId={video.channels?.id}
-                    thumbnail={video.thumbnail_url || undefined}
-                    title={video.title}
-                    channel={video.channels?.name || "Unknown Channel"}
-                    avatarUrl={video.profiles?.avatar_url || undefined}
-                    duration={video.duration}
-                    isVerified={video.channels?.is_verified}
-                    views={formatViews(video.view_count)}
-                    timestamp={formatTimestamp(video.created_at)}
-                    onPlay={handlePlayVideo}
-                  />
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-5">
+                  {visibleVideos.map((video) => (
+                    <VideoCard
+                      key={video.id}
+                      videoId={video.id}
+                      userId={video.user_id}
+                      channelId={video.channels?.id}
+                      thumbnail={video.thumbnail_url || undefined}
+                      title={video.title}
+                      channel={video.channels?.name || "Unknown Channel"}
+                      avatarUrl={video.profiles?.avatar_url || undefined}
+                      duration={video.duration}
+                      isVerified={video.channels?.is_verified}
+                      views={formatViews(video.view_count)}
+                      timestamp={formatTimestamp(video.created_at)}
+                      onPlay={handlePlayVideo}
+                    />
+                  ))}
+                </div>
+                {/* Infinite scroll sentinel */}
+                {hasMore && (
+                  <div ref={loadMoreRef} className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
