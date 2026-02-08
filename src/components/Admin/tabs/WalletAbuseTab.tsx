@@ -4,9 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Wallet, UserX, AlertCircle, Ban, ExternalLink } from "lucide-react";
+import { Wallet, UserX, AlertCircle, Ban, ExternalLink, Globe } from "lucide-react";
 import { AdminUser, WalletGroup } from "@/hooks/useAdminManage";
 import { toast } from "sonner";
+import IPAbuseDetectionTab from "./IPAbuseDetectionTab";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -95,12 +96,20 @@ const WalletAbuseTab = ({ users, walletGroups, onBan, isFakeName, loading }: Wal
       </div>
 
       {/* Sub-tabs */}
-      <Tabs defaultValue="shared-wallet" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="shared-wallet">Ví chung ({walletGroups.length})</TabsTrigger>
-          <TabsTrigger value="missing-profile">Profile thiếu ({missingProfileUsers.length})</TabsTrigger>
-          <TabsTrigger value="fake-name">Tên ảo ({fakeNameUsers.length})</TabsTrigger>
+      <Tabs defaultValue="ip-tracking" className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="ip-tracking" className="gap-1 text-xs">
+            <Globe className="w-3 h-3" /> IP Tracking
+          </TabsTrigger>
+          <TabsTrigger value="shared-wallet" className="text-xs">Ví chung ({walletGroups.length})</TabsTrigger>
+          <TabsTrigger value="missing-profile" className="text-xs">Profile thiếu ({missingProfileUsers.length})</TabsTrigger>
+          <TabsTrigger value="fake-name" className="text-xs">Tên ảo ({fakeNameUsers.length})</TabsTrigger>
         </TabsList>
+
+        {/* IP Tracking */}
+        <TabsContent value="ip-tracking">
+          <IPAbuseDetectionTab onBan={onBan} loading={loading} />
+        </TabsContent>
 
         {/* Shared Wallet */}
         <TabsContent value="shared-wallet">

@@ -187,6 +187,18 @@ export default function Auth() {
 
       if (error) throw error;
 
+      // Track IP for signup (non-blocking)
+      try {
+        const { data: { session: newSession } } = await supabase.auth.getSession();
+        if (newSession?.access_token) {
+          supabase.functions.invoke('track-ip', {
+            body: { action_type: 'signup' },
+          }).catch(e => console.warn('[Auth] track-ip signup failed:', e));
+        }
+      } catch (e) {
+        console.warn('[Auth] track-ip error:', e);
+      }
+
       setSuccessMessage("Tạo tài khoản thành công! Chào mừng bạn đến FUN PLAY!");
       toast({
         title: "Tạo tài khoản thành công!",
@@ -232,6 +244,11 @@ export default function Auth() {
 
       if (error) throw error;
       
+      // Track IP for login (non-blocking)
+      supabase.functions.invoke('track-ip', {
+        body: { action_type: 'login' },
+      }).catch(e => console.warn('[Auth] track-ip login failed:', e));
+
       setSuccessMessage("Đăng nhập thành công!");
     } catch (error: any) {
       const vietnameseError = getVietnameseError(error.message);
