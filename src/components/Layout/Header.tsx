@@ -97,6 +97,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
         .select("id, title")
         .ilike("title", `%${searchQuery}%`)
         .eq("is_public", true)
+        .eq("approval_status", "approved")
         .limit(5);
 
       setSuggestions(data || []);

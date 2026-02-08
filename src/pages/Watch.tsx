@@ -826,6 +826,27 @@ export default function Watch() {
                   <span>•</span>
                   <span>{new Date(video.created_at).toLocaleDateString("vi-VN", { day: "numeric", month: "short", year: "numeric" })}</span>
                 </div>
+                {/* Clickable hashtags */}
+                {(() => {
+                  const hashtags = video.description?.match(/#[\w\u00C0-\u024F\u1E00-\u1EFF]+/g);
+                  if (!hashtags || hashtags.length === 0) return null;
+                  return (
+                    <div className="flex flex-wrap gap-1.5 mb-2">
+                      {[...new Set(hashtags)].slice(0, 5).map((tag) => (
+                        <button
+                          key={tag}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/search?q=${encodeURIComponent(tag)}`);
+                          }}
+                          className="text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+                        >
+                          {tag}
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })()}
                 <p className={`text-sm text-foreground whitespace-pre-wrap ${
                   !isDescriptionExpanded ? "line-clamp-3" : ""
                 }`}>

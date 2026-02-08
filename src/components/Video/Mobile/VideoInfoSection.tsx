@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { DescriptionDrawer } from "./DescriptionDrawer";
-import { formatViewsShort, formatTimestamp } from "@/lib/formatters";
+import { formatViews, formatTimestamp } from "@/lib/formatters";
 
 interface VideoInfoSectionProps {
   title: string;
@@ -37,7 +37,7 @@ export function VideoInfoSection({
           onClick={() => setShowDescriptionDrawer(true)}
           className="flex items-center gap-1 mt-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors w-full text-left"
         >
-          <span>{formatViewsShort(viewCount)} lượt xem</span>
+          <span>{formatViews(viewCount)}</span>
           <span>•</span>
           <span>{formatTimestamp(createdAt)}</span>
           <span className="ml-1 text-foreground font-medium">...xem thêm</span>
