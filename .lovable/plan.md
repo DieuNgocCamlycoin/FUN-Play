@@ -1,50 +1,68 @@
 
-# Kiểm Tra & Cải Tiến MINT FUN Money
+# Cập Nhật Giao Diện "Thưởng & Tặng" và Logo FUN Money
 
-## Kết Quả Kiểm Tra Tổng Quan
+## Tổng Quan
 
-Cha đã kiểm tra toàn bộ hệ thống MINT FUN Money bao gồm: database schema, RPC function, RLS policies, realtime hook, tất cả components, PPLP engine, EIP-712 signer, và contract helpers.
+Cha sẽ thực hiện 3 thay đổi theo yêu cầu của con:
 
-**Tin tốt:** Tất cả 4 lỗi nghiêm trọng trước đó đã được sửa thành công:
-- RPC function `get_user_activity_summary` hoạt động tốt
-- Buffer crash đã fix bằng TextEncoder/TextDecoder
-- Cooldown 24 giờ đã được thêm vào
-- Dead code đã được dọn dẹp
-
-Hệ thống **KHÔNG CÓ LỖI NGHIÊM TRỌNG** nào mới. Tuy nhiên, Cha tìm thấy **2 vấn đề nhỏ về Mobile UI** cần cải thiện.
+1. **Bỏ icon Gift** ở bên trái chữ "Thưởng & Tặng" trong popup donate
+2. **Thay logo FUN Money** bằng hình con vừa upload (đồng xu vàng "PURE LOVING LIGHT OF FATHER UNIVERSE")
+3. **Đổi ký hiệu "FUNM" thành "FUN"** trong database, tự động cập nhật toàn bộ UI
 
 ---
 
-## Vấn Đề 1: Nút Filter Bị Tràn Trên Mobile
+## Chi Tiết Thay Đổi
 
-**File:** `src/components/FunMoney/MintRequestList.tsx` (dòng 83-103)
+### 1. Bỏ Icon Gift Trong Tiêu Đề Popup
 
-**Mô tả:** Các nút filter (Tất cả, Đang chờ, Đã duyệt, Đã mint, Từ chối) trong tab "Lịch Sử" có thể bị co lại và khó đọc trên màn hình nhỏ vì thiếu `min-w-fit` hoặc `whitespace-nowrap`.
+**File:** `src/components/Donate/EnhancedDonateModal.tsx` (dong 265-268)
 
-**Cách sửa:** Thêm `whitespace-nowrap` vào mỗi Button filter để chữ không bị xuống dòng, giữ scroll ngang mượt mà.
+Xoa icon `<Gift>` ra khoi tieu de popup, chi giu lai emoji va chu:
+
+```
+// Truoc:
+<Gift className="h-5 w-5 text-amber-500" />
+{showSuccess ? "Tặng Thanh Cong!" : "Thưởng & Tặng"}
+
+// Sau:
+{showSuccess ? "Tặng Thanh Cong!" : "Thưởng & Tặng"}
+```
+
+### 2. Thay Logo FUN Money
+
+**Hanh dong:**
+- Copy hinh `user-uploads://1-2.png` vao `public/images/fun-money-coin.png` (thay the file cu)
+- Cap nhat database: doi `icon_url` cua token FUN Money tu `/images/fun-wallet-logo.png` thanh `/images/fun-money-coin.png`
+- Logo moi se tu dong hien thi o:
+  - Popup "Thuong & Tang" (phan chon token)
+  - Header (nut MINT)
+  - Sidebar va Mobile Drawer
+  - Token Lifecycle Panel
+  - Transaction History
+
+### 3. Doi "FUNM" Thanh "FUN" Trong Database
+
+**Migration SQL:** Cap nhat bang `donate_tokens` doi symbol tu `FUNM` sang `FUN`
+
+Vì toàn bộ frontend đọc `token.symbol` từ database (không có hardcode "FUNM"), thay đổi này sẽ tự động cập nhật:
+- Dropdown chọn token trong popup donate
+- Nút submit ("Tặng X FUN")
+- Số dư hiển thị
+- Lịch sử giao dịch
+- Chat message khi tặng
+- Zero balance warning
 
 ---
 
-## Vấn Đề 2: Hiệu Ứng Shimmer Không Hoạt Động Trong MintableCard
+## Tổng Kết Các File Cần Sửa
 
-**File:** `src/components/FunMoney/MintableCard.tsx` (dòng 120)
+| File/Action | Thay doi | Muc do |
+|-------------|----------|--------|
+| Copy `user-uploads://1-2.png` -> `public/images/fun-money-coin.png` | Thay logo | Nho |
+| `src/components/Donate/EnhancedDonateModal.tsx` (dong 266) | Xoa icon Gift | Nho |
+| Database migration | Doi symbol FUNM -> FUN, doi icon_url | Nho |
 
-**Mô tả:** Component MintableCard sử dụng class `animate-shimmer` ở dòng 120, nhưng animation `@keyframes shimmer` chỉ được định nghĩa trong inline `<style>` của `TokenLifecyclePanel.tsx`. Nếu TokenLifecyclePanel không render trước MintableCard, hiệu ứng shimmer sẽ không hoạt động.
-
-**Cách sửa:** Chuyển các keyframes animation dùng chung (`shimmer`, `coin-spin`) vào file CSS toàn cục (`src/index.css`) thay vì inline styles, đảm bảo mọi component đều có thể sử dụng.
-
----
-
-## Tổng Kết
-
-| File | Hành động | Mức độ |
-|------|-----------|--------|
-| `src/components/FunMoney/MintRequestList.tsx` | Thêm `whitespace-nowrap` cho filter buttons | Nhỏ |
-| `src/components/FunMoney/MintableCard.tsx` | Thêm inline keyframes cho shimmer | Nhỏ |
-| `src/index.css` | Thêm shared keyframes (shimmer, coin-spin) | Nhỏ |
-| `src/components/FunMoney/TokenLifecyclePanel.tsx` | Xóa duplicate keyframes (dùng từ index.css) | Nhỏ |
-
-## Thứ Tự Thực Hiện
-1. Thêm shared keyframes vào `src/index.css`
-2. Sửa filter buttons trong MintRequestList
-3. Dọn dẹp inline styles trùng lặp trong TokenLifecyclePanel
+## Thu Tu Thuc Hien
+1. Copy hinh moi vao project
+2. Chay database migration (doi symbol + icon_url)
+3. Sua EnhancedDonateModal.tsx (bo icon Gift)
