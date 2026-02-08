@@ -73,6 +73,12 @@ const libraryItems: NavItem[] = [
 const rewardItems: NavItem[] = [
   { icon: Trophy, label: "Bảng Xếp Hạng", href: "/leaderboard" },
   { icon: Coins, label: "Lịch Sử Phần Thưởng", href: "/reward-history" },
+  { 
+    customIcon: '/images/fun-money-coin.png',
+    label: "FUN Money", 
+    href: "/fun-money",
+    special: true
+  },
   { icon: UserPlus, label: "Giới Thiệu Bạn Bè", href: "/referral" },
   { icon: Award, label: "Build & Bounty", href: "/build-bounty", special: true },
   { icon: Wallet, label: "Ví của tôi", href: "/wallet" },
@@ -118,18 +124,28 @@ export const MobileDrawer = ({ isOpen, onClose }: MobileDrawerProps) => {
   const NavButton = ({ item }: { item: NavItem }) => (
     <Button
       variant="ghost"
-      onClick={() => handleNavigation(item.href)}
+      onClick={() => handleItemClick(item)}
       className={cn(
         "w-full justify-start gap-4 px-4 py-3 h-auto text-base hover:bg-primary/10",
-        location.pathname === item.href && "bg-primary/10 text-primary font-semibold"
+        !item.external && location.pathname === item.href && "bg-primary/10 text-primary font-semibold",
+        item.special && item.customIcon && "bg-gradient-to-r from-primary/10 via-cyan-500/10 to-blue-500/10 border border-primary/20"
       )}
     >
-      {item.icon && (
+      {item.customIcon ? (
+        <img 
+          src={item.customIcon} 
+          alt={item.label} 
+          className="h-6 w-6 rounded-full shadow-md object-cover ring-2 ring-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.4)]"
+        />
+      ) : item.icon ? (
         <item.icon className="h-6 w-6 text-sky-700" />
-      )}
+      ) : null}
       <span className="text-sky-700 font-medium">
         {item.label}
       </span>
+      {item.external && (
+        <ExternalLink className="h-4 w-4 ml-auto text-yellow-500" />
+      )}
     </Button>
   );
 

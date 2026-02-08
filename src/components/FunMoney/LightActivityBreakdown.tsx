@@ -108,7 +108,7 @@ export function LightActivityBreakdown({ activity }: LightActivityBreakdownProps
                       <TooltipTrigger>
                         <Info className="w-3.5 h-3.5 text-muted-foreground" />
                       </TooltipTrigger>
-                      <TooltipContent side="right" className="max-w-xs">
+                      <TooltipContent side="top" className="max-w-xs">
                         <p className="font-medium">{pillar.description}</p>
                         <p className="text-xs text-muted-foreground mt-1">
                           {pillar.getDetail(activity)}

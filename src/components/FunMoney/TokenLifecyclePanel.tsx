@@ -211,7 +211,7 @@ export function TokenLifecyclePanel({
                 {/* Coin with Animation */}
                 <div className="flex justify-center mb-3">
                   <div className={cn(
-                    "relative w-16 h-16",
+                    "relative w-12 h-12 sm:w-16 sm:h-16",
                     state.count > 0 && state.animationClass
                   )}>
                     <img 
@@ -256,7 +256,12 @@ export function TokenLifecyclePanel({
 
               {/* Arrow between states */}
               {index < states.length - 1 && !compactMode && (
-                <ArrowRight className="w-6 h-6 mx-2 text-muted-foreground shrink-0 hidden md:block" />
+                <>
+                  <ArrowRight className="w-6 h-6 mx-2 text-muted-foreground shrink-0 hidden md:block" />
+                  <div className="flex justify-center md:hidden my-1">
+                    <ArrowRight className="w-5 h-5 text-muted-foreground rotate-90" />
+                  </div>
+                </>
               )}
             </div>
           ))}
@@ -266,7 +271,7 @@ export function TokenLifecyclePanel({
         {showDetailedStats && (
           <div className="pt-4 border-t border-border/50">
             {/* Stats Row */}
-            <div className="grid grid-cols-3 gap-4 mb-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-4">
               <div className="text-center">
                 <div className="flex items-center justify-center gap-1.5 mb-1">
                   <img src={FUN_COIN_LOGO} alt="" className="w-4 h-4" />
