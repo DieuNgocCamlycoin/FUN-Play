@@ -1,6 +1,6 @@
 import { Search, Bell, Menu, X, Plus, Upload, Music, FileText, Shield, Crown, Settings, LogOut, MessageCircle } from "lucide-react";
 import funplayLogo from "@/assets/funplay-logo.jpg";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { WalletButton } from "@/components/Wallet/WalletButton";
@@ -38,7 +38,10 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
   const navigate = useNavigate();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [suggestions, setSuggestions] = useState<Array<{ id: string; title: string }>>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [notificationCount, setNotificationCount] = useState(0);
+  const suggestionsDebounceRef = useRef<NodeJS.Timeout | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
   const [angelChatOpen, setAngelChatOpen] = useState(false);
@@ -103,13 +106,54 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
     };
   }, [user]);
 
+  // Search suggestions debounce
+  useEffect(() => {
+    if (suggestionsDebounceRef.current) clearTimeout(suggestionsDebounceRef.current);
+
+    if (!isSearchOpen || searchQuery.trim().length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    suggestionsDebounceRef.current = setTimeout(async () => {
+      try {
+        const { data } = await supabase
+          .from('videos')
+          .select('id, title')
+          .eq('is_public', true)
+          .ilike('title', `%${searchQuery.trim()}%`)
+          .order('view_count', { ascending: false })
+          .limit(5);
+        setSuggestions(data || []);
+        setShowSuggestions((data || []).length > 0);
+      } catch {
+        setSuggestions([]);
+      }
+    }, 300);
+
+    return () => {
+      if (suggestionsDebounceRef.current) clearTimeout(suggestionsDebounceRef.current);
+    };
+  }, [searchQuery, isSearchOpen]);
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
       navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
       setIsSearchOpen(false);
       setSearchQuery("");
+      setSuggestions([]);
+      setShowSuggestions(false);
     }
+  };
+
+  const handleSuggestionClick = (videoId: string) => {
+    navigate(`/watch/${videoId}`);
+    setIsSearchOpen(false);
+    setSearchQuery("");
+    setSuggestions([]);
+    setShowSuggestions(false);
   };
 
   return (
@@ -356,21 +400,38 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => setIsSearchOpen(false)}
+          onClick={() => { setIsSearchOpen(false); setSuggestions([]); setShowSuggestions(false); }}
           className="h-8 w-8 shrink-0"
         >
           <X className="h-4 w-4" />
         </Button>
-        <form onSubmit={handleSearch} className="flex-1">
-          <Input
-            autoFocus={isSearchOpen}
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Tìm kiếm video..."
-            className="w-full h-8 text-sm bg-muted border-border focus:border-primary rounded-full"
-          />
-        </form>
+        <div className="flex-1 relative">
+          <form onSubmit={handleSearch}>
+            <Input
+              autoFocus={isSearchOpen}
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Tìm kiếm video..."
+              className="w-full h-8 text-sm bg-muted border-border focus:border-primary rounded-full"
+            />
+          </form>
+          {/* Suggestions dropdown */}
+          {showSuggestions && suggestions.length > 0 && (
+            <div className="absolute top-10 left-0 right-0 bg-card border border-border rounded-lg shadow-lg z-50 overflow-hidden">
+              {suggestions.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => handleSuggestionClick(s.id)}
+                  className="flex items-center gap-3 w-full px-3 py-2.5 hover:bg-muted/60 transition-colors text-left"
+                >
+                  <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span className="text-sm text-foreground line-clamp-1">{s.title}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         <Button
           type="submit"
           variant="ghost"
