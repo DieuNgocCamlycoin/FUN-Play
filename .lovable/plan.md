@@ -1,68 +1,47 @@
 
-# Cập Nhật Giao Diện "Thưởng & Tặng" và Logo FUN Money
 
-## Tổng Quan
+# Thay Logo Camly Coin Trong Phần Chọn Token
 
-Cha sẽ thực hiện 3 thay đổi theo yêu cầu của con:
+## Tong Quan
 
-1. **Bỏ icon Gift** ở bên trái chữ "Thưởng & Tặng" trong popup donate
-2. **Thay logo FUN Money** bằng hình con vừa upload (đồng xu vàng "PURE LOVING LIGHT OF FATHER UNIVERSE")
-3. **Đổi ký hiệu "FUNM" thành "FUN"** trong database, tự động cập nhật toàn bộ UI
+Con muon thay logo Camly Coin bang hinh dong xu vang voi vien cau vong (CAMLY COIN - BLOCKCHAIN WEB3 DAPP CRYPTOCURRENCY SMART CONTRACT). Cha se cap nhat logo nay o tat ca noi dung Camly Coin hien thi.
 
----
+## Chi Tiet Thay Doi
 
-## Chi Tiết Thay Đổi
+### 1. Thay File Hinh Camly Coin
 
-### 1. Bỏ Icon Gift Trong Tiêu Đề Popup
+Copy hinh `user-uploads://Logo_va_hinh_Be_Ly_1.png` de thay the 3 file hinh cu:
 
-**File:** `src/components/Donate/EnhancedDonateModal.tsx` (dong 265-268)
+| File cu | Muc dich |
+|---------|----------|
+| `public/images/camly-coin.png` | Dung o popup donate, wallet, bounty, notifications, price chart, tokens config |
+| `src/assets/camly-coin-logo.png` | Dung o SendToFunWalletModal |
+| `src/assets/camly-coin-rainbow.png` | Dung o CAMLYPriceCard |
 
-Xoa icon `<Gift>` ra khoi tieu de popup, chi giu lai emoji va chu:
+Thay ca 3 file bang hinh moi de dam bao logo Camly Coin dong nhat tren toan bo ung dung.
 
-```
-// Truoc:
-<Gift className="h-5 w-5 text-amber-500" />
-{showSuccess ? "Tặng Thanh Cong!" : "Thưởng & Tặng"}
+### 2. Khong Can Thay Doi Code Hay Database
 
-// Sau:
-{showSuccess ? "Tặng Thanh Cong!" : "Thưởng & Tặng"}
-```
+- Database `donate_tokens` cho CAMLY da tro den `/images/camly-coin.png` - chi can thay file la xong
+- Tat ca component da import dung path - khong can sua code
+- Tren mobile cung tu dong cap nhat vi cung dung cac file nay
 
-### 2. Thay Logo FUN Money
+### Noi Logo Moi Se Hien Thi
 
-**Hanh dong:**
-- Copy hinh `user-uploads://1-2.png` vao `public/images/fun-money-coin.png` (thay the file cu)
-- Cap nhat database: doi `icon_url` cua token FUN Money tu `/images/fun-wallet-logo.png` thanh `/images/fun-money-coin.png`
-- Logo moi se tu dong hien thi o:
-  - Popup "Thuong & Tang" (phan chon token)
-  - Header (nut MINT)
-  - Sidebar va Mobile Drawer
-  - Token Lifecycle Panel
-  - Transaction History
+- Popup "Thuong & Tang" (phan chon token CAMLY)
+- Wallet Hub - CAMLY Price Section
+- Bounty page
+- Rich Notification (khi nhan CAMLY)
+- Push Notifications icon
+- CAMLYPriceCard component
+- SendToFunWalletModal component
+- Web3 config metadata icon
+- Token config (MultiTokenWallet)
 
-### 3. Doi "FUNM" Thanh "FUN" Trong Database
+### Thu Tu Thuc Hien
 
-**Migration SQL:** Cap nhat bang `donate_tokens` doi symbol tu `FUNM` sang `FUN`
+1. Copy hinh moi vao `public/images/camly-coin.png`
+2. Copy hinh moi vao `src/assets/camly-coin-logo.png`
+3. Copy hinh moi vao `src/assets/camly-coin-rainbow.png`
 
-Vì toàn bộ frontend đọc `token.symbol` từ database (không có hardcode "FUNM"), thay đổi này sẽ tự động cập nhật:
-- Dropdown chọn token trong popup donate
-- Nút submit ("Tặng X FUN")
-- Số dư hiển thị
-- Lịch sử giao dịch
-- Chat message khi tặng
-- Zero balance warning
-
----
-
-## Tổng Kết Các File Cần Sửa
-
-| File/Action | Thay doi | Muc do |
-|-------------|----------|--------|
-| Copy `user-uploads://1-2.png` -> `public/images/fun-money-coin.png` | Thay logo | Nho |
-| `src/components/Donate/EnhancedDonateModal.tsx` (dong 266) | Xoa icon Gift | Nho |
-| Database migration | Doi symbol FUNM -> FUN, doi icon_url | Nho |
-
-## Thu Tu Thuc Hien
-1. Copy hinh moi vao project
-2. Chay database migration (doi symbol + icon_url)
-3. Sua EnhancedDonateModal.tsx (bo icon Gift)
+Tong cong: 3 file thay the, 0 file code can sua.
