@@ -38,15 +38,15 @@ const AllUsersTab = ({ users }: AllUsersTabProps) => {
   const exportCSV = () => {
     const headers = [
       "ID",
-      "Username",
-      "Display Name",
-      "Total CAMLY",
-      "Pending",
-      "Approved",
-      "Videos",
-      "Comments",
-      "Wallet",
-      "Banned",
+      "Tên đăng nhập",
+      "Tên hiển thị",
+      "Tổng CAMLY",
+      "Chờ duyệt",
+      "Đã duyệt",
+      "Video",
+      "Bình luận",
+      "Ví",
+      "Bị cấm",
     ];
     const rows = filteredUsers.map((u) => [
       u.id,

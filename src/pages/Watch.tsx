@@ -86,6 +86,7 @@ export default function Watch() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [ambientColor, setAmbientColor] = useState<string | null>(null);
   const videoPlayerRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
   const { toast } = useToast();
@@ -606,12 +607,22 @@ export default function Watch() {
           <div className={`grid gap-6 p-6 ${isTheaterMode ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-[1fr_400px]'}`}>
             {/* Main Content */}
             <div className="space-y-4">
-              {/* Video Player */}
-              <div ref={videoPlayerRef}>
+              {/* Video Player with Ambient Glow */}
+              <div ref={videoPlayerRef} className="relative">
+                {/* Ambient glow effect behind the player */}
+                {ambientColor && !isTheaterMode && (
+                  <div
+                    className="absolute -inset-6 rounded-2xl blur-3xl opacity-40 transition-all duration-1000 pointer-events-none -z-10"
+                    style={{
+                      background: `radial-gradient(ellipse at center, rgba(${ambientColor}, 0.35) 0%, rgba(${ambientColor}, 0.15) 40%, transparent 70%)`,
+                    }}
+                  />
+                )}
                 <EnhancedVideoPlayer
                   videoUrl={video.video_url}
                   videoId={video.id}
                   title={video.title}
+                  description={video.description}
                   onEnded={handleVideoEnd}
                   onPrevious={() => {
                     const prev = previousVideo();
@@ -628,6 +639,7 @@ export default function Watch() {
                     setCurrentTime(time);
                     setDuration(dur);
                   }}
+                  onAmbientColor={setAmbientColor}
                 />
               </div>
 

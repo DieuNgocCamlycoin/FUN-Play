@@ -35,7 +35,7 @@ export const WatchLaterButton = ({
         {isAdded ? (
           <>
             <Check className="w-4 h-4 text-primary" />
-            <span>Đã thêm Watch Later</span>
+            <span>Đã thêm vào Xem sau</span>
           </>
         ) : (
           <>
@@ -86,7 +86,7 @@ export const WatchLaterButton = ({
           : "bg-background/80 backdrop-blur-sm text-foreground hover:text-primary",
         className
       )}
-      title={isAdded ? "Xóa khỏi Watch Later" : "Thêm vào Watch Later"}
+      title={isAdded ? "Xóa khỏi danh sách Xem sau" : "Thêm vào Xem sau"}
     >
       {isAdded ? (
         <Check className="w-5 h-5" />

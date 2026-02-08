@@ -51,7 +51,7 @@ export function OverviewTab() {
     }
 
     // Export Top Creators
-    const creatorsHeaders = ['Rank', 'Tên', 'Số Video', 'Lượt Xem', 'CAMLY Nhận'];
+    const creatorsHeaders = ['Thứ hạng', 'Tên', 'Số Video', 'Lượt Xem', 'CAMLY Nhận'];
     const creatorsData = topCreators.map((creator, index) => [
       index + 1,
       creator.displayName || 'N/A',
@@ -61,7 +61,7 @@ export function OverviewTab() {
     ]);
 
     // Export Top Earners
-    const earnersHeaders = ['Rank', 'Tên', 'Tổng CAMLY'];
+    const earnersHeaders = ['Thứ hạng', 'Tên', 'Tổng CAMLY'];
     const earnersData = topEarners.map((earner, index) => [
       index + 1,
       earner.displayName || 'N/A',
