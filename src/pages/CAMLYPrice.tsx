@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
-  ArrowLeft, 
   TrendingUp, 
   TrendingDown, 
   RefreshCw, 
@@ -15,14 +14,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MainLayout } from "@/components/Layout/MainLayout";
 import { useCryptoPrices } from "@/hooks/useCryptoPrices";
 import { useCAMLYPriceAlert } from "@/hooks/useCAMLYPriceAlert";
 import { CAMLY_TOKEN_ADDRESS } from "@/config/tokens";
 import { toast } from "sonner";
 import { 
-  LineChart, 
-  Line, 
   XAxis, 
   YAxis, 
   CartesianGrid, 
@@ -36,14 +34,13 @@ import {
 const generateMockData = (days: number, currentPrice: number) => {
   const data = [];
   const now = Date.now();
-  const interval = days === 1 ? 60 * 60 * 1000 : 24 * 60 * 60 * 1000; // hourly for 24h, daily for others
+  const interval = days === 1 ? 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
   const points = days === 1 ? 24 : days;
   
-  let price = currentPrice * (0.8 + Math.random() * 0.2); // Start at 80-100% of current
+  let price = currentPrice * (0.8 + Math.random() * 0.2);
   
   for (let i = points; i >= 0; i--) {
     const timestamp = now - i * interval;
-    // Random walk
     const change = (Math.random() - 0.5) * price * 0.05;
     price = Math.max(price + change, 0.00000001);
     
@@ -61,7 +58,7 @@ const generateMockData = (days: number, currentPrice: number) => {
 export default function CAMLYPrice() {
   const navigate = useNavigate();
   const { prices, loading } = useCryptoPrices();
-  const { config, setEnabled, setThreshold, priceHistory, checkPriceAlert, get24hChange } = useCAMLYPriceAlert();
+  const { config, setEnabled, setThreshold, checkPriceAlert, get24hChange } = useCAMLYPriceAlert();
   
   const [period, setPeriod] = useState<"24h" | "7d" | "30d">("24h");
   const [chartData, setChartData] = useState<any[]>([]);
@@ -70,7 +67,6 @@ export default function CAMLYPrice() {
   const camlyPrice = prices["CAMLY"] || 0;
   const change24h = get24hChange();
   
-  // Generate chart data
   useEffect(() => {
     if (camlyPrice > 0) {
       const days = period === "24h" ? 1 : period === "7d" ? 7 : 30;
@@ -78,7 +74,6 @@ export default function CAMLYPrice() {
     }
   }, [camlyPrice, period]);
   
-  // Check price alert on price change
   useEffect(() => {
     if (camlyPrice > 0) {
       checkPriceAlert(camlyPrice);
@@ -87,7 +82,6 @@ export default function CAMLYPrice() {
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    // Trigger re-fetch by reloading the page data
     window.location.reload();
   };
 
@@ -120,11 +114,7 @@ export default function CAMLYPrice() {
     
     if (navigator.share) {
       try {
-        await navigator.share({
-          title: "CAMLY Token Price",
-          text,
-          url: window.location.href,
-        });
+        await navigator.share({ title: "CAMLY Token Price", text, url: window.location.href });
       } catch (error) {
         // User cancelled
       }
@@ -145,42 +135,27 @@ export default function CAMLYPrice() {
   const isPositive = change24h ? change24h.percent >= 0 : true;
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="sticky top-0 z-50 bg-background/95 backdrop-blur-lg border-b border-border">
-        <div className="container max-w-4xl mx-auto px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <div className="flex items-center gap-2">
-                <img src="/images/camly-coin.png" alt="CAMLY" className="h-8 w-8 rounded-full" />
-                <div>
-                  <h1 className="font-bold text-lg">CAMLY</h1>
-                  <p className="text-xs text-muted-foreground">Token Price</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" onClick={handleShare}>
-                <Share2 className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleRefresh}
-                disabled={isRefreshing}
-              >
-                <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
-              </Button>
+    <MainLayout>
+      <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+        {/* Token Header with Actions */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <img src="/images/camly-coin.png" alt="CAMLY" className="h-10 w-10 rounded-full" />
+            <div>
+              <h1 className="font-bold text-xl">CAMLY</h1>
+              <p className="text-xs text-muted-foreground">Token Price</p>
             </div>
           </div>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={handleShare}>
+              <Share2 className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={handleRefresh} disabled={isRefreshing}>
+              <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+            </Button>
+          </div>
         </div>
-      </div>
 
-      <div className="container max-w-4xl mx-auto px-4 py-6 space-y-6">
         {/* Price Overview */}
         <Card className="bg-gradient-to-br from-primary/10 to-background border-primary/20">
           <CardContent className="pt-6">
@@ -190,7 +165,6 @@ export default function CAMLYPrice() {
                 <p className="text-4xl font-bold tracking-tight">
                   {loading ? "..." : formatPrice(camlyPrice)}
                 </p>
-                
                 {change24h && (
                   <div className={`flex items-center gap-2 mt-2 ${isPositive ? "text-green-500" : "text-red-500"}`}>
                     {isPositive ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
@@ -201,15 +175,9 @@ export default function CAMLYPrice() {
                   </div>
                 )}
               </div>
-              
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" asChild>
-                  <a 
-                    href={`https://bscscan.com/token/${CAMLY_TOKEN_ADDRESS}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2"
-                  >
+                  <a href={`https://bscscan.com/token/${CAMLY_TOKEN_ADDRESS}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
                     <ExternalLink className="h-4 w-4" />
                     BSCScan
                   </a>
@@ -287,8 +255,6 @@ export default function CAMLYPrice() {
                 Đang tải dữ liệu...
               </div>
             )}
-            
-            {/* Export Button */}
             <div className="flex justify-end mt-4">
               <Button variant="outline" size="sm" onClick={handleExportCSV}>
                 <Download className="h-4 w-4 mr-2" />
@@ -310,16 +276,10 @@ export default function CAMLYPrice() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium">Bật thông báo</p>
-                <p className="text-sm text-muted-foreground">
-                  Nhận thông báo khi giá thay đổi đáng kể
-                </p>
+                <p className="text-sm text-muted-foreground">Nhận thông báo khi giá thay đổi đáng kể</p>
               </div>
-              <Switch
-                checked={config.enabled}
-                onCheckedChange={setEnabled}
-              />
+              <Switch checked={config.enabled} onCheckedChange={setEnabled} />
             </div>
-            
             {config.enabled && (
               <div className="space-y-4">
                 <div>
@@ -375,6 +335,6 @@ export default function CAMLYPrice() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </MainLayout>
   );
 }
