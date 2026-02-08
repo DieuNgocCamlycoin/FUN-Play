@@ -165,7 +165,14 @@ const Subscriptions = () => {
                       <AvatarFallback className="bg-gradient-to-r from-cosmic-sapphire to-cosmic-cyan text-white">{sub.channel.name?.charAt(0) || 'C'}</AvatarFallback>
                     </Avatar>
                     <div>
-                      <h2 className="font-semibold hover:text-primary transition-colors">{sub.channel.name}</h2>
+                      <div className="flex items-center gap-1">
+                        <h2 className="font-semibold hover:text-primary transition-colors">{sub.channel.name}</h2>
+                        {sub.channel.is_verified && (
+                          <svg className="w-4 h-4 text-muted-foreground shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                          </svg>
+                        )}
+                      </div>
                       <p className="text-xs text-muted-foreground">{sub.channel.subscriber_count || 0} người đăng ký</p>
                     </div>
                   </div>

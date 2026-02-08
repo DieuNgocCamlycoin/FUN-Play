@@ -21,7 +21,8 @@ interface VideoData {
   duration: number | null;
   user_id: string;
   channel_id: string | null;
-  channels: { name: string; id: string } | null;
+  channels: { name: string; id: string; is_verified?: boolean } | null;
+  avatarUrl?: string | null;
 }
 
 export const ProfileVideosTab = ({ userId, channelId, type }: ProfileVideosTabProps) => {
@@ -37,7 +38,7 @@ export const ProfileVideosTab = ({ userId, channelId, type }: ProfileVideosTabPr
     try {
       let query = supabase
         .from("videos")
-        .select("id, title, thumbnail_url, video_url, view_count, created_at, duration, user_id, channel_id, channels(name, id)")
+        .select("id, title, thumbnail_url, video_url, view_count, created_at, duration, user_id, channel_id, channels(name, id, is_verified)")
         .eq("is_public", true)
         .eq("approval_status", "approved")
         .order("created_at", { ascending: false });
@@ -58,7 +59,19 @@ export const ProfileVideosTab = ({ userId, channelId, type }: ProfileVideosTabPr
 
       const { data, error } = await query;
       if (error) throw error;
-      setVideos(data || []);
+
+      // Batch-fetch profile avatars for video owners
+      const userIds = [...new Set((data || []).map(v => v.user_id))];
+      let avatarMap = new Map<string, string | null>();
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, avatar_url")
+          .in("id", userIds);
+        profiles?.forEach(p => avatarMap.set(p.id, p.avatar_url));
+      }
+
+      setVideos((data || []).map(v => ({ ...v, avatarUrl: avatarMap.get(v.user_id) || null })));
     } catch (error) {
       console.error("Error fetching videos:", error);
     } finally {
@@ -113,6 +126,8 @@ export const ProfileVideosTab = ({ userId, channelId, type }: ProfileVideosTabPr
           timestamp={formatTimestamp(video.created_at)}
           duration={video.duration}
           videoUrl={video.video_url || undefined}
+          isVerified={video.channels?.is_verified || false}
+          avatarUrl={video.avatarUrl || undefined}
         />
       ))}
     </div>
