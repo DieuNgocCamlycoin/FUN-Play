@@ -317,7 +317,7 @@ export const DonationSuccessOverlay = ({
           onClick={handleCopyLink}
         >
           <Copy className="h-4 w-4 mr-2" />
-          Copy Link
+          Sao chép link
         </Button>
         <Button
           className="flex-1 bg-gradient-to-r from-purple-500 via-pink-500 to-amber-500 hover:opacity-90 text-white"

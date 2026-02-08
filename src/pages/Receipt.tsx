@@ -239,7 +239,7 @@ export default function Receipt() {
           <div className="flex gap-2 pt-4">
             <Button variant="outline" className="flex-1" onClick={handleCopyLink}>
               <Copy className="h-4 w-4 mr-2" />
-              Copy Link
+              Sao chép link
             </Button>
             <Link to="/" className="flex-1">
               <Button className="w-full bg-gradient-to-r from-amber-500 to-orange-500">

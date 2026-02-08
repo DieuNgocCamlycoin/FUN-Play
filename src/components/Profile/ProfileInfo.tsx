@@ -49,7 +49,7 @@ export const ProfileInfo = ({
 
   const handleShare = (platform: string) => {
     const profileUrl = `${window.location.origin}/u/${profile.username}`;
-    const text = `Check out ${displayName}'s profile on FUN PLAY! 🎉`;
+    const text = `Khám phá trang cá nhân của ${displayName} trên FUN PLAY! 🎉`;
 
     let shareUrl = "";
     switch (platform) {
@@ -193,7 +193,7 @@ export const ProfileInfo = ({
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => handleShare("copy")}>
                 <Copy className="w-4 h-4 mr-2" />
-                Copy Link
+                Sao chép link
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleShare("telegram")}>
                 Telegram

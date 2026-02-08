@@ -42,7 +42,7 @@ function LyricsModal({ music, isOpen, onClose, isPlaying, onPlay }: { music: AIM
                 </Button>
                 <div>
                   <DialogTitle className="text-2xl font-bold text-white drop-shadow-md">{music.title}</DialogTitle>
-                  <p className="text-white/90 text-sm mt-1">{music.style} • {music.instrumental ? "Instrumental" : music.voice_type}</p>
+                  <p className="text-white/90 text-sm mt-1">{music.style} • {music.instrumental ? "Nhạc không lời" : music.voice_type}</p>
                   {music.duration && <p className="text-white/70 text-xs mt-1">{Math.floor(music.duration / 60)}:{String(music.duration % 60).padStart(2, '0')}</p>}
                   {listenerCount > 0 && <p className="text-white/80 text-xs mt-1 flex items-center gap-1"><Users className="w-3 h-3" />{listenerCount} người đang nghe</p>}
                 </div>
@@ -143,7 +143,7 @@ export default function MyAIMusic() {
                     </div>
                     <div className="p-3">
                       <h3 className="font-semibold text-sm line-clamp-1">{music.title}</h3>
-                      <p className="text-xs text-muted-foreground mt-1">{music.style} • {music.instrumental ? "Instrumental" : music.voice_type}{music.duration && ` • ${Math.floor(music.duration / 60)}:${String(music.duration % 60).padStart(2, '0')}`}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{music.style} • {music.instrumental ? "Nhạc không lời" : music.voice_type}{music.duration && ` • ${Math.floor(music.duration / 60)}:${String(music.duration % 60).padStart(2, '0')}`}</p>
                       {music.status === "failed" && music.error_message && <p className="text-xs text-destructive mt-1 line-clamp-2">{music.error_message}</p>}
                       <div className="flex items-center gap-1 mt-3">
                         {music.lyrics && <Button size="icon" variant="ghost" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); setLyricsMusic(music); }}><FileText className="w-4 h-4" /></Button>}
