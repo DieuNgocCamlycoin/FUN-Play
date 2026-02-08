@@ -29,10 +29,10 @@ export const CategoryChips = ({ selected = "Tất cả", onSelect }: CategoryChi
               key={category}
               variant={selected === category ? "default" : "secondary"}
               size="sm"
-              className={`rounded-full px-4 h-8 text-sm font-medium transition-all ${
+              className={`rounded-full px-4 h-8 text-sm transition-all ${
                 selected === category
-                  ? "bg-white text-sky-700 shadow-md border border-sky-200 hover:bg-white"
-                  : "bg-white/80 text-sky-600 border border-gray-200 hover:bg-white hover:text-sky-700 hover:shadow-sm"
+                  ? "bg-gradient-to-r from-[#0066FF] via-[#FFB7F6] to-[#FFD700] text-white font-semibold shadow-[0_0_12px_rgba(0,102,255,0.35)] border border-[#00BFFF]/40 hover:shadow-[0_0_18px_rgba(0,102,255,0.5)]"
+                  : "bg-white/90 text-[#0066FF] font-medium border border-[#FFB7F6]/30 hover:bg-white hover:text-[#0055DD] hover:border-[#00BFFF]/50 hover:shadow-[0_0_8px_rgba(0,102,255,0.2)]"
               }`}
               onClick={() => onSelect?.(category)}
             >
