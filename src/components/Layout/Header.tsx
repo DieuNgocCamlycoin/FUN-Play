@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { WalletButton } from "@/components/Wallet/WalletButton";
 import { UploadWizard } from "@/components/Upload/UploadWizard";
-import { AngelChat } from "@/components/Mascot/AngelChat";
+
 import { GlobalDonateButton } from "@/components/Donate/GlobalDonateButton";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
@@ -58,7 +58,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
-  const [angelChatOpen, setAngelChatOpen] = useState(false);
+  
 
   // Check admin/owner role
   useEffect(() => {
@@ -269,7 +269,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => setAngelChatOpen(true)}
+                onClick={() => window.open("https://angel.fun.rich", "_blank")}
                 className="relative rounded-full overflow-hidden h-11 w-11 hover:scale-110 transition-transform p-0"
               >
                 <img 
@@ -279,7 +279,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
                 />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Chat với ANGEL AI ✨</TooltipContent>
+            <TooltipContent>ANGEL AI ✨</TooltipContent>
           </Tooltip>
         </TooltipProvider>
         
@@ -371,7 +371,6 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
       </div>
       
       <UploadWizard open={uploadModalOpen} onOpenChange={setUploadModalOpen} />
-      <AngelChat isOpen={angelChatOpen} onClose={() => setAngelChatOpen(false)} />
     </header>
   );
 };
