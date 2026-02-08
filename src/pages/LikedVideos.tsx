@@ -64,6 +64,7 @@ const LikedVideos = () => {
           thumbnail_url,
           video_url,
           view_count,
+          duration,
           created_at,
           user_id,
           channels (

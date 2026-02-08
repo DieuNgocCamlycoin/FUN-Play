@@ -323,6 +323,13 @@ const Index = () => {
                 {videos
                   .filter((video) => {
                     if (selectedCategory === "Tất cả") return true;
+                    if (selectedCategory === "Xu hướng") return true; // sorted below
+                    if (selectedCategory === "Mới tải lên gần đây") {
+                      const sevenDaysAgo = new Date();
+                      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+                      return new Date(video.created_at) >= sevenDaysAgo;
+                    }
+                    if (selectedCategory === "Đề xuất mới") return true; // shuffled below
                     const categoryMap: Record<string, string[]> = {
                       "Âm nhạc": ["music"],
                       "Thiền": ["light_meditation", "sound_therapy", "mantra"],
@@ -330,13 +337,15 @@ const Index = () => {
                       "Trò chơi": ["gaming"],
                       "Tin tức": ["news"],
                       "Thiên nhiên": ["nature"],
-                      "Mới tải lên gần đây": [],
-                      "Đề xuất mới": [],
                     };
                     const cats = categoryMap[selectedCategory];
                     if (!cats) return true;
-                    if (cats.length === 0) return true; // special filters
                     return cats.includes(video.category || "");
+                  })
+                  .sort((a, b) => {
+                    if (selectedCategory === "Xu hướng") return (b.view_count || 0) - (a.view_count || 0);
+                    if (selectedCategory === "Đề xuất mới") return Math.random() - 0.5;
+                    return 0; // keep original order (created_at DESC)
                   })
                   .map((video) => (
                   <VideoCard

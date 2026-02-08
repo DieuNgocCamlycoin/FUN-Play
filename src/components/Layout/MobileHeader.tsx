@@ -79,11 +79,10 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
 
       try {
         const { count } = await supabase
-          .from('reward_transactions')
-          .select('amount', { count: 'exact' })
+          .from('notifications')
+          .select('id', { count: 'exact', head: true })
           .eq('user_id', user.id)
-          .eq('claimed', false)
-          .eq('status', 'success');
+          .eq('is_read', false);
 
         setNotificationCount(count || 0);
       } catch (error) {

@@ -27,6 +27,23 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
+// Notification badge component for bell icon
+function NotificationBadge({ userId }: { userId?: string }) {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    if (!userId) return;
+    const fetchCount = async () => {
+      const { count: c } = await supabase.from('notifications').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('is_read', false);
+      setCount(c || 0);
+    };
+    fetchCount();
+    const channel = supabase.channel('header-notif-count').on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` }, fetchCount).subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [userId]);
+  if (count <= 0) return null;
+  return <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full flex items-center justify-center">{count > 9 ? '9+' : count}</span>;
+}
+
 interface HeaderProps {
   onMenuClick: () => void;
 }
@@ -282,8 +299,9 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
           </Tooltip>
         </TooltipProvider>
         
-        <Button variant="ghost" size="icon" className="hidden md:flex" onClick={() => navigate("/notifications")}>
+        <Button variant="ghost" size="icon" className="hidden md:flex relative" onClick={() => navigate("/notifications")}>
           <Bell className="h-5 w-5" />
+          <NotificationBadge userId={user?.id} />
         </Button>
         
         {user ? (
