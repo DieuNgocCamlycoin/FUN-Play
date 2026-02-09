@@ -1,263 +1,191 @@
 
 
-# KẾ HOẠCH BACKFILL & HOÀN THIỆN LỊCH SỬ GIAO DỊCH ONCHAIN FUN PLAY
+# KE HOACH CAP NHAT YOUTUBE FEATURES PACKAGE VAO DU AN GOC
 
 ---
 
-## I. PHÂN TÍCH VẤN ĐỀ HIỆN TẠI
+## I. PHAN TICH GAP (DA CO vs CAN THEM)
 
-### Dữ Liệu Database Hiện Có
-| Bảng | Số GD Onchain | Tổng CAMLY | Ghi Chú |
-|------|---------------|------------|---------|
-| `donation_transactions` | 20 | 1,068,845 | status = 'success' |
-| `claim_requests` | 23 | 6,874,000 | status = 'success' |
-| `wallet_transactions` | 97 | 6,931,360 | status = '**completed**' (KHÔNG PHẢI 'success') |
-| **TỔNG HIỆN TẠI** | **140** | **~14.87M** | |
-| **HIỂN THỊ THỰC TẾ** | **43** | **~7.94M** | Do lỗi RLS + Hook |
+### Files DA CO va HOAN CHINH (khong can thay doi)
+| File | Trang Thai |
+|------|-----------|
+| `src/hooks/useVideoComments.ts` | Da co day du (621 dong) |
+| `src/components/Video/Comments/*` (8 files) | Da co |
+| `src/components/Video/ShortsCommentSheet.tsx` | Da co |
+| `src/components/Music/MusicComments.tsx` | Da co |
+| `src/hooks/useMentionSearch.ts` | Da co |
+| `src/hooks/useAutoReward.ts` | Da co |
+| `src/components/Post/CommentLikesList.tsx` | Da co |
 
-### 3 Vấn Đề Cần Sửa Ngay
+### Database DA CO
+| Bang | Trang Thai |
+|------|-----------|
+| `comments` | Da co + RLS + trigger |
+| `comment_likes` | Da co + RLS + trigger |
+| `post_comments` | Da co + RLS |
+| `post_comment_likes` | Da co nhung **THIEU cot `emoji`** |
+| `posts` | Da co |
 
-**VẤN ĐỀ 1: RLS Policy sai cho `wallet_transactions`**
-- RLS policy: `status = 'success'`
-- Dữ liệu thực tế: `status = 'completed'`
-- Kết quả: 97 giao dịch bị ẩn!
+### CAN TAO MOI
+| # | File/Resource | Loai | Mo Ta |
+|---|---------------|------|-------|
+| 1 | `post_likes` table | Database | Bang like bai dang voi emoji (CHUA TON TAI) |
+| 2 | Cot `emoji` trong `post_comment_likes` | Database | Them cot emoji TEXT DEFAULT 'tim do' |
+| 3 | Function `update_post_like_count` | Database | Tu dong cap nhat like_count cua posts |
+| 4 | Trigger `trigger_update_post_likes` | Database | Kich hoat function tren |
+| 5 | `src/hooks/usePostLike.ts` | Hook moi | Like bai dang voi emoji (~120 dong) |
+| 6 | `src/components/Post/PostReactions.tsx` | Component moi | Like/Comment/Share bar (~70 dong) |
+| 7 | `src/components/Post/PostEmojiPicker.tsx` | Component moi | 4 categories emoji picker (~40 dong) |
 
-**VẤN ĐỀ 2: Hook `useTransactionHistory.ts` cũng sai**
-- Dòng 200, 209: `eq("status", "success")`
-- Cần đổi thành: `eq("status", "completed")`
-
-**VẤN ĐỀ 3: Thiếu giao dịch lịch sử onchain (Backfill)**
-- Database chỉ có từ 25/11/2025 (wallet_tx) và 02/01/2026 (claim)
-- User nói: đã chuyển **>60M CAMLY** nhưng DB chỉ có ~14.87M
-- **Cần backfill từ blockchain** để lấy đủ lịch sử
+### CAN CAP NHAT (them emoji support)
+| # | File | Thay Doi |
+|---|------|---------|
+| 1 | `src/hooks/usePostComments.ts` | Them `likedCommentEmojis` Map, sua `toggleLike` nhan emoji |
+| 2 | `src/components/Post/PostCommentItem.tsx` | Them emoji reaction picker tren comment |
+| 3 | `src/components/Post/PostCommentInput.tsx` | Them emoji picker trong input |
+| 4 | `src/components/Post/PostCommentList.tsx` | Them prop `likedCommentEmojis` |
+| 5 | `src/components/Post/PostComments.tsx` | Truyen emoji data xuong components |
 
 ---
 
-## II. THÔNG TIN 2 VÍ HỆ THỐNG
+## II. TRIEN KHAI CHI TIET
 
-| # | Tên Hiển Thị | Địa Chỉ | Vai Trò |
-|---|-------------|---------|---------|
-| 1 | **FUN PLAY TẶNG & THƯỞNG** | `0x8f09073be2B5F4a953939dEBa8c5DFC8098FC0E8` | Ví tặng thưởng CAMLY |
-| 2 | **FUN PLAY TREASURY** | `0x1DC24BFd99c256B12a4A4cC7732c7e3B9aA75998` | Ví Treasury (claim) |
+### PHASE 1: Database Migration
 
-**Avatar**: `/images/fun-play-wallet-icon.png`
-**Token CAMLY**: `0x0910320181889fefde0bb1ca63962b0a8882e413` (BSC Mainnet)
-
----
-
-## III. KẾ HOẠCH TRIỂN KHAI
-
-### PHASE 1: SỬA LỖI RLS POLICY (KHẨN CẤP)
-
-**File**: Database Migration
-
+**Tao bang `post_likes`:**
 ```sql
--- Drop policy cũ (sai status)
-DROP POLICY IF EXISTS "Public can view onchain wallet transfers" 
-  ON public.wallet_transactions;
+CREATE TABLE public.post_likes (
+  id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  post_id UUID NOT NULL REFERENCES public.posts(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL,
+  emoji TEXT NOT NULL DEFAULT 'tim do',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(post_id, user_id)
+);
 
--- Tạo policy mới với status = 'completed'
-CREATE POLICY "Public can view onchain wallet transfers"
-  ON public.wallet_transactions
-  FOR SELECT
-  USING (tx_hash IS NOT NULL AND status = 'completed');
+-- RLS Policies
+ALTER TABLE public.post_likes ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Post likes viewable by everyone" ON public.post_likes FOR SELECT USING (true);
+CREATE POLICY "Auth users can like posts" ON public.post_likes FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can unlike own likes" ON public.post_likes FOR DELETE USING (auth.uid() = user_id);
+CREATE POLICY "Users can update own likes" ON public.post_likes FOR UPDATE USING (auth.uid() = user_id);
 ```
 
-**Kết quả**: Unlock thêm 97 giao dịch = +6.93M CAMLY
-
----
-
-### PHASE 2: SỬA HOOK useTransactionHistory.ts
-
-**File**: `src/hooks/useTransactionHistory.ts`
-
-**Thay đổi dòng 200 và 209**:
-- OLD: `.eq("status", "success")`
-- NEW: `.eq("status", "completed")`
-
-```typescript
-// Dòng 196-213: Sửa wallet_transactions query
-const walletQuery = publicMode
-  ? supabase
-      .from("wallet_transactions")
-      .select("*")
-      .eq("status", "completed")  // ✅ SỬA: success → completed
-      .not("tx_hash", "is", null)
-      ...
-  : user?.id
-    ? supabase
-        .from("wallet_transactions")
-        ...
-        .eq("status", "completed")  // ✅ SỬA: success → completed
-        ...
+**Them cot emoji cho `post_comment_likes`:**
+```sql
+ALTER TABLE public.post_comment_likes ADD COLUMN IF NOT EXISTS emoji TEXT NOT NULL DEFAULT 'tim do';
 ```
 
-**Thay đổi dòng 416** (khi normalize wallet_transactions):
-- OLD: `status: w.status as TransactionStatus`
-- NEW: Map 'completed' → 'success' cho consistency
+**Tao trigger tu dong cap nhat like_count:**
+```sql
+CREATE OR REPLACE FUNCTION public.update_post_like_count()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public' AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    UPDATE posts SET like_count = COALESCE(like_count, 0) + 1 WHERE id = NEW.post_id;
+    RETURN NEW;
+  ELSIF TG_OP = 'DELETE' THEN
+    UPDATE posts SET like_count = GREATEST(COALESCE(like_count, 0) - 1, 0) WHERE id = OLD.post_id;
+    RETURN OLD;
+  END IF;
+  RETURN NULL;
+END;
+$$;
 
-```typescript
-status: w.status === 'completed' ? 'success' : w.status as TransactionStatus,
-```
-
-**Kết quả**: Hook sẽ fetch đúng 97 giao dịch wallet
-
----
-
-### PHASE 3: TẠO EDGE FUNCTION BACKFILL BLOCKCHAIN
-
-**File mới**: `supabase/functions/backfill-blockchain-history/index.ts`
-
-**Mục đích**: Quét lịch sử giao dịch CAMLY từ BSCScan API cho 2 ví hệ thống
-
-**Logic**:
-1. Gọi BSCScan API lấy token transfers của CAMLY từ/đến 2 ví hệ thống
-2. Filter: chỉ lấy giao dịch CAMLY (contract `0x0910...e413`)
-3. Với mỗi giao dịch:
-   - Check tx_hash đã tồn tại trong DB chưa
-   - Nếu chưa → Insert vào `wallet_transactions`
-4. Map wallet address → user_id qua bảng `profiles.wallet_address`
-
-```typescript
-// Pseudo-code
-const BSCSCAN_API = "https://api.bscscan.com/api";
-const CAMLY_TOKEN = "0x0910320181889fefde0bb1ca63962b0a8882e413";
-const SYSTEM_WALLETS = [
-  "0x8f09073be2B5F4a953939dEBa8c5DFC8098FC0E8", // TẶNG & THƯỞNG
-  "0x1DC24BFd99c256B12a4A4cC7732c7e3B9aA75998"  // TREASURY
-];
-
-// Fetch token transfers từ BSCScan
-for (const wallet of SYSTEM_WALLETS) {
-  const transfers = await fetch(
-    `${BSCSCAN_API}?module=account&action=tokentx` +
-    `&contractaddress=${CAMLY_TOKEN}` +
-    `&address=${wallet}` +
-    `&startblock=0&endblock=99999999` +
-    `&sort=asc` +
-    `&apikey=${BSCSCAN_API_KEY}`
-  );
-  
-  for (const tx of transfers.result) {
-    // Check duplicate
-    const existing = await supabase
-      .from("wallet_transactions")
-      .select("id")
-      .eq("tx_hash", tx.hash)
-      .single();
-    
-    if (!existing) {
-      // Insert new transaction
-      await supabase.from("wallet_transactions").insert({
-        from_address: tx.from,
-        to_address: tx.to,
-        amount: Number(tx.value) / 1e18,
-        token_type: "CAMLY",
-        tx_hash: tx.hash,
-        status: "completed",
-        created_at: new Date(Number(tx.timeStamp) * 1000).toISOString(),
-        // Map user IDs if possible
-      });
-    }
-  }
-}
-```
-
-**Yêu cầu**: Cần BSCScan API Key (sẽ request qua `add_secret`)
-
----
-
-### PHASE 4: THÊM BSCSCAN API KEY
-
-Cần request user cung cấp BSCScan API Key để:
-- Không bị rate limit (5 calls/sec miễn phí)
-- Fetch được toàn bộ lịch sử không giới hạn
-
-**Lấy tại**: https://bscscan.com/myapikey (miễn phí)
-
----
-
-### PHASE 5: NÂNG CAP PAGINATION & STATS
-
-**File**: `src/hooks/useTransactionHistory.ts`
-
-**Thay đổi**:
-1. Tăng limit mặc định: 50 → 100
-2. Sửa `hasMore` logic để không bị dừng sớm
-3. Stats tính đúng với tổng số giao dịch thực
-
----
-
-## IV. BẢNG TỔNG HỢP THAY ĐỔI
-
-| # | File/Resource | Loại | Phức Tạp | Mô Tả |
-|---|---------------|------|----------|-------|
-| 1 | Database Migration | Update RLS | ⭐⭐ | Fix status 'completed' cho wallet_transactions |
-| 2 | `useTransactionHistory.ts` | Edit Hook | ⭐⭐ | Fix query status + map status |
-| 3 | `backfill-blockchain-history/index.ts` | New Edge Function | ⭐⭐⭐⭐ | Quét lịch sử từ BSCScan |
-| 4 | Secret: BSCSCAN_API_KEY | Add Secret | ⭐ | Cần user cung cấp |
-
----
-
-## V. KẾT QUẢ SAU TRIỂN KHAI
-
-### Trước (Hiện tại)
-```
-❌ Hiển thị: 43 giao dịch = ~7.94M CAMLY
-❌ Thiếu: wallet_transactions (status = 'completed' bị ẩn)
-❌ Thiếu: Lịch sử onchain cũ chưa được backfill
-```
-
-### Sau Phase 1+2 (Fix RLS + Hook)
-```
-✅ Hiển thị: 140 giao dịch = ~14.87M CAMLY
-✅ wallet_transactions hiển thị đầy đủ
-```
-
-### Sau Phase 3+4 (Backfill Blockchain)
-```
-✅ Hiển thị: TẤT CẢ giao dịch CAMLY onchain
-✅ >60M CAMLY được phản ánh đúng
-✅ Minh bạch 100% dòng tiền từ lúc bắt đầu dự án
+CREATE TRIGGER trigger_update_post_likes
+AFTER INSERT OR DELETE ON post_likes
+FOR EACH ROW EXECUTE FUNCTION update_post_like_count();
 ```
 
 ---
 
-## VI. THỨ TỰ TRIỂN KHAI
+### PHASE 2: Tao 3 File Moi
 
-```
-[1] Fix RLS Policy (Database Migration)
-         ↓
-[2] Fix Hook useTransactionHistory.ts
-         ↓
-[3] Request BSCScan API Key từ user
-         ↓
-[4] Tạo Edge Function backfill-blockchain-history
-         ↓
-[5] Chạy backfill + verify kết quả
-         ↓
-[6] Kiểm tra trang /transactions hiển thị đầy đủ
-```
+**File 1: `src/hooks/usePostLike.ts`**
+- Hook quan ly like bai dang voi emoji
+- Optimistic UI + rollback
+- Toggle like/unlike/change emoji
+- ~120 dong code tu package
 
----
+**File 2: `src/components/Post/PostEmojiPicker.tsx`**
+- 4 categories emoji tich cuc: Tim, Vui ve, Co vu, Nang luong
+- 40 emoji tong cong
+- Popover UI voi tab categories
+- ~40 dong code tu package
 
-## VII. LƯU Ý BẢO MẬT
-
-| Dữ Liệu | Hiển Thị | Lý Do |
-|---------|----------|-------|
-| Tất cả giao dịch CAMLY onchain | ✅ PUBLIC | Web3 transparency |
-| 2 ví hệ thống | ✅ PUBLIC với branding FUN PLAY | Official wallets |
-| Pending/Failed transactions | ❌ PRIVATE | Chưa xác nhận |
-| Reward nội bộ | ❌ PRIVATE | Chỉ admin xem |
+**File 3: `src/components/Post/PostReactions.tsx`**
+- Bar ngang: Like + Emoji + Comment + Share
+- Tich hop `usePostLike` hook
+- Animation khi like (framer-motion)
+- Web Share API cho chia se
+- ~70 dong code tu package
 
 ---
 
-## VIII. YÊU CẦU TỪ USER
+### PHASE 3: Cap Nhat 5 File Hien Co
 
-Để hoàn thành Phase 3-4 (Backfill), cần:
+**File 1: `src/hooks/usePostComments.ts`**
+- THEM: `likedCommentEmojis: Map<string, string>` state
+- SUA: `toggleLike(commentId, emoji)` - them param emoji
+- SUA: Fetch emoji tu `post_comment_likes` khi load
+- SUA: Insert/update emoji khi like comment
 
-1. **BSCScan API Key**: Lấy miễn phí tại https://bscscan.com/myapikey
-2. **Xác nhận**: Có muốn backfill toàn bộ lịch sử từ block đầu tiên không?
+**File 2: `src/components/Post/PostCommentItem.tsx`**
+- THEM: Props `likedEmoji`, `likedCommentEmojis`
+- THEM: Emoji reaction picker (Popover voi 8 emoji)
+- SUA: Hien thi emoji da chon thay vi icon Heart mac dinh
+- SUA: `onToggleLike` signature nhan them emoji
 
-Nếu chưa có API Key, tôi sẽ thực hiện Phase 1-2 trước (fix ngay 97 giao dịch bị ẩn).
+**File 3: `src/components/Post/PostCommentInput.tsx`**
+- THEM: Emoji picker button trong textarea
+- THEM: Grid 30 emoji de chen vao noi dung
+- THEM: Logic chen emoji tai vi tri cursor
+
+**File 4: `src/components/Post/PostCommentList.tsx`**
+- THEM: Prop `likedCommentEmojis: Map<string, string>`
+- SUA: Truyen `likedEmoji` cho tung `PostCommentItem`
+
+**File 5: `src/components/Post/PostComments.tsx`**
+- SUA: Lay `likedCommentEmojis` tu hook
+- SUA: Truyen xuong `PostCommentList`
+
+---
+
+## III. BANG TONG HOP
+
+| # | File | Loai | Phuc Tap | Dong |
+|---|------|------|----------|------|
+| 1 | Database Migration | Tao + Sua | 2/5 | ~50 SQL |
+| 2 | `usePostLike.ts` | Tao moi | 2/5 | ~120 |
+| 3 | `PostEmojiPicker.tsx` | Tao moi | 1/5 | ~40 |
+| 4 | `PostReactions.tsx` | Tao moi | 2/5 | ~70 |
+| 5 | `usePostComments.ts` | Cap nhat | 3/5 | ~50 thay doi |
+| 6 | `PostCommentItem.tsx` | Cap nhat | 3/5 | ~60 thay doi |
+| 7 | `PostCommentInput.tsx` | Cap nhat | 2/5 | ~40 thay doi |
+| 8 | `PostCommentList.tsx` | Cap nhat | 1/5 | ~10 thay doi |
+| 9 | `PostComments.tsx` | Cap nhat | 1/5 | ~10 thay doi |
+
+**Tong**: 9 thay doi (3 file moi + 5 cap nhat + 1 migration)
+
+---
+
+## IV. KHONG CAN THAY DOI (DA DAY DU)
+
+Cac file sau trong package da co trong du an va **KHONG can cap nhat**:
+- useVideoComments.ts (da day du)
+- Video/Comments/* (8 components)
+- ShortsCommentSheet.tsx
+- MusicComments.tsx
+- useMentionSearch.ts
+- useAutoReward.ts
+- CommentLikesList.tsx
+
+---
+
+## V. GHI CHU
+
+- **FunProfileTabs.tsx**: Package chi de cap nhung khong cung cap ma nguon day du. Se khong tao file nay trong dot nay.
+- Tat ca code lay truc tiep tu file package `YOUTUBE-FEATURES-FULL-PACKAGE.md` do user cung cap.
+- Emoji mac dinh dung "tim do" (heart emoji) trong database.
+- Realtime da duoc bat cho `comments` va `post_comments` truoc do.
 
