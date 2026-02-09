@@ -1,279 +1,318 @@
 
 
-# KẾ HOẠCH CẬP NHẬT KẾT NỐI VÍ METAMASK TRÊN ĐIỆN THOẠI
+# KẾ HOẠCH TRIỂN KHAI: PHƯƠNG ÁN 1 - CẢNH BÁO KHI KẾT NỐI VÍ KHÁC
 
 ---
 
-## I. PHÂN TÍCH VẤN ĐỀ HIỆN TẠI
+## I. PHÂN TÍCH VẤN ĐỀ
 
-### Triệu chứng
-Người dùng trên điện thoại (iOS/Android) khi nhấn kết nối ví MetaMask Mobile bị treo tại trạng thái "Đang kết nối..." và không thể hoàn thành quy trình.
+### Tình huống hiện tại
+- Người dùng kết nối ví **A (0x1234...)** trên laptop → lưu vào `profiles.wallet_address`
+- Người dùng kết nối ví **B (0x5678...)** trên điện thoại → ghi đè `profiles.wallet_address`
+- Dữ liệu DB không đồng bộ → reward có thể gửi sai ví
 
-### Nguyên nhân gốc rễ
-1. **Package lỗi thời**: Dự án đang sử dụng `@web3modal/wagmi` phiên bản 5.1.11, đã bị deprecated vào năm 2024
-2. **Không tương thích mobile**: Package cũ không hỗ trợ tối ưu cho deep link mobile trên iOS và Android
-3. **Mismatch package**: File `package-lock.json` có `@reown/appkit` 1.8.1 nhưng `package.json` vẫn khai báo `@web3modal/wagmi`
-4. **API cũ**: Mã hiện tại sử dụng `createWeb3Modal` (cũ) thay vì `createAppKit` (mới)
-
-### Tại sao Extension hoạt động nhưng Mobile thì không?
-- **Desktop Extension**: MetaMask Extension inject `window.ethereum` trực tiếp vào trình duyệt → kết nối tức thì qua injected provider
-- **Mobile App**: Cần WalletConnect protocol để giao tiếp → cần deep link chính xác và session management
-
-### Giải pháp: Nâng cấp lên Reown AppKit
-**Reown AppKit** (phiên bản 2025 của Web3Modal):
-- Hỗ trợ 100% cho mobile (iOS Safari, Android Chrome)
-- Tự động phát hiện thiết bị và sử dụng deep link phù hợp
-- Quản lý WalletConnect session tốt hơn
-- Đã được sử dụng bởi Uniswap, PancakeSwap (production-ready)
+### Giải pháp
+Thêm dialog xác nhận khi phát hiện ví mới khác với ví cũ:
+```
+[Ví cũ: 0x1234...]
+[Ví mới: 0x5678...]
+  ↓
+[Hiển thị dialog cảnh báo]
+  ↓
+[Người dùng chọn]:
+  • Cập nhật ví mới → ghi đè vào DB
+  • Giữ nguyên ví cũ → disconnect ví mới, quay lại
+```
 
 ---
 
 ## II. CHI TIẾT THỰC HIỆN
 
-### PHASE 1: Cập nhật package.json
+### PHASE 1: Tạo Component Dialog Cảnh Báo
 
-**Bước 1 - Xóa package cũ:**
-```
-"@web3modal/wagmi": "^5.1.11"
-```
+**File mới: `src/components/Web3/WalletChangeConfirmDialog.tsx`**
+- Dialog xác nhận khi ví khác
+- Hiển thị: ví cũ (từ DB) vs ví mới (vừa kết nối)
+- 2 button: "Cập nhật ví mới" | "Giữ ví cũ"
+- Thêm warning icon và thông báo rủi ro
+- ~80 dòng code
 
-**Bước 2 - Thêm packages mới:**
-```json
-"@reown/appkit": "^1.8.1",
-"@reown/appkit-adapter-wagmi": "^1.8.1"
-```
-
-**Bước 3 - Chạy lệnh**:
-```bash
-npm install
+**Nội dung component:**
+```typescript
+interface WalletChangeConfirmDialogProps {
+  open: boolean;
+  oldAddress: string;
+  newAddress: string;
+  oldWalletType: string;
+  newWalletType: string;
+  isLoading?: boolean;
+  onConfirm: () => Promise<void>;  // Update wallet
+  onCancel: () => Promise<void>;   // Revert to old
+}
 ```
 
 ---
 
-### PHASE 2: Viết lại `src/lib/web3Config.ts`
+### PHASE 2: Cập nhật `src/hooks/useWalletConnection.ts`
 
-**Thay đổi imports:**
+**Thêm state và logic kiểm tra:**
+- `previousAddress`: lưu ví cũ từ DB khi lần đầu init
+- `showWalletChangeDialog`: state hiện/ẩn dialog
+- `pendingNewAddress` & `pendingNewWalletType`: lưu ví mới tạm thời
+- `handleConfirmWalletChange()`: xác nhận cập nhật ví
+- `handleCancelWalletChange()`: hủy và disconnect ví mới
+
+**Logic kiểm tra:**
 ```typescript
-// CỔ (deprecated)
-import { createWeb3Modal, defaultWagmiConfig } from '@web3modal/wagmi';
-
-// MỚI (Reown AppKit 2025)
-import { createAppKit } from '@reown/appkit/react';
-import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
-import { bsc } from '@reown/appkit/networks';
+// Trong watchAccount onChange:
+if (newAddress !== previousAddress && previousAddress !== null) {
+  // Ví khác với ví cũ
+  setShowWalletChangeDialog(true);
+  setPendingNewAddress(newAddress);
+  // Dừng lại, chờ xác nhận từ dialog
+} else {
+  // Ví mới = ví cũ, hoặc lần đầu kết nối
+  await saveWalletToDb(newAddress, type);
+}
 ```
 
-**Tạo Wagmi Adapter:**
+**Hàm xử lý:**
 ```typescript
-const wagmiAdapter = new WagmiAdapter({
-  projectId,
-  networks: [bsc],
-});
-
-export const wagmiConfig = wagmiAdapter.wagmiConfig;
-```
-
-**Khởi tạo AppKit:**
-```typescript
-let appKit: ReturnType<typeof createAppKit> | null = null;
-
-export const initWeb3Modal = () => {
-  if (!appKit && typeof window !== 'undefined') {
-    appKit = createAppKit({
-      adapters: [wagmiAdapter],
-      networks: [bsc],
-      projectId,
-      metadata: {
-        name: 'FUN PLAY',
-        description: 'FUN PLAY - Nền tảng Video Web3 với Token CAMLY trên BSC',
-        url: getMetadataUrl(),
-        icons: ['/images/camly-coin.png']
-      },
-      themeMode: 'dark',
-      themeVariables: {
-        '--w3m-accent': '#facc15',
-        '--w3m-border-radius-master': '12px',
-      },
-      featuredWalletIds: [METAMASK_WALLET_ID, BITGET_WALLET_ID, TRUST_WALLET_ID],
-      features: {
-        analytics: false,
-        email: false,
-        socials: [],
-      }
-    });
-  }
-  return appKit;
+const handleConfirmWalletChange = async () => {
+  // Cập nhật ví mới vào DB
+  await saveWalletToDb(pendingNewAddress, pendingWalletType);
+  setShowWalletChangeDialog(false);
+  // UI tự động cập nhật
 };
 
-export const getWeb3Modal = () => {
-  if (!appKit) {
-    return initWeb3Modal();
-  }
-  return appKit;
+const handleCancelWalletChange = async () => {
+  // Ngắt kết nối ví mới
+  await disconnect(wagmiConfig);
+  setShowWalletChangeDialog(false);
+  // Quay lại trạng thái cũ
+  setAddress(previousAddress);
 };
 ```
 
 ---
 
-### PHASE 3: Cập nhật `src/hooks/useWalletConnection.ts`
+### PHASE 3: Cập nhật `src/hooks/useWalletConnectionWithRetry.ts`
 
-**Thay đổi hàm `connectWithMobileSupport()`:**
-
+**Thêm 2 prop mới từ `useWalletConnection`:**
 ```typescript
-const connectWithMobileSupport = useCallback(async (preferredWallet?: 'metamask' | 'bitget' | 'trust') => {
-  try {
-    setIsLoading(true);
-    const isMobile = isMobileBrowser();
-    
-    // Nếu là mobile, AppKit sẽ tự động:
-    // 1. Phát hiện nếu ứng dụng ví đã cài đặt
-    // 2. Mở ứng dụng ví qua deep link
-    // 3. Hoặc hiển thị QR code nếu chưa cài
-    
-    const modal = getWeb3Modal();
-    if (modal) {
-      if (isMobile) {
-        logWalletDebug('Kết nối mobile - AppKit sẽ tự xử lý deep link');
-      }
-      await modal.open({ view: 'Connect' });
-    }
-  } catch (error) {
-    console.error('Lỗi kết nối:', error);
-  } finally {
-    setIsLoading(false);
-  }
-}, []);
+return {
+  ...walletConnection,
+  showWalletChangeDialog,
+  walletChangeDetails,
+  handleConfirmWalletChange,
+  handleCancelWalletChange,
+  // ... other returns
+};
 ```
 
 ---
 
-### PHASE 4: Cập nhật `src/hooks/useWalletConnectionWithRetry.ts`
+### PHASE 4: Tích hợp Dialog vào UI
 
-**Giảm timeout:**
+**Option A: Thêm vào `src/pages/Wallet.tsx`**
 ```typescript
-const connectionTimeout = 10000; // 10 giây thay vì 15 (AppKit nhanh hơn)
+const {
+  showWalletChangeDialog,
+  walletChangeDetails,
+  handleConfirmWalletChange,
+  handleCancelWalletChange
+} = useWalletConnectionWithRetry();
+
+return (
+  <>
+    <MainLayout>{/* ... existing UI */}</MainLayout>
+    <WalletChangeConfirmDialog
+      open={showWalletChangeDialog}
+      oldAddress={walletChangeDetails?.oldAddress}
+      newAddress={walletChangeDetails?.newAddress}
+      onConfirm={handleConfirmWalletChange}
+      onCancel={handleCancelWalletChange}
+    />
+  </>
+);
 ```
 
-**Loại bỏ progress simulation phức tạp:**
-```typescript
-// AppKit có UI riêng cho trạng thái kết nối
-// Loại bỏ code progress bar thủ công không cần thiết
-```
+**Option B: Thêm vào `src/App.tsx`** (toàn cục)
+- Dialog hiển thị ở bất kỳ route nào khi phát hiện ví khác
+- Khuyến cáo hơn vì xử lý ở mọi nơi
 
 ---
 
-### PHASE 5: Kiểm tra `src/App.tsx` và `src/main.tsx`
+### PHASE 5: Xử Lý Edge Case
 
-**Đảm bảo:**
-```typescript
-// ✓ Import wagmiConfig từ web3Config.ts
-import { wagmiConfig } from '@/lib/web3Config';
+**Case 1: Lần đầu kết nối (previousAddress = null)**
+- Không hiển thị dialog
+- Trực tiếp lưu vào DB
 
-// ✓ WagmiProvider wrapping app
-<WagmiProvider config={wagmiConfig}>
-  {children}
-</WagmiProvider>
+**Case 2: Ví cùng một địa chỉ nhưng loại khác**
+- Ví: 0x1234... (MetaMask) → 0x1234... (Bitget)
+- **Hỏi:** Có cần cảnh báo không? Hoặc tự động cập nhật?
+- **Khuyến cáo:** Tự động cập nhật (vì cùng địa chỉ)
 
-// ✓ Không còn import initWeb3Modal ở main.tsx nữa
-// AppKit tự khởi tạo khi cần
-```
+**Case 3: Người dùng disconnect ví mới trước khi click button**
+- Dialog tự động đóng (vì `showWalletChangeDialog` state sẽ reset)
+
+**Case 4: Người dùng không phản hồi lâu**
+- Dialog vẫn mở → user tự quyết định
+- Có thể thêm timeout 5 phút sau đó tự disconnect (optional)
 
 ---
 
 ## III. BẢNG TỔNG HỢP THAY ĐỔI
 
-| # | File | Kiểu | Mô Tả |
-|---|------|------|-------|
-| 1 | `package.json` | Cập nhật | Bỏ @web3modal/wagmi, thêm @reown/appkit |
-| 2 | `src/lib/web3Config.ts` | Viết lại | Dùng `createAppKit` thay `createWeb3Modal` |
-| 3 | `src/hooks/useWalletConnection.ts` | Cập nhật | Dùng `appKit.open()` thay `modal.open()` |
-| 4 | `src/hooks/useWalletConnectionWithRetry.ts` | Cập nhật nhỏ | Giảm timeout, loại bỏ progress simulation |
-| 5 | `src/App.tsx` | Kiểm tra | Đảm bảo WagmiProvider dùng wagmiConfig đúng |
+| # | File | Loại | Mô Tả | Dòng |
+|---|------|------|-------|------|
+| 1 | `src/components/Web3/WalletChangeConfirmDialog.tsx` | **Tạo mới** | Dialog xác nhận đổi ví | ~80 |
+| 2 | `src/hooks/useWalletConnection.ts` | Cập nhật | Thêm state + logic kiểm tra ví | ~80 thêm |
+| 3 | `src/hooks/useWalletConnectionWithRetry.ts` | Cập nhật nhỏ | Expose dialog state + handler | ~10 thêm |
+| 4 | `src/pages/Wallet.tsx` | Cập nhật | Thêm `<WalletChangeConfirmDialog />` | ~20 thêm |
+| 5 | `src/App.tsx` | Cập nhật (optional) | Toàn cục dialog nếu chọn Option B | ~20 thêm |
 
 ---
 
-## IV. QUY TRÌNH KẾT NỐI SAU KHI CẬP NHẬT
+## IV. FLOW UX ĐẦY ĐỦ
 
 ```
-[Người dùng nhấn "Kết nối ví"]
-         ↓
-[appKit.open() được gọi]
-         ↓
-[AppKit phát hiện thiết bị]
-         ↓
-   ┌─────┬─────┐
-   ↓     ↓     ↓
-Desktop Mobile (iOS) Mobile (Android)
-   ↓     ↓     ↓
- Modal  Deep link  Deep link
-        MetaMask   MetaMask
-   ↓     ↓     ↓
-[Người dùng xác nhận kết nối]
-         ↓
-[Thiết lập session WalletConnect]
-         ↓
-[watchAccount() bắt sự kiện]
-         ↓
+[Scenario: User kết nối ví khác]
+
+[Trên Laptop - User đã kết nối ví A]
+   wallet_address = "0x1234...5678"
+   
+[Trên Điện thoại - User kết nối ví B]
+   account.address = "0x9abc...def0"
+   
+[watchAccount bắt sự kiện]
+   ↓
+[Kiểm tra: 0x9abc != 0x1234? → YES]
+   ↓
+[setShowWalletChangeDialog(true)]
+[setPendingNewAddress("0x9abc...")]
+   ↓
+[Dialog xuất hiện]
+┌─────────────────────────────────┐
+│ ⚠️ Thay Đổi Ví Kết Nối          │
+├─────────────────────────────────┤
+│ Bạn đang cố kết nối ví khác      │
+│                                  │
+│ Ví cũ: 0x1234...5678           │
+│ Ví mới: 0x9abc...def0           │
+│                                  │
+│ ⚠️ Lưu ý: Reward CAMLY sẽ gửi  │
+│    đến ví mới. Chắc chắn không? │
+│                                  │
+│ [Giữ ví cũ] [Cập nhật ví mới]   │
+└─────────────────────────────────┘
+   
+[User chọn "Cập nhật ví mới"]
+   ↓
+[handleConfirmWalletChange()]
+   ↓
+[await saveWalletToDb("0x9abc...", "metamask")]
+   ↓
+[setShowWalletChangeDialog(false)]
+   ↓
+[setAddress("0x9abc...")]
 [setIsConnected(true)]
-         ↓
-[Hiển thị địa chỉ ví] ✅
+   ↓
+[UI cập nhật → Hiển thị ví mới]
+   ↓
+[setConnectionStep("connected")] ✅
+
+---
+
+[User chọn "Giữ ví cũ"]
+   ↓
+[handleCancelWalletChange()]
+   ↓
+[await disconnect(wagmiConfig)]
+   ↓
+[setShowWalletChangeDialog(false)]
+   ↓
+[setAddress("0x1234...")]
+[setIsConnected(false)] 
+   ↓
+[UI quay lại trạng thái cũ]
+   ↓
+[Toast: "Đã hủy kết nối ví mới"]
 ```
 
 ---
 
-## V. KẾT QUẢ SAU KHI HOÀN THÀNH
+## V. CODE PATTERN DÙNG TRONG DỰ ÁN
 
-| Trước | Sau |
-|-------|-----|
-| ❌ Kết nối Mobile bị treo | ✅ Kết nối Mobile thành công |
-| ❌ Dùng @web3modal/wagmi cũ | ✅ Dùng Reown AppKit 2025 |
-| ❌ Deep link không hoạt động | ✅ Deep link tự động bởi AppKit |
-| ❌ Chỉ Extension hoạt động | ✅ Cả Extension + Mobile App hoạt động |
-| ❌ Chưa cài ví: lỗi | ✅ Chưa cài ví: hiển thị QR code |
+**Dialog pattern:** Từ `src/components/Web3/WalletSelectionModal.tsx`
+- Dùng `Dialog` từ shadcn/ui
+- Header + Content + Footer layout
+- Dialog props: `open`, `onOpenChange`
 
----
+**Hook pattern:** Từ `src/hooks/useWalletConnection.ts`
+- State management với `useState`
+- Callback với `useCallback`
+- Effect với `useEffect`
+- Supabase update: `supabase.from('profiles').update({...})`
 
-## VI. KIỂM TRA SAU KHI TRIỂN KHAI
+**Toast pattern:** Từ `useToast()` hook
+- Success: title + description
+- Error: variant="destructive"
 
-**Trên Desktop:**
-- [ ] Chrome + MetaMask Extension: kết nối thành công
-- [ ] Firefox + MetaMask Extension: kết nối thành công
-
-**Trên iPhone:**
-- [ ] Safari + MetaMask App (đã cài): mở MetaMask App → kết nối
-- [ ] Safari + MetaMask chưa cài: hiển thị QR code
-
-**Trên Android:**
-- [ ] Chrome + MetaMask App (đã cài): mở MetaMask App → kết nối
-- [ ] Chrome + MetaMask chưa cài: hiển thị QR code
+**Address format:** `formatAddress()` từ Wallet.tsx
+- `addr.slice(0, 6) + "..." + addr.slice(-4)`
 
 ---
 
-## VII. LƯU Ý QUAN TRỌNG
+## VI. LƯU Ý QUAN TRỌNG
 
-1. **VITE_WALLETCONNECT_PROJECT_ID** trong `.env` phải hợp lệ (đã kiểm tra: `438c4373...`)
-2. **metadata.url** phải khớp với domain thực tế (`play.fun.rich`)
-3. Sau khi deploy, **PHẢI kiểm tra trên thiết bị thực** (simulator không hỗ trợ ứng dụng ví)
-4. AppKit tự động xử lý retry và reconnect → không cần code retry phức tạp
-5. Toàn bộ deep link được AppKit quản lý → loại bỏ được hàm `getWalletDeepLink()` cũ
+1. **Không ghi đè DB trước khi xác nhận** → Dùng state tạm `pendingNewAddress`
+2. **Disconnect đúng cách** → Gọi `disconnect(wagmiConfig)` từ wagmi
+3. **previousAddress lấy ở đâu?**
+   - Init lần đầu từ `getAccount(wagmiConfig)` hoặc query DB
+   - Lưu thành state `previousAddress`
+4. **Mobile case:** Dialog hiển thị bình thường trên mobile (fullscreen)
+5. **Khóa nút khi đang xử lý** → `isLoading` prop của dialog
 
 ---
 
-## VIII. THỨ TỰ TRIỂN KHAI
+## VII. THỨ TỰ TRIỂN KHAI
 
 ```
-[1] Cập nhật package.json + npm install
-         ↓
-[2] Viết lại src/lib/web3Config.ts
-         ↓
-[3] Cập nhật src/hooks/useWalletConnection.ts
-         ↓
-[4] Cập nhật src/hooks/useWalletConnectionWithRetry.ts
-         ↓
-[5] Kiểm tra src/App.tsx + src/main.tsx
-         ↓
-[6] Test kết nối trên Desktop + Mobile
-         ↓
-[7] Deploy lên production
+[1] Tạo WalletChangeConfirmDialog.tsx
+       ↓
+[2] Cập nhật useWalletConnection.ts (add state + logic)
+       ↓
+[3] Cập nhật useWalletConnectionWithRetry.ts (expose props)
+       ↓
+[4] Cập nhật Wallet.tsx (thêm dialog)
+       ↓
+[5] Test trên Desktop + Mobile
+       ↓
+[6] Deploy lên production
 ```
+
+---
+
+## VIII. KIỂM TRA SAU KHI HOÀN THÀNH
+
+**Test case 1: Lần đầu kết nối**
+- [ ] Kết nối ví A lần đầu → không hiển thị dialog
+- [ ] Lưu vào DB thành công
+
+**Test case 2: Kết nối ví khác**
+- [ ] Kết nối ví B khác ví A → dialog hiển thị
+- [ ] Hiển thị đúng địa chỉ cũ + mới
+- [ ] Chọn "Giữ ví cũ" → disconnect ví B, quay lại ví A
+- [ ] Chọn "Cập nhật ví mới" → ghi đè vào DB, UI cập nhật
+
+**Test case 3: Cùng địa chỉ, loại ví khác**
+- [ ] 0x1234 MetaMask → 0x1234 Bitget
+- [ ] Hành động: Tự động cập nhật (không hiển thị dialog)
+
+**Test case 4: Mobile flow**
+- [ ] Dialog responsive trên mobile (fullscreen)
+- [ ] Deep link MetaMask → kết nối thành công
+- [ ] Kiểm tra dialog hiển thị đúng
 
