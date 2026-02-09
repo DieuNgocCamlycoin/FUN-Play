@@ -114,147 +114,211 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 h-14 bg-background/95 backdrop-blur-lg border-b border-border z-50 lg:hidden">
-      {/* Normal Header */}
-      <div
-        className={cn(
-          "flex items-center justify-between h-full px-3 transition-opacity duration-200",
-          isSearchOpen && "opacity-0 pointer-events-none"
-        )}
-      >
-        {/* Left - Menu & Logo */}
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            onClick={onMenuClick}
-            className="flex items-center justify-center h-11 w-11 rounded-full active:bg-muted/60 transition-colors"
-            aria-label="Menu"
-          >
-            <Menu className="h-6 w-6 text-foreground" />
-          </button>
-          <div
-            className="flex items-center cursor-pointer"
-            onClick={() => navigate("/")}
-          >
-            <img 
-              src={funplayLogo} 
-              alt="FUN Play" 
-              className="h-9 w-9 rounded-full object-cover shadow-lg ring-2 ring-primary/30"
-            />
+    <header className="fixed top-0 left-0 right-0 bg-background/95 backdrop-blur-lg border-b border-border z-50 lg:hidden safe-area-top">
+      {/* The actual toolbar row with fixed 56px height */}
+      <div className="h-14 relative">
+        {/* Normal Header */}
+        <div
+          className={cn(
+            "flex items-center justify-between h-full px-2 transition-opacity duration-200",
+            isSearchOpen && "opacity-0 pointer-events-none"
+          )}
+        >
+          {/* Left - Menu & Logo */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              onClick={onMenuClick}
+              className="flex items-center justify-center h-9 w-9 rounded-full active:bg-muted/60 transition-colors"
+              aria-label="Menu"
+            >
+              <Menu className="h-5 w-5 text-foreground" />
+            </button>
+            <div
+              className="flex items-center cursor-pointer"
+              onClick={() => navigate("/")}
+            >
+              <img 
+                src={funplayLogo} 
+                alt="FUN Play" 
+                className="h-8 w-8 rounded-full object-cover shadow-lg ring-2 ring-primary/30"
+              />
+            </div>
+          </div>
+
+          {/* Right - Action Icons */}
+          <div className="flex items-center gap-0 shrink-0">
+            {/* Search */}
+            <ToolbarIconButton
+              onClick={() => setIsSearchOpen(true)}
+              ariaLabel="Tìm kiếm"
+            >
+              <Search className="h-5 w-5 text-foreground" />
+            </ToolbarIconButton>
+
+            {/* Gift / Donate */}
+            <ToolbarIconButton
+              onClick={() => navigate("/wallet")}
+              ariaLabel="Tặng & Thưởng"
+            >
+              <img 
+                src="/images/icon-gift-holographic.png" 
+                alt="Tặng & Thưởng" 
+                className="h-6 w-6 object-contain drop-shadow-md"
+              />
+            </ToolbarIconButton>
+
+            {/* Mint FUN Money */}
+            <ToolbarIconButton
+              onClick={() => navigate("/fun-money")}
+              ariaLabel="Mint FUN Money"
+            >
+              <img 
+                src="/images/fun-money-coin.png" 
+                alt="FUN Money" 
+                className="h-6 w-6 object-contain drop-shadow-md"
+              />
+            </ToolbarIconButton>
+
+            {/* FUN Wallet */}
+            <ToolbarIconButton
+              onClick={() => navigate("/wallet")}
+              ariaLabel="FUN Wallet"
+            >
+              <img 
+                src="/images/fun-play-wallet-icon.png" 
+                alt="FUN Wallet" 
+                className="h-6 w-6 object-contain drop-shadow-md"
+              />
+            </ToolbarIconButton>
+
+            {/* Notifications */}
+            <ToolbarIconButton
+              onClick={() => navigate("/notifications")}
+              ariaLabel="Thông báo"
+              badge={notificationCount}
+            >
+              <img 
+                src="/images/icon-bell-holographic.png" 
+                alt="Thông báo" 
+                className="h-6 w-6 object-contain drop-shadow-md"
+              />
+            </ToolbarIconButton>
+
+            {/* Messages */}
+            <ToolbarIconButton
+              onClick={() => navigate("/messages")}
+              ariaLabel="Tin nhắn"
+            >
+              <img 
+                src="/images/icon-chat-holographic.png" 
+                alt="Tin nhắn" 
+                className="h-6 w-6 object-contain drop-shadow-md"
+              />
+            </ToolbarIconButton>
+
+            {/* Avatar / Sign In */}
+            {user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center justify-center h-9 w-9 rounded-full active:bg-muted/60 transition-colors">
+                    {profile?.avatar_url ? (
+                      <img
+                        src={profile.avatar_url}
+                        alt="Profile"
+                        className="w-7 h-7 rounded-full object-cover ring-2 ring-primary/30"
+                      />
+                    ) : (
+                      <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-semibold">
+                        {user.email?.[0].toUpperCase()}
+                      </div>
+                    )}
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 bg-background border-border">
+                  <DropdownMenuLabel className="text-xs truncate">{user.email}</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {(isAdmin || isOwner) && (
+                    <>
+                      <DropdownMenuItem 
+                        onClick={() => navigate("/admin")}
+                        className="text-amber-500 focus:text-amber-500 gap-2"
+                      >
+                        {isOwner ? <Crown className="h-4 w-4" /> : <Shield className="h-4 w-4" />}
+                        Bảng điều khiển
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
+                  <DropdownMenuItem onClick={() => navigate("/settings")} className="gap-2">
+                    <Settings className="h-4 w-4" />
+                    Cài đặt tài khoản
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={signOut} className="gap-2 text-destructive focus:text-destructive">
+                    <LogOut className="h-4 w-4" />
+                    Đăng xuất
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button
+                onClick={() => navigate("/auth")}
+                size="sm"
+                className="h-8 text-xs px-2.5 font-semibold rounded-full"
+              >
+                Đăng nhập
+              </Button>
+            )}
           </div>
         </div>
 
-        {/* Right - Action Icons */}
-        <div className="flex items-center gap-1 shrink-0">
-          {/* Search */}
-          <ToolbarIconButton
-            onClick={() => setIsSearchOpen(true)}
-            ariaLabel="Tìm kiếm"
-          >
-            <Search className="h-[22px] w-[22px] text-foreground" />
-          </ToolbarIconButton>
-
-          {/* Gift / Donate */}
-          <ToolbarIconButton
-            onClick={() => navigate("/wallet")}
-            ariaLabel="Tặng & Thưởng"
-          >
-            <img 
-              src="/images/icon-gift-holographic.png" 
-              alt="Tặng & Thưởng" 
-              className="h-7 w-7 object-contain drop-shadow-md"
-            />
-          </ToolbarIconButton>
-
-          {/* Mint FUN Money */}
-          <ToolbarIconButton
-            onClick={() => navigate("/fun-money")}
-            ariaLabel="Mint FUN Money"
-          >
-            <img 
-              src="/images/fun-money-coin.png" 
-              alt="FUN Money" 
-              className="h-7 w-7 object-contain drop-shadow-md"
-            />
-          </ToolbarIconButton>
-
-          {/* Notifications */}
-          <ToolbarIconButton
-            onClick={() => navigate("/notifications")}
-            ariaLabel="Thông báo"
-            badge={notificationCount}
-          >
-            <img 
-              src="/images/icon-bell-holographic.png" 
-              alt="Thông báo" 
-              className="h-7 w-7 object-contain drop-shadow-md"
-            />
-          </ToolbarIconButton>
-
-          {/* Messages */}
-          <ToolbarIconButton
-            onClick={() => navigate("/messages")}
-            ariaLabel="Tin nhắn"
-          >
-            <img 
-              src="/images/icon-chat-holographic.png" 
-              alt="Tin nhắn" 
-              className="h-7 w-7 object-contain drop-shadow-md"
-            />
-          </ToolbarIconButton>
-
-          {/* Avatar / Sign In */}
-          {user ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="flex items-center justify-center h-11 w-11 rounded-full active:bg-muted/60 transition-colors">
-                  {profile?.avatar_url ? (
-                    <img
-                      src={profile.avatar_url}
-                      alt="Profile"
-                      className="w-8 h-8 rounded-full object-cover ring-2 ring-primary/30"
-                    />
-                  ) : (
-                    <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-semibold">
-                      {user.email?.[0].toUpperCase()}
-                    </div>
-                  )}
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 bg-background border-border">
-                <DropdownMenuLabel className="text-xs truncate">{user.email}</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {(isAdmin || isOwner) && (
-                  <>
-                    <DropdownMenuItem 
-                      onClick={() => navigate("/admin")}
-                      className="text-amber-500 focus:text-amber-500 gap-2"
-                    >
-                      {isOwner ? <Crown className="h-4 w-4" /> : <Shield className="h-4 w-4" />}
-                      Bảng điều khiển
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                  </>
-                )}
-                <DropdownMenuItem onClick={() => navigate("/settings")} className="gap-2">
-                  <Settings className="h-4 w-4" />
-                  Cài đặt tài khoản
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={signOut} className="gap-2 text-destructive focus:text-destructive">
-                  <LogOut className="h-4 w-4" />
-                  Đăng xuất
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <Button
-              onClick={() => navigate("/auth")}
-              size="sm"
-              className="h-9 text-xs px-3 font-semibold rounded-full"
-            >
-              Đăng nhập
-            </Button>
+        {/* Search Mode */}
+        <div
+          className={cn(
+            "absolute inset-0 flex items-center gap-2 px-2 bg-background transition-opacity duration-200",
+            isSearchOpen ? "opacity-100" : "opacity-0 pointer-events-none"
           )}
+        >
+          <button
+            onClick={() => { setIsSearchOpen(false); setSuggestions([]); setShowSuggestions(false); }}
+            className="flex items-center justify-center h-9 w-9 shrink-0 rounded-full active:bg-muted/60"
+            aria-label="Đóng tìm kiếm"
+          >
+            <X className="h-5 w-5" />
+          </button>
+          <div className="flex-1 relative">
+            <form onSubmit={handleSearch}>
+              <Input
+                autoFocus={isSearchOpen}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Tìm kiếm"
+                className="w-full h-9 text-base bg-muted border-border focus:border-primary rounded-full px-4"
+              />
+            </form>
+            {showSuggestions && suggestions.length > 0 && (
+              <div className="absolute top-11 left-0 right-0 bg-card border border-border rounded-xl shadow-lg z-50 overflow-hidden">
+                {suggestions.map((s) => (
+                  <button
+                    key={s.id}
+                    onClick={() => handleSuggestionClick(s.id)}
+                    className="flex items-center gap-3 w-full px-4 py-3 hover:bg-muted/60 active:bg-muted transition-colors text-left"
+                  >
+                    <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <span className="text-sm text-foreground line-clamp-1">{s.title}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <button
+            onClick={handleSearch}
+            className="flex items-center justify-center h-9 w-9 shrink-0 rounded-full active:bg-muted/60"
+            aria-label="Tìm kiếm"
+          >
+            <Search className="h-5 w-5" />
+          </button>
         </div>
       </div>
 
@@ -264,55 +328,6 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
       ) : (
         <UploadWizard open={uploadModalOpen} onOpenChange={setUploadModalOpen} />
       )}
-
-      {/* Search Mode */}
-      <div
-        className={cn(
-          "absolute inset-0 flex items-center gap-2 px-3 bg-background transition-opacity duration-200",
-          isSearchOpen ? "opacity-100" : "opacity-0 pointer-events-none"
-        )}
-      >
-        <button
-          onClick={() => { setIsSearchOpen(false); setSuggestions([]); setShowSuggestions(false); }}
-          className="flex items-center justify-center h-11 w-11 shrink-0 rounded-full active:bg-muted/60"
-          aria-label="Đóng tìm kiếm"
-        >
-          <X className="h-6 w-6" />
-        </button>
-        <div className="flex-1 relative">
-          <form onSubmit={handleSearch}>
-            <Input
-              autoFocus={isSearchOpen}
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Tìm kiếm"
-              className="w-full h-10 text-base bg-muted border-border focus:border-primary rounded-full px-4"
-            />
-          </form>
-          {showSuggestions && suggestions.length > 0 && (
-            <div className="absolute top-12 left-0 right-0 bg-card border border-border rounded-xl shadow-lg z-50 overflow-hidden">
-              {suggestions.map((s) => (
-                <button
-                  key={s.id}
-                  onClick={() => handleSuggestionClick(s.id)}
-                  className="flex items-center gap-3 w-full px-4 py-3 hover:bg-muted/60 active:bg-muted transition-colors text-left"
-                >
-                  <Search className="h-5 w-5 text-muted-foreground shrink-0" />
-                  <span className="text-sm text-foreground line-clamp-1">{s.title}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-        <button
-          onClick={handleSearch}
-          className="flex items-center justify-center h-11 w-11 shrink-0 rounded-full active:bg-muted/60"
-          aria-label="Tìm kiếm"
-        >
-          <Search className="h-6 w-6" />
-        </button>
-      </div>
     </header>
   );
 };
@@ -329,7 +344,7 @@ const ToolbarIconButton = ({ onClick, ariaLabel, children, badge }: ToolbarIconB
   <button
     onClick={onClick}
     aria-label={ariaLabel}
-    className="relative flex items-center justify-center h-11 w-11 rounded-full active:bg-muted/60 transition-colors"
+    className="relative flex items-center justify-center h-9 w-9 rounded-full active:bg-muted/60 transition-colors"
   >
     {children}
     <AnimatePresence>
