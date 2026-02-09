@@ -1,376 +1,159 @@
 
-# KẾ HOẠCH CHUYỂN ĐỔI TỪ BSCSCAN SANG MORALIS CHO BACKFILL GIAO DỊCH ONCHAIN
+
+# KẾ HOẠCH SỬA DỨT ĐIỂM "LỆCH SỐ" UI vs DB
 
 ---
 
-## I. PHÂN TÍCH HIỆN TRẠNG
+## I. KẾT QUẢ ĐỐI SOÁT SQL
 
-### Vấn đề
-- **BscScan API** đang lỗi/NOTOK → backfill thiếu dữ liệu
-- Hiện tại bảng `wallet_transactions` chỉ có **97 giao dịch** với tổng **~6.9M CAMLY**
-- Thực tế hệ thống đã chuyển **> 60M CAMLY** → **thiếu rất nhiều giao dịch**
-- BscScan API có giới hạn pagination (10,000 records max), không có cursor
-
-### Giải pháp: Moralis API
-- Hỗ trợ **cursor pagination** để lấy toàn bộ lịch sử
-- Endpoint: `getWalletTokenTransfers` cho ERC20/BEP20
-- Có field `log_index` (transaction_index) để tránh miss multi-log events
-- API ổn định hơn với rate limit cao hơn
+| Nguồn | Count | Sum CAMLY |
+|-------|-------|-----------|
+| wallet_transactions (completed) | 352 | 108,766,530 |
+| donation_transactions (success) | 20 | 1,068,845 |
+| claim_requests (success) | 23 | 6,874,000 |
+| **TONG** | **395** | **~116,709,375** |
+| UI hien thi | 73 | 16,314,935 |
 
 ---
 
-## II. TỔNG QUAN THAY ĐỔI
+## II. NGUYEN NHAN GOC (2 VAN DE CHINH)
 
-| # | Thành phần | Loại | Mô tả |
-|---|------------|------|-------|
-| 1 | Secret `MORALIS_API_KEY` | **Thêm mới** | API key từ Moralis Dashboard |
-| 2 | Bảng `wallet_transactions` | **Cập nhật schema** | Thêm `chain_id`, `token_contract`, `log_index`, `block_number`, `block_timestamp` |
-| 3 | Bảng `sync_cursors` | **Tạo mới** | Lưu cursor/last_block cho incremental sync |
-| 4 | Edge Function `backfill-moralis` | **Tạo mới** | Thay thế `backfill-blockchain-history` |
-| 5 | Edge Function `sync-transactions-cron` | **Tạo mới** | Đồng bộ incremental mỗi 1-5 phút |
-| 6 | Hook `useTransactionHistory` | **Cập nhật nhỏ** | Query từ wallet_transactions với schema mới |
-| 7 | Components UI | **Không đổi** | Đã hoàn chỉnh |
+### Nguyen nhan 1: Pagination limit cat du lieu
+- Trang `/transactions` truyen `limit: 30`
+- Hook chay `.range(0, 29)` cho **MOI bang** doc lap
+- Ket qua: 30 wallet_txs + 20 donations + 23 claims = **73 records** (dung voi so UI hien thi)
+- 322 wallet_transactions bi bo qua hoan toan
 
----
-
-## III. CHI TIẾT TRIỂN KHAI
-
-### PHASE 1: Cấu hình Secret
-
-**Thêm Secret mới:**
-```
-MORALIS_API_KEY = <lấy từ https://admin.moralis.io>
-```
-
-**Constants cần nhớ:**
-```typescript
-// Token CAMLY (BEP20)
-CAMLY_TOKEN_CONTRACT = "0x0910320181889fefde0bb1ca63962b0a8882e413"
-CHAIN_ID = 56 (BSC Mainnet)
-
-// 2 Ví hệ thống cần backfill
-SYSTEM_WALLETS = [
-  "0x8f09073be2B5F4a953939dEBa8c5DFC8098FC0E8", // FUN PLAY TẶNG & THƯỞNG
-  "0x1DC24BFd99c256B12a4A4cC7732c7e3B9aA75998", // FUN PLAY TREASURY
-]
-```
+### Nguyen nhan 2: Stats tinh client-side tu list da bi cat
+- Dong 435-441: `totalCount = allTransactions.length` (chi la 73, khong phai 395)
+- `totalValue = reduce(sum)` chi cong 73 records = 16.3M thay vi 116.7M
+- Stats PHAI duoc tinh server-side bang RPC, khong the dua vao list dang render
 
 ---
 
-### PHASE 2: Cập nhật Database Schema
+## III. GIAI PHAP
 
-**Migration cho bảng `wallet_transactions`:**
+### PHASE 1: Tao RPC function tinh stats server-side
+
+Tao PostgreSQL function `get_transaction_stats` de:
+- COUNT va SUM tu 3 bang (wallet_transactions, donation_transactions, claim_requests)
+- Chi dem onchain completed (status='completed'/'success' + tx_hash NOT NULL)
+- Ho tro 2 mode: public (tat ca) va personal (theo wallet_address)
+- Tra ve: total_count, total_value, today_count, success_count
+
 ```sql
--- Thêm các cột mới để lưu đầy đủ thông tin onchain
-ALTER TABLE wallet_transactions
-ADD COLUMN IF NOT EXISTS chain_id INTEGER DEFAULT 56,
-ADD COLUMN IF NOT EXISTS token_contract TEXT DEFAULT '0x0910320181889fefde0bb1ca63962b0a8882e413',
-ADD COLUMN IF NOT EXISTS log_index INTEGER,
-ADD COLUMN IF NOT EXISTS block_number BIGINT,
-ADD COLUMN IF NOT EXISTS block_timestamp TIMESTAMPTZ;
-
--- UNIQUE constraint để tránh duplicate multi-log
--- Một tx_hash có thể có nhiều Transfer events (log_index khác nhau)
-CREATE UNIQUE INDEX IF NOT EXISTS idx_wallet_tx_unique_event 
-ON wallet_transactions(chain_id, token_contract, tx_hash, COALESCE(log_index, 0));
-
--- Index cho query performance
-CREATE INDEX IF NOT EXISTS idx_wallet_tx_from ON wallet_transactions(from_address);
-CREATE INDEX IF NOT EXISTS idx_wallet_tx_to ON wallet_transactions(to_address);
-CREATE INDEX IF NOT EXISTS idx_wallet_tx_block ON wallet_transactions(block_number DESC);
-CREATE INDEX IF NOT EXISTS idx_wallet_tx_timestamp ON wallet_transactions(block_timestamp DESC);
+CREATE OR REPLACE FUNCTION get_transaction_stats(p_wallet_address TEXT DEFAULT NULL)
+RETURNS JSONB
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $$
+  SELECT jsonb_build_object(
+    'totalCount', 
+      (SELECT COUNT(*) FROM wallet_transactions WHERE status='completed' AND tx_hash IS NOT NULL
+        AND (p_wallet_address IS NULL OR from_address = p_wallet_address OR to_address = p_wallet_address))
+      + (SELECT COUNT(*) FROM donation_transactions WHERE status='success' AND tx_hash IS NOT NULL
+        AND (p_wallet_address IS NULL OR sender_id IN (SELECT id FROM profiles WHERE wallet_address = p_wallet_address) OR receiver_id IN (SELECT id FROM profiles WHERE wallet_address = p_wallet_address)))
+      + (SELECT COUNT(*) FROM claim_requests WHERE status='success' AND tx_hash IS NOT NULL
+        AND (p_wallet_address IS NULL OR wallet_address = p_wallet_address)),
+    'totalValue',
+      COALESCE((SELECT SUM(amount) FROM wallet_transactions WHERE status='completed' AND tx_hash IS NOT NULL
+        AND (p_wallet_address IS NULL OR from_address = p_wallet_address OR to_address = p_wallet_address)), 0)
+      + COALESCE((SELECT SUM(amount) FROM donation_transactions WHERE status='success' AND tx_hash IS NOT NULL
+        AND (p_wallet_address IS NULL OR sender_id IN (SELECT id FROM profiles WHERE wallet_address = p_wallet_address) OR receiver_id IN (SELECT id FROM profiles WHERE wallet_address = p_wallet_address))), 0)
+      + COALESCE((SELECT SUM(amount) FROM claim_requests WHERE status='success' AND tx_hash IS NOT NULL
+        AND (p_wallet_address IS NULL OR wallet_address = p_wallet_address)), 0),
+    'todayCount',
+      (SELECT COUNT(*) FROM wallet_transactions WHERE status='completed' AND tx_hash IS NOT NULL AND block_timestamp::date = CURRENT_DATE
+        AND (p_wallet_address IS NULL OR from_address = p_wallet_address OR to_address = p_wallet_address))
+      + (SELECT COUNT(*) FROM donation_transactions WHERE status='success' AND tx_hash IS NOT NULL AND created_at::date = CURRENT_DATE
+        AND (p_wallet_address IS NULL))
+      + (SELECT COUNT(*) FROM claim_requests WHERE status='success' AND tx_hash IS NOT NULL AND processed_at::date = CURRENT_DATE
+        AND (p_wallet_address IS NULL))
+  );
+$$;
 ```
 
-**Tạo bảng `sync_cursors` cho incremental sync:**
-```sql
-CREATE TABLE IF NOT EXISTS sync_cursors (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  wallet_address TEXT NOT NULL,
-  chain_id INTEGER DEFAULT 56,
-  token_contract TEXT NOT NULL,
-  last_cursor TEXT,
-  last_block_number BIGINT DEFAULT 0,
-  last_sync_at TIMESTAMPTZ DEFAULT NOW(),
-  total_synced INTEGER DEFAULT 0,
-  UNIQUE(wallet_address, chain_id, token_contract)
-);
+### PHASE 2: Tang limit va sua pagination trong useTransactionHistory
 
--- RLS: Chỉ admin được xem/sửa
-ALTER TABLE sync_cursors ENABLE ROW LEVEL SECURITY;
+**Van de**: limit 30 per table khien chi lay 30/352 wallet_transactions.
 
-CREATE POLICY "Only admins can manage sync_cursors" ON sync_cursors
-  FOR ALL USING (has_role(auth.uid(), 'admin'));
-```
+**Giai phap**: 
+- Tang default limit len 200 cho wallet_transactions (bang lon nhat)
+- Hoac: fetch stats rieng (RPC) va list rieng
+- Fetch toan bo wallet_transactions khi public mode (hien ~395 records, duoi 1000 limit cua Supabase)
 
----
+Cu the trong `useTransactionHistory.ts`:
+1. Tach stats ra query rieng bang RPC `get_transaction_stats`
+2. Tang limit wallet_transactions len 500 (van duoi 1000 cua Supabase)
+3. Stats KHONG tinh tu `allTransactions.length` nua
 
-### PHASE 3: Edge Function `backfill-moralis`
+### PHASE 3: Cap nhat Transactions page
 
-**File: `supabase/functions/backfill-moralis/index.ts`**
+- File `src/pages/Transactions.tsx`: tang `limit: 30` len `limit: 200`
+- File `src/components/Wallet/TransactionHistorySection.tsx`: giu `limit: 50` nhung stats tu RPC
+
+### PHASE 4: Cap nhat hook useTransactionHistory.ts
+
+Thay doi chinh:
 
 ```typescript
-// Cấu trúc chính
-const corsHeaders = { ... };
+// TRUOC (SAI):
+const newStats = {
+  totalCount: allTransactions.length,  // chi 73!
+  totalValue: allTransactions.reduce(...)  // chi 16.3M!
+};
 
-// Constants
-const CAMLY_TOKEN = "0x0910320181889fefde0bb1ca63962b0a8882e413";
-const MORALIS_API_URL = "https://deep-index.moralis.io/api/v2.2";
-const SYSTEM_WALLETS = [
-  "0x8f09073be2B5F4a953939dEBa8c5DFC8098FC0E8",
-  "0x1DC24BFd99c256B12a4A4cC7732c7e3B9aA75998"
-];
-
-// Interface response từ Moralis
-interface MoralisTokenTransfer {
-  transaction_hash: string;
-  log_index: string;
-  from_address: string;
-  to_address: string;
-  value: string;
-  block_number: string;
-  block_timestamp: string;
-  token_symbol: string;
-  token_decimals: string;
-}
-
-// Hàm lấy transfers với pagination
-async function fetchAllTransfers(
-  wallet: string, 
-  apiKey: string,
-  fromBlock?: number
-): Promise<MoralisTokenTransfer[]> {
-  const allTransfers: MoralisTokenTransfer[] = [];
-  let cursor: string | null = null;
-  
-  do {
-    const params = new URLSearchParams({
-      chain: "bsc",
-      contract_addresses: CAMLY_TOKEN,
-      limit: "100",
-      order: "ASC",
-    });
-    if (cursor) params.append("cursor", cursor);
-    if (fromBlock) params.append("from_block", fromBlock.toString());
-    
-    const url = `${MORALIS_API_URL}/${wallet}/erc20/transfers?${params}`;
-    
-    const response = await fetch(url, {
-      headers: {
-        "X-API-Key": apiKey,
-        "Accept": "application/json"
-      }
-    });
-    
-    const data = await response.json();
-    
-    if (data.result && Array.isArray(data.result)) {
-      allTransfers.push(...data.result);
-    }
-    
-    cursor = data.cursor || null;
-    
-    // Rate limit protection
-    await new Promise(r => setTimeout(r, 250));
-    
-  } while (cursor);
-  
-  return allTransfers;
-}
-
-// Main handler
-Deno.serve(async (req) => {
-  // 1. Validate secrets
-  // 2. Parse params (wallets, dryRun, fromBlock)
-  // 3. Fetch profiles cho mapping user_id
-  // 4. Loop qua mỗi wallet:
-  //    a. Gọi fetchAllTransfers với cursor
-  //    b. Upsert vào wallet_transactions (ON CONFLICT DO NOTHING)
-  //    c. Cập nhật sync_cursors
-  // 5. Return summary
+// SAU (DUNG):
+// Goi RPC rieng
+const { data: serverStats } = await supabase.rpc('get_transaction_stats', {
+  p_wallet_address: publicMode ? null : userWalletAddress
 });
+
+const newStats = {
+  totalCount: serverStats?.totalCount || allTransactions.length,
+  totalValue: serverStats?.totalValue || 0,
+  todayCount: serverStats?.todayCount || 0,
+  successCount: serverStats?.totalCount || 0,  // chi completed
+  pendingCount: 0,  // khong hien thi pending
+};
 ```
 
-**Logic upsert quan trọng:**
+Tang limit cho wallet_transactions query:
 ```typescript
-// Insert với conflict handling (không trùng, không mất)
-const { error: insertError } = await supabase
-  .from("wallet_transactions")
-  .upsert({
-    chain_id: 56,
-    token_contract: CAMLY_TOKEN,
-    tx_hash: tx.transaction_hash,
-    log_index: parseInt(tx.log_index),
-    from_address: tx.from_address.toLowerCase(),
-    to_address: tx.to_address.toLowerCase(),
-    from_user_id: walletToUserId[tx.from_address.toLowerCase()] || null,
-    to_user_id: walletToUserId[tx.to_address.toLowerCase()] || null,
-    amount: parseFloat(tx.value) / 1e18,
-    token_type: "CAMLY",
-    block_number: parseInt(tx.block_number),
-    block_timestamp: tx.block_timestamp,
-    status: "completed",
-    created_at: tx.block_timestamp,
-  }, {
-    onConflict: "chain_id,token_contract,tx_hash,log_index",
-    ignoreDuplicates: true
-  });
+// TRUOC:
+.range(currentOffset, currentOffset + limit - 1)  // 0-29
+
+// SAU:
+.range(currentOffset, currentOffset + Math.max(limit, 200) - 1)  // 0-199
 ```
 
 ---
 
-### PHASE 4: Edge Function `sync-transactions-cron`
+## IV. BANG TONG HOP THAY DOI
 
-**File: `supabase/functions/sync-transactions-cron/index.ts`**
-
-```typescript
-// Nhiệm vụ: Đồng bộ incremental mỗi 1-5 phút
-// Logic:
-// 1. Đọc last_block_number từ sync_cursors cho mỗi system wallet
-// 2. Gọi Moralis API với from_block = last_block_number + 1
-// 3. Insert giao dịch mới
-// 4. Cập nhật last_block_number trong sync_cursors
-
-Deno.serve(async (req) => {
-  // Có thể được gọi bởi:
-  // - Cron job (pg_cron)
-  // - Manual trigger từ Admin
-});
-```
-
-**Thiết lập Cron Job (sau khi deploy):**
-```sql
--- Chạy mỗi 5 phút
-SELECT cron.schedule(
-  'sync-camly-transactions',
-  '*/5 * * * *',
-  $$
-  SELECT net.http_post(
-    url := 'https://fzgjmvxtgrlwrluxdwjq.supabase.co/functions/v1/sync-transactions-cron',
-    headers := '{"Content-Type": "application/json", "Authorization": "Bearer eyJhbG..."}'::jsonb,
-    body := '{"source": "cron"}'::jsonb
-  ) AS request_id;
-  $$
-);
-```
+| # | File | Loai | Mo ta |
+|---|------|------|-------|
+| 1 | Migration SQL | Tao moi | RPC function `get_transaction_stats` |
+| 2 | `src/hooks/useTransactionHistory.ts` | Cap nhat | Stats tu RPC, tang limit wallet_txs |
+| 3 | `src/pages/Transactions.tsx` | Cap nhat nho | Tang limit tu 30 len 200 |
+| 4 | `src/components/Wallet/TransactionHistorySection.tsx` | Cap nhat nho | Tang limit tu 50 len 200 |
 
 ---
 
-### PHASE 5: Cập nhật `useTransactionHistory.ts`
+## V. KET QUA DU KIEN SAU SUA
 
-**Thay đổi nhỏ cho wallet_transactions query:**
-```typescript
-// Thêm order by block_timestamp cho chính xác hơn
-const walletQuery = publicMode
-  ? supabase
-      .from("wallet_transactions")
-      .select("*")
-      .eq("status", "completed")
-      .not("tx_hash", "is", null)
-      .order("block_timestamp", { ascending: false, nullsFirst: false })
-      .order("created_at", { ascending: false })
-      .range(currentOffset, currentOffset + limit - 1)
-  : ...;
-```
+| Metric | Truoc | Sau |
+|--------|-------|-----|
+| Tong giao dich (header) | 73 | ~395 |
+| Tong gia tri (header) | 16.3M CAMLY | ~116.7M CAMLY |
+| List hien thi | 73 records | 395 records (full) |
+| Stats source | Client-side (sai) | Server-side RPC (chinh xac) |
 
 ---
 
-## IV. FLOW DỮ LIỆU
+## VI. LUU Y
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    BACKFILL FLOW (1 lần)                    │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  [Admin trigger backfill-moralis]                          │
-│           ↓                                                 │
-│  [Loop: 2 System Wallets]                                  │
-│           ↓                                                 │
-│  [Moralis API: getWalletTokenTransfers]                    │
-│  [Với cursor pagination → lấy HẾT lịch sử]                 │
-│           ↓                                                 │
-│  [Parse response + map user_id từ profiles]                │
-│           ↓                                                 │
-│  [Upsert wallet_transactions]                              │
-│  [ON CONFLICT (chain_id, token_contract, tx_hash, log_index)]
-│           ↓                                                 │
-│  [Cập nhật sync_cursors.last_block_number]                 │
-│           ↓                                                 │
-│  [Return: totalFetched, newInserted, duplicates]           │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
+1. Tong 395 records van duoi 1000-row limit cua Supabase, nen co the fetch 1 lan
+2. Khi du lieu vuot 1000, can chuyen sang pagination server-side that su (giai doan sau)
+3. RPC function dung SECURITY DEFINER de bypass RLS va tra ve stats chinh xac cho moi nguoi
+4. "Cho xu ly" (pending) se luon = 0 vi chi hien thi onchain completed
 
-┌─────────────────────────────────────────────────────────────┐
-│              INCREMENTAL SYNC (mỗi 5 phút)                  │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  [Cron trigger sync-transactions-cron]                     │
-│           ↓                                                 │
-│  [Đọc sync_cursors.last_block_number cho mỗi wallet]       │
-│           ↓                                                 │
-│  [Moralis API: from_block = last_block + 1]                │
-│           ↓                                                 │
-│  [Insert giao dịch mới]                                    │
-│           ↓                                                 │
-│  [Cập nhật last_block_number]                              │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
-
----
-
-## V. QUY TẮC HIỂN THỊ (GIỮ NGUYÊN)
-
-| Loại dữ liệu | Public /transactions | Personal History | Admin Dashboard |
-|--------------|---------------------|------------------|-----------------|
-| wallet_transactions (onchain completed) | ✅ Hiển thị | ✅ Hiển thị | ✅ Hiển thị |
-| donation_transactions (onchain success) | ✅ Hiển thị | ✅ Hiển thị | ✅ Hiển thị |
-| claim_requests (onchain success) | ✅ Hiển thị | ✅ Hiển thị | ✅ Hiển thị |
-| reward_transactions (pending/nội bộ) | ❌ KHÔNG | ❌ KHÔNG | ✅ Chỉ Admin |
-
----
-
-## VI. CÁC BƯỚC TRIỂN KHAI
-
-```
-[1] Yêu cầu MORALIS_API_KEY từ user
-         ↓
-[2] Migration: thêm cột mới cho wallet_transactions
-         ↓
-[3] Migration: tạo bảng sync_cursors
-         ↓
-[4] Tạo Edge Function backfill-moralis
-         ↓
-[5] Deploy + Test backfill cho 2 system wallets
-         ↓
-[6] Xác nhận số liệu khớp (> 60M CAMLY)
-         ↓
-[7] Tạo Edge Function sync-transactions-cron
-         ↓
-[8] Thiết lập Cron job (pg_cron)
-         ↓
-[9] Cập nhật useTransactionHistory (nếu cần)
-         ↓
-[10] Test UI: /transactions + personal history
-```
-
----
-
-## VII. KIỂM TRA DONE CRITERIA
-
-- [ ] Backfill chạy xong → /transactions hiển thị ĐẦY ĐỦ giao dịch IN/OUT của 2 ví hệ thống
-- [ ] Tổng CAMLY >= 60M (khớp với thực tế onchain)
-- [ ] Không bị miss giao dịch do multi-log events (kiểm tra log_index)
-- [ ] Personal history hiển thị đúng cho từng user
-- [ ] Incremental sync hoạt động (giao dịch mới tự động xuất hiện)
-- [ ] Export CSV/PDF hoạt động cho cả public và personal
-
----
-
-## VIII. LƯU Ý QUAN TRỌNG
-
-1. **MORALIS_API_KEY** cần được thêm trước khi triển khai
-2. **Backup wallet_transactions** trước khi migration
-3. **Không xóa dữ liệu cũ** - upsert sẽ merge với dữ liệu hiện có
-4. **Rate limit Moralis**: Free tier = 25 req/s, thêm delay 250ms giữa các request
-5. **Block timestamp** chính xác hơn `created_at` cho thứ tự giao dịch
-6. **log_index** quan trọng để phân biệt multi-transfer trong 1 tx
