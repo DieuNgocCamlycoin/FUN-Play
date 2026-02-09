@@ -28,10 +28,11 @@ interface UsePostCommentsReturn {
   loading: boolean;
   submitting: boolean;
   likedCommentIds: Set<string>;
+  likedCommentEmojis: Map<string, string>;
   fetchComments: () => Promise<void>;
   createComment: (content: string, parentId?: string | null) => Promise<boolean>;
   softDeleteComment: (commentId: string) => Promise<boolean>;
-  toggleLike: (commentId: string) => Promise<void>;
+  toggleLike: (commentId: string, emoji?: string) => Promise<void>;
 }
 
 export const usePostComments = (postId: string): UsePostCommentsReturn => {
@@ -41,16 +42,15 @@ export const usePostComments = (postId: string): UsePostCommentsReturn => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [likedCommentIds, setLikedCommentIds] = useState<Set<string>>(new Set());
+  const [likedCommentEmojis, setLikedCommentEmojis] = useState<Map<string, string>>(new Map());
   const [likingCommentIds, setLikingCommentIds] = useState<Set<string>>(new Set());
 
-  // Fetch all comments for the post
   const fetchComments = useCallback(async () => {
     if (!postId) return;
     
     try {
       setLoading(true);
       
-      // Fetch comments
       const { data: commentsData, error: commentsError } = await supabase
         .from('post_comments')
         .select('*')
@@ -64,10 +64,8 @@ export const usePostComments = (postId: string): UsePostCommentsReturn => {
         return;
       }
 
-      // Get unique user IDs
       const userIds = [...new Set(commentsData.map(c => c.user_id))];
 
-      // Fetch profiles for all commenters
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select('id, username, display_name, avatar_url')
@@ -75,18 +73,15 @@ export const usePostComments = (postId: string): UsePostCommentsReturn => {
 
       if (profilesError) throw profilesError;
 
-      // Create profiles lookup map
       const profilesMap = new Map(
         (profilesData || []).map(p => [p.id, p])
       );
 
-      // Attach profiles to comments
       const commentsWithProfiles: PostComment[] = commentsData.map(comment => ({
         ...comment,
         profiles: profilesMap.get(comment.user_id) || undefined
       }));
 
-      // Organize into root comments and replies
       const rootComments: PostComment[] = [];
       const repliesMap: Record<string, PostComment[]> = {};
 
@@ -101,7 +96,6 @@ export const usePostComments = (postId: string): UsePostCommentsReturn => {
         }
       });
 
-      // Attach replies to their parent comments
       const commentsWithReplies = rootComments.map(comment => ({
         ...comment,
         replies: repliesMap[comment.id] || []
@@ -109,7 +103,7 @@ export const usePostComments = (postId: string): UsePostCommentsReturn => {
 
       setComments(commentsWithReplies);
 
-      // Fetch user's likes if logged in
+      // Fetch user likes with emoji
       if (user) {
         const allCommentIds = commentsWithReplies.flatMap(c => [
           c.id,
@@ -119,12 +113,13 @@ export const usePostComments = (postId: string): UsePostCommentsReturn => {
         if (allCommentIds.length > 0) {
           const { data: likesData } = await supabase
             .from('post_comment_likes')
-            .select('comment_id')
+            .select('comment_id, emoji')
             .eq('user_id', user.id)
             .in('comment_id', allCommentIds);
           
           if (likesData) {
             setLikedCommentIds(new Set(likesData.map(l => l.comment_id)));
+            setLikedCommentEmojis(new Map(likesData.map(l => [l.comment_id, l.emoji || '❤️'])));
           }
         }
       }
@@ -140,7 +135,6 @@ export const usePostComments = (postId: string): UsePostCommentsReturn => {
     }
   }, [postId, user]);
 
-  // Create a new comment
   const createComment = useCallback(async (content: string, parentId?: string | null): Promise<boolean> => {
     if (!user) {
       toast({
@@ -184,7 +178,6 @@ export const usePostComments = (postId: string): UsePostCommentsReturn => {
 
       if (error) throw error;
 
-      // Refresh comments after successful insert
       await fetchComments();
       
       toast({
@@ -206,7 +199,6 @@ export const usePostComments = (postId: string): UsePostCommentsReturn => {
     }
   }, [user, postId, fetchComments]);
 
-  // Soft delete a comment
   const softDeleteComment = useCallback(async (commentId: string): Promise<boolean> => {
     if (!user) return false;
 
@@ -219,7 +211,6 @@ export const usePostComments = (postId: string): UsePostCommentsReturn => {
 
       if (error) throw error;
 
-      // Refresh comments
       await fetchComments();
       
       toast({
@@ -239,12 +230,10 @@ export const usePostComments = (postId: string): UsePostCommentsReturn => {
     }
   }, [user, fetchComments]);
 
-  // Initial fetch
   useEffect(() => {
     fetchComments();
   }, [fetchComments]);
 
-  // Realtime subscription
   useEffect(() => {
     if (!postId) return;
 
@@ -259,7 +248,6 @@ export const usePostComments = (postId: string): UsePostCommentsReturn => {
           filter: `post_id=eq.${postId}`
         },
         () => {
-          // Refetch on any change
           fetchComments();
         }
       )
@@ -270,8 +258,8 @@ export const usePostComments = (postId: string): UsePostCommentsReturn => {
     };
   }, [postId, fetchComments]);
 
-  // Toggle like on a comment
-  const toggleLike = useCallback(async (commentId: string): Promise<void> => {
+  // Toggle like with emoji
+  const toggleLike = useCallback(async (commentId: string, emoji: string = '❤️'): Promise<void> => {
     if (!user) {
       toast({
         title: "Chưa đăng nhập",
@@ -282,7 +270,6 @@ export const usePostComments = (postId: string): UsePostCommentsReturn => {
       return;
     }
 
-    // Prevent double-clicking
     if (likingCommentIds.has(commentId)) return;
 
     const isLiked = likedCommentIds.has(commentId);
@@ -298,9 +285,18 @@ export const usePostComments = (postId: string): UsePostCommentsReturn => {
       return newSet;
     });
 
-    // Update like count optimistically
-    const updateLikeCount = (comments: PostComment[], delta: number): PostComment[] => {
-      return comments.map(c => {
+    setLikedCommentEmojis(prev => {
+      const newMap = new Map(prev);
+      if (isLiked) {
+        newMap.delete(commentId);
+      } else {
+        newMap.set(commentId, emoji);
+      }
+      return newMap;
+    });
+
+    const updateLikeCount = (cmts: PostComment[], delta: number): PostComment[] => {
+      return cmts.map(c => {
         if (c.id === commentId) {
           return { ...c, like_count: Math.max(0, c.like_count + delta) };
         }
@@ -316,37 +312,15 @@ export const usePostComments = (postId: string): UsePostCommentsReturn => {
 
     try {
       if (isLiked) {
-        // Unlike: Delete from post_comment_likes
-        const { error: deleteError } = await supabase
+        await supabase
           .from('post_comment_likes')
           .delete()
           .eq('comment_id', commentId)
           .eq('user_id', user.id);
-
-        if (deleteError) throw deleteError;
-
-        // Update like_count in post_comments
-        const { error: updateError } = await supabase
-          .from('post_comments')
-          .update({ like_count: Math.max(0, (comments.find(c => c.id === commentId)?.like_count || 1) - 1) })
-          .eq('id', commentId);
-
-        if (updateError) throw updateError;
       } else {
-        // Like: Insert into post_comment_likes
-        const { error: insertError } = await supabase
+        await supabase
           .from('post_comment_likes')
-          .insert({ comment_id: commentId, user_id: user.id });
-
-        if (insertError) throw insertError;
-
-        // Update like_count in post_comments
-        const { error: updateError } = await supabase
-          .from('post_comments')
-          .update({ like_count: (comments.find(c => c.id === commentId)?.like_count || 0) + 1 })
-          .eq('id', commentId);
-
-        if (updateError) throw updateError;
+          .insert({ comment_id: commentId, user_id: user.id, emoji });
       }
     } catch (error) {
       console.error('Error toggling like:', error);
@@ -360,6 +334,15 @@ export const usePostComments = (postId: string): UsePostCommentsReturn => {
           newSet.delete(commentId);
         }
         return newSet;
+      });
+      setLikedCommentEmojis(prev => {
+        const newMap = new Map(prev);
+        if (isLiked) {
+          newMap.set(commentId, emoji);
+        } else {
+          newMap.delete(commentId);
+        }
+        return newMap;
       });
       setComments(prev => updateLikeCount(prev, isLiked ? 1 : -1));
       
@@ -382,6 +365,7 @@ export const usePostComments = (postId: string): UsePostCommentsReturn => {
     loading,
     submitting,
     likedCommentIds,
+    likedCommentEmojis,
     fetchComments,
     createComment,
     softDeleteComment,

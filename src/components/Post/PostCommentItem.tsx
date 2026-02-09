@@ -9,6 +9,7 @@ import { PostCommentInput } from './PostCommentInput';
 import { PostComment } from '@/hooks/usePostComments';
 import { cn } from '@/lib/utils';
 import { CommentLikesList } from './CommentLikesList';
+import { CommentEmojiReaction } from './CommentEmojiReaction';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,9 +27,11 @@ interface PostCommentItemProps {
   comment: PostComment;
   onReply: (content: string, parentId: string) => Promise<boolean>;
   onDelete: (commentId: string) => Promise<boolean>;
-  onToggleLike: (commentId: string) => Promise<void>;
+  onToggleLike: (commentId: string, emoji?: string) => Promise<void>;
   isLiked: boolean;
+  likedEmoji?: string;
   likedCommentIds: Set<string>;
+  likedCommentEmojis: Map<string, string>;
   submitting?: boolean;
   isReply?: boolean;
 }
@@ -39,7 +42,9 @@ export const PostCommentItem: React.FC<PostCommentItemProps> = ({
   onDelete,
   onToggleLike,
   isLiked,
+  likedEmoji,
   likedCommentIds,
+  likedCommentEmojis,
   submitting = false,
   isReply = false
 }) => {
@@ -52,6 +57,13 @@ export const PostCommentItem: React.FC<PostCommentItemProps> = ({
     if (isLiking) return;
     setIsLiking(true);
     await onToggleLike(comment.id);
+    setIsLiking(false);
+  };
+
+  const handleEmojiReaction = async (emoji: string) => {
+    if (isLiking) return;
+    setIsLiking(true);
+    await onToggleLike(comment.id, emoji);
     setIsLiking(false);
   };
 
@@ -145,12 +157,16 @@ export const PostCommentItem: React.FC<PostCommentItemProps> = ({
                     animate={isLiked ? { scale: [1, 1.2, 1] } : { scale: 1 }}
                     transition={{ duration: 0.2 }}
                   >
-                    <Heart 
-                      className={cn(
-                        "h-3.5 w-3.5 mr-1 transition-all",
-                        isLiked && "fill-current"
-                      )} 
-                    />
+                    {isLiked && likedEmoji ? (
+                      <span className="text-sm mr-1">{likedEmoji}</span>
+                    ) : (
+                      <Heart 
+                        className={cn(
+                          "h-3.5 w-3.5 mr-1 transition-all",
+                          isLiked && "fill-current"
+                        )} 
+                      />
+                    )}
                   </motion.div>
                   {comment.like_count > 0 && (
                     <span className={cn(
@@ -163,6 +179,12 @@ export const PostCommentItem: React.FC<PostCommentItemProps> = ({
                 </Button>
               </motion.div>
             </CommentLikesList>
+
+            {/* Emoji reaction picker */}
+            <CommentEmojiReaction
+              onEmojiSelect={handleEmojiReaction}
+              selectedEmoji={isLiked ? likedEmoji : undefined}
+            />
 
             {!isReply && user && (
               <Button
@@ -263,7 +285,9 @@ export const PostCommentItem: React.FC<PostCommentItemProps> = ({
                     onDelete={onDelete}
                     onToggleLike={onToggleLike}
                     isLiked={likedCommentIds.has(reply.id)}
+                    likedEmoji={likedCommentEmojis.get(reply.id)}
                     likedCommentIds={likedCommentIds}
+                    likedCommentEmojis={likedCommentEmojis}
                     submitting={submitting}
                     isReply
                   />

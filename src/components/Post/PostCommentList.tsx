@@ -10,8 +10,9 @@ interface PostCommentListProps {
   loading: boolean;
   onReply: (content: string, parentId: string) => Promise<boolean>;
   onDelete: (commentId: string) => Promise<boolean>;
-  onToggleLike: (commentId: string) => Promise<void>;
+  onToggleLike: (commentId: string, emoji?: string) => Promise<void>;
   likedCommentIds: Set<string>;
+  likedCommentEmojis: Map<string, string>;
   submitting?: boolean;
 }
 
@@ -22,6 +23,7 @@ export const PostCommentList: React.FC<PostCommentListProps> = ({
   onDelete,
   onToggleLike,
   likedCommentIds,
+  likedCommentEmojis,
   submitting = false
 }) => {
   if (loading) {
@@ -64,7 +66,9 @@ export const PostCommentList: React.FC<PostCommentListProps> = ({
           onDelete={onDelete}
           onToggleLike={onToggleLike}
           isLiked={likedCommentIds.has(comment.id)}
+          likedEmoji={likedCommentEmojis.get(comment.id)}
           likedCommentIds={likedCommentIds}
+          likedCommentEmojis={likedCommentEmojis}
           submitting={submitting}
         />
       ))}
