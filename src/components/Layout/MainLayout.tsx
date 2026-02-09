@@ -36,7 +36,9 @@ export const MainLayout = ({
       </div>
 
       <main className={cn(
-        "pt-14 pb-20 lg:pt-14 lg:pb-0 transition-all duration-300",
+        "pb-20 lg:pb-0 transition-all duration-300",
+        "pt-[calc(env(safe-area-inset-top,0px)+3.5rem)]",
+        "lg:!pt-14",
         isSidebarExpanded ? "lg:pl-60" : "lg:pl-16",
         className
       )}>

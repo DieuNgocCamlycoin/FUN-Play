@@ -333,7 +333,7 @@ const Index = () => {
       </div>
       
       {/* Main content - 3 column layout with fixed right sidebar */}
-      <main className={`pt-14 pb-20 lg:pb-0 transition-all duration-300 ${
+      <main className={`pb-20 lg:pb-0 transition-all duration-300 pt-[calc(env(safe-area-inset-top,0px)+3.5rem)] lg:!pt-14 ${
         isSidebarExpanded ? 'lg:pl-60' : 'lg:pl-16'
       } lg:pr-[260px]`}>
         {/* Center content area - SCROLLABLE */}
