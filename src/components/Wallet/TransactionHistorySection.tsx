@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { History, Search, ExternalLink, Download, ArrowUpRight, ArrowDownLeft, Filter } from "lucide-react";
+import { History, Search, ExternalLink, Download, ArrowUpRight, ArrowDownLeft, Filter, Globe } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -287,6 +287,15 @@ export const TransactionHistorySection = () => {
             </CardDescription>
           </div>
           <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => navigate("/transactions")} 
+              className="gap-2"
+            >
+              <Globe className="h-4 w-4" />
+              Xem Tất Cả
+            </Button>
             <Button variant="outline" size="sm" onClick={exportCSV} className="gap-2">
               <Download className="h-4 w-4" />
               CSV
