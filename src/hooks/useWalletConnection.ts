@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { getAccount, watchAccount, switchChain, disconnect, getBalance } from '@wagmi/core';
 import { 
   wagmiConfig, 
@@ -18,6 +18,13 @@ import { formatEther } from 'viem';
 
 export type WalletType = 'metamask' | 'bitget' | 'unknown';
 
+export interface WalletChangeDetails {
+  oldAddress: string;
+  newAddress: string;
+  oldWalletType: WalletType;
+  newWalletType: WalletType;
+}
+
 interface UseWalletConnectionReturn {
   isConnected: boolean;
   address: string;
@@ -27,6 +34,13 @@ interface UseWalletConnectionReturn {
   isLoading: boolean;
   isInitialized: boolean;
   bnbBalance: string;
+  // Wallet change dialog
+  showWalletChangeDialog: boolean;
+  walletChangeDetails: WalletChangeDetails | null;
+  isProcessingWalletChange: boolean;
+  handleConfirmWalletChange: () => Promise<void>;
+  handleCancelWalletChange: () => Promise<void>;
+  // Actions
   connectWallet: () => Promise<void>;
   connectWithMobileSupport: (preferredWallet?: 'metamask' | 'bitget' | 'trust') => Promise<void>;
   disconnectWallet: () => Promise<void>;
@@ -42,6 +56,17 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialized, setIsInitialized] = useState(true);
   const [bnbBalance, setBnbBalance] = useState('0');
+  
+  // Wallet change dialog state
+  const [showWalletChangeDialog, setShowWalletChangeDialog] = useState(false);
+  const [walletChangeDetails, setWalletChangeDetails] = useState<WalletChangeDetails | null>(null);
+  const [isProcessingWalletChange, setIsProcessingWalletChange] = useState(false);
+  
+  // Track previous wallet from DB
+  const previousAddressRef = useRef<string | null>(null);
+  const previousWalletTypeRef = useRef<WalletType>('unknown');
+  const hasFetchedDbWalletRef = useRef(false);
+  
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -85,6 +110,10 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
         })
         .eq('id', user.id);
       
+      // Update refs
+      previousAddressRef.current = walletAddress;
+      previousWalletTypeRef.current = type;
+      
       // Track IP for wallet connection (non-blocking)
       supabase.functions.invoke('track-ip', {
         body: { action_type: 'wallet_connect', wallet_address: walletAddress },
@@ -105,10 +134,108 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
           wallet_type: null,
         })
         .eq('id', user.id);
+      
+      previousAddressRef.current = null;
+      previousWalletTypeRef.current = 'unknown';
     } catch (error) {
       console.error('Failed to clear wallet from DB:', error);
     }
   }, [user]);
+
+  // Fetch previous wallet from DB on init
+  useEffect(() => {
+    const fetchDbWallet = async () => {
+      if (!user || hasFetchedDbWalletRef.current) return;
+      hasFetchedDbWalletRef.current = true;
+      
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select('wallet_address, wallet_type')
+          .eq('id', user.id)
+          .single();
+        
+        if (data?.wallet_address) {
+          previousAddressRef.current = data.wallet_address;
+          if (data.wallet_type === 'MetaMask') {
+            previousWalletTypeRef.current = 'metamask';
+          } else if (data.wallet_type === 'Bitget Wallet') {
+            previousWalletTypeRef.current = 'bitget';
+          } else {
+            previousWalletTypeRef.current = 'unknown';
+          }
+          logWalletDebug('Loaded previous wallet from DB', { 
+            address: data.wallet_address?.slice(0, 10) + '...',
+            type: previousWalletTypeRef.current 
+          });
+        }
+      } catch (error) {
+        console.error('Failed to fetch wallet from DB:', error);
+      }
+    };
+    
+    fetchDbWallet();
+  }, [user]);
+
+  // Handle confirm wallet change
+  const handleConfirmWalletChange = useCallback(async () => {
+    if (!walletChangeDetails) return;
+    
+    setIsProcessingWalletChange(true);
+    try {
+      await saveWalletToDb(walletChangeDetails.newAddress, walletChangeDetails.newWalletType);
+      setAddress(walletChangeDetails.newAddress);
+      setWalletType(walletChangeDetails.newWalletType);
+      setIsConnected(true);
+      await fetchBalance(walletChangeDetails.newAddress as `0x${string}`);
+      
+      toast({
+        title: '✅ Đã cập nhật ví',
+        description: `Ví mới: ${walletChangeDetails.newAddress.slice(0, 6)}...${walletChangeDetails.newAddress.slice(-4)}`,
+      });
+    } catch (error) {
+      console.error('Failed to confirm wallet change:', error);
+      toast({
+        title: 'Lỗi cập nhật ví',
+        description: 'Không thể cập nhật ví. Vui lòng thử lại.',
+        variant: 'destructive',
+      });
+    } finally {
+      setShowWalletChangeDialog(false);
+      setWalletChangeDetails(null);
+      setIsProcessingWalletChange(false);
+    }
+  }, [walletChangeDetails, saveWalletToDb, fetchBalance, toast]);
+
+  // Handle cancel wallet change
+  const handleCancelWalletChange = useCallback(async () => {
+    setIsProcessingWalletChange(true);
+    try {
+      await disconnect(wagmiConfig);
+      
+      // Restore previous state
+      if (previousAddressRef.current) {
+        setAddress(previousAddressRef.current);
+        setWalletType(previousWalletTypeRef.current);
+        setIsConnected(false); // Disconnected from new wallet
+      } else {
+        setAddress('');
+        setWalletType('unknown');
+        setIsConnected(false);
+      }
+      
+      toast({
+        title: '↩️ Đã hủy thay đổi',
+        description: 'Giữ nguyên ví cũ. Ví mới đã được ngắt kết nối.',
+      });
+    } catch (error) {
+      console.error('Failed to cancel wallet change:', error);
+    } finally {
+      setShowWalletChangeDialog(false);
+      setWalletChangeDetails(null);
+      setIsProcessingWalletChange(false);
+    }
+  }, [toast]);
 
   // Switch to BSC chain
   const switchToBSC = useCallback(async () => {
@@ -247,19 +374,40 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
         
         const account = getAccount(wagmiConfig);
         if (account.address && account.isConnected) {
-          setAddress(account.address);
-          setIsConnected(true);
-          setChainId(account.chainId);
-          
           const type = detectWalletType(account.connector?.name || '');
-          setWalletType(type);
           
-          await saveWalletToDb(account.address, type);
-          await fetchBalance(account.address);
+          // Check if this is a different wallet from DB
+          const dbWallet = previousAddressRef.current;
+          const isSameAddress = dbWallet?.toLowerCase() === account.address.toLowerCase();
           
-          // Auto-switch to BSC if on wrong chain
-          if (account.chainId !== BSC_CHAIN_ID) {
-            switchToBSC();
+          if (dbWallet && !isSameAddress) {
+            // Different wallet detected - show dialog
+            logWalletDebug('Different wallet detected on init', {
+              dbWallet: dbWallet?.slice(0, 10) + '...',
+              newWallet: account.address.slice(0, 10) + '...',
+            });
+            
+            setWalletChangeDetails({
+              oldAddress: dbWallet,
+              newAddress: account.address,
+              oldWalletType: previousWalletTypeRef.current,
+              newWalletType: type,
+            });
+            setShowWalletChangeDialog(true);
+          } else {
+            // Same wallet or first connection
+            setAddress(account.address);
+            setIsConnected(true);
+            setChainId(account.chainId);
+            setWalletType(type);
+            
+            await saveWalletToDb(account.address, type);
+            await fetchBalance(account.address);
+            
+            // Auto-switch to BSC if on wrong chain
+            if (account.chainId !== BSC_CHAIN_ID) {
+              switchToBSC();
+            }
           }
         }
         
@@ -276,19 +424,39 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
     const unwatch = watchAccount(wagmiConfig, {
       onChange: async (account) => {
         if (account.address && account.isConnected) {
-          setAddress(account.address);
-          setIsConnected(true);
-          setChainId(account.chainId);
-          
           const type = detectWalletType(account.connector?.name || '');
-          setWalletType(type);
+          const dbWallet = previousAddressRef.current;
+          const isSameAddress = dbWallet?.toLowerCase() === account.address.toLowerCase();
           
-          await saveWalletToDb(account.address, type);
-          await fetchBalance(account.address);
-          
-          // Auto-switch to BSC if on wrong chain
-          if (account.chainId !== BSC_CHAIN_ID) {
-            switchToBSC();
+          // If there's a previous wallet in DB and the new one is different
+          if (dbWallet && !isSameAddress) {
+            logWalletDebug('Wallet change detected', {
+              oldWallet: dbWallet?.slice(0, 10) + '...',
+              newWallet: account.address.slice(0, 10) + '...',
+            });
+            
+            setWalletChangeDetails({
+              oldAddress: dbWallet,
+              newAddress: account.address,
+              oldWalletType: previousWalletTypeRef.current,
+              newWalletType: type,
+            });
+            setShowWalletChangeDialog(true);
+            setChainId(account.chainId);
+          } else {
+            // Same wallet or first connection - update normally
+            setAddress(account.address);
+            setIsConnected(true);
+            setChainId(account.chainId);
+            setWalletType(type);
+            
+            await saveWalletToDb(account.address, type);
+            await fetchBalance(account.address);
+            
+            // Auto-switch to BSC if on wrong chain
+            if (account.chainId !== BSC_CHAIN_ID) {
+              switchToBSC();
+            }
           }
         } else {
           setAddress('');
@@ -313,6 +481,13 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
     isLoading,
     isInitialized,
     bnbBalance,
+    // Wallet change dialog
+    showWalletChangeDialog,
+    walletChangeDetails,
+    isProcessingWalletChange,
+    handleConfirmWalletChange,
+    handleCancelWalletChange,
+    // Actions
     connectWallet,
     connectWithMobileSupport,
     disconnectWallet,

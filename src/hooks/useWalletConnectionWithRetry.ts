@@ -115,7 +115,7 @@ export const useWalletConnectionWithRetry = (config: Partial<RetryConfig> = {}) 
         setConnectionStep('waiting-approval');
         
         // Wait for connection with timeout - AppKit is faster
-        const connectionTimeout = 10000; // 10 seconds (reduced from 15)
+        const connectionTimeout = 10000; // 10 seconds
         const startTime = Date.now();
         const checkInterval = 300;
         
@@ -148,12 +148,13 @@ export const useWalletConnectionWithRetry = (config: Partial<RetryConfig> = {}) 
         setConnectionProgress(0);
         return false;
         
-      } catch (error: any) {
+      } catch (error: unknown) {
         stopProgressSimulation();
         console.error(`[WalletRetry] Attempt ${attempt} failed:`, error);
         
         // Don't retry for user-initiated cancellations
-        const errorMsg = error.message?.toLowerCase() || '';
+        const errorMessage = error instanceof Error ? error.message : '';
+        const errorMsg = errorMessage.toLowerCase();
         const isUserCancel = errorMsg.includes('user rejected') || 
                              errorMsg.includes('user denied') ||
                              errorMsg.includes('cancelled');

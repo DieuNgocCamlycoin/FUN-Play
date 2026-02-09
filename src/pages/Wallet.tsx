@@ -11,12 +11,25 @@ import { ClaimRewardsSection } from "@/components/Wallet/ClaimRewardsSection";
 import { TopSponsorsSection } from "@/components/Wallet/TopSponsorsSection";
 import { TransactionHistorySection } from "@/components/Wallet/TransactionHistorySection";
 import { WalletSelectionModal } from "@/components/Web3/WalletSelectionModal";
+import { WalletChangeConfirmDialog } from "@/components/Web3/WalletChangeConfirmDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const WalletPage = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
-  const { isConnected, address, connectWithRetry, isConnecting, isInitialized } = useWalletConnectionWithRetry();
+  const { 
+    isConnected, 
+    address, 
+    connectWithRetry, 
+    isConnecting, 
+    isInitialized,
+    // Wallet change dialog
+    showWalletChangeDialog,
+    walletChangeDetails,
+    isProcessingWalletChange,
+    handleConfirmWalletChange,
+    handleCancelWalletChange,
+  } = useWalletConnectionWithRetry();
   const [showWalletModal, setShowWalletModal] = useState(false);
 
   useEffect(() => {
@@ -96,6 +109,18 @@ const WalletPage = () => {
         onSelectFunWallet={() => navigate("/fun-wallet")}
         onSelectOtherWallet={() => { setShowWalletModal(false); connectWithRetry(); }}
         isConnecting={isConnecting}
+      />
+
+      {/* Wallet Change Confirmation Dialog */}
+      <WalletChangeConfirmDialog
+        open={showWalletChangeDialog}
+        oldAddress={walletChangeDetails?.oldAddress || ''}
+        newAddress={walletChangeDetails?.newAddress || ''}
+        oldWalletType={walletChangeDetails?.oldWalletType}
+        newWalletType={walletChangeDetails?.newWalletType}
+        isLoading={isProcessingWalletChange}
+        onConfirm={handleConfirmWalletChange}
+        onCancel={handleCancelWalletChange}
       />
     </MainLayout>
   );
