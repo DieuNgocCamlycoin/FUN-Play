@@ -135,6 +135,9 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
       const currentOffset = reset ? 0 : offset;
       const allTransactions: UnifiedTransaction[] = reset ? [] : [...transactions];
       
+      // Use a much higher effective limit for wallet_transactions (largest table)
+      const walletLimit = Math.max(limit, 500);
+      
       // ========== 1. Lấy donation_transactions (ONCHAIN ONLY) ==========
       let donationQuery = supabase
         .from("donation_transactions")
@@ -203,7 +206,7 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
             .not("tx_hash", "is", null)
             .order("block_timestamp", { ascending: false, nullsFirst: false })
             .order("created_at", { ascending: false })
-            .range(currentOffset, currentOffset + limit - 1)
+            .range(currentOffset, currentOffset + walletLimit - 1)
         : user?.id
           ? supabase
               .from("wallet_transactions")
@@ -213,7 +216,7 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
               .not("tx_hash", "is", null)
               .order("block_timestamp", { ascending: false, nullsFirst: false })
               .order("created_at", { ascending: false })
-              .range(currentOffset, currentOffset + limit - 1)
+              .range(currentOffset, currentOffset + walletLimit - 1)
           : null;
       
       if (walletQuery) {
@@ -428,16 +431,28 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
 
-      // ========== 10. Tính toán stats ==========
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      // ========== 10. Fetch stats from server-side RPC ==========
+      // Get user's wallet address for personal mode
+      let userWalletAddress: string | null = null;
+      if (!publicMode && user?.id) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("wallet_address")
+          .eq("id", user.id)
+          .single();
+        userWalletAddress = profile?.wallet_address || null;
+      }
+      
+      const { data: serverStats } = await supabase.rpc('get_transaction_stats', {
+        p_wallet_address: publicMode ? null : (userWalletAddress || null)
+      });
       
       const newStats: TransactionStats = {
-        totalCount: allTransactions.length,
-        totalValue: allTransactions.reduce((sum, t) => sum + t.amount, 0),
-        todayCount: allTransactions.filter(t => new Date(t.created_at) >= today).length,
-        successCount: allTransactions.filter(t => t.status === "success").length,
-        pendingCount: allTransactions.filter(t => t.status === "pending").length,
+        totalCount: (serverStats as any)?.totalCount ?? allTransactions.length,
+        totalValue: (serverStats as any)?.totalValue ?? allTransactions.reduce((sum, t) => sum + t.amount, 0),
+        todayCount: (serverStats as any)?.todayCount ?? 0,
+        successCount: (serverStats as any)?.totalCount ?? allTransactions.length,
+        pendingCount: 0,
       };
 
       setStats(newStats);
@@ -446,7 +461,7 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
       setHasMore(
         (donations?.length || 0) >= limit || 
         claimData.length >= limit || 
-        walletData.length >= limit
+        walletData.length >= walletLimit
       );
       if (reset) setOffset(0);
       

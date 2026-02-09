@@ -2371,6 +2371,10 @@ export type Database = {
         Args: { p_admin_id: string; p_reason?: string; p_user_id: string }
         Returns: boolean
       }
+      get_transaction_stats: {
+        Args: { p_wallet_address?: string }
+        Returns: Json
+      }
       get_user_activity_summary: { Args: { p_user_id: string }; Returns: Json }
       has_role: {
         Args: {

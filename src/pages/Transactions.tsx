@@ -23,7 +23,7 @@ const TransactionsPage = () => {
     refresh 
   } = useTransactionHistory({ 
     publicMode: true, 
-    limit: 30,
+    limit: 200,
     filters 
   });
 
