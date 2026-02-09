@@ -18,6 +18,7 @@ export const PostComments: React.FC<PostCommentsProps> = ({
     loading,
     submitting,
     likedCommentIds,
+    likedCommentEmojis,
     createComment,
     softDeleteComment,
     toggleLike
@@ -76,6 +77,7 @@ export const PostComments: React.FC<PostCommentsProps> = ({
         onDelete={handleDelete}
         onToggleLike={toggleLike}
         likedCommentIds={likedCommentIds}
+        likedCommentEmojis={likedCommentEmojis}
         submitting={submitting}
       />
     </div>
