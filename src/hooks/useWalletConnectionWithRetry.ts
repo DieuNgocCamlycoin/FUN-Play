@@ -114,8 +114,8 @@ export const useWalletConnectionWithRetry = (config: Partial<RetryConfig> = {}) 
         
         setConnectionStep('waiting-approval');
         
-        // Wait for connection with timeout - shorter timeout for faster feedback
-        const connectionTimeout = 15000; // 15 seconds
+        // Wait for connection with timeout - AppKit is faster
+        const connectionTimeout = 10000; // 10 seconds (reduced from 15)
         const startTime = Date.now();
         const checkInterval = 300;
         
