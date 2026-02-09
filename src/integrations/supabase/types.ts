@@ -1859,6 +1859,42 @@ export type Database = {
           },
         ]
       }
+      sync_cursors: {
+        Row: {
+          chain_id: number | null
+          created_at: string | null
+          id: string
+          last_block_number: number | null
+          last_cursor: string | null
+          last_sync_at: string | null
+          token_contract: string
+          total_synced: number | null
+          wallet_address: string
+        }
+        Insert: {
+          chain_id?: number | null
+          created_at?: string | null
+          id?: string
+          last_block_number?: number | null
+          last_cursor?: string | null
+          last_sync_at?: string | null
+          token_contract: string
+          total_synced?: number | null
+          wallet_address: string
+        }
+        Update: {
+          chain_id?: number | null
+          created_at?: string | null
+          id?: string
+          last_block_number?: number | null
+          last_cursor?: string | null
+          last_sync_at?: string | null
+          token_contract?: string
+          total_synced?: number | null
+          wallet_address?: string
+        }
+        Relationships: []
+      }
       user_chats: {
         Row: {
           created_at: string
@@ -2189,39 +2225,54 @@ export type Database = {
       wallet_transactions: {
         Row: {
           amount: number
+          block_number: number | null
+          block_timestamp: string | null
+          chain_id: number | null
           created_at: string
           from_address: string
           from_user_id: string | null
           id: string
+          log_index: number | null
           status: string
           to_address: string
           to_user_id: string | null
+          token_contract: string | null
           token_type: string
           tx_hash: string
           video_id: string | null
         }
         Insert: {
           amount: number
+          block_number?: number | null
+          block_timestamp?: string | null
+          chain_id?: number | null
           created_at?: string
           from_address: string
           from_user_id?: string | null
           id?: string
+          log_index?: number | null
           status?: string
           to_address: string
           to_user_id?: string | null
+          token_contract?: string | null
           token_type: string
           tx_hash: string
           video_id?: string | null
         }
         Update: {
           amount?: number
+          block_number?: number | null
+          block_timestamp?: string | null
+          chain_id?: number | null
           created_at?: string
           from_address?: string
           from_user_id?: string | null
           id?: string
+          log_index?: number | null
           status?: string
           to_address?: string
           to_user_id?: string | null
+          token_contract?: string | null
           token_type?: string
           tx_hash?: string
           video_id?: string | null

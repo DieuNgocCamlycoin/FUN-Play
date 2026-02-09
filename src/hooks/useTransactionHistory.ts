@@ -194,12 +194,14 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
       let walletData: any[] = [];
       
       // FIXED: Query 'completed' status (actual data uses 'completed', not 'success')
+      // UPDATED: Sort by block_timestamp for better accuracy, fallback to created_at
       const walletQuery = publicMode
         ? supabase
             .from("wallet_transactions")
             .select("*")
             .eq("status", "completed")
             .not("tx_hash", "is", null)
+            .order("block_timestamp", { ascending: false, nullsFirst: false })
             .order("created_at", { ascending: false })
             .range(currentOffset, currentOffset + limit - 1)
         : user?.id
@@ -209,6 +211,7 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
               .or(`from_user_id.eq.${user.id},to_user_id.eq.${user.id}`)
               .eq("status", "completed")
               .not("tx_hash", "is", null)
+              .order("block_timestamp", { ascending: false, nullsFirst: false })
               .order("created_at", { ascending: false })
               .range(currentOffset, currentOffset + limit - 1)
           : null;

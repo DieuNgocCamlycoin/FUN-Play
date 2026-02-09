@@ -80,3 +80,9 @@ verify_jwt = false
 
 [functions.confirm-bsc-donation]
 verify_jwt = false
+
+[functions.backfill-moralis]
+verify_jwt = false
+
+[functions.sync-transactions-cron]
+verify_jwt = false
