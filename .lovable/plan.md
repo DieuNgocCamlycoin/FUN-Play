@@ -1,673 +1,315 @@
 
 
-# BẢNG KẾ HOẠCH TRIỂN KHAI HỆ THỐNG LỊCH SỬ GIAO DỊCH FUN PLAY
-## Phiên Bản Tối Ưu & Đầy Đủ (Đã Điều Chỉnh Toàn Bộ Yêu Cầu)
+# TRIỂN KHAI TOÀN BỘ HỆ THỐNG LỊCH SỬ GIAO DỊCH FUN PLAY
+## ONCHAIN-FIRST, MINH BẠCH, KHÔNG GÂY HIỂU NHẦM
 
 ---
 
-## I. TỔNG QUAN DỰ ÁN (CẬP NHẬT CUỐI CÙNG)
+## I. TÌNH TRẠNG HIỆN TẠI & VẤN ĐỀ
 
-### 1.1. Tầm Nhìn & Mục Tiêu
-**Tầm nhìn**: Xây dựng hệ thống lịch sử giao dịch **minh bạch, công khai, truy vết được trên blockchain** theo chuẩn Web3, phục vụ **cộng đồng người dùng toàn thế giới** trên FUN PLAY.
+### Đã Hoàn Thành ✅
+1. **Hook `useTransactionHistory.ts`**: Đúng nguyên tắc ONCHAIN
+   - ✅ Filter: `tx_hash != null` + `status = 'success'`
+   - ✅ Loại giao dịch: `"gift" | "donate" | "claim"` (XÓA "tip", "reward", "transfer")
+   - ✅ Fetch claim_requests (thay reward_transactions)
+   - ✅ Normalize với channel name + @username
 
-| STT | Mục Tiêu | Mô Tả |
-|-----|----------|-------|
-| 1 | Minh bạch tài chính | CHỈ hiển thị giao dịch ONCHAIN (có tx_hash, status=success) |
-| 2 | Gộp loại giao dịch | "Tặng thưởng" = tip + transfer (cùng ý nghĩa) |
-| 3 | Ẩn thưởng chưa duyệt | Reward KHÔNG hiển thị, chỉ trong Admin Dashboard |
-| 4 | Hiển thị user đầy đủ | Avatar + Tên kênh + @username |
-| 5 | Truy cập công khai | /transactions ai cũng xem được (không cần đăng nhập) |
+2. **Trang `/transactions`**: Lịch sử hệ thống (Public)
+   - ✅ Hiển thị TOÀN BỘ giao dịch ONCHAIN
+   - ✅ AI dùng hook `useTransactionHistory` với `publicMode: true`
 
-### 1.2. Nguyên Tắc Quan Trọng (GHI NHỚ HỆ THỐNG)
-```
-┌──────────────────────────────────────────────────────────────────┐
-│                   QUY TẮC HIỂN THỊ GIAO DỊCH                     │
-├──────────────────────────────────────────────────────────────────┤
-│ CHỈ HIỂN THỊ các giao dịch ONCHAIN & SUCCESS:                   │
-│                                                                  │
-│ CÓ HIỂN THỊ:                                                     │
-│ • Tặng thưởng (Gift): Tip từ donation_tx + wallet_tx (chuyển)  │
-│ • Ủng hộ (Donate): Donate từ donation_tx                         │
-│ • Rút thưởng (Claim): Claim từ claim_requests (success)          │
-│                                                                  │
-│ KHÔNG HIỂN THỊ (CHỈ ADMIN XEM):                                  │
-│ • Reward (thưởng CAMLY) - chưa duyệt, có thể thay đổi           │
-│ • Pending/Failed transactions                                   │
-│ • Giao dịch không onchain                                       │
-└──────────────────────────────────────────────────────────────────┘
-```
+3. **Component `TransactionCard`**: Hiển thị đầy đủ
+   - ✅ Avatar + tên người gửi/nhận
+   - ✅ Wallet (rút gọn + copy + explorer)
+   - ✅ Tx hash + explorer link
+   - ✅ Loại giao dịch đúng
 
----
+### Chưa Hoàn Thành ❌
+1. **Trang `/wallet` - `TransactionHistorySection`**: CHƯA chuẩn hóa
+   - ❌ Vẫn fetch `reward_transactions` (nên XÓA)
+   - ❌ Không dùng hook `useTransactionHistory` unified
+   - ❌ Không hiển thị @username
+   - ❌ Không hiển thị chain + tx hash đầy đủ
+   - ❌ Giao diện khác `/transactions` (nên GIỐNG 100%)
 
-## II. PHẠM VI GIAO DỊCH (CUỐI CÙNG)
-
-### 2.1. Các Loại Giao Dịch Được Hiển Thị (SAU KHI GỘP)
-```
-┌─────────────────┬──────────────────────────┬──────────────────┬──────────────┐
-│ LOẠI GD         │ MÔ TẢ                    │ BẢNG NGUỒN       │ ĐIỀU KIỆN    │
-├─────────────────┼──────────────────────────┼──────────────────┼──────────────┤
-| Tặng thưởng     | Chuyển token giữa users  | donation_tx      | context_type │
-| (Gift)          | (Tip + Transfer gộp)    | (tip) +          | = "tip"      │
-|                 |                          | wallet_tx        | hoặc         │
-|                 |                          |                  | wallet_tx    │
-├─────────────────┼──────────────────────────┼──────────────────┼──────────────┤
-| Ủng hộ          | Ủng hộ dự án/creator     | donation_tx      | context_type │
-| (Donate)        |                          | (donate)         | = "donate"   │
-├─────────────────┼──────────────────────────┼──────────────────┼──────────────┤
-| Rút thưởng      | Rút CAMLY về ví thành    | claim_requests   | status=      │
-| (Claim)         | công                     |                  | "success"    │
-├─────────────────┼──────────────────────────┼──────────────────┼──────────────┤
-│ LOẠI BỎ:        │                          │                  │              │
-│ • Reward        | Thưởng CAMLY (chưa ok)   | reward_trans     | CHỈ ADMIN    │
-│ • Chuyển tiền   | → GỘP vào "Tặng thưởng" | (DELETED)        | XEM          │
-└─────────────────┴──────────────────────────┴──────────────────┴──────────────┘
-```
-
-### 2.2. Logic Lọc Dữ Liệu
-```typescript
-// HIỂN THỊ (Công khai):
-1. donation_transactions:
-   WHERE status = 'success' AND tx_hash IS NOT NULL
-   AND (context_type = 'tip' OR context_type = 'donate')
-
-2. wallet_transactions:
-   WHERE status = 'success' AND tx_hash IS NOT NULL
-   → Tất cả gộp vào "Gift" (Tặng thưởng)
-
-3. claim_requests:
-   WHERE status = 'success' AND tx_hash IS NOT NULL
-
-// KHÔNG FETCH:
-• reward_transactions (trừ Admin Dashboard)
-• Pending/Failed transactions
-```
+2. **Logic filter & search**: Chưa đồng bộ
+   - ❌ TransactionHistorySection dùng logic cũ
+   - ❌ Không filter "onchain-only"
+   - ❌ Search không hỗ trợ wallet address, tx hash
 
 ---
 
-## III. HIỂN THỊ THÔNG TIN NGƯỜI DÙNG (NÂNG CẤP)
+## II. CẬP NHẬT QUYẾT ĐỊNH: ONCHAIN-FIRST
 
-### 3.1. Format Hiển Thị User
+### Nguyên Tắc Bắt Buộc
 ```
-[AVATAR]  Tên Kênh Đã Đăng Ký
-          @username (chuẩn hóa từ tên kênh)
-          0x1234...5678 [📋] [🔗]
-```
+1. Tất cả lịch sử hiển thị cho user = CHỈ ONCHAIN
+   - tx_hash != null
+   - status = 'success'
 
-### 3.2. Lôgic Lấy & Normalize Tên User
-```typescript
-// src/lib/userUtils.ts (CẬP NHẬT)
+2. Reward nội bộ (like, comment, view, pending):
+   - ❌ KHÔNG hiển thị cho user
+   - ✅ CHỈ Admin Dashboard xem để duyệt
 
-interface UserDisplayInfo {
-  displayName: string;     // Tên kênh (ưu tiên)
-  username: string;        // @username (từ tên kênh)
-  avatarUrl: string | null;
-  walletAddress: string | null;
-  channelName: string;     // Tên kênh chính thức
-}
-
-function getUserDisplayInfo(
-  profile: Profile,
-  channel: Channel | null
-): UserDisplayInfo {
-  // Ưu tiên tên kênh từ bảng channels
-  const displayName = channel?.name || profile.display_name || profile.username || "Ẩn danh";
-  
-  // Tạo @username: chuyển tên kênh thành format @username
-  const username = "@" + displayName
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")   // Bỏ dấu (é → e)
-    .replace(/đ/g, "d")
-    .replace(/[^a-z0-9]/g, "")         // Chỉ giữ chữ + số
-    .slice(0, 20);
-    
-  return {
-    displayName,
-    username,
-    avatarUrl: profile.avatar_url,
-    walletAddress: profile.wallet_address,
-    channelName: channel?.name || displayName,
-  };
-}
+3. Cả 2 trang lịch sử (system & personal):
+   - Hiển thị GIỐNG 100% (cùng format, cùng fields)
+   - Chỉ khác: system = all, personal = filter wallet user
 ```
 
-### 3.3. Ví Dụ
+### Loại Giao Dịch Hợp Lệ (3 loại)
 ```
-Kênh: "Angel Diệu Ngọc"      → @angeldieuingoc
-Kênh: "FUN PLAY Official"    → @funplayofficial
-Kênh: "Ngọc Hân TV"          → @ngochanTV (bỏ dấu)
-```
+1. GIFT (Tặng thưởng)
+   - Từ donation_tx (context_type = "tip") 
+   - Từ wallet_tx (transfer onchain)
+   - Hiển thị: Sender → Receiver + amount + message
 
----
+2. DONATE (Ủng hộ)
+   - Từ donation_tx (context_type = "donate")
+   - Hiển thị: Sender → Receiver + amount + message
 
-## IV. KIẾN TRÚC HỆ THỐNG
-
-### 4.1. Sơ Đồ Dữ Liệu
-```
-donation_transactions (tip)  +  wallet_transactions  →  GỘP: Gift
-         │                              │
-donation_transactions (donate)          │
-         │                              │
-    DONATE                              │
-                                        │
-                          claim_requests → CLAIM
-
-                              ↓
-                useTransactionHistory.ts
-                   (Unified Hook)
-                              ↓
-            ┌─────────────────────────────────┐
-            │  SHARED COMPONENTS              │
-            │  • TransactionCard              │
-            │  • TransactionFilters           │
-            │  • TransactionStats             │
-            │  • TransactionExport            │
-            │  • WalletAddressDisplay         │
-            │  • UserProfileDisplay (NEW)     │
-            └─────────────────────────────────┘
-```
-
-### 4.2. Cấu Trúc Dữ Liệu (UnifiedTransaction) - CẬP NHẬT
-```typescript
-interface UnifiedTransaction {
-  // Người gửi (CẬP NHẬT: thêm username + channelName)
-  sender_user_id: string | null;
-  sender_display_name: string;        // Tên kênh
-  sender_username: string;            // @username
-  sender_avatar_url: string | null;
-  sender_channel_name: string;        // Tên kênh chính
-  wallet_from: string;
-  wallet_from_full: string | null;
-  
-  // Người nhận (CẬP NHẬT: thêm username + channelName)
-  receiver_user_id: string | null;
-  receiver_display_name: string;
-  receiver_username: string;
-  receiver_avatar_url: string | null;
-  receiver_channel_name: string;
-  wallet_to: string;
-  wallet_to_full: string | null;
-  
-  // Giao dịch (CẬP NHẬT: TransactionType)
-  transaction_type: "gift" | "donate" | "claim";  // XÓA tip/reward/transfer
-  token_symbol: string;
-  amount: number;
-  message: string | null;
-  
-  // Blockchain (BẮT BUỘC onchain)
-  is_onchain: boolean;        // Luôn true
-  chain: string | null;
-  tx_hash: string | null;     // BẮT BUỘC != null
-  explorer_url: string | null;
-  
-  status: "success" | "pending" | "failed";  // Chỉ success
-  created_at: string;
-}
-```
-
----
-
-## V. QUYỀN TRUY CẬP & BẢO MẬT
-
-### 5.1. Phân Quyền
-```
-TRANG /transactions (HỆ THỐNG - PUBLIC):
-┌──────────────────────────────────────────┐
-│ • Ai cũng xem được (Public)              │
-│ • Kể cả CHƯA ĐĂNG KÝ tài khoản           │
-│ • Không cần đăng nhập                    │
-│ • Hiển thị TẤT CẢ giao dịch onchain      │
-└──────────────────────────────────────────┘
-
-TRANG /wallet (CÁ NHÂN):
-┌──────────────────────────────────────────┐
-│ • User xem CỦA MÌNH                      │
-│ • Admin xem TẤT CẢ                       │
-│ • Yêu cầu đăng nhập                      │
-│ • Hiển thị GIỐNG /transactions           │
-└──────────────────────────────────────────┘
-
-ADMIN DASHBOARD:
-┌──────────────────────────────────────────┐
-│ • CHỈ ADMIN xem                          │
-│ • Hiển thị reward_transactions           │
-│ • Duyệt & xác thực thưởng                │
-└──────────────────────────────────────────┘
-```
-
----
-
-## VI. THAY ĐỔI CODE - CHI TIẾT TỪ TÍNH NĂNG ĐẾN HIỂN THỊ
-
-### 6.1. File: src/hooks/useTransactionHistory.ts (CHÍNH)
-
-**Thay đổi:**
-1. **TransactionType**: Đổi từ `"tip" | "donate" | "reward" | "claim" | "transfer"` → `"gift" | "donate" | "claim"`
-2. **UnifiedTransaction Interface**: Thêm `sender_username`, `sender_channel_name`, `receiver_username`, `receiver_channel_name`
-3. **Fetch Logic**:
-   - Xóa fetch `reward_transactions` (không hiển thị công khai)
-   - Thêm fetch `claim_requests` (thay reward)
-   - Thêm fetch `channels` (lấy tên kênh)
-   - Filter: CHỈ lấy `tx_hash != null` và `status = 'success'`
-4. **Normalize donation_transactions**:
-   - `context_type = 'tip'` → `transaction_type = 'gift'`
-   - `context_type = 'donate'` → `transaction_type = 'donate'`
-   - Thêm tên kênh + @username
-5. **Normalize wallet_transactions**: 
-   - Đổi `transaction_type = 'transfer'` → `'gift'`
-   - Thêm tên kênh + @username
-6. **Normalize claim_requests** (thay reward):
-   - `transaction_type = 'claim'`
+3. CLAIM (Rút thưởng)
+   - Từ claim_requests (status = 'success' + tx_hash)
    - Sender: "FUN PLAY Treasury"
-   - Token: "CAMLY"
-
-**Phức tạp**: ⭐⭐⭐⭐⭐ (Cao nhất - logic chính)
-**Dòng code**: ~60 dòng thay đổi
-
----
-
-### 6.2. File: src/lib/userUtils.ts (UTILITY)
-
-**Thay đổi:**
-1. Thêm function `getUserDisplayInfo(profile, channel)` → trả về `UserDisplayInfo`
-2. Thêm logic normalize @username từ tên kênh
-
-**Phức tạp**: ⭐⭐ (Đơn giản)
-**Dòng code**: ~30 dòng thêm
-
----
-
-### 6.3. File: src/components/Transactions/UserProfileDisplay.tsx (MỚI)
-
-**Tạo mới** component để hiển thị:
-```
-[Avatar]  Tên Kênh
-          @username
-          Wallet [copy] [explorer]
+   - Receiver: User
+   - Hiển thị: Hệ thống → User + amount
 ```
 
-**Phức tạp**: ⭐⭐ (Đơn giản)
-**Dòng code**: ~80 dòng (tập trung hiển thị)
+---
+
+## III. KẾ HOẠCH TRIỂN KHAI
+
+### GIAI ĐOẠN 1: CẬP NHẬT TransactionHistorySection
+**File**: `src/components/Wallet/TransactionHistorySection.tsx`
+
+**Thay Đổi**:
+1. **Loại bỏ fetch reward_transactions**
+   - Xóa logic fetch reward_transactions (dòng 64-84)
+   - Lý do: Reward chưa duyệt không hiển thị, chỉ admin xem
+
+2. **Sử dụng hook `useTransactionHistory`**
+   - Thay thế cấu trúc cũ bằng gọi hook
+   - `useTransactionHistory({ publicMode: false })` (chỉ user hiện tại)
+   - Nhập lại `UnifiedTransaction`, `TransactionFilters`
+
+3. **Cập nhật rendering**
+   - Thay thế transaction loop bằng dùng `TransactionCard` component
+   - Giữ nguyên filter, search, export logic nhưng cập nhật để match hook
+
+4. **Cập nhật filter & search**
+   - Thêm hỗ trợ search: wallet address, tx hash
+   - Filter: token, loại giao dịch, thời gian
+   - Toggle: "Chỉ onchain" (default: ON, vì hook đã filter)
+
+5. **Cập nhật export**
+   - Dùng `TransactionExport` component
+   - Hoặc sync logic export giữa hai trang
+
+**Chi tiết code**:
+```typescript
+// OLD: Fetch reward + donations
+// NEW: Dùng hook
+const { transactions, loading, error, stats, filteredTransactions, setFilters } 
+  = useTransactionHistory({ 
+    publicMode: false, 
+    limit: 50,
+    filters // state từ UI
+  });
+
+// OLD: Map transaction types cũ (reward, donation_sent, donation_received)
+// NEW: Dùng UnifiedTransaction (gift, donate, claim)
+
+// UI: Thay thế card render bằng <TransactionCard />
+```
+
+**Dòng code**: ~150 dòng xóa + ~100 dòng thêm = ~250 dòng thay đổi
+
+**Phức tạp**: ⭐⭐⭐⭐ (Cao - logic phức)
 
 ---
 
-### 6.4. File: src/components/Transactions/TransactionCard.tsx (HIỂN THỊ)
+### GIAI ĐOẠN 2: Đồng Bộ Cấu Trúc & Giao Diện
 
-**Thay đổi:**
-1. `getTypeLabel()`: 
-   - "tip" → "Tặng thưởng" (`case "gift"`)
-   - Xóa `case "reward"`
-   - Xóa `case "transfer"`
-   - Giữ "donate" → "Ủng hộ"
-   - Giữ "claim" → "Rút thưởng"
+**Nội dung**:
+1. **Header**: Cập nhật title, subtitle
+   - OLD: "Lịch Sử Giao Dịch" (giống /transactions)
+   - NEW: "Lịch Sử Giao Dịch Cá Nhân" (phân biệt)
+   - Description: "Giao dịch onchain liên quan đến ví của bạn"
 
-2. `getTypeBadgeColor()`: 
-   - "gift" → Pink (giống cũ tip)
-   - Xóa "reward", "transfer" cases
-   - Giữ "donate", "claim"
+2. **Filter & Search**: Đồng bộ với /transactions
+   - Search: username, wallet, tx hash
+   - Filter: token, loại giao dịch, thời gian
+   - Toggle onchain (default ON)
 
-3. Hiển thị user: Dùng `UserProfileDisplay` component (avatar + tên kênh + @username)
+3. **Stats Widget**: Nếu có, cập nhật
+   - Hiển thị: Tổng GD, tổng giá trị, hôm nay, thành công
+   - Logic: Chỉ từ filtered transactions
 
-4. Hiển thị ví: Giữ nguyên (copy + explorer)
+4. **Export**: Dùng chung `TransactionExport` component
+   - CSV/PDF cho transactions filtered
+
+5. **Card Render**: Dùng `TransactionCard` component
+   - Format GIỐNG 100% /transactions
+   - Hiển thị: Avatar, @username, wallet, amount, time, tx hash
+
+**Dòng code**: ~80 dòng cập nhật
 
 **Phức tạp**: ⭐⭐⭐ (Trung bình)
-**Dòng code**: ~15 dòng thay đổi
 
 ---
 
-### 6.5. File: src/components/Transactions/TransactionFilters.tsx (BỘ LỌC)
+### GIAI ĐOẠN 3: Đảm Bảo Consistency & Validation
 
-**Thay đổi:**
-1. `typeOptions` array:
-   ```typescript
-   const typeOptions = [
-     { value: "all", label: "Tất cả loại" },
-     { value: "gift", label: "Tặng thưởng" },      // ĐỔI từ "tip"
-     { value: "donate", label: "Ủng hộ" },
-     // { value: "reward", label: "Thưởng" },      // XÓA
-     { value: "claim", label: "Rút thưởng" },
-     // { value: "transfer", label: "Chuyển tiền" }, // XÓA (gộp vào gift)
-   ];
-   ```
+**Checklist Validation**:
+1. ✅ Cả 2 trang hiển thị GIỐNG format (cùng TransactionCard)
+2. ✅ Cả 2 trang CHỈ hiển thị ONCHAIN (tx_hash != null)
+3. ✅ KHÔNG hiển thị reward_transactions ở cả 2
+4. ✅ Search hỗ trợ: username, wallet, tx hash
+5. ✅ Filter token, loại, thời gian hoạt động
+6. ✅ Export CSV/PDF có đầy đủ thông tin
+7. ✅ @username hiển thị chuẩn (từ channel name)
+8. ✅ Wallet explorer link đúng (BSC, ETH, v.v.)
+9. ✅ Admin Dashboard vẫn xem được reward_transactions để duyệt
+10. ✅ Mobile responsive (cả system & personal)
 
-2. Xóa logic filter cho "reward" và "transfer" (vì không có)
+**Dòng code**: Test + minor fixes ~50 dòng
 
-**Phức tạp**: ⭐⭐ (Đơn giản)
-**Dòng code**: ~5 dòng thay đổi
+**Phức tạp**: ⭐⭐ (Đơn giản - chỉ verify)
 
 ---
 
-### 6.6. File: src/components/Layout/Sidebar.tsx (NAVIGATION)
+## IV. TỔNG THỐNG KẾ
 
-**Thay đổi:**
-1. Import `Globe` icon từ lucide-react
-2. Thêm button "Lịch Sử Giao Dịch" sau "Lịch Sử Phần Thưởng" (dòng ~225)
+### Files Thay Đổi
+| File | Loại | Phức Tạp | Dòng | Notes |
+|------|------|----------|------|-------|
+| TransactionHistorySection.tsx | Update | ⭐⭐⭐⭐ | ~250 | Main refactor |
+| (Possibly) TransactionFilters.tsx | Update | ⭐⭐ | ~20 | Sync filters |
+| (Possibly) TransactionExport.tsx | Verify | ⭐ | 0 | Check reusability |
+| useTransactionHistory.ts | Verify | ⭐ | 0 | Already correct |
+| TransactionCard.tsx | Verify | ⭐ | 0 | Already correct |
 
-```typescript
-<Button
-  variant="ghost"
-  onClick={() => handleNavigation("/transactions")}
-  className={cn(
-    "w-full justify-start gap-6 px-3 py-2.5 h-auto hover:bg-primary/10 hover:text-primary transition-all duration-300",
-    location.pathname === "/transactions" && "bg-primary/10 text-primary font-semibold"
-  )}
->
-  <Globe className="h-5 w-5 text-[#004eac]" />
-  <span className="text-[#004eac]">Lịch Sử Giao Dịch</span>
-</Button>
-```
-
-**Phức tạp**: ⭐ (Rất đơn giản)
-**Dòng code**: ~12 dòng thêm
-
----
-
-### 6.7. File: src/components/Layout/CollapsibleSidebar.tsx (MOBILE NAVIGATION)
-
-**Thay đổi:**
-1. Import `Globe` icon
-2. Thêm item vào `rewardItems` array (dòng ~66):
-
-```typescript
-const rewardItems: NavItem[] = [
-  { icon: Trophy, label: "Bảng Xếp Hạng", href: "/leaderboard" },
-  { icon: Coins, label: "Lịch Sử Phần Thưởng", href: "/reward-history" },
-  { icon: Globe, label: "Lịch Sử Giao Dịch", href: "/transactions" }, // THÊM
-  { 
-    customIcon: '/images/fun-money-coin.png',
-    label: "FUN Money", 
-    href: "/fun-money",
-    isFunMoney: true
-  },
-  // ... rest
-];
-```
-
-**Phức tạp**: ⭐ (Rất đơn giản)
-**Dòng code**: ~2 dòng thay đổi + 1 dòng import
-
----
-
-### 6.8. File: src/components/Wallet/TransactionHistorySection.tsx (CÁ NHÂN)
-
-**Thay đổi:**
-1. Import `Link2` icon + `useNavigate`
-2. Thêm button "Xem Tất Cả" trong CardHeader:
-
-```typescript
-<Button 
-  variant="outline" 
-  size="sm" 
-  onClick={() => navigate("/transactions")}
-  className="gap-2"
->
-  <Link2 className="h-4 w-4" />
-  Xem Tất Cả
-</Button>
-```
-
-**Phức tạp**: ⭐⭐ (Đơn giản)
-**Dòng code**: ~8 dòng thêm
-
----
-
-### 6.9. File: src/pages/Transactions.tsx (TRANG HỆ THỐNG)
-
-**Thay đổi:**
-1. Cập nhật description: "Mọi giao dịch công khai trên nền tảng (ai cũng có thể xem)"
-
-**Phức tạp**: ⭐ (Rất đơn giản)
-**Dòng code**: ~1 dòng thay đổi
-
----
-
-## VII. TỔNG HỢP THAY ĐỔI
-
-### 7.1. Checklist Chi Tiết (Theo Thứ Tự Phù Hợp)
-
-```
-═══════════════════════════════════════════════════════════
-GIAI ĐOẠN 1: UTILITY & DATA (Cơ sở)
-═══════════════════════════════════════════════════════════
-☐ 1.1. Cập nhật src/lib/userUtils.ts
-       • Thêm getUserDisplayInfo() function
-       • Thêm logic normalize @username
-       
-GIAI ĐOẠN 2: HOOK CHÍNH (Logic dữ liệu)
-═══════════════════════════════════════════════════════════
-☐ 2.1. Cập nhật src/hooks/useTransactionHistory.ts
-       • Đổi TransactionType: "tip","reward","transfer" → "gift"
-       • Xóa fetch reward_transactions
-       • Thêm fetch claim_requests
-       • Thêm fetch channels
-       • Filter: CHỈ tx_hash != null + status=success
-       • Normalize donation (tip → gift, thêm username/channel)
-       • Normalize wallet (→ gift, thêm username/channel)
-       • Normalize claim_requests (thay reward)
-       • Cập nhật UnifiedTransaction interface
-       
-GIAI ĐOẠN 3: COMPONENT MỚI (Hiển thị user)
-═══════════════════════════════════════════════════════════
-☐ 3.1. Tạo src/components/Transactions/UserProfileDisplay.tsx
-       • Component hiển thị avatar + tên kênh + @username + ví
-       
-GIAI ĐOẠN 4: COMPONENT HIỂN THỊ (UI)
-═══════════════════════════════════════════════════════════
-☐ 4.1. Cập nhật src/components/Transactions/TransactionCard.tsx
-       • Đổi "tip" → "Tặng thưởng" (gift)
-       • Xóa "reward" case
-       • Xóa "transfer" case
-       • Dùng UserProfileDisplay cho sender/receiver
-       
-☐ 4.2. Cập nhật src/components/Transactions/TransactionFilters.tsx
-       • Đổi "tip" → "gift" trong typeOptions
-       • Xóa "reward" option
-       • Xóa "transfer" option
-       
-GIAI ĐOẠN 5: NAVIGATION (Điều hướng)
-═══════════════════════════════════════════════════════════
-☐ 5.1. Cập nhật src/components/Layout/Sidebar.tsx
-       • Import Globe icon
-       • Thêm button "Lịch Sử Giao Dịch" (sau Phần Thưởng)
-       
-☐ 5.2. Cập nhật src/components/Layout/CollapsibleSidebar.tsx
-       • Import Globe icon
-       • Thêm item "Lịch Sử Giao Dịch" vào rewardItems
-       
-☐ 5.3. Cập nhật src/components/Wallet/TransactionHistorySection.tsx
-       • Thêm button "Xem Tất Cả" → /transactions
-       
-GIAI ĐOẠN 6: PAGES (Trang)
-═══════════════════════════════════════════════════════════
-☐ 6.1. Cập nhật src/pages/Transactions.tsx
-       • Cập nhật description (public access)
-```
-
-### 7.2. Bảng Tóm Tắt Files
-
-| # | File | Loại | Phức Tạp | Dòng | Priority |
-|---|------|------|----------|------|----------|
-| 1 | userUtils.ts | Utility | ⭐⭐ | +30 | P1 |
-| 2 | useTransactionHistory.ts | Hook | ⭐⭐⭐⭐⭐ | ~60 | P1 |
-| 3 | UserProfileDisplay.tsx | Component | ⭐⭐ | +80 | P2 |
-| 4 | TransactionCard.tsx | UI | ⭐⭐⭐ | ~15 | P2 |
-| 5 | TransactionFilters.tsx | Filter | ⭐⭐ | ~5 | P2 |
-| 6 | Sidebar.tsx | Nav | ⭐ | +12 | P3 |
-| 7 | CollapsibleSidebar.tsx | Nav | ⭐ | +2 | P3 |
-| 8 | TransactionHistorySection.tsx | Section | ⭐⭐ | +8 | P3 |
-| 9 | Transactions.tsx | Page | ⭐ | ~1 | P4 |
-| **TỔNG** | **9 files** | - | **⭐⭐⭐⭐** | **~213** | - |
-
----
-
-## VIII. GIAO DIỆN & UX
-
-### 8.1. TransactionCard - Hiển Thị Người Dùng
-```
-┌────────────────────────────────────────────────────────┐
-│                                                        │
-│ [👤]  Angel Diệu Ngọc         →        [👤]  Trần B   │
-│       @angeldieuingoc                    @tranthib     │
-│       0x1234...5678 [📋][🔗]      0xABCD...EFGH [📋][🔗]│
-│                                                        │
-│ [Tặng thưởng] [Onchain]                    +5.000 CAMLY│
-│ "Ủng hộ nội dung hay"                                  │
-│                                                        │
-│ ✓ Thành công • 09/02/2026 19:45 • BSC                 │
-│ TX: 0xabc123... [📋] [🔗 BscScan]                     │
-│                                                        │
-└────────────────────────────────────────────────────────┘
-```
-
-### 8.2. Bộ Lọc Loại Giao Dịch (CẬP NHẬT)
-```
-[Tất cả loại] [Tặng thưởng] [Ủng hộ] [Rút thưởng]
-(Xóa: "Thưởng", "Chuyển tiền")
-```
-
-### 8.3. Navigation (CẬP NHẬT)
-```
-SIDEBAR:
-  Bảng Xếp Hạng
-  Lịch Sử Phần Thưởng
-  🌍 Lịch Sử Giao Dịch ← THÊM MỚI
-  FUN Money
-  Giới Thiệu Bạn Bè
-  Build & Bounty
-```
-
----
-
-## IX. DATA FLOW (LUỒNG DỮ LIỆU)
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                   NGƯỜI DÙNG TRUY CẬP                  │
-├─────────────────────────────────────────────────────────┤
-│                                                         │
-│  Cách 1: Sidebar → "Lịch Sử Giao Dịch" (Globe icon)   │
-│  Cách 2: CollapsibleSidebar → rewardItems → item      │
-│  Cách 3: /wallet → TransactionHistorySection           │
-│          → Button "Xem Tất Cả"                         │
-│  Cách 4: Direct URL: /transactions                     │
-│                                                         │
-└─────────────────────────────────────────────────────────┘
-                           ↓
-┌─────────────────────────────────────────────────────────┐
-│          useTransactionHistory Hook                     │
-│          (publicMode: true/false)                       │
-└─────────────────────────────────────────────────────────┘
-                           ↓
-    ┌──────────────────┬───────────────┬──────────────┐
-    ↓                  ↓               ↓              ↓
-donation_tx       wallet_tx      claim_requests    channels
-(tip/donate)                                         (fetch)
-    │                  │               │              │
-    └──────────────────┴───────────────┴──────────────┘
-                           ↓
-              Filter: ONLY tx_hash != null
-                   + status = 'success'
-                           ↓
-              Normalize → UnifiedTransaction
-              (gift, donate, claim)
-                           ↓
-    ┌──────────────────────────────────────┐
-    │   Shared Components                  │
-    │   • UserProfileDisplay (avatar+name)  │
-    │   • TransactionCard (hiển thị GD)     │
-    │   • TransactionFilters (bộ lọc)      │
-    │   • TransactionStats (thống kê)      │
-    │   • TransactionExport (CSV/PDF)      │
-    │   • WalletAddressDisplay (ví)        │
-    └──────────────────────────────────────┘
-                           ↓
-    ┌──────────────────────────────────────┐
-    │   Trang Hiển Thị                     │
-    │   • /transactions (PUBLIC)            │
-    │   • /wallet → TransactionHistory     │
-    └──────────────────────────────────────┘
-```
-
----
-
-## X. KỲ VỌNG SAU TRIỂN KHAI
-
-### 10.1. Giá Trị Mang Lại
-| Giá Trị | Mô Tả |
-|---------|-------|
-| ✅ Minh bạch | CHỈ hiển thị giao dịch onchain (có tx_hash) |
-| ✅ Rõ ràng | Xóa "Thưởng" chưa duyệt khỏi công khai |
-| ✅ Gộp logic | "Tặng thưởng" = tip + transfer (cùng ý nghĩa) |
-| ✅ Hiển thị user | Avatar + Tên kênh + @username đầy đủ |
-| ✅ Truy cập dễ | 4 cách vào /transactions |
-| ✅ Web3 chuẩn | Liên kết profile ↔ ví ↔ tx hash ↔ explorer |
-
-### 10.2. Metrics
-| Metric | Mục Tiêu |
-|--------|----------|
-| Thời gian load | < 2 giây |
-| First Paint | < 1 giây |
-| Export CSV | < 3 giây (100 GD) |
-| API calls | Optimize batch (parallel Promise.all) |
-
----
-
-## XI. GHI NHỚ HỆ THỐNG (FINAL)
-
-```
-┌──────────────────────────────────────────────────────────────┐
-│             GHI NHỚ: TRANSACTION HISTORY SYSTEM              │
-├──────────────────────────────────────────────────────────────┤
-│                                                              │
-│ LOẠI GIAO DỊCH (3 loại):                                    │
-│ • Gift (Tặng thưởng) = tip + wallet transfer (GỘP)         │
-│ • Donate (Ủng hộ) = donation campaign                       │
-│ • Claim (Rút thưởng) = withdraw rewards to wallet           │
-│                                                              │
-│ ĐIỀU KIỆN HIỂN THỊ:                                         │
-│ • CHỈ onchain: tx_hash != null                              │
-│ • CHỈ thành công: status = 'success'                        │
-│ • XÓA chưa duyệt: reward_transactions (admin only)          │
-│                                                              │
-│ HIỂN THỊ USER:                                              │
-│ • Avatar + Tên kênh + @username (chuẩn hóa)                │
-│ • Click avatar → Profile                                    │
-│ • Click ví → Copy + Explorer                                │
-│                                                              │
-│ QUYỀN TRUY CẬP:                                             │
-│ • /transactions: PUBLIC (ai cũng xem, không login)          │
-│ • /wallet: User xem của mình + Admin xem tất cả             │
-│                                                              │
-│ NAVIGATION:                                                 │
-│ • Sidebar + CollapsibleSidebar (Globe icon)                 │
-│ • /wallet → Button "Xem Tất Cả" → /transactions             │
-│                                                              │
-└──────────────────────────────────────────────────────────────┘
-```
-
----
-
-## XII. TỔNG KẾT
-
-### 12.1. Số Liệu Triển Khai
-- **Tổng files**: 9 (6 modify + 1 new + 2 pages)
-- **Tổng dòng code**: ~213 dòng
-- **Thời gian ước tính**: 2-3 giờ
+### Tổng Quy Mô
+- **Tổng files**: 5 (chủ yếu 1)
+- **Tổng dòng code**: ~320 dòng
+- **Thời gian**: 1-2 giờ
 - **Độ phức tạp**: ⭐⭐⭐⭐ (Trung-Cao)
-- **Dependencies**: Không có external (chỉ dùng existing components)
 
-### 12.2. Thứ Tự Triển Khai Khuyên Cáo
-1. **Phase 1 (Data)**: userUtils.ts → useTransactionHistory.ts
-2. **Phase 2 (UI)**: UserProfileDisplay.tsx → TransactionCard.tsx → TransactionFilters.tsx
-3. **Phase 3 (Nav)**: Sidebar.tsx → CollapsibleSidebar.tsx → TransactionHistorySection.tsx
-4. **Phase 4 (Polish)**: Transactions.tsx → Testing
+---
 
-### 12.3. Testing Points
-- ✅ /transactions (public) - không login → xem được
-- ✅ /wallet (private) - login → xem được, admin xem all
-- ✅ Bộ lọc: gift/donate/claim (không có reward/transfer)
-- ✅ Hiển thị user: avatar + @username + ví
-- ✅ Navigation: 4 entry points
-- ✅ Export: CSV/PDF
-- ✅ Mobile responsive
+## V. KỲ VỌNG SAU TRIỂN KHAI
+
+### Hệ Thống Hoàn Chỉnh
+```
+✅ /transactions (PUBLIC)
+   - Ai cũng xem được
+   - Toàn bộ ONCHAIN
+   - Hiển thị: gift | donate | claim
+
+✅ /wallet → TransactionHistorySection (PERSONAL)
+   - User xem của mình + Admin xem tất cả
+   - Chỉ giao dịch liên quan ví
+   - Hiển thị GIỐNG /transactions
+
+✅ Admin Dashboard (INTERNAL)
+   - Xem reward_transactions chưa duyệt
+   - Xét duyệt, phê duyệt
+   - Không hiển thị cho user
+```
+
+### Lợi Ích
+1. **Minh bạch**: User chỉ thấy giao dịch onchain real
+2. **Không nhầm lẫn**: Reward nội bộ ≠ tiền nhận
+3. **Consistency**: 2 trang lịch sử đồng bộ 100%
+4. **Web3 chuẩn**: Liên kết wallet → tx → explorer
+5. **Trust**: FUN PLAY là sổ cái onchain công khai
+
+---
+
+## VI. HƯỚNG DẪN TRIỂN KHAI CHI TIẾT
+
+### Bước 1: Cấu Trúc mới cho TransactionHistorySection
+```
+OLD: 
+  - Fetch reward_transactions
+  - Fetch donation_transactions
+  - Map to old Transaction interface
+  - Render custom layout
+
+NEW:
+  - Import useTransactionHistory hook
+  - Import UnifiedTransaction type
+  - Call hook({ publicMode: false })
+  - Render using TransactionCard component
+  - Reuse filters, search, export logic
+```
+
+### Bước 2: Cập nhật Logic Fetch
+```typescript
+const { 
+  transactions, 
+  loading, 
+  error, 
+  stats, 
+  hasMore,
+  loadMore,
+  filteredTransactions,
+  setFilters
+} = useTransactionHistory({ 
+  publicMode: false, // User mode
+  limit: 30,
+  filters // Từ state
+});
+```
+
+### Bước 3: Cập nhật Filter & Search
+```
+- Search field: supports username, wallet, tx hash
+- Token filter: all coins
+- Type filter: gift, donate, claim
+- Time filter: all, 7d, 30d, custom
+- Remove "reward" type (vì hook đã filter)
+```
+
+### Bước 4: Render Cards
+```
+Thay vì custom map, dùng:
+<TransactionCard 
+  transaction={tx}
+  currentUserId={user?.id}
+  showFullDetails={true}
+/>
+```
+
+### Bước 5: Export
+```
+Dùng TransactionExport component:
+<TransactionExport 
+  transactions={filteredTransactions}
+  filename="FUN_Play_Personal_Transactions"
+/>
+```
+
+---
+
+## VII. VALIDATION & QA
+
+### Checklist
+- [ ] Trang /wallet không hiển thị reward nội bộ
+- [ ] Hiển thị đầy đủ: avatar, @username, wallet, tx hash, explorer
+- [ ] Search hoạt động: username, wallet, tx hash
+- [ ] Filter hoạt động: token, loại, thời gian
+- [ ] Export CSV/PDF có đầy đủ thông tin
+- [ ] Mobile responsive
+- [ ] Admin Dashboard vẫn xem reward_transactions
+- [ ] Format 100% giống /transactions
+
+---
+
+## VIII. BACKLOG (Tương Lai)
+
+1. Backfill toàn bộ lịch sử ONCHAIN từ trước
+2. Caching strategy cho large datasets
+3. Pagination optimization
+4. Real-time updates (Supabase Realtime)
+5. Advanced analytics dashboard
 
