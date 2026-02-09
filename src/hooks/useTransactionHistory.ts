@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { getUserDisplayInfo, ProfileData, ChannelData } from "@/lib/userUtils";
+import { getSystemWalletDisplayInfo } from "@/config/systemWallets";
 
 // ======================== TYPES ========================
 // UPDATED: Remove "tip", "reward", "transfer" → Use "gift", "donate", "claim"
@@ -269,6 +270,13 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
         const receiverChannel = channelsMap[d.receiver_id];
         const receiverInfo = getUserDisplayInfo(receiverProfile, receiverChannel);
         
+        // CHECK SYSTEM WALLET OVERRIDE
+        const senderSystemWallet = getSystemWalletDisplayInfo(senderProfile?.wallet_address);
+        const receiverSystemWallet = getSystemWalletDisplayInfo(receiverProfile?.wallet_address);
+        
+        const finalSenderInfo = senderSystemWallet || senderInfo;
+        const finalReceiverInfo = receiverSystemWallet || receiverInfo;
+        
         const token = tokensMap[d.token_id];
         
         // UPDATED: "tip" → "gift", "donate" stays "donate"
@@ -279,18 +287,18 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
           source_table: "donation_transactions",
           
           sender_user_id: d.sender_id,
-          sender_display_name: senderInfo.displayName,
-          sender_username: senderInfo.username,
-          sender_avatar_url: senderInfo.avatarUrl,
-          sender_channel_name: senderInfo.channelName,
+          sender_display_name: finalSenderInfo.displayName,
+          sender_username: finalSenderInfo.username,
+          sender_avatar_url: finalSenderInfo.avatarUrl,
+          sender_channel_name: finalSenderInfo.channelName,
           wallet_from: formatAddress(senderProfile?.wallet_address),
           wallet_from_full: senderProfile?.wallet_address || null,
           
           receiver_user_id: d.receiver_id,
-          receiver_display_name: receiverInfo.displayName,
-          receiver_username: receiverInfo.username,
-          receiver_avatar_url: receiverInfo.avatarUrl,
-          receiver_channel_name: receiverInfo.channelName,
+          receiver_display_name: finalReceiverInfo.displayName,
+          receiver_username: finalReceiverInfo.username,
+          receiver_avatar_url: finalReceiverInfo.avatarUrl,
+          receiver_channel_name: finalReceiverInfo.channelName,
           wallet_to: formatAddress(receiverProfile?.wallet_address),
           wallet_to_full: receiverProfile?.wallet_address || null,
           
@@ -316,25 +324,29 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
         const userChannel = channelsMap[c.user_id];
         const userInfo = getUserDisplayInfo(userProfile, userChannel);
         
+        // CHECK SYSTEM WALLET for receiver (user might be system wallet too)
+        const receiverSystemWallet = getSystemWalletDisplayInfo(userProfile?.wallet_address);
+        const finalReceiverInfo = receiverSystemWallet || userInfo;
+        
         allTransactions.push({
           id: c.id,
           source_table: "claim_requests",
           
-          // Sender: FUN PLAY Treasury (Admin wallet)
+          // Sender: FUN PLAY Treasury (Admin wallet) - Dùng config
           sender_user_id: null,
-          sender_display_name: "FUN PLAY Treasury",
-          sender_username: "@funplay",
+          sender_display_name: "FUN PLAY TREASURY",
+          sender_username: "@funplaytreasury",
           sender_avatar_url: "/images/fun-play-wallet-icon.png",
-          sender_channel_name: "FUN PLAY Treasury",
-          wallet_from: formatAddress(c.wallet_address),
-          wallet_from_full: null,  // Không hiển thị full admin wallet
+          sender_channel_name: "FUN PLAY TREASURY",
+          wallet_from: "0x1DC2...998",
+          wallet_from_full: "0x1DC24BFd99c256B12a4A4cC7732c7e3B9aA75998",
           
           // Receiver: User
           receiver_user_id: c.user_id,
-          receiver_display_name: userInfo.displayName,
-          receiver_username: userInfo.username,
-          receiver_avatar_url: userInfo.avatarUrl,
-          receiver_channel_name: userInfo.channelName,
+          receiver_display_name: finalReceiverInfo.displayName,
+          receiver_username: finalReceiverInfo.username,
+          receiver_avatar_url: finalReceiverInfo.avatarUrl,
+          receiver_channel_name: finalReceiverInfo.channelName,
           wallet_to: formatAddress(c.wallet_address),
           wallet_to_full: c.wallet_address,
           
@@ -364,23 +376,30 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
         const toChannel = channelsMap[w.to_user_id];
         const toInfo = getUserDisplayInfo(toProfile, toChannel);
         
+        // CHECK SYSTEM WALLET OVERRIDE for both sender and receiver
+        const senderSystemWallet = getSystemWalletDisplayInfo(w.from_address);
+        const receiverSystemWallet = getSystemWalletDisplayInfo(w.to_address);
+        
+        const finalFromInfo = senderSystemWallet || fromInfo;
+        const finalToInfo = receiverSystemWallet || toInfo;
+        
         allTransactions.push({
           id: w.id,
           source_table: "wallet_transactions",
           
           sender_user_id: w.from_user_id,
-          sender_display_name: fromInfo.displayName,
-          sender_username: fromInfo.username,
-          sender_avatar_url: fromInfo.avatarUrl,
-          sender_channel_name: fromInfo.channelName,
+          sender_display_name: finalFromInfo.displayName,
+          sender_username: finalFromInfo.username,
+          sender_avatar_url: finalFromInfo.avatarUrl,
+          sender_channel_name: finalFromInfo.channelName,
           wallet_from: formatAddress(w.from_address),
           wallet_from_full: w.from_address,
           
           receiver_user_id: w.to_user_id,
-          receiver_display_name: toInfo.displayName,
-          receiver_username: toInfo.username,
-          receiver_avatar_url: toInfo.avatarUrl,
-          receiver_channel_name: toInfo.channelName,
+          receiver_display_name: finalToInfo.displayName,
+          receiver_username: finalToInfo.username,
+          receiver_avatar_url: finalToInfo.avatarUrl,
+          receiver_channel_name: finalToInfo.channelName,
           wallet_to: formatAddress(w.to_address),
           wallet_to_full: w.to_address,
           
