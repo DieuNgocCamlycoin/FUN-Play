@@ -55,11 +55,9 @@ export function TransactionFilters({
 
   const typeOptions = [
     { value: "all", label: "Tất cả loại" },
-    { value: "tip", label: "Tip" },
+    { value: "gift", label: "Tặng thưởng" },
     { value: "donate", label: "Ủng hộ" },
-    { value: "reward", label: "Thưởng" },
     { value: "claim", label: "Rút thưởng" },
-    { value: "transfer", label: "Chuyển tiền" },
   ];
 
   const timeOptions = [

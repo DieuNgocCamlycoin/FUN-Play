@@ -35,22 +35,18 @@ export const TransactionCard = memo(function TransactionCard({
 
   const getTypeLabel = () => {
     switch (transaction.transaction_type) {
-      case "tip": return "Tip";
+      case "gift": return "Tặng thưởng";
       case "donate": return "Ủng hộ";
-      case "reward": return "Thưởng";
       case "claim": return "Rút thưởng";
-      case "transfer": return "Chuyển tiền";
       default: return "Giao dịch";
     }
   };
 
   const getTypeBadgeColor = () => {
     switch (transaction.transaction_type) {
-      case "tip": return "bg-pink-500/10 text-pink-500 border-pink-500/20";
+      case "gift": return "bg-pink-500/10 text-pink-500 border-pink-500/20";
       case "donate": return "bg-purple-500/10 text-purple-500 border-purple-500/20";
-      case "reward": return "bg-amber-500/10 text-amber-500 border-amber-500/20";
       case "claim": return "bg-green-500/10 text-green-500 border-green-500/20";
-      case "transfer": return "bg-blue-500/10 text-blue-500 border-blue-500/20";
       default: return "bg-muted";
     }
   };

@@ -120,7 +120,7 @@ const TransactionsPage = () => {
                   <div>
                     <CardTitle className="text-base">Danh Sách Giao Dịch</CardTitle>
                     <CardDescription>
-                      Hiển thị {transactions.length} giao dịch công khai trên nền tảng
+                      Mọi giao dịch onchain công khai (ai cũng có thể xem)
                     </CardDescription>
                   </div>
                 </div>

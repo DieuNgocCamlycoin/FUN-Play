@@ -1,26 +1,32 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { getUserDisplayInfo, ProfileData, ChannelData } from "@/lib/userUtils";
 
 // ======================== TYPES ========================
-export type TransactionType = "tip" | "donate" | "reward" | "claim" | "transfer";
+// UPDATED: Remove "tip", "reward", "transfer" → Use "gift", "donate", "claim"
+export type TransactionType = "gift" | "donate" | "claim";
 export type TransactionStatus = "success" | "pending" | "failed";
 
 export interface UnifiedTransaction {
   id: string;
-  source_table: "donation_transactions" | "reward_transactions" | "wallet_transactions";
+  source_table: "donation_transactions" | "claim_requests" | "wallet_transactions";
   
-  // Người gửi
+  // Người gửi (UPDATED: added username + channel_name)
   sender_user_id: string | null;
   sender_display_name: string;
+  sender_username: string;
   sender_avatar_url: string | null;
+  sender_channel_name: string;
   wallet_from: string | null;
   wallet_from_full: string | null;
   
-  // Người nhận
+  // Người nhận (UPDATED: added username + channel_name)
   receiver_user_id: string | null;
   receiver_display_name: string;
+  receiver_username: string;
   receiver_avatar_url: string | null;
+  receiver_channel_name: string;
   wallet_to: string | null;
   wallet_to_full: string | null;
   
@@ -30,7 +36,7 @@ export interface UnifiedTransaction {
   transaction_type: TransactionType;
   message: string | null;
   
-  // Blockchain
+  // Blockchain (REQUIRED: only onchain transactions)
   is_onchain: boolean;
   chain: string | null;
   tx_hash: string | null;
@@ -51,7 +57,7 @@ export interface TransactionFilters {
   endDate?: Date;
   isOnchain?: boolean | "all";
   status?: TransactionStatus | "all";
-  userId?: string; // Chỉ lấy giao dịch của user này
+  userId?: string;
 }
 
 export interface TransactionStats {
@@ -63,7 +69,7 @@ export interface TransactionStats {
 }
 
 interface UseTransactionHistoryOptions {
-  publicMode?: boolean; // true = trang công khai, false = ví cá nhân
+  publicMode?: boolean;
   limit?: number;
   filters?: TransactionFilters;
 }
@@ -128,11 +134,12 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
       const currentOffset = reset ? 0 : offset;
       const allTransactions: UnifiedTransaction[] = reset ? [] : [...transactions];
       
-      // ========== 1. Lấy donation_transactions (công khai) ==========
+      // ========== 1. Lấy donation_transactions (ONCHAIN ONLY) ==========
       let donationQuery = supabase
         .from("donation_transactions")
         .select("*")
         .eq("status", "success")
+        .not("tx_hash", "is", null)  // CHỈ LẤY ONCHAIN
         .order("created_at", { ascending: false })
         .range(currentOffset, currentOffset + limit - 1);
       
@@ -142,6 +149,8 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
           .from("donation_transactions")
           .select("*")
           .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
+          .eq("status", "success")
+          .not("tx_hash", "is", null)
           .order("created_at", { ascending: false })
           .range(currentOffset, currentOffset + limit - 1);
       }
@@ -150,30 +159,60 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
       
       if (donationError) throw donationError;
 
-      // ========== 2. Lấy reward_transactions (chỉ của user) ==========
-      let rewardData: any[] = [];
-      if (!publicMode && user?.id) {
-        const { data: rewards, error: rewardError } = await supabase
-          .from("reward_transactions")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false })
-          .range(currentOffset, currentOffset + limit - 1);
-        
-        if (rewardError) throw rewardError;
-        rewardData = rewards || [];
+      // ========== 2. Lấy claim_requests (THAY CHO reward_transactions) ==========
+      let claimData: any[] = [];
+      
+      // Public mode: lấy tất cả claim success
+      // Private mode: chỉ lấy của user
+      const claimQuery = publicMode 
+        ? supabase
+            .from("claim_requests")
+            .select("*")
+            .eq("status", "success")
+            .not("tx_hash", "is", null)
+            .order("created_at", { ascending: false })
+            .range(currentOffset, currentOffset + limit - 1)
+        : user?.id
+          ? supabase
+              .from("claim_requests")
+              .select("*")
+              .eq("user_id", user.id)
+              .eq("status", "success")
+              .not("tx_hash", "is", null)
+              .order("created_at", { ascending: false })
+              .range(currentOffset, currentOffset + limit - 1)
+          : null;
+      
+      if (claimQuery) {
+        const { data: claims, error: claimError } = await claimQuery;
+        if (claimError) throw claimError;
+        claimData = claims || [];
       }
 
-      // ========== 3. Lấy wallet_transactions (chỉ của user) ==========
+      // ========== 3. Lấy wallet_transactions (ONCHAIN ONLY) ==========
       let walletData: any[] = [];
-      if (!publicMode && user?.id) {
-        const { data: wallets, error: walletError } = await supabase
-          .from("wallet_transactions")
-          .select("*")
-          .or(`from_user_id.eq.${user.id},to_user_id.eq.${user.id}`)
-          .order("created_at", { ascending: false })
-          .range(currentOffset, currentOffset + limit - 1);
-        
+      
+      const walletQuery = publicMode
+        ? supabase
+            .from("wallet_transactions")
+            .select("*")
+            .eq("status", "success")
+            .not("tx_hash", "is", null)
+            .order("created_at", { ascending: false })
+            .range(currentOffset, currentOffset + limit - 1)
+        : user?.id
+          ? supabase
+              .from("wallet_transactions")
+              .select("*")
+              .or(`from_user_id.eq.${user.id},to_user_id.eq.${user.id}`)
+              .eq("status", "success")
+              .not("tx_hash", "is", null)
+              .order("created_at", { ascending: false })
+              .range(currentOffset, currentOffset + limit - 1)
+          : null;
+      
+      if (walletQuery) {
+        const { data: wallets, error: walletError } = await walletQuery;
         if (walletError) throw walletError;
         walletData = wallets || [];
       }
@@ -188,8 +227,8 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
         if (d.token_id) tokenIds.add(d.token_id);
       });
 
-      rewardData.forEach(r => {
-        if (r.user_id) userIds.add(r.user_id);
+      claimData.forEach(c => {
+        if (c.user_id) userIds.add(c.user_id);
       });
 
       walletData.forEach(w => {
@@ -197,10 +236,13 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
         if (w.to_user_id) userIds.add(w.to_user_id);
       });
 
-      // ========== 5. Fetch profiles và tokens ==========
-      const [profilesRes, tokensRes] = await Promise.all([
+      // ========== 5. Fetch profiles, channels, và tokens ==========
+      const [profilesRes, channelsRes, tokensRes] = await Promise.all([
         userIds.size > 0
           ? supabase.from("profiles").select("id, username, display_name, avatar_url, wallet_address").in("id", Array.from(userIds))
+          : Promise.resolve({ data: [] }),
+        userIds.size > 0
+          ? supabase.from("channels").select("id, user_id, name").in("user_id", Array.from(userIds))
           : Promise.resolve({ data: [] }),
         tokenIds.size > 0
           ? supabase.from("donate_tokens").select("id, symbol, chain").in("id", Array.from(tokenIds))
@@ -208,8 +250,11 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
       ]);
 
       // Build lookup maps
-      const profilesMap: Record<string, any> = {};
+      const profilesMap: Record<string, ProfileData> = {};
       (profilesRes.data || []).forEach(p => { profilesMap[p.id] = p; });
+
+      const channelsMap: Record<string, ChannelData> = {};
+      (channelsRes.data || []).forEach(c => { channelsMap[c.user_id] = c; });
 
       const tokensMap: Record<string, any> = {};
       (tokensRes.data || []).forEach(t => { tokensMap[t.id] = t; });
@@ -217,31 +262,44 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
       // ========== 6. Normalize donation_transactions ==========
       donations?.forEach(d => {
         const senderProfile = profilesMap[d.sender_id];
+        const senderChannel = channelsMap[d.sender_id];
+        const senderInfo = getUserDisplayInfo(senderProfile, senderChannel);
+        
         const receiverProfile = profilesMap[d.receiver_id];
+        const receiverChannel = channelsMap[d.receiver_id];
+        const receiverInfo = getUserDisplayInfo(receiverProfile, receiverChannel);
+        
         const token = tokensMap[d.token_id];
+        
+        // UPDATED: "tip" → "gift", "donate" stays "donate"
+        const transactionType: TransactionType = d.context_type === "tip" ? "gift" : "donate";
         
         allTransactions.push({
           id: d.id,
           source_table: "donation_transactions",
           
           sender_user_id: d.sender_id,
-          sender_display_name: senderProfile?.display_name || senderProfile?.username || "Ẩn danh",
-          sender_avatar_url: senderProfile?.avatar_url,
+          sender_display_name: senderInfo.displayName,
+          sender_username: senderInfo.username,
+          sender_avatar_url: senderInfo.avatarUrl,
+          sender_channel_name: senderInfo.channelName,
           wallet_from: formatAddress(senderProfile?.wallet_address),
-          wallet_from_full: senderProfile?.wallet_address,
+          wallet_from_full: senderProfile?.wallet_address || null,
           
           receiver_user_id: d.receiver_id,
-          receiver_display_name: receiverProfile?.display_name || receiverProfile?.username || "Ẩn danh",
-          receiver_avatar_url: receiverProfile?.avatar_url,
+          receiver_display_name: receiverInfo.displayName,
+          receiver_username: receiverInfo.username,
+          receiver_avatar_url: receiverInfo.avatarUrl,
+          receiver_channel_name: receiverInfo.channelName,
           wallet_to: formatAddress(receiverProfile?.wallet_address),
-          wallet_to_full: receiverProfile?.wallet_address,
+          wallet_to_full: receiverProfile?.wallet_address || null,
           
           token_symbol: token?.symbol || "CAMLY",
           amount: d.amount,
-          transaction_type: d.context_type === "tip" ? "tip" : "donate",
+          transaction_type: transactionType,
           message: d.message,
           
-          is_onchain: !!d.tx_hash,
+          is_onchain: true,  // Luôn true vì đã filter
           chain: d.chain || token?.chain || "BSC",
           tx_hash: d.tx_hash,
           explorer_url: getExplorerUrl(d.chain || token?.chain, d.tx_hash),
@@ -252,69 +310,86 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
         });
       });
 
-      // ========== 7. Normalize reward_transactions ==========
-      rewardData.forEach(r => {
-        const userProfile = profilesMap[r.user_id];
+      // ========== 7. Normalize claim_requests (THAY CHO reward_transactions) ==========
+      claimData.forEach(c => {
+        const userProfile = profilesMap[c.user_id];
+        const userChannel = channelsMap[c.user_id];
+        const userInfo = getUserDisplayInfo(userProfile, userChannel);
         
         allTransactions.push({
-          id: r.id,
-          source_table: "reward_transactions",
+          id: c.id,
+          source_table: "claim_requests",
           
+          // Sender: FUN PLAY Treasury (Admin wallet)
           sender_user_id: null,
-          sender_display_name: "Hệ thống FUN PLAY",
+          sender_display_name: "FUN PLAY Treasury",
+          sender_username: "@funplay",
           sender_avatar_url: "/images/fun-play-wallet-icon.png",
-          wallet_from: null,
-          wallet_from_full: null,
+          sender_channel_name: "FUN PLAY Treasury",
+          wallet_from: formatAddress(c.wallet_address),
+          wallet_from_full: null,  // Không hiển thị full admin wallet
           
-          receiver_user_id: r.user_id,
-          receiver_display_name: userProfile?.display_name || userProfile?.username || "Người dùng",
-          receiver_avatar_url: userProfile?.avatar_url,
-          wallet_to: formatAddress(userProfile?.wallet_address),
-          wallet_to_full: userProfile?.wallet_address,
+          // Receiver: User
+          receiver_user_id: c.user_id,
+          receiver_display_name: userInfo.displayName,
+          receiver_username: userInfo.username,
+          receiver_avatar_url: userInfo.avatarUrl,
+          receiver_channel_name: userInfo.channelName,
+          wallet_to: formatAddress(c.wallet_address),
+          wallet_to_full: c.wallet_address,
           
           token_symbol: "CAMLY",
-          amount: r.amount,
-          transaction_type: "reward",
-          message: `Thưởng ${r.reward_type || "hoạt động"}`,
+          amount: c.amount,
+          transaction_type: "claim",
+          message: "Rút thưởng CAMLY về ví",
           
-          is_onchain: !!r.claim_tx_hash,
+          is_onchain: true,
           chain: "BSC",
-          tx_hash: r.claim_tx_hash || r.tx_hash,
-          explorer_url: getExplorerUrl("BSC", r.claim_tx_hash || r.tx_hash),
+          tx_hash: c.tx_hash,
+          explorer_url: getExplorerUrl("BSC", c.tx_hash),
           
-          status: r.status as TransactionStatus,
-          created_at: r.created_at,
+          status: "success",
+          created_at: c.processed_at || c.created_at,
           updated_at: null,
         });
       });
 
-      // ========== 8. Normalize wallet_transactions ==========
+      // ========== 8. Normalize wallet_transactions (→ "gift") ==========
       walletData.forEach(w => {
         const fromProfile = profilesMap[w.from_user_id];
+        const fromChannel = channelsMap[w.from_user_id];
+        const fromInfo = getUserDisplayInfo(fromProfile, fromChannel);
+        
         const toProfile = profilesMap[w.to_user_id];
+        const toChannel = channelsMap[w.to_user_id];
+        const toInfo = getUserDisplayInfo(toProfile, toChannel);
         
         allTransactions.push({
           id: w.id,
           source_table: "wallet_transactions",
           
           sender_user_id: w.from_user_id,
-          sender_display_name: fromProfile?.display_name || fromProfile?.username || "Ẩn danh",
-          sender_avatar_url: fromProfile?.avatar_url,
+          sender_display_name: fromInfo.displayName,
+          sender_username: fromInfo.username,
+          sender_avatar_url: fromInfo.avatarUrl,
+          sender_channel_name: fromInfo.channelName,
           wallet_from: formatAddress(w.from_address),
           wallet_from_full: w.from_address,
           
           receiver_user_id: w.to_user_id,
-          receiver_display_name: toProfile?.display_name || toProfile?.username || "Ẩn danh",
-          receiver_avatar_url: toProfile?.avatar_url,
+          receiver_display_name: toInfo.displayName,
+          receiver_username: toInfo.username,
+          receiver_avatar_url: toInfo.avatarUrl,
+          receiver_channel_name: toInfo.channelName,
           wallet_to: formatAddress(w.to_address),
           wallet_to_full: w.to_address,
           
           token_symbol: w.token_type || "CAMLY",
           amount: w.amount,
-          transaction_type: "transfer",
+          transaction_type: "gift",  // UPDATED: "transfer" → "gift"
           message: null,
           
-          is_onchain: !!w.tx_hash,
+          is_onchain: true,
           chain: "BSC",
           tx_hash: w.tx_hash,
           explorer_url: getExplorerUrl("BSC", w.tx_hash),
@@ -345,7 +420,11 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
       setStats(newStats);
       setTransactions(allTransactions);
       setFilteredTransactions(allTransactions);
-      setHasMore((donations?.length || 0) >= limit);
+      setHasMore(
+        (donations?.length || 0) >= limit || 
+        claimData.length >= limit || 
+        walletData.length >= limit
+      );
       if (reset) setOffset(0);
       
     } catch (err) {
@@ -410,12 +489,14 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
       filtered = filtered.filter(t => t.status === filters.status);
     }
 
-    // Search filter
+    // Search filter (UPDATED: include username)
     if (filters.search) {
       const search = filters.search.toLowerCase();
       filtered = filtered.filter(t =>
         t.sender_display_name.toLowerCase().includes(search) ||
+        t.sender_username.toLowerCase().includes(search) ||
         t.receiver_display_name.toLowerCase().includes(search) ||
+        t.receiver_username.toLowerCase().includes(search) ||
         t.wallet_from_full?.toLowerCase().includes(search) ||
         t.wallet_to_full?.toLowerCase().includes(search) ||
         t.tx_hash?.toLowerCase().includes(search) ||
