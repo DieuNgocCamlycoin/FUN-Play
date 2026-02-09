@@ -114,6 +114,16 @@ export default defineConfig(({ mode }) => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
-    dedupe: ['viem', 'wagmi', '@wagmi/core', '@walletconnect/ethereum-provider']
+    // CRITICAL: Dedupe React to prevent "Invalid hook call" errors
+    // when @reown/appkit bundles its own React copy
+    dedupe: [
+      'react', 
+      'react-dom', 
+      'viem', 
+      'wagmi', 
+      '@wagmi/core', 
+      '@walletconnect/ethereum-provider',
+      '@tanstack/react-query'
+    ]
   },
 }));
