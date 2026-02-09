@@ -1,205 +1,263 @@
 
-# KẾ HOẠCH CẬP NHẬT TÊN VÀ AVATAR CHO VÍ HỆ THỐNG FUN PLAY
+
+# KẾ HOẠCH BACKFILL & HOÀN THIỆN LỊCH SỬ GIAO DỊCH ONCHAIN FUN PLAY
 
 ---
 
-## I. YÊU CẦU TỪ USER
+## I. PHÂN TÍCH VẤN ĐỀ HIỆN TẠI
 
-User muốn 2 ví hệ thống hiển thị tên và avatar FUN PLAY trong lịch sử giao dịch:
+### Dữ Liệu Database Hiện Có
+| Bảng | Số GD Onchain | Tổng CAMLY | Ghi Chú |
+|------|---------------|------------|---------|
+| `donation_transactions` | 20 | 1,068,845 | status = 'success' |
+| `claim_requests` | 23 | 6,874,000 | status = 'success' |
+| `wallet_transactions` | 97 | 6,931,360 | status = '**completed**' (KHÔNG PHẢI 'success') |
+| **TỔNG HIỆN TẠI** | **140** | **~14.87M** | |
+| **HIỂN THỊ THỰC TẾ** | **43** | **~7.94M** | Do lỗi RLS + Hook |
 
-| Ví | Địa Chỉ | Tên Hiển Thị | Avatar |
-|----|---------|--------------|--------|
-| **Ví Tặng & Thưởng** | `0x8f09073be2B5F4a953939dEBa8c5DFC8098FC0E8` | "FUN PLAY TẶNG & THƯỞNG" | Logo FUN PLAY |
-| **Ví Treasury** | `0x1DC24BFd99c256B12a4A4cC7732c7e3B9aA75998` | "FUN PLAY TREASURY" | Logo FUN PLAY |
+### 3 Vấn Đề Cần Sửa Ngay
 
----
+**VẤN ĐỀ 1: RLS Policy sai cho `wallet_transactions`**
+- RLS policy: `status = 'success'`
+- Dữ liệu thực tế: `status = 'completed'`
+- Kết quả: 97 giao dịch bị ẩn!
 
-## II. PHÂN TÍCH HIỆN TẠI
+**VẤN ĐỀ 2: Hook `useTransactionHistory.ts` cũng sai**
+- Dòng 200, 209: `eq("status", "success")`
+- Cần đổi thành: `eq("status", "completed")`
 
-### Các File Liên Quan
-1. **`src/hooks/useTransactionHistory.ts`**: Hook xử lý normalization giao dịch
-2. **`src/components/Transactions/TransactionCard.tsx`**: Component hiển thị giao dịch
-3. **`src/lib/web3Config.ts`**: Đã có `REWARD_WALLET_ADDRESS` cho ví Treasury
-
-### Logic Hiện Tại (trong `useTransactionHistory.ts`)
-- Dòng 313-355: Normalize `claim_requests` → Đã hardcode "FUN PLAY Treasury" cho sender
-- Dòng 263-311: Normalize `donation_transactions` → Dùng profile từ database
-- Dòng 357-401: Normalize `wallet_transactions` → Dùng profile từ database
-
-### Avatar Path Có Sẵn
-- `/images/fun-play-wallet-icon.png` - Đang được sử dụng cho claim_requests
-
-### Vấn Đề Cần Giải Quyết
-1. **Ví Tặng & Thưởng (`0x8f09...0E8`)**: Chưa được nhận diện đặc biệt
-2. **Ví Treasury (`0x1DC2...998`)**: Đã nhận diện cho claim, nhưng khi là sender/receiver trong donation/wallet_transactions thì chưa
+**VẤN ĐỀ 3: Thiếu giao dịch lịch sử onchain (Backfill)**
+- Database chỉ có từ 25/11/2025 (wallet_tx) và 02/01/2026 (claim)
+- User nói: đã chuyển **>60M CAMLY** nhưng DB chỉ có ~14.87M
+- **Cần backfill từ blockchain** để lấy đủ lịch sử
 
 ---
 
-## III. GIẢI PHÁP
+## II. THÔNG TIN 2 VÍ HỆ THỐNG
 
-### Phương án: Tạo Config System Wallets + Override trong Normalization
+| # | Tên Hiển Thị | Địa Chỉ | Vai Trò |
+|---|-------------|---------|---------|
+| 1 | **FUN PLAY TẶNG & THƯỞNG** | `0x8f09073be2B5F4a953939dEBa8c5DFC8098FC0E8` | Ví tặng thưởng CAMLY |
+| 2 | **FUN PLAY TREASURY** | `0x1DC24BFd99c256B12a4A4cC7732c7e3B9aA75998` | Ví Treasury (claim) |
 
-#### Bước 1: Tạo System Wallet Config
-**File**: `src/config/systemWallets.ts` (mới)
+**Avatar**: `/images/fun-play-wallet-icon.png`
+**Token CAMLY**: `0x0910320181889fefde0bb1ca63962b0a8882e413` (BSC Mainnet)
+
+---
+
+## III. KẾ HOẠCH TRIỂN KHAI
+
+### PHASE 1: SỬA LỖI RLS POLICY (KHẨN CẤP)
+
+**File**: Database Migration
+
+```sql
+-- Drop policy cũ (sai status)
+DROP POLICY IF EXISTS "Public can view onchain wallet transfers" 
+  ON public.wallet_transactions;
+
+-- Tạo policy mới với status = 'completed'
+CREATE POLICY "Public can view onchain wallet transfers"
+  ON public.wallet_transactions
+  FOR SELECT
+  USING (tx_hash IS NOT NULL AND status = 'completed');
+```
+
+**Kết quả**: Unlock thêm 97 giao dịch = +6.93M CAMLY
+
+---
+
+### PHASE 2: SỬA HOOK useTransactionHistory.ts
+
+**File**: `src/hooks/useTransactionHistory.ts`
+
+**Thay đổi dòng 200 và 209**:
+- OLD: `.eq("status", "success")`
+- NEW: `.eq("status", "completed")`
 
 ```typescript
-// Cấu hình các ví hệ thống FUN PLAY
-export const SYSTEM_WALLETS = {
-  // Ví tặng thưởng & airdrop
-  REWARD: {
-    address: "0x8f09073be2B5F4a953939dEBa8c5DFC8098FC0E8",
-    displayName: "FUN PLAY TẶNG & THƯỞNG",
-    username: "@funplayreward",
-    channelName: "FUN PLAY TẶNG & THƯỞNG",
-    avatarUrl: "/images/fun-play-wallet-icon.png",
-  },
-  // Ví Treasury (claim, distribution)
-  TREASURY: {
-    address: "0x1DC24BFd99c256B12a4A4cC7732c7e3B9aA75998",
-    displayName: "FUN PLAY TREASURY",
-    username: "@funplaytreasury",
-    channelName: "FUN PLAY TREASURY",
-    avatarUrl: "/images/fun-play-wallet-icon.png",
-  },
-};
-
-// Helper function: Check if address is a system wallet
-export function getSystemWalletInfo(address: string | null | undefined) {
-  if (!address) return null;
-  
-  const normalizedAddress = address.toLowerCase();
-  
-  if (normalizedAddress === SYSTEM_WALLETS.REWARD.address.toLowerCase()) {
-    return SYSTEM_WALLETS.REWARD;
-  }
-  if (normalizedAddress === SYSTEM_WALLETS.TREASURY.address.toLowerCase()) {
-    return SYSTEM_WALLETS.TREASURY;
-  }
-  
-  return null;
-}
-
-// Check if wallet is any system wallet
-export function isSystemWallet(address: string | null | undefined): boolean {
-  return getSystemWalletInfo(address) !== null;
-}
+// Dòng 196-213: Sửa wallet_transactions query
+const walletQuery = publicMode
+  ? supabase
+      .from("wallet_transactions")
+      .select("*")
+      .eq("status", "completed")  // ✅ SỬA: success → completed
+      .not("tx_hash", "is", null)
+      ...
+  : user?.id
+    ? supabase
+        .from("wallet_transactions")
+        ...
+        .eq("status", "completed")  // ✅ SỬA: success → completed
+        ...
 ```
 
-#### Bước 2: Cập Nhật Hook `useTransactionHistory.ts`
-**Thay đổi**:
-1. Import `getSystemWalletInfo` từ config
-2. Trong mỗi normalize block (donation, claim, wallet), check nếu address là system wallet → override display info
+**Thay đổi dòng 416** (khi normalize wallet_transactions):
+- OLD: `status: w.status as TransactionStatus`
+- NEW: Map 'completed' → 'success' cho consistency
 
-**Logic cập nhật**:
 ```typescript
-// Import ở đầu file
-import { getSystemWalletInfo } from "@/config/systemWallets";
-
-// Trong normalize donation_transactions (khoảng dòng 262-311)
-// Sau khi có senderInfo, receiverInfo từ profiles:
-
-// Check if sender is system wallet
-const senderSystemWallet = getSystemWalletInfo(senderProfile?.wallet_address);
-const finalSenderInfo = senderSystemWallet || senderInfo;
-
-// Check if receiver is system wallet  
-const receiverSystemWallet = getSystemWalletInfo(receiverProfile?.wallet_address);
-const finalReceiverInfo = receiverSystemWallet || receiverInfo;
-
-// Sử dụng finalSenderInfo, finalReceiverInfo thay vì senderInfo, receiverInfo
+status: w.status === 'completed' ? 'success' : w.status as TransactionStatus,
 ```
 
-#### Bước 3: Cập Nhật `src/lib/web3Config.ts` (Optional - Sync Reference)
-- Cập nhật `REWARD_WALLET_ADDRESS` để reference từ config mới
-- Hoặc giữ nguyên nếu không muốn breaking changes
+**Kết quả**: Hook sẽ fetch đúng 97 giao dịch wallet
 
 ---
 
-## IV. CHI TIẾT TRIỂN KHAI
+### PHASE 3: TẠO EDGE FUNCTION BACKFILL BLOCKCHAIN
 
-### File 1: `src/config/systemWallets.ts` (TẠO MỚI)
-**Nội dung**: Config 2 ví hệ thống với tên, avatar, username
+**File mới**: `supabase/functions/backfill-blockchain-history/index.ts`
 
-**Dòng code**: ~40 dòng
+**Mục đích**: Quét lịch sử giao dịch CAMLY từ BSCScan API cho 2 ví hệ thống
 
-### File 2: `src/hooks/useTransactionHistory.ts` (CẬP NHẬT)
+**Logic**:
+1. Gọi BSCScan API lấy token transfers của CAMLY từ/đến 2 ví hệ thống
+2. Filter: chỉ lấy giao dịch CAMLY (contract `0x0910...e413`)
+3. Với mỗi giao dịch:
+   - Check tx_hash đã tồn tại trong DB chưa
+   - Nếu chưa → Insert vào `wallet_transactions`
+4. Map wallet address → user_id qua bảng `profiles.wallet_address`
+
+```typescript
+// Pseudo-code
+const BSCSCAN_API = "https://api.bscscan.com/api";
+const CAMLY_TOKEN = "0x0910320181889fefde0bb1ca63962b0a8882e413";
+const SYSTEM_WALLETS = [
+  "0x8f09073be2B5F4a953939dEBa8c5DFC8098FC0E8", // TẶNG & THƯỞNG
+  "0x1DC24BFd99c256B12a4A4cC7732c7e3B9aA75998"  // TREASURY
+];
+
+// Fetch token transfers từ BSCScan
+for (const wallet of SYSTEM_WALLETS) {
+  const transfers = await fetch(
+    `${BSCSCAN_API}?module=account&action=tokentx` +
+    `&contractaddress=${CAMLY_TOKEN}` +
+    `&address=${wallet}` +
+    `&startblock=0&endblock=99999999` +
+    `&sort=asc` +
+    `&apikey=${BSCSCAN_API_KEY}`
+  );
+  
+  for (const tx of transfers.result) {
+    // Check duplicate
+    const existing = await supabase
+      .from("wallet_transactions")
+      .select("id")
+      .eq("tx_hash", tx.hash)
+      .single();
+    
+    if (!existing) {
+      // Insert new transaction
+      await supabase.from("wallet_transactions").insert({
+        from_address: tx.from,
+        to_address: tx.to,
+        amount: Number(tx.value) / 1e18,
+        token_type: "CAMLY",
+        tx_hash: tx.hash,
+        status: "completed",
+        created_at: new Date(Number(tx.timeStamp) * 1000).toISOString(),
+        // Map user IDs if possible
+      });
+    }
+  }
+}
+```
+
+**Yêu cầu**: Cần BSCScan API Key (sẽ request qua `add_secret`)
+
+---
+
+### PHASE 4: THÊM BSCSCAN API KEY
+
+Cần request user cung cấp BSCScan API Key để:
+- Không bị rate limit (5 calls/sec miễn phí)
+- Fetch được toàn bộ lịch sử không giới hạn
+
+**Lấy tại**: https://bscscan.com/myapikey (miễn phí)
+
+---
+
+### PHASE 5: NÂNG CAP PAGINATION & STATS
+
+**File**: `src/hooks/useTransactionHistory.ts`
+
 **Thay đổi**:
-1. **Dòng 1-5**: Thêm import `getSystemWalletInfo`
-2. **Dòng 262-311 (Normalize donation)**: 
-   - Check sender wallet → System wallet override
-   - Check receiver wallet → System wallet override
-3. **Dòng 313-355 (Normalize claim)**: 
-   - Giữ nguyên (đã hardcode FUN PLAY Treasury)
-   - Hoặc refactor dùng config
-4. **Dòng 357-401 (Normalize wallet_transactions)**:
-   - Check from_address → System wallet override
-   - Check to_address → System wallet override
-
-**Dòng code thay đổi**: ~30 dòng
+1. Tăng limit mặc định: 50 → 100
+2. Sửa `hasMore` logic để không bị dừng sớm
+3. Stats tính đúng với tổng số giao dịch thực
 
 ---
 
-## V. BẢNG TỔNG HỢP
+## IV. BẢNG TỔNG HỢP THAY ĐỔI
 
-| # | File | Loại | Phức Tạp | Dòng | Mô Tả |
-|---|------|------|----------|------|-------|
-| 1 | `src/config/systemWallets.ts` | Tạo mới | ⭐⭐ | ~40 | Config 2 ví hệ thống |
-| 2 | `src/hooks/useTransactionHistory.ts` | Cập nhật | ⭐⭐⭐ | ~30 | Override display info cho system wallets |
-
-**Tổng dòng**: ~70 dòng  
-**Phức tạp**: ⭐⭐⭐ (Trung bình)  
-**Thời gian**: 20-30 phút
+| # | File/Resource | Loại | Phức Tạp | Mô Tả |
+|---|---------------|------|----------|-------|
+| 1 | Database Migration | Update RLS | ⭐⭐ | Fix status 'completed' cho wallet_transactions |
+| 2 | `useTransactionHistory.ts` | Edit Hook | ⭐⭐ | Fix query status + map status |
+| 3 | `backfill-blockchain-history/index.ts` | New Edge Function | ⭐⭐⭐⭐ | Quét lịch sử từ BSCScan |
+| 4 | Secret: BSCSCAN_API_KEY | Add Secret | ⭐ | Cần user cung cấp |
 
 ---
 
-## VI. KỲ VỌNG SAU TRIỂN KHAI
+## V. KẾT QUẢ SAU TRIỂN KHAI
 
-### Hiển Thị Trong Lịch Sử Giao Dịch
-
-**Trước**:
+### Trước (Hiện tại)
 ```
-[Avatar user] Unknown User → [Avatar user] Angel Diệu Ngọc
-Ví: 0x8f09...0E8 → 0x1234...5678
-```
-
-**Sau**:
-```
-[Logo FUN PLAY] FUN PLAY TẶNG & THƯỞNG → [Avatar user] Angel Diệu Ngọc
-Ví: 0x8f09...0E8 → 0x1234...5678
+❌ Hiển thị: 43 giao dịch = ~7.94M CAMLY
+❌ Thiếu: wallet_transactions (status = 'completed' bị ẩn)
+❌ Thiếu: Lịch sử onchain cũ chưa được backfill
 ```
 
-### Các Trường Hợp Được Xử Lý
+### Sau Phase 1+2 (Fix RLS + Hook)
+```
+✅ Hiển thị: 140 giao dịch = ~14.87M CAMLY
+✅ wallet_transactions hiển thị đầy đủ
+```
 
-| Trường Hợp | Sender | Receiver | Hiển Thị |
-|------------|--------|----------|----------|
-| User donate cho User | User A | User B | Avatar A → Avatar B |
-| System tặng cho User | FUN PLAY TẶNG & THƯỞNG | User B | Logo FUN PLAY → Avatar B |
-| User claim từ Treasury | FUN PLAY TREASURY | User A | Logo FUN PLAY → Avatar A |
-| System transfer | FUN PLAY TẶNG & THƯỞNG | FUN PLAY TREASURY | Logo → Logo |
-
-### Tính Năng Bổ Sung
-- ✅ Avatar logo FUN PLAY cho cả 2 ví
-- ✅ Tên tiếng Việt thân thiện
-- ✅ Username chuẩn (@funplayreward, @funplaytreasury)
-- ✅ Channel name đồng bộ
-- ✅ Không cần click để xem profile (vì là system wallet)
+### Sau Phase 3+4 (Backfill Blockchain)
+```
+✅ Hiển thị: TẤT CẢ giao dịch CAMLY onchain
+✅ >60M CAMLY được phản ánh đúng
+✅ Minh bạch 100% dòng tiền từ lúc bắt đầu dự án
+```
 
 ---
 
-## VII. NGUYÊN TẮC BẢO MẬT
+## VI. THỨ TỰ TRIỂN KHAI
+
+```
+[1] Fix RLS Policy (Database Migration)
+         ↓
+[2] Fix Hook useTransactionHistory.ts
+         ↓
+[3] Request BSCScan API Key từ user
+         ↓
+[4] Tạo Edge Function backfill-blockchain-history
+         ↓
+[5] Chạy backfill + verify kết quả
+         ↓
+[6] Kiểm tra trang /transactions hiển thị đầy đủ
+```
+
+---
+
+## VII. LƯU Ý BẢO MẬT
 
 | Dữ Liệu | Hiển Thị | Lý Do |
 |---------|----------|-------|
-| Địa chỉ ví hệ thống | ✅ PUBLIC | Web3 standard, minh bạch |
-| Tên ví hệ thống | ✅ PUBLIC | Branding FUN PLAY |
-| Logo FUN PLAY | ✅ PUBLIC | Asset có sẵn |
-| Giao dịch onchain | ✅ PUBLIC | Đã verified blockchain |
+| Tất cả giao dịch CAMLY onchain | ✅ PUBLIC | Web3 transparency |
+| 2 ví hệ thống | ✅ PUBLIC với branding FUN PLAY | Official wallets |
+| Pending/Failed transactions | ❌ PRIVATE | Chưa xác nhận |
+| Reward nội bộ | ❌ PRIVATE | Chỉ admin xem |
 
 ---
 
-## VIII. BACKLOG (Tương Lai)
+## VIII. YÊU CẦU TỪ USER
 
-1. Thêm tooltip "Đây là ví hệ thống FUN PLAY" khi hover
-2. Disable click vào avatar ví hệ thống (vì không có profile page)
-3. Thêm badge "Official" cho ví hệ thống
-4. Sync config với `.env` nếu cần thay đổi địa chỉ ví
+Để hoàn thành Phase 3-4 (Backfill), cần:
+
+1. **BSCScan API Key**: Lấy miễn phí tại https://bscscan.com/myapikey
+2. **Xác nhận**: Có muốn backfill toàn bộ lịch sử từ block đầu tiên không?
+
+Nếu chưa có API Key, tôi sẽ thực hiện Phase 1-2 trước (fix ngay 97 giao dịch bị ẩn).
+
