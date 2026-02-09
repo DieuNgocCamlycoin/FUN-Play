@@ -81,7 +81,7 @@ export function TransactionFilters({
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Tìm kiếm username, ví, tx hash..."
+            placeholder="Tìm theo tên, ví, tx hash..."
             value={filters.search || ""}
             onChange={(e) => updateFilter("search", e.target.value)}
             className="pl-9 h-9"
@@ -127,7 +127,7 @@ export function TransactionFilters({
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Tìm kiếm theo username, địa chỉ ví, mã giao dịch (tx hash)..."
+          placeholder="Tìm theo tên, địa chỉ ví, mã giao dịch (tx hash)..."
           value={filters.search || ""}
           onChange={(e) => updateFilter("search", e.target.value)}
           className="pl-9"
