@@ -73,6 +73,7 @@ const FunMoneyPage = lazy(() => import("./pages/FunMoneyPage"));
 const Search = lazy(() => import("./pages/Search"));
 const Notifications = lazy(() => import("./pages/Notifications"));
 const Library = lazy(() => import("./pages/Library"));
+const Transactions = lazy(() => import("./pages/Transactions"));
 
 const queryClient = new QueryClient();
 
@@ -169,6 +170,7 @@ function AppContent() {
             <Route path="/messages/:chatId" element={<Messages />} />
             <Route path="/search" element={<Search />} />
             <Route path="/notifications" element={<Notifications />} />
+            <Route path="/transactions" element={<Transactions />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
