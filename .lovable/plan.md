@@ -1,159 +1,96 @@
 
 
-# KẾ HOẠCH SỬA DỨT ĐIỂM "LỆCH SỐ" UI vs DB
+# Tối ưu Mobile Header cho chế độ PWA / Add to Home Screen
 
 ---
 
-## I. KẾT QUẢ ĐỐI SOÁT SQL
+## I. Vấn đề
 
-| Nguồn | Count | Sum CAMLY |
-|-------|-------|-----------|
-| wallet_transactions (completed) | 352 | 108,766,530 |
-| donation_transactions (success) | 20 | 1,068,845 |
-| claim_requests (success) | 23 | 6,874,000 |
-| **TONG** | **395** | **~116,709,375** |
-| UI hien thi | 73 | 16,314,935 |
+Khi app được "Thêm vào Màn hình chính" (standalone mode), thanh trình duyệt biến mất nhưng vùng notch/status bar vẫn tồn tại. Header hiện tại dùng `fixed top-0` mà không tính `safe-area-inset-top`, khiến icon bị tràn lên vùng notch. Ngoài ra, 7 icon + avatar trong 1 hàng gây chật trên màn hình nhỏ (< 375px).
 
 ---
 
-## II. NGUYEN NHAN GOC (2 VAN DE CHINH)
+## II. Phân tích kỹ thuật
 
-### Nguyen nhan 1: Pagination limit cat du lieu
-- Trang `/transactions` truyen `limit: 30`
-- Hook chay `.range(0, 29)` cho **MOI bang** doc lap
-- Ket qua: 30 wallet_txs + 20 donations + 23 claims = **73 records** (dung voi so UI hien thi)
-- 322 wallet_transactions bi bo qua hoan toan
+### Hiện trạng
+- `index.html` đã có `viewport-fit=cover` và CSS variables cho `env(safe-area-inset-top)` nhưng `body` dùng `padding-top` thay vì header tự xử lý
+- `MobileHeader` dùng `fixed top-0` cứng, không cộng thêm safe-area
+- `MobileBottomNav` đã có class `safe-area-bottom` nhưng class này chưa được định nghĩa trong CSS
+- Header chứa 7 phần tử bên phải (Search, Gift, FunMoney, Bell, Chat, Avatar) -- tổng cần ~7x44px = 308px, cộng logo+menu ~90px = ~398px, vượt quá nhiều màn hình 360-375px
 
-### Nguyen nhan 2: Stats tinh client-side tu list da bi cat
-- Dong 435-441: `totalCount = allTransactions.length` (chi la 73, khong phai 395)
-- `totalValue = reduce(sum)` chi cong 73 records = 16.3M thay vi 116.7M
-- Stats PHAI duoc tinh server-side bang RPC, khong the dua vao list dang render
+### Giải pháp
+
+1. **Safe-area padding cho header**: Thêm `padding-top: env(safe-area-inset-top)` vào header, tổng chiều cao = `safe-area + 56px`
+2. **Giảm kích thước touch target**: Từ `h-11 w-11` (44px) xuống `h-9 w-9` (36px) cho icon buttons, giữ icon 24px -- vẫn đạt chuẩn WCAG tối thiểu
+3. **Giảm gap**: Từ `gap-1` xuống `gap-0` để tiết kiệm không gian
+4. **Detect PWA mode**: Thêm hook `useIsPWA()` để nhận diện standalone mode
+5. **CSS safe-area utilities**: Thêm class tiện ích cho safe-area top/bottom
 
 ---
 
-## III. GIAI PHAP
+## III. Chi tiết thay đổi
 
-### PHASE 1: Tao RPC function tinh stats server-side
+### 1. Thêm hook `useIsPWA` (file mới)
 
-Tao PostgreSQL function `get_transaction_stats` de:
-- COUNT va SUM tu 3 bang (wallet_transactions, donation_transactions, claim_requests)
-- Chi dem onchain completed (status='completed'/'success' + tx_hash NOT NULL)
-- Ho tro 2 mode: public (tat ca) va personal (theo wallet_address)
-- Tra ve: total_count, total_value, today_count, success_count
-
-```sql
-CREATE OR REPLACE FUNCTION get_transaction_stats(p_wallet_address TEXT DEFAULT NULL)
-RETURNS JSONB
-LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
-AS $$
-  SELECT jsonb_build_object(
-    'totalCount', 
-      (SELECT COUNT(*) FROM wallet_transactions WHERE status='completed' AND tx_hash IS NOT NULL
-        AND (p_wallet_address IS NULL OR from_address = p_wallet_address OR to_address = p_wallet_address))
-      + (SELECT COUNT(*) FROM donation_transactions WHERE status='success' AND tx_hash IS NOT NULL
-        AND (p_wallet_address IS NULL OR sender_id IN (SELECT id FROM profiles WHERE wallet_address = p_wallet_address) OR receiver_id IN (SELECT id FROM profiles WHERE wallet_address = p_wallet_address)))
-      + (SELECT COUNT(*) FROM claim_requests WHERE status='success' AND tx_hash IS NOT NULL
-        AND (p_wallet_address IS NULL OR wallet_address = p_wallet_address)),
-    'totalValue',
-      COALESCE((SELECT SUM(amount) FROM wallet_transactions WHERE status='completed' AND tx_hash IS NOT NULL
-        AND (p_wallet_address IS NULL OR from_address = p_wallet_address OR to_address = p_wallet_address)), 0)
-      + COALESCE((SELECT SUM(amount) FROM donation_transactions WHERE status='success' AND tx_hash IS NOT NULL
-        AND (p_wallet_address IS NULL OR sender_id IN (SELECT id FROM profiles WHERE wallet_address = p_wallet_address) OR receiver_id IN (SELECT id FROM profiles WHERE wallet_address = p_wallet_address))), 0)
-      + COALESCE((SELECT SUM(amount) FROM claim_requests WHERE status='success' AND tx_hash IS NOT NULL
-        AND (p_wallet_address IS NULL OR wallet_address = p_wallet_address)), 0),
-    'todayCount',
-      (SELECT COUNT(*) FROM wallet_transactions WHERE status='completed' AND tx_hash IS NOT NULL AND block_timestamp::date = CURRENT_DATE
-        AND (p_wallet_address IS NULL OR from_address = p_wallet_address OR to_address = p_wallet_address))
-      + (SELECT COUNT(*) FROM donation_transactions WHERE status='success' AND tx_hash IS NOT NULL AND created_at::date = CURRENT_DATE
-        AND (p_wallet_address IS NULL))
-      + (SELECT COUNT(*) FROM claim_requests WHERE status='success' AND tx_hash IS NOT NULL AND processed_at::date = CURRENT_DATE
-        AND (p_wallet_address IS NULL))
-  );
-$$;
+```
+src/hooks/useIsPWA.ts
 ```
 
-### PHASE 2: Tang limit va sua pagination trong useTransactionHistory
+Detect standalone mode bằng `window.matchMedia('(display-mode: standalone)')` và `navigator.standalone` (iOS Safari).
 
-**Van de**: limit 30 per table khien chi lay 30/352 wallet_transactions.
+### 2. Cập nhật CSS (`src/index.css`)
 
-**Giai phap**: 
-- Tang default limit len 200 cho wallet_transactions (bang lon nhat)
-- Hoac: fetch stats rieng (RPC) va list rieng
-- Fetch toan bo wallet_transactions khi public mode (hien ~395 records, duoi 1000 limit cua Supabase)
+Thêm utility classes:
 
-Cu the trong `useTransactionHistory.ts`:
-1. Tach stats ra query rieng bang RPC `get_transaction_stats`
-2. Tang limit wallet_transactions len 500 (van duoi 1000 cua Supabase)
-3. Stats KHONG tinh tu `allTransactions.length` nua
-
-### PHASE 3: Cap nhat Transactions page
-
-- File `src/pages/Transactions.tsx`: tang `limit: 30` len `limit: 200`
-- File `src/components/Wallet/TransactionHistorySection.tsx`: giu `limit: 50` nhung stats tu RPC
-
-### PHASE 4: Cap nhat hook useTransactionHistory.ts
-
-Thay doi chinh:
-
-```typescript
-// TRUOC (SAI):
-const newStats = {
-  totalCount: allTransactions.length,  // chi 73!
-  totalValue: allTransactions.reduce(...)  // chi 16.3M!
-};
-
-// SAU (DUNG):
-// Goi RPC rieng
-const { data: serverStats } = await supabase.rpc('get_transaction_stats', {
-  p_wallet_address: publicMode ? null : userWalletAddress
-});
-
-const newStats = {
-  totalCount: serverStats?.totalCount || allTransactions.length,
-  totalValue: serverStats?.totalValue || 0,
-  todayCount: serverStats?.todayCount || 0,
-  successCount: serverStats?.totalCount || 0,  // chi completed
-  pendingCount: 0,  // khong hien thi pending
-};
+```css
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
 ```
 
-Tang limit cho wallet_transactions query:
-```typescript
-// TRUOC:
-.range(currentOffset, currentOffset + limit - 1)  // 0-29
+### 3. Cập nhật `MobileHeader.tsx`
 
-// SAU:
-.range(currentOffset, currentOffset + Math.max(limit, 200) - 1)  // 0-199
-```
+Thay đổi chính:
+- Header: thêm `safe-area-top` class, chiều cao động `h-14` + safe-area padding phía trên
+- Icon buttons: giảm từ `h-11 w-11` xuống `h-9 w-9`, icon từ `h-7 w-7` xuống `h-6 w-6`
+- Gap giảm từ `gap-1` xuống `gap-0`
+- Thêm WALLET icon (FUN Wallet) giữa Fun Money và Bell
+
+### 4. Cập nhật `MainLayout.tsx`
+
+- Thêm class `pt-[calc(env(safe-area-inset-top,0px)+3.5rem)]` cho PWA mode thay vì `pt-14` cứng
+
+### 5. Cập nhật `MobileBottomNav.tsx`
+
+- Thêm `pb-[env(safe-area-inset-bottom,0px)]` để bottom nav không bị che bởi home indicator trên iPhone
+
+### 6. Cập nhật `index.html`
+
+- Xóa `padding-top` trên body (để header tự xử lý) nhưng giữ `padding-left/right/bottom`
 
 ---
 
-## IV. BANG TONG HOP THAY DOI
+## IV. Bảng tổng hợp file thay đổi
 
-| # | File | Loai | Mo ta |
+| # | File | Loại | Mô tả |
 |---|------|------|-------|
-| 1 | Migration SQL | Tao moi | RPC function `get_transaction_stats` |
-| 2 | `src/hooks/useTransactionHistory.ts` | Cap nhat | Stats tu RPC, tang limit wallet_txs |
-| 3 | `src/pages/Transactions.tsx` | Cap nhat nho | Tang limit tu 30 len 200 |
-| 4 | `src/components/Wallet/TransactionHistorySection.tsx` | Cap nhat nho | Tang limit tu 50 len 200 |
+| 1 | `src/hooks/useIsPWA.ts` | Tạo mới | Hook detect PWA/standalone mode |
+| 2 | `src/index.css` | Cập nhật | Thêm safe-area utility classes |
+| 3 | `src/components/Layout/MobileHeader.tsx` | Cập nhật | Safe-area top, compact icons, thêm WALLET |
+| 4 | `src/components/Layout/MainLayout.tsx` | Cập nhật | Dynamic padding-top cho PWA |
+| 5 | `src/components/Layout/MobileBottomNav.tsx` | Cập nhật | Safe-area bottom |
+| 6 | `index.html` | Cập nhật nhỏ | Xóa body padding-top để tránh double padding |
+| 7 | `src/pages/Index.tsx` | Cập nhật nhỏ | Padding-top tương thích |
 
 ---
 
-## V. KET QUA DU KIEN SAU SUA
+## V. Kết quả mong đợi
 
-| Metric | Truoc | Sau |
-|--------|-------|-----|
-| Tong giao dich (header) | 73 | ~395 |
-| Tong gia tri (header) | 16.3M CAMLY | ~116.7M CAMLY |
-| List hien thi | 73 records | 395 records (full) |
-| Stats source | Client-side (sai) | Server-side RPC (chinh xac) |
-
----
-
-## VI. LUU Y
-
-1. Tong 395 records van duoi 1000-row limit cua Supabase, nen co the fetch 1 lan
-2. Khi du lieu vuot 1000, can chuyen sang pagination server-side that su (giai doan sau)
-3. RPC function dung SECURITY DEFINER de bypass RLS va tra ve stats chinh xac cho moi nguoi
-4. "Cho xu ly" (pending) se luon = 0 vi chi hien thi onchain completed
+- Header nằm gọn dưới notch/status bar trên mọi thiết bị
+- Tất cả 8 icon (Search, Gift, FunMoney, Wallet, Bell, Chat, Avatar) hiển thị đủ trên màn hình 360px
+- Bottom nav không bị che bởi home indicator (iPhone X+)
+- Trải nghiệm PWA giống app native
 
