@@ -193,11 +193,12 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
       // ========== 3. Lấy wallet_transactions (ONCHAIN ONLY) ==========
       let walletData: any[] = [];
       
+      // FIXED: Query 'completed' status (actual data uses 'completed', not 'success')
       const walletQuery = publicMode
         ? supabase
             .from("wallet_transactions")
             .select("*")
-            .eq("status", "success")
+            .eq("status", "completed")
             .not("tx_hash", "is", null)
             .order("created_at", { ascending: false })
             .range(currentOffset, currentOffset + limit - 1)
@@ -206,7 +207,7 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
               .from("wallet_transactions")
               .select("*")
               .or(`from_user_id.eq.${user.id},to_user_id.eq.${user.id}`)
-              .eq("status", "success")
+              .eq("status", "completed")
               .not("tx_hash", "is", null)
               .order("created_at", { ascending: false })
               .range(currentOffset, currentOffset + limit - 1)
@@ -413,7 +414,7 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
           tx_hash: w.tx_hash,
           explorer_url: getExplorerUrl("BSC", w.tx_hash),
           
-          status: w.status as TransactionStatus,
+          status: w.status === 'completed' ? 'success' : w.status as TransactionStatus,
           created_at: w.created_at,
           updated_at: null,
         });
