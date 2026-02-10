@@ -101,37 +101,34 @@ const MockDonationCelebrationCard = () => {
     >
       <div className="absolute inset-0 bg-black/45" />
       <MockCardInternalEffects />
-      {/* Volume + X buttons */}
-      <div className="absolute top-2 right-2 z-10 flex items-center gap-1.5">
-        <button className="h-8 w-8 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-sm ring-1 ring-white/30 flex items-center justify-center transition-all" title="Tắt âm thanh">
-          <VolumeX className="h-4 w-4 text-white" />
-        </button>
-        <button className="h-8 w-8 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-sm ring-1 ring-white/30 flex items-center justify-center transition-all" title="Tắt hiệu ứng">
-          <X className="h-4 w-4 text-white" />
-        </button>
-      </div>
-      <div className="relative h-full flex flex-col justify-between px-5 pt-5 pb-2 text-white">
+      <div className="relative h-full flex flex-col justify-between px-4 pt-3 pb-3 text-white">
         {/* TOP */}
-        <div className="space-y-3">
-          <div className="text-center pt-6">
-            <p className="text-base font-extrabold tracking-widest"
-               style={{
-                 background: "linear-gradient(to right, #00E7FF, #7A2BFF, #FF00E5, #FFD700)",
-                 WebkitBackgroundClip: "text",
-                 WebkitTextFillColor: "transparent",
-                 backgroundClip: "text",
-                 filter: "drop-shadow(0 0 8px rgba(0, 231, 255, 0.5))",
-               }}>
+        <div className="space-y-2">
+          {/* Top bar: [Loa][X] ... [Save][Share] */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1">
+              <button className="h-6 w-6 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-sm ring-1 ring-white/30 flex items-center justify-center transition-all" title="Tắt âm thanh">
+                <VolumeX className="h-3 w-3 text-white" />
+              </button>
+              <button className="h-6 w-6 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-sm ring-1 ring-white/30 flex items-center justify-center transition-all" title="Tắt hiệu ứng">
+                <X className="h-3 w-3 text-white" />
+              </button>
+            </div>
+            <div className="flex items-center gap-1">
+              <button className="h-6 w-6 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-sm ring-1 ring-white/30 flex items-center justify-center transition-all" title="Lưu về thiết bị">
+                <Download className="h-3 w-3 text-white" />
+              </button>
+              <button className="h-6 w-6 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-sm ring-1 ring-white/30 flex items-center justify-center transition-all" title="Chia sẻ">
+                <Share2 className="h-3 w-3 text-white" />
+              </button>
+            </div>
+          </div>
+          {/* Title */}
+          <div className="text-center">
+            <p className="text-base font-extrabold tracking-widest text-white" style={{ textShadow: "0 0 10px rgba(0,0,0,0.8), 0 2px 4px rgba(0,0,0,0.6)" }}>
               CHÚC MỪNG
             </p>
-            <p className="text-sm font-bold tracking-wide"
-               style={{
-                 background: "linear-gradient(to right, #FFD700, #FF00E5, #7A2BFF, #00E7FF)",
-                 WebkitBackgroundClip: "text",
-                 WebkitTextFillColor: "transparent",
-                 backgroundClip: "text",
-                 filter: "drop-shadow(0 0 6px rgba(255, 215, 0, 0.5))",
-               }}>
+            <p className="text-sm font-bold tracking-wide text-white" style={{ textShadow: "0 0 10px rgba(0,0,0,0.8), 0 2px 4px rgba(0,0,0,0.6)" }}>
               TẶNG THƯỞNG THÀNH CÔNG
             </p>
           </div>
@@ -188,16 +185,6 @@ const MockDonationCelebrationCard = () => {
           </div>
           <div className="flex justify-between"><span className="text-white/60">Mã biên nhận</span><span className="font-mono text-xs">#{MOCK_TRANSACTION.receipt_public_id}</span></div>
         </div>
-
-        {/* BOTTOM: Save/Share */}
-        <div className="flex justify-between">
-          <button className="h-8 w-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors" title="Lưu về thiết bị">
-            <Download className="h-4 w-4 text-white/80" />
-          </button>
-          <button className="h-8 w-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors" title="Chia sẻ">
-            <Share2 className="h-4 w-4 text-white/80" />
-          </button>
-        </div>
       </div>
     </div>
   );
@@ -213,37 +200,34 @@ const MockChatDonationCard = ({ isMe }: { isMe: boolean }) => {
       <div className="relative rounded-2xl overflow-hidden aspect-[4/5]" style={{ backgroundImage: `url(${bg})`, backgroundSize: "cover", backgroundPosition: "center" }}>
         <div className="absolute inset-0 bg-black/45" />
         <MockCardInternalEffects />
-        {/* Volume + X buttons */}
-        <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
-          <button className="h-7 w-7 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-sm ring-1 ring-white/30 flex items-center justify-center transition-all" title="Tắt âm thanh">
-            <VolumeX className="h-3.5 w-3.5 text-white" />
-          </button>
-          <button className="h-7 w-7 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-sm ring-1 ring-white/30 flex items-center justify-center transition-all" title="Tắt hiệu ứng">
-            <X className="h-3.5 w-3.5 text-white" />
-          </button>
-        </div>
-        <div className="relative h-full flex flex-col justify-between px-4 pt-4 pb-2 text-white">
+        <div className="relative h-full flex flex-col justify-between px-3 pt-2 pb-2 text-white">
           {/* TOP */}
-          <div className="space-y-2">
-            <div className="text-center pt-6">
-              <p className="text-sm font-extrabold tracking-widest"
-                 style={{
-                   background: "linear-gradient(to right, #00E7FF, #7A2BFF, #FF00E5, #FFD700)",
-                   WebkitBackgroundClip: "text",
-                   WebkitTextFillColor: "transparent",
-                   backgroundClip: "text",
-                   filter: "drop-shadow(0 0 8px rgba(0, 231, 255, 0.5))",
-                 }}>
+          <div className="space-y-1.5">
+            {/* Top bar */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1">
+                <button className="h-5 w-5 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-sm ring-1 ring-white/30 flex items-center justify-center transition-all" title="Tắt âm thanh">
+                  <VolumeX className="h-2.5 w-2.5 text-white" />
+                </button>
+                <button className="h-5 w-5 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-sm ring-1 ring-white/30 flex items-center justify-center transition-all" title="Tắt hiệu ứng">
+                  <X className="h-2.5 w-2.5 text-white" />
+                </button>
+              </div>
+              <div className="flex items-center gap-1">
+                <button className="h-5 w-5 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-sm ring-1 ring-white/30 flex items-center justify-center transition-all" title="Lưu về thiết bị">
+                  <Download className="h-2.5 w-2.5 text-white" />
+                </button>
+                <button className="h-5 w-5 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-sm ring-1 ring-white/30 flex items-center justify-center transition-all" title="Chia sẻ">
+                  <Share2 className="h-2.5 w-2.5 text-white" />
+                </button>
+              </div>
+            </div>
+            {/* Title */}
+            <div className="text-center">
+              <p className="text-sm font-extrabold tracking-widest text-white" style={{ textShadow: "0 0 10px rgba(0,0,0,0.8), 0 2px 4px rgba(0,0,0,0.6)" }}>
                 CHÚC MỪNG
               </p>
-              <p className="text-xs font-bold tracking-wide"
-                 style={{
-                   background: "linear-gradient(to right, #FFD700, #FF00E5, #7A2BFF, #00E7FF)",
-                   WebkitBackgroundClip: "text",
-                   WebkitTextFillColor: "transparent",
-                   backgroundClip: "text",
-                   filter: "drop-shadow(0 0 6px rgba(255, 215, 0, 0.5))",
-                 }}>
+              <p className="text-xs font-bold tracking-wide text-white" style={{ textShadow: "0 0 10px rgba(0,0,0,0.8), 0 2px 4px rgba(0,0,0,0.6)" }}>
                 TẶNG THƯỞNG THÀNH CÔNG
               </p>
             </div>
@@ -275,7 +259,7 @@ const MockChatDonationCard = ({ isMe }: { isMe: boolean }) => {
             </div>
           </div>
 
-          {/* MIDDLE: Details */}
+          {/* MIDDLE */}
           <div className="space-y-1 text-sm">
             <div className="flex justify-between"><span className="text-white/60">Trạng thái</span><span className="text-green-400 font-medium">✅ Thành công</span></div>
             <div>
@@ -293,16 +277,6 @@ const MockChatDonationCard = ({ isMe }: { isMe: boolean }) => {
               </div>
             </div>
             <div className="flex justify-between"><span className="text-white/60">Mã biên nhận</span><span className="font-mono text-[10px]">#{MOCK_TRANSACTION.receipt_public_id}</span></div>
-          </div>
-
-          {/* BOTTOM: Save/Share */}
-          <div className="flex justify-between">
-            <button className="h-7 w-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors" title="Lưu về thiết bị">
-              <Download className="h-3.5 w-3.5 text-white/80" />
-            </button>
-            <button className="h-7 w-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors" title="Chia sẻ">
-              <Share2 className="h-3.5 w-3.5 text-white/80" />
-            </button>
           </div>
         </div>
       </div>

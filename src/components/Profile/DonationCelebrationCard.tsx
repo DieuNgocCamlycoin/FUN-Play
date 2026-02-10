@@ -236,70 +236,99 @@ export const DonationCelebrationCard = ({
       <div className="absolute inset-0 bg-black/45" />
       {/* Card internal effects */}
       {showEffects && <CardInternalEffectsProfile />}
-      {/* Volume + X buttons */}
-      <div className="absolute top-2 right-2 z-10 flex items-center gap-1.5">
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsMuted(m => {
-              const next = !m;
-              if (!next) {
-                // unmute — start audio
-                if (!audioRef.current) {
-                  const audio = new Audio('/audio/rich-celebration.mp3');
-                  audio.volume = 0.5;
-                  audio.loop = true;
-                  audio.play().catch(() => {});
-                  audioRef.current = audio;
-                } else {
-                  audioRef.current.play().catch(() => {});
-                }
-              } else {
-                audioRef.current?.pause();
-              }
-              return next;
-            });
-          }}
-          className="h-8 w-8 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-sm ring-1 ring-white/30 flex items-center justify-center transition-all"
-          title={isMuted ? "Bật âm thanh" : "Tắt âm thanh"}
-        >
-          {isMuted ? <VolumeX className="h-4 w-4 text-white" /> : <Volume2 className="h-4 w-4 text-white" />}
-        </button>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setShowEffects(false);
-            audioRef.current?.pause();
-          }}
-          className="h-8 w-8 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-sm ring-1 ring-white/30 flex items-center justify-center transition-all"
-          title="Tắt hiệu ứng"
-        >
-          <X className="h-4 w-4 text-white" />
-        </button>
-      </div>
+      {/* Removed — buttons moved to top bar inside content */}
 
-      <div className="relative h-full flex flex-col justify-between px-5 pt-5 pb-2 text-white">
-        {/* TOP: Title + Avatars */}
-        <div className="space-y-3">
-          <div className="text-center pt-6">
-            <p className="text-base font-extrabold tracking-widest"
-               style={{
-                 background: "linear-gradient(to right, #00E7FF, #7A2BFF, #FF00E5, #FFD700)",
-                 WebkitBackgroundClip: "text",
-                 WebkitTextFillColor: "transparent",
-                 backgroundClip: "text",
-                 filter: "drop-shadow(0 0 8px rgba(0, 231, 255, 0.5))",
-               }}>
+      <div className="relative h-full flex flex-col justify-between px-4 pt-3 pb-3 text-white">
+        {/* TOP: Top bar + Title + Avatars */}
+        <div className="space-y-2">
+          {/* Top bar: [Loa][X] ... [Save][Share] */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsMuted(m => {
+                    const next = !m;
+                    if (!next) {
+                      if (!audioRef.current) {
+                        const audio = new Audio('/audio/rich-celebration.mp3');
+                        audio.volume = 0.5;
+                        audio.loop = true;
+                        audio.play().catch(() => {});
+                        audioRef.current = audio;
+                      } else {
+                        audioRef.current.play().catch(() => {});
+                      }
+                    } else {
+                      audioRef.current?.pause();
+                    }
+                    return next;
+                  });
+                }}
+                className="h-6 w-6 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-sm ring-1 ring-white/30 flex items-center justify-center transition-all"
+                title={isMuted ? "Bật âm thanh" : "Tắt âm thanh"}
+              >
+                {isMuted ? <VolumeX className="h-3 w-3 text-white" /> : <Volume2 className="h-3 w-3 text-white" />}
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowEffects(false);
+                  audioRef.current?.pause();
+                }}
+                className="h-6 w-6 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-sm ring-1 ring-white/30 flex items-center justify-center transition-all"
+                title="Tắt hiệu ứng"
+              >
+                <X className="h-3 w-3 text-white" />
+              </button>
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  const cardEl = e.currentTarget.closest('.celebration-card-container') as HTMLElement;
+                  if (!cardEl) return;
+                  try {
+                    const { default: html2canvas } = await import('html2canvas');
+                    const originals = await preloadImagesToBase64(cardEl);
+                    const canvas = await html2canvas(cardEl, { useCORS: true, allowTaint: true, backgroundColor: null, scale: 2 });
+                    originals.forEach(({ img, src }) => { img.src = src; });
+                    const link = document.createElement('a');
+                    link.download = `celebration-card-${data.receipt_public_id}.png`;
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                    toast({ title: 'Đã lưu hình ảnh! 📥' });
+                  } catch { toast({ title: 'Không thể lưu ảnh', variant: 'destructive' }); }
+                }}
+                className="h-6 w-6 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-sm ring-1 ring-white/30 flex items-center justify-center transition-all"
+                title="Lưu về thiết bị"
+              >
+                <Download className="h-3 w-3 text-white" />
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const url = `${window.location.origin}/receipt/${data.receipt_public_id}`;
+                  if (navigator.share) {
+                    navigator.share({ title: 'Celebration Card', url }).catch(() => {});
+                  } else {
+                    navigator.clipboard.writeText(url);
+                    toast({ title: 'Đã copy link Celebration Card! 📋' });
+                  }
+                }}
+                className="h-6 w-6 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-sm ring-1 ring-white/30 flex items-center justify-center transition-all"
+                title="Chia sẻ"
+              >
+                <Share2 className="h-3 w-3 text-white" />
+              </button>
+            </div>
+          </div>
+          {/* Title */}
+          <div className="text-center">
+            <p className="text-base font-extrabold tracking-widest text-white" style={{ textShadow: "0 0 10px rgba(0,0,0,0.8), 0 2px 4px rgba(0,0,0,0.6)" }}>
               CHÚC MỪNG
             </p>
-            <p className="text-sm font-bold tracking-wide"
-               style={{
-                 background: "linear-gradient(to right, #FFD700, #FF00E5, #7A2BFF, #00E7FF)",
-                 WebkitBackgroundClip: "text",
-                 WebkitTextFillColor: "transparent",
-                 backgroundClip: "text",
-                 filter: "drop-shadow(0 0 6px rgba(255, 215, 0, 0.5))",
-               }}>
+            <p className="text-sm font-bold tracking-wide text-white" style={{ textShadow: "0 0 10px rgba(0,0,0,0.8), 0 2px 4px rgba(0,0,0,0.6)" }}>
               TẶNG THƯỞNG THÀNH CÔNG
             </p>
           </div>
@@ -400,47 +429,7 @@ export const DonationCelebrationCard = ({
           </div>
         </div>
 
-        {/* BOTTOM */}
-        <div className="flex justify-between">
-          <button
-            onClick={async (e) => {
-              e.stopPropagation();
-              const cardEl = e.currentTarget.closest('.celebration-card-container') as HTMLElement;
-              if (!cardEl) return;
-              try {
-                const { default: html2canvas } = await import('html2canvas');
-                const originals = await preloadImagesToBase64(cardEl);
-                const canvas = await html2canvas(cardEl, { useCORS: true, allowTaint: true, backgroundColor: null, scale: 2 });
-                originals.forEach(({ img, src }) => { img.src = src; });
-                const link = document.createElement('a');
-                link.download = `celebration-card-${data.receipt_public_id}.png`;
-                link.href = canvas.toDataURL('image/png');
-                link.click();
-                toast({ title: 'Đã lưu hình ảnh! 📥' });
-              } catch { toast({ title: 'Không thể lưu ảnh', variant: 'destructive' }); }
-            }}
-            className="h-8 w-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
-            title="Lưu về thiết bị"
-          >
-            <Download className="h-4 w-4 text-white/80" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              const url = `${window.location.origin}/receipt/${data.receipt_public_id}`;
-              if (navigator.share) {
-                navigator.share({ title: 'Celebration Card', url }).catch(() => {});
-              } else {
-                navigator.clipboard.writeText(url);
-                toast({ title: 'Đã copy link Celebration Card! 📋' });
-              }
-            }}
-            className="h-8 w-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
-            title="Chia sẻ"
-          >
-            <Share2 className="h-4 w-4 text-white/80" />
-          </button>
-        </div>
+        {/* BOTTOM buttons moved to top bar */}
       </div>
     </div>
   );
