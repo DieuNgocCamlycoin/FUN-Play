@@ -43,6 +43,9 @@ export interface UnifiedTransaction {
   tx_hash: string | null;
   explorer_url: string | null;
   
+  // Biên nhận
+  receipt_public_id: string | null;
+  
   // Trạng thái
   status: TransactionStatus;
   created_at: string;
@@ -321,6 +324,7 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
           
           status: d.status as TransactionStatus,
           created_at: d.created_at,
+          receipt_public_id: d.receipt_public_id || null,
           updated_at: null,
         });
       });
@@ -369,6 +373,7 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
           
           status: "success",
           created_at: c.processed_at || c.created_at,
+          receipt_public_id: null,
           updated_at: null,
         });
       });
@@ -422,6 +427,7 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
           
           status: w.status === 'completed' ? 'success' : w.status as TransactionStatus,
           created_at: w.created_at,
+          receipt_public_id: null,
           updated_at: null,
         });
       });
