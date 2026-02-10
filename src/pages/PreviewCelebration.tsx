@@ -110,12 +110,31 @@ const MockDonationCelebrationCard = () => {
           <X className="h-4 w-4 text-white" />
         </button>
       </div>
-      <div className="relative h-full flex flex-col justify-between p-5 text-white">
+      <div className="relative h-full flex flex-col justify-between px-5 pt-5 pb-2 text-white">
         {/* TOP */}
         <div className="space-y-3">
-          <p className="text-sm font-bold tracking-wide text-center drop-shadow-lg">
-            🎉 CHÚC MỪNG TẶNG THƯỞNG THÀNH CÔNG 🎉
-          </p>
+          <div className="text-center pt-6">
+            <p className="text-base font-extrabold tracking-widest"
+               style={{
+                 background: "linear-gradient(to right, #00E7FF, #7A2BFF, #FF00E5, #FFD700)",
+                 WebkitBackgroundClip: "text",
+                 WebkitTextFillColor: "transparent",
+                 backgroundClip: "text",
+                 filter: "drop-shadow(0 0 8px rgba(0, 231, 255, 0.5))",
+               }}>
+              CHÚC MỪNG
+            </p>
+            <p className="text-sm font-bold tracking-wide"
+               style={{
+                 background: "linear-gradient(to right, #FFD700, #FF00E5, #7A2BFF, #00E7FF)",
+                 WebkitBackgroundClip: "text",
+                 WebkitTextFillColor: "transparent",
+                 backgroundClip: "text",
+                 filter: "drop-shadow(0 0 6px rgba(255, 215, 0, 0.5))",
+               }}>
+              TẶNG THƯỞNG THÀNH CÔNG
+            </p>
+          </div>
           <div className="flex items-center justify-between gap-2">
             <div className="flex flex-col items-center gap-1 flex-1 min-w-0">
               <Avatar className="h-12 w-12 ring-2 ring-white/30">
@@ -203,10 +222,31 @@ const MockChatDonationCard = ({ isMe }: { isMe: boolean }) => {
             <X className="h-3.5 w-3.5 text-white" />
           </button>
         </div>
-        <div className="relative h-full flex flex-col justify-between p-4 text-white">
+        <div className="relative h-full flex flex-col justify-between px-4 pt-4 pb-2 text-white">
           {/* TOP */}
           <div className="space-y-2">
-            <p className="text-xs font-bold tracking-wide text-center drop-shadow-lg">🎉 CHÚC MỪNG TẶNG THƯỞNG THÀNH CÔNG 🎉</p>
+            <div className="text-center pt-6">
+              <p className="text-sm font-extrabold tracking-widest"
+                 style={{
+                   background: "linear-gradient(to right, #00E7FF, #7A2BFF, #FF00E5, #FFD700)",
+                   WebkitBackgroundClip: "text",
+                   WebkitTextFillColor: "transparent",
+                   backgroundClip: "text",
+                   filter: "drop-shadow(0 0 8px rgba(0, 231, 255, 0.5))",
+                 }}>
+                CHÚC MỪNG
+              </p>
+              <p className="text-xs font-bold tracking-wide"
+                 style={{
+                   background: "linear-gradient(to right, #FFD700, #FF00E5, #7A2BFF, #00E7FF)",
+                   WebkitBackgroundClip: "text",
+                   WebkitTextFillColor: "transparent",
+                   backgroundClip: "text",
+                   filter: "drop-shadow(0 0 6px rgba(255, 215, 0, 0.5))",
+                 }}>
+                TẶNG THƯỞNG THÀNH CÔNG
+              </p>
+            </div>
             <div className="flex items-center justify-between gap-2">
               <div className="flex flex-col items-center gap-0.5 flex-1 min-w-0">
                 <Avatar className="h-12 w-12 ring-2 ring-white/30">
