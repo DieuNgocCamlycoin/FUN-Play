@@ -278,12 +278,31 @@ export const DonationCelebrationCard = ({
         </button>
       </div>
 
-      <div className="relative h-full flex flex-col justify-between p-5 text-white">
+      <div className="relative h-full flex flex-col justify-between px-5 pt-5 pb-2 text-white">
         {/* TOP: Title + Avatars */}
         <div className="space-y-3">
-          <p className="text-sm font-bold tracking-wide text-center drop-shadow-lg">
-            🎉 CHÚC MỪNG TẶNG THƯỞNG THÀNH CÔNG 🎉
-          </p>
+          <div className="text-center pt-6">
+            <p className="text-base font-extrabold tracking-widest"
+               style={{
+                 background: "linear-gradient(to right, #00E7FF, #7A2BFF, #FF00E5, #FFD700)",
+                 WebkitBackgroundClip: "text",
+                 WebkitTextFillColor: "transparent",
+                 backgroundClip: "text",
+                 filter: "drop-shadow(0 0 8px rgba(0, 231, 255, 0.5))",
+               }}>
+              CHÚC MỪNG
+            </p>
+            <p className="text-sm font-bold tracking-wide"
+               style={{
+                 background: "linear-gradient(to right, #FFD700, #FF00E5, #7A2BFF, #00E7FF)",
+                 WebkitBackgroundClip: "text",
+                 WebkitTextFillColor: "transparent",
+                 backgroundClip: "text",
+                 filter: "drop-shadow(0 0 6px rgba(255, 215, 0, 0.5))",
+               }}>
+              TẶNG THƯỞNG THÀNH CÔNG
+            </p>
+          </div>
 
           <div className="flex items-center justify-between gap-2">
             <div
