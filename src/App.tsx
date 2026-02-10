@@ -74,6 +74,7 @@ const Search = lazy(() => import("./pages/Search"));
 const Notifications = lazy(() => import("./pages/Notifications"));
 const Library = lazy(() => import("./pages/Library"));
 const Transactions = lazy(() => import("./pages/Transactions"));
+const PreviewCelebration = lazy(() => import("./pages/PreviewCelebration"));
 
 const queryClient = new QueryClient();
 
@@ -171,6 +172,7 @@ function AppContent() {
             <Route path="/search" element={<Search />} />
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/transactions" element={<Transactions />} />
+            <Route path="/preview-celebration" element={<PreviewCelebration />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
