@@ -29,6 +29,7 @@ import { VideoPlaceholder } from '@/components/Video/VideoPlaceholder';
 import { ShareModal } from '@/components/Video/ShareModal';
 import { AddToPlaylistModal } from '@/components/Playlist/AddToPlaylistModal';
 import { formatDuration, formatViews, formatTimestamp } from '@/lib/formatters';
+import { AuthRequiredDialog } from '@/components/Auth/AuthRequiredDialog';
 
 const WatchHistory = () => {
   const { watchHistory, loading, removeFromHistory, clearAllHistory } = useWatchHistory();
@@ -183,6 +184,15 @@ const WatchHistory = () => {
                 </div>
               </div>
             ))}
+          </div>
+        ) : !user ? (
+          <div className="text-center py-20">
+            <History className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+            <h2 className="text-xl font-semibold mb-2">Đăng nhập để lưu lịch sử xem</h2>
+            <p className="text-muted-foreground mb-4">
+              Lịch sử xem video sẽ được lưu khi bạn đăng nhập
+            </p>
+            <Button onClick={() => navigate('/auth')}>Đăng nhập</Button>
           </div>
         ) : watchHistory.length === 0 ? (
           <div className="text-center py-20">

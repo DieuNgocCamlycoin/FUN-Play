@@ -7,12 +7,14 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
+import { AuthRequiredDialog } from "@/components/Auth/AuthRequiredDialog";
 
 interface ReferralStats { totalReferrals: number; totalEarned: number; activeReferrals: number; }
 
 export default function Referral() {
   const [stats, setStats] = useState<ReferralStats>({ totalReferrals: 0, totalEarned: 0, activeReferrals: 0 });
   const [copied, setCopied] = useState(false);
+  const [showAuthDialog, setShowAuthDialog] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
   const referralCode = user?.id.slice(0, 8) || "";
@@ -57,13 +59,22 @@ export default function Referral() {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
           className="bg-gradient-to-br from-cyan-500/10 via-blue-500/10 to-purple-500/10 border-2 border-cyan-400/50 rounded-xl p-6 mb-8 shadow-[0_0_20px_rgba(0,231,255,0.3)]">
           <h2 className="text-xl font-bold text-foreground mb-4 flex items-center gap-2"><Users className="w-6 h-6 text-cyan-400" />Link Giới Thiệu Của Bạn</h2>
-          <div className="flex gap-2">
-            <Input value={referralLink} readOnly className="bg-cyan-500/10 border-cyan-400/50 text-foreground" />
-            <Button onClick={copyReferralLink} className="bg-cyan-500 hover:bg-cyan-600 text-white">
-              {copied ? <CheckCircle2 className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
-            </Button>
-          </div>
-          <p className="text-sm text-muted-foreground mt-3">Mã giới thiệu: <span className="font-mono text-cyan-400">{referralCode}</span></p>
+          {user ? (
+            <>
+              <div className="flex gap-2">
+                <Input value={referralLink} readOnly className="bg-cyan-500/10 border-cyan-400/50 text-foreground" />
+                <Button onClick={copyReferralLink} className="bg-cyan-500 hover:bg-cyan-600 text-white">
+                  {copied ? <CheckCircle2 className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
+                </Button>
+              </div>
+              <p className="text-sm text-muted-foreground mt-3">Mã giới thiệu: <span className="font-mono text-cyan-400">{referralCode}</span></p>
+            </>
+          ) : (
+            <div className="text-center py-4">
+              <p className="text-muted-foreground mb-3">Đăng nhập để nhận mã giới thiệu cá nhân</p>
+              <Button onClick={() => setShowAuthDialog(true)} className="bg-cyan-500 hover:bg-cyan-600 text-white">Đăng nhập ngay</Button>
+            </div>
+          )}
         </motion.div>
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
@@ -82,6 +93,7 @@ export default function Referral() {
           </div>
         </motion.div>
       </div>
+      <AuthRequiredDialog open={showAuthDialog} onOpenChange={setShowAuthDialog} />
     </MainLayout>
   );
 }

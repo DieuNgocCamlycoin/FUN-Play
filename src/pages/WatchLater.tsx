@@ -10,6 +10,7 @@ import { ShareModal } from '@/components/Video/ShareModal';
 import { AddToPlaylistModal } from '@/components/Playlist/AddToPlaylistModal';
 import { useAuth } from '@/hooks/useAuth';
 import { formatDuration, formatViews } from '@/lib/formatters';
+import { AuthRequiredDialog } from '@/components/Auth/AuthRequiredDialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -86,6 +87,13 @@ const WatchLater = () => {
                 </div>
               </div>
             ))}
+          </div>
+        ) : !user ? (
+          <div className="text-center py-20">
+            <Clock className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+            <h2 className="text-xl font-semibold mb-2">Đăng nhập để lưu video xem sau</h2>
+            <p className="text-muted-foreground mb-4">Danh sách xem sau sẽ được lưu khi bạn đăng nhập</p>
+            <Button onClick={() => navigate('/auth')}>Đăng nhập</Button>
           </div>
         ) : watchLaterList.length === 0 ? (
           <div className="text-center py-20">

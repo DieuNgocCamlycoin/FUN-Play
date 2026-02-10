@@ -7,11 +7,15 @@ import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { SendToFunWalletModal } from '@/components/Web3/SendToFunWalletModal';
 import { showLocalNotification } from '@/lib/pushNotifications';
+import { useAuth } from '@/hooks/useAuth';
+import { AuthRequiredDialog } from '@/components/Auth/AuthRequiredDialog';
 
 export default function FunWallet() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const { isLinked, funWalletAddress, linkFunWallet } = useFunWalletSync();
+  const { user } = useAuth();
   const [showSendModal, setShowSendModal] = useState(false);
+  const [showAuthDialog, setShowAuthDialog] = useState(false);
 
   // Listen for postMessage from FUN Wallet iframe
   useEffect(() => {
@@ -102,7 +106,7 @@ export default function FunWallet() {
                 variant="default" 
                 size="sm"
                 className="gap-2 bg-gradient-to-r from-primary to-primary/80"
-                onClick={() => setShowSendModal(true)}
+                onClick={() => user ? setShowSendModal(true) : setShowAuthDialog(true)}
               >
                 <Send className="h-4 w-4" />
                 <span className="hidden sm:inline">Gửi CAMLY</span>
@@ -137,6 +141,7 @@ export default function FunWallet() {
         isOpen={showSendModal} 
         onClose={() => setShowSendModal(false)} 
       />
+      <AuthRequiredDialog open={showAuthDialog} onOpenChange={setShowAuthDialog} />
     </MainLayout>
   );
 }

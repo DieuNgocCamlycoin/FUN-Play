@@ -10,6 +10,7 @@ import { ProfileHonorBoard } from "@/components/Profile/ProfileHonorBoard";
 import { DonationCelebration } from "@/components/Profile/DonationCelebration";
 import { BackgroundMusicPlayer } from "@/components/BackgroundMusicPlayer";
 import { useToast } from "@/hooks/use-toast";
+import { AuthRequiredDialog } from "@/components/Auth/AuthRequiredDialog";
 
 interface UserProfileData {
   id: string;
@@ -152,9 +153,11 @@ export default function UserProfile() {
     setIsSubscribed(!!data);
   };
 
+  const [showAuthDialog, setShowAuthDialog] = useState(false);
+
   const handleSubscribe = async () => {
     if (!user) {
-      navigate("/auth");
+      setShowAuthDialog(true);
       return;
     }
 
@@ -271,6 +274,7 @@ export default function UserProfile() {
           />
         </div>
       </div>
+      <AuthRequiredDialog open={showAuthDialog} onOpenChange={setShowAuthDialog} />
     </MainLayout>
   );
 }

@@ -9,6 +9,7 @@ import { ProfileTabs } from "@/components/Profile/ProfileTabs";
 import { DonationCelebration } from "@/components/Profile/DonationCelebration";
 import { BackgroundMusicPlayer } from "@/components/BackgroundMusicPlayer";
 import { useToast } from "@/hooks/use-toast";
+import { AuthRequiredDialog } from "@/components/Auth/AuthRequiredDialog";
 
 interface ProfileData {
   id: string;
@@ -226,9 +227,11 @@ export default function Channel() {
     setIsSubscribed(!!data);
   };
 
+  const [showAuthDialog, setShowAuthDialog] = useState(false);
+
   const handleSubscribe = async () => {
     if (!user) {
-      navigate("/auth");
+      setShowAuthDialog(true);
       return;
     }
 
@@ -342,6 +345,7 @@ export default function Channel() {
           />
         </div>
       </div>
+      <AuthRequiredDialog open={showAuthDialog} onOpenChange={setShowAuthDialog} />
     </MainLayout>
   );
 }
