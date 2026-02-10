@@ -1,30 +1,41 @@
 
 
-# Kế hoạch nâng cấp toàn diện hệ thống "Thưởng & Tặng" – FUN PLAY
+# Kế hoạch triển khai toàn diện Flow "Tặng & Thưởng" – FUN PLAY (Phiên bản cuối cùng)
 
 ---
 
-## I. Mục tiêu
+## I. Tổng quan thay đổi
 
-Chuyển đổi trải nghiệm "Thưởng & Tặng" thành nghi thức chúc mừng cao cấp:
+Theo prompt chuẩn mới, flow được cấu trúc lại hoàn toàn:
 
-**Đơn giản khi nhập → Hoành tráng khi xác nhận → Lan toả mạnh sau khi tặng.**
+1. **Bước 1 - SendGiftModal**: Điền thông tin (đơn giản, không chủ đề, không nhạc)
+2. **Bước 2 - Xác nhận & Ký MetaMask**: Bảng xác nhận đầy đủ
+3. **Bước 3 - GiftCelebrationModal**: Celebration Card + Chọn chủ đề + Chọn background + Chọn nhạc + Hành động
 
-- Loại bỏ hoàn toàn GIF ngẫu nhiên từ Giphy
-- Thay bằng **Celebration Card** — thẻ chúc mừng CSS/React đầy đủ thông tin
-- Tự động đăng bài kèm Celebration Card lên profile người gửi
+**6 chủ đề mới** (thay 7 chủ đề cũ):
+- 🎉 Chúc mừng | 🙏 Tri ân | 🎂 Sinh nhật | ❤️ Tình yêu | 🎊 Năm mới | 👨‍👩‍👧‍👦 Gia đình
+
+**Loại bỏ**: Kết hôn (wedding), Cha mẹ (parents)
+**Thêm mới**: Năm mới (newyear)
 
 ---
 
-## II. Lưu 3 file âm thanh
+## II. Lưu 18 ảnh nền Celebration Card
 
-Sao chép 3 file người dùng đã upload vào `public/audio/`:
+Sao chép toàn bộ 18 ảnh vào `public/images/celebration-bg/`:
 
-| File gốc | Đường dẫn đích | Vai trò |
-|---|---|---|
-| `Rich_2_prompt_3-2.mp3` | `public/audio/rich-celebration.mp3` | Ghi đè — "Rich! Rich! Rich!" (mặc định) |
-| `Rich-2.mp3` | `public/audio/rich-2.mp3` | "Rich Vibe" |
-| `Rich3-2.mp3` | `public/audio/rich-3.mp3` | "Rich Energy" |
+| Chủ đề | Ảnh 1 | Ảnh 2 | Ảnh 3 |
+|---|---|---|---|
+| 🎉 Chúc mừng | `celebration-1.png` | `celebration-2.png` | `celebration-3.png` |
+| 🙏 Tri ân | `gratitude-1.png` | `gratitude-2.png` | `gratitude-3.png` |
+| 🎂 Sinh nhật | `birthday-1.png` | `birthday-2.png` | `birthday-3.png` |
+| ❤️ Tình yêu | `love-1.png` | `love-2.png` | `love-3.png` |
+| 🎊 Năm mới | `newyear-1.png` | `newyear-2.png` | `newyear-3.png` |
+| 👨‍👩‍👧‍👦 Gia đình | `family-1.png` | `family-2.png` | `family-3.png` |
+
+Nguồn file:
+- Đợt 1 (đã nhận): `chúc_mừng1-3.png`, `tri_ân1-3.png`, `sinh_nhật1-3.png`
+- Đợt 2 (vừa nhận): `tình_yêu1-3.png`, `năm_mới1-3.png`, `gia_đình1-3.png`
 
 ---
 
@@ -32,206 +43,272 @@ Sao chép 3 file người dùng đã upload vào `public/audio/`:
 
 ### File 1: `src/components/Donate/EnhancedDonateModal.tsx`
 
-#### Bước 1 — Nhập liệu (đơn giản hoá)
-
-**Xoá hoàn toàn:**
-- Import `Slider` (dòng 9)
-- Import `RadioGroup`, `RadioGroupItem` (dòng 11)
-- Hằng số `MUSIC_OPTIONS` (dòng 63–67)
-- Hàm `handleSliderChange` (dòng 217)
-- Thanh kéo `<Slider>` và điều kiện bao quanh (dòng 523–525)
-- Mục "Chủ đề tặng thưởng" (dòng 534–550)
-- Mục "Chọn nhạc" với `RadioGroup` (dòng 552–566)
-
-**Giữ nguyên:**
-- Người gửi (avatar + tên + @username + ví rút gọn + copy)
-- Người nhận (tìm kiếm + avatar + tên + ví + copy + nút xoá)
-- Token (dropdown)
-- Số tiền: 4 nút preset (10 / 50 / 100 / 500) + ô nhập tuỳ chỉnh
-- Xác nhận: "Bạn sẽ tặng: XXX TOKEN"
-- Lời nhắn yêu thương (textarea + emoji picker)
-- Nút: **"Xem lại & Xác nhận →"**
-
-#### Bước 2 — Xác nhận (trung tâm cảm xúc)
-
-**Giữ nguyên:** hiển thị người gửi, người nhận, số tiền, chain, cảnh báo blockchain, 2 nút điều hướng.
-
-**Thêm mới vào bước này:**
-
-1. **Chọn chủ đề chúc mừng** — 7 nút emoji (dùng lại mảng `DONATION_THEMES` hiện có):
-   - 🎉 Chúc mừng | 💍 Kết hôn | 🎂 Sinh nhật | 🙏 Tri ân | ❤️ Tình yêu | 👨‍👩‍👧‍👦 Gia đình | 🌱 Cha mẹ
-   - Giao diện: lưới 4 cột, viền sáng khi chọn
-
-2. **Chọn âm nhạc** — 3 file thực (thay `MUSIC_OPTIONS` cũ):
+#### Cập nhật DONATION_THEMES (6 chủ đề mới):
 
 ```typescript
-const MUSIC_OPTIONS = [
-  { id: "rich-celebration", label: "Rich! Rich! Rich!", description: "Mặc định", src: "/audio/rich-celebration.mp3" },
-  { id: "rich-2", label: "Rich Vibe", description: "Năng lượng tích cực", src: "/audio/rich-2.mp3" },
-  { id: "rich-3", label: "Rich Energy", description: "Giàu có & yêu thương", src: "/audio/rich-3.mp3" },
+const DONATION_THEMES = [
+  { id: "celebration", emoji: "🎉", label: "Chúc mừng" },
+  { id: "gratitude", emoji: "🙏", label: "Tri ân" },
+  { id: "birthday", emoji: "🎂", label: "Sinh nhật" },
+  { id: "love", emoji: "❤️", label: "Tình yêu" },
+  { id: "newyear", emoji: "🎊", label: "Năm mới" },
+  { id: "family", emoji: "👨‍👩‍👧‍👦", label: "Gia đình" },
 ];
 ```
 
-   - Mỗi tuỳ chọn có **nút ▶ nghe thử** (play/pause toggle)
-   - Dùng `useRef<HTMLAudioElement>` để quản lý; phát 5 giây rồi tự dừng
-   - Khi chuyển bài hoặc rời bước: dừng bài đang phát
+#### Bước 1 — Nhập liệu (giữ nguyên hiện tại)
+- Người gửi, Người nhận, Token, Số tiền, Lời nhắn
+- **Không** có chủ đề, nhạc (đã đúng hiện tại)
 
-3. Hiển thị lời nhắn (nếu có)
+#### Bước 2 — Xác nhận (đơn giản hoá)
+- **Xoá** mục chọn chủ đề (dòng 414-430) khỏi bước 2
+- **Xoá** mục chọn nhạc (dòng 432-467) khỏi bước 2
+- **Xoá** stopPreview logic liên quan đến bước 2
+- Chỉ giữ: Thông tin người gửi/nhận, số tiền, chain, cảnh báo, 2 nút điều hướng
+- Mặc định `selectedTheme = "celebration"` và `selectedMusic = "rich-celebration"` (sẽ chọn ở bước 3)
+
+#### Bước 3 — Chuyển sang GiftCelebrationModal
+- Sau khi giao dịch thành công, hiển thị `GiftCelebrationModal` (component mới thay `DonationSuccessOverlay`)
+- Truyền thêm callback để chọn chủ đề/nhạc/background tại bước 3
 
 ---
 
-### File 2: `src/components/Donate/DonationSuccessOverlay.tsx`
+### File 2: `src/components/Donate/DonationSuccessOverlay.tsx` → Đổi tên thành `GiftCelebrationModal.tsx`
 
-#### Xoá hoàn toàn:
-- Object `THEME_GIFS` (dòng 57–80) — tất cả URL Giphy
-- Biến `themeGifs`, `randomGif` (dòng 150–151)
-- Thẻ `<img src={randomGif}>` (dòng 209–213)
-- Nút "Lưu GIF" + logic download (dòng 307–315)
-- Import `Download` (dòng 2)
-- `gif_url: randomGif` trong `handleShareToProfile` (dòng 167)
+#### Viết lại hoàn toàn thành GiftCelebrationModal:
 
-#### Thay bằng Celebration Card:
-
-Một `<div>` styled theo chủ đề, hiển thị:
-
-| Thành phần | Mô tả |
-|---|---|
-| Tiêu đề | 🎉🎉 CHÚC MỪNG TẶNG THƯỞNG THÀNH CÔNG 🎉🎉 |
-| Nền thẻ | Gradient CSS theo chủ đề (bảng bên dưới) |
-| Hiệu ứng | CSS animation riêng theo chủ đề |
-| Confetti | Giữ nguyên 4 đợt confetti canvas |
-| Âm thanh | Phát đúng file nhạc đã chọn |
-| Người gửi | Avatar + tên + @username + ví rút gọn + copy |
-| Mũi tên animation | Số tiền + Token icon |
-| Người nhận | Avatar + tên + @username + ví rút gọn + copy |
-| Chủ đề | Emoji + tên chủ đề |
-| Lời nhắn | Hiển thị nếu có |
-| Thời gian | Định dạng vi-VN |
-| Chain | BSC / Nội bộ |
-| TX Hash | Rút gọn + copy + link explorer |
-| Mã biên nhận | #receipt_public_id |
-
-#### Phát nhạc theo lựa chọn:
+**A. Cấu trúc dữ liệu ảnh nền:**
 
 ```typescript
-const MUSIC_FILES: Record<string, string> = {
-  "rich-celebration": "/audio/rich-celebration.mp3",
-  "rich-2": "/audio/rich-2.mp3",
-  "rich-3": "/audio/rich-3.mp3",
+const THEME_BACKGROUNDS: Record<string, string[]> = {
+  celebration: [
+    "/images/celebration-bg/celebration-1.png",
+    "/images/celebration-bg/celebration-2.png",
+    "/images/celebration-bg/celebration-3.png",
+  ],
+  gratitude: [
+    "/images/celebration-bg/gratitude-1.png",
+    "/images/celebration-bg/gratitude-2.png",
+    "/images/celebration-bg/gratitude-3.png",
+  ],
+  birthday: [
+    "/images/celebration-bg/birthday-1.png",
+    "/images/celebration-bg/birthday-2.png",
+    "/images/celebration-bg/birthday-3.png",
+  ],
+  love: [
+    "/images/celebration-bg/love-1.png",
+    "/images/celebration-bg/love-2.png",
+    "/images/celebration-bg/love-3.png",
+  ],
+  newyear: [
+    "/images/celebration-bg/newyear-1.png",
+    "/images/celebration-bg/newyear-2.png",
+    "/images/celebration-bg/newyear-3.png",
+  ],
+  family: [
+    "/images/celebration-bg/family-1.png",
+    "/images/celebration-bg/family-2.png",
+    "/images/celebration-bg/family-3.png",
+  ],
 };
 ```
 
-Thay thế logic cũ (dòng 110–118) — phát đúng file theo `music` prop, fallback về `rich-celebration`.
+**B. Nội dung Celebration Card (bắt buộc đầy đủ):**
+- Avatar + tên + @username người gửi (link profile)
+- Ví người gửi rút gọn + nút COPY
+- Mũi tên animation + Số lượng + Token icon
+- Avatar + tên + @username người nhận (link profile)
+- Ví người nhận rút gọn + nút COPY
+- Lời nhắn (nếu có)
+- Thời gian (vi-VN)
+- Chain (BSC / Nội bộ)
+- TX Hash rút gọn + COPY + mở Explorer
+- Mã biên nhận
 
-#### Bảng chủ đề & hiệu ứng CSS:
+**C. Chọn chủ đề (TẠI BƯỚC 3):**
+- 6 nút emoji, lưới 3 cột
+- Khi chọn chủ đề → tự động hiển thị 3 background tương ứng
+- Mặc định: "celebration" + background đầu tiên
 
-| Chủ đề | Gradient nền | Hiệu ứng CSS |
-|---|---|---|
-| 🎉 Chúc mừng | amber → pink → purple | `confetti-fall` |
-| 💍 Kết hôn | rose → amber | `sparkle-shimmer` |
-| 🎂 Sinh nhật | pink → yellow → cyan | `confetti-fall` |
-| 🙏 Tri ân | emerald → teal | `gentle-glow` |
-| ❤️ Tình yêu | red → pink → rose | `float-hearts` |
-| 👨‍👩‍👧‍👦 Gia đình | blue → indigo → purple | `warm-rays` |
-| 🌱 Cha mẹ | green → emerald → teal | `grow-up` |
+**D. Chọn background:**
+- 3 ảnh hệ thống theo chủ đề đã chọn (thumbnail nhỏ, click để chọn)
+- Background được chọn sẽ làm nền cho Celebration Card (cover, opacity overlay để nội dung đọc được)
 
-#### Tự động đăng bài kèm Celebration Card lên Profile:
+**E. Âm thanh:**
+- 3 tuỳ chọn nhạc với nút nghe thử (giữ logic hiện tại)
+- Phát tự động khi mở modal
 
-Cập nhật `handleShareToProfile` (dòng 154–180):
-- Xoá `gif_url: randomGif`
-- Thêm trường `metadata` dạng JSON vào `content` — chứa thông tin giao dịch (sender, receiver, amount, token, theme, receipt_id) để `PostCard` có thể render lại Celebration Card
-- Nội dung bài đăng: text đầy đủ (emoji chủ đề + tên người gửi/nhận + số tiền + token + lời nhắn + link biên nhận + hashtag)
-- Thêm trường `donation_transaction_id` (bảng `posts` đã có cột này) để liên kết bài đăng với giao dịch
+**F. Hiệu ứng:**
+- Confetti canvas (giữ 4 đợt hiện tại)
+- Hiệu ứng đồng CAMLY Coin + Fun Money bay (sử dụng `/images/camly-coin.png` và `/images/fun-money-coin.png`)
+- CSS animation theo chủ đề (giữ các keyframe hiện tại)
 
-#### Nút hành động (giữ 2 nút):
-- "Sao chép link biên nhận"
-- "Chia sẻ lên Profile" (tự động gọi khi mở, bỏ nút "Lưu GIF")
-- Nút ❌ đóng
-
----
-
-### File 3: `src/components/Profile/PostCard.tsx`
-
-#### Thêm hiển thị Celebration Card cho bài đăng donation:
-
-Khi `post.post_type === "donation"`, thay vì chỉ hiển thị GIF ngẫu nhiên qua `post.gif_url`, sẽ render một **Celebration Card mini** trực tiếp trong bài đăng:
-
-- Trích xuất thông tin giao dịch từ `post.donation_transaction_id` (query `donation_transactions` + `profiles`)
-- Hoặc parse từ nội dung `post.content` (fallback nếu không có `donation_transaction_id`)
-- Hiển thị thẻ Celebration Card nhỏ gọn:
-  - Nền gradient theo chủ đề (từ metadata)
-  - Tiêu đề: "🎉 Tặng thưởng thành công"
-  - Avatar + tên người gửi → Số tiền + Token → Avatar + tên người nhận
-  - Lời nhắn (nếu có)
-  - Nút "Xem biên nhận" dẫn đến `/receipt/...`
-
-Tạo component con `DonationCelebrationCard` (inline hoặc file riêng) để tái sử dụng.
+**G. Nút hành động trên Card (6 nút):**
+1. 📥 **Lưu hình ảnh** — Chụp screenshot card bằng `html2canvas` (cần thêm thư viện) hoặc dùng Canvas API
+2. 🔗 **Chia sẻ** — Copy link biên nhận
+3. 🧾 **Sao chép Tx Hash** — Copy TX hash
+4. 📣 **Đăng lên Profile** — Tự động đăng (giữ logic hiện tại)
+5. 💬 **Gửi tin nhắn** — Gửi tin nhắn cho người nhận (mới)
+6. ❌ **Đóng**
 
 ---
 
-### File 4: `src/index.css`
+### File 3: Tính năng AUTO MESSAGE (Gửi tin nhắn cho người nhận)
 
-Thêm 6 CSS keyframes mới (cuối file):
+Thêm logic trong GiftCelebrationModal:
 
-```css
-@keyframes float-hearts {
-  0%, 100% { transform: translateY(0) scale(1); opacity: 0.7; }
-  50% { transform: translateY(-20px) scale(1.2); opacity: 1; }
+1. Tìm hoặc tạo cuộc trò chuyện giữa sender và receiver (`user_chats`)
+2. Gửi tin nhắn loại `donation` vào `chat_messages`:
+   - `message_type: "donation"`
+   - `donation_transaction_id`: liên kết giao dịch
+   - `content`: Nội dung text đầy đủ (emoji + tên + số tiền + token + lời nhắn)
+   - `deep_link`: `/receipt/{receipt_public_id}`
+
+**Bảng `chat_messages` đã có** các cột: `message_type`, `donation_transaction_id`, `deep_link` — đã sẵn sàng.
+
+**Bảng `user_chats`** — cần kiểm tra hoặc tạo cuộc trò chuyện:
+```typescript
+// Tìm chat hiện có
+const { data: existingChat } = await supabase
+  .from("user_chats")
+  .select("id")
+  .or(`and(user1_id.eq.${sender.id},user2_id.eq.${receiver.id}),and(user1_id.eq.${receiver.id},user2_id.eq.${sender.id})`)
+  .single();
+
+// Nếu chưa có → tạo mới
+if (!existingChat) {
+  const { data: newChat } = await supabase
+    .from("user_chats")
+    .insert({ user1_id: sender.id, user2_id: receiver.id })
+    .select("id")
+    .single();
 }
-@keyframes sparkle-shimmer {
-  0%, 100% { opacity: 0.5; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.1); }
-}
-@keyframes confetti-fall {
-  0% { transform: translateY(-10px) rotate(0deg); opacity: 1; }
-  100% { transform: translateY(20px) rotate(360deg); opacity: 0; }
-}
-@keyframes gentle-glow {
-  0%, 100% { box-shadow: 0 0 10px rgba(16, 185, 129, 0.3); }
-  50% { box-shadow: 0 0 25px rgba(16, 185, 129, 0.6); }
-}
-@keyframes warm-rays {
-  0%, 100% { opacity: 0.4; transform: rotate(0deg); }
-  50% { opacity: 0.8; transform: rotate(5deg); }
-}
-@keyframes grow-up {
-  0% { transform: scaleY(0.8); opacity: 0.6; }
-  100% { transform: scaleY(1); opacity: 1; }
-}
+
+// Gửi tin nhắn
+await supabase.from("chat_messages").insert({
+  chat_id: chatId,
+  sender_id: sender.id,
+  message_type: "donation",
+  content: `🎁 ${sender.name} đã tặng bạn ${amount} ${token.symbol}! ...`,
+  donation_transaction_id: transaction.id,
+  deep_link: `/receipt/${transaction.receipt_public_id}`,
+});
 ```
 
-Kèm class tiện ích tương ứng: `.animate-float-hearts`, `.animate-sparkle-shimmer`, v.v.
+---
+
+### File 4: `src/components/Profile/DonationCelebrationCard.tsx`
+
+Cập nhật cho 6 chủ đề mới:
+- Xoá `wedding`, `parents` khỏi `THEME_LABELS`, `THEME_GRADIENTS`, `THEME_BORDERS`
+- Thêm `newyear`
+- Thêm hiển thị background image nếu có (lưu trong metadata giao dịch)
 
 ---
 
-## IV. Các file không cần thay đổi
+### File 5: `src/components/Profile/PostCard.tsx`
 
-| File | Lý do |
-|---|---|
-| `src/hooks/useDonation.ts` | Đã hỗ trợ tham số `theme` và `music` (dòng 54–55) |
-| `supabase/functions/create-donation/index.ts` | Đã nhận và lưu `theme`, `music` vào metadata |
+Giữ nguyên — đã hoạt động đúng với `DonationCelebrationCard`.
 
 ---
 
-## V. Bảng tổng hợp file cần thay đổi
+### File 6: `src/components/Transactions/TransactionCard.tsx`
+
+Thêm nút **"Xem Card Chúc Mừng"** cho giao dịch donation:
+
+```typescript
+// Thêm vào footer (dòng 218-271)
+{transaction.source_table === "donation_transactions" && (
+  <Button
+    variant="ghost"
+    size="sm"
+    onClick={() => navigate(`/receipt/${transaction.id}`)}
+    className="text-xs text-amber-500"
+  >
+    🎉 Xem Card Chúc Mừng
+  </Button>
+)}
+```
+
+Cần truy xuất `receipt_public_id` từ `donation_transactions` — hoặc lưu trực tiếp vào `UnifiedTransaction`.
+
+Cập nhật `useTransactionHistory.ts`:
+- Thêm field `receipt_public_id` vào `UnifiedTransaction` interface
+- Map từ `donation_transactions.receipt_public_id`
+
+---
+
+### File 7: `src/index.css`
+
+Giữ nguyên 6 keyframes hiện tại, cập nhật:
+- Xoá animation classes cho `wedding`, `parents`
+- Thêm animation class cho `newyear` (ví dụ: `animate-fireworks`)
+
+---
+
+### File 8: Hiệu ứng đồng coin bay
+
+Thêm component con `CoinShowerEffect` trong GiftCelebrationModal:
+- Sử dụng CSS animation hoặc canvas
+- Hiển thị ảnh `/images/camly-coin.png` và `/images/fun-money-coin.png` bay tung toé
+- Không che nội dung card (pointer-events-none, z-index thấp)
+
+---
+
+## IV. Bảng tổng hợp file cần thay đổi
 
 | # | File | Loại | Mô tả |
 |---|------|------|-------|
-| 1 | `public/audio/rich-celebration.mp3` | Ghi đè | File "Rich! Rich! Rich!" mới |
-| 2 | `public/audio/rich-2.mp3` | Tạo mới | File "Rich Vibe" |
-| 3 | `public/audio/rich-3.mp3` | Tạo mới | File "Rich Energy" |
-| 4 | `src/components/Donate/EnhancedDonateModal.tsx` | Cập nhật | Xoá slider/chủ đề/nhạc ở bước 1; chuyển sang bước 2 với nghe thử |
-| 5 | `src/components/Donate/DonationSuccessOverlay.tsx` | Cập nhật lớn | Xoá GIF Giphy; thay bằng Celebration Card; phát đúng nhạc |
-| 6 | `src/components/Profile/PostCard.tsx` | Cập nhật | Render Celebration Card mini cho bài đăng donation |
-| 7 | `src/index.css` | Cập nhật nhỏ | Thêm 6 CSS keyframes cho hiệu ứng chủ đề |
+| 1-18 | `public/images/celebration-bg/*.png` | Tạo mới | 18 ảnh nền cho 6 chủ đề |
+| 19 | `src/components/Donate/EnhancedDonateModal.tsx` | Cập nhật | Xoá theme/music ở bước 2, cập nhật 6 chủ đề mới, import GiftCelebrationModal |
+| 20 | `src/components/Donate/DonationSuccessOverlay.tsx` | Viết lại | Đổi thành GiftCelebrationModal — thêm chọn theme/background/nhạc, 6 nút hành động, auto message, coin shower |
+| 21 | `src/components/Profile/DonationCelebrationCard.tsx` | Cập nhật | 6 chủ đề mới, hỗ trợ background image |
+| 22 | `src/components/Transactions/TransactionCard.tsx` | Cập nhật nhỏ | Thêm nút "Xem Card Chúc Mừng" |
+| 23 | `src/hooks/useTransactionHistory.ts` | Cập nhật nhỏ | Thêm `receipt_public_id` vào UnifiedTransaction |
+| 24 | `src/index.css` | Cập nhật nhỏ | Thêm keyframe newyear, xoá wedding/parents, thêm coin shower animation |
 
 ---
 
-## VI. Kết quả mong đợi
+## V. Các file KHÔNG cần thay đổi
 
-1. **Bước nhập:** Gọn gàng — chỉ 5 trường cơ bản, không slider, không chủ đề, không nhạc.
-2. **Bước xác nhận:** Hoành tráng — xem đầy đủ thông tin, chọn chủ đề, nghe thử 3 bản nhạc.
-3. **Màn hình thành công:** Celebration Card đẹp — hiệu ứng CSS theo chủ đề, nhạc thực từ 3 file, đầy đủ thông tin Web3, **không còn GIF ngẫu nhiên**.
-4. **Tự động đăng bài:** Bài viết trên profile hiển thị **Celebration Card trực tiếp** (không phải GIF ngẫu nhiên, không phải chỉ text) — cho đẹp và chuyên nghiệp.
-5. **Toàn bộ trải nghiệm:** Nghi thức chúc mừng & lan toả yêu thương.
+| File | Lý do |
+|---|---|
+| `src/hooks/useDonation.ts` | Đã hỗ trợ `theme` và `music` |
+| `src/hooks/useChatMessages.ts` | Đã hỗ trợ `message_type: "donation"` |
+| `supabase/functions/create-donation/index.ts` | Đã lưu metadata |
+| `src/components/Profile/PostCard.tsx` | Đã tích hợp DonationCelebrationCard |
+
+---
+
+## VI. Flow hoàn chỉnh sau triển khai
+
+```
+Người gửi mở Modal
+  → Bước 1: Điền người nhận, token, số tiền, lời nhắn
+  → Bước 2: Xem bảng xác nhận → Bấm "Xác nhận & Tặng" → Ký MetaMask (nếu BSC)
+  → Bước 3: GiftCelebrationModal hiện ra:
+      - Confetti bắn + Coin bay + Nhạc phát
+      - Celebration Card với đầy đủ thông tin
+      - Chọn chủ đề (6 loại) → Hiển thị 3 background tương ứng
+      - Chọn background cho card
+      - Chọn nhạc (3 bản Rich)
+      - 6 nút: Lưu ảnh | Chia sẻ | Copy TX | Đăng Profile | Gửi tin nhắn | Đóng
+      
+  → TỰ ĐỘNG:
+      1. Đăng bài lên Profile (kèm Celebration Card)
+      2. Gửi tin nhắn cho người nhận (kèm link card)
+      3. Lưu lịch sử giao dịch (có nút "Xem Card Chúc Mừng")
+```
+
+---
+
+## VII. Kết quả mong đợi
+
+1. **Bước nhập liệu**: Gọn gàng — 5 trường cơ bản
+2. **Bước xác nhận**: Rõ ràng — chỉ thông tin giao dịch + cảnh báo
+3. **Celebration Card**: Hoành tráng — ảnh nền đẹp theo chủ đề, hiệu ứng coin bay, nhạc Rich!, đầy đủ thông tin Web3
+4. **Tự động lan toả**: Đăng Profile (kèm Celebration Card) + Gửi tin nhắn cho người nhận
+5. **Lịch sử**: Nút "Xem Card Chúc Mừng" mở lại đúng theme + nhạc + hiệu ứng
+6. **Cảm xúc**: "ĐÃ – ĐẸP – MUỐN KHOE – MUỐN CHIA SẺ – MUỐN TẶNG TIẾP"
 
