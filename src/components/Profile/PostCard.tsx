@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { EnhancedDonateModal } from "@/components/Donate/EnhancedDonateModal";
+import { DonationCelebrationCard } from "@/components/Profile/DonationCelebrationCard";
 import { Heart, MessageSquare, Share2, Gift, MoreHorizontal, Sparkles } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { vi } from "date-fns/locale";
@@ -25,6 +26,7 @@ interface PostCardProps {
     images?: string[] | null;
     gif_url?: string | null;
     post_type?: string | null;
+    donation_transaction_id?: string | null;
     created_at: string;
     like_count: number;
     comment_count: number;
@@ -184,8 +186,13 @@ export const PostCard = ({ post, onUpdate }: PostCardProps) => {
           </div>
         )}
 
-        {/* GIF Display */}
-        {post.gif_url && (
+        {/* Donation Celebration Card — for donation posts */}
+        {isDonationPost && post.donation_transaction_id && (
+          <DonationCelebrationCard donationTransactionId={post.donation_transaction_id} />
+        )}
+
+        {/* GIF Display — only for non-donation posts */}
+        {!isDonationPost && post.gif_url && (
           <div className="mt-3 rounded-xl overflow-hidden">
             <img
               src={post.gif_url}

@@ -1,14 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Search, Loader2, X, Smile, ArrowLeft, AlertTriangle, Copy, Wallet } from "lucide-react";
+import { Search, Loader2, X, Smile, ArrowLeft, AlertTriangle, Copy, Wallet, Play, Pause } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Slider } from "@/components/ui/slider";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { supabase } from "@/integrations/supabase/client";
 import { useDonation, DonationTransaction, DonationToken } from "@/hooks/useDonation";
 import { useInternalWallet } from "@/hooks/useInternalWallet";
@@ -59,11 +57,11 @@ const DONATION_THEMES = [
   { id: "parents", emoji: "🌱", label: "Cha mẹ" },
 ];
 
-// Music options
+// Music options with real audio files
 const MUSIC_OPTIONS = [
-  { id: "rich-celebration", label: "Rich! Rich! Rich!", description: "Mặc định" },
-  { id: "celebrate-synth", label: "Celebrate Synth", description: "Nhạc điện tử" },
-  { id: "coin-shower", label: "Coin Shower", description: "Âm thanh coin" },
+  { id: "rich-celebration", label: "Rich! Rich! Rich!", description: "Mặc định", src: "/audio/rich-celebration.mp3" },
+  { id: "rich-2", label: "Rich Vibe", description: "Năng lượng tích cực", src: "/audio/rich-2.mp3" },
+  { id: "rich-3", label: "Rich Energy", description: "Giàu có & yêu thương", src: "/audio/rich-3.mp3" },
 ];
 
 const shortenAddress = (addr: string) => addr ? `${addr.slice(0, 6)}…${addr.slice(-4)}` : "";
@@ -118,10 +116,64 @@ export const EnhancedDonateModal = ({
   // Emoji picker
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
+  // Audio preview
+  const previewAudioRef = useRef<HTMLAudioElement | null>(null);
+  const previewTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [playingMusicId, setPlayingMusicId] = useState<string | null>(null);
+
   // Track if modal has been initialized this session
   const didInitRef = useRef(false);
 
   const quickAmounts = [10, 50, 100, 500];
+
+  // Stop audio preview
+  const stopPreview = useCallback(() => {
+    if (previewAudioRef.current) {
+      previewAudioRef.current.pause();
+      previewAudioRef.current.currentTime = 0;
+      previewAudioRef.current = null;
+    }
+    if (previewTimeoutRef.current) {
+      clearTimeout(previewTimeoutRef.current);
+      previewTimeoutRef.current = null;
+    }
+    setPlayingMusicId(null);
+  }, []);
+
+  // Play audio preview (5 seconds)
+  const togglePreview = useCallback((musicId: string) => {
+    if (playingMusicId === musicId) {
+      stopPreview();
+      return;
+    }
+    stopPreview();
+    const option = MUSIC_OPTIONS.find(m => m.id === musicId);
+    if (!option) return;
+
+    const audio = new Audio(option.src);
+    audio.volume = 0.5;
+    audio.play().catch(() => {});
+    previewAudioRef.current = audio;
+    setPlayingMusicId(musicId);
+
+    previewTimeoutRef.current = setTimeout(() => {
+      stopPreview();
+    }, 5000);
+
+    audio.onended = () => stopPreview();
+  }, [playingMusicId, stopPreview]);
+
+  // Stop preview when leaving step 2 or closing modal
+  useEffect(() => {
+    if (step !== 2 || !open) {
+      stopPreview();
+    }
+  }, [step, open, stopPreview]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => stopPreview();
+  }, [stopPreview]);
 
   // Fetch sender profile
   useEffect(() => {
@@ -214,14 +266,10 @@ export const EnhancedDonateModal = ({
     if (value === "" || /^\d*\.?\d*$/.test(value)) setAmount(value);
   };
 
-  const handleSliderChange = (values: number[]) => setAmount(values[0].toString());
-
   const handleEmojiSelect = (emoji: string) => {
     setMessage((prev) => prev + emoji);
     setShowEmojiPicker(false);
   };
-
-  
 
   const handleDonate = async () => {
     if (!selectedReceiver || !selectedToken || !amount || parseFloat(amount) <= 0) return;
@@ -255,7 +303,6 @@ export const EnhancedDonateModal = ({
   };
 
   const currentBalance = selectedToken?.chain === "internal" ? getBalanceBySymbol(selectedToken.symbol) : null;
-  const maxAmount = currentBalance !== null ? currentBalance : 10000;
   const isValidAmount = selectedToken?.chain === "internal"
     ? currentBalance !== null && parseFloat(amount || "0") <= currentBalance
     : true;
@@ -305,7 +352,7 @@ export const EnhancedDonateModal = ({
             />
 
           ) : step === 2 ? (
-            /* STEP 2: REVIEW */
+            /* STEP 2: REVIEW + THEME + MUSIC */
             <motion.div key="review" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
               {/* Sender */}
               <div className="p-3 rounded-xl bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20">
@@ -364,12 +411,68 @@ export const EnhancedDonateModal = ({
                 <p className="text-xs text-muted-foreground mt-1">Chain: {selectedToken?.chain === "internal" ? "Nội bộ" : "BSC"}</p>
               </div>
 
-              {/* Theme + Music + Message */}
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between"><span className="text-muted-foreground">Chủ đề</span><span>{currentTheme?.emoji} {currentTheme?.label}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Nhạc</span><span>{MUSIC_OPTIONS.find(m => m.id === selectedMusic)?.label}</span></div>
-                {message && <div><span className="text-muted-foreground">Lời nhắn:</span><p className="italic mt-1 p-2 bg-muted/50 rounded-lg">"{message}"</p></div>}
+              {/* Theme selection — moved to step 2 */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Chủ đề chúc mừng ✨</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {DONATION_THEMES.map((theme) => (
+                    <button key={theme.id} type="button" onClick={() => setSelectedTheme(theme.id)}
+                      className={`flex flex-col items-center gap-1 p-2 rounded-xl border transition-all ${
+                        selectedTheme === theme.id
+                          ? "border-primary bg-primary/10 ring-2 ring-primary/30"
+                          : "border-border hover:border-primary/50 hover:bg-muted/50"
+                      }`}>
+                      <span className="text-xl">{theme.emoji}</span>
+                      <span className="text-[10px] leading-tight text-center">{theme.label}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
+
+              {/* Music selection with preview — moved to step 2 */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Chọn nhạc 🎵</label>
+                <div className="space-y-1.5">
+                  {MUSIC_OPTIONS.map((musicOption) => (
+                    <div
+                      key={musicOption.id}
+                      onClick={() => setSelectedMusic(musicOption.id)}
+                      className={`flex items-center gap-3 p-2.5 rounded-xl border cursor-pointer transition-all ${
+                        selectedMusic === musicOption.id
+                          ? "border-primary bg-primary/10 ring-1 ring-primary/30"
+                          : "border-border hover:border-primary/50 hover:bg-muted/50"
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); togglePreview(musicOption.id); }}
+                        className={`h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${
+                          playingMusicId === musicOption.id
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted hover:bg-muted-foreground/20"
+                        }`}
+                      >
+                        {playingMusicId === musicOption.id ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5 ml-0.5" />}
+                      </button>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium">{musicOption.label}</p>
+                        <p className="text-xs text-muted-foreground">{musicOption.description}</p>
+                      </div>
+                      {selectedMusic === musicOption.id && (
+                        <span className="text-xs text-primary font-medium">✓</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Message display */}
+              {message && (
+                <div className="text-sm">
+                  <span className="text-muted-foreground">Lời nhắn:</span>
+                  <p className="italic mt-1 p-2 bg-muted/50 rounded-lg">"{message}"</p>
+                </div>
+              )}
 
               {/* Warning */}
               <div className="flex items-start gap-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
@@ -393,7 +496,7 @@ export const EnhancedDonateModal = ({
             </motion.div>
 
           ) : (
-            /* STEP 1: INPUT FORM */
+            /* STEP 1: INPUT FORM — simplified, no theme/music/slider */
             <motion.div key="form" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
               {/* Sender info */}
               {senderProfile && (
@@ -506,7 +609,7 @@ export const EnhancedDonateModal = ({
                 )}
               </div>
 
-              {/* Amount input */}
+              {/* Amount input — no slider */}
               <div className="space-y-3">
                 <label className="text-sm font-medium">Số tiền 🎁</label>
                 <div className="flex gap-2">
@@ -520,49 +623,12 @@ export const EnhancedDonateModal = ({
                 </div>
                 <Input type="text" inputMode="decimal" placeholder="Hoặc nhập số tùy chọn..." value={amount}
                   onChange={(e) => handleAmountChange(e.target.value)} className="text-lg font-bold text-center hologram-input pointer-events-auto" />
-                {maxAmount > 0 && (
-                  <Slider min={1} max={Math.min(maxAmount, 10000)} step={1} value={[parseFloat(amount) || 0]} onValueChange={handleSliderChange} className="mt-2" />
-                )}
                 {!isValidAmount && parseFloat(amount || "0") > 0 && (
                   <p className="text-xs text-destructive">Số dư không đủ. Bạn chỉ có {currentBalance} {selectedToken?.symbol}</p>
                 )}
                 {amount && parseFloat(amount) > 0 && selectedToken && (
                   <p className="text-center text-sm font-medium text-primary">Bạn sẽ tặng: {amount} {selectedToken.symbol}</p>
                 )}
-              </div>
-
-              {/* Theme selection */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Chủ đề tặng thưởng ✨</label>
-                <div className="grid grid-cols-4 gap-2">
-                  {DONATION_THEMES.map((theme) => (
-                    <button key={theme.id} type="button" onClick={() => setSelectedTheme(theme.id)}
-                      className={`flex flex-col items-center gap-1 p-2 rounded-xl border transition-all ${
-                        selectedTheme === theme.id
-                          ? "border-primary bg-primary/10 ring-2 ring-primary/30"
-                          : "border-border hover:border-primary/50 hover:bg-muted/50"
-                      }`}>
-                      <span className="text-xl">{theme.emoji}</span>
-                      <span className="text-[10px] leading-tight text-center">{theme.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Music selection */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Chọn nhạc 🎵 <span className="text-muted-foreground font-normal">(tùy chọn)</span></label>
-                <RadioGroup value={selectedMusic} onValueChange={setSelectedMusic} className="space-y-1">
-                  {MUSIC_OPTIONS.map((music) => (
-                    <label key={music.id} className="flex items-center gap-3 p-2 rounded-lg border border-border hover:bg-muted/50 cursor-pointer transition-colors">
-                      <RadioGroupItem value={music.id} />
-                      <div>
-                        <p className="text-sm font-medium">{music.label}</p>
-                        <p className="text-xs text-muted-foreground">{music.description}</p>
-                      </div>
-                    </label>
-                  ))}
-                </RadioGroup>
               </div>
 
               {/* Message textarea */}

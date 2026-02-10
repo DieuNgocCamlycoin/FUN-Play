@@ -1,15 +1,15 @@
 import { useState, useEffect, useRef } from "react";
-import { CheckCircle2, Copy, ExternalLink, Share2, X, Sparkles, Download, Wallet } from "lucide-react";
+import { CheckCircle2, Copy, ExternalLink, Share2, X, Sparkles, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { motion } from "framer-motion";
 import confetti from "canvas-confetti";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { useSoundEffects } from "@/hooks/useSoundEffects";
 
 interface DonationSuccessOverlayProps {
   transaction: {
+    id?: string;
     receipt_public_id: string;
     amount: number;
     tx_hash?: string | null;
@@ -53,32 +53,6 @@ const CopyBtn = ({ text, label }: { text: string; label?: string }) => (
   </button>
 );
 
-// Theme-based GIFs
-const THEME_GIFS: Record<string, string[]> = {
-  celebration: [
-    "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExcWZrOWJxaTN0d3NlMnJmMnVyOWZxOGtjcm9yY3JyemxqaXB2MWNsdiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o6Zt6cQPT8dpg4YkE/giphy.gif",
-    "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExcXRxZ3UzMWVvbnEzbGd6NW5mdWFvazZ6eWhuOWlmcHEzMmFwcmM2aSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o7btNa0RUYa5E7iiQ/giphy.gif",
-  ],
-  wedding: [
-    "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExY3M5aHp6eGh5cGZocnBuaXM1aDZncW54MGZkcDV4czdnOGk1cnZ6aiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/26tP4gFBQewkLnMv6/giphy.gif",
-  ],
-  birthday: [
-    "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExdHd1bTBoNWJkMm5wN2doaXk0Z295bHc4bHdyN2c5MnZtaHQ3bGNxaiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/KzDqC8LvVC4lshCsGJ/giphy.gif",
-  ],
-  gratitude: [
-    "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbjJ0MGN5MDg3NTN2dHFlNGF4dzR6dXZsMWR0NnpsMzE5cWNuOGY0byZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/l0MYt5jPR6QX5pnqM/giphy.gif",
-  ],
-  love: [
-    "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExcWZrOWJxaTN0d3NlMnJmMnVyOWZxOGtjcm9yY3JyemxqaXB2MWNsdiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o6Zt6cQPT8dpg4YkE/giphy.gif",
-  ],
-  family: [
-    "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExcXRxZ3UzMWVvbnEzbGd6NW5mdWFvazZ6eWhuOWlmcHEzMmFwcmM2aSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o7btNa0RUYa5E7iiQ/giphy.gif",
-  ],
-  parents: [
-    "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExY3M5aHp6eGh5cGZocnBuaXM1aDZncW54MGZkcDV4czdnOGk1cnZ6aiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/26tP4gFBQewkLnMv6/giphy.gif",
-  ],
-};
-
 const THEME_LABELS: Record<string, { emoji: string; label: string }> = {
   celebration: { emoji: "🎉", label: "Chúc mừng" },
   wedding: { emoji: "💍", label: "Kết hôn" },
@@ -87,6 +61,34 @@ const THEME_LABELS: Record<string, { emoji: string; label: string }> = {
   love: { emoji: "❤️", label: "Tình yêu" },
   family: { emoji: "👨‍👩‍👧‍👦", label: "Gia đình" },
   parents: { emoji: "🌱", label: "Cha mẹ" },
+};
+
+// Theme-based gradients & CSS animations for Celebration Card
+const THEME_STYLES: Record<string, { gradient: string; animation: string }> = {
+  celebration: { gradient: "from-amber-400/20 via-pink-400/20 to-purple-500/20", animation: "animate-confetti-fall" },
+  wedding: { gradient: "from-rose-300/20 via-amber-200/20 to-yellow-300/20", animation: "animate-sparkle-shimmer" },
+  birthday: { gradient: "from-pink-400/20 via-yellow-300/20 to-cyan-400/20", animation: "animate-confetti-fall" },
+  gratitude: { gradient: "from-emerald-400/20 via-teal-400/20 to-green-500/20", animation: "animate-gentle-glow" },
+  love: { gradient: "from-red-400/20 via-pink-400/20 to-rose-400/20", animation: "animate-float-hearts" },
+  family: { gradient: "from-blue-400/20 via-indigo-400/20 to-purple-400/20", animation: "animate-warm-rays" },
+  parents: { gradient: "from-green-400/20 via-emerald-400/20 to-teal-400/20", animation: "animate-grow-up" },
+};
+
+const THEME_BORDERS: Record<string, string> = {
+  celebration: "border-amber-400/40",
+  wedding: "border-rose-300/40",
+  birthday: "border-pink-400/40",
+  gratitude: "border-emerald-400/40",
+  love: "border-red-400/40",
+  family: "border-blue-400/40",
+  parents: "border-green-400/40",
+};
+
+// Music files mapping
+const MUSIC_FILES: Record<string, string> = {
+  "rich-celebration": "/audio/rich-celebration.mp3",
+  "rich-2": "/audio/rich-2.mp3",
+  "rich-3": "/audio/rich-3.mp3",
 };
 
 export const DonationSuccessOverlay = ({
@@ -99,24 +101,24 @@ export const DonationSuccessOverlay = ({
   music = "rich-celebration",
   onClose,
 }: DonationSuccessOverlayProps) => {
-  const { playCoinShower } = useSoundEffects();
   const [isSharing, setIsSharing] = useState(false);
   const [hasShared, setHasShared] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  const themeInfo = THEME_LABELS[theme] || THEME_LABELS.celebration;
+  const themeStyle = THEME_STYLES[theme] || THEME_STYLES.celebration;
+  const themeBorder = THEME_BORDERS[theme] || THEME_BORDERS.celebration;
+
   // Play celebration effects on mount
   useEffect(() => {
-    // Play music based on selection
-    if (music === "rich-celebration") {
-      try {
-        const audio = new Audio("/audio/rich-celebration.mp3");
-        audio.volume = 0.6;
-        audio.play().catch(() => {});
-        audioRef.current = audio;
-      } catch {}
-    } else {
-      playCoinShower(8);
-    }
+    // Play selected music file
+    const audioSrc = MUSIC_FILES[music] || MUSIC_FILES["rich-celebration"];
+    try {
+      const audio = new Audio(audioSrc);
+      audio.volume = 0.6;
+      audio.play().catch(() => {});
+      audioRef.current = audio;
+    } catch {}
 
     // Confetti bursts
     confetti({ particleCount: 100, spread: 70, origin: { y: 0.6, x: 0.5 }, colors: ["#FFD700", "#FF00E5", "#00E7FF", "#7A2BFF"] });
@@ -125,7 +127,7 @@ export const DonationSuccessOverlay = ({
     setTimeout(() => confetti({ particleCount: 30, spread: 360, startVelocity: 20, ticks: 60, origin: { x: 0.5, y: 0.4 }, shapes: ["star"], colors: ["#FFD700", "#FFA500"] }), 500);
 
     return () => { audioRef.current?.pause(); };
-  }, [music, playCoinShower]);
+  }, [music]);
 
   // Auto-share to profile
   useEffect(() => {
@@ -147,10 +149,6 @@ export const DonationSuccessOverlay = ({
     }
   };
 
-  const themeGifs = THEME_GIFS[theme] || THEME_GIFS.celebration;
-  const randomGif = themeGifs[Math.floor(Math.random() * themeGifs.length)];
-  const themeInfo = THEME_LABELS[theme] || THEME_LABELS.celebration;
-
   const handleShareToProfile = async () => {
     setIsSharing(true);
     try {
@@ -164,9 +162,9 @@ export const DonationSuccessOverlay = ({
         user_id: sender.id,
         channel_id: channel.id,
         content: postContent,
-        gif_url: randomGif,
         post_type: "donation",
         is_public: true,
+        donation_transaction_id: transaction.id || null,
       });
 
       if (error) throw error;
@@ -206,18 +204,18 @@ export const DonationSuccessOverlay = ({
         </motion.h3>
       </div>
 
-      {/* GIF celebration */}
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
-        className="rounded-xl overflow-hidden max-h-32 flex justify-center">
-        <img src={randomGif} alt="Celebration" className="h-32 object-cover rounded-xl" loading="lazy" />
-      </motion.div>
+      {/* Celebration Card — replaces GIF */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+        className={`relative overflow-hidden rounded-2xl border-2 ${themeBorder} bg-gradient-to-br ${themeStyle.gradient} p-4`}
+      >
+        {/* Theme animation overlay */}
+        <div className={`absolute inset-0 pointer-events-none ${themeStyle.animation} opacity-30`} />
 
-      {/* Transaction detail card */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
-        className="p-4 rounded-xl bg-gradient-to-br from-purple-500/10 via-pink-500/10 to-amber-500/10 border border-purple-500/20 space-y-3">
-        
-        {/* Sender → Receiver */}
-        <div className="flex items-center justify-between gap-2">
+        {/* Sender → Amount → Receiver */}
+        <div className="relative flex items-center justify-between gap-2">
           {/* Sender */}
           <a href={`/user/${sender.id}`} className="flex flex-col items-center gap-1 flex-1 min-w-0 hover:opacity-80 transition-opacity">
             <Avatar className="h-11 w-11 ring-2 ring-purple-500/30">
@@ -262,7 +260,7 @@ export const DonationSuccessOverlay = ({
         </div>
 
         {/* Details grid */}
-        <div className="space-y-1.5 text-xs border-t border-border/50 pt-3">
+        <div className="relative space-y-1.5 text-xs border-t border-border/50 pt-3 mt-3">
           <div className="flex justify-between">
             <span className="text-muted-foreground">Chủ đề</span>
             <span>{themeInfo.emoji} {themeInfo.label}</span>
@@ -300,27 +298,20 @@ export const DonationSuccessOverlay = ({
       </motion.div>
 
       {/* Action buttons */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }} className="grid grid-cols-2 gap-2">
-        <Button variant="outline" size="sm" onClick={handleCopyLink}>
-          <Copy className="h-4 w-4 mr-1.5" />Sao chép link
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => {
-          const link = document.createElement("a");
-          link.href = randomGif;
-          link.download = `fun-play-gift-${transaction.receipt_public_id}.gif`;
-          link.target = "_blank";
-          link.click();
-        }}>
-          <Download className="h-4 w-4 mr-1.5" />Lưu GIF
-        </Button>
-        <Button
-          className="col-span-2 bg-gradient-to-r from-purple-500 via-pink-500 to-amber-500 hover:opacity-90 text-white"
-          size="sm"
-          onClick={handleShareToProfile}
-          disabled={isSharing || hasShared}
-        >
-          {hasShared ? <><CheckCircle2 className="h-4 w-4 mr-1.5" />Đã chia sẻ</> : <><Share2 className="h-4 w-4 mr-1.5" />{isSharing ? "Đang chia sẻ..." : "Chia sẻ lên Profile"}</>}
-        </Button>
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }} className="space-y-2">
+        <div className="grid grid-cols-2 gap-2">
+          <Button variant="outline" size="sm" onClick={handleCopyLink}>
+            <Copy className="h-4 w-4 mr-1.5" />Sao chép link
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleShareToProfile}
+            disabled={isSharing || hasShared}
+          >
+            {hasShared ? <><CheckCircle2 className="h-4 w-4 mr-1.5" />Đã chia sẻ</> : <><Share2 className="h-4 w-4 mr-1.5" />{isSharing ? "Đang..." : "Chia sẻ Profile"}</>}
+          </Button>
+        </div>
       </motion.div>
     </motion.div>
   );
