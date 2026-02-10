@@ -45,6 +45,37 @@ const shortenAddress = (addr: string) =>
   addr ? `${addr.slice(0, 6)}…${addr.slice(-4)}` : "";
 
 // ==================== MOCK PROFILE CARD (inline, no DB fetch) ====================
+const MockCardInternalEffects = () => {
+  const coins = Array.from({ length: 12 }, (_, i) => ({
+    id: i,
+    src: i % 2 === 0 ? "/images/camly-coin.png" : "/images/fun-money-coin.png",
+    left: 5 + Math.random() * 90,
+    delay: Math.random() * 6,
+    duration: 3 + Math.random() * 3,
+    size: 10 + Math.random() * 12,
+  }));
+  const sparkles = Array.from({ length: 8 }, (_, i) => ({
+    id: i,
+    left: 10 + Math.random() * 80,
+    top: 10 + Math.random() * 80,
+    delay: Math.random() * 4,
+    duration: 2 + Math.random() * 2,
+    size: 3 + Math.random() * 5,
+  }));
+  return (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden z-[1]">
+      {coins.map((coin) => (
+        <img key={`c-${coin.id}`} src={coin.src} alt="" className="absolute animate-coin-float-up"
+          style={{ left: `${coin.left}%`, bottom: "-20px", width: `${coin.size}px`, height: `${coin.size}px`, animationDelay: `${coin.delay}s`, animationDuration: `${coin.duration}s` }} />
+      ))}
+      {sparkles.map((s) => (
+        <div key={`s-${s.id}`} className="absolute animate-sparkle-float rounded-full bg-amber-300"
+          style={{ left: `${s.left}%`, top: `${s.top}%`, width: `${s.size}px`, height: `${s.size}px`, animationDelay: `${s.delay}s`, animationDuration: `${s.duration}s`, boxShadow: "0 0 6px 2px rgba(255, 215, 0, 0.6)" }} />
+      ))}
+    </div>
+  );
+};
+
 const MockDonationCelebrationCard = () => {
   const bg = "/images/celebration-bg/celebration-1.png";
   const formattedTime = format(new Date(), "HH:mm dd/MM/yyyy", { locale: vi });
@@ -55,6 +86,7 @@ const MockDonationCelebrationCard = () => {
       style={{ backgroundImage: `url(${bg})`, backgroundSize: "cover", backgroundPosition: "center" }}
     >
       <div className="absolute inset-0 bg-black/45" />
+      <MockCardInternalEffects />
       <div className="relative h-full flex flex-col justify-between p-5 text-white">
         {/* TOP */}
         <div className="space-y-3">
@@ -138,6 +170,7 @@ const MockChatDonationCard = ({ isMe }: { isMe: boolean }) => {
     <div className={`max-w-[320px] ${isMe ? "ml-auto" : "mr-auto"}`}>
       <div className="relative rounded-2xl overflow-hidden aspect-[4/5]" style={{ backgroundImage: `url(${bg})`, backgroundSize: "cover", backgroundPosition: "center" }}>
         <div className="absolute inset-0 bg-black/45" />
+        <MockCardInternalEffects />
         <div className="relative h-full flex flex-col justify-between p-4 text-white">
           {/* TOP */}
           <div className="space-y-2">

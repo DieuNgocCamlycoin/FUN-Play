@@ -102,19 +102,19 @@ const preloadImagesToBase64 = async (container: HTMLElement) => {
   return originals;
 };
 
-// ======================== COIN SHOWER EFFECT ========================
-const CoinShowerEffect = () => {
+// ======================== FULLSCREEN COIN SHOWER (15s) ========================
+const FullscreenCoinShower = () => {
   const coins = Array.from({ length: 40 }, (_, i) => ({
     id: i,
     src: i % 2 === 0 ? "/images/camly-coin.png" : "/images/fun-money-coin.png",
     left: Math.random() * 100,
     delay: Math.random() * 12,
     duration: 3 + Math.random() * 4,
-    size: 16 + Math.random() * 20,
+    size: 20 + Math.random() * 24,
   }));
 
   return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+    <div className="fixed inset-0 pointer-events-none overflow-hidden z-50">
       {coins.map((coin) => (
         <img
           key={coin.id}
@@ -135,6 +135,63 @@ const CoinShowerEffect = () => {
   );
 };
 
+// ======================== CARD INTERNAL EFFECTS (loop forever) ========================
+const CardInternalEffects = () => {
+  const coins = Array.from({ length: 18 }, (_, i) => ({
+    id: i,
+    src: i % 2 === 0 ? "/images/camly-coin.png" : "/images/fun-money-coin.png",
+    left: 5 + Math.random() * 90,
+    delay: Math.random() * 6,
+    duration: 3 + Math.random() * 3,
+    size: 12 + Math.random() * 14,
+  }));
+
+  const sparkles = Array.from({ length: 10 }, (_, i) => ({
+    id: i,
+    left: 10 + Math.random() * 80,
+    top: 10 + Math.random() * 80,
+    delay: Math.random() * 4,
+    duration: 2 + Math.random() * 2,
+    size: 4 + Math.random() * 6,
+  }));
+
+  return (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden z-[1]">
+      {coins.map((coin) => (
+        <img
+          key={`coin-${coin.id}`}
+          src={coin.src}
+          alt=""
+          className="absolute animate-coin-float-up"
+          style={{
+            left: `${coin.left}%`,
+            bottom: "-20px",
+            width: `${coin.size}px`,
+            height: `${coin.size}px`,
+            animationDelay: `${coin.delay}s`,
+            animationDuration: `${coin.duration}s`,
+          }}
+        />
+      ))}
+      {sparkles.map((s) => (
+        <div
+          key={`sparkle-${s.id}`}
+          className="absolute animate-sparkle-float rounded-full bg-amber-300"
+          style={{
+            left: `${s.left}%`,
+            top: `${s.top}%`,
+            width: `${s.size}px`,
+            height: `${s.size}px`,
+            animationDelay: `${s.delay}s`,
+            animationDuration: `${s.duration}s`,
+            boxShadow: "0 0 6px 2px rgba(255, 215, 0, 0.6)",
+          }}
+        />
+      ))}
+    </div>
+  );
+};
+
 // ======================== MAIN COMPONENT ========================
 export const GiftCelebrationModal = ({
   transaction, sender, receiver, token, message, onClose,
@@ -148,6 +205,7 @@ export const GiftCelebrationModal = ({
   const [isSending, setIsSending] = useState(false);
   const [hasSent, setHasSent] = useState(false);
   const [showEffects, setShowEffects] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
   const [isUploadingBg, setIsUploadingBg] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -160,7 +218,7 @@ export const GiftCelebrationModal = ({
   const backgrounds = THEME_BACKGROUNDS[selectedTheme] || THEME_BACKGROUNDS.celebration;
   const activeBg = customBgUrl || selectedBg;
 
-  // Play celebration effects on mount (confetti + music)
+  // Play celebration effects on mount (confetti 15s + music loop continuously)
   useEffect(() => {
     const audioSrc = MUSIC_OPTIONS.find(m => m.id === selectedMusic)?.src || MUSIC_OPTIONS[0].src;
     try {
@@ -169,25 +227,28 @@ export const GiftCelebrationModal = ({
       audio.loop = true;
       audio.play().catch(() => {});
       audioRef.current = audio;
-      // Stop looping after 15 seconds
-      setTimeout(() => { if (audioRef.current) { audioRef.current.loop = false; } }, 15000);
     } catch {}
 
     // Fire confetti every 1.5s for 15 seconds
     const colors = ["#FFD700", "#FF00E5", "#00E7FF", "#7A2BFF", "#FFA500"];
-    const fireConfetti = (i: number) => {
+    let counter = 0;
+    const fireConfetti = () => {
       const origins = [
         { x: 0.5, y: 0.6 },
         { x: 0.2, y: 0.65 },
         { x: 0.8, y: 0.65 },
       ];
-      const origin = origins[i % 3];
+      const origin = origins[counter % 3];
+      counter++;
       confetti({ particleCount: 150, spread: 80, origin, colors });
       confetti({ particleCount: 50, spread: 360, startVelocity: 20, ticks: 80, origin: { x: 0.5, y: 0.4 }, shapes: ["star"], colors: ["#FFD700", "#FFA500"] });
     };
-    fireConfetti(0);
-    const intervalId = setInterval(() => { fireConfetti(Math.floor(Math.random() * 3)); }, 1500);
-    const timeoutId = setTimeout(() => { clearInterval(intervalId); }, 15000);
+    fireConfetti();
+    const intervalId = setInterval(fireConfetti, 1500);
+    const timeoutId = setTimeout(() => {
+      clearInterval(intervalId);
+      setShowEffects(false); // auto-hide fullscreen shower after 15s
+    }, 15000);
 
     return () => {
       audioRef.current?.pause();
@@ -405,15 +466,23 @@ export const GiftCelebrationModal = ({
       exit={{ opacity: 0, scale: 0.9 }}
       className="space-y-3 py-2 relative"
     >
-      {/* Coin Shower */}
-      {showEffects && <CoinShowerEffect />}
+      {/* Fullscreen Coin Shower (15s) */}
+      {showEffects && <FullscreenCoinShower />}
 
-      {/* Top bar: mute effects + close */}
+      {/* Top bar: Volume (audio) + X (effects) */}
       <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
-        <Button variant="ghost" size="icon" onClick={() => setShowEffects(!showEffects)} className="h-7 w-7" title={showEffects ? "Tắt hiệu ứng" : "Bật hiệu ứng"}>
-          {showEffects ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
+        <Button variant="ghost" size="icon" onClick={() => {
+          setIsMuted(m => {
+            const next = !m;
+            if (audioRef.current) { next ? audioRef.current.pause() : audioRef.current.play().catch(() => {}); }
+            return next;
+          });
+        }} className="h-7 w-7" title={isMuted ? "Bật âm thanh" : "Tắt âm thanh"}>
+          {isMuted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
         </Button>
-        <Button variant="ghost" size="icon" onClick={onClose} className="h-7 w-7"><X className="h-4 w-4" /></Button>
+        <Button variant="ghost" size="icon" onClick={() => setShowEffects(false)} className="h-7 w-7" title="Tắt hiệu ứng">
+          <X className="h-4 w-4" />
+        </Button>
       </div>
 
       {/* Header */}
@@ -447,6 +516,8 @@ export const GiftCelebrationModal = ({
         }}
       >
         <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
+        {/* Card internal coin/sparkle effects - loops forever until X */}
+        {showEffects && <CardInternalEffects />}
         <div className="relative h-full flex flex-col justify-between p-5 text-white">
           {/* TOP: Title + Avatars + Amount */}
           <div className="space-y-3">
