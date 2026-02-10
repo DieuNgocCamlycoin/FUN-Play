@@ -1,77 +1,63 @@
 
-
-# Chỉnh sửa tiêu đề và bố cục DonationCelebrationCard + PreviewCelebration
-
----
-
-## Vấn đề hiện tại
-
-1. **Nút Loa/X che tiêu đề** "🎉 CHÚC MỪNG TẶNG THƯỞNG THÀNH CÔNG 🎉" — vì cả hai đều nằm ở `top-2 right-2`, chồng lên dòng tiêu đề.
-2. **Tiêu đề** quá dài trên 1 dòng, font nhỏ (`text-sm`), có 2 icon 🎉 đầu cuối chiếm chỗ.
-3. **Nút Save/Share** có thể dời sát viền hơn để tạo thêm không gian nội dung.
+# Sap xep lai bo cuc CelebrationCard — tieu de trang, nut nho gon, khong bi che
 
 ---
 
-## Giải pháp
+## Thay doi chinh
 
-### 1. Thiết kế lại tiêu đề — 2 dòng, chữ to, Holographic gradient
+### Bo cuc moi cho phan TOP cua card
 
-**File: `src/components/Profile/DonationCelebrationCard.tsx`** (dòng 283-286)
+Hien tai: Nut Loa/X nam `absolute top-2 right-2` che len tieu de holographic. Tieu de nam giua card voi `pt-6`.
 
-Thay thế tiêu đề 1 dòng:
-```
-🎉 CHÚC MỪNG TẶNG THƯỞNG THÀNH CÔNG 🎉
-```
+**Thiet ke moi:**
+- **Dong 1 (top bar):** Flex row — ben trai: nut Loa + X (kich thuoc `h-6 w-6`, icon `h-3 w-3`). Ben phai: nut Download + Share (kich thuoc `h-6 w-6`). Tat ca nam tren 1 hang ngang, sat vien tren.
+- **Dong 2:** Tieu de "CHUC MUNG" va "TANG THUONG THANH CONG" — **mau trang** (`text-white`), font dam, drop-shadow manh de noi bat tren nen. Khong dung gradient holographic nua theo yeu cau.
+- Xoa block nut Save/Share o cuoi card (da doi len top bar).
+- Noi dung con lai (avatars, details) dan trai deu trong khong gian con lai.
 
-Thành 2 dòng, xóa emoji, dùng gradient text theo FUN PLAY Design System (Cyan -> Purple -> Magenta):
-```html
-<div className="text-center pt-6">
-  <p className="text-base font-extrabold tracking-widest"
-     style={{
-       background: "linear-gradient(to right, #00E7FF, #7A2BFF, #FF00E5, #FFD700)",
-       WebkitBackgroundClip: "text",
-       WebkitTextFillColor: "transparent",
-       backgroundClip: "text",
-       filter: "drop-shadow(0 0 8px rgba(0, 231, 255, 0.5))",
-     }}>
-    CHÚC MỪNG
-  </p>
-  <p className="text-sm font-bold tracking-wide"
-     style={{
-       background: "linear-gradient(to right, #FFD700, #FF00E5, #7A2BFF, #00E7FF)",
-       WebkitBackgroundClip: "text",
-       WebkitTextFillColor: "transparent",
-       backgroundClip: "text",
-       filter: "drop-shadow(0 0 6px rgba(255, 215, 0, 0.5))",
-     }}>
-    TẶNG THƯỞNG THÀNH CÔNG
-  </p>
-</div>
-```
+### Chi tiet ky thuat
 
-Thêm `pt-6` (padding-top) để tránh bị nút Loa/X che.
+**File 1: `src/components/Profile/DonationCelebrationCard.tsx`**
 
-### 2. Dời nút Save/Share sát viền
+1. **Xoa** block `absolute top-2 right-2` (dong 240-279) — nut Loa/X rieng biet
+2. **Xoa** block BOTTOM Save/Share (dong 403-443)
+3. **Thay doi** phan TOP (dong 281-305): Them top bar row chua 4 nut nho (Loa, X, Download, Share) va tieu de 2 dong mau trang
+4. **Dieu chinh** padding: `px-4 pt-3 pb-3` de toi uu khong gian
+5. Tieu de: `text-white font-extrabold tracking-widest text-base` voi `drop-shadow(0 0 10px rgba(0,0,0,0.8))` va `text-shadow` de doc ro tren moi nen
 
-**File: `src/components/Profile/DonationCelebrationCard.tsx`** (dòng 384-424)
+**File 2: `src/pages/PreviewCelebration.tsx`**
 
-Thay đổi padding bottom của container chính từ `p-5` thành `px-5 pt-5 pb-2` để nút Save/Share nằm sát viền dưới hơn, tạo thêm không gian cho nội dung ở giữa.
-
-### 3. Đồng bộ PreviewCelebration.tsx
-
-**File: `src/pages/PreviewCelebration.tsx`**
-
-Cập nhật cả `MockDonationCelebrationCard` (dòng 116-118) và `MockChatDonationCard` (dòng 209) với cùng thiết kế:
-- Tiêu đề 2 dòng, Holographic gradient, không emoji
-- Thêm `pt-6` để tránh che bởi nút
-- Padding bottom thu nhỏ
+1. Dong bo MockDonationCelebrationCard (dong 104-200): cung bo cuc top bar + tieu de trang
+2. Dong bo MockChatDonationCard (dong 217-310): tuong tu, nut nho hon (`h-5 w-5`)
 
 ---
 
-## Tóm tắt
+## Bo cuc card sau khi chinh
 
-| # | File | Thay đổi |
+```text
++------------------------------------------+
+| [Loa][X]    CHUC MUNG      [Save][Share] |
+|          TANG THUONG THANH CONG          |
+|                                          |
+|  [Avatar]   1,000 ->    [Avatar]         |
+|  Sender      CAMLY       Receiver        |
+|  @user1                  @user2          |
+|  0x1234...               0xabcd...       |
+|                                          |
+|  Trang thai        Thanh cong            |
+|  Loi nhan    "Chuc mung..."              |
+|  Thoi gian   05:19 11/02/2026            |
+|  Chain       BSC                         |
+|  TX Hash     0xabc123de...               |
+|  Ma bien nhan  #preview-demo-001         |
++------------------------------------------+
+```
+
+---
+
+## Tom tat
+
+| # | File | Thay doi |
 |---|------|----------|
-| 1 | `DonationCelebrationCard.tsx` | Tiêu đề 2 dòng Holographic, `pt-6` tránh che, `pb-2` dời nút sát viền |
-| 2 | `PreviewCelebration.tsx` | Đồng bộ tiêu đề 2 dòng + layout cho MockDonationCard và MockChatCard |
-
+| 1 | `DonationCelebrationCard.tsx` | Top bar (Loa, X, Download, Share) + tieu de trang 2 dong, xoa block bottom |
+| 2 | `PreviewCelebration.tsx` | Dong bo bo cuc moi cho MockDonationCard va MockChatCard |
