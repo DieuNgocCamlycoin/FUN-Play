@@ -51,6 +51,8 @@ interface CreateDonationParams {
   contextType?: "global" | "post" | "video" | "comment";
   contextId?: string;
   receiverWalletAddress?: string;
+  theme?: string;
+  music?: string;
 }
 
 export const useDonation = () => {
@@ -107,6 +109,8 @@ export const useDonation = () => {
             message: params.message,
             context_type: params.contextType || "global",
             context_id: params.contextId,
+            theme: params.theme,
+            music: params.music,
           },
         });
 
@@ -155,6 +159,8 @@ export const useDonation = () => {
           message: params.message,
           context_type: params.contextType || "global",
           context_id: params.contextId,
+          theme: params.theme,
+          music: params.music,
         },
       });
 

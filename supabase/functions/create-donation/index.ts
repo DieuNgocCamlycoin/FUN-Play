@@ -13,6 +13,8 @@ interface CreateDonationRequest {
   message?: string;
   context_type: "global" | "post" | "video" | "comment";
   context_id?: string;
+  theme?: string;
+  music?: string;
 }
 
 serve(async (req) => {
@@ -45,7 +47,7 @@ serve(async (req) => {
     }
 
     const body: CreateDonationRequest = await req.json();
-    const { receiver_id, token_symbol, amount, message, context_type, context_id } = body;
+    const { receiver_id, token_symbol, amount, message, context_type, context_id, theme, music } = body;
 
     // Validate required fields
     if (!receiver_id || !token_symbol || !amount || amount <= 0) {
@@ -192,10 +194,12 @@ serve(async (req) => {
         context_id: context_id || null,
         status: transactionStatus,
         chain: tokenData.chain,
-        metadata: {
+      metadata: {
           sender_ip_hash: null,
           user_agent: req.headers.get("user-agent"),
           created_at_ms: Date.now(),
+          theme: theme || "celebration",
+          music: music || "rich-celebration",
         },
       })
       .select(`
