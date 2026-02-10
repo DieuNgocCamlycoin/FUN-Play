@@ -1,45 +1,85 @@
 
-
-# Điều chỉnh Celebration Card — Bỏ khung tối, đổi "Biên nhận" thành "Celebration Card", hiển thị đầy đủ thông tin trên Chat
+# Điều chỉnh Celebration Card — Bỏ "Chủ đề", bỏ nút "Xem", thêm nút Lưu/Share, xoá khung tối Modal, nâng cấp hiệu ứng ăn mừng
 
 ---
 
-## 3 thay đổi chính
+## 1. Xoá mục "Chủ đề" trên DonationCelebrationCard (Profile)
 
-### 1. Xoá khung nền tối trên DonationCelebrationCard (Profile)
+**File: `src/components/Profile/DonationCelebrationCard.tsx`** (dong 237-240)
 
-**File: `src/components/Profile/DonationCelebrationCard.tsx`** (dòng 232)
+Xoa dong:
+```
+<div className="flex justify-between"><span className="text-white/60">Chu de</span><span>...</span></div>
+```
 
-Xoá `bg-black/30 rounded-xl p-3 backdrop-blur-sm` ở div chứa phần chi tiết giao dịch (Trạng thái, Chủ đề, Lời nhắn...). Chỉ giữ `space-y-1.5 text-sm` — nội dung vẫn đọc rõ nhờ overlay `bg-black/45` đã có sẵn trên toàn card.
+## 2. Xoa nut "Xem Celebration Card" tren DonationCelebrationCard
 
-### 2. Đổi tất cả nút "Xem biên nhận" thành "Xem Celebration Card"
+**File: `src/components/Profile/DonationCelebrationCard.tsx`** (dong 276-284)
 
-Thay đổi ở 3 file:
-- **`DonationCelebrationCard.tsx`** (dòng 282): icon `ExternalLink` -> `Gift`, text "Xem biên nhận" -> "Xem Celebration Card"
-- **`ChatDonationCard.tsx`** (dòng 213): text "Xem biên nhận" -> "Xem Celebration Card"
-- **`PreviewCelebration.tsx`** (dòng 121): text "Xem biên nhận" -> "Xem Celebration Card"
+Xoa toan bo `<Button>` "Xem Celebration Card" o cuoi card.
 
-### 3. Chat Card hiển thị đầy đủ thông tin như Profile Card
+## 3. Them nut Luu + Share goc duoi cua Celebration Card
+
+**File: `src/components/Profile/DonationCelebrationCard.tsx`**
+
+Thay vi nut "Xem Celebration Card", them 2 icon nho goc duoi:
+- Goc trai: icon Download (Luu ve thiet bi) — su dung `html2canvas` de capture card thanh anh va download
+- Goc phai: icon Share (Chia se len profile) — copy link hoac trigger share API
+
+Layout: `flex justify-between` o bottom, 2 nut icon nho `h-8 w-8` voi nen `bg-white/10 hover:bg-white/20 rounded-full`.
+
+Moi nguoi deu xem, luu, share duoc card cua nhau (khong can kiem tra quyen).
+
+## 4. Xoa khung nen toi trong GiftCelebrationModal (Muc 1)
+
+**File: `src/components/Donate/GiftCelebrationModal.tsx`** (dong 484)
+
+Hien tai dong 484: `<div className="space-y-1.5 text-sm bg-black/30 rounded-xl p-3 backdrop-blur-sm">`
+
+Doi thanh: `<div className="space-y-1.5 text-sm">` — xoa `bg-black/30 rounded-xl p-3 backdrop-blur-sm`.
+
+## 5. Xoa muc "Chu de" trong GiftCelebrationModal
+
+**File: `src/components/Donate/GiftCelebrationModal.tsx`** (dong 486)
+
+Xoa dong: `<div className="flex justify-between"><span>Chu de</span>...</div>`
+
+## 6. Nang cap hieu ung an mung — phao hoa + tien roi 15 giay toan man hinh
+
+**File: `src/components/Donate/GiftCelebrationModal.tsx`**
+
+Hien tai confetti chi ban 1 lan khi mount (4 dot ngan). Thay doi:
+
+- Tao interval ban confetti moi 1.5 giay trong 15 giay (10 dot ban)
+- Tang `particleCount` tu 50-100 len 120-200
+- Ban tu nhieu vi tri (trai, phai, giua) xen ke
+- Coin shower: tang tu 20 dong tien len 40, keo dai animation tu 5 giay len 15 giay
+- Am thanh Rich Rich Rich phat kem va loop trong 15 giay
+- Nut X (da co) de tat hieu ung + am thanh bat ky luc nao
+- Khi vuot/dong modal: cleanup audio tu dong (da co `useEffect` cleanup)
+
+## 7. Cap nhat PreviewCelebration.tsx
+
+**File: `src/pages/PreviewCelebration.tsx`**
+
+- MockDonationCelebrationCard: xoa muc "Chu de", xoa nut "Xem Celebration Card", them 2 icon Luu/Share goc duoi
+- MockChatDonationCard: xoa muc "Chu de", xoa nut "Xem Celebration Card", them 2 icon Luu/Share goc duoi
+
+## 8. Cap nhat ChatDonationCard.tsx
 
 **File: `src/components/Chat/ChatDonationCard.tsx`**
 
-Hiện tại chat card chỉ hiển thị: tiêu đề, avatar + số tiền, tên người gửi/nhận, footer. Thiếu: username, địa chỉ ví, trạng thái, chủ đề, lời nhắn, thời gian, chain, TX hash, mã biên nhận.
-
-Thay đổi:
-- Fetch thêm: `message`, `tx_hash`, `chain`, `created_at`, `explorer_url` + `wallet_address`, `username` từ profiles
-- Render đầy đủ layout giống `DonationCelebrationCard`: avatar đôi bên kèm username + ví rút gọn, phần chi tiết giao dịch (không có khung tối), nút "Xem Celebration Card"
-- Tăng `max-w-[280px]` lên `max-w-[320px]` để đủ không gian hiển thị
-- Tăng avatar lên `h-12 w-12`, font size lên `text-sm`
-
-**Cập nhật tương ứng trong `PreviewCelebration.tsx`**: MockChatDonationCard cũng hiển thị đầy đủ thông tin giống layout mới.
+- Xoa muc "Chu de" (dong 233)
+- Xoa nut "Xem Celebration Card" (dong 260-268)
+- Them 2 icon Luu/Share goc duoi tuong tu Profile card
 
 ---
 
-## Tóm tắt
+## Tom tat
 
-| # | File | Thay đổi |
+| # | File | Thay doi |
 |---|------|----------|
-| 1 | `DonationCelebrationCard.tsx` | Xoá `bg-black/30 rounded-xl p-3 backdrop-blur-sm`; đổi nút thành "Xem Celebration Card" |
-| 2 | `ChatDonationCard.tsx` | Hiển thị đầy đủ thông tin (username, ví, trạng thái, chủ đề, lời nhắn, thời gian, chain, TX hash, mã biên nhận); đổi nút; tăng kích thước |
-| 3 | `PreviewCelebration.tsx` | Cập nhật MockChatDonationCard đầy đủ thông tin + xoá khung tối MockDonationCelebrationCard + đổi nút |
-
+| 1 | `GiftCelebrationModal.tsx` | Xoa khung toi `bg-black/30`; xoa muc "Chu de"; nang cap confetti 15 giay + coin shower 40 dong tien + loop am thanh |
+| 2 | `DonationCelebrationCard.tsx` | Xoa muc "Chu de"; xoa nut "Xem Celebration Card"; them icon Luu + Share goc duoi |
+| 3 | `ChatDonationCard.tsx` | Xoa muc "Chu de"; xoa nut "Xem Celebration Card"; them icon Luu + Share goc duoi |
+| 4 | `PreviewCelebration.tsx` | Cap nhat mock cards dong bo voi cac thay doi tren |
