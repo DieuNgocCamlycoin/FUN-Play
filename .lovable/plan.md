@@ -1,75 +1,77 @@
 
 
-# Hiệu ứng pháo hoa + đồng tiền CAMLY bay tung tóe toàn màn hình + bên trong Card
-
-## Mục tiêu
-
-- Pháo hoa + đồng tiền CAMLY/Fun Money bay **toàn màn hình** 15 giây khi mở
-- **Bên trong Celebration Card**: hiệu ứng đồng tiền + sparkles lặp lại liên tục (như GIF) cho đến khi user bấm X
-- Nút **X** để tắt hiệu ứng hình ảnh (pháo hoa, coin)
-- Nút **loa** riêng để tắt/bật âm thanh Rich Rich Rich
-- Nhạc Rich Rich Rich loop liên tục cho đến khi tắt
+# Nang cap hieu ung Celebration — 160 coin toan man hinh, 72 coin trong card, nut X/Loa hien thi ro
 
 ---
 
-## Chi tiết kỹ thuật
+## 1. Fullscreen Coin Shower: 40 -> 160 dong tien (80 roi xuong + 80 ban len)
 
-### 1. Hiệu ứng toàn màn hình (15 giây)
+**File: `src/components/Donate/GiftCelebrationModal.tsx`** (dong 106-136)
 
-**File: `src/components/Donate/GiftCelebrationModal.tsx`**
+Thay doi `FullscreenCoinShower`:
+- 80 dong tien roi tu tren xuong (giu animation `coin-fall` hien tai)
+- 80 dong tien ban tu duoi len (dung animation `coin-rise` moi)
+- Tong cong 160 dong tien tren man hinh
+- Mix CAMLY coin va Fun Money coin
 
-Giữ nguyên logic confetti hiện tại (bắn mỗi 1.5s trong 15s) nhưng nâng cấp:
-- Thêm `CoinShowerEffect` ở **cấp toàn màn hình** (fixed overlay z-50) — 40 đồng tiền CAMLY + Fun Money rơi từ trên xuống
-- Overlay toàn màn hình tự tắt sau 15 giây hoặc khi bấm X
+## 2. Card Internal Effects: 18 -> 72 dong tien, bay ca 2 chieu
 
-### 2. Hiệu ứng bên trong Celebration Card (lặp liên tục)
+**File: `src/components/Donate/GiftCelebrationModal.tsx`** (dong 139-193)
 
-**File: `src/components/Donate/GiftCelebrationModal.tsx`**
+Thay doi `CardInternalEffects`:
+- Tang tu 18 len 72 dong tien (gap 4 lan)
+- Tang sparkles tu 10 len 40
+- 36 dong bay tu duoi len (coin-float-up), 36 dong roi tu tren xuong (coin-float-down moi)
+- Cac dong tien xuat hien va bien mat lien tuc, phan bo deu trong card
 
-Tạo component `CardInternalEffects` render bên trong thẻ card (đã có `overflow-hidden`):
-- 15-20 đồng tiền nhỏ (CAMLY coin + Fun Money) bay từ dưới lên, trôi ngang, lặp vô hạn
-- Sparkle particles nhỏ lấp lánh
-- Dùng CSS animation `coin-float` loop infinite (không cần JS interval)
-- Hiệu ứng chỉ tắt khi user bấm X (state `showCardEffects`)
-
-### 3. Tách nút X (hiệu ứng) và nút Loa (âm thanh)
-
-Hiện tại có 2 nút: Volume + X. Điều chỉnh:
-- **Nút Loa** (Volume2/VolumeX): chỉ tắt/bật âm thanh Rich Rich Rich
-- **Nút X**: tắt toàn bộ hiệu ứng hình ảnh (pháo hoa màn hình + coin trong card)
-- Khi tắt hiệu ứng: `showEffects = false` -> ẩn `CoinShowerEffect` toàn màn hình + `CardInternalEffects` trong card
-- Âm thanh tiếp tục phát nếu user chỉ tắt hiệu ứng (và ngược lại)
-
-### 4. Âm thanh loop liên tục
-
-Thay đổi logic âm thanh:
-- `audio.loop = true` — không giới hạn 15 giây nữa
-- Chỉ dừng khi user bấm nút Loa hoặc đóng modal
-
-### 5. CSS Animation mới
+## 3. Them CSS animation moi
 
 **File: `src/index.css`**
 
-Thêm keyframe `coin-float` cho hiệu ứng bên trong card:
+Them 2 keyframe moi:
+- `coin-rise`: dong tien bay tu duoi man hinh len tren (nguoc voi coin-fall)
+- `coin-float-down`: dong tien roi tu tren xuong trong card (nguoc voi coin-float-up)
+
 ```css
-@keyframes coin-float {
-  0% { transform: translateY(100%) rotate(0deg); opacity: 0; }
+@keyframes coin-rise {
+  0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+  10% { opacity: 1; }
+  100% { transform: translateY(-30px) rotate(720deg); opacity: 0; }
+}
+
+@keyframes coin-float-down {
+  0% { transform: translateY(-120%) rotate(0deg) scale(0.8); opacity: 0; }
   10% { opacity: 0.8; }
   90% { opacity: 0.8; }
-  100% { transform: translateY(-120%) rotate(360deg); opacity: 0; }
+  100% { transform: translateY(100%) rotate(360deg) scale(0.7); opacity: 0; }
 }
 ```
 
-### 6. Cập nhật PreviewCelebration.tsx
+## 4. Nut Loa va X hien thi ro rang tren Card
 
-Đồng bộ: MockDonationCelebrationCard và MockChatDonationCard thêm hiệu ứng coin float bên trong card tương tự.
+**File: `src/components/Donate/GiftCelebrationModal.tsx`** (dong 472-486)
+
+Hien tai 2 nut nam o `absolute top-2 right-2` voi `variant="ghost"` nen kho nhin thay. Thay doi:
+- Tang kich thuoc nut tu `h-7 w-7` len `h-9 w-9`
+- Tang icon tu `h-3.5 w-3.5` len `h-5 w-5`
+- Them nen ban trong: `bg-black/40 hover:bg-black/60 text-white backdrop-blur-sm rounded-full`
+- Them border `ring-1 ring-white/20`
+- Di chuyen ra ngoai card (nam tren cung cua modal, de nhin thay)
+
+## 5. Cap nhat PreviewCelebration.tsx
+
+**File: `src/pages/PreviewCelebration.tsx`** (dong 48-77)
+
+- `MockCardInternalEffects`: tang tu 12 coin len 48, tang sparkles tu 8 len 32
+- Them coin roi tu tren xuong (coin-float-down) ben canh coin bay len
 
 ---
 
-## Tóm tắt
+## Tom tat
 
-| # | File | Thay đổi |
+| # | File | Thay doi |
 |---|------|----------|
-| 1 | `GiftCelebrationModal.tsx` | Thêm coin shower toàn màn hình + hiệu ứng coin/sparkle lặp bên trong card + tách nút X/Loa + audio loop liên tục |
-| 2 | `src/index.css` | Thêm keyframe `coin-float` cho animation bên trong card |
-| 3 | `PreviewCelebration.tsx` | Thêm hiệu ứng coin float bên trong mock cards |
+| 1 | `src/index.css` | Them keyframe `coin-rise` + `coin-float-down` + class tuong ung |
+| 2 | `GiftCelebrationModal.tsx` | FullscreenCoinShower 160 coin (80 roi + 80 bay len); CardInternalEffects 72 coin + 40 sparkles; nut Loa/X lon hon + nen ro |
+| 3 | `PreviewCelebration.tsx` | MockCardInternalEffects 48 coin + 32 sparkles, 2 chieu |
+
