@@ -96,7 +96,7 @@ const MockDonationCelebrationCard = () => {
         </div>
 
         {/* MIDDLE */}
-        <div className="space-y-1.5 text-sm bg-black/30 rounded-xl p-3 backdrop-blur-sm">
+        <div className="space-y-1.5 text-sm">
           <div className="flex justify-between"><span className="text-white/60">Trạng thái</span><span className="text-green-400 font-medium">✅ Thành công</span></div>
           <div className="flex justify-between"><span className="text-white/60">Chủ đề</span><span>🎉 Chúc mừng</span></div>
           <div>
@@ -118,7 +118,7 @@ const MockDonationCelebrationCard = () => {
 
         {/* BOTTOM */}
         <Button variant="outline" size="sm" className="w-full text-sm border-white/30 text-white hover:bg-white/20 bg-white/10">
-          <ExternalLink className="h-3.5 w-3.5 mr-1.5" />Xem biên nhận
+          <Gift className="h-3.5 w-3.5 mr-1.5" />Xem Celebration Card
         </Button>
       </div>
     </div>
@@ -128,38 +128,71 @@ const MockDonationCelebrationCard = () => {
 // ==================== MOCK CHAT CARD (inline, override fetch) ====================
 const MockChatDonationCard = ({ isMe }: { isMe: boolean }) => {
   const bg = "/images/celebration-bg/celebration-1.png";
+  const formattedTime = format(new Date(), "HH:mm dd/MM/yyyy", { locale: vi });
+
   return (
-    <div className={`max-w-[280px] ${isMe ? "ml-auto" : "mr-auto"}`}>
+    <div className={`max-w-[320px] ${isMe ? "ml-auto" : "mr-auto"}`}>
       <div className="relative rounded-2xl overflow-hidden aspect-[4/5]" style={{ backgroundImage: `url(${bg})`, backgroundSize: "cover", backgroundPosition: "center" }}>
         <div className="absolute inset-0 bg-black/45" />
-        <div className="relative h-full flex flex-col items-center justify-between p-4 text-white text-center">
-          <p className="text-xs font-bold tracking-wide drop-shadow-lg">🎉 CHÚC MỪNG TẶNG THƯỞNG THÀNH CÔNG 🎉</p>
-          <div className="flex items-center gap-3">
-            <Avatar className="h-10 w-10 ring-2 ring-white/30">
-              <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-xs">C</AvatarFallback>
-            </Avatar>
-            <div className="flex flex-col items-center">
-              <div className="flex items-center gap-1.5 font-bold text-base">
-                <img src={MOCK_TOKEN.icon_url!} alt="" className="h-4 w-4" />
-                <span className="text-amber-300 drop-shadow-lg">{MOCK_TRANSACTION.amount.toLocaleString()}</span>
+        <div className="relative h-full flex flex-col justify-between p-4 text-white">
+          {/* TOP */}
+          <div className="space-y-2">
+            <p className="text-xs font-bold tracking-wide text-center drop-shadow-lg">🎉 CHÚC MỪNG TẶNG THƯỞNG THÀNH CÔNG 🎉</p>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex flex-col items-center gap-0.5 flex-1 min-w-0">
+                <Avatar className="h-12 w-12 ring-2 ring-white/30">
+                  <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-sm">C</AvatarFallback>
+                </Avatar>
+                <p className="text-sm font-semibold truncate max-w-full drop-shadow">{MOCK_SENDER.name}</p>
+                <p className="text-[11px] text-white/70">@{MOCK_SENDER.username}</p>
+                <span className="text-[10px] font-mono text-white/60">{shortenAddress(MOCK_SENDER.wallet!)}</span>
               </div>
-              <span className="text-xs text-white/70">{MOCK_TOKEN.symbol}</span>
+              <div className="flex flex-col items-center gap-0.5 flex-shrink-0 px-1">
+                <div className="flex items-center gap-1 text-lg font-bold">
+                  <img src={MOCK_TOKEN.icon_url!} alt="" className="h-4 w-4" />
+                  <span className="text-amber-300 drop-shadow-lg">{MOCK_TRANSACTION.amount.toLocaleString()}</span>
+                </div>
+                <span className="text-lg">→</span>
+                <span className="text-xs font-medium text-white/80">{MOCK_TOKEN.symbol}</span>
+              </div>
+              <div className="flex flex-col items-center gap-0.5 flex-1 min-w-0">
+                <Avatar className="h-12 w-12 ring-2 ring-amber-400/30">
+                  <AvatarFallback className="bg-gradient-to-br from-amber-500 to-orange-500 text-white text-sm">C</AvatarFallback>
+                </Avatar>
+                <p className="text-sm font-semibold truncate max-w-full drop-shadow">{MOCK_RECEIVER.name}</p>
+                <p className="text-[11px] text-white/70">@{MOCK_RECEIVER.username}</p>
+                <span className="text-[10px] font-mono text-white/60">{shortenAddress(MOCK_RECEIVER.wallet!)}</span>
+              </div>
             </div>
-            <Avatar className="h-10 w-10 ring-2 ring-amber-400/30">
-              <AvatarFallback className="bg-gradient-to-br from-amber-500 to-orange-500 text-white text-xs">C</AvatarFallback>
-            </Avatar>
           </div>
-          <div className="flex items-center gap-1.5 text-xs">
-            <span className="font-medium">{MOCK_SENDER.name}</span>
-            <span className="text-white/60">→</span>
-            <span className="font-medium">{MOCK_RECEIVER.name}</span>
+
+          {/* MIDDLE: Details */}
+          <div className="space-y-1 text-sm">
+            <div className="flex justify-between"><span className="text-white/60">Trạng thái</span><span className="text-green-400 font-medium">✅ Thành công</span></div>
+            <div className="flex justify-between"><span className="text-white/60">Chủ đề</span><span>🎉 Chúc mừng</span></div>
+            <div>
+              <span className="text-white/60">Lời nhắn</span>
+              <p className="italic mt-0.5 p-1.5 bg-white/10 rounded-lg text-xs">"{MOCK_MESSAGE}"</p>
+            </div>
+            <div className="flex justify-between"><span className="text-white/60">Thời gian</span><span className="text-xs">{formattedTime}</span></div>
+            <div className="flex justify-between"><span className="text-white/60">Chain</span><span>BSC</span></div>
+            <div className="flex justify-between items-center">
+              <span className="text-white/60">TX Hash</span>
+              <div className="flex items-center gap-1">
+                <span className="font-mono text-[10px]">{MOCK_TRANSACTION.tx_hash.substring(0, 10)}…</span>
+                <Copy className="h-3 w-3 text-white/60" />
+                <ExternalLink className="h-3 w-3 text-white/60" />
+              </div>
+            </div>
+            <div className="flex justify-between"><span className="text-white/60">Mã biên nhận</span><span className="font-mono text-[10px]">#{MOCK_TRANSACTION.receipt_public_id}</span></div>
           </div>
-          <p className="text-[10px] text-white/50">FUN PLAY • Tặng & Thưởng</p>
+
+          {/* BOTTOM */}
+          <Button variant="outline" size="sm" className="w-full text-xs border-white/30 text-white hover:bg-white/20 bg-white/10">
+            <Gift className="h-3.5 w-3.5 mr-1.5" />Xem Celebration Card
+          </Button>
         </div>
       </div>
-      <Button size="sm" variant="outline" className="gap-1.5 mt-1.5 w-full text-xs h-8 border-amber-300/50 hover:border-amber-400 hover:bg-amber-50 text-amber-700 dark:text-amber-300 dark:hover:bg-amber-900/30">
-        <Gift className="w-3.5 h-3.5" />Xem Celebration Card
-      </Button>
     </div>
   );
 };

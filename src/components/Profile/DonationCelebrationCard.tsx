@@ -229,7 +229,7 @@ export const DonationCelebrationCard = ({
         </div>
 
         {/* MIDDLE: Details */}
-        <div className="space-y-1.5 text-sm bg-black/30 rounded-xl p-3 backdrop-blur-sm">
+        <div className="space-y-1.5 text-sm">
           <div className="flex justify-between">
             <span className="text-white/60">Trạng thái</span>
             <span className="text-green-400 font-medium">✅ Thành công</span>
@@ -279,8 +279,8 @@ export const DonationCelebrationCard = ({
           className="w-full text-sm border-white/30 text-white hover:bg-white/20 bg-white/10"
           onClick={() => navigate(`/receipt/${data.receipt_public_id}`)}
         >
-          <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
-          Xem biên nhận
+          <Gift className="h-3.5 w-3.5 mr-1.5" />
+          Xem Celebration Card
         </Button>
       </div>
     </div>
