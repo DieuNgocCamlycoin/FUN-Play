@@ -46,27 +46,41 @@ const shortenAddress = (addr: string) =>
 
 // ==================== MOCK PROFILE CARD (inline, no DB fetch) ====================
 const MockCardInternalEffects = () => {
-  const coins = Array.from({ length: 12 }, (_, i) => ({
-    id: i,
+  // 24 coins floating up
+  const coinsUp = Array.from({ length: 24 }, (_, i) => ({
+    id: `up-${i}`,
     src: i % 2 === 0 ? "/images/camly-coin.png" : "/images/fun-money-coin.png",
-    left: 5 + Math.random() * 90,
-    delay: Math.random() * 6,
-    duration: 3 + Math.random() * 3,
-    size: 10 + Math.random() * 12,
+    left: 2 + Math.random() * 96,
+    delay: Math.random() * 8,
+    duration: 2.5 + Math.random() * 3,
+    size: 8 + Math.random() * 12,
   }));
-  const sparkles = Array.from({ length: 8 }, (_, i) => ({
+  // 24 coins floating down
+  const coinsDown = Array.from({ length: 24 }, (_, i) => ({
+    id: `down-${i}`,
+    src: i % 2 === 0 ? "/images/fun-money-coin.png" : "/images/camly-coin.png",
+    left: 2 + Math.random() * 96,
+    delay: Math.random() * 8,
+    duration: 2.5 + Math.random() * 3,
+    size: 8 + Math.random() * 12,
+  }));
+  const sparkles = Array.from({ length: 32 }, (_, i) => ({
     id: i,
-    left: 10 + Math.random() * 80,
-    top: 10 + Math.random() * 80,
-    delay: Math.random() * 4,
-    duration: 2 + Math.random() * 2,
+    left: 5 + Math.random() * 90,
+    top: 5 + Math.random() * 90,
+    delay: Math.random() * 6,
+    duration: 1.5 + Math.random() * 2.5,
     size: 3 + Math.random() * 5,
   }));
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden z-[1]">
-      {coins.map((coin) => (
+      {coinsUp.map((coin) => (
         <img key={`c-${coin.id}`} src={coin.src} alt="" className="absolute animate-coin-float-up"
           style={{ left: `${coin.left}%`, bottom: "-20px", width: `${coin.size}px`, height: `${coin.size}px`, animationDelay: `${coin.delay}s`, animationDuration: `${coin.duration}s` }} />
+      ))}
+      {coinsDown.map((coin) => (
+        <img key={`c-${coin.id}`} src={coin.src} alt="" className="absolute animate-coin-float-down"
+          style={{ left: `${coin.left}%`, top: "-20px", width: `${coin.size}px`, height: `${coin.size}px`, animationDelay: `${coin.delay}s`, animationDuration: `${coin.duration}s` }} />
       ))}
       {sparkles.map((s) => (
         <div key={`s-${s.id}`} className="absolute animate-sparkle-float rounded-full bg-amber-300"
