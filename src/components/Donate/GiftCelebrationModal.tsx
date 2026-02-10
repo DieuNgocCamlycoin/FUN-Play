@@ -102,20 +102,30 @@ const preloadImagesToBase64 = async (container: HTMLElement) => {
   return originals;
 };
 
-// ======================== FULLSCREEN COIN SHOWER (15s) ========================
+// ======================== FULLSCREEN COIN SHOWER (15s) — 160 coins ========================
 const FullscreenCoinShower = () => {
-  const coins = Array.from({ length: 40 }, (_, i) => ({
-    id: i,
+  // 80 coins falling from top
+  const fallingCoins = Array.from({ length: 80 }, (_, i) => ({
+    id: `fall-${i}`,
     src: i % 2 === 0 ? "/images/camly-coin.png" : "/images/fun-money-coin.png",
     left: Math.random() * 100,
     delay: Math.random() * 12,
     duration: 3 + Math.random() * 4,
-    size: 20 + Math.random() * 24,
+    size: 18 + Math.random() * 26,
+  }));
+  // 80 coins rising from bottom
+  const risingCoins = Array.from({ length: 80 }, (_, i) => ({
+    id: `rise-${i}`,
+    src: i % 2 === 0 ? "/images/fun-money-coin.png" : "/images/camly-coin.png",
+    left: Math.random() * 100,
+    delay: Math.random() * 12,
+    duration: 3 + Math.random() * 4,
+    size: 18 + Math.random() * 26,
   }));
 
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden z-50">
-      {coins.map((coin) => (
+      {fallingCoins.map((coin) => (
         <img
           key={coin.id}
           src={coin.src}
@@ -131,33 +141,59 @@ const FullscreenCoinShower = () => {
           }}
         />
       ))}
+      {risingCoins.map((coin) => (
+        <img
+          key={coin.id}
+          src={coin.src}
+          alt=""
+          className="absolute animate-coin-rise"
+          style={{
+            left: `${coin.left}%`,
+            bottom: "-30px",
+            width: `${coin.size}px`,
+            height: `${coin.size}px`,
+            animationDelay: `${coin.delay}s`,
+            animationDuration: `${coin.duration}s`,
+          }}
+        />
+      ))}
     </div>
   );
 };
 
-// ======================== CARD INTERNAL EFFECTS (loop forever) ========================
+// ======================== CARD INTERNAL EFFECTS (loop forever) — 72 coins + 40 sparkles ========================
 const CardInternalEffects = () => {
-  const coins = Array.from({ length: 18 }, (_, i) => ({
-    id: i,
+  // 36 coins floating up
+  const coinsUp = Array.from({ length: 36 }, (_, i) => ({
+    id: `up-${i}`,
     src: i % 2 === 0 ? "/images/camly-coin.png" : "/images/fun-money-coin.png",
-    left: 5 + Math.random() * 90,
-    delay: Math.random() * 6,
-    duration: 3 + Math.random() * 3,
-    size: 12 + Math.random() * 14,
+    left: 2 + Math.random() * 96,
+    delay: Math.random() * 8,
+    duration: 2.5 + Math.random() * 3,
+    size: 10 + Math.random() * 14,
+  }));
+  // 36 coins floating down
+  const coinsDown = Array.from({ length: 36 }, (_, i) => ({
+    id: `down-${i}`,
+    src: i % 2 === 0 ? "/images/fun-money-coin.png" : "/images/camly-coin.png",
+    left: 2 + Math.random() * 96,
+    delay: Math.random() * 8,
+    duration: 2.5 + Math.random() * 3,
+    size: 10 + Math.random() * 14,
   }));
 
-  const sparkles = Array.from({ length: 10 }, (_, i) => ({
+  const sparkles = Array.from({ length: 40 }, (_, i) => ({
     id: i,
-    left: 10 + Math.random() * 80,
-    top: 10 + Math.random() * 80,
-    delay: Math.random() * 4,
-    duration: 2 + Math.random() * 2,
-    size: 4 + Math.random() * 6,
+    left: 5 + Math.random() * 90,
+    top: 5 + Math.random() * 90,
+    delay: Math.random() * 6,
+    duration: 1.5 + Math.random() * 2.5,
+    size: 3 + Math.random() * 6,
   }));
 
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden z-[1]">
-      {coins.map((coin) => (
+      {coinsUp.map((coin) => (
         <img
           key={`coin-${coin.id}`}
           src={coin.src}
@@ -166,6 +202,22 @@ const CardInternalEffects = () => {
           style={{
             left: `${coin.left}%`,
             bottom: "-20px",
+            width: `${coin.size}px`,
+            height: `${coin.size}px`,
+            animationDelay: `${coin.delay}s`,
+            animationDuration: `${coin.duration}s`,
+          }}
+        />
+      ))}
+      {coinsDown.map((coin) => (
+        <img
+          key={`coin-${coin.id}`}
+          src={coin.src}
+          alt=""
+          className="absolute animate-coin-float-down"
+          style={{
+            left: `${coin.left}%`,
+            top: "-20px",
             width: `${coin.size}px`,
             height: `${coin.size}px`,
             animationDelay: `${coin.delay}s`,
@@ -469,20 +521,30 @@ export const GiftCelebrationModal = ({
       {/* Fullscreen Coin Shower (15s) */}
       {showEffects && <FullscreenCoinShower />}
 
-      {/* Top bar: Volume (audio) + X (effects) */}
-      <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
-        <Button variant="ghost" size="icon" onClick={() => {
-          setIsMuted(m => {
-            const next = !m;
-            if (audioRef.current) { next ? audioRef.current.pause() : audioRef.current.play().catch(() => {}); }
-            return next;
-          });
-        }} className="h-7 w-7" title={isMuted ? "Bật âm thanh" : "Tắt âm thanh"}>
-          {isMuted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
-        </Button>
-        <Button variant="ghost" size="icon" onClick={() => setShowEffects(false)} className="h-7 w-7" title="Tắt hiệu ứng">
-          <X className="h-4 w-4" />
-        </Button>
+      {/* Top bar: Volume (audio) + X (effects) — prominent buttons */}
+      <div className="absolute top-3 right-3 z-20 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            setIsMuted(m => {
+              const next = !m;
+              if (audioRef.current) { next ? audioRef.current.pause() : audioRef.current.play().catch(() => {}); }
+              return next;
+            });
+          }}
+          className="h-9 w-9 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-sm ring-1 ring-white/30 flex items-center justify-center transition-all"
+          title={isMuted ? "Bật âm thanh" : "Tắt âm thanh"}
+        >
+          {isMuted ? <VolumeX className="h-5 w-5 text-white" /> : <Volume2 className="h-5 w-5 text-white" />}
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowEffects(false)}
+          className="h-9 w-9 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-sm ring-1 ring-white/30 flex items-center justify-center transition-all"
+          title="Tắt hiệu ứng hình ảnh"
+        >
+          <X className="h-5 w-5 text-white" />
+        </button>
       </div>
 
       {/* Header */}

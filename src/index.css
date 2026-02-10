@@ -709,3 +709,23 @@ body > [data-w3m-modal] {
 
 .animate-coin-float-up { animation: coin-float-up 4s ease-in-out infinite; }
 .animate-sparkle-float { animation: sparkle-float 3s ease-in-out infinite; }
+
+/* Coin rise from bottom of screen to top (fullscreen) */
+@keyframes coin-rise {
+  0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+  10% { opacity: 1; }
+  100% { transform: translateY(-30px) rotate(720deg); opacity: 0; }
+}
+
+.animate-coin-rise { animation: coin-rise 4s ease-in forwards; }
+
+/* Coin float down inside card (top to bottom, looping) */
+@keyframes coin-float-down {
+  0% { transform: translateY(-120%) rotate(0deg) scale(0.8); opacity: 0; }
+  10% { opacity: 0.8; }
+  50% { transform: translateY(0%) rotate(180deg) scale(1); opacity: 0.9; }
+  90% { opacity: 0.6; }
+  100% { transform: translateY(120%) rotate(360deg) scale(0.7); opacity: 0; }
+}
+
+.animate-coin-float-down { animation: coin-float-down 4s ease-in-out infinite; }
