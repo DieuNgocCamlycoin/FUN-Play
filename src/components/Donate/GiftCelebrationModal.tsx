@@ -266,12 +266,10 @@ export const GiftCelebrationModal = ({
       if (transaction.id) {
         await supabase.from("donation_transactions").update({
           metadata: {
-            celebration: {
-              theme: selectedTheme,
-              background: activeBg,
-              music: selectedMusic,
-              custom_bg: !!customBgUrl,
-            },
+            theme: selectedTheme,
+            background: activeBg,
+            music: selectedMusic,
+            custom_bg: !!customBgUrl,
           },
         }).eq("id", transaction.id);
       }
@@ -394,7 +392,7 @@ export const GiftCelebrationModal = ({
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
-        className="relative overflow-hidden rounded-2xl z-10"
+        className="relative overflow-hidden rounded-2xl z-10 aspect-[4/5]"
         style={{
           backgroundImage: `url(${activeBg})`,
           backgroundSize: "cover",
