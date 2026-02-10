@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import html2canvas from "html2canvas";
-import { ExternalLink, Copy, Download, Share2 } from "lucide-react";
+import { ExternalLink, Copy, Download, Share2, Volume2, VolumeX, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -19,6 +19,50 @@ const THEME_LABELS: Record<string, { emoji: string; label: string }> = {
 };
 
 const DEFAULT_BG = "/images/celebration-bg/celebration-1.png";
+
+// Card internal effects — 36 coins up, 36 coins down, 20 sparkles
+const CardInternalEffectsProfile = () => {
+  const coinsUp = Array.from({ length: 36 }, (_, i) => ({
+    id: `up-${i}`,
+    src: i % 2 === 0 ? "/images/camly-coin.png" : "/images/fun-money-coin.png",
+    left: 2 + Math.random() * 96,
+    delay: Math.random() * 8,
+    duration: 3.5 + Math.random() * 3,
+    size: 8 + Math.random() * 12,
+  }));
+  const coinsDown = Array.from({ length: 36 }, (_, i) => ({
+    id: `down-${i}`,
+    src: i % 2 === 0 ? "/images/fun-money-coin.png" : "/images/camly-coin.png",
+    left: 2 + Math.random() * 96,
+    delay: Math.random() * 8,
+    duration: 3.5 + Math.random() * 3,
+    size: 8 + Math.random() * 12,
+  }));
+  const sparkles = Array.from({ length: 20 }, (_, i) => ({
+    id: i,
+    left: 5 + Math.random() * 90,
+    top: 5 + Math.random() * 90,
+    delay: Math.random() * 6,
+    duration: 1.5 + Math.random() * 2.5,
+    size: 3 + Math.random() * 5,
+  }));
+  return (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden z-[1]">
+      {coinsUp.map((coin) => (
+        <img key={`c-${coin.id}`} src={coin.src} alt="" className="absolute animate-coin-float-up"
+          style={{ left: `${coin.left}%`, bottom: "-20px", width: `${coin.size}px`, height: `${coin.size}px`, animationDelay: `${coin.delay}s`, animationDuration: `${coin.duration}s` }} />
+      ))}
+      {coinsDown.map((coin) => (
+        <img key={`c-${coin.id}`} src={coin.src} alt="" className="absolute animate-coin-float-down"
+          style={{ left: `${coin.left}%`, top: "-20px", width: `${coin.size}px`, height: `${coin.size}px`, animationDelay: `${coin.delay}s`, animationDuration: `${coin.duration}s` }} />
+      ))}
+      {sparkles.map((s) => (
+        <div key={`s-${s.id}`} className="absolute animate-sparkle-float rounded-full bg-amber-300"
+          style={{ left: `${s.left}%`, top: `${s.top}%`, width: `${s.size}px`, height: `${s.size}px`, animationDelay: `${s.delay}s`, animationDuration: `${s.duration}s`, boxShadow: "0 0 6px 2px rgba(255, 215, 0, 0.6)" }} />
+      ))}
+    </div>
+  );
+};
 
 const preloadImagesToBase64 = async (container: HTMLElement) => {
   const imgs = container.querySelectorAll("img");
@@ -78,6 +122,9 @@ export const DonationCelebrationCard = ({
   const navigate = useNavigate();
   const [data, setData] = useState<DonationData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showEffects, setShowEffects] = useState(true);
+  const [isMuted, setIsMuted] = useState(true); // muted by default on profile
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -187,6 +234,49 @@ export const DonationCelebrationCard = ({
       }}
     >
       <div className="absolute inset-0 bg-black/45" />
+      {/* Card internal effects */}
+      {showEffects && <CardInternalEffectsProfile />}
+      {/* Volume + X buttons */}
+      <div className="absolute top-2 right-2 z-10 flex items-center gap-1.5">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsMuted(m => {
+              const next = !m;
+              if (!next) {
+                // unmute — start audio
+                if (!audioRef.current) {
+                  const audio = new Audio('/audio/rich-celebration.mp3');
+                  audio.volume = 0.5;
+                  audio.loop = true;
+                  audio.play().catch(() => {});
+                  audioRef.current = audio;
+                } else {
+                  audioRef.current.play().catch(() => {});
+                }
+              } else {
+                audioRef.current?.pause();
+              }
+              return next;
+            });
+          }}
+          className="h-8 w-8 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-sm ring-1 ring-white/30 flex items-center justify-center transition-all"
+          title={isMuted ? "Bật âm thanh" : "Tắt âm thanh"}
+        >
+          {isMuted ? <VolumeX className="h-4 w-4 text-white" /> : <Volume2 className="h-4 w-4 text-white" />}
+        </button>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowEffects(false);
+            audioRef.current?.pause();
+          }}
+          className="h-8 w-8 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-sm ring-1 ring-white/30 flex items-center justify-center transition-all"
+          title="Tắt hiệu ứng"
+        >
+          <X className="h-4 w-4 text-white" />
+        </button>
+      </div>
 
       <div className="relative h-full flex flex-col justify-between p-5 text-white">
         {/* TOP: Title + Avatars */}

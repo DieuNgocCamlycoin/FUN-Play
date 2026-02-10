@@ -3,7 +3,7 @@ import { GiftCelebrationModal } from "@/components/Donate/GiftCelebrationModal";
 import { ChatDonationCard } from "@/components/Chat/ChatDonationCard";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Copy, ExternalLink, Download, Share2, Gift } from "lucide-react";
+import { Copy, ExternalLink, Download, Share2, Gift, Volume2, VolumeX, X } from "lucide-react";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 
@@ -52,7 +52,7 @@ const MockCardInternalEffects = () => {
     src: i % 2 === 0 ? "/images/camly-coin.png" : "/images/fun-money-coin.png",
     left: 2 + Math.random() * 96,
     delay: Math.random() * 8,
-    duration: 2.5 + Math.random() * 3,
+    duration: 3.5 + Math.random() * 3,
     size: 8 + Math.random() * 12,
   }));
   // 24 coins floating down
@@ -61,7 +61,7 @@ const MockCardInternalEffects = () => {
     src: i % 2 === 0 ? "/images/fun-money-coin.png" : "/images/camly-coin.png",
     left: 2 + Math.random() * 96,
     delay: Math.random() * 8,
-    duration: 2.5 + Math.random() * 3,
+    duration: 3.5 + Math.random() * 3,
     size: 8 + Math.random() * 12,
   }));
   const sparkles = Array.from({ length: 32 }, (_, i) => ({
@@ -101,6 +101,15 @@ const MockDonationCelebrationCard = () => {
     >
       <div className="absolute inset-0 bg-black/45" />
       <MockCardInternalEffects />
+      {/* Volume + X buttons */}
+      <div className="absolute top-2 right-2 z-10 flex items-center gap-1.5">
+        <button className="h-8 w-8 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-sm ring-1 ring-white/30 flex items-center justify-center transition-all" title="Tắt âm thanh">
+          <VolumeX className="h-4 w-4 text-white" />
+        </button>
+        <button className="h-8 w-8 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-sm ring-1 ring-white/30 flex items-center justify-center transition-all" title="Tắt hiệu ứng">
+          <X className="h-4 w-4 text-white" />
+        </button>
+      </div>
       <div className="relative h-full flex flex-col justify-between p-5 text-white">
         {/* TOP */}
         <div className="space-y-3">
@@ -185,6 +194,15 @@ const MockChatDonationCard = ({ isMe }: { isMe: boolean }) => {
       <div className="relative rounded-2xl overflow-hidden aspect-[4/5]" style={{ backgroundImage: `url(${bg})`, backgroundSize: "cover", backgroundPosition: "center" }}>
         <div className="absolute inset-0 bg-black/45" />
         <MockCardInternalEffects />
+        {/* Volume + X buttons */}
+        <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
+          <button className="h-7 w-7 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-sm ring-1 ring-white/30 flex items-center justify-center transition-all" title="Tắt âm thanh">
+            <VolumeX className="h-3.5 w-3.5 text-white" />
+          </button>
+          <button className="h-7 w-7 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-sm ring-1 ring-white/30 flex items-center justify-center transition-all" title="Tắt hiệu ứng">
+            <X className="h-3.5 w-3.5 text-white" />
+          </button>
+        </div>
         <div className="relative h-full flex flex-col justify-between p-4 text-white">
           {/* TOP */}
           <div className="space-y-2">
