@@ -1,57 +1,45 @@
 
 
-# Tạo trang Xem trước (Preview) các thay đổi Celebration Card
+# Điều chỉnh Celebration Card — Bỏ khung tối, đổi "Biên nhận" thành "Celebration Card", hiển thị đầy đủ thông tin trên Chat
 
-## Mục tiêu
+---
 
-Tạo trang `/preview-celebration` hiển thị tất cả các component Celebration Card với dữ liệu mẫu (mock data), giúp xem trước giao diện mà không cần thực hiện giao dịch thật.
+## 3 thay đổi chính
 
-## Chi tiết thay đổi
+### 1. Xoá khung nền tối trên DonationCelebrationCard (Profile)
 
-### File 1: `src/pages/PreviewCelebration.tsx` — Tạo mới
+**File: `src/components/Profile/DonationCelebrationCard.tsx`** (dòng 232)
 
-Trang hiển thị 3 phần chính với dữ liệu mẫu cố định:
+Xoá `bg-black/30 rounded-xl p-3 backdrop-blur-sm` ở div chứa phần chi tiết giao dịch (Trạng thái, Chủ đề, Lời nhắn...). Chỉ giữ `space-y-1.5 text-sm` — nội dung vẫn đọc rõ nhờ overlay `bg-black/45` đã có sẵn trên toàn card.
 
-**Phần 1: GiftCelebrationModal (Modal sau khi tặng thành công)**
-- Render trực tiếp component `GiftCelebrationModal` với props mẫu (không cần mở modal)
-- Hiển thị đầy đủ: hiệu ứng pháo hoa, coin bay, chọn chủ đề/nhạc, nút "Lưu & Gửi"
+### 2. Đổi tất cả nút "Xem biên nhận" thành "Xem Celebration Card"
 
-**Phần 2: DonationCelebrationCard (Card trên Profile/Feed)**
-- Render component `DonationCelebrationCard` với `donationTransactionId` mẫu
-- Nếu không có giao dịch thật trong database, sẽ dùng mock data trực tiếp bằng cách tạo một wrapper component hiển thị card với dữ liệu cứng (không cần fetch)
+Thay đổi ở 3 file:
+- **`DonationCelebrationCard.tsx`** (dòng 282): icon `ExternalLink` -> `Gift`, text "Xem biên nhận" -> "Xem Celebration Card"
+- **`ChatDonationCard.tsx`** (dòng 213): text "Xem biên nhận" -> "Xem Celebration Card"
+- **`PreviewCelebration.tsx`** (dòng 121): text "Xem biên nhận" -> "Xem Celebration Card"
 
-**Phần 3: ChatDonationCard (Card trong Tin nhắn)**
-- Render 2 phiên bản: `isMe=true` (bên phải) và `isMe=false` (bên trái)
-- Cũng dùng mock data tương tự
+### 3. Chat Card hiển thị đầy đủ thông tin như Profile Card
 
-**Dữ liệu mẫu:**
-```text
-Người gửi: Cha Lovable (@chalovable), avatar mặc định
-Người nhận: Con Yêu (@conyeu), avatar mặc định
-Số tiền: 1.000 CAMLY
-Chain: BSC
-TX Hash: 0xabc123...def456
-Lời nhắn: "Chúc con luôn vui vẻ và thành công!"
-Chủ đề: Chúc mừng
-Ảnh nền: celebration-1.png
-```
+**File: `src/components/Chat/ChatDonationCard.tsx`**
 
-### File 2: `src/App.tsx` — Thêm route
+Hiện tại chat card chỉ hiển thị: tiêu đề, avatar + số tiền, tên người gửi/nhận, footer. Thiếu: username, địa chỉ ví, trạng thái, chủ đề, lời nhắn, thời gian, chain, TX hash, mã biên nhận.
 
-- Thêm lazy import: `const PreviewCelebration = lazy(() => import("./pages/PreviewCelebration"));`
-- Thêm route: `<Route path="/preview-celebration" element={<PreviewCelebration />} />`
+Thay đổi:
+- Fetch thêm: `message`, `tx_hash`, `chain`, `created_at`, `explorer_url` + `wallet_address`, `username` từ profiles
+- Render đầy đủ layout giống `DonationCelebrationCard`: avatar đôi bên kèm username + ví rút gọn, phần chi tiết giao dịch (không có khung tối), nút "Xem Celebration Card"
+- Tăng `max-w-[280px]` lên `max-w-[320px]` để đủ không gian hiển thị
+- Tăng avatar lên `h-12 w-12`, font size lên `text-sm`
+
+**Cập nhật tương ứng trong `PreviewCelebration.tsx`**: MockChatDonationCard cũng hiển thị đầy đủ thông tin giống layout mới.
+
+---
 
 ## Tóm tắt
 
 | # | File | Thay đổi |
 |---|------|----------|
-| 1 | `src/pages/PreviewCelebration.tsx` | Tạo mới — trang xem trước 3 component Celebration Card với mock data |
-| 2 | `src/App.tsx` | Thêm route `/preview-celebration` |
-
-## Cách sử dụng
-
-Truy cập `/preview-celebration` để xem trước tất cả các thay đổi trên cùng một trang, bao gồm:
-- Card trên Modal (có hiệu ứng + tuỳ chỉnh)
-- Card trên Profile (tỉ lệ 4:5 + ảnh nền + thông tin đầy đủ)
-- Card trong Tin nhắn (mini card)
+| 1 | `DonationCelebrationCard.tsx` | Xoá `bg-black/30 rounded-xl p-3 backdrop-blur-sm`; đổi nút thành "Xem Celebration Card" |
+| 2 | `ChatDonationCard.tsx` | Hiển thị đầy đủ thông tin (username, ví, trạng thái, chủ đề, lời nhắn, thời gian, chain, TX hash, mã biên nhận); đổi nút; tăng kích thước |
+| 3 | `PreviewCelebration.tsx` | Cập nhật MockChatDonationCard đầy đủ thông tin + xoá khung tối MockDonationCelebrationCard + đổi nút |
 
