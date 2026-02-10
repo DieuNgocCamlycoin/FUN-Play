@@ -691,3 +691,21 @@ body > [data-w3m-modal] {
 .animate-warm-rays { animation: warm-rays 3s ease-in-out infinite; }
 .animate-fireworks { animation: fireworks-burst 2s ease-out infinite; }
 .animate-coin-fall { animation: coin-fall 4s ease-in forwards; }
+
+/* Coin float animation for inside card (looping) */
+@keyframes coin-float-up {
+  0% { transform: translateY(100%) rotate(0deg) scale(0.8); opacity: 0; }
+  10% { opacity: 0.8; }
+  50% { transform: translateY(0%) rotate(180deg) scale(1); opacity: 0.9; }
+  90% { opacity: 0.6; }
+  100% { transform: translateY(-120%) rotate(360deg) scale(0.7); opacity: 0; }
+}
+
+@keyframes sparkle-float {
+  0%, 100% { opacity: 0; transform: scale(0) rotate(0deg); }
+  25% { opacity: 1; transform: scale(1) rotate(90deg); }
+  75% { opacity: 0.8; transform: scale(0.8) rotate(270deg); }
+}
+
+.animate-coin-float-up { animation: coin-float-up 4s ease-in-out infinite; }
+.animate-sparkle-float { animation: sparkle-float 3s ease-in-out infinite; }
