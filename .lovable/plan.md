@@ -1,85 +1,75 @@
 
-# Điều chỉnh Celebration Card — Bỏ "Chủ đề", bỏ nút "Xem", thêm nút Lưu/Share, xoá khung tối Modal, nâng cấp hiệu ứng ăn mừng
+
+# Hiệu ứng pháo hoa + đồng tiền CAMLY bay tung tóe toàn màn hình + bên trong Card
+
+## Mục tiêu
+
+- Pháo hoa + đồng tiền CAMLY/Fun Money bay **toàn màn hình** 15 giây khi mở
+- **Bên trong Celebration Card**: hiệu ứng đồng tiền + sparkles lặp lại liên tục (như GIF) cho đến khi user bấm X
+- Nút **X** để tắt hiệu ứng hình ảnh (pháo hoa, coin)
+- Nút **loa** riêng để tắt/bật âm thanh Rich Rich Rich
+- Nhạc Rich Rich Rich loop liên tục cho đến khi tắt
 
 ---
 
-## 1. Xoá mục "Chủ đề" trên DonationCelebrationCard (Profile)
+## Chi tiết kỹ thuật
 
-**File: `src/components/Profile/DonationCelebrationCard.tsx`** (dong 237-240)
-
-Xoa dong:
-```
-<div className="flex justify-between"><span className="text-white/60">Chu de</span><span>...</span></div>
-```
-
-## 2. Xoa nut "Xem Celebration Card" tren DonationCelebrationCard
-
-**File: `src/components/Profile/DonationCelebrationCard.tsx`** (dong 276-284)
-
-Xoa toan bo `<Button>` "Xem Celebration Card" o cuoi card.
-
-## 3. Them nut Luu + Share goc duoi cua Celebration Card
-
-**File: `src/components/Profile/DonationCelebrationCard.tsx`**
-
-Thay vi nut "Xem Celebration Card", them 2 icon nho goc duoi:
-- Goc trai: icon Download (Luu ve thiet bi) — su dung `html2canvas` de capture card thanh anh va download
-- Goc phai: icon Share (Chia se len profile) — copy link hoac trigger share API
-
-Layout: `flex justify-between` o bottom, 2 nut icon nho `h-8 w-8` voi nen `bg-white/10 hover:bg-white/20 rounded-full`.
-
-Moi nguoi deu xem, luu, share duoc card cua nhau (khong can kiem tra quyen).
-
-## 4. Xoa khung nen toi trong GiftCelebrationModal (Muc 1)
-
-**File: `src/components/Donate/GiftCelebrationModal.tsx`** (dong 484)
-
-Hien tai dong 484: `<div className="space-y-1.5 text-sm bg-black/30 rounded-xl p-3 backdrop-blur-sm">`
-
-Doi thanh: `<div className="space-y-1.5 text-sm">` — xoa `bg-black/30 rounded-xl p-3 backdrop-blur-sm`.
-
-## 5. Xoa muc "Chu de" trong GiftCelebrationModal
-
-**File: `src/components/Donate/GiftCelebrationModal.tsx`** (dong 486)
-
-Xoa dong: `<div className="flex justify-between"><span>Chu de</span>...</div>`
-
-## 6. Nang cap hieu ung an mung — phao hoa + tien roi 15 giay toan man hinh
+### 1. Hiệu ứng toàn màn hình (15 giây)
 
 **File: `src/components/Donate/GiftCelebrationModal.tsx`**
 
-Hien tai confetti chi ban 1 lan khi mount (4 dot ngan). Thay doi:
+Giữ nguyên logic confetti hiện tại (bắn mỗi 1.5s trong 15s) nhưng nâng cấp:
+- Thêm `CoinShowerEffect` ở **cấp toàn màn hình** (fixed overlay z-50) — 40 đồng tiền CAMLY + Fun Money rơi từ trên xuống
+- Overlay toàn màn hình tự tắt sau 15 giây hoặc khi bấm X
 
-- Tao interval ban confetti moi 1.5 giay trong 15 giay (10 dot ban)
-- Tang `particleCount` tu 50-100 len 120-200
-- Ban tu nhieu vi tri (trai, phai, giua) xen ke
-- Coin shower: tang tu 20 dong tien len 40, keo dai animation tu 5 giay len 15 giay
-- Am thanh Rich Rich Rich phat kem va loop trong 15 giay
-- Nut X (da co) de tat hieu ung + am thanh bat ky luc nao
-- Khi vuot/dong modal: cleanup audio tu dong (da co `useEffect` cleanup)
+### 2. Hiệu ứng bên trong Celebration Card (lặp liên tục)
 
-## 7. Cap nhat PreviewCelebration.tsx
+**File: `src/components/Donate/GiftCelebrationModal.tsx`**
 
-**File: `src/pages/PreviewCelebration.tsx`**
+Tạo component `CardInternalEffects` render bên trong thẻ card (đã có `overflow-hidden`):
+- 15-20 đồng tiền nhỏ (CAMLY coin + Fun Money) bay từ dưới lên, trôi ngang, lặp vô hạn
+- Sparkle particles nhỏ lấp lánh
+- Dùng CSS animation `coin-float` loop infinite (không cần JS interval)
+- Hiệu ứng chỉ tắt khi user bấm X (state `showCardEffects`)
 
-- MockDonationCelebrationCard: xoa muc "Chu de", xoa nut "Xem Celebration Card", them 2 icon Luu/Share goc duoi
-- MockChatDonationCard: xoa muc "Chu de", xoa nut "Xem Celebration Card", them 2 icon Luu/Share goc duoi
+### 3. Tách nút X (hiệu ứng) và nút Loa (âm thanh)
 
-## 8. Cap nhat ChatDonationCard.tsx
+Hiện tại có 2 nút: Volume + X. Điều chỉnh:
+- **Nút Loa** (Volume2/VolumeX): chỉ tắt/bật âm thanh Rich Rich Rich
+- **Nút X**: tắt toàn bộ hiệu ứng hình ảnh (pháo hoa màn hình + coin trong card)
+- Khi tắt hiệu ứng: `showEffects = false` -> ẩn `CoinShowerEffect` toàn màn hình + `CardInternalEffects` trong card
+- Âm thanh tiếp tục phát nếu user chỉ tắt hiệu ứng (và ngược lại)
 
-**File: `src/components/Chat/ChatDonationCard.tsx`**
+### 4. Âm thanh loop liên tục
 
-- Xoa muc "Chu de" (dong 233)
-- Xoa nut "Xem Celebration Card" (dong 260-268)
-- Them 2 icon Luu/Share goc duoi tuong tu Profile card
+Thay đổi logic âm thanh:
+- `audio.loop = true` — không giới hạn 15 giây nữa
+- Chỉ dừng khi user bấm nút Loa hoặc đóng modal
+
+### 5. CSS Animation mới
+
+**File: `src/index.css`**
+
+Thêm keyframe `coin-float` cho hiệu ứng bên trong card:
+```css
+@keyframes coin-float {
+  0% { transform: translateY(100%) rotate(0deg); opacity: 0; }
+  10% { opacity: 0.8; }
+  90% { opacity: 0.8; }
+  100% { transform: translateY(-120%) rotate(360deg); opacity: 0; }
+}
+```
+
+### 6. Cập nhật PreviewCelebration.tsx
+
+Đồng bộ: MockDonationCelebrationCard và MockChatDonationCard thêm hiệu ứng coin float bên trong card tương tự.
 
 ---
 
-## Tom tat
+## Tóm tắt
 
-| # | File | Thay doi |
+| # | File | Thay đổi |
 |---|------|----------|
-| 1 | `GiftCelebrationModal.tsx` | Xoa khung toi `bg-black/30`; xoa muc "Chu de"; nang cap confetti 15 giay + coin shower 40 dong tien + loop am thanh |
-| 2 | `DonationCelebrationCard.tsx` | Xoa muc "Chu de"; xoa nut "Xem Celebration Card"; them icon Luu + Share goc duoi |
-| 3 | `ChatDonationCard.tsx` | Xoa muc "Chu de"; xoa nut "Xem Celebration Card"; them icon Luu + Share goc duoi |
-| 4 | `PreviewCelebration.tsx` | Cap nhat mock cards dong bo voi cac thay doi tren |
+| 1 | `GiftCelebrationModal.tsx` | Thêm coin shower toàn màn hình + hiệu ứng coin/sparkle lặp bên trong card + tách nút X/Loa + audio loop liên tục |
+| 2 | `src/index.css` | Thêm keyframe `coin-float` cho animation bên trong card |
+| 3 | `PreviewCelebration.tsx` | Thêm hiệu ứng coin float bên trong mock cards |
