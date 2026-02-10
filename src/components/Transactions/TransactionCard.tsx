@@ -274,7 +274,7 @@ export const TransactionCard = memo(function TransactionCard({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => navigate(`/receipt/${transaction.id}`)}
+                onClick={() => navigate(`/receipt/${transaction.receipt_public_id || transaction.id}`)}
                 className="text-xs text-amber-500 hover:text-amber-600 h-6 px-2"
               >
                 🎉 Xem Card
