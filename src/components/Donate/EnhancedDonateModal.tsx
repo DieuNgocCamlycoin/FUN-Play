@@ -13,7 +13,7 @@ import { useInternalWallet } from "@/hooks/useInternalWallet";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
-import { DonationSuccessOverlay } from "./DonationSuccessOverlay";
+import { GiftCelebrationModal } from "./GiftCelebrationModal";
 
 interface EnhancedDonateModalProps {
   open: boolean;
@@ -49,12 +49,11 @@ const EMOJI_LIST = ["💖", "❤️", "🥰", "😍", "🙏", "🔥", "💯", "�
 // Donation themes
 const DONATION_THEMES = [
   { id: "celebration", emoji: "🎉", label: "Chúc mừng" },
-  { id: "wedding", emoji: "💍", label: "Kết hôn" },
-  { id: "birthday", emoji: "🎂", label: "Sinh nhật" },
   { id: "gratitude", emoji: "🙏", label: "Tri ân" },
+  { id: "birthday", emoji: "🎂", label: "Sinh nhật" },
   { id: "love", emoji: "❤️", label: "Tình yêu" },
+  { id: "newyear", emoji: "🎊", label: "Năm mới" },
   { id: "family", emoji: "👨‍👩‍👧‍👦", label: "Gia đình" },
-  { id: "parents", emoji: "🌱", label: "Cha mẹ" },
 ];
 
 // Music options with real audio files
@@ -322,7 +321,7 @@ export const EnhancedDonateModal = ({
         <AnimatePresence mode="wait">
           {/* STEP 3: SUCCESS */}
           {step === 3 && completedTransaction && senderProfile && selectedReceiver && selectedToken ? (
-            <DonationSuccessOverlay
+            <GiftCelebrationModal
               key="success"
               transaction={completedTransaction}
               sender={{
@@ -346,8 +345,6 @@ export const EnhancedDonateModal = ({
                 chain: selectedToken.chain,
               }}
               message={message}
-              theme={selectedTheme}
-              music={selectedMusic}
               onClose={handleClose}
             />
 
@@ -409,61 +406,6 @@ export const EnhancedDonateModal = ({
                   <span className="bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent">{amount} {selectedToken?.symbol}</span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">Chain: {selectedToken?.chain === "internal" ? "Nội bộ" : "BSC"}</p>
-              </div>
-
-              {/* Theme selection — moved to step 2 */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Chủ đề chúc mừng ✨</label>
-                <div className="grid grid-cols-4 gap-2">
-                  {DONATION_THEMES.map((theme) => (
-                    <button key={theme.id} type="button" onClick={() => setSelectedTheme(theme.id)}
-                      className={`flex flex-col items-center gap-1 p-2 rounded-xl border transition-all ${
-                        selectedTheme === theme.id
-                          ? "border-primary bg-primary/10 ring-2 ring-primary/30"
-                          : "border-border hover:border-primary/50 hover:bg-muted/50"
-                      }`}>
-                      <span className="text-xl">{theme.emoji}</span>
-                      <span className="text-[10px] leading-tight text-center">{theme.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Music selection with preview — moved to step 2 */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Chọn nhạc 🎵</label>
-                <div className="space-y-1.5">
-                  {MUSIC_OPTIONS.map((musicOption) => (
-                    <div
-                      key={musicOption.id}
-                      onClick={() => setSelectedMusic(musicOption.id)}
-                      className={`flex items-center gap-3 p-2.5 rounded-xl border cursor-pointer transition-all ${
-                        selectedMusic === musicOption.id
-                          ? "border-primary bg-primary/10 ring-1 ring-primary/30"
-                          : "border-border hover:border-primary/50 hover:bg-muted/50"
-                      }`}
-                    >
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); togglePreview(musicOption.id); }}
-                        className={`h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${
-                          playingMusicId === musicOption.id
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-muted hover:bg-muted-foreground/20"
-                        }`}
-                      >
-                        {playingMusicId === musicOption.id ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5 ml-0.5" />}
-                      </button>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium">{musicOption.label}</p>
-                        <p className="text-xs text-muted-foreground">{musicOption.description}</p>
-                      </div>
-                      {selectedMusic === musicOption.id && (
-                        <span className="text-xs text-primary font-medium">✓</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
               </div>
 
               {/* Message display */}

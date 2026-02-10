@@ -55,33 +55,29 @@ const CopyBtn = ({ text, label }: { text: string; label?: string }) => (
 
 const THEME_LABELS: Record<string, { emoji: string; label: string }> = {
   celebration: { emoji: "🎉", label: "Chúc mừng" },
-  wedding: { emoji: "💍", label: "Kết hôn" },
   birthday: { emoji: "🎂", label: "Sinh nhật" },
   gratitude: { emoji: "🙏", label: "Tri ân" },
   love: { emoji: "❤️", label: "Tình yêu" },
+  newyear: { emoji: "🎊", label: "Năm mới" },
   family: { emoji: "👨‍👩‍👧‍👦", label: "Gia đình" },
-  parents: { emoji: "🌱", label: "Cha mẹ" },
 };
 
-// Theme-based gradients & CSS animations for Celebration Card
 const THEME_STYLES: Record<string, { gradient: string; animation: string }> = {
   celebration: { gradient: "from-amber-400/20 via-pink-400/20 to-purple-500/20", animation: "animate-confetti-fall" },
-  wedding: { gradient: "from-rose-300/20 via-amber-200/20 to-yellow-300/20", animation: "animate-sparkle-shimmer" },
   birthday: { gradient: "from-pink-400/20 via-yellow-300/20 to-cyan-400/20", animation: "animate-confetti-fall" },
   gratitude: { gradient: "from-emerald-400/20 via-teal-400/20 to-green-500/20", animation: "animate-gentle-glow" },
   love: { gradient: "from-red-400/20 via-pink-400/20 to-rose-400/20", animation: "animate-float-hearts" },
+  newyear: { gradient: "from-red-500/20 via-amber-400/20 to-yellow-300/20", animation: "animate-fireworks" },
   family: { gradient: "from-blue-400/20 via-indigo-400/20 to-purple-400/20", animation: "animate-warm-rays" },
-  parents: { gradient: "from-green-400/20 via-emerald-400/20 to-teal-400/20", animation: "animate-grow-up" },
 };
 
 const THEME_BORDERS: Record<string, string> = {
   celebration: "border-amber-400/40",
-  wedding: "border-rose-300/40",
   birthday: "border-pink-400/40",
   gratitude: "border-emerald-400/40",
   love: "border-red-400/40",
+  newyear: "border-red-500/40",
   family: "border-blue-400/40",
-  parents: "border-green-400/40",
 };
 
 // Music files mapping
