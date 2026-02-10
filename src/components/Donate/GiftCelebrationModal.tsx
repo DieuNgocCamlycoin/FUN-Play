@@ -73,9 +73,34 @@ const CopyBtn = ({ text, label }: { text: string; label?: string }) => (
     onClick={() => { navigator.clipboard.writeText(text); toast({ title: label || "Đã copy! 📋" }); }}
     className="p-1 hover:bg-black/20 rounded transition-colors inline-flex"
   >
-    <Copy className="h-3 w-3 text-white/70" />
+    <Copy className="h-3.5 w-3.5 text-white/70" />
   </button>
 );
+
+// Convert all <img> inside a container to base64 data URLs for html2canvas
+const preloadImagesToBase64 = async (container: HTMLElement) => {
+  const imgs = container.querySelectorAll("img");
+  const originals: { img: HTMLImageElement; src: string }[] = [];
+  await Promise.all(
+    Array.from(imgs).map(async (img) => {
+      if (!img.src || img.src.startsWith("data:")) return;
+      originals.push({ img, src: img.src });
+      try {
+        const res = await fetch(img.src, { mode: "cors" });
+        const blob = await res.blob();
+        const dataUrl = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(blob);
+        });
+        img.src = dataUrl;
+      } catch {
+        // keep original src if fetch fails
+      }
+    })
+  );
+  return originals;
+};
 
 // ======================== COIN SHOWER EFFECT ========================
 const CoinShowerEffect = () => {
@@ -244,7 +269,11 @@ export const GiftCelebrationModal = ({
     if (!cardRef.current || isSavingImage) return;
     setIsSavingImage(true);
     try {
-      const canvas = await html2canvas(cardRef.current, { useCORS: true, backgroundColor: null, scale: 2 });
+      // Pre-convert all images to base64 to avoid CORS issues with html2canvas
+      const originals = await preloadImagesToBase64(cardRef.current);
+      const canvas = await html2canvas(cardRef.current, { useCORS: true, allowTaint: true, backgroundColor: null, scale: 2 });
+      // Restore original src
+      originals.forEach(({ img, src }) => { img.src = src; });
       const link = document.createElement("a");
       link.download = `celebration-card-${transaction.receipt_public_id}.png`;
       link.href = canvas.toDataURL("image/png");
@@ -400,57 +429,65 @@ export const GiftCelebrationModal = ({
         }}
       >
         <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
-        <div className="relative p-3 text-white">
-          {/* Sender → Amount → Receiver */}
-          <div className="flex items-center justify-between gap-1.5">
-            <a href={`/user/${sender.id}`} className="flex flex-col items-center gap-0.5 flex-1 min-w-0 hover:opacity-80 transition-opacity">
-              <Avatar className="h-10 w-10 ring-2 ring-white/30">
-                <AvatarImage src={sender.avatar || ""} />
-                <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-xs">{sender.username[0].toUpperCase()}</AvatarFallback>
-              </Avatar>
-              <p className="text-[11px] font-medium truncate max-w-full">{sender.name}</p>
-              <p className="text-[9px] text-white/70">@{sender.username}</p>
-              {sender.wallet && (
-                <div className="flex items-center gap-0.5">
-                  <span className="text-[9px] font-mono text-white/60">{shortenAddress(sender.wallet)}</span>
-                  <CopyBtn text={sender.wallet} />
-                </div>
-              )}
-            </a>
+        <div className="relative h-full flex flex-col justify-between p-5 text-white">
+          {/* TOP: Title + Avatars + Amount */}
+          <div className="space-y-3">
+            {/* Title INSIDE card */}
+            <p className="text-sm font-bold tracking-wide text-center drop-shadow-lg">
+              🎉 CHÚC MỪNG TẶNG THƯỞNG THÀNH CÔNG 🎉
+            </p>
 
-            <div className="flex flex-col items-center gap-0.5 flex-shrink-0 px-1">
-              <div className="flex items-center gap-1 text-base font-bold">
-                {token.icon_url && <img src={token.icon_url} alt="" className="h-4 w-4" />}
-                <span className="text-amber-300 drop-shadow-lg">{transaction.amount}</span>
+            {/* Sender → Amount → Receiver */}
+            <div className="flex items-center justify-between gap-2">
+              <a href={`/user/${sender.id}`} className="flex flex-col items-center gap-1 flex-1 min-w-0 hover:opacity-80 transition-opacity">
+                <Avatar className="h-12 w-12 ring-2 ring-white/30">
+                  <AvatarImage src={sender.avatar || ""} />
+                  <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-sm">{sender.username[0].toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <p className="text-sm font-semibold truncate max-w-full drop-shadow">{sender.name}</p>
+                <p className="text-xs text-white/70">@{sender.username}</p>
+                {sender.wallet && (
+                  <div className="flex items-center gap-0.5">
+                    <span className="text-[11px] font-mono text-white/60">{shortenAddress(sender.wallet)}</span>
+                    <CopyBtn text={sender.wallet} />
+                  </div>
+                )}
+              </a>
+
+              <div className="flex flex-col items-center gap-0.5 flex-shrink-0 px-2">
+                <div className="flex items-center gap-1.5 text-xl font-bold">
+                  {token.icon_url && <img src={token.icon_url} alt="" className="h-5 w-5" />}
+                  <span className="text-amber-300 drop-shadow-lg">{transaction.amount.toLocaleString()}</span>
+                </div>
+                <motion.div animate={{ x: [0, 5, 0] }} transition={{ duration: 1.5, repeat: Infinity }} className="text-xl">→</motion.div>
+                <span className="text-sm font-medium text-white/80">{token.symbol}</span>
               </div>
-              <motion.div animate={{ x: [0, 5, 0] }} transition={{ duration: 1.5, repeat: Infinity }} className="text-lg">→</motion.div>
-              <span className="text-[10px] font-medium text-white/80">{token.symbol}</span>
-            </div>
 
-            <a href={`/user/${receiver.id}`} className="flex flex-col items-center gap-0.5 flex-1 min-w-0 hover:opacity-80 transition-opacity">
-              <Avatar className="h-10 w-10 ring-2 ring-amber-400/30">
-                <AvatarImage src={receiver.avatar || ""} />
-                <AvatarFallback className="bg-gradient-to-br from-amber-500 to-orange-500 text-white text-xs">{receiver.username[0].toUpperCase()}</AvatarFallback>
-              </Avatar>
-              <p className="text-[11px] font-medium truncate max-w-full">{receiver.name}</p>
-              <p className="text-[9px] text-white/70">@{receiver.username}</p>
-              {receiver.wallet && (
-                <div className="flex items-center gap-0.5">
-                  <span className="text-[9px] font-mono text-white/60">{shortenAddress(receiver.wallet)}</span>
-                  <CopyBtn text={receiver.wallet} />
-                </div>
-              )}
-            </a>
+              <a href={`/user/${receiver.id}`} className="flex flex-col items-center gap-1 flex-1 min-w-0 hover:opacity-80 transition-opacity">
+                <Avatar className="h-12 w-12 ring-2 ring-amber-400/30">
+                  <AvatarImage src={receiver.avatar || ""} />
+                  <AvatarFallback className="bg-gradient-to-br from-amber-500 to-orange-500 text-white text-sm">{receiver.username[0].toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <p className="text-sm font-semibold truncate max-w-full drop-shadow">{receiver.name}</p>
+                <p className="text-xs text-white/70">@{receiver.username}</p>
+                {receiver.wallet && (
+                  <div className="flex items-center gap-0.5">
+                    <span className="text-[11px] font-mono text-white/60">{shortenAddress(receiver.wallet)}</span>
+                    <CopyBtn text={receiver.wallet} />
+                  </div>
+                )}
+              </a>
+            </div>
           </div>
 
-          {/* Details */}
-          <div className="space-y-1 text-[11px] border-t border-white/20 pt-2 mt-2">
+          {/* MIDDLE: Details */}
+          <div className="space-y-1.5 text-sm bg-black/30 rounded-xl p-3 backdrop-blur-sm">
             <div className="flex justify-between"><span className="text-white/60">Trạng thái</span><span className="text-green-400 font-medium">✅ Thành công</span></div>
             <div className="flex justify-between"><span className="text-white/60">Chủ đề</span><span>{currentTheme.emoji} {currentTheme.label}</span></div>
             {message && (
               <div>
                 <span className="text-white/60">Lời nhắn</span>
-                <p className="italic mt-0.5 p-1.5 bg-white/10 rounded-lg text-[11px]">"{message}"</p>
+                <p className="italic mt-0.5 p-2 bg-white/10 rounded-lg text-sm">"{message}"</p>
               </div>
             )}
             <div className="flex justify-between"><span className="text-white/60">Thời gian</span><span>{new Date().toLocaleString("vi-VN")}</span></div>
@@ -459,15 +496,20 @@ export const GiftCelebrationModal = ({
               <div className="flex justify-between items-center">
                 <span className="text-white/60">TX Hash</span>
                 <div className="flex items-center gap-1">
-                  <span className="font-mono">{transaction.tx_hash.substring(0, 10)}…</span>
-                  <button type="button" onClick={handleCopyTx} className="p-0.5 hover:bg-white/20 rounded"><Copy className="h-3 w-3 text-white/70" /></button>
+                  <span className="font-mono text-xs">{transaction.tx_hash.substring(0, 10)}…</span>
+                  <button type="button" onClick={handleCopyTx} className="p-0.5 hover:bg-white/20 rounded"><Copy className="h-3.5 w-3.5 text-white/70" /></button>
                   <a href={transaction.explorer_url || `https://bscscan.com/tx/${transaction.tx_hash}`} target="_blank" rel="noopener noreferrer" className="p-0.5 hover:bg-white/20 rounded">
-                    <ExternalLink className="h-3 w-3 text-white/70" />
+                    <ExternalLink className="h-3.5 w-3.5 text-white/70" />
                   </a>
                 </div>
               </div>
             )}
-            <div className="flex justify-between"><span className="text-white/60">Mã biên nhận</span><span className="font-mono">#{transaction.receipt_public_id}</span></div>
+            <div className="flex justify-between"><span className="text-white/60">Mã biên nhận</span><span className="font-mono text-xs">#{transaction.receipt_public_id}</span></div>
+          </div>
+
+          {/* BOTTOM: Wallet info */}
+          <div className="text-center">
+            <p className="text-xs text-white/50">FUN PLAY • Tặng & Thưởng</p>
           </div>
         </div>
       </motion.div>

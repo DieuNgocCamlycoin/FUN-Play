@@ -101,7 +101,7 @@ export const ChatDonationCard = ({
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className={`max-w-[260px] ${isMe ? "ml-auto" : "mr-auto"}`}
+        className={`max-w-[280px] ${isMe ? "ml-auto" : "mr-auto"}`}
       >
         <div
           className="relative rounded-2xl overflow-hidden aspect-[4/5]"
@@ -113,53 +113,52 @@ export const ChatDonationCard = ({
         >
           <div className="absolute inset-0 bg-black/45" />
 
-          <div className="relative h-full flex flex-col items-center justify-center p-3 text-white text-center gap-2">
+          <div className="relative h-full flex flex-col items-center justify-between p-4 text-white text-center">
             {/* Title */}
-            <p className="text-[9px] font-bold tracking-wide drop-shadow-lg">
-              🎉 TẶNG THƯỞNG THÀNH CÔNG 🎉
+            <p className="text-xs font-bold tracking-wide drop-shadow-lg">
+              🎉 CHÚC MỪNG TẶNG THƯỞNG THÀNH CÔNG 🎉
             </p>
 
             {/* Avatars + Amount */}
-            <div className="flex items-center gap-2">
-              <Avatar className="h-8 w-8 ring-2 ring-white/30">
+            <div className="flex items-center gap-3">
+              <Avatar className="h-10 w-10 ring-2 ring-white/30">
                 <AvatarImage src={cardData.sender_avatar || ""} />
-                <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-[10px]">
+                <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-xs">
                   {cardData.sender_name[0]?.toUpperCase()}
                 </AvatarFallback>
               </Avatar>
 
               <div className="flex flex-col items-center">
-                <div className="flex items-center gap-1 font-bold text-sm">
+                <div className="flex items-center gap-1.5 font-bold text-base">
                   {cardData.token_icon && (
-                    <img
-                      src={cardData.token_icon}
-                      alt=""
-                      className="h-3.5 w-3.5"
-                    />
+                    <img src={cardData.token_icon} alt="" className="h-4 w-4" />
                   )}
                   <span className="text-amber-300 drop-shadow-lg">
                     {cardData.amount.toLocaleString()}
                   </span>
                 </div>
-                <span className="text-[9px] text-white/70">
+                <span className="text-xs text-white/70">
                   {cardData.token_symbol}
                 </span>
               </div>
 
-              <Avatar className="h-8 w-8 ring-2 ring-amber-400/30">
+              <Avatar className="h-10 w-10 ring-2 ring-amber-400/30">
                 <AvatarImage src={cardData.receiver_avatar || ""} />
-                <AvatarFallback className="bg-gradient-to-br from-amber-500 to-orange-500 text-white text-[10px]">
+                <AvatarFallback className="bg-gradient-to-br from-amber-500 to-orange-500 text-white text-xs">
                   {cardData.receiver_name[0]?.toUpperCase()}
                 </AvatarFallback>
               </Avatar>
             </div>
 
             {/* Names */}
-            <div className="flex items-center gap-1 text-[10px]">
+            <div className="flex items-center gap-1.5 text-xs">
               <span className="font-medium">{cardData.sender_name}</span>
               <span className="text-white/60">→</span>
               <span className="font-medium">{cardData.receiver_name}</span>
             </div>
+
+            {/* Footer */}
+            <p className="text-[10px] text-white/50">FUN PLAY • Tặng & Thưởng</p>
           </div>
         </div>
 
@@ -168,9 +167,9 @@ export const ChatDonationCard = ({
           size="sm"
           variant="outline"
           onClick={handleViewCard}
-          className="gap-1.5 mt-1.5 w-full text-[11px] h-7 border-amber-300/50 hover:border-amber-400 hover:bg-amber-50 text-amber-700 dark:text-amber-300 dark:hover:bg-amber-900/30"
+          className="gap-1.5 mt-1.5 w-full text-xs h-8 border-amber-300/50 hover:border-amber-400 hover:bg-amber-50 text-amber-700 dark:text-amber-300 dark:hover:bg-amber-900/30"
         >
-          <Gift className="w-3 h-3" />
+          <Gift className="w-3.5 h-3.5" />
           Xem Celebration Card
         </Button>
       </motion.div>
