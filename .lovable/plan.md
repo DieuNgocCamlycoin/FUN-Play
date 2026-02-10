@@ -1,122 +1,89 @@
 
 
-# Điều chỉnh Flow "Tặng & Thưởng" — Dừng Auto-Post, Thêm "Lưu & Gửi"
+# Kế hoạch sửa Celebration Card — Tỉ lệ 4:5 + Hiển thị đúng trên Tin nhắn & Profile
 
 ---
 
 ## Vấn đề hiện tại
 
-1. **Auto-post + Auto-message chạy ngay khi modal mở** (dòng 154-162 trong `GiftCelebrationModal.tsx`) — người gửi chưa kịp tuỳ chỉnh Celebration Card
-2. Không có nút **"Lưu & Gửi"** tổng hợp — các hành động đăng/gửi rải rác và chạy tự động
-3. Chưa có logic **thông báo người nhận** để họ chọn chia sẻ Celebration Card lên trang cá nhân
-4. Chưa có tuỳ chọn **"Tải ảnh lên"** cho background tuỳ chỉnh
+### 1. Celebration Card không hiển thị đúng trên Profile
+- File `PostCard.tsx` (dòng 190-192) render `DonationCelebrationCard` — nhưng component này chỉ hiển thị dạng **text đơn giản** (avatar, tên, số tiền, nút "Xem biên nhận"), **không có ảnh nền, không có tỉ lệ 4:5**
+- `DonationCelebrationCard` đọc theme từ `metadata.theme` nhưng `GiftCelebrationModal` lưu vào `metadata.celebration.theme` → sai đường dẫn dữ liệu
+
+### 2. Celebration Card không hiển thị đúng trên Tin nhắn (Messenger)
+- File `ChatDonationCard.tsx` chỉ hiển thị **text content + nút "Xem biên nhận"**, hoàn toàn **không render Celebration Card** với ảnh nền/theme
+
+### 3. Celebration Card thiếu tỉ lệ 4:5
+- `GiftCelebrationModal.tsx` không cố định tỉ lệ khung hình — card tự co giãn theo nội dung
+
+### 4. Metadata lưu sai cấu trúc
+- `GiftCelebrationModal` lưu: `metadata.celebration.theme`, `metadata.celebration.background`
+- `DonationCelebrationCard` đọc: `metadata.theme` → không khớp, luôn fallback về "celebration"
 
 ---
 
 ## Chi tiết thay đổi
 
-### File 1: `src/components/Donate/GiftCelebrationModal.tsx` — Viết lại toàn diện
+### File 1: `src/components/Profile/DonationCelebrationCard.tsx` — Viết lại
 
-**A. Xoá auto-post + auto-message khi mount:**
-- Xoá 2 `useEffect` tự động gọi `handleShareToProfile()` và `handleSendMessage()` (dòng 154-162)
-- Các hành động này CHỈ chạy khi người dùng bấm **"Lưu & Gửi"**
+**Thay đổi chính:**
+- Thêm hiển thị **ảnh nền** từ `metadata.celebration.background` (hoặc `metadata.background`)
+- Cố định **tỉ lệ 4:5** bằng `aspect-[4/5]`
+- Sửa đường dẫn metadata: đọc từ `metadata?.celebration?.theme` thay vì `metadata?.theme`
+- Thêm đầy đủ thông tin: avatar đôi bên, số tiền, token, chủ đề, lời nhắn, thời gian, chain, TX hash, mã biên nhận
+- Layout giống hình 4, 5 người dùng đã gửi (text trắng trên ảnh nền + overlay tối)
 
-**B. Thêm nút "Lưu & Gửi" (nút chính, nổi bật nhất):**
-- Khi bấm, tuần tự thực hiện:
-  1. Lưu metadata celebration card vào `donation_transactions.metadata` (theme, background, music)
-  2. Đăng bài lên Profile (gọi `handleShareToProfile`)
-  3. Gửi tin nhắn cho người nhận (gọi `handleSendMessage`)
-  4. Gửi thông báo cho người nhận với lựa chọn "Chia sẻ / Không" (chèn vào bảng `notifications`)
-  5. Hiển thị toast thành công + đóng modal
+**Dữ liệu cần fetch thêm từ `donation_transactions`:**
+- `tx_hash`, `chain`, `created_at`, `status`
+- `metadata.celebration.background` để làm ảnh nền
 
-**C. Thêm tuỳ chọn "Tải ảnh lên" cho background:**
-- Thêm 1 ô upload bên cạnh 3 thumbnail background hệ thống
-- Sử dụng `<input type="file" accept="image/*">` hoặc react-dropzone (đã có trong dự án)
-- Ảnh tải lên sẽ lưu vào Lovable Cloud Storage bucket và dùng URL làm background
+### File 2: `src/components/Chat/ChatDonationCard.tsx` — Viết lại
 
-**D. Cập nhật layout nút hành động:**
-- Nút **"Lưu & Gửi"** — nổi bật, gradient vàng-cam, chiếm toàn bộ chiều rộng
-- Các nút phụ (Lưu hình ảnh, Chia sẻ link, Copy TX Hash, Đóng) — nhỏ gọn bên dưới
+**Thay đổi chính:**
+- Thay vì chỉ hiển thị text, fetch dữ liệu từ `donation_transactions` bằng `donation_transaction_id`
+- Render **mini Celebration Card** với ảnh nền, avatar, số tiền, tỉ lệ 4:5
+- Giữ nút "Xem Celebration Card" (thay "Xem biên nhận")
 
-**E. Sửa nhạc: chỉ 2 bản "Rich" mặc định (theo yêu cầu):**
-- Giữ lại 2 bản: "Rich! Rich! Rich!" và "Rich Vibe"
-- Xoá "Rich Energy" (hoặc giữ cả 3 tuỳ ý — yêu cầu ghi "2 file Rich mặc định")
+**Props cần thêm:**
+- `donationTransactionId: string | null` — để fetch dữ liệu giao dịch và render card
 
----
+### File 3: `src/components/Chat/ChatMessageItem.tsx` — Cập nhật nhỏ
 
-### File 2: `src/components/Donate/EnhancedDonateModal.tsx` — Điều chỉnh nhỏ
+- Truyền thêm prop `donationTransactionId={message.donationTransactionId}` vào `ChatDonationCard`
 
-- Xác nhận rằng Bước 1 (nhập liệu) **KHÔNG** có chọn chủ đề/nhạc — hiện tại đã đúng
-- Xoá callback `onSuccess` khỏi `handleDonate` (hiện gọi ngay khi giao dịch thành công, trước khi user tuỳ chỉnh card)
-- Chuyển `onSuccess` sang gọi từ `GiftCelebrationModal` sau khi "Lưu & Gửi"
+### File 4: `src/components/Donate/GiftCelebrationModal.tsx` — Sửa metadata + tỉ lệ
 
----
+**Sửa cấu trúc metadata** (dòng 266-277): Lưu phẳng thay vì lồng trong `celebration`:
+```typescript
+metadata: {
+  theme: selectedTheme,
+  background: activeBg,
+  music: selectedMusic,
+  custom_bg: !!customBgUrl,
+}
+```
 
-### File 3: Tạo migration — Bảng `notifications` (nếu chưa có) hoặc thêm cột
+**Cố định tỉ lệ 4:5** cho card (dòng 392-403): Thêm `aspect-[4/5]` vào div chứa card
 
-- Kiểm tra bảng `notifications` hiện có trong database
-- Nếu chưa có: tạo bảng với các cột: `id`, `user_id`, `type` ("gift_received"), `title`, `body`, `data` (JSONB chứa transaction_id, sender_id, v.v.), `action_type` ("share_celebration"), `action_status` ("pending"/"accepted"/"declined"), `read`, `created_at`
-- Nếu đã có: thêm cột `action_type` và `action_status` nếu thiếu
-
----
-
-### File 4: `src/components/Donate/DonationSuccessOverlay.tsx` — Giữ nguyên hoặc loại bỏ
-
-- File này hiện không được import ở đâu (đã thay bằng `GiftCelebrationModal`)
-- Giữ nguyên để tương thích ngược, không ảnh hưởng flow
+### File 5: `src/components/Donate/EnhancedDonateModal.tsx` — Không thay đổi
 
 ---
 
-### File 5: `src/hooks/useTransactionHistory.ts` — Không thay đổi
-
-- Logic deduplicate theo `tx_hash` đã hoạt động đúng từ lần sửa trước
-
----
-
-### File 6: `src/components/Transactions/TransactionCard.tsx` — Giữ nguyên
-
-- Nút "Xem Card" đã hoạt động đúng với `receipt_public_id`
-
----
-
-## Bảng tổng hợp thay đổi
+## Tóm tắt thay đổi
 
 | # | File | Thay đổi |
 |---|------|----------|
-| 1 | `src/components/Donate/GiftCelebrationModal.tsx` | Xoá auto-post/auto-message; thêm nút "Lưu & Gửi" tổng hợp; thêm upload ảnh; gửi notification cho người nhận |
-| 2 | `src/components/Donate/EnhancedDonateModal.tsx` | Chuyển `onSuccess` sang sau "Lưu & Gửi" |
-| 3 | Migration SQL | Kiểm tra/cập nhật bảng `notifications` hỗ trợ `action_type` + `action_status` |
+| 1 | `DonationCelebrationCard.tsx` | Viết lại — hiển thị card có ảnh nền + tỉ lệ 4:5 + đầy đủ thông tin giao dịch; sửa đường dẫn đọc metadata |
+| 2 | `ChatDonationCard.tsx` | Viết lại — fetch donation_transactions và render mini Celebration Card có ảnh nền thay vì text |
+| 3 | `ChatMessageItem.tsx` | Truyền thêm prop `donationTransactionId` cho `ChatDonationCard` |
+| 4 | `GiftCelebrationModal.tsx` | Sửa cấu trúc metadata (phẳng hoá); thêm `aspect-[4/5]` cho card |
 
 ---
 
-## Flow hoàn chỉnh sau sửa
+## Kết quả mong đợi
 
-```text
-Bước 1: Điền thông tin (người nhận, token, số tiền, lời nhắn)
-   ↓
-Bước 2: Xem xác nhận → Ký MetaMask → Chờ giao dịch
-   ↓
-Bước 3: Modal Celebration Card mở ra
-   - Pháo hoa + Coin bay + Nhạc phát tự động
-   - User tuỳ chỉnh: Chủ đề → Ảnh nền (3 có sẵn + upload) → Nhạc
-   - Xem preview đầy đủ
-   ↓
-Bước 4: Bấm "Lưu & Gửi"
-   - Đăng bài lên Profile (kèm Celebration Card)
-   - Gửi tin nhắn cho người nhận
-   - Gửi thông báo: "Bạn nhận được quà! Chia sẻ lên trang cá nhân?"
-   ↓
-Người nhận nhận thông báo:
-   - Bấm "Chia sẻ" → Card hiện trên profile người nhận
-   - Bấm "Không" → Chỉ giữ trong tin nhắn + lịch sử
-```
-
----
-
-## Ràng buộc tuân thủ
-
-- Không thay đổi logic giao dịch on-chain (MetaMask)
-- Không tạo duplicate giao dịch trong lịch sử
-- Toàn bộ văn bản tiếng Việt có dấu, đúng chính tả
-- Celebration Card gọn gàng, vừa khung trên cả laptop và mobile
+1. **Profile**: Bài đăng donation hiển thị Celebration Card đầy đủ với ảnh nền theo chủ đề, tỉ lệ 4:5, giống hình 4 và 5
+2. **Messenger**: Tin nhắn donation hiển thị mini Celebration Card (có ảnh nền, avatar, số tiền) thay vì chỉ text
+3. **GiftCelebrationModal**: Card preview cũng có tỉ lệ 4:5 nhất quán
+4. **Metadata**: Đồng bộ cấu trúc lưu và đọc — không bị fallback sai chủ đề
 
