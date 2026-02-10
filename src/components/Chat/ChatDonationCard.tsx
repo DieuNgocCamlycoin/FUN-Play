@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Gift, ExternalLink, Copy } from "lucide-react";
+import { Gift, ExternalLink, Copy, Download, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useNavigate } from "react-router-dom";
@@ -155,7 +155,7 @@ export const ChatDonationCard = ({
         className={`max-w-[320px] ${isMe ? "ml-auto" : "mr-auto"}`}
       >
         <div
-          className="relative rounded-2xl overflow-hidden aspect-[4/5]"
+          className="relative rounded-2xl overflow-hidden aspect-[4/5] chat-celebration-card"
           style={{
             backgroundImage: `url(${cardData.background})`,
             backgroundSize: "cover",
@@ -230,7 +230,7 @@ export const ChatDonationCard = ({
             {/* MIDDLE: Details (no dark frame) */}
             <div className="space-y-1 text-sm">
               <div className="flex justify-between"><span className="text-white/60">Trạng thái</span><span className="text-green-400 font-medium">✅ Thành công</span></div>
-              <div className="flex justify-between"><span className="text-white/60">Chủ đề</span><span>{themeInfo.emoji} {themeInfo.label}</span></div>
+              
               {cardData.message && (
                 <div>
                   <span className="text-white/60">Lời nhắn</span>
@@ -257,15 +257,44 @@ export const ChatDonationCard = ({
             </div>
 
             {/* BOTTOM */}
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full text-xs border-white/30 text-white hover:bg-white/20 bg-white/10"
-              onClick={() => navigate(`/receipt/${cardData.receipt_public_id}`)}
-            >
-              <Gift className="h-3.5 w-3.5 mr-1.5" />
-              Xem Celebration Card
-            </Button>
+            <div className="flex justify-between">
+              <button
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  const cardEl = e.currentTarget.closest('.chat-celebration-card') as HTMLElement;
+                  if (!cardEl) return;
+                  try {
+                    const { default: html2canvas } = await import('html2canvas');
+                    const canvas = await html2canvas(cardEl, { useCORS: true, allowTaint: true, backgroundColor: null, scale: 2 });
+                    const link = document.createElement('a');
+                    link.download = `celebration-card-${cardData.receipt_public_id}.png`;
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                    toast({ title: 'Đã lưu hình ảnh! 📥' });
+                  } catch { toast({ title: 'Không thể lưu ảnh', variant: 'destructive' }); }
+                }}
+                className="h-7 w-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+                title="Lưu về thiết bị"
+              >
+                <Download className="h-3.5 w-3.5 text-white/80" />
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const url = `${window.location.origin}/receipt/${cardData.receipt_public_id}`;
+                  if (navigator.share) {
+                    navigator.share({ title: 'Celebration Card', url }).catch(() => {});
+                  } else {
+                    navigator.clipboard.writeText(url);
+                    toast({ title: 'Đã copy link Celebration Card! 📋' });
+                  }
+                }}
+                className="h-7 w-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+                title="Chia sẻ"
+              >
+                <Share2 className="h-3.5 w-3.5 text-white/80" />
+              </button>
+            </div>
           </div>
         </div>
       </motion.div>

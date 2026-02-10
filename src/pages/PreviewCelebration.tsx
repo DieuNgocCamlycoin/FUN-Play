@@ -3,7 +3,7 @@ import { GiftCelebrationModal } from "@/components/Donate/GiftCelebrationModal";
 import { ChatDonationCard } from "@/components/Chat/ChatDonationCard";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Copy, ExternalLink, Gift } from "lucide-react";
+import { Copy, ExternalLink, Download, Share2, Gift } from "lucide-react";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 
@@ -98,7 +98,6 @@ const MockDonationCelebrationCard = () => {
         {/* MIDDLE */}
         <div className="space-y-1.5 text-sm">
           <div className="flex justify-between"><span className="text-white/60">Trạng thái</span><span className="text-green-400 font-medium">✅ Thành công</span></div>
-          <div className="flex justify-between"><span className="text-white/60">Chủ đề</span><span>🎉 Chúc mừng</span></div>
           <div>
             <span className="text-white/60">Lời nhắn</span>
             <p className="italic mt-0.5 p-2 bg-white/10 rounded-lg text-sm">"{MOCK_MESSAGE}"</p>
@@ -116,10 +115,15 @@ const MockDonationCelebrationCard = () => {
           <div className="flex justify-between"><span className="text-white/60">Mã biên nhận</span><span className="font-mono text-xs">#{MOCK_TRANSACTION.receipt_public_id}</span></div>
         </div>
 
-        {/* BOTTOM */}
-        <Button variant="outline" size="sm" className="w-full text-sm border-white/30 text-white hover:bg-white/20 bg-white/10">
-          <Gift className="h-3.5 w-3.5 mr-1.5" />Xem Celebration Card
-        </Button>
+        {/* BOTTOM: Save/Share */}
+        <div className="flex justify-between">
+          <button className="h-8 w-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors" title="Lưu về thiết bị">
+            <Download className="h-4 w-4 text-white/80" />
+          </button>
+          <button className="h-8 w-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors" title="Chia sẻ">
+            <Share2 className="h-4 w-4 text-white/80" />
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -169,7 +173,6 @@ const MockChatDonationCard = ({ isMe }: { isMe: boolean }) => {
           {/* MIDDLE: Details */}
           <div className="space-y-1 text-sm">
             <div className="flex justify-between"><span className="text-white/60">Trạng thái</span><span className="text-green-400 font-medium">✅ Thành công</span></div>
-            <div className="flex justify-between"><span className="text-white/60">Chủ đề</span><span>🎉 Chúc mừng</span></div>
             <div>
               <span className="text-white/60">Lời nhắn</span>
               <p className="italic mt-0.5 p-1.5 bg-white/10 rounded-lg text-xs">"{MOCK_MESSAGE}"</p>
@@ -187,10 +190,15 @@ const MockChatDonationCard = ({ isMe }: { isMe: boolean }) => {
             <div className="flex justify-between"><span className="text-white/60">Mã biên nhận</span><span className="font-mono text-[10px]">#{MOCK_TRANSACTION.receipt_public_id}</span></div>
           </div>
 
-          {/* BOTTOM */}
-          <Button variant="outline" size="sm" className="w-full text-xs border-white/30 text-white hover:bg-white/20 bg-white/10">
-            <Gift className="h-3.5 w-3.5 mr-1.5" />Xem Celebration Card
-          </Button>
+          {/* BOTTOM: Save/Share */}
+          <div className="flex justify-between">
+            <button className="h-7 w-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors" title="Lưu về thiết bị">
+              <Download className="h-3.5 w-3.5 text-white/80" />
+            </button>
+            <button className="h-7 w-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors" title="Chia sẻ">
+              <Share2 className="h-3.5 w-3.5 text-white/80" />
+            </button>
+          </div>
         </div>
       </div>
     </div>
