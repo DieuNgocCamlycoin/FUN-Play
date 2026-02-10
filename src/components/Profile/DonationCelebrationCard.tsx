@@ -2,8 +2,11 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Gift, ExternalLink } from "lucide-react";
+import { Gift, ExternalLink, Copy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
+import { format } from "date-fns";
+import { vi } from "date-fns/locale";
 
 const THEME_LABELS: Record<string, { emoji: string; label: string }> = {
   celebration: { emoji: "🎉", label: "Chúc mừng" },
@@ -14,23 +17,10 @@ const THEME_LABELS: Record<string, { emoji: string; label: string }> = {
   family: { emoji: "👨‍👩‍👧‍👦", label: "Gia đình" },
 };
 
-const THEME_GRADIENTS: Record<string, string> = {
-  celebration: "from-amber-400/15 via-pink-400/15 to-purple-500/15",
-  birthday: "from-pink-400/15 via-yellow-300/15 to-cyan-400/15",
-  gratitude: "from-emerald-400/15 via-teal-400/15 to-green-500/15",
-  love: "from-red-400/15 via-pink-400/15 to-rose-400/15",
-  newyear: "from-red-500/15 via-amber-400/15 to-yellow-300/15",
-  family: "from-blue-400/15 via-indigo-400/15 to-purple-400/15",
-};
+const DEFAULT_BG = "/images/celebration-bg/celebration-1.png";
 
-const THEME_BORDERS: Record<string, string> = {
-  celebration: "border-amber-400/30",
-  birthday: "border-pink-400/30",
-  gratitude: "border-emerald-400/30",
-  love: "border-red-400/30",
-  newyear: "border-red-500/30",
-  family: "border-blue-400/30",
-};
+const shortenAddress = (addr: string) =>
+  addr ? `${addr.slice(0, 6)}…${addr.slice(-4)}` : "";
 
 interface DonationData {
   amount: number;
@@ -39,12 +29,19 @@ interface DonationData {
   sender_name: string;
   sender_username: string;
   sender_avatar: string | null;
+  sender_wallet: string | null;
   receiver_name: string;
   receiver_username: string;
   receiver_avatar: string | null;
+  receiver_wallet: string | null;
   theme: string;
+  background: string;
   message: string | null;
   receipt_public_id: string;
+  tx_hash: string | null;
+  chain: string;
+  created_at: string;
+  explorer_url: string | null;
 }
 
 interface DonationCelebrationCardProps {
@@ -52,7 +49,9 @@ interface DonationCelebrationCardProps {
   postContent?: string;
 }
 
-export const DonationCelebrationCard = ({ donationTransactionId, postContent }: DonationCelebrationCardProps) => {
+export const DonationCelebrationCard = ({
+  donationTransactionId,
+}: DonationCelebrationCardProps) => {
   const navigate = useNavigate();
   const [data, setData] = useState<DonationData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -68,10 +67,10 @@ export const DonationCelebrationCard = ({ donationTransactionId, postContent }: 
         const { data: tx, error } = await supabase
           .from("donation_transactions")
           .select(`
-            amount, message, receipt_public_id, metadata,
+            amount, message, receipt_public_id, metadata, tx_hash, chain, created_at, explorer_url,
             token:donate_tokens(symbol, icon_url),
-            sender:profiles!donation_transactions_sender_id_fkey(display_name, username, avatar_url),
-            receiver:profiles!donation_transactions_receiver_id_fkey(display_name, username, avatar_url)
+            sender:profiles!donation_transactions_sender_id_fkey(display_name, username, avatar_url, wallet_address),
+            receiver:profiles!donation_transactions_receiver_id_fkey(display_name, username, avatar_url, wallet_address)
           `)
           .eq("id", donationTransactionId)
           .single();
@@ -86,19 +85,40 @@ export const DonationCelebrationCard = ({ donationTransactionId, postContent }: 
         const receiverData = tx.receiver as any;
         const metadata = tx.metadata as any;
 
+        // Read metadata — support both flat and nested structures
+        const theme =
+          metadata?.theme ||
+          metadata?.celebration?.theme ||
+          "celebration";
+        const background =
+          metadata?.background ||
+          metadata?.celebration?.background ||
+          DEFAULT_BG;
+
         setData({
           amount: tx.amount,
           token_symbol: tokenData?.symbol || "TOKEN",
           token_icon: tokenData?.icon_url || undefined,
-          sender_name: senderData?.display_name || senderData?.username || "Người gửi",
+          sender_name:
+            senderData?.display_name || senderData?.username || "Người gửi",
           sender_username: senderData?.username || "",
           sender_avatar: senderData?.avatar_url || null,
-          receiver_name: receiverData?.display_name || receiverData?.username || "Người nhận",
+          sender_wallet: senderData?.wallet_address || null,
+          receiver_name:
+            receiverData?.display_name ||
+            receiverData?.username ||
+            "Người nhận",
           receiver_username: receiverData?.username || "",
           receiver_avatar: receiverData?.avatar_url || null,
-          theme: metadata?.theme || "celebration",
+          receiver_wallet: receiverData?.wallet_address || null,
+          theme,
+          background,
           message: tx.message,
           receipt_public_id: tx.receipt_public_id,
+          tx_hash: tx.tx_hash,
+          chain: tx.chain,
+          created_at: tx.created_at,
+          explorer_url: tx.explorer_url,
         });
       } catch {
         // silently fail
@@ -112,79 +132,208 @@ export const DonationCelebrationCard = ({ donationTransactionId, postContent }: 
 
   if (loading) {
     return (
-      <div className="mt-3 rounded-xl border border-border bg-muted/30 p-4 animate-pulse">
-        <div className="h-16 bg-muted rounded" />
-      </div>
+      <div className="mt-3 rounded-xl border border-border bg-muted/30 animate-pulse aspect-[4/5] max-w-[360px]" />
     );
   }
 
   if (!data) return null;
 
   const themeInfo = THEME_LABELS[data.theme] || THEME_LABELS.celebration;
-  const gradient = THEME_GRADIENTS[data.theme] || THEME_GRADIENTS.celebration;
-  const border = THEME_BORDERS[data.theme] || THEME_BORDERS.celebration;
+  const formattedTime = (() => {
+    try {
+      return format(new Date(data.created_at), "HH:mm dd/MM/yyyy", {
+        locale: vi,
+      });
+    } catch {
+      return data.created_at;
+    }
+  })();
+
+  const copyText = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    toast({ title: `Đã copy ${label}! 📋` });
+  };
 
   return (
-    <div className={`mt-3 rounded-xl border ${border} bg-gradient-to-br ${gradient} p-4 space-y-3`}>
-      {/* Title */}
-      <div className="flex items-center gap-2 text-sm font-semibold">
-        <Gift className="h-4 w-4 text-amber-500" />
-        <span>{themeInfo.emoji} Tặng thưởng thành công</span>
-      </div>
+    <div
+      className="mt-3 rounded-2xl overflow-hidden relative max-w-[360px] aspect-[4/5]"
+      style={{
+        backgroundImage: `url(${data.background})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      }}
+    >
+      {/* Dark overlay */}
+      <div className="absolute inset-0 bg-black/45" />
 
-      {/* Sender → Amount → Receiver */}
-      <div className="flex items-center justify-between gap-2">
-        <div
-          className="flex flex-col items-center gap-1 flex-1 min-w-0 cursor-pointer hover:opacity-80 transition-opacity"
-          onClick={() => navigate(`/u/${data.sender_username}`)}
-        >
-          <Avatar className="h-9 w-9 ring-2 ring-purple-500/20">
-            <AvatarImage src={data.sender_avatar || ""} />
-            <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-xs">
-              {data.sender_name[0]?.toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-          <p className="text-xs font-medium truncate max-w-full">{data.sender_name}</p>
+      {/* Content */}
+      <div className="relative h-full flex flex-col justify-between p-4 text-white">
+        {/* Title */}
+        <div className="text-center">
+          <p className="text-xs font-bold tracking-wide drop-shadow-lg">
+            🎉 CHÚC MỪNG TẶNG THƯỞNG THÀNH CÔNG 🎉
+          </p>
         </div>
 
-        <div className="flex flex-col items-center gap-0.5 flex-shrink-0 px-1">
-          <div className="flex items-center gap-1 font-bold text-sm">
-            {data.token_icon && <img src={data.token_icon} alt="" className="h-4 w-4" />}
-            <span className="bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent">{data.amount}</span>
+        {/* Sender → Amount → Receiver */}
+        <div className="flex items-center justify-between gap-2 my-3">
+          {/* Sender */}
+          <div
+            className="flex flex-col items-center gap-1 flex-1 min-w-0 cursor-pointer hover:opacity-80 transition-opacity"
+            onClick={() => navigate(`/u/${data.sender_username}`)}
+          >
+            <Avatar className="h-10 w-10 ring-2 ring-white/30">
+              <AvatarImage src={data.sender_avatar || ""} />
+              <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-xs">
+                {data.sender_name[0]?.toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <p className="text-[11px] font-semibold truncate max-w-full drop-shadow">
+              {data.sender_name}
+            </p>
+            <p className="text-[9px] text-white/70">@{data.sender_username}</p>
+            {data.sender_wallet && (
+              <div className="flex items-center gap-0.5">
+                <span className="text-[8px] font-mono text-white/60">
+                  {shortenAddress(data.sender_wallet)}
+                </span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    copyText(data.sender_wallet!, "ví");
+                  }}
+                  className="p-0.5 hover:bg-white/20 rounded"
+                >
+                  <Copy className="h-2.5 w-2.5 text-white/60" />
+                </button>
+              </div>
+            )}
           </div>
-          <span className="text-lg">→</span>
-          <span className="text-[10px] text-muted-foreground">{data.token_symbol}</span>
+
+          {/* Amount */}
+          <div className="flex flex-col items-center gap-0.5 flex-shrink-0 px-1">
+            <div className="flex items-center gap-1 font-bold text-base">
+              {data.token_icon && (
+                <img src={data.token_icon} alt="" className="h-4 w-4" />
+              )}
+              <span className="text-amber-300 drop-shadow-lg">
+                {data.amount.toLocaleString()}
+              </span>
+            </div>
+            <span className="text-lg">→</span>
+            <span className="text-[10px] font-medium text-white/80">
+              {data.token_symbol}
+            </span>
+          </div>
+
+          {/* Receiver */}
+          <div
+            className="flex flex-col items-center gap-1 flex-1 min-w-0 cursor-pointer hover:opacity-80 transition-opacity"
+            onClick={() => navigate(`/u/${data.receiver_username}`)}
+          >
+            <Avatar className="h-10 w-10 ring-2 ring-amber-400/30">
+              <AvatarImage src={data.receiver_avatar || ""} />
+              <AvatarFallback className="bg-gradient-to-br from-amber-500 to-orange-500 text-white text-xs">
+                {data.receiver_name[0]?.toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <p className="text-[11px] font-semibold truncate max-w-full drop-shadow">
+              {data.receiver_name}
+            </p>
+            <p className="text-[9px] text-white/70">
+              @{data.receiver_username}
+            </p>
+            {data.receiver_wallet && (
+              <div className="flex items-center gap-0.5">
+                <span className="text-[8px] font-mono text-white/60">
+                  {shortenAddress(data.receiver_wallet)}
+                </span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    copyText(data.receiver_wallet!, "ví");
+                  }}
+                  className="p-0.5 hover:bg-white/20 rounded"
+                >
+                  <Copy className="h-2.5 w-2.5 text-white/60" />
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
-        <div
-          className="flex flex-col items-center gap-1 flex-1 min-w-0 cursor-pointer hover:opacity-80 transition-opacity"
-          onClick={() => navigate(`/u/${data.receiver_username}`)}
+        {/* Details */}
+        <div className="space-y-1 text-[10px] bg-black/30 rounded-xl p-2.5 backdrop-blur-sm">
+          <div className="flex justify-between">
+            <span className="text-white/60">Trạng thái</span>
+            <span className="text-green-400 font-medium">✅ Thành công</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-white/60">Chủ đề</span>
+            <span>
+              {themeInfo.emoji} {themeInfo.label}
+            </span>
+          </div>
+          {data.message && (
+            <div>
+              <span className="text-white/60">Lời nhắn</span>
+              <p className="italic mt-0.5 p-1.5 bg-white/10 rounded-lg text-[10px]">
+                "{data.message}"
+              </p>
+            </div>
+          )}
+          <div className="flex justify-between">
+            <span className="text-white/60">Thời gian</span>
+            <span>{formattedTime}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-white/60">Chain</span>
+            <span>{data.chain === "internal" ? "Nội bộ" : "BSC"}</span>
+          </div>
+          {data.tx_hash && (
+            <div className="flex justify-between items-center">
+              <span className="text-white/60">TX Hash</span>
+              <div className="flex items-center gap-1">
+                <span className="font-mono">
+                  {data.tx_hash.substring(0, 10)}…
+                </span>
+                <button
+                  onClick={() => copyText(data.tx_hash!, "TX Hash")}
+                  className="p-0.5 hover:bg-white/20 rounded"
+                >
+                  <Copy className="h-2.5 w-2.5 text-white/60" />
+                </button>
+                <a
+                  href={
+                    data.explorer_url ||
+                    `https://bscscan.com/tx/${data.tx_hash}`
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-0.5 hover:bg-white/20 rounded"
+                >
+                  <ExternalLink className="h-2.5 w-2.5 text-white/60" />
+                </a>
+              </div>
+            </div>
+          )}
+          <div className="flex justify-between">
+            <span className="text-white/60">Mã biên nhận</span>
+            <span className="font-mono">#{data.receipt_public_id}</span>
+          </div>
+        </div>
+
+        {/* View receipt button */}
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full text-xs mt-2 border-white/30 text-white hover:bg-white/20 bg-white/10"
+          onClick={() => navigate(`/receipt/${data.receipt_public_id}`)}
         >
-          <Avatar className="h-9 w-9 ring-2 ring-amber-500/20">
-            <AvatarImage src={data.receiver_avatar || ""} />
-            <AvatarFallback className="bg-gradient-to-br from-amber-500 to-orange-500 text-white text-xs">
-              {data.receiver_name[0]?.toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-          <p className="text-xs font-medium truncate max-w-full">{data.receiver_name}</p>
-        </div>
+          <ExternalLink className="h-3 w-3 mr-1.5" />
+          Xem biên nhận
+        </Button>
       </div>
-
-      {/* Message */}
-      {data.message && (
-        <p className="text-xs italic text-muted-foreground p-2 bg-background/50 rounded-lg">"{data.message}"</p>
-      )}
-
-      {/* View receipt button */}
-      <Button
-        variant="outline"
-        size="sm"
-        className="w-full text-xs"
-        onClick={() => navigate(`/receipt/${data.receipt_public_id}`)}
-      >
-        <ExternalLink className="h-3 w-3 mr-1.5" />
-        Xem biên nhận
-      </Button>
     </div>
   );
 };
