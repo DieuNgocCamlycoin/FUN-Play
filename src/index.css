@@ -671,9 +671,17 @@ body > [data-w3m-modal] {
   50% { opacity: 0.8; transform: rotate(3deg); }
 }
 
-@keyframes grow-up {
-  0% { transform: scaleY(0.9); opacity: 0.6; }
-  100% { transform: scaleY(1); opacity: 1; }
+@keyframes fireworks-burst {
+  0% { transform: scale(0) rotate(0deg); opacity: 1; }
+  50% { transform: scale(1.3) rotate(180deg); opacity: 0.8; }
+  100% { transform: scale(0.8) rotate(360deg); opacity: 0; }
+}
+
+/* Coin fall animation for celebration */
+@keyframes coin-fall {
+  0% { transform: translateY(-30px) rotate(0deg); opacity: 0; }
+  10% { opacity: 1; }
+  100% { transform: translateY(calc(100vh)) rotate(720deg); opacity: 0; }
 }
 
 .animate-float-hearts { animation: float-hearts 3s ease-in-out infinite; }
@@ -681,4 +689,5 @@ body > [data-w3m-modal] {
 .animate-confetti-fall { animation: confetti-fall 2s ease-in-out infinite; }
 .animate-gentle-glow { animation: gentle-glow 2s ease-in-out infinite; }
 .animate-warm-rays { animation: warm-rays 3s ease-in-out infinite; }
-.animate-grow-up { animation: grow-up 1.5s ease-out forwards; }
+.animate-fireworks { animation: fireworks-burst 2s ease-out infinite; }
+.animate-coin-fall { animation: coin-fall 4s ease-in forwards; }

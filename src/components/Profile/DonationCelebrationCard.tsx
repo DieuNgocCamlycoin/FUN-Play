@@ -7,32 +7,29 @@ import { supabase } from "@/integrations/supabase/client";
 
 const THEME_LABELS: Record<string, { emoji: string; label: string }> = {
   celebration: { emoji: "🎉", label: "Chúc mừng" },
-  wedding: { emoji: "💍", label: "Kết hôn" },
   birthday: { emoji: "🎂", label: "Sinh nhật" },
   gratitude: { emoji: "🙏", label: "Tri ân" },
   love: { emoji: "❤️", label: "Tình yêu" },
+  newyear: { emoji: "🎊", label: "Năm mới" },
   family: { emoji: "👨‍👩‍👧‍👦", label: "Gia đình" },
-  parents: { emoji: "🌱", label: "Cha mẹ" },
 };
 
 const THEME_GRADIENTS: Record<string, string> = {
   celebration: "from-amber-400/15 via-pink-400/15 to-purple-500/15",
-  wedding: "from-rose-300/15 via-amber-200/15 to-yellow-300/15",
   birthday: "from-pink-400/15 via-yellow-300/15 to-cyan-400/15",
   gratitude: "from-emerald-400/15 via-teal-400/15 to-green-500/15",
   love: "from-red-400/15 via-pink-400/15 to-rose-400/15",
+  newyear: "from-red-500/15 via-amber-400/15 to-yellow-300/15",
   family: "from-blue-400/15 via-indigo-400/15 to-purple-400/15",
-  parents: "from-green-400/15 via-emerald-400/15 to-teal-400/15",
 };
 
 const THEME_BORDERS: Record<string, string> = {
   celebration: "border-amber-400/30",
-  wedding: "border-rose-300/30",
   birthday: "border-pink-400/30",
   gratitude: "border-emerald-400/30",
   love: "border-red-400/30",
+  newyear: "border-red-500/30",
   family: "border-blue-400/30",
-  parents: "border-green-400/30",
 };
 
 interface DonationData {

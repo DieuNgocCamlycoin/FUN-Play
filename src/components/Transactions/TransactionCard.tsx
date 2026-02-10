@@ -268,6 +268,18 @@ export const TransactionCard = memo(function TransactionCard({
                 </Button>
               </div>
             )}
+
+            {/* Xem Card Chúc Mừng for donation transactions */}
+            {transaction.source_table === "donation_transactions" && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate(`/receipt/${transaction.id}`)}
+                className="text-xs text-amber-500 hover:text-amber-600 h-6 px-2"
+              >
+                🎉 Xem Card
+              </Button>
+            )}
           </div>
         </div>
       </Card>
