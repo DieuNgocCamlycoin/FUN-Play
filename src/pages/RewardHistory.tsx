@@ -32,7 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Navigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { CounterAnimation } from "@/components/Layout/CounterAnimation";
 
 interface RewardTransaction {
@@ -234,7 +234,18 @@ export default function RewardHistory() {
     );
   }
 
-  if (!user) return <Navigate to="/auth" replace />;
+  if (!user) {
+    return (
+      <MainLayout>
+        <div className="max-w-6xl mx-auto p-4 md:p-6 text-center py-20">
+          <Coins className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+          <h2 className="text-xl font-semibold mb-2">Đăng nhập để xem lịch sử thưởng</h2>
+          <p className="text-muted-foreground mb-4">Bạn cần đăng nhập để theo dõi phần thưởng CAMLY của mình</p>
+          <Button onClick={() => window.location.href = '/auth'}>Đăng nhập</Button>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>

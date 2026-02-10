@@ -13,6 +13,7 @@ import { MiniProfileCard } from "@/components/Video/MiniProfileCard";
 
 import { useAutoReward } from "@/hooks/useAutoReward";
 import { RewardNotification } from "@/components/Rewards/RewardNotification";
+import { AuthRequiredDialog } from "@/components/Auth/AuthRequiredDialog";
 import { useVideoPlayback } from "@/contexts/VideoPlaybackContext";
 import { UpNextSidebar } from "@/components/Video/UpNextSidebar";
 import { EnhancedVideoPlayer } from "@/components/Video/EnhancedVideoPlayer";
@@ -88,6 +89,7 @@ export default function Watch() {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [ambientColor, setAmbientColor] = useState<string | null>(null);
+  const [showAuthDialog, setShowAuthDialog] = useState(false);
   const videoPlayerRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
   const { toast } = useToast();
@@ -384,7 +386,7 @@ export default function Watch() {
   };
 
   const handleDislike = async () => {
-    if (!user) { navigate("/auth"); return; }
+    if (!user) { setShowAuthDialog(true); return; }
     try {
       if (hasDisliked) {
         // Un-dislike
@@ -419,7 +421,7 @@ export default function Watch() {
 
   const handleSubscribe = async () => {
     if (!user) {
-      navigate("/auth");
+      setShowAuthDialog(true);
       return;
     }
 
@@ -467,7 +469,7 @@ export default function Watch() {
 
   const handleLike = async () => {
     if (!user) {
-      navigate("/auth");
+      setShowAuthDialog(true);
       return;
     }
 
@@ -580,6 +582,7 @@ export default function Watch() {
           show={rewardNotif.show}
           onClose={() => setRewardNotif(prev => ({ ...prev, show: false }))}
         />
+        <AuthRequiredDialog open={showAuthDialog} onOpenChange={setShowAuthDialog} />
       </>
     );
   }
@@ -908,6 +911,7 @@ export default function Watch() {
         show={rewardNotif.show}
         onClose={() => setRewardNotif(prev => ({ ...prev, show: false }))}
       />
+      <AuthRequiredDialog open={showAuthDialog} onOpenChange={setShowAuthDialog} />
 
     </div>
     </>

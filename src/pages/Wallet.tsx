@@ -32,15 +32,9 @@ const WalletPage = () => {
   } = useWalletConnectionWithRetry();
   const [showWalletModal, setShowWalletModal] = useState(false);
 
-  useEffect(() => {
-    if (!authLoading && !user) {
-      navigate("/auth");
-    }
-  }, [user, authLoading, navigate]);
-
   const formatAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 
-  if (authLoading || !user) {
+  if (authLoading) {
     return (
       <MainLayout>
         <div className="container mx-auto px-4 py-8">

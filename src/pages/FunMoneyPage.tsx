@@ -31,7 +31,6 @@ import {
   ActivitySummary
 } from '@/components/FunMoney';
 import { cn } from '@/lib/utils';
-import { Navigate } from 'react-router-dom';
 
 export default function FunMoney() {
   const { user, loading: authLoading } = useAuth();
@@ -92,9 +91,18 @@ export default function FunMoney() {
     refetchActivity();
   };
 
-  // Redirect if not logged in
+  // Show public content if not logged in
   if (!authLoading && !user) {
-    return <Navigate to="/auth" replace />;
+    return (
+      <MainLayout>
+        <div className="max-w-6xl mx-auto px-3 sm:px-4 py-4 sm:py-6 text-center py-20">
+          <Coins className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+          <h2 className="text-xl font-semibold mb-2">Đăng nhập để sử dụng FUN Money</h2>
+          <p className="text-muted-foreground mb-4">Bạn cần đăng nhập để mint token FUN từ hoạt động của mình</p>
+          <Button onClick={() => window.location.href = '/auth'}>Đăng nhập</Button>
+        </div>
+      </MainLayout>
+    );
   }
 
   return (
