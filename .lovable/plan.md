@@ -1,69 +1,100 @@
 
 
-# Nang cap hieu ung Celebration — 160 coin toan man hinh, 72 coin trong card, nut X/Loa hien thi ro
+# Sua loi hieu ung Celebration — coin ban len giua man hinh, nut Loa/X nam trong card, coin bay 2/3 khung hinh
 
 ---
 
-## 1. Fullscreen Coin Shower: 40 -> 160 dong tien (80 roi xuong + 80 ban len)
+## Van de hien tai
 
-**File: `src/components/Donate/GiftCelebrationModal.tsx`** (dong 106-136)
+1. **Fullscreen coin-rise**: 80 dong tien "ban len" dang nam im o bottom vi animation `coin-rise` dung `forwards` va `translateY(100vh)` lam start position — coin bat dau o ngoai viewport va co the khong hien thi dung. Can sua animation de coin ban tu duoi len giua man hinh voi hieu ung tung toe vui nhon.
 
-Thay doi `FullscreenCoinShower`:
-- 80 dong tien roi tu tren xuong (giu animation `coin-fall` hien tai)
-- 80 dong tien ban tu duoi len (dung animation `coin-rise` moi)
-- Tong cong 160 dong tien tren man hinh
-- Mix CAMLY coin va Fun Money coin
+2. **Nut Loa va X**: Dang nam o `absolute top-3 right-3` trong modal container (`motion.div`) — nam **ngoai** card Celebration. Can di chuyen 2 nut nay **vao ben trong** card (div `ref={cardRef}`).
 
-## 2. Card Internal Effects: 18 -> 72 dong tien, bay ca 2 chieu
+3. **DonationCelebrationCard (Profile)**: Hien tai **khong co** nut Loa va X. Can them 2 nut nay vao card de user co the tat hieu ung va am thanh khi xem bai viet.
 
-**File: `src/components/Donate/GiftCelebrationModal.tsx`** (dong 139-193)
+4. **Card internal coins**: Cac dong tien chi bay sat vien khung card, khong bay vao giua. Can dieu chinh animation de coin bay vao 2/3 khung hinh card.
 
-Thay doi `CardInternalEffects`:
-- Tang tu 18 len 72 dong tien (gap 4 lan)
-- Tang sparkles tu 10 len 40
-- 36 dong bay tu duoi len (coin-float-up), 36 dong roi tu tren xuong (coin-float-down moi)
-- Cac dong tien xuat hien va bien mat lien tuc, phan bo deu trong card
+---
 
-## 3. Them CSS animation moi
+## Chi tiet ky thuat
+
+### 1. Sua CSS animation `coin-rise` — ban tu duoi len giua man hinh
 
 **File: `src/index.css`**
 
-Them 2 keyframe moi:
-- `coin-rise`: dong tien bay tu duoi man hinh len tren (nguoc voi coin-fall)
-- `coin-float-down`: dong tien roi tu tren xuong trong card (nguoc voi coin-float-up)
-
+Animation hien tai:
 ```css
 @keyframes coin-rise {
   0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
   10% { opacity: 1; }
   100% { transform: translateY(-30px) rotate(720deg); opacity: 0; }
 }
+.animate-coin-rise { animation: coin-rise 4s ease-in forwards; }
+```
+
+Sua thanh: coin bat dau tu duoi (`bottom: 0`) va bay len giua man hinh (`translateY(-50vh)`) roi mo dan di. Dong thoi doi animation fill mode tu `forwards` sang `infinite` de coin lap lai lien tuc giong nhu coin-fall:
+
+```css
+@keyframes coin-rise {
+  0% { transform: translateY(0) rotate(0deg); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 0.8; }
+  100% { transform: translateY(-100vh) rotate(720deg); opacity: 0; }
+}
+.animate-coin-rise { animation: coin-rise 4s ease-in forwards; }
+```
+
+Va trong `FullscreenCoinShower`, doi vi tri bat dau cua rising coins tu `bottom: "-30px"` sang `bottom: "0"` va them `top: "auto"`.
+
+### 2. Sua CSS animation `coin-float-up` va `coin-float-down` — bay vao 2/3 khung hinh
+
+**File: `src/index.css`**
+
+Hien tai coin-float-up bay tu `translateY(100%)` den `translateY(-120%)` — di chuyen qua nhanh qua khung hinh, chi thay o vien. Sua lai de coin bay cham hon, dung lai o khoang 30-70% khung hinh roi bien mat:
+
+```css
+@keyframes coin-float-up {
+  0% { transform: translateY(100%) rotate(0deg) scale(0.8); opacity: 0; }
+  10% { opacity: 0.8; }
+  50% { transform: translateY(0%) rotate(180deg) scale(1); opacity: 0.9; }
+  90% { opacity: 0.6; }
+  100% { transform: translateY(-120%) rotate(360deg) scale(0.7); opacity: 0; }
+}
 
 @keyframes coin-float-down {
   0% { transform: translateY(-120%) rotate(0deg) scale(0.8); opacity: 0; }
   10% { opacity: 0.8; }
-  90% { opacity: 0.8; }
-  100% { transform: translateY(100%) rotate(360deg) scale(0.7); opacity: 0; }
+  50% { transform: translateY(0%) rotate(180deg) scale(1); opacity: 0.9; }
+  90% { opacity: 0.6; }
+  100% { transform: translateY(120%) rotate(360deg) scale(0.7); opacity: 0; }
 }
 ```
 
-## 4. Nut Loa va X hien thi ro rang tren Card
+Dong thoi tang `animationDuration` len 3.5-6s de coin di cham hon, hien thi lau hon trong khung hinh.
 
-**File: `src/components/Donate/GiftCelebrationModal.tsx`** (dong 472-486)
+### 3. Di chuyen nut Loa + X vao trong Celebration Card
 
-Hien tai 2 nut nam o `absolute top-2 right-2` voi `variant="ghost"` nen kho nhin thay. Thay doi:
-- Tang kich thuoc nut tu `h-7 w-7` len `h-9 w-9`
-- Tang icon tu `h-3.5 w-3.5` len `h-5 w-5`
-- Them nen ban trong: `bg-black/40 hover:bg-black/60 text-white backdrop-blur-sm rounded-full`
-- Them border `ring-1 ring-white/20`
-- Di chuyen ra ngoai card (nam tren cung cua modal, de nhin thay)
+**File: `src/components/Donate/GiftCelebrationModal.tsx`**
 
-## 5. Cap nhat PreviewCelebration.tsx
+Di chuyen block 2 nut (dong 525-548) tu vi tri `absolute top-3 right-3` o ngoai card vao ben trong card (sau dong 582 `{showEffects && <CardInternalEffects />}`), dat o goc tren phai trong card voi `absolute top-2 right-2 z-10`.
 
-**File: `src/pages/PreviewCelebration.tsx`** (dong 48-77)
+### 4. Them nut Loa + X vao DonationCelebrationCard (Profile)
 
-- `MockCardInternalEffects`: tang tu 12 coin len 48, tang sparkles tu 8 len 32
-- Them coin roi tu tren xuong (coin-float-down) ben canh coin bay len
+**File: `src/components/Profile/DonationCelebrationCard.tsx`**
+
+Them state `showEffects` va `isMuted` + `audioRef`. Khi `showEffects = true`:
+- Render `CardInternalEffects` (72 coins + 40 sparkles) ben trong card
+- Phat nhac "Rich Rich Rich" loop
+- Hien 2 nut Loa (tat/bat am thanh) va X (tat hieu ung) o goc tren phai card
+
+Khi xem bai viet, user co the bat/tat hieu ung va am thanh.
+
+### 5. Cap nhat PreviewCelebration.tsx
+
+**File: `src/pages/PreviewCelebration.tsx`**
+
+- Them nut Loa + X vao MockDonationCelebrationCard va MockChatDonationCard
+- Tang animationDuration de coin bay cham hon, hien thi ro trong 2/3 khung hinh
 
 ---
 
@@ -71,7 +102,8 @@ Hien tai 2 nut nam o `absolute top-2 right-2` voi `variant="ghost"` nen kho nhin
 
 | # | File | Thay doi |
 |---|------|----------|
-| 1 | `src/index.css` | Them keyframe `coin-rise` + `coin-float-down` + class tuong ung |
-| 2 | `GiftCelebrationModal.tsx` | FullscreenCoinShower 160 coin (80 roi + 80 bay len); CardInternalEffects 72 coin + 40 sparkles; nut Loa/X lon hon + nen ro |
-| 3 | `PreviewCelebration.tsx` | MockCardInternalEffects 48 coin + 32 sparkles, 2 chieu |
+| 1 | `src/index.css` | Sua keyframes `coin-rise` (ban tu duoi len dung), `coin-float-up`/`coin-float-down` (bay vao 2/3 khung) |
+| 2 | `GiftCelebrationModal.tsx` | Di chuyen nut Loa/X vao trong card; sua FullscreenCoinShower positioning |
+| 3 | `DonationCelebrationCard.tsx` | Them state + CardInternalEffects + nut Loa/X + audio loop |
+| 4 | `PreviewCelebration.tsx` | Them nut Loa/X vao mock cards; tang duration coin animation |
 
