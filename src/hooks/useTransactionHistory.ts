@@ -287,7 +287,7 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
         const token = tokensMap[d.token_id];
         
         // UPDATED: "tip" → "gift", "donate" stays "donate"
-        const transactionType: TransactionType = d.context_type === "tip" ? "gift" : "donate";
+        const transactionType: TransactionType = (d.context_type === "tip" || d.context_type === "donate") ? "gift" : "gift";
         
         allTransactions.push({
           id: d.id,
@@ -426,8 +426,37 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
         });
       });
 
-      // ========== 9. Sắp xếp theo thời gian ==========
-      allTransactions.sort((a, b) => 
+      // ========== 9. Loại bỏ trùng lặp theo tx_hash ==========
+      const SOURCE_PRIORITY: Record<string, number> = {
+        "donation_transactions": 1,
+        "claim_requests": 2,
+        "wallet_transactions": 3,
+      };
+
+      const txHashMap = new Map<string, number>();
+      const deduped: UnifiedTransaction[] = [];
+
+      for (let i = 0; i < allTransactions.length; i++) {
+        const tx = allTransactions[i];
+        if (!tx.tx_hash) {
+          deduped.push(tx);
+          continue;
+        }
+        const existing = txHashMap.get(tx.tx_hash);
+        if (existing === undefined) {
+          txHashMap.set(tx.tx_hash, deduped.length);
+          deduped.push(tx);
+        } else {
+          const existingPriority = SOURCE_PRIORITY[deduped[existing].source_table] || 99;
+          const currentPriority = SOURCE_PRIORITY[tx.source_table] || 99;
+          if (currentPriority < existingPriority) {
+            deduped[existing] = tx;
+          }
+        }
+      }
+
+      // ========== 10. Sắp xếp theo thời gian ==========
+      deduped.sort((a, b) => 
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
 
@@ -448,16 +477,16 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
       });
       
       const newStats: TransactionStats = {
-        totalCount: (serverStats as any)?.totalCount ?? allTransactions.length,
-        totalValue: (serverStats as any)?.totalValue ?? allTransactions.reduce((sum, t) => sum + t.amount, 0),
+        totalCount: (serverStats as any)?.totalCount ?? deduped.length,
+        totalValue: (serverStats as any)?.totalValue ?? deduped.reduce((sum, t) => sum + t.amount, 0),
         todayCount: (serverStats as any)?.todayCount ?? 0,
-        successCount: (serverStats as any)?.totalCount ?? allTransactions.length,
+        successCount: (serverStats as any)?.totalCount ?? deduped.length,
         pendingCount: 0,
       };
 
       setStats(newStats);
-      setTransactions(allTransactions);
-      setFilteredTransactions(allTransactions);
+      setTransactions(deduped);
+      setFilteredTransactions(deduped);
       setHasMore(
         (donations?.length || 0) >= limit || 
         claimData.length >= limit || 
