@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Gift, ExternalLink, Copy } from "lucide-react";
+import html2canvas from "html2canvas";
+import { ExternalLink, Copy, Download, Share2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -18,6 +19,28 @@ const THEME_LABELS: Record<string, { emoji: string; label: string }> = {
 };
 
 const DEFAULT_BG = "/images/celebration-bg/celebration-1.png";
+
+const preloadImagesToBase64 = async (container: HTMLElement) => {
+  const imgs = container.querySelectorAll("img");
+  const originals: { img: HTMLImageElement; src: string }[] = [];
+  await Promise.all(
+    Array.from(imgs).map(async (img) => {
+      if (!img.src || img.src.startsWith("data:")) return;
+      originals.push({ img, src: img.src });
+      try {
+        const res = await fetch(img.src, { mode: "cors" });
+        const blob = await res.blob();
+        const dataUrl = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(blob);
+        });
+        img.src = dataUrl;
+      } catch {}
+    })
+  );
+  return originals;
+};
 
 const shortenAddress = (addr: string) =>
   addr ? `${addr.slice(0, 6)}…${addr.slice(-4)}` : "";
@@ -156,7 +179,7 @@ export const DonationCelebrationCard = ({
 
   return (
     <div
-      className="mt-3 rounded-2xl overflow-hidden relative max-w-[360px] aspect-[4/5]"
+      className="mt-3 rounded-2xl overflow-hidden relative max-w-[360px] aspect-[4/5] celebration-card-container"
       style={{
         backgroundImage: `url(${data.background})`,
         backgroundSize: "cover",
@@ -234,10 +257,6 @@ export const DonationCelebrationCard = ({
             <span className="text-white/60">Trạng thái</span>
             <span className="text-green-400 font-medium">✅ Thành công</span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-white/60">Chủ đề</span>
-            <span>{themeInfo.emoji} {themeInfo.label}</span>
-          </div>
           {data.message && (
             <div>
               <span className="text-white/60">Lời nhắn</span>
@@ -273,15 +292,46 @@ export const DonationCelebrationCard = ({
         </div>
 
         {/* BOTTOM */}
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full text-sm border-white/30 text-white hover:bg-white/20 bg-white/10"
-          onClick={() => navigate(`/receipt/${data.receipt_public_id}`)}
-        >
-          <Gift className="h-3.5 w-3.5 mr-1.5" />
-          Xem Celebration Card
-        </Button>
+        <div className="flex justify-between">
+          <button
+            onClick={async (e) => {
+              e.stopPropagation();
+              const cardEl = e.currentTarget.closest('.celebration-card-container') as HTMLElement;
+              if (!cardEl) return;
+              try {
+                const { default: html2canvas } = await import('html2canvas');
+                const originals = await preloadImagesToBase64(cardEl);
+                const canvas = await html2canvas(cardEl, { useCORS: true, allowTaint: true, backgroundColor: null, scale: 2 });
+                originals.forEach(({ img, src }) => { img.src = src; });
+                const link = document.createElement('a');
+                link.download = `celebration-card-${data.receipt_public_id}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                toast({ title: 'Đã lưu hình ảnh! 📥' });
+              } catch { toast({ title: 'Không thể lưu ảnh', variant: 'destructive' }); }
+            }}
+            className="h-8 w-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+            title="Lưu về thiết bị"
+          >
+            <Download className="h-4 w-4 text-white/80" />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              const url = `${window.location.origin}/receipt/${data.receipt_public_id}`;
+              if (navigator.share) {
+                navigator.share({ title: 'Celebration Card', url }).catch(() => {});
+              } else {
+                navigator.clipboard.writeText(url);
+                toast({ title: 'Đã copy link Celebration Card! 📋' });
+              }
+            }}
+            className="h-8 w-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+            title="Chia sẻ"
+          >
+            <Share2 className="h-4 w-4 text-white/80" />
+          </button>
+        </div>
       </div>
     </div>
   );

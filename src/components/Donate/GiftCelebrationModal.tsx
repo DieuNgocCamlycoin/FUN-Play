@@ -104,12 +104,12 @@ const preloadImagesToBase64 = async (container: HTMLElement) => {
 
 // ======================== COIN SHOWER EFFECT ========================
 const CoinShowerEffect = () => {
-  const coins = Array.from({ length: 20 }, (_, i) => ({
+  const coins = Array.from({ length: 40 }, (_, i) => ({
     id: i,
     src: i % 2 === 0 ? "/images/camly-coin.png" : "/images/fun-money-coin.png",
     left: Math.random() * 100,
-    delay: Math.random() * 3,
-    duration: 2 + Math.random() * 3,
+    delay: Math.random() * 12,
+    duration: 3 + Math.random() * 4,
     size: 16 + Math.random() * 20,
   }));
 
@@ -166,16 +166,34 @@ export const GiftCelebrationModal = ({
     try {
       const audio = new Audio(audioSrc);
       audio.volume = 0.6;
+      audio.loop = true;
       audio.play().catch(() => {});
       audioRef.current = audio;
+      // Stop looping after 15 seconds
+      setTimeout(() => { if (audioRef.current) { audioRef.current.loop = false; } }, 15000);
     } catch {}
 
-    confetti({ particleCount: 100, spread: 70, origin: { y: 0.6, x: 0.5 }, colors: ["#FFD700", "#FF00E5", "#00E7FF", "#7A2BFF"] });
-    setTimeout(() => confetti({ particleCount: 50, angle: 60, spread: 55, origin: { x: 0.2, y: 0.65 }, colors: ["#FFD700", "#FF00E5", "#00E7FF"] }), 150);
-    setTimeout(() => confetti({ particleCount: 50, angle: 120, spread: 55, origin: { x: 0.8, y: 0.65 }, colors: ["#FFD700", "#7A2BFF", "#00E7FF"] }), 300);
-    setTimeout(() => confetti({ particleCount: 30, spread: 360, startVelocity: 20, ticks: 60, origin: { x: 0.5, y: 0.4 }, shapes: ["star"], colors: ["#FFD700", "#FFA500"] }), 500);
+    // Fire confetti every 1.5s for 15 seconds
+    const colors = ["#FFD700", "#FF00E5", "#00E7FF", "#7A2BFF", "#FFA500"];
+    const fireConfetti = (i: number) => {
+      const origins = [
+        { x: 0.5, y: 0.6 },
+        { x: 0.2, y: 0.65 },
+        { x: 0.8, y: 0.65 },
+      ];
+      const origin = origins[i % 3];
+      confetti({ particleCount: 150, spread: 80, origin, colors });
+      confetti({ particleCount: 50, spread: 360, startVelocity: 20, ticks: 80, origin: { x: 0.5, y: 0.4 }, shapes: ["star"], colors: ["#FFD700", "#FFA500"] });
+    };
+    fireConfetti(0);
+    const intervalId = setInterval(() => { fireConfetti(Math.floor(Math.random() * 3)); }, 1500);
+    const timeoutId = setTimeout(() => { clearInterval(intervalId); }, 15000);
 
-    return () => { audioRef.current?.pause(); };
+    return () => {
+      audioRef.current?.pause();
+      clearInterval(intervalId);
+      clearTimeout(timeoutId);
+    };
   }, []);
 
   // Update music when selection changes
@@ -481,9 +499,8 @@ export const GiftCelebrationModal = ({
           </div>
 
           {/* MIDDLE: Details */}
-          <div className="space-y-1.5 text-sm bg-black/30 rounded-xl p-3 backdrop-blur-sm">
+          <div className="space-y-1.5 text-sm">
             <div className="flex justify-between"><span className="text-white/60">Trạng thái</span><span className="text-green-400 font-medium">✅ Thành công</span></div>
-            <div className="flex justify-between"><span className="text-white/60">Chủ đề</span><span>{currentTheme.emoji} {currentTheme.label}</span></div>
             {message && (
               <div>
                 <span className="text-white/60">Lời nhắn</span>
