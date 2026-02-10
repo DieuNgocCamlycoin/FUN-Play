@@ -692,13 +692,14 @@ body > [data-w3m-modal] {
 .animate-fireworks { animation: fireworks-burst 2s ease-out infinite; }
 .animate-coin-fall { animation: coin-fall 4s ease-in forwards; }
 
-/* Coin float animation for inside card (looping) */
+/* Coin float animation for inside card (looping) — slower, stays in center 2/3 */
 @keyframes coin-float-up {
-  0% { transform: translateY(100%) rotate(0deg) scale(0.8); opacity: 0; }
-  10% { opacity: 0.8; }
-  50% { transform: translateY(0%) rotate(180deg) scale(1); opacity: 0.9; }
-  90% { opacity: 0.6; }
-  100% { transform: translateY(-120%) rotate(360deg) scale(0.7); opacity: 0; }
+  0% { transform: translateY(110%) rotate(0deg) scale(0.7); opacity: 0; }
+  15% { opacity: 0.85; }
+  40% { transform: translateY(30%) rotate(120deg) scale(1); opacity: 0.9; }
+  65% { transform: translateY(-30%) rotate(240deg) scale(0.95); opacity: 0.85; }
+  90% { opacity: 0.5; }
+  100% { transform: translateY(-110%) rotate(360deg) scale(0.7); opacity: 0; }
 }
 
 @keyframes sparkle-float {
@@ -707,25 +708,27 @@ body > [data-w3m-modal] {
   75% { opacity: 0.8; transform: scale(0.8) rotate(270deg); }
 }
 
-.animate-coin-float-up { animation: coin-float-up 4s ease-in-out infinite; }
+.animate-coin-float-up { animation: coin-float-up 5s ease-in-out infinite; }
 .animate-sparkle-float { animation: sparkle-float 3s ease-in-out infinite; }
 
 /* Coin rise from bottom of screen to top (fullscreen) */
 @keyframes coin-rise {
-  0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+  0% { transform: translateY(0) rotate(0deg); opacity: 0; }
   10% { opacity: 1; }
-  100% { transform: translateY(-30px) rotate(720deg); opacity: 0; }
+  90% { opacity: 0.8; }
+  100% { transform: translateY(-100vh) rotate(720deg); opacity: 0; }
 }
 
-.animate-coin-rise { animation: coin-rise 4s ease-in forwards; }
+.animate-coin-rise { animation: coin-rise 4s ease-out forwards; }
 
-/* Coin float down inside card (top to bottom, looping) */
+/* Coin float down inside card (top to bottom, looping) — slower, stays in center 2/3 */
 @keyframes coin-float-down {
-  0% { transform: translateY(-120%) rotate(0deg) scale(0.8); opacity: 0; }
-  10% { opacity: 0.8; }
-  50% { transform: translateY(0%) rotate(180deg) scale(1); opacity: 0.9; }
-  90% { opacity: 0.6; }
-  100% { transform: translateY(120%) rotate(360deg) scale(0.7); opacity: 0; }
+  0% { transform: translateY(-110%) rotate(0deg) scale(0.7); opacity: 0; }
+  15% { opacity: 0.85; }
+  40% { transform: translateY(-30%) rotate(120deg) scale(1); opacity: 0.9; }
+  65% { transform: translateY(30%) rotate(240deg) scale(0.95); opacity: 0.85; }
+  90% { opacity: 0.5; }
+  100% { transform: translateY(110%) rotate(360deg) scale(0.7); opacity: 0; }
 }
 
-.animate-coin-float-down { animation: coin-float-down 4s ease-in-out infinite; }
+.animate-coin-float-down { animation: coin-float-down 5s ease-in-out infinite; }

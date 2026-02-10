@@ -149,7 +149,8 @@ const FullscreenCoinShower = () => {
           className="absolute animate-coin-rise"
           style={{
             left: `${coin.left}%`,
-            bottom: "-30px",
+            bottom: "0px",
+            top: "auto",
             width: `${coin.size}px`,
             height: `${coin.size}px`,
             animationDelay: `${coin.delay}s`,
@@ -169,7 +170,7 @@ const CardInternalEffects = () => {
     src: i % 2 === 0 ? "/images/camly-coin.png" : "/images/fun-money-coin.png",
     left: 2 + Math.random() * 96,
     delay: Math.random() * 8,
-    duration: 2.5 + Math.random() * 3,
+    duration: 3.5 + Math.random() * 3,
     size: 10 + Math.random() * 14,
   }));
   // 36 coins floating down
@@ -178,7 +179,7 @@ const CardInternalEffects = () => {
     src: i % 2 === 0 ? "/images/fun-money-coin.png" : "/images/camly-coin.png",
     left: 2 + Math.random() * 96,
     delay: Math.random() * 8,
-    duration: 2.5 + Math.random() * 3,
+    duration: 3.5 + Math.random() * 3,
     size: 10 + Math.random() * 14,
   }));
 
@@ -521,31 +522,7 @@ export const GiftCelebrationModal = ({
       {/* Fullscreen Coin Shower (15s) */}
       {showEffects && <FullscreenCoinShower />}
 
-      {/* Top bar: Volume (audio) + X (effects) — prominent buttons */}
-      <div className="absolute top-3 right-3 z-20 flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => {
-            setIsMuted(m => {
-              const next = !m;
-              if (audioRef.current) { next ? audioRef.current.pause() : audioRef.current.play().catch(() => {}); }
-              return next;
-            });
-          }}
-          className="h-9 w-9 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-sm ring-1 ring-white/30 flex items-center justify-center transition-all"
-          title={isMuted ? "Bật âm thanh" : "Tắt âm thanh"}
-        >
-          {isMuted ? <VolumeX className="h-5 w-5 text-white" /> : <Volume2 className="h-5 w-5 text-white" />}
-        </button>
-        <button
-          type="button"
-          onClick={() => setShowEffects(false)}
-          className="h-9 w-9 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-sm ring-1 ring-white/30 flex items-center justify-center transition-all"
-          title="Tắt hiệu ứng hình ảnh"
-        >
-          <X className="h-5 w-5 text-white" />
-        </button>
-      </div>
+      {/* Volume + X buttons removed from here — moved inside card below */}
 
       {/* Header */}
       <div className="text-center relative z-10">
@@ -580,6 +557,32 @@ export const GiftCelebrationModal = ({
         <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
         {/* Card internal coin/sparkle effects - loops forever until X */}
         {showEffects && <CardInternalEffects />}
+        {/* Volume + X buttons INSIDE card */}
+        <div className="absolute top-2 right-2 z-10 flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsMuted(m => {
+                const next = !m;
+                if (audioRef.current) { next ? audioRef.current.pause() : audioRef.current.play().catch(() => {}); }
+                return next;
+              });
+            }}
+            className="h-9 w-9 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-sm ring-1 ring-white/30 flex items-center justify-center transition-all"
+            title={isMuted ? "Bật âm thanh" : "Tắt âm thanh"}
+          >
+            {isMuted ? <VolumeX className="h-5 w-5 text-white" /> : <Volume2 className="h-5 w-5 text-white" />}
+          </button>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setShowEffects(false); }}
+            className="h-9 w-9 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-sm ring-1 ring-white/30 flex items-center justify-center transition-all"
+            title="Tắt hiệu ứng hình ảnh"
+          >
+            <X className="h-5 w-5 text-white" />
+          </button>
+        </div>
         <div className="relative h-full flex flex-col justify-between p-5 text-white">
           {/* TOP: Title + Avatars + Amount */}
           <div className="space-y-3">
