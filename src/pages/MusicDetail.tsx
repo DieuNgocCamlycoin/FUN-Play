@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useMusicPlayer, Track } from "@/contexts/MusicPlayerContext";
 import { ShareModal } from "@/components/Video/ShareModal";
+import { AuthRequiredDialog } from "@/components/Auth/AuthRequiredDialog";
 import { DynamicMeta } from "@/components/SEO/DynamicMeta";
 import { MusicComments } from "@/components/Music/MusicComments";
 import { AddToMusicPlaylistModal } from "@/components/Music/AddToMusicPlaylistModal";
@@ -64,6 +65,7 @@ export default function MusicDetail() {
   const [playlistModalOpen, setPlaylistModalOpen] = useState(false);
   const [hasLiked, setHasLiked] = useState(false);
   const [relatedTracks, setRelatedTracks] = useState<MusicTrack[]>([]);
+  const [showAuthDialog, setShowAuthDialog] = useState(false);
 
   const isCurrentTrack = currentTrack?.id === id;
 
@@ -176,7 +178,7 @@ export default function MusicDetail() {
 
   const handleLike = async () => {
     if (!user) {
-      navigate("/auth");
+      setShowAuthDialog(true);
       return;
     }
 
@@ -505,6 +507,7 @@ export default function MusicDetail() {
           trackId={track.id}
           trackTitle={track.title}
         />
+        <AuthRequiredDialog open={showAuthDialog} onOpenChange={setShowAuthDialog} />
       </MainLayout>
     </>
   );

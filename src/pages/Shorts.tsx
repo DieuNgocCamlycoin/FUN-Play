@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
+import { AuthRequiredDialog } from '@/components/Auth/AuthRequiredDialog';
 import { ArrowLeft } from 'lucide-react';
 import { ShareModal } from '@/components/Video/ShareModal';
 import { ShortsCommentSheet } from '@/components/Video/ShortsCommentSheet';
@@ -385,6 +386,7 @@ export default function Shorts() {
   const [subscribedChannels, setSubscribedChannels] = useState<Set<string>>(new Set());
   const [shareVideoId, setShareVideoId] = useState<string | null>(null);
   const [commentVideoId, setCommentVideoId] = useState<string | null>(null);
+  const [showAuthDialog, setShowAuthDialog] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Fetch short videos
@@ -517,7 +519,7 @@ export default function Shorts() {
 
   const handleLike = async (videoId: string) => {
     if (!user) {
-      toast.error('Vui lòng đăng nhập để thích video');
+      setShowAuthDialog(true);
       return;
     }
 
@@ -547,7 +549,7 @@ export default function Shorts() {
 
   const handleDislike = async (videoId: string) => {
     if (!user) {
-      toast.error('Vui lòng đăng nhập');
+      setShowAuthDialog(true);
       return;
     }
 
@@ -577,7 +579,7 @@ export default function Shorts() {
 
   const handleSubscribe = async (channelId: string) => {
     if (!user) {
-      toast.error('Vui lòng đăng nhập để đăng ký kênh');
+      setShowAuthDialog(true);
       return;
     }
 
@@ -600,7 +602,7 @@ export default function Shorts() {
 
   const handleSave = async (videoId: string) => {
     if (!user) {
-      toast.error('Vui lòng đăng nhập để lưu video');
+      setShowAuthDialog(true);
       return;
     }
 
@@ -748,6 +750,7 @@ export default function Shorts() {
         onClose={() => setCommentVideoId(null)}
         commentCount={videos.find(v => v.id === commentVideoId)?.comment_count || 0}
       />
+      <AuthRequiredDialog open={showAuthDialog} onOpenChange={setShowAuthDialog} />
     </div>
   );
 }
