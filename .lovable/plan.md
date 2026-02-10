@@ -1,96 +1,156 @@
 
 
-# Tối ưu Mobile Header cho chế độ PWA / Add to Home Screen
+# Nang cap Modal "Thuong & Tang" + Popup Chuc Mung Thanh Cong
 
 ---
 
-## I. Vấn đề
+## I. HIEN TRANG
 
-Khi app được "Thêm vào Màn hình chính" (standalone mode), thanh trình duyệt biến mất nhưng vùng notch/status bar vẫn tồn tại. Header hiện tại dùng `fixed top-0` mà không tính `safe-area-inset-top`, khiến icon bị tràn lên vùng notch. Ngoài ra, 7 icon + avatar trong 1 hàng gây chật trên màn hình nhỏ (< 375px).
+Hien tai he thong Thuong & Tang gom 3 file chinh:
+- `EnhancedDonateModal.tsx` (566 dong): Form nhap thong tin co ban (nguoi nhan, token, so tien, loi nhan)
+- `DonationSuccessOverlay.tsx` (344 dong): Popup thanh cong voi confetti va thong tin giao dich
+- `DonationCelebration.tsx` (176 dong): Popup nhan thuong cho nguoi nhan (Rich rich rich audio)
 
----
-
-## II. Phân tích kỹ thuật
-
-### Hiện trạng
-- `index.html` đã có `viewport-fit=cover` và CSS variables cho `env(safe-area-inset-top)` nhưng `body` dùng `padding-top` thay vì header tự xử lý
-- `MobileHeader` dùng `fixed top-0` cứng, không cộng thêm safe-area
-- `MobileBottomNav` đã có class `safe-area-bottom` nhưng class này chưa được định nghĩa trong CSS
-- Header chứa 7 phần tử bên phải (Search, Gift, FunMoney, Bell, Chat, Avatar) -- tổng cần ~7x44px = 308px, cộng logo+menu ~90px = ~398px, vượt quá nhiều màn hình 360-375px
-
-### Giải pháp
-
-1. **Safe-area padding cho header**: Thêm `padding-top: env(safe-area-inset-top)` vào header, tổng chiều cao = `safe-area + 56px`
-2. **Giảm kích thước touch target**: Từ `h-11 w-11` (44px) xuống `h-9 w-9` (36px) cho icon buttons, giữ icon 24px -- vẫn đạt chuẩn WCAG tối thiểu
-3. **Giảm gap**: Từ `gap-1` xuống `gap-0` để tiết kiệm không gian
-4. **Detect PWA mode**: Thêm hook `useIsPWA()` để nhận diện standalone mode
-5. **CSS safe-area utilities**: Thêm class tiện ích cho safe-area top/bottom
+**Thieu:**
+- Khong co buoc Review/Xac nhan truoc khi gui
+- Khong co chu de tang thuong (theme)
+- Khong co chon nhac
+- Khong co wallet address hien thi + COPY
+- Popup thanh cong thieu thong tin day du nhu lich su he thong
+- Khong tu dong post GIF len profile
+- Tieu de popup chi la "Tang Thanh Cong" thay vi "CHUC MUNG TANG THUONG THANH CONG"
 
 ---
 
-## III. Chi tiết thay đổi
+## II. KE HOACH THAY DOI
 
-### 1. Thêm hook `useIsPWA` (file mới)
+### PHASE 1: Bo sung database (metadata ho tro theme/nhac)
 
-```
-src/hooks/useIsPWA.ts
-```
-
-Detect standalone mode bằng `window.matchMedia('(display-mode: standalone)')` và `navigator.standalone` (iOS Safari).
-
-### 2. Cập nhật CSS (`src/index.css`)
-
-Thêm utility classes:
-
-```css
-.safe-area-top {
-  padding-top: env(safe-area-inset-top, 0px);
-}
-.safe-area-bottom {
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+Khong can them cot moi. Bang `donation_transactions` da co cot `metadata` (jsonb). Se luu them:
+```json
+{
+  "theme": "birthday",
+  "music": "rich-celebration",
+  "celebration_gif_url": "..."
 }
 ```
 
-### 3. Cập nhật `MobileHeader.tsx`
+Cap nhat Edge Function `create-donation` de nhan va luu them `theme` va `music` vao metadata.
 
-Thay đổi chính:
-- Header: thêm `safe-area-top` class, chiều cao động `h-14` + safe-area padding phía trên
-- Icon buttons: giảm từ `h-11 w-11` xuống `h-9 w-9`, icon từ `h-7 w-7` xuống `h-6 w-6`
-- Gap giảm từ `gap-1` xuống `gap-0`
-- Thêm WALLET icon (FUN Wallet) giữa Fun Money và Bell
+### PHASE 2: Nang cap EnhancedDonateModal.tsx
 
-### 4. Cập nhật `MainLayout.tsx`
+Chuyen tu 1 buoc -> 3 buoc (multi-step wizard):
 
-- Thêm class `pt-[calc(env(safe-area-inset-top,0px)+3.5rem)]` cho PWA mode thay vì `pt-14` cứng
+**Buoc 1 - Nhap thong tin:**
+- Nguoi gui: Avatar + Ten + @username + Wallet (rut gon + COPY)
+- Nguoi nhan: Giu nguyen UI tim kiem hien tai, them hien thi wallet + COPY
+- Token & So tien: Giu nguyen (preset + slider + custom input)
+- CHU DE TANG THUONG (MOI): 7 nut chon emoji theme (Chuc mung, Ket hon, Sinh nhat, Tri an, Tinh yeu, Gia dinh, Cha me)
+- CHON NHAC (MOI, optional): Radio group 3 file nhac + mac dinh Rich Rich Rich
+- Loi nhan: Giu nguyen textarea + emoji picker
 
-### 5. Cập nhật `MobileBottomNav.tsx`
+**Buoc 2 - Xac nhan (REVIEW):**
+- Hien thi toan bo thong tin da nhap theo dang card:
+  - Nguoi gui (avatar + ten + wallet + copy)
+  - Nguoi nhan (avatar + ten + wallet + copy)
+  - So tien + Token
+  - Chu de
+  - Loi nhan
+  - Nhac
+  - Chain (BSC / Internal)
+  - Canh bao: "Giao dich blockchain khong the hoan tac"
+- 2 nut: "Quay lai chinh sua" va "Xac nhan & Tang thuong"
 
-- Thêm `pb-[env(safe-area-inset-bottom,0px)]` để bottom nav không bị che bởi home indicator trên iPhone
+**Buoc 3 - Ket qua thanh cong:**
+- Chuyen sang DonationSuccessOverlay (da nang cap)
 
-### 6. Cập nhật `index.html`
+### PHASE 3: Nang cap DonationSuccessOverlay.tsx
 
-- Xóa `padding-top` trên body (để header tự xử lý) nhưng giữ `padding-left/right/bottom`
+Thay doi chinh:
+
+1. **Tieu de**: "CHUC MUNG TANG THUONG THANH CONG" voi emoji phao hoa
+2. **Hieu ung**: Giu confetti + them phat nhac da chon (Rich Rich Rich mac dinh)
+3. **GIF chuc mung**: Hien thi GIF celebration tu Giphy theo theme (da co CELEBRATION_GIFS array, mo rong them GIF theo tung chu de)
+4. **Bang thong tin giao dich day du**:
+   - Avatar + ten nguoi gui (link profile) + wallet rut gon + COPY
+   - Arrow animation
+   - Avatar + ten nguoi nhan (link profile) + wallet rut gon + COPY
+   - So luong + Token + Icon
+   - Chu de tang thuong (emoji + ten)
+   - Loi nhan
+   - Thoi gian
+   - Chain (BSC / Internal)
+   - TX hash (rut gon + COPY + link explorer)
+   - Ma bien nhan
+5. **Nut hanh dong**:
+   - Luu GIF (download celebration image)
+   - Sao chep link
+   - Chia se len Profile (da co, giu nguyen logic)
+   - Dong
+
+### PHASE 4: Cap nhat Edge Function create-donation
+
+Them nhan `theme` va `music` trong request body va luu vao metadata:
+```typescript
+metadata: {
+  theme: body.theme || "celebration",
+  music: body.music || "rich-celebration",
+  ...existing metadata
+}
+```
+
+### PHASE 5: Tu dong lan toa
+
+Logic tu dong post len profile DA CO trong DonationSuccessOverlay (handleShareToProfile). Se cap nhat:
+- Tu dong goi `handleShareToProfile` sau khi thanh cong (thay vi doi user bam)
+- Them chu de vao noi dung post
+- Tin nhan he thong DA CO trong create-donation edge function (dong 234-267), giu nguyen
 
 ---
 
-## IV. Bảng tổng hợp file thay đổi
+## III. CHI TIET FILE THAY DOI
 
-| # | File | Loại | Mô tả |
+| # | File | Loai | Mo ta |
 |---|------|------|-------|
-| 1 | `src/hooks/useIsPWA.ts` | Tạo mới | Hook detect PWA/standalone mode |
-| 2 | `src/index.css` | Cập nhật | Thêm safe-area utility classes |
-| 3 | `src/components/Layout/MobileHeader.tsx` | Cập nhật | Safe-area top, compact icons, thêm WALLET |
-| 4 | `src/components/Layout/MainLayout.tsx` | Cập nhật | Dynamic padding-top cho PWA |
-| 5 | `src/components/Layout/MobileBottomNav.tsx` | Cập nhật | Safe-area bottom |
-| 6 | `index.html` | Cập nhật nhỏ | Xóa body padding-top để tránh double padding |
-| 7 | `src/pages/Index.tsx` | Cập nhật nhỏ | Padding-top tương thích |
+| 1 | `supabase/functions/create-donation/index.ts` | Cap nhat | Them nhan theme/music luu metadata |
+| 2 | `src/components/Donate/EnhancedDonateModal.tsx` | Cap nhat lon | Multi-step wizard (3 buoc), them theme picker, music selector, review step |
+| 3 | `src/components/Donate/DonationSuccessOverlay.tsx` | Cap nhat lon | Tieu de moi, bang thong tin day du, wallet display + COPY, theme-based GIF, nhac, nut luu GIF |
+| 4 | `src/hooks/useDonation.ts` | Cap nhat nho | Them theme/music vao CreateDonationParams va truyen vao edge function |
 
 ---
 
-## V. Kết quả mong đợi
+## IV. THEME & GIF MAPPING
 
-- Header nằm gọn dưới notch/status bar trên mọi thiết bị
-- Tất cả 8 icon (Search, Gift, FunMoney, Wallet, Bell, Chat, Avatar) hiển thị đủ trên màn hình 360px
-- Bottom nav không bị che bởi home indicator (iPhone X+)
-- Trải nghiệm PWA giống app native
+| Emoji | Chu de | GIF category |
+|-------|--------|-------------|
+| 🎉 | Chuc mung | Celebration/Party |
+| 💍 | Ket hon | Wedding |
+| 🎂 | Sinh nhat | Birthday |
+| 🙏 | Tri an | Thank you/Gratitude |
+| ❤️ | Tinh yeu | Love/Hearts |
+| 👨‍👩‍👧‍👦 | Gia dinh | Family |
+| 🌱 | Cha me | Parents/Growth |
+
+Moi theme co 3-5 GIF tu Giphy, random khi hien thi.
+
+---
+
+## V. NHAC OPTIONS
+
+| ID | Ten | File |
+|----|-----|------|
+| rich-celebration | Rich! Rich! Rich! (mac dinh) | /audio/rich-celebration.mp3 |
+| celebrate-synth | Web Audio celebrate | Generated via useSoundEffects |
+| coin-shower | Coin Shower | Generated via useSoundEffects |
+
+---
+
+## VI. LUU Y QUAN TRONG
+
+1. Metadata luu offchain (jsonb trong donation_transactions), lien ket tx_hash
+2. GIF lay tu Giphy CDN, khong luu vao database
+3. Khong autoplay GIF vo han - chi play 1 lan khi popup mo
+4. Fallback khi user tat am thanh: skip audio, van hien thi visual effects
+5. Noi dung popup, lich su he thong, lich su ca nhan, tin nhan: TRUNG KHOP 100% vi deu doc tu cung 1 record donation_transactions
+6. Chi ap dung cho giao dich THANH CONG (status = success)
 
