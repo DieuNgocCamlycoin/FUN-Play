@@ -1,67 +1,122 @@
 
 
-# Sửa lỗi hiển thị giao dịch trùng lặp trong Lịch sử giao dịch
+# Điều chỉnh Flow "Tặng & Thưởng" — Dừng Auto-Post, Thêm "Lưu & Gửi"
 
-## Nguyên nhân
+---
 
-Khi người dùng thực hiện 1 lệnh tặng thưởng/ủng hộ, hệ thống ghi nhận vào **2 bảng cùng lúc**:
-1. `donation_transactions` — lưu thông tin tặng thưởng (có lời nhắn, chủ đề, biên nhận)
-2. `wallet_transactions` — lưu giao dịch blockchain (đồng bộ từ on-chain)
+## Vấn đề hiện tại
 
-Cả hai bản ghi có **cùng `tx_hash`**, nhưng hook `useTransactionHistory` gộp cả 2 vào danh sách --> hiển thị 2 dòng cho 1 giao dịch.
+1. **Auto-post + Auto-message chạy ngay khi modal mở** (dòng 154-162 trong `GiftCelebrationModal.tsx`) — người gửi chưa kịp tuỳ chỉnh Celebration Card
+2. Không có nút **"Lưu & Gửi"** tổng hợp — các hành động đăng/gửi rải rác và chạy tự động
+3. Chưa có logic **thông báo người nhận** để họ chọn chia sẻ Celebration Card lên trang cá nhân
+4. Chưa có tuỳ chọn **"Tải ảnh lên"** cho background tuỳ chỉnh
 
-## Giải pháp
+---
 
-Thêm bước **loại bỏ trùng lặp theo `tx_hash`** sau khi gộp 3 nguồn dữ liệu. Ưu tiên giữ bản ghi từ `donation_transactions` (vì có nhiều thông tin hơn: lời nhắn, chủ đề, biên nhận).
+## Chi tiết thay đổi
 
-## Chi tiết kỹ thuật
+### File 1: `src/components/Donate/GiftCelebrationModal.tsx` — Viết lại toàn diện
 
-### File: `src/hooks/useTransactionHistory.ts`
+**A. Xoá auto-post + auto-message khi mount:**
+- Xoá 2 `useEffect` tự động gọi `handleShareToProfile()` và `handleSendMessage()` (dòng 154-162)
+- Các hành động này CHỈ chạy khi người dùng bấm **"Lưu & Gửi"**
 
-Thêm logic deduplicate sau bước gộp (sau dòng 427, trước bước sắp xếp ở dòng 429):
+**B. Thêm nút "Lưu & Gửi" (nút chính, nổi bật nhất):**
+- Khi bấm, tuần tự thực hiện:
+  1. Lưu metadata celebration card vào `donation_transactions.metadata` (theme, background, music)
+  2. Đăng bài lên Profile (gọi `handleShareToProfile`)
+  3. Gửi tin nhắn cho người nhận (gọi `handleSendMessage`)
+  4. Gửi thông báo cho người nhận với lựa chọn "Chia sẻ / Không" (chèn vào bảng `notifications`)
+  5. Hiển thị toast thành công + đóng modal
 
-```typescript
-// Loại bỏ trùng lặp theo tx_hash
-// Ưu tiên: donation_transactions > claim_requests > wallet_transactions
-const SOURCE_PRIORITY: Record<string, number> = {
-  "donation_transactions": 1,
-  "claim_requests": 2,
-  "wallet_transactions": 3,
-};
+**C. Thêm tuỳ chọn "Tải ảnh lên" cho background:**
+- Thêm 1 ô upload bên cạnh 3 thumbnail background hệ thống
+- Sử dụng `<input type="file" accept="image/*">` hoặc react-dropzone (đã có trong dự án)
+- Ảnh tải lên sẽ lưu vào Lovable Cloud Storage bucket và dùng URL làm background
 
-const txHashMap = new Map<string, number>();
-const deduped: UnifiedTransaction[] = [];
+**D. Cập nhật layout nút hành động:**
+- Nút **"Lưu & Gửi"** — nổi bật, gradient vàng-cam, chiếm toàn bộ chiều rộng
+- Các nút phụ (Lưu hình ảnh, Chia sẻ link, Copy TX Hash, Đóng) — nhỏ gọn bên dưới
 
-for (let i = 0; i < allTransactions.length; i++) {
-  const tx = allTransactions[i];
-  if (!tx.tx_hash) {
-    deduped.push(tx);
-    continue;
-  }
-  const existing = txHashMap.get(tx.tx_hash);
-  if (existing === undefined) {
-    txHashMap.set(tx.tx_hash, deduped.length);
-    deduped.push(tx);
-  } else {
-    // Giữ bản ghi có source_table ưu tiên cao hơn (số nhỏ hơn)
-    const existingPriority = SOURCE_PRIORITY[deduped[existing].source_table] || 99;
-    const currentPriority = SOURCE_PRIORITY[tx.source_table] || 99;
-    if (currentPriority < existingPriority) {
-      deduped[existing] = tx; // Thay thế bằng bản ghi ưu tiên hơn
-    }
-  }
-}
+**E. Sửa nhạc: chỉ 2 bản "Rich" mặc định (theo yêu cầu):**
+- Giữ lại 2 bản: "Rich! Rich! Rich!" và "Rich Vibe"
+- Xoá "Rich Energy" (hoặc giữ cả 3 tuỳ ý — yêu cầu ghi "2 file Rich mặc định")
+
+---
+
+### File 2: `src/components/Donate/EnhancedDonateModal.tsx` — Điều chỉnh nhỏ
+
+- Xác nhận rằng Bước 1 (nhập liệu) **KHÔNG** có chọn chủ đề/nhạc — hiện tại đã đúng
+- Xoá callback `onSuccess` khỏi `handleDonate` (hiện gọi ngay khi giao dịch thành công, trước khi user tuỳ chỉnh card)
+- Chuyển `onSuccess` sang gọi từ `GiftCelebrationModal` sau khi "Lưu & Gửi"
+
+---
+
+### File 3: Tạo migration — Bảng `notifications` (nếu chưa có) hoặc thêm cột
+
+- Kiểm tra bảng `notifications` hiện có trong database
+- Nếu chưa có: tạo bảng với các cột: `id`, `user_id`, `type` ("gift_received"), `title`, `body`, `data` (JSONB chứa transaction_id, sender_id, v.v.), `action_type` ("share_celebration"), `action_status` ("pending"/"accepted"/"declined"), `read`, `created_at`
+- Nếu đã có: thêm cột `action_type` và `action_status` nếu thiếu
+
+---
+
+### File 4: `src/components/Donate/DonationSuccessOverlay.tsx` — Giữ nguyên hoặc loại bỏ
+
+- File này hiện không được import ở đâu (đã thay bằng `GiftCelebrationModal`)
+- Giữ nguyên để tương thích ngược, không ảnh hưởng flow
+
+---
+
+### File 5: `src/hooks/useTransactionHistory.ts` — Không thay đổi
+
+- Logic deduplicate theo `tx_hash` đã hoạt động đúng từ lần sửa trước
+
+---
+
+### File 6: `src/components/Transactions/TransactionCard.tsx` — Giữ nguyên
+
+- Nút "Xem Card" đã hoạt động đúng với `receipt_public_id`
+
+---
+
+## Bảng tổng hợp thay đổi
+
+| # | File | Thay đổi |
+|---|------|----------|
+| 1 | `src/components/Donate/GiftCelebrationModal.tsx` | Xoá auto-post/auto-message; thêm nút "Lưu & Gửi" tổng hợp; thêm upload ảnh; gửi notification cho người nhận |
+| 2 | `src/components/Donate/EnhancedDonateModal.tsx` | Chuyển `onSuccess` sang sau "Lưu & Gửi" |
+| 3 | Migration SQL | Kiểm tra/cập nhật bảng `notifications` hỗ trợ `action_type` + `action_status` |
+
+---
+
+## Flow hoàn chỉnh sau sửa
+
+```text
+Bước 1: Điền thông tin (người nhận, token, số tiền, lời nhắn)
+   ↓
+Bước 2: Xem xác nhận → Ký MetaMask → Chờ giao dịch
+   ↓
+Bước 3: Modal Celebration Card mở ra
+   - Pháo hoa + Coin bay + Nhạc phát tự động
+   - User tuỳ chỉnh: Chủ đề → Ảnh nền (3 có sẵn + upload) → Nhạc
+   - Xem preview đầy đủ
+   ↓
+Bước 4: Bấm "Lưu & Gửi"
+   - Đăng bài lên Profile (kèm Celebration Card)
+   - Gửi tin nhắn cho người nhận
+   - Gửi thông báo: "Bạn nhận được quà! Chia sẻ lên trang cá nhân?"
+   ↓
+Người nhận nhận thông báo:
+   - Bấm "Chia sẻ" → Card hiện trên profile người nhận
+   - Bấm "Không" → Chỉ giữ trong tin nhắn + lịch sử
 ```
 
-Sau đó dùng `deduped` thay cho `allTransactions` trong bước sắp xếp và các bước tiếp theo.
+---
 
-Thêm nữa: cả "tặng thưởng" (tip) và "ủng hộ" (donate) từ `donation_transactions` đều sẽ hiển thị dưới nhãn **"Tặng thưởng"** (gift) -- cập nhật dòng 290 để cả `tip` và `donate` context_type đều map thành `"gift"`.
+## Ràng buộc tuân thủ
 
-### Tóm tắt thay đổi
-
-| File | Thay doi |
-|---|---|
-| `src/hooks/useTransactionHistory.ts` | Thêm deduplicate theo tx_hash; gộp tip + donate thanh "gift" |
-
-Chỉ 1 file thay đổi, không ảnh hưởng giao diện hay các component khác.
+- Không thay đổi logic giao dịch on-chain (MetaMask)
+- Không tạo duplicate giao dịch trong lịch sử
+- Toàn bộ văn bản tiếng Việt có dấu, đúng chính tả
+- Celebration Card gọn gàng, vừa khung trên cả laptop và mobile
 
