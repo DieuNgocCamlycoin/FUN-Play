@@ -288,7 +288,8 @@ export const EnhancedDonateModal = ({
     if (result.success && result.transaction) {
       setCompletedTransaction(result.transaction);
       setStep(3);
-      onSuccess?.(result.transaction);
+      // onSuccess sẽ được gọi SAU khi user bấm "Lưu & Gửi" trong GiftCelebrationModal
+      // Không gọi onSuccess ở đây để tránh auto-post trước khi tuỳ chỉnh card
     }
   };
 
