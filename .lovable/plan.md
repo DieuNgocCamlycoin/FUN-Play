@@ -1,63 +1,104 @@
 
-# Sap xep lai bo cuc CelebrationCard — tieu de trang, nut nho gon, khong bi che
+
+# Mở cửa toàn bộ trang cho khách xem — chỉ popup khi tương tác
 
 ---
 
-## Thay doi chinh
+## Tổng quan
 
-### Bo cuc moi cho phan TOP cua card
+Hiện tại nhiều trang đang redirect về `/auth` khi chưa đăng nhập. Cần thay đổi để:
 
-Hien tai: Nut Loa/X nam `absolute top-2 right-2` che len tieu de holographic. Tieu de nam giua card voi `pt-6`.
-
-**Thiet ke moi:**
-- **Dong 1 (top bar):** Flex row — ben trai: nut Loa + X (kich thuoc `h-6 w-6`, icon `h-3 w-3`). Ben phai: nut Download + Share (kich thuoc `h-6 w-6`). Tat ca nam tren 1 hang ngang, sat vien tren.
-- **Dong 2:** Tieu de "CHUC MUNG" va "TANG THUONG THANH CONG" — **mau trang** (`text-white`), font dam, drop-shadow manh de noi bat tren nen. Khong dung gradient holographic nua theo yeu cau.
-- Xoa block nut Save/Share o cuoi card (da doi len top bar).
-- Noi dung con lai (avatars, details) dan trai deu trong khong gian con lai.
-
-### Chi tiet ky thuat
-
-**File 1: `src/components/Profile/DonationCelebrationCard.tsx`**
-
-1. **Xoa** block `absolute top-2 right-2` (dong 240-279) — nut Loa/X rieng biet
-2. **Xoa** block BOTTOM Save/Share (dong 403-443)
-3. **Thay doi** phan TOP (dong 281-305): Them top bar row chua 4 nut nho (Loa, X, Download, Share) va tieu de 2 dong mau trang
-4. **Dieu chinh** padding: `px-4 pt-3 pb-3` de toi uu khong gian
-5. Tieu de: `text-white font-extrabold tracking-widest text-base` voi `drop-shadow(0 0 10px rgba(0,0,0,0.8))` va `text-shadow` de doc ro tren moi nen
-
-**File 2: `src/pages/PreviewCelebration.tsx`**
-
-1. Dong bo MockDonationCelebrationCard (dong 104-200): cung bo cuc top bar + tieu de trang
-2. Dong bo MockChatDonationCard (dong 217-310): tuong tu, nut nho hon (`h-5 w-5`)
+1. **Tất cả trang nội dung** — cho khách vào xem tự do, không redirect.
+2. **Các trang quản lý cá nhân** — giữ redirect vì cần thao tác cá nhân.
+3. **Khi khách bấm tương tác** (like, comment, subscribe, donate, save...) — hiện **popup giữa màn hình** thay vì redirect.
 
 ---
 
-## Bo cuc card sau khi chinh
+## Chi tiết kỹ thuật
 
-```text
-+------------------------------------------+
-| [Loa][X]    CHUC MUNG      [Save][Share] |
-|          TANG THUONG THANH CONG          |
-|                                          |
-|  [Avatar]   1,000 ->    [Avatar]         |
-|  Sender      CAMLY       Receiver        |
-|  @user1                  @user2          |
-|  0x1234...               0xabcd...       |
-|                                          |
-|  Trang thai        Thanh cong            |
-|  Loi nhan    "Chuc mung..."              |
-|  Thoi gian   05:19 11/02/2026            |
-|  Chain       BSC                         |
-|  TX Hash     0xabc123de...               |
-|  Ma bien nhan  #preview-demo-001         |
-+------------------------------------------+
+### 1. Tạo component `AuthRequiredDialog`
+
+**File mới: `src/components/Auth/AuthRequiredDialog.tsx`**
+
+- Dialog hiện giữa màn hình
+- Nội dung: "VUI LÒNG ĐĂNG KÝ ĐỂ ĐƯỢC CHƠI, ĐƯỢC HỌC, ĐƯỢC VỌC, ĐƯỢC LÌ XÌ 🧧"
+- 2 nút: "Đăng ký / Đăng nhập" (navigate tới /auth) và "Đóng"
+- Thiết kế theo FUN PLAY Design System (gradient border, nền tối, chữ holographic)
+
+### 2. Tạo hook `useRequireAuth`
+
+**File mới: `src/hooks/useRequireAuth.ts`**
+
+```typescript
+const { user } = useAuth();
+const [showAuthDialog, setShowAuthDialog] = useState(false);
+
+const requireAuth = useCallback((action: () => void) => {
+  if (user) { action(); }
+  else { setShowAuthDialog(true); }
+}, [user]);
+
+return { requireAuth, showAuthDialog, setShowAuthDialog, AuthDialog };
 ```
 
+Hook này trả về hàm `requireAuth(callback)` — nếu chưa đăng nhập thì hiện popup, nếu đã đăng nhập thì chạy callback.
+
+### 3. Cập nhật các trang nội dung — bỏ redirect, cho xem tự do
+
+| Trang | Thay đổi |
+|-------|----------|
+| `Watch.tsx` | Bỏ redirect. Wrap handleLike, handleDislike, handleSubscribe, handleComment với `requireAuth()` |
+| `Shorts.tsx` | Bỏ redirect. Wrap like/comment/subscribe với `requireAuth()` |
+| `Channel.tsx` | Đã open. Wrap handleSubscribe với `requireAuth()` |
+| `UserProfile.tsx` | Đã open. Wrap handleSubscribe với `requireAuth()` |
+| `MusicDetail.tsx` | Bỏ redirect. Wrap handleLike với `requireAuth()` |
+| `PostDetail.tsx` | Bỏ redirect. Wrap like/comment với `requireAuth()` |
+| `Wallet.tsx` | Bỏ redirect, hiện nội dung public (giá CAMLY, top sponsors). Wrap claim/connect wallet với `requireAuth()` |
+| `Transactions.tsx` | Bỏ redirect, hiện empty state "Đăng nhập để xem lịch sử" |
+| `Library.tsx` | Đã có empty state. Giữ nguyên |
+| `Subscriptions.tsx` | Đã có empty state. Giữ nguyên |
+| `LikedVideos.tsx` | Đã có empty state. Giữ nguyên |
+| `WatchHistory.tsx` | Bỏ redirect, hiện empty state |
+| `WatchLater.tsx` | Bỏ redirect, hiện empty state |
+| `MyAIMusic.tsx` | Đã có empty state. Giữ nguyên |
+| `Leaderboard.tsx` | Đã open. Không cần thay đổi |
+| `CAMLYPrice.tsx` | Đã open. Không cần thay đổi |
+| `Meditate.tsx` | Đã open. Không cần thay đổi |
+| `BrowseMusic.tsx` | Đã open. Không cần thay đổi |
+| `Search.tsx` | Đã open. Không cần thay đổi |
+| `Bounty.tsx` | Đã open. Không cần thay đổi |
+| `PlatformDocs.tsx` | Đã open. Không cần thay đổi |
+| `NFTGallery.tsx` | Đã open. Không cần thay đổi |
+| `Referral.tsx` | Bỏ redirect, hiện nội dung public |
+| `FunWallet.tsx` | Bỏ redirect, hiện nội dung public |
+| `FunMoneyPage.tsx` | Bỏ redirect, hiện nội dung public |
+| `UserDashboard.tsx` | Đã có empty state. Giữ nguyên |
+| `RewardHistory.tsx` | Bỏ redirect, hiện empty state |
+
+### 4. Giữ nguyên các trang quản lý (vẫn redirect /auth)
+
+- Profile, ProfileSettings, Upload, CreatePost, EditVideo, EditPost
+- ManagePosts, ManagePlaylists, ManageChannel, Studio, YourVideos, YourVideosMobile
+- Messages, Notifications, UnifiedAdminDashboard
+
 ---
 
-## Tom tat
+## Tóm tắt file cần thay đổi
 
-| # | File | Thay doi |
-|---|------|----------|
-| 1 | `DonationCelebrationCard.tsx` | Top bar (Loa, X, Download, Share) + tieu de trang 2 dong, xoa block bottom |
-| 2 | `PreviewCelebration.tsx` | Dong bo bo cuc moi cho MockDonationCard va MockChatCard |
+| # | File | Loại thay đổi |
+|---|------|---------------|
+| 1 | `src/components/Auth/AuthRequiredDialog.tsx` | **Tạo mới** — popup "Vui lòng đăng ký" |
+| 2 | `src/hooks/useRequireAuth.ts` | **Tạo mới** — hook bảo vệ tương tác |
+| 3 | `src/pages/Watch.tsx` | Bỏ redirect, wrap interactions với requireAuth |
+| 4 | `src/pages/Shorts.tsx` | Bỏ redirect, wrap interactions với requireAuth |
+| 5 | `src/pages/MusicDetail.tsx` | Bỏ redirect, wrap handleLike |
+| 6 | `src/pages/PostDetail.tsx` | Bỏ redirect, wrap interactions |
+| 7 | `src/pages/Wallet.tsx` | Bỏ redirect, hiện nội dung public |
+| 8 | `src/pages/Transactions.tsx` | Bỏ redirect, hiện empty state |
+| 9 | `src/pages/WatchHistory.tsx` | Bỏ redirect, hiện empty state |
+| 10 | `src/pages/WatchLater.tsx` | Bỏ redirect, hiện empty state |
+| 11 | `src/pages/RewardHistory.tsx` | Bỏ redirect, hiện empty state |
+| 12 | `src/pages/Referral.tsx` | Bỏ redirect, hiện nội dung |
+| 13 | `src/pages/FunWallet.tsx` | Bỏ redirect, hiện nội dung |
+| 14 | `src/pages/FunMoneyPage.tsx` | Bỏ redirect, hiện nội dung |
+
