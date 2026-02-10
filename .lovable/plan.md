@@ -1,85 +1,105 @@
 
 
-# Mở cửa toàn bộ trang cho khách xem — chỉ popup khi tương tác
+# Hoàn thiện Mô hình Truy cập 3 Tầng — FUN.RICH Access Model
 
 ---
 
-## Tổng quan
+## Tổng quan hiện trạng
 
-Hiện tại nhiều trang đang redirect về `/auth` khi chưa đăng nhập. Cần thay đổi để:
+Sau đợt triển khai trước, các trang **Watch, Shorts, MusicDetail, Wallet, Transactions, RewardHistory, FunMoneyPage** đã được mở cho khách. Tuy nhiên vẫn còn **nhiều trang và tương tác chưa được cập nhật** theo đúng mô hình 3 tầng.
 
-1. **Tất cả trang nội dung** — cho khách vào xem tự do, không redirect.
-2. **Các trang quản lý cá nhân** — giữ redirect vì cần thao tác cá nhân.
-3. **Khi khách bấm tương tác** (like, comment, subscribe, donate, save...) — hiện **popup giữa màn hình** thay vì redirect.
+### Những gì cần hoàn thiện:
 
 ---
 
-## Chi tiết kỹ thuật
+## 1. Nâng cấp AuthRequiredDialog — Thiết kế song ngữ với danh sách gạch đầu dòng
 
-### 1. Tạo component `AuthRequiredDialog`
+**File: `src/components/Auth/AuthRequiredDialog.tsx`**
 
-**File mới: `src/components/Auth/AuthRequiredDialog.tsx`**
+Hiện tại popup chỉ có 1 dòng tiếng Việt. Cần cập nhật theo đúng thiết kế mới:
 
-- Dialog hiện giữa màn hình
-- Nội dung: "VUI LÒNG ĐĂNG KÝ ĐỂ ĐƯỢC CHƠI, ĐƯỢC HỌC, ĐƯỢC VỌC, ĐƯỢC LÌ XÌ 🧧"
-- 2 nút: "Đăng ký / Đăng nhập" (navigate tới /auth) và "Đóng"
-- Thiết kế theo FUN PLAY Design System (gradient border, nền tối, chữ holographic)
-
-### 2. Tạo hook `useRequireAuth`
-
-**File mới: `src/hooks/useRequireAuth.ts`**
-
-```typescript
-const { user } = useAuth();
-const [showAuthDialog, setShowAuthDialog] = useState(false);
-
-const requireAuth = useCallback((action: () => void) => {
-  if (user) { action(); }
-  else { setShowAuthDialog(true); }
-}, [user]);
-
-return { requireAuth, showAuthDialog, setShowAuthDialog, AuthDialog };
+```text
++----------------------------------------------+
+|                                              |
+|   VUI LONG DANG KY DE                       |
+|   - DUOC CHOI                               |
+|   - DUOC HOC                                |
+|   - DUOC VOC                                |
+|   - DUOC LI XI                              |
+|                                              |
+|   PLEASE REGISTER FOR                       |
+|   - USE & EARN                              |
+|   - LEARN & EARN                            |
+|   - GIVE & GAIN                             |
+|   - REVIEW & REWARD                         |
+|                                              |
+|   [Dang ky / Dang nhap]     [Dong]          |
++----------------------------------------------+
 ```
 
-Hook này trả về hàm `requireAuth(callback)` — nếu chưa đăng nhập thì hiện popup, nếu đã đăng nhập thì chạy callback.
+---
 
-### 3. Cập nhật các trang nội dung — bỏ redirect, cho xem tự do
+## 2. Cập nhật Channel.tsx — Thay redirect bằng AuthRequiredDialog
 
-| Trang | Thay đổi |
-|-------|----------|
-| `Watch.tsx` | Bỏ redirect. Wrap handleLike, handleDislike, handleSubscribe, handleComment với `requireAuth()` |
-| `Shorts.tsx` | Bỏ redirect. Wrap like/comment/subscribe với `requireAuth()` |
-| `Channel.tsx` | Đã open. Wrap handleSubscribe với `requireAuth()` |
-| `UserProfile.tsx` | Đã open. Wrap handleSubscribe với `requireAuth()` |
-| `MusicDetail.tsx` | Bỏ redirect. Wrap handleLike với `requireAuth()` |
-| `PostDetail.tsx` | Bỏ redirect. Wrap like/comment với `requireAuth()` |
-| `Wallet.tsx` | Bỏ redirect, hiện nội dung public (giá CAMLY, top sponsors). Wrap claim/connect wallet với `requireAuth()` |
-| `Transactions.tsx` | Bỏ redirect, hiện empty state "Đăng nhập để xem lịch sử" |
-| `Library.tsx` | Đã có empty state. Giữ nguyên |
-| `Subscriptions.tsx` | Đã có empty state. Giữ nguyên |
-| `LikedVideos.tsx` | Đã có empty state. Giữ nguyên |
-| `WatchHistory.tsx` | Bỏ redirect, hiện empty state |
-| `WatchLater.tsx` | Bỏ redirect, hiện empty state |
-| `MyAIMusic.tsx` | Đã có empty state. Giữ nguyên |
-| `Leaderboard.tsx` | Đã open. Không cần thay đổi |
-| `CAMLYPrice.tsx` | Đã open. Không cần thay đổi |
-| `Meditate.tsx` | Đã open. Không cần thay đổi |
-| `BrowseMusic.tsx` | Đã open. Không cần thay đổi |
-| `Search.tsx` | Đã open. Không cần thay đổi |
-| `Bounty.tsx` | Đã open. Không cần thay đổi |
-| `PlatformDocs.tsx` | Đã open. Không cần thay đổi |
-| `NFTGallery.tsx` | Đã open. Không cần thay đổi |
-| `Referral.tsx` | Bỏ redirect, hiện nội dung public |
-| `FunWallet.tsx` | Bỏ redirect, hiện nội dung public |
-| `FunMoneyPage.tsx` | Bỏ redirect, hiện nội dung public |
-| `UserDashboard.tsx` | Đã có empty state. Giữ nguyên |
-| `RewardHistory.tsx` | Bỏ redirect, hiện empty state |
+**File: `src/pages/Channel.tsx`**
 
-### 4. Giữ nguyên các trang quản lý (vẫn redirect /auth)
+- Dòng 229-232: Thay `navigate("/auth")` bằng `setShowAuthDialog(true)`
+- Thêm state `showAuthDialog` và render `AuthRequiredDialog`
 
-- Profile, ProfileSettings, Upload, CreatePost, EditVideo, EditPost
-- ManagePosts, ManagePlaylists, ManageChannel, Studio, YourVideos, YourVideosMobile
-- Messages, Notifications, UnifiedAdminDashboard
+---
+
+## 3. Cập nhật UserProfile.tsx — Thay redirect bằng AuthRequiredDialog
+
+**File: `src/pages/UserProfile.tsx`**
+
+- Dòng 155-158: Thay `navigate("/auth")` bằng `setShowAuthDialog(true)`
+- Thêm state `showAuthDialog` và render `AuthRequiredDialog`
+
+---
+
+## 4. Cập nhật PostDetail.tsx — Thêm bảo vệ tương tác
+
+**File: `src/pages/PostDetail.tsx`**
+
+- PostDetail hiện đã mở cho khách xem (không redirect), nhưng các component con (PostReactions, PostComments) cần được bảo vệ
+- Trang này hiện không có auth guard — cần thêm `AuthRequiredDialog` để bảo vệ tương tác like/comment
+
+---
+
+## 5. Cập nhật WatchHistory.tsx — Hiện empty state cho khách
+
+**File: `src/pages/WatchHistory.tsx`**
+
+- Hiện tại trang hoạt động bình thường nhưng khách chưa đăng nhập sẽ thấy danh sách trống
+- Thêm kiểm tra `if (!user)` để hiện thông báo thân thiện: "Đăng nhập để lưu lịch sử xem"
+
+---
+
+## 6. Cập nhật WatchLater.tsx — Hiện empty state cho khách
+
+**File: `src/pages/WatchLater.tsx`**
+
+- Tương tự WatchHistory — thêm empty state cho khách chưa đăng nhập
+- Thông báo: "Đăng nhập để lưu video xem sau"
+
+---
+
+## 7. Cập nhật Referral.tsx — Cho khách xem nội dung giới thiệu
+
+**File: `src/pages/Referral.tsx`**
+
+- Hiện tại trang đã mở nhưng referralCode dựa trên `user?.id` — nếu chưa đăng nhập sẽ hiện mã rỗng
+- Thêm phần hiển thị gợi ý: "Đăng nhập để nhận mã giới thiệu cá nhân"
+- Giữ nội dung giải thích chương trình luôn hiện cho khách đọc
+
+---
+
+## 8. Cập nhật FunWallet.tsx — Cho khách xem thông tin
+
+**File: `src/pages/FunWallet.tsx`**
+
+- Hiện tại trang đã mở, nhưng cần thêm thông báo cho khách: "Đăng nhập để kết nối và sử dụng FUN Wallet"
+- Các nút tương tác (kết nối ví, gửi token) cần được bảo vệ bằng `AuthRequiredDialog`
 
 ---
 
@@ -87,18 +107,20 @@ Hook này trả về hàm `requireAuth(callback)` — nếu chưa đăng nhập 
 
 | # | File | Loại thay đổi |
 |---|------|---------------|
-| 1 | `src/components/Auth/AuthRequiredDialog.tsx` | **Tạo mới** — popup "Vui lòng đăng ký" |
-| 2 | `src/hooks/useRequireAuth.ts` | **Tạo mới** — hook bảo vệ tương tác |
-| 3 | `src/pages/Watch.tsx` | Bỏ redirect, wrap interactions với requireAuth |
-| 4 | `src/pages/Shorts.tsx` | Bỏ redirect, wrap interactions với requireAuth |
-| 5 | `src/pages/MusicDetail.tsx` | Bỏ redirect, wrap handleLike |
-| 6 | `src/pages/PostDetail.tsx` | Bỏ redirect, wrap interactions |
-| 7 | `src/pages/Wallet.tsx` | Bỏ redirect, hiện nội dung public |
-| 8 | `src/pages/Transactions.tsx` | Bỏ redirect, hiện empty state |
-| 9 | `src/pages/WatchHistory.tsx` | Bỏ redirect, hiện empty state |
-| 10 | `src/pages/WatchLater.tsx` | Bỏ redirect, hiện empty state |
-| 11 | `src/pages/RewardHistory.tsx` | Bỏ redirect, hiện empty state |
-| 12 | `src/pages/Referral.tsx` | Bỏ redirect, hiện nội dung |
-| 13 | `src/pages/FunWallet.tsx` | Bỏ redirect, hiện nội dung |
-| 14 | `src/pages/FunMoneyPage.tsx` | Bỏ redirect, hiện nội dung |
+| 1 | `AuthRequiredDialog.tsx` | Nâng cấp thiết kế song ngữ, danh sách gạch đầu dòng |
+| 2 | `Channel.tsx` | Thay `navigate("/auth")` bằng `AuthRequiredDialog` |
+| 3 | `UserProfile.tsx` | Thay `navigate("/auth")` bằng `AuthRequiredDialog` |
+| 4 | `PostDetail.tsx` | Thêm `AuthRequiredDialog` cho tương tác |
+| 5 | `WatchHistory.tsx` | Thêm empty state cho khách |
+| 6 | `WatchLater.tsx` | Thêm empty state cho khách |
+| 7 | `Referral.tsx` | Hiện nội dung public, gợi ý đăng nhập cho mã giới thiệu |
+| 8 | `FunWallet.tsx` | Bảo vệ tương tác, hiện thông tin public |
+
+### Các trang giữ nguyên redirect (quản lý cá nhân)
+
+Profile, ProfileSettings, Upload, CreatePost, EditPost, EditVideo, ManagePosts, ManagePlaylists, ManageChannel, Studio, YourVideos, YourVideosMobile, Messages, Notifications, UnifiedAdminDashboard
+
+### Các trang đã hoàn thành từ đợt trước
+
+Watch, Shorts, MusicDetail, Wallet, Transactions, RewardHistory, FunMoneyPage, Library, Subscriptions, LikedVideos, MyAIMusic, Leaderboard, CAMLYPrice, Meditate, BrowseMusic, Search, Bounty, PlatformDocs, NFTGallery, UserDashboard
 
