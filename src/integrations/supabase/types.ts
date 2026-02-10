@@ -1170,36 +1170,45 @@ export type Database = {
       }
       notifications: {
         Row: {
+          action_status: string | null
+          action_type: string | null
           actor_id: string | null
           created_at: string
           id: string
           is_read: boolean
           link: string | null
           message: string | null
+          metadata: Json | null
           thumbnail_url: string | null
           title: string
           type: string
           user_id: string
         }
         Insert: {
+          action_status?: string | null
+          action_type?: string | null
           actor_id?: string | null
           created_at?: string
           id?: string
           is_read?: boolean
           link?: string | null
           message?: string | null
+          metadata?: Json | null
           thumbnail_url?: string | null
           title: string
           type?: string
           user_id: string
         }
         Update: {
+          action_status?: string | null
+          action_type?: string | null
           actor_id?: string | null
           created_at?: string
           id?: string
           is_read?: boolean
           link?: string | null
           message?: string | null
+          metadata?: Json | null
           thumbnail_url?: string | null
           title?: string
           type?: string
