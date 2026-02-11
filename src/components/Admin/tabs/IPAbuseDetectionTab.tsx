@@ -215,9 +215,9 @@ const IPAbuseDetectionTab = ({ onBan, loading }: IPAbuseDetectionTabProps) => {
           return (
             <Card key={group.ip_hash} className="border-blue-500/30">
               <CardHeader className="pb-2">
-                <CardTitle className="flex items-center justify-between text-sm">
-                  <span className="flex items-center gap-2">
-                    <Globe className="w-4 h-4 text-blue-500" />
+              <CardTitle className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-sm">
+                  <span className="flex items-center gap-2 flex-wrap">
+                    <Globe className="w-4 h-4 text-blue-500 shrink-0" />
                     <span className="font-mono text-xs">
                       IP: {group.ip_hash.slice(0, 8)}...{group.ip_hash.slice(-6)}
                     </span>

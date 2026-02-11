@@ -97,7 +97,7 @@ const WalletAbuseTab = ({ users, walletGroups, onBan, isFakeName, loading }: Wal
 
       {/* Sub-tabs */}
       <Tabs defaultValue="ip-tracking" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-auto">
           <TabsTrigger value="ip-tracking" className="gap-1 text-xs">
             <Globe className="w-3 h-3" /> IP Tracking
           </TabsTrigger>
