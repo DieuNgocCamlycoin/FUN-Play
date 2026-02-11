@@ -1,97 +1,62 @@
 
 
-# Nâng cấp chuyển đồng FUN Money & Sửa lỗi Light Score
+# Sửa lỗi hiển thị số dư FUN Money trong modal Thưởng & Tặng
 
 ---
 
-## Phần 1: Cho phép chuyển FUN Money như CAMLY, USDT, BNB
+## Nguyên nhân gốc
 
-### Nguyên nhân hiện tại
-
-Đồng FUN Money trong bảng `donate_tokens` được cấu hình là `chain: "internal"`, khiến hệ thống đọc số dư từ bảng `internal_wallets` (hiện trống). Trong thực tế, FUN Money là token on-chain trên BSC với contract address `0x1aa8DE8B1E4465C6d729E8564893f8EF823a5ff2`.
-
-### Giải pháp
-
-Chuyển FUN Money từ `chain: "internal"` sang `chain: "bsc"` để nó hoạt động giống CAMLY, USDT, BNB — đọc số dư trực tiếp từ ví BSC của người dùng.
-
-### Chi tiết thay đổi
-
-**1. Cập nhật dữ liệu trong bảng `donate_tokens` (Database)**
-
-Cập nhật bản ghi FUN Money:
-- `chain`: `"internal"` → `"bsc"`
-- `contract_address`: thêm `0x1aa8DE8B1E4465C6d729E8564893f8EF823a5ff2`
-- `decimals`: `0` → `18` (FUN Money dùng 18 decimals theo contract)
-
-**2. Thêm FUN vào danh sách token BSC (Frontend)**
-
-Tệp: `src/config/tokens.ts`
-- Thêm FUN Money vào mảng `SUPPORTED_TOKENS` với contract address và 18 decimals
-- Điều này cho phép `EnhancedDonateModal` tự động kiểm tra số dư FUN trên ví BSC
-
-**3. Cập nhật Edge Function `create-donation/index.ts`**
-
-- Xoá toàn bộ logic `internal_wallets` (dòng 115-182) vì FUN không còn là token nội bộ
-- Khi FUN là `chain: "bsc"`, nó sẽ đi theo luồng BSC giống CAMLY/USDT — tạo giao dịch pending, người dùng ký trên ví, rồi xác nhận
-
-**4. Cập nhật `useInternalWallet.ts` (Frontend)**
-
-- Hook này sẽ không còn tìm thấy token internal nào nếu FUN chuyển sang BSC — cần xử lý trường hợp danh sách trống để không bị lỗi
+Lỗi console: `could not decode result data (value="0x")` — nghĩa là hàm `balanceOf` trả về dữ liệu rỗng. Điều này xảy ra khi:
+1. Ví người dùng đang ở **sai mạng** (không phải BSC Mainnet chainId 56) → contract không tồn tại trên mạng đó → trả về `0x`
+2. Hệ thống không yêu cầu chuyển mạng trước khi gọi `balanceOf`
+3. Khi lỗi xảy ra, `bscBalance` = `null` → hiển thị dấu **"?"** thay vì số dư thật
 
 ---
 
-## Phần 2: Sửa lỗi tính điểm Light Score
+## Giải pháp
 
-### Nguyên nhân lỗi
+### Thay đổi tệp: `src/components/Donate/EnhancedDonateModal.tsx`
 
-Hàm RPC `get_user_activity_summary` đếm uploads sai:
+**Cập nhật hàm `fetchBscBalance` (dòng 236-283):**
 
-```sql
--- Hiện tại (SAI): Chỉ đếm reward_type = 'UPLOAD'
-'uploads', COUNT(*) FILTER (WHERE reward_type = 'UPLOAD')
--- Kết quả: 43 uploads (bỏ sót 94 bản ghi)
+1. **Kiểm tra và chuyển mạng BSC** trước khi đọc số dư:
+   - Kiểm tra `chainId` hiện tại
+   - Nếu không phải BSC (56), gọi `wallet_switchEthereumChain` để chuyển
+   - Nếu chưa thêm BSC, gọi `wallet_addEthereumChain`
 
--- Thực tế: Hệ thống dùng 3 loại reward_type cho upload:
--- 'UPLOAD' (43 bản ghi)
--- 'SHORT_VIDEO_UPLOAD' (53 bản ghi)  
--- 'LONG_VIDEO_UPLOAD' (41 bản ghi)
--- 'FIRST_UPLOAD' (28 bản ghi)
-```
+2. **Xử lý lỗi `0x` mượt mà**:
+   - Bắt lỗi `BAD_DATA` cụ thể
+   - Khi gặp lỗi này, đặt `bscBalance = "0"` thay vì `null` (để hiển thị "0.0000 FUN" thay vì "?")
 
-Hậu quả: Trụ cột **S (Service)** bị tính thấp hơn thực tế vì uploads bị đếm thiếu → Light Score bị giảm → Người dùng không đủ điểm để mint.
+3. **Hiển thị thông báo rõ ràng** khi chưa kết nối ví hoặc sai mạng
 
-### Giải pháp
+### Luồng hoạt động sau khi sửa:
 
-**Cập nhật hàm RPC `get_user_activity_summary` (Database Migration)**
-
-Sửa bộ lọc uploads để đếm tất cả các loại upload:
-
-```sql
-'uploads', COUNT(*) FILTER (WHERE reward_type IN ('UPLOAD', 'SHORT_VIDEO_UPLOAD', 'LONG_VIDEO_UPLOAD', 'FIRST_UPLOAD'))
+```text
+Người dùng chọn FUN Money
+  → Kiểm tra ví có kết nối không
+    → Không: Hiển thị "Chưa kết nối ví"
+    → Có: Kiểm tra chainId
+      → Sai mạng: Tự động yêu cầu chuyển sang BSC
+      → Đúng BSC: Gọi balanceOf
+        → Thành công: Hiển thị số dư thật
+        → Lỗi 0x: Hiển thị "0.0000 FUN" (contract chưa có trên mạng này)
 ```
 
 ---
 
-## Tóm tắt tệp cần thay đổi
+## Tóm tắt
 
-| # | Loại | Tệp / Vị trí | Thay đổi |
-|---|------|---------------|----------|
-| 1 | Database (dữ liệu) | Bảng `donate_tokens` | Cập nhật FUN: chain → bsc, thêm contract_address, decimals → 18 |
-| 2 | Database (migration) | Hàm RPC `get_user_activity_summary` | Sửa bộ lọc uploads để đếm đủ các loại |
-| 3 | Frontend | `src/config/tokens.ts` | Thêm FUN Money vào SUPPORTED_TOKENS |
-| 4 | Edge Function | `supabase/functions/create-donation/index.ts` | Xoá logic internal_wallets, FUN đi theo luồng BSC |
-| 5 | Frontend | `src/hooks/useInternalWallet.ts` | Xử lý trường hợp không còn token internal |
+| # | Tệp | Thay đổi |
+|---|------|----------|
+| 1 | `src/components/Donate/EnhancedDonateModal.tsx` | Thêm logic chuyển mạng BSC trước khi đọc số dư; xử lý lỗi `0x` trả về "0" thay vì `null` |
 
 ---
 
 ## Kết quả mong đợi
 
-**Chuyển FUN:**
-- Người dùng có FUN trong ví BSC sẽ thấy số dư thật trong modal "Thưởng & Tặng"
-- Chuyển FUN hoạt động giống CAMLY, USDT, BNB — ký giao dịch trên ví, xác nhận on-chain
-- Không cần admin nạp thủ công — đọc trực tiếp từ blockchain
-
-**Light Score:**
-- Điểm uploads được tính đúng (bao gồm SHORT_VIDEO_UPLOAD, LONG_VIDEO_UPLOAD, FIRST_UPLOAD)
-- Trụ cột S (Service) tăng → Light Score tăng → Nhiều người dùng đủ điểm để mint FUN Money
+- Số dư FUN Money hiển thị đúng (không còn dấu "?" nữa)
+- Ví tự động chuyển sang mạng BSC khi cần
+- Nếu số dư = 0, hiển thị rõ ràng "0.0000 FUN" thay vì lỗi
+- Nút "Xem lại & Xác nhận" hoạt động bình thường khi có đủ số dư
 
