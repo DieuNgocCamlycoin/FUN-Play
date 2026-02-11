@@ -1,62 +1,57 @@
 
+# Sửa lỗi: Không gửi được FUN trong Thưởng & Quà Tặng
 
-# Hiển thị tất cả giao dịch realtime + thông báo tin nhắn
+## Nguyên nhân
 
-## Tổng quan
+Dữ liệu cho thấy các giao dịch FUN được tạo thành công (status: "pending") nhưng **không bao giờ hoàn tất** vì bước chuyển on-chain thất bại.
 
-Hiện tại hệ thống lịch sử giao dịch chỉ tải dữ liệu một lần khi mở trang, không tự cập nhật khi có giao dịch mới. Ngoài ra, khi gửi token qua hàm `sendDonation` (gửi trực tiếp), hệ thống không gửi tin nhắn chat cho người nhận.
+Cụ thể: Khi gửi FUN, hệ thống gọi `switchChain(wagmiConfig, { chainId: 97 })` để chuyển ví sang BSC Testnet. Trên mobile (WalletConnect), hầu hết các ví không có sẵn BSC Testnet nên `switchChain` thất bại -> giao dịch bị huỷ -> status mãi ở "pending".
 
-## Thay đổi
+Ngoài ra, edge function `confirm-bsc-donation` dùng sai explorer URL cho FUN (dùng mainnet thay vì testnet).
 
-### 1. Thêm Realtime vào hook `useTransactionHistory`
+## Giải pháp
 
-**Tệp:** `src/hooks/useTransactionHistory.ts`
-
-- Thêm 2 Supabase Realtime channel lắng nghe bảng `wallet_transactions` và `donation_transactions`
-- Khi có INSERT mới (status = completed/success, tx_hash not null), tự động gọi `refresh()` để cập nhật danh sách
-- Sử dụng debounce 500ms để tránh gọi quá nhiều lần khi có nhiều giao dịch cùng lúc
-- Thêm lắng nghe `claim_requests` cho giao dịch rút thưởng
-
-### 2. Gửi tin nhắn chat khi giao dịch thành công
+### 1. Tự động thêm BSC Testnet vào ví trước khi chuyển mạng
 
 **Tệp:** `src/lib/donation.ts`
 
-Sau khi insert vào `wallet_transactions` thành công (dòng 101-111), thêm logic:
-- Tìm hoặc tạo cuộc trò chuyện giữa người gửi và người nhận (`user_chats`)
-- Gửi tin nhắn chat dạng "donation" với nội dung thông báo đã nhận token
-- Chỉ gửi khi `toUserId` tồn tại (có người nhận trong hệ thống)
+Khi `switchChain` thất bại, thử thêm mạng BSC Testnet vào ví bằng `wallet_addEthereumChain` rồi thử lại. Nếu vẫn thất bại trên mobile (WalletConnect không hỗ trợ addChain), sử dụng fallback: tạo provider trực tiếp từ private key hoặc hiển thị hướng dẫn chi tiết cho người dùng.
 
-### 3. Đảm bảo tất cả token hiển thị đúng
-
-Hiện tại dữ liệu đã có đủ các token:
-- `wallet_transactions`: BTC, CAMLY, BNB, USDT (FUN sẽ xuất hiện khi có giao dịch FUN mới)
-- `donation_transactions`: USDT, FUN, CAMLY, BNB
-
-Không cần thay đổi gì thêm cho phần hiển thị - hook đã xử lý đúng tất cả token.
-
----
-
-## Chi tiết kỹ thuật
-
-### Realtime subscription (useTransactionHistory.ts)
+Cách tiếp cận thực tế hơn: Sử dụng wagmi `switchChain` kết hợp với `addChain` từ `@wagmi/core` để thêm BSC Testnet nếu chưa có.
 
 ```text
-// Thêm useEffect mới với 3 channel:
-// Channel 1: wallet_transactions (INSERT, status=completed)
-// Channel 2: donation_transactions (INSERT + UPDATE to success)  
-// Channel 3: claim_requests (INSERT + UPDATE to success)
-// Mỗi event trigger refresh() với debounce 500ms
+// Luồng xử lý mới:
+1. Thử switchChain(97)
+2. Nếu thất bại -> thử addChain(bscTestnet) rồi switchChain lại
+3. Nếu vẫn thất bại -> hiện thông báo rõ ràng hướng dẫn thêm BSC Testnet thủ công
+4. Re-fetch walletClient sau khi chuyển mạng thành công
 ```
 
-### Chat message khi gửi token (donation.ts)
+### 2. Sửa explorer URL cho FUN (testnet)
+
+**Tệp:** `supabase/functions/confirm-bsc-donation/index.ts`
+
+Kiểm tra token chain: nếu token là FUN (BSC Testnet), sử dụng `https://testnet.bscscan.com/tx/` thay vì `https://bscscan.com/tx/`.
 
 ```text
-// Sau khi record transaction thành công:
-if (toUserId) {
-  // 1. Tìm chat hiện có hoặc tạo mới
-  // 2. Insert chat_message type "donation"
-  // 3. Nội dung: "Bạn đã nhận được {amount} {tokenSymbol}!"
-}
+// Lấy token info để xác định explorer URL đúng
+const tokenData = await supabase.from("donate_tokens")...
+const isFunTestnet = tokenData.contract_address === "0x1aa8DE8B1E4465C6d729E8564893f8EF823a5ff2";
+const explorerUrl = isFunTestnet 
+  ? `https://testnet.bscscan.com/tx/${tx_hash}`
+  : `https://bscscan.com/tx/${tx_hash}`;
+```
+
+### 3. Dọn dẹp giao dịch "pending" bị kẹt
+
+Các giao dịch FUN cũ đang ở trạng thái "pending" sẽ không bao giờ được hoàn tất. Cần cập nhật status thành "failed" để không gây nhầm lẫn:
+
+```text
+UPDATE donation_transactions 
+SET status = 'failed' 
+WHERE token_id = 'a96baf29-db80-43ed-b5f1-7ac9f203bb88' 
+  AND status = 'pending' 
+  AND tx_hash IS NULL;
 ```
 
 ---
@@ -65,8 +60,6 @@ if (toUserId) {
 
 | # | Tệp | Thay đổi |
 |---|------|----------|
-| 1 | `src/hooks/useTransactionHistory.ts` | Thêm realtime subscription cho 3 bảng giao dịch |
-| 2 | `src/lib/donation.ts` | Gửi tin nhắn chat khi giao dịch thành công |
-
-Sau khi cập nhật, trang `/transactions` sẽ tự động hiển thị giao dịch mới ngay khi chúng xảy ra, và người nhận sẽ nhận được tin nhắn trong mục Messages.
-
+| 1 | `src/lib/donation.ts` | Thêm logic addChain BSC Testnet trước switchChain, cải thiện error handling |
+| 2 | `supabase/functions/confirm-bsc-donation/index.ts` | Sửa explorer URL cho FUN Testnet |
+| 3 | Database | Cập nhật giao dịch pending bị kẹt thành failed |
