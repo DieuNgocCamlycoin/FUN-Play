@@ -1,56 +1,63 @@
 
 
-# Sửa lỗi: Không hiện thông báo nhận FUN và không hiện trong lịch sử
+# Hiển thị tất cả giao dịch realtime + thông báo tin nhắn
 
-## Nguyên nhân
+## Tổng quan
 
-Sau khi phân tích kỹ code và dữ liệu, phát hiện **3 vấn đề chính**:
+Hiện tại hệ thống lịch sử giao dịch chỉ tải dữ liệu một lần khi mở trang, không tự cập nhật khi có giao dịch mới. Ngoài ra, khi gửi token qua hàm `sendDonation` (gửi trực tiếp), hệ thống không gửi tin nhắn chat cho người nhận.
 
-### Vấn đề 1: Thông báo realtime chỉ theo dõi `wallet_transactions` nhưng bỏ qua `donation_transactions`
+## Thay đổi
 
-Component `GlobalPaymentNotifications` chỉ lắng nghe bảng `wallet_transactions`. Tuy nhiên, luồng tặng qua modal (EnhancedDonateModal) lưu giao dịch chính vào bảng `donation_transactions` (qua edge function `create-donation` + `confirm-bsc-donation`). Ngoài ra, hàm `sendDonation` cũng insert vào `wallet_transactions`, nhưng trường `to_user_id` đôi khi bị null (khi không tìm được profile theo wallet address), khiến filter realtime `to_user_id=eq.{userId}` không bắt được.
+### 1. Thêm Realtime vào hook `useTransactionHistory`
 
-### Vấn đề 2: Truy vấn đếm sai trạng thái
+**Tệp:** `src/hooks/useTransactionHistory.ts`
 
-Trong `GlobalPaymentNotifications`, truy vấn đếm dùng `.eq('status', 'success')` nhưng dữ liệu thực tế trong `wallet_transactions` lưu `status = 'completed'`. Kết quả: count luôn trả về 0.
+- Thêm 2 Supabase Realtime channel lắng nghe bảng `wallet_transactions` và `donation_transactions`
+- Khi có INSERT mới (status = completed/success, tx_hash not null), tự động gọi `refresh()` để cập nhật danh sách
+- Sử dụng debounce 500ms để tránh gọi quá nhiều lần khi có nhiều giao dịch cùng lúc
+- Thêm lắng nghe `claim_requests` cho giao dịch rút thưởng
 
-### Vấn đề 3: Lấy số dư FUN thất bại trên mobile
+### 2. Gửi tin nhắn chat khi giao dịch thành công
 
-Trên mobile (WalletConnect), `window.ethereum` không tồn tại. Code hiện tại kiểm tra `!(window as any).ethereum` và bỏ qua việc fetch balance. Cần lấy wallet address từ profile thay vì từ `window.ethereum`.
+**Tệp:** `src/lib/donation.ts`
+
+Sau khi insert vào `wallet_transactions` thành công (dòng 101-111), thêm logic:
+- Tìm hoặc tạo cuộc trò chuyện giữa người gửi và người nhận (`user_chats`)
+- Gửi tin nhắn chat dạng "donation" với nội dung thông báo đã nhận token
+- Chỉ gửi khi `toUserId` tồn tại (có người nhận trong hệ thống)
+
+### 3. Đảm bảo tất cả token hiển thị đúng
+
+Hiện tại dữ liệu đã có đủ các token:
+- `wallet_transactions`: BTC, CAMLY, BNB, USDT (FUN sẽ xuất hiện khi có giao dịch FUN mới)
+- `donation_transactions`: USDT, FUN, CAMLY, BNB
+
+Không cần thay đổi gì thêm cho phần hiển thị - hook đã xử lý đúng tất cả token.
 
 ---
 
-## Giải pháp
+## Chi tiết kỹ thuật
 
-### 1. Sửa `GlobalPaymentNotifications` - Thêm lắng nghe `donation_transactions`
+### Realtime subscription (useTransactionHistory.ts)
 
-**Tệp:** `src/components/Web3/GlobalPaymentNotifications.tsx`
-
-- Thêm channel thứ 2 lắng nghe `donation_transactions` với filter `receiver_id=eq.{userId}` và `status=eq.success`
-- Sửa truy vấn đếm từ `status = 'success'` thành `status = 'completed'` cho `wallet_transactions`
-- Khi nhận event từ `donation_transactions`, fetch token symbol từ `donate_tokens` để hiện đúng tên token
-
-### 2. Sửa status filter trong count query
-
-**Tệp:** `src/components/Web3/GlobalPaymentNotifications.tsx`
-
-Thay:
 ```text
-.eq('status', 'success')
-```
-Thành:
-```text
-.in('status', ['success', 'completed'])
+// Thêm useEffect mới với 3 channel:
+// Channel 1: wallet_transactions (INSERT, status=completed)
+// Channel 2: donation_transactions (INSERT + UPDATE to success)  
+// Channel 3: claim_requests (INSERT + UPDATE to success)
+// Mỗi event trigger refresh() với debounce 500ms
 ```
 
-### 3. Sửa balance fetch trên mobile
+### Chat message khi gửi token (donation.ts)
 
-**Tệp:** `src/components/Donate/EnhancedDonateModal.tsx`
-
-- Xoá kiểm tra `window.ethereum` khi lấy wallet address để fetch balance
-- Ưu tiên dùng `senderProfile.wallet_address` (đã có sẵn từ DB)
-- Chỉ dùng wagmi `getAccount` làm fallback thay vì `window.ethereum`
-- Sửa `isBscNoWallet`: kiểm tra `!senderProfile?.wallet_address` thay vì `!window.ethereum`
+```text
+// Sau khi record transaction thành công:
+if (toUserId) {
+  // 1. Tìm chat hiện có hoặc tạo mới
+  // 2. Insert chat_message type "donation"
+  // 3. Nội dung: "Bạn đã nhận được {amount} {tokenSymbol}!"
+}
+```
 
 ---
 
@@ -58,6 +65,8 @@ Thành:
 
 | # | Tệp | Thay đổi |
 |---|------|----------|
-| 1 | `GlobalPaymentNotifications.tsx` | Thêm lắng nghe `donation_transactions`, sửa status filter |
-| 2 | `EnhancedDonateModal.tsx` | Sửa balance fetch trên mobile, bỏ phụ thuộc `window.ethereum` |
+| 1 | `src/hooks/useTransactionHistory.ts` | Thêm realtime subscription cho 3 bảng giao dịch |
+| 2 | `src/lib/donation.ts` | Gửi tin nhắn chat khi giao dịch thành công |
+
+Sau khi cập nhật, trang `/transactions` sẽ tự động hiển thị giao dịch mới ngay khi chúng xảy ra, và người nhận sẽ nhận được tin nhắn trong mục Messages.
 
