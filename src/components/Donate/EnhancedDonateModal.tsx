@@ -240,89 +240,56 @@ export const EnhancedDonateModal = ({
         return;
       }
 
-      const ethereum = (window as any).ethereum;
-      if (!ethereum) {
-        setBscBalance(null);
-        return;
+      // Get wallet address from profile or wallet provider
+      let walletAddress = senderProfile?.wallet_address;
+      if (!walletAddress) {
+        const ethereum = (window as any).ethereum;
+        if (!ethereum) {
+          setBscBalance(null);
+          return;
+        }
+        try {
+          const tempProvider = new ethers.BrowserProvider(ethereum);
+          const signer = await tempProvider.getSigner();
+          walletAddress = await signer.getAddress();
+        } catch {
+          setBscBalance(null);
+          return;
+        }
       }
 
       setLoadingBscBalance(true);
       try {
-        const provider = new ethers.BrowserProvider(ethereum);
+        // Use public BSC RPC — always reads from BSC regardless of wallet network
+        const BSC_RPC = "https://bsc-dataseed.binance.org/";
+        const readProvider = new ethers.JsonRpcProvider(BSC_RPC);
 
-        // Check and switch to BSC Mainnet (chainId 56) if needed
-        const network = await provider.getNetwork();
-        const currentChainId = Number(network.chainId);
-        if (currentChainId !== 56) {
-          try {
-            await ethereum.request({
-              method: 'wallet_switchEthereumChain',
-              params: [{ chainId: '0x38' }],
-            });
-          } catch (switchErr: any) {
-            if (switchErr.code === 4902) {
-              await ethereum.request({
-                method: 'wallet_addEthereumChain',
-                params: [{
-                  chainId: '0x38',
-                  chainName: 'BNB Smart Chain',
-                  nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 },
-                  rpcUrls: ['https://bsc-dataseed.binance.org/'],
-                  blockExplorerUrls: ['https://bscscan.com'],
-                }],
-              });
-            } else {
-              console.warn("User rejected network switch");
-              setBscBalance("0");
-              setLoadingBscBalance(false);
-              return;
-            }
-          }
-          // Re-create provider after network switch
-          const newProvider = new ethers.BrowserProvider(ethereum);
-          const signer = await newProvider.getSigner();
-          const address = await signer.getAddress();
-          await fetchBalanceForAddress(newProvider, address);
+        const tokenConfig = SUPPORTED_TOKENS.find(t => t.symbol === selectedToken!.symbol);
+        if (!tokenConfig) {
+          setBscBalance("0");
+          setLoadingBscBalance(false);
           return;
         }
 
-        const signer = await provider.getSigner();
-        const address = await signer.getAddress();
-        await fetchBalanceForAddress(provider, address);
+        if (tokenConfig.address === "native") {
+          const bal = await readProvider.getBalance(walletAddress);
+          setBscBalance(ethers.formatEther(bal));
+        } else {
+          const erc20Abi = ["function balanceOf(address) view returns (uint256)"];
+          const contract = new ethers.Contract(tokenConfig.address, erc20Abi, readProvider);
+          const bal = await contract.balanceOf(walletAddress);
+          setBscBalance(ethers.formatUnits(bal, tokenConfig.decimals));
+        }
       } catch (err) {
-        console.error("Failed to fetch BSC balance:", err);
+        console.error("Failed to fetch BSC balance via public RPC:", err);
         setBscBalance("0");
       } finally {
         setLoadingBscBalance(false);
       }
     };
 
-    const fetchBalanceForAddress = async (provider: ethers.BrowserProvider, address: string) => {
-      const tokenConfig = SUPPORTED_TOKENS.find(t => t.symbol === selectedToken!.symbol);
-      if (!tokenConfig) {
-        setBscBalance("0");
-        return;
-      }
-
-      try {
-        if (tokenConfig.address === "native") {
-          const bal = await provider.getBalance(address);
-          setBscBalance(ethers.formatEther(bal));
-        } else {
-          const erc20Abi = ["function balanceOf(address) view returns (uint256)"];
-          const contract = new ethers.Contract(tokenConfig.address, erc20Abi, provider);
-          const bal = await contract.balanceOf(address);
-          setBscBalance(ethers.formatUnits(bal, tokenConfig.decimals));
-        }
-      } catch (balErr: any) {
-        // Handle BAD_DATA / 0x error gracefully
-        console.warn("Balance query failed (possibly wrong network or contract not deployed):", balErr?.code || balErr);
-        setBscBalance("0");
-      }
-    };
-
     fetchBscBalance();
-  }, [selectedToken?.symbol, selectedToken?.chain, open]);
+  }, [selectedToken?.symbol, selectedToken?.chain, open, senderProfile?.wallet_address]);
 
   // Search users
   useEffect(() => {
