@@ -6,12 +6,15 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Progress } from "@/components/ui/progress";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
-import { Search, Download, ChevronDown, ChevronUp, RefreshCw, ExternalLink } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Search, Download, ChevronDown, ChevronUp, RefreshCw, ExternalLink, FileSpreadsheet, FileText, Loader2 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 
 type SortKey = "total_camly_rewards" | "posts_count" | "videos_count" | "donations_sent_total" | "donations_received_total" | "minted_fun_total" | "display_name";
 type SortDir = "asc" | "desc";
@@ -60,21 +63,107 @@ export function UserStatsTab() {
     return sortDir === "asc" ? <ChevronUp className="w-3 h-3 inline ml-1" /> : <ChevronDown className="w-3 h-3 inline ml-1" />;
   };
 
-  const exportCSV = () => {
-    const headers = ["Username", "Display Name", "Posts", "Videos", "Comments", "Likes", "Shares", "CAMLY Total", "CAMLY Pending", "CAMLY Approved", "Donations Sent", "Donations Received", "FUN Minted"];
-    const rows = filtered.map(u => [
-      u.username, u.display_name, u.posts_count, u.videos_count, u.comments_count, u.likes_count, u.shares_count,
-      u.total_camly_rewards, u.pending_rewards, u.approved_reward,
-      u.donations_sent_total, u.donations_received_total, u.minted_fun_total
-    ]);
-    const csv = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `users-stats-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const [exporting, setExporting] = useState<"csv" | "pdf" | null>(null);
+
+  const escCsv = (v: string | number | null | undefined) => {
+    const s = String(v ?? "");
+    return `"${s.replace(/"/g, '""')}"`;
+  };
+
+  const fmtNum = (n: number) => n % 1 === 0 ? String(n) : n.toFixed(2);
+
+  const exportCSV = async () => {
+    try {
+      setExporting("csv");
+      const headers = [
+        "Username", "Display Name", "Wallet", "Ngay Tham Gia", "Trang Thai",
+        "Posts", "Videos", "Comments", "Views", "Likes", "Shares",
+        "CAMLY Tong", "CAMLY Cho Duyet", "CAMLY Da Duyet",
+        "Donations Gui (lan)", "Donations Gui (tong)", "Donations Nhan (lan)", "Donations Nhan (tong)",
+        "Mint Requests", "FUN Minted"
+      ];
+      const rows = filtered.map(u => [
+        escCsv(u.username), escCsv(u.display_name),
+        escCsv(u.wallet_address), escCsv(new Date(u.created_at).toLocaleDateString("vi-VN")),
+        escCsv(u.banned ? "Banned" : "Active"),
+        fmtNum(u.posts_count), fmtNum(u.videos_count), fmtNum(u.comments_count),
+        fmtNum(u.views_count), fmtNum(u.likes_count), fmtNum(u.shares_count),
+        fmtNum(u.total_camly_rewards), fmtNum(u.pending_rewards), fmtNum(u.approved_reward),
+        fmtNum(u.donations_sent_count), fmtNum(u.donations_sent_total),
+        fmtNum(u.donations_received_count), fmtNum(u.donations_received_total),
+        fmtNum(u.mint_requests_count), fmtNum(u.minted_fun_total)
+      ].join(","));
+
+      const bom = "\uFEFF";
+      const csv = bom + headers.join(",") + "\n" + rows.join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `users-stats-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Đã xuất CSV thành công!", { description: `${filtered.length} users` });
+    } catch (e) {
+      console.error(e);
+      toast.error("Lỗi khi xuất CSV");
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const exportPDF = async () => {
+    try {
+      setExporting("pdf");
+      const doc = new jsPDF({ orientation: "landscape" });
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(20);
+      doc.setTextColor(255, 215, 0);
+      doc.text("FUN PLAY", 14, 15);
+      doc.setFontSize(14);
+      doc.setTextColor(100, 100, 100);
+      doc.text("THONG KE USERS", 14, 23);
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(120, 120, 120);
+      doc.text(`Xuat ngay: ${new Date().toLocaleString("vi-VN")}`, 14, 30);
+      doc.text(`Tong so users: ${filtered.length}`, 14, 36);
+
+      autoTable(doc, {
+        startY: 42,
+        head: [["Username", "Display Name", "Posts", "Videos", "Comments", "CAMLY", "FUN Minted", "Don. Gui", "Don. Nhan", "Trang Thai"]],
+        body: filtered.map(u => [
+          u.username?.substring(0, 18) || "",
+          u.display_name?.substring(0, 18) || "",
+          u.posts_count, u.videos_count, u.comments_count,
+          fmtNum(u.total_camly_rewards), fmtNum(u.minted_fun_total),
+          fmtNum(u.donations_sent_total), fmtNum(u.donations_received_total),
+          u.banned ? "Banned" : "Active"
+        ]),
+        theme: "grid",
+        headStyles: { fillColor: [255, 215, 0], textColor: [0, 0, 0], fontStyle: "bold", fontSize: 8 },
+        bodyStyles: { fontSize: 7 },
+        alternateRowStyles: { fillColor: [250, 250, 250] },
+        margin: { left: 14, right: 14 },
+      });
+
+      const pageCount = doc.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(150, 150, 150);
+        doc.text("Xuat tu FUN PLAY • User Statistics", doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, { align: "center" });
+        doc.text(`Trang ${i} / ${pageCount}`, doc.internal.pageSize.width - 20, doc.internal.pageSize.height - 10, { align: "right" });
+      }
+
+      doc.save(`users-stats-${new Date().toISOString().slice(0, 10)}.pdf`);
+      toast.success("Đã xuất PDF thành công!", { description: `${filtered.length} users` });
+    } catch (e) {
+      console.error(e);
+      toast.error("Lỗi khi xuất PDF");
+    } finally {
+      setExporting(null);
+    }
   };
 
   if (loading) {
@@ -140,7 +229,21 @@ export function UserStatsTab() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input placeholder="Tìm user..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
           </div>
-          <Button variant="outline" size="icon" onClick={exportCSV}><Download className="w-4 h-4" /></Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon" disabled={!!exporting}>
+                {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={exportCSV} disabled={!!exporting} className="gap-2 cursor-pointer">
+                <FileSpreadsheet className="h-4 w-4 text-green-600" />Xuất CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={exportPDF} disabled={!!exporting} className="gap-2 cursor-pointer">
+                <FileText className="h-4 w-4 text-red-600" />Xuất PDF
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button variant="outline" size="icon" onClick={refetch}><RefreshCw className="w-4 h-4" /></Button>
         </div>
         <p className="text-xs text-muted-foreground">{filtered.length} users</p>
@@ -185,7 +288,22 @@ export function UserStatsTab() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input placeholder="Tìm kiếm user..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
         </div>
-        <Button variant="outline" size="sm" onClick={exportCSV}><Download className="w-4 h-4 mr-2" />Export CSV</Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" disabled={!!exporting} className="gap-2">
+              {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              Xuất dữ liệu
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={exportCSV} disabled={!!exporting} className="gap-2 cursor-pointer">
+              <FileSpreadsheet className="h-4 w-4 text-green-600" />Xuất CSV (Excel)
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={exportPDF} disabled={!!exporting} className="gap-2 cursor-pointer">
+              <FileText className="h-4 w-4 text-red-600" />Xuất PDF
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <Button variant="outline" size="sm" onClick={refetch}><RefreshCw className="w-4 h-4 mr-2" />Refresh</Button>
         <span className="text-sm text-muted-foreground ml-auto">{filtered.length} users</span>
       </div>
