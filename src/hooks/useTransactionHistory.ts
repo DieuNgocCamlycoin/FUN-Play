@@ -585,6 +585,53 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
     fetchTransactions(true);
   }, [publicMode, user?.id]);
 
+  // ========== Realtime Subscriptions ==========
+  useEffect(() => {
+    if (!user?.id && !publicMode) return;
+
+    let debounceTimer: NodeJS.Timeout | null = null;
+    const debouncedRefresh = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        fetchTransactions(true);
+      }, 500);
+    };
+
+    const channel = supabase
+      .channel('realtime-tx-history')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'wallet_transactions',
+      }, debouncedRefresh)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'donation_transactions',
+      }, debouncedRefresh)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'donation_transactions',
+      }, debouncedRefresh)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'claim_requests',
+      }, debouncedRefresh)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'claim_requests',
+      }, debouncedRefresh)
+      .subscribe();
+
+    return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, publicMode]);
+
   // Load more function
   const loadMore = useCallback(() => {
     if (!loading && hasMore) {

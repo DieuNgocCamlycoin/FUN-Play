@@ -110,6 +110,40 @@ export const sendDonation = async ({
       video_id: videoId || null,
     });
 
+    // Send chat notification to receiver
+    if (toUserId) {
+      try {
+        // Find existing chat or create new one
+        const { data: existingChat } = await supabase
+          .from("user_chats")
+          .select("id")
+          .or(`and(user1_id.eq.${user.id},user2_id.eq.${toUserId}),and(user1_id.eq.${toUserId},user2_id.eq.${user.id})`)
+          .maybeSingle();
+
+        let chatId = existingChat?.id;
+
+        if (!chatId) {
+          const { data: newChat } = await supabase
+            .from("user_chats")
+            .insert({ user1_id: user.id, user2_id: toUserId })
+            .select("id")
+            .single();
+          chatId = newChat?.id;
+        }
+
+        if (chatId) {
+          await supabase.from("chat_messages").insert({
+            chat_id: chatId,
+            sender_id: user.id,
+            message_type: "donation",
+            content: `🎁 Bạn đã nhận được ${amount} ${tokenSymbol}!`,
+          });
+        }
+      } catch (chatErr) {
+        console.warn("[Donation] Failed to send chat notification:", chatErr);
+      }
+    }
+
     return { success: true, txHash };
   } catch (error: any) {
     // Record failed transaction
