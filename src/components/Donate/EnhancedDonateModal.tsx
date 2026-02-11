@@ -240,17 +240,18 @@ export const EnhancedDonateModal = ({
         return;
       }
 
-      // Get wallet address from profile or wagmi (mobile-compatible)
-      let walletAddress = senderProfile?.wallet_address;
+      // Prioritize connected wallet (wagmi) over DB profile wallet
+      let walletAddress: string | null = null;
+      try {
+        const { getAccount } = await import("@wagmi/core");
+        const { wagmiConfig } = await import("@/lib/web3Config");
+        const account = getAccount(wagmiConfig);
+        walletAddress = account?.address || null;
+      } catch {
+        // ignore
+      }
       if (!walletAddress) {
-        try {
-          const { getAccount } = await import("@wagmi/core");
-          const { wagmiConfig } = await import("@/lib/web3Config");
-          const account = getAccount(wagmiConfig);
-          walletAddress = account?.address || null;
-        } catch {
-          // ignore
-        }
+        walletAddress = senderProfile?.wallet_address || null;
       }
       if (!walletAddress) {
         setBscBalance(null);
@@ -370,7 +371,25 @@ export const EnhancedDonateModal = ({
   const isValidAmount = selectedToken?.chain === "internal"
     ? currentBalance !== null && parseFloat(amount || "0") <= currentBalance
     : bscBalance !== null && parseFloat(amount || "0") <= parseFloat(bscBalance);
-  const isBscNoWallet = selectedToken?.chain === "bsc" && !senderProfile?.wallet_address;
+  // Check connected wallet for BSC status
+  const [connectedWalletAddress, setConnectedWalletAddress] = useState<string | null>(null);
+  useEffect(() => {
+    const checkConnectedWallet = async () => {
+      try {
+        const { getAccount } = await import("@wagmi/core");
+        const { wagmiConfig } = await import("@/lib/web3Config");
+        const account = getAccount(wagmiConfig);
+        setConnectedWalletAddress(account?.address || null);
+      } catch {
+        setConnectedWalletAddress(null);
+      }
+    };
+    if (open) checkConnectedWallet();
+  }, [open, selectedToken]);
+
+  const isBscNoWallet = selectedToken?.chain === "bsc" && !senderProfile?.wallet_address && !connectedWalletAddress;
+  const walletMismatch = connectedWalletAddress && senderProfile?.wallet_address && 
+    connectedWalletAddress.toLowerCase() !== senderProfile.wallet_address.toLowerCase();
   const sortedTokens = [...tokens].sort((a, b) => a.priority - b.priority);
   const currentTheme = DONATION_THEMES.find(t => t.id === selectedTheme);
   const canProceedToReview = selectedReceiver && selectedToken && amount && parseFloat(amount) > 0 && isValidAmount;
@@ -636,6 +655,12 @@ export const EnhancedDonateModal = ({
                   <div className="p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg text-xs text-amber-600 flex items-center gap-1.5">
                     <Wallet className="h-3.5 w-3.5 flex-shrink-0" />
                     Vui lòng kết nối ví BSC để kiểm tra số dư và gửi token.
+                  </div>
+                )}
+                {walletMismatch && selectedToken?.chain === "bsc" && (
+                  <div className="p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg text-xs text-amber-600 flex items-center gap-1.5">
+                    <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
+                    ⚠️ Ví đang kết nối ({shortenAddress(connectedWalletAddress!)}) khác với ví trong hồ sơ ({shortenAddress(senderProfile!.wallet_address!)}). Giao dịch sẽ gửi từ ví đang kết nối.
                   </div>
                 )}
               </div>
