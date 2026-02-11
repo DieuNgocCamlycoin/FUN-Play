@@ -153,3 +153,17 @@ export const getTokenBySymbol = (symbol: string): TokenConfig | undefined => {
 export const getTokenByAddress = (address: string): TokenConfig | undefined => {
   return SUPPORTED_TOKENS.find(t => t.address.toLowerCase() === address.toLowerCase());
 };
+
+/**
+ * BSC RPC URLs
+ */
+export const BSC_MAINNET_RPC = "https://bsc-dataseed.binance.org/";
+export const BSC_TESTNET_RPC = "https://data-seed-prebsc-1-s1.binance.org:8545/";
+
+/**
+ * Get the correct RPC URL for a token.
+ * FUN Money is deployed on BSC Testnet; all others on BSC Mainnet.
+ */
+export const getRpcForToken = (symbol: string): string => {
+  return symbol === "FUN" ? BSC_TESTNET_RPC : BSC_MAINNET_RPC;
+};
