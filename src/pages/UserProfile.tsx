@@ -255,16 +255,14 @@ export default function UserProfile() {
 
       <div className="min-h-screen bg-background">
         {/* Mobile Back Button */}
-        {isMobile && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate(-1)}
-            className="fixed top-3 left-3 z-50 bg-black/40 hover:bg-black/60 text-white rounded-full"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-        )}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => navigate(-1)}
+          className="fixed top-3 left-3 z-50 bg-black/40 hover:bg-black/60 text-white rounded-full"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
 
         {/* Header with Cover + Avatar + Honor Board */}
         <ProfileHeader
