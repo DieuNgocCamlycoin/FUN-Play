@@ -4,7 +4,7 @@
  */
 import { createAppKit } from '@reown/appkit/react';
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
-import { bsc } from '@reown/appkit/networks';
+import { bsc, bscTestnet } from '@reown/appkit/networks';
 
 // WalletConnect Cloud Project ID - loaded from environment variable
 const projectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || '';
@@ -35,7 +35,7 @@ const BITGET_WALLET_ID = '38f5d18bd8522c244bdd70cb4a68e0e718865155811c043f052fb9
 const TRUST_WALLET_ID = '4622a2b2d6af1c9844944291e5e7351a6aa24cd7b23099efac1b2fd875da31a0';
 
 // Networks configuration - use mutable array for AppKit compatibility
-const networks = [bsc] as [typeof bsc, ...typeof bsc[]];
+const networks = [bsc, bscTestnet] as any;
 
 // Metadata for WalletConnect
 const metadata = {

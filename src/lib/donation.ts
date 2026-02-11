@@ -1,6 +1,6 @@
 import { ethers } from "ethers";
 import { supabase } from "@/integrations/supabase/client";
-import { getWalletClient } from "@wagmi/core";
+import { getWalletClient, switchChain } from "@wagmi/core";
 import { wagmiConfig } from "@/lib/web3Config";
 
 const ERC20_ABI = [
@@ -27,39 +27,31 @@ export const sendDonation = async ({
   videoId,
 }: SendDonationParams) => {
   // Get wallet client from wagmi instead of window.ethereum
-  const walletClient = await getWalletClient(wagmiConfig);
+  let walletClient = await getWalletClient(wagmiConfig);
   if (!walletClient) {
     throw new Error("Vui lòng kết nối ví để tặng");
   }
 
-  // If sending FUN Money, switch to BSC Testnet first
+  // If sending FUN Money, switch to BSC Testnet first using wagmi (works on mobile + desktop)
   const FUN_MONEY_CONTRACT = "0x1aa8DE8B1E4465C6d729E8564893f8EF823a5ff2";
-  if (tokenAddress.toLowerCase() === FUN_MONEY_CONTRACT.toLowerCase()) {
+  const isFunToken = tokenAddress.toLowerCase() === FUN_MONEY_CONTRACT.toLowerCase();
+
+  if (isFunToken) {
     try {
-      await (window as any).ethereum?.request({
-        method: 'wallet_switchEthereumChain',
-        params: [{ chainId: '0x61' }], // BSC Testnet chain 97
-      });
-    } catch (switchError: any) {
-      if (switchError.code === 4902) {
-        await (window as any).ethereum?.request({
-          method: 'wallet_addEthereumChain',
-          params: [{
-            chainId: '0x61',
-            chainName: 'BNB Smart Chain Testnet',
-            rpcUrls: ['https://data-seed-prebsc-1-s1.binance.org:8545/'],
-            nativeCurrency: { name: 'tBNB', symbol: 'tBNB', decimals: 18 },
-            blockExplorerUrls: ['https://testnet.bscscan.com'],
-          }],
-        });
-      } else {
-        throw new Error("Vui lòng chuyển sang mạng BSC Testnet để gửi FUN");
+      await switchChain(wagmiConfig, { chainId: 97 });
+      // Re-fetch wallet client after chain switch
+      walletClient = await getWalletClient(wagmiConfig);
+      if (!walletClient) {
+        throw new Error("Không thể kết nối ví sau khi chuyển mạng");
       }
+    } catch (switchError: any) {
+      console.error("[Donation] Failed to switch to BSC Testnet:", switchError);
+      throw new Error("Vui lòng chuyển sang mạng BSC Testnet để gửi FUN");
     }
   }
 
-  // Create ethers provider - use window.ethereum if available
-  const provider = new ethers.BrowserProvider((window as any).ethereum || walletClient.transport);
+  // Create ethers provider from walletClient transport (works with both injected & WalletConnect)
+  const provider = new ethers.BrowserProvider(walletClient.transport as any);
   const signer = await provider.getSigner();
   const fromAddress = await signer.getAddress();
 
