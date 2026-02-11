@@ -138,11 +138,9 @@ const Notifications = () => {
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            {isMobile && (
-              <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-            )}
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
             <h1 className="text-2xl font-bold text-foreground">Thông báo</h1>
           </div>
           {unreadCount > 0 && (
