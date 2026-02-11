@@ -31,30 +31,40 @@ export function useUsersDirectoryStats() {
   const [data, setData] = useState<UserDirectoryStat[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchStats = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const { data: result, error: err } = await supabase.rpc("get_users_directory_stats");
-    if (err) {
-      setError(err.message);
-      setData([]);
-    } else {
+
+    try {
+      const { data: result, error: err } = await supabase.rpc("get_users_directory_stats");
+      if (err) {
+        setError(err.message);
+        setData([]);
+        return;
+      }
+
       setData((result as unknown as UserDirectoryStat[]) || []);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Unknown error";
+      console.error("useUsersDirectoryStats fetchStats error:", e);
+      setError(message);
+      setData([]);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   const debouncedRefetch = useCallback(() => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(() => {
-      fetchStats();
+      void fetchStats();
     }, 2000);
   }, [fetchStats]);
 
   useEffect(() => {
-    fetchStats();
+    void fetchStats();
   }, [fetchStats]);
 
   useEffect(() => {
