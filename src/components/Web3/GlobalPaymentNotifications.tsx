@@ -12,11 +12,54 @@ export const GlobalPaymentNotifications = () => {
   const [receivedCount, setReceivedCount] = useState(0);
 
   useEffect(() => {
-    // Request notification permission on load
     requestNotificationPermission();
   }, []);
 
-  // Real-time monitoring for incoming transactions on ALL pages
+  // Helper to count total received transactions
+  const fetchReceivedCount = async (userId: string) => {
+    const [walletResult, donationResult] = await Promise.all([
+      supabase
+        .from('wallet_transactions')
+        .select('*', { count: 'exact', head: true })
+        .eq('to_user_id', userId)
+        .in('status', ['success', 'completed']),
+      supabase
+        .from('donation_transactions')
+        .select('*', { count: 'exact', head: true })
+        .eq('receiver_id', userId)
+        .eq('status', 'success'),
+    ]);
+    return (walletResult.count || 0) + (donationResult.count || 0);
+  };
+
+  // Helper to show notification
+  const triggerNotification = (amount: string, token: string, count: number) => {
+    setReceivedAmount(amount);
+    setReceivedToken(token);
+    setReceivedCount(count);
+    setShowRichNotification(true);
+
+    showLocalNotification(
+      '💰 FUN Play - RICH!',
+      {
+        body: `Bạn vừa nhận được ${amount} ${token}! 🎉`,
+        icon: '/images/camly-coin.png',
+        badge: '/images/camly-coin.png',
+        tag: 'crypto-payment',
+        requireInteraction: true,
+      }
+    );
+
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({
+        type: 'CRYPTO_RECEIVED',
+        amount,
+        token,
+      });
+    }
+  };
+
+  // Real-time: wallet_transactions
   useEffect(() => {
     if (!user) return;
 
@@ -32,42 +75,82 @@ export const GlobalPaymentNotifications = () => {
         },
         async (payload) => {
           console.log('Global payment notification received:', payload);
-          
           const newTx = payload.new;
           const amount = parseFloat(newTx.amount as string);
           const token = newTx.token_type as string;
+          const count = await fetchReceivedCount(user.id);
+          triggerNotification(amount.toFixed(3), token, count);
+        }
+      )
+      .subscribe();
 
-          // Update received count
-          const { count } = await supabase
-            .from('wallet_transactions')
-            .select('*', { count: 'exact', head: true })
-            .eq('to_user_id', user.id)
-            .eq('status', 'success');
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
 
-          setReceivedAmount(amount.toFixed(3));
-          setReceivedToken(token);
-          setReceivedCount((count || 0));
-          setShowRichNotification(true);
+  // Real-time: donation_transactions
+  useEffect(() => {
+    if (!user) return;
 
-          // Show browser notification
-          showLocalNotification(
-            '💰 FUN Play - RICH!',
-            {
-              body: `Bạn vừa nhận được ${amount.toFixed(3)} ${token}! 🎉`,
-              icon: '/images/camly-coin.png',
-              badge: '/images/camly-coin.png',
-              tag: 'crypto-payment',
-              requireInteraction: true,
+    const channel = supabase
+      .channel('global-donation-transactions')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'donation_transactions',
+          filter: `receiver_id=eq.${user.id}`,
+        },
+        async (payload) => {
+          console.log('Donation notification received:', payload);
+          const newTx = payload.new;
+          const amount = parseFloat(newTx.amount as string);
+
+          // Fetch token symbol from donate_tokens
+          let tokenSymbol = 'CAMLY';
+          if (newTx.token_id) {
+            const { data: tokenData } = await supabase
+              .from('donate_tokens')
+              .select('symbol')
+              .eq('id', newTx.token_id as string)
+              .single();
+            if (tokenData) tokenSymbol = tokenData.symbol;
+          }
+
+          const count = await fetchReceivedCount(user.id);
+          triggerNotification(amount.toFixed(3), tokenSymbol, count);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'donation_transactions',
+          filter: `receiver_id=eq.${user.id}`,
+        },
+        async (payload) => {
+          const newTx = payload.new;
+          const oldTx = payload.old;
+          // Only notify when status changes to 'success'
+          if (newTx.status === 'success' && oldTx.status !== 'success') {
+            console.log('Donation confirmed:', payload);
+            const amount = parseFloat(newTx.amount as string);
+
+            let tokenSymbol = 'CAMLY';
+            if (newTx.token_id) {
+              const { data: tokenData } = await supabase
+                .from('donate_tokens')
+                .select('symbol')
+                .eq('id', newTx.token_id as string)
+                .single();
+              if (tokenData) tokenSymbol = tokenData.symbol;
             }
-          );
 
-          // Send message to service worker for PWA push notification
-          if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-            navigator.serviceWorker.controller.postMessage({
-              type: 'CRYPTO_RECEIVED',
-              amount: amount.toFixed(3),
-              token: token,
-            });
+            const count = await fetchReceivedCount(user.id);
+            triggerNotification(amount.toFixed(3), tokenSymbol, count);
           }
         }
       )
@@ -78,7 +161,7 @@ export const GlobalPaymentNotifications = () => {
     };
   }, [user]);
 
-  // Listen for FUN Wallet transaction events (from FunWallet page iframe)
+  // Listen for FUN Wallet transaction events
   useEffect(() => {
     const handleFunWalletTx = (event: CustomEvent) => {
       const { amount, token, type } = event.detail || {};
@@ -88,7 +171,6 @@ export const GlobalPaymentNotifications = () => {
         setReceivedToken(token || 'CAMLY');
         setShowRichNotification(true);
 
-        // Browser notification
         showLocalNotification('🔶 FUN Wallet - RICH!', {
           body: `Bạn vừa nhận được ${amount} ${token}! 🎉`,
           icon: '/images/fun-wallet-logo.png',
