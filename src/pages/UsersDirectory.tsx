@@ -271,7 +271,7 @@ const UsersDirectory = () => {
                   {/* Stats Grid */}
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
                     <div className="flex items-center gap-1.5">
-                      <Eye className="h-3 w-3" /> Views: <span className="text-foreground font-medium">{fmt(u.views_count)}</span>
+                      <Eye className="h-3 w-3" /> Lượt xem: <span className="text-foreground font-medium">{fmt(u.views_count)}</span>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <Video className="h-3 w-3" /> Videos: <span className="text-foreground font-medium">{fmt(u.videos_count)}</span>
@@ -280,7 +280,7 @@ const UsersDirectory = () => {
                       <MessageSquare className="h-3 w-3" /> Comments: <span className="text-foreground font-medium">{fmt(u.comments_count)}</span>
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <Heart className="h-3 w-3" /> Likes: <span className="text-foreground font-medium">{fmt(u.likes_count)}</span>
+                      <Heart className="h-3 w-3" /> Đã thích: <span className="text-foreground font-medium">{fmt(u.likes_count)}</span>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <Gift className="h-3 w-3" /> Đã tặng: <span className="text-foreground font-medium">{fmt(u.donations_sent_total)}</span>
