@@ -23,14 +23,14 @@ export const useInternalWallet = () => {
     }
 
     try {
-      // Get all internal tokens
+      // Get all internal tokens (if any remain)
       const { data: tokens } = await supabase
         .from("donate_tokens")
         .select("id, symbol, name, icon_url")
         .eq("chain", "internal")
         .eq("is_enabled", true);
 
-      if (!tokens) {
+      if (!tokens || tokens.length === 0) {
         setBalances([]);
         setLoading(false);
         return;

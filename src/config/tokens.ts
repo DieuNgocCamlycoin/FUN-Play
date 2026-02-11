@@ -35,6 +35,11 @@ export const WBNB_ADDRESS = "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c";
 export const USDT_ADDRESS = "0x55d398326f99059fF775485246999027B3197955";
 
 /**
+ * FUN Money Token on BSC
+ */
+export const FUN_MONEY_ADDRESS = "0x1aa8DE8B1E4465C6d729E8564893f8EF823a5ff2";
+
+/**
  * BTCB (Bitcoin BEP20) on BSC
  */
 export const BTC_ADDRESS = "0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c";
@@ -76,6 +81,13 @@ export const SUPPORTED_TOKENS: TokenConfig[] = [
     decimals: 18,
     icon: "https://cryptologos.cc/logos/bitcoin-btc-logo.svg?v=035"
   },
+  { 
+    symbol: "FUN", 
+    name: "FUN Money",
+    address: FUN_MONEY_ADDRESS, 
+    decimals: 18,
+    icon: "/images/fun-money-coin.png"
+  },
 ];
 
 /**
@@ -109,6 +121,13 @@ export const SWAP_TOKENS: TokenConfig[] = [
     address: BTC_ADDRESS, 
     decimals: 18,
     icon: "https://cryptologos.cc/logos/bitcoin-btc-logo.svg?v=035"
+  },
+  { 
+    symbol: "FUN", 
+    name: "FUN Money",
+    address: FUN_MONEY_ADDRESS, 
+    decimals: 18,
+    icon: "/images/fun-money-coin.png"
   },
 ];
 
