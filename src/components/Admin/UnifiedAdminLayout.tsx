@@ -12,6 +12,7 @@ import {
   Video, 
   Settings, 
   Crown,
+  Shield,
   ChevronLeft,
   ChevronRight,
   Menu,
@@ -26,7 +27,8 @@ export type AdminSection =
   | "videos" 
   | "config" 
   | "admin-team"
-  | "fun-money";
+  | "fun-money"
+  | "abuse-detection";
 
 interface NavItem {
   id: AdminSection;
@@ -48,6 +50,7 @@ const navItems: NavItem[] = [
   { id: "overview", label: "Tổng Quan", icon: LayoutDashboard },
   { id: "rewards", label: "CAMLY Rewards", icon: Coins },
   { id: "fun-money", label: "FUN Money", icon: Coins },
+  { id: "abuse-detection", label: "Phát Hiện Lạm Dụng", icon: Shield },
   { id: "users", label: "Quản Lý Users", icon: Users },
   { id: "videos", label: "Quản Lý Video", icon: Video },
   { id: "config", label: "Cấu Hình", icon: Settings },

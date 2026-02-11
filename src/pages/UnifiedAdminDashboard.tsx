@@ -15,6 +15,7 @@ import { VideosManagementTab } from "@/components/Admin/tabs/VideosManagementTab
 import { ConfigManagementTab } from "@/components/Admin/tabs/ConfigManagementTab";
 import AdminManagementTab from "@/components/Admin/tabs/AdminManagementTab";
 import { FunMoneyApprovalTab } from "@/components/Admin/tabs/FunMoneyApprovalTab";
+import WalletAbuseTab from "@/components/Admin/tabs/WalletAbuseTab";
 import { useAdminManage } from "@/hooks/useAdminManage";
 import { useAdminRealtime } from "@/hooks/useAdminRealtime";
 
@@ -25,7 +26,7 @@ export default function UnifiedAdminDashboard() {
   const [checkingRole, setCheckingRole] = useState(true);
   const [searchParams, setSearchParams] = useSearchParams();
   
-  const { stats } = useAdminManage();
+  const { stats, users, walletGroups, banUser, isFakeName, actionLoading } = useAdminManage();
   const { stats: realtimeStats, isConnected } = useAdminRealtime();
 
   // Get current section from URL or default to "overview"
@@ -113,6 +114,16 @@ export default function UnifiedAdminDashboard() {
         return <RewardsManagementTab />;
       case "fun-money":
         return <FunMoneyApprovalTab />;
+      case "abuse-detection":
+        return (
+          <WalletAbuseTab
+            users={users}
+            walletGroups={walletGroups}
+            onBan={banUser}
+            isFakeName={isFakeName}
+            loading={actionLoading}
+          />
+        );
       case "users":
         return <UsersManagementTab />;
       case "videos":
@@ -145,6 +156,7 @@ export default function UnifiedAdminDashboard() {
               {currentSection === "videos" && "Quản Lý Video"}
               {currentSection === "config" && "Cấu Hình Hệ Thống"}
               {currentSection === "admin-team" && "Quản Lý Admin Team"}
+              {currentSection === "abuse-detection" && "Phát Hiện Lạm Dụng IP"}
             </h1>
             <p className="text-muted-foreground mt-1">
               {currentSection === "overview" && "Thống kê toàn nền tảng FUN Play"}
@@ -154,6 +166,7 @@ export default function UnifiedAdminDashboard() {
               {currentSection === "videos" && "Duyệt video và thống kê uploads"}
               {currentSection === "config" && "Điều chỉnh mức thưởng và giới hạn hệ thống"}
               {currentSection === "admin-team" && "Thêm/xóa quyền admin cho thành viên"}
+              {currentSection === "abuse-detection" && "Phát hiện IP dùng chung để tạo nhiều tài khoản/ví nhận thưởng"}
             </p>
           </div>
           
