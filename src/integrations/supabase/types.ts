@@ -2385,6 +2385,34 @@ export type Database = {
         Returns: Json
       }
       get_user_activity_summary: { Args: { p_user_id: string }; Returns: Json }
+      get_users_directory_stats: {
+        Args: never
+        Returns: {
+          approved_reward: number
+          avatar_url: string
+          avatar_verified: boolean
+          banned: boolean
+          comments_count: number
+          created_at: string
+          display_name: string
+          donations_received_count: number
+          donations_received_total: number
+          donations_sent_count: number
+          donations_sent_total: number
+          likes_count: number
+          mint_requests_count: number
+          minted_fun_total: number
+          pending_rewards: number
+          posts_count: number
+          shares_count: number
+          total_camly_rewards: number
+          user_id: string
+          username: string
+          videos_count: number
+          views_count: number
+          wallet_address: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

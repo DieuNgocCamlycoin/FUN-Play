@@ -16,7 +16,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Menu,
-  Home
+  Home,
+  BarChart3
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -28,7 +29,8 @@ export type AdminSection =
   | "config" 
   | "admin-team"
   | "fun-money"
-  | "abuse-detection";
+  | "abuse-detection"
+  | "user-stats";
 
 interface NavItem {
   id: AdminSection;
@@ -54,6 +56,7 @@ const navItems: NavItem[] = [
   { id: "users", label: "Quản Lý Users", icon: Users },
   { id: "videos", label: "Quản Lý Video", icon: Video },
   { id: "config", label: "Cấu Hình", icon: Settings },
+  { id: "user-stats", label: "Thống Kê Users", icon: BarChart3 },
   { id: "admin-team", label: "Quản Lý Admin", icon: Crown, ownerOnly: true },
 ];
 

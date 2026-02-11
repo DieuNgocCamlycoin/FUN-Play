@@ -16,6 +16,7 @@ import { ConfigManagementTab } from "@/components/Admin/tabs/ConfigManagementTab
 import AdminManagementTab from "@/components/Admin/tabs/AdminManagementTab";
 import { FunMoneyApprovalTab } from "@/components/Admin/tabs/FunMoneyApprovalTab";
 import WalletAbuseTab from "@/components/Admin/tabs/WalletAbuseTab";
+import { UserStatsTab } from "@/components/Admin/tabs/UserStatsTab";
 import { useAdminManage } from "@/hooks/useAdminManage";
 import { useAdminRealtime } from "@/hooks/useAdminRealtime";
 
@@ -132,6 +133,8 @@ export default function UnifiedAdminDashboard() {
         return <ConfigManagementTab />;
       case "admin-team":
         return <AdminManagementTab />;
+      case "user-stats":
+        return <UserStatsTab />;
       default:
         return <OverviewTab />;
     }
@@ -157,6 +160,7 @@ export default function UnifiedAdminDashboard() {
               {currentSection === "config" && "Cấu Hình Hệ Thống"}
               {currentSection === "admin-team" && "Quản Lý Admin Team"}
               {currentSection === "abuse-detection" && "Phát Hiện Lạm Dụng IP"}
+              {currentSection === "user-stats" && "Thống Kê Users"}
             </h1>
             <p className="text-muted-foreground mt-1">
               {currentSection === "overview" && "Thống kê toàn nền tảng FUN Play"}
@@ -167,6 +171,7 @@ export default function UnifiedAdminDashboard() {
               {currentSection === "config" && "Điều chỉnh mức thưởng và giới hạn hệ thống"}
               {currentSection === "admin-team" && "Thêm/xóa quyền admin cho thành viên"}
               {currentSection === "abuse-detection" && "Phát hiện IP dùng chung để tạo nhiều tài khoản/ví nhận thưởng"}
+              {currentSection === "user-stats" && "Danh sách users với đầy đủ thống kê hoạt động, CAMLY, FUN Money, Donations"}
             </p>
           </div>
           
