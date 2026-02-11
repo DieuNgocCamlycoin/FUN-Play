@@ -1,53 +1,58 @@
 
 
-# Cải thiện Users Directory: Mobile Nav + Bộ lọc thời gian
+# Chi tiết hoá CAMLY Rewards + Cập nhật giao diện Mobile
 
-## Kết quả kiểm tra trang /users
+## Vấn đề hiện tại
+Trang Users Directory hiện chỉ hiển thị `total_camly_rewards` (tổng CAMLY) mà không cho biết bao nhiêu đã được nhận (claimed) và bao nhiêu chưa nhận (unclaimed). Giao diện mobile cards cũng chưa hiển thị đủ thông tin chi tiết.
 
-Trang `/users` hoạt động tốt khi chưa đăng nhập:
-- Hiển thị 247 thành viên hoạt động
-- Bảng desktop với avatar, tên, CAMLY, Views, Videos, Comments, Donated, FUN
-- Tìm kiếm và sắp xếp hoạt động bình thường
-- Sidebar đã có link "Users Directory"
+## Giải pháp
 
-## Thay doi 1: Them link vao MobileDrawer
+### 1. Cập nhật RPC `get_public_users_directory` (Migration SQL)
 
-Them muc "Users Directory" vao phan `mainNavItems` trong `MobileDrawer.tsx`, ngay sau "Kenh dang ky", voi icon `Users` (hoac `Globe` cho dong bo voi sidebar).
+Thêm 2 cột mới vào kết quả trả về của RPC:
+- `claimed_camly` — Số CAMLY đã được claim (từ bảng `reward_transactions` với điều kiện `claimed = true`)
+- `unclaimed_camly` — Số CAMLY chưa claim (tính bằng tổng trừ đi phần đã claim)
 
-## Thay doi 2: Bo loc thoi gian tham gia
+### 2. Cập nhật hook và interface
 
-Them Select dropdown moi ben canh dropdown sap xep trong `UsersDirectory.tsx`:
-- **Tat ca** (mac dinh) - hien tat ca users
-- **Tuan nay** - chi users tham gia trong 7 ngay gan nhat
-- **Thang nay** - chi users tham gia trong 30 ngay gan nhat  
-- **3 thang** - chi users tham gia trong 90 ngay gan nhat
+Thêm 2 trường `claimed_camly` và `unclaimed_camly` vào interface `PublicUserStat` trong file `src/hooks/usePublicUsersDirectory.ts`.
 
-Logic loc se dua tren truong `created_at` cua moi user, loc phia client (du lieu da co san tu RPC).
+### 3. Cập nhật giao diện
 
-## Tep thay doi
+**Bảng desktop:**
+- Tách cột CAMLY thành 3 cột nhỏ: Tổng | Đã nhận | Chưa nhận
+- Màu sắc phân biệt: vàng cho tổng, xanh lá cho đã nhận, cam cho chưa nhận
 
-| # | Tep | Thay doi |
+**Thẻ mobile (cải thiện lớn):**
+- Thêm phần CAMLY breakdown với thanh tiến trình (progress bar) trực quan hiển thị tỷ lệ đã nhận / tổng
+- Hiển thị thêm các chỉ số: Comments, Likes, Shares, Donations received, FUN Minted
+- Bố cục dạng lưới 2 cột cho các chỉ số để dễ đọc hơn
+- Hiển thị ngày tham gia ở cuối thẻ
+
+## Tệp thay đổi
+
+| # | Tệp | Thay đổi |
 |---|------|----------|
-| 1 | `src/components/Layout/MobileDrawer.tsx` | Them "Users Directory" vao mainNavItems |
-| 2 | `src/pages/UsersDirectory.tsx` | Them dropdown loc theo thoi gian tham gia |
+| 1 | Migration SQL | Thêm `claimed_camly`, `unclaimed_camly` vào RPC |
+| 2 | `src/hooks/usePublicUsersDirectory.ts` | Thêm 2 trường mới vào interface |
+| 3 | `src/pages/UsersDirectory.tsx` | Cập nhật bảng desktop + thẻ mobile |
 
-## Chi tiet ky thuat
+## Chi tiết kỹ thuật
 
-### MobileDrawer - Them nav item
+### Cập nhật RPC (SQL)
 
-Them vao mang `mainNavItems` (dong 37-42):
+Trong lateral join tính rewards, thêm logic:
+
 ```text
-{ icon: Users, label: "Users Directory", href: "/users" }
+COALESCE(SUM(amount) FILTER (WHERE claimed = true), 0) AS claimed_camly,
+(COALESCE(SUM(amount), 0) - COALESCE(SUM(amount) FILTER (WHERE claimed = true), 0)) AS unclaimed_camly
 ```
-(Icon `Users` da duoc import san trong file)
 
-### UsersDirectory - Bo loc thoi gian
+### Bố cục thẻ mobile mới
 
-- Them state `timeFilter` voi cac gia tri: `"all"`, `"week"`, `"month"`, `"3months"`
-- Trong `useMemo` filtered, them buoc loc theo `created_at`:
-  - `"week"`: `created_at >= now - 7 ngay`
-  - `"month"`: `created_at >= now - 30 ngay`
-  - `"3months"`: `created_at >= now - 90 ngay`
-- Them 1 Select dropdown moi ben canh dropdown sap xep hien tai
-- Hien thi so luong ket qua sau khi loc (thay doi dong "X thanh vien hoat dong")
+Mỗi thẻ sẽ bao gồm:
+- Avatar + Tên hiển thị + Username + Huy hiệu xác minh
+- Phần CAMLY với thanh tiến trình (đã nhận X / tổng Y)
+- Lưới 2 cột hiển thị các chỉ số: Views, Videos, Posts, Comments, Đã tặng, Được nhận, FUN, Likes
+- Ngày tham gia ở cuối thẻ
 
