@@ -160,6 +160,49 @@ export const sendDonation = async ({
       video_id: videoId || null,
     });
 
+    // Create donation_transactions record for Celebration Card
+    let donationTxId: string | null = null;
+    let receiptPublicId: string | null = null;
+
+    if (toUserId) {
+      try {
+        const { data: tokenInfo } = await supabase
+          .from("donate_tokens")
+          .select("id")
+          .eq("symbol", tokenSymbol)
+          .eq("is_enabled", true)
+          .maybeSingle();
+
+        if (tokenInfo) {
+          const explorerUrl = isFunToken
+            ? `https://testnet.bscscan.com/tx/${txHash}`
+            : `https://bscscan.com/tx/${txHash}`;
+
+          const { data: donationTx } = await supabase
+            .from("donation_transactions")
+            .insert({
+              sender_id: user.id,
+              receiver_id: toUserId,
+              token_id: tokenInfo.id,
+              amount: amount,
+              status: "success",
+              chain: isFunToken ? "bsc_testnet" : "bsc",
+              tx_hash: txHash,
+              explorer_url: explorerUrl,
+              context_type: videoId ? "video" : "global",
+              context_id: videoId || null,
+            })
+            .select("id, receipt_public_id")
+            .single();
+
+          donationTxId = donationTx?.id || null;
+          receiptPublicId = donationTx?.receipt_public_id || null;
+        }
+      } catch (donationErr) {
+        console.warn("[Donation] Failed to create donation_transactions record:", donationErr);
+      }
+    }
+
     // Send chat notification to receiver
     if (toUserId) {
       try {
@@ -187,6 +230,8 @@ export const sendDonation = async ({
             sender_id: user.id,
             message_type: "donation",
             content: `🎁 Bạn đã nhận được ${amount} ${tokenSymbol}!`,
+            donation_transaction_id: donationTxId,
+            deep_link: receiptPublicId ? `/receipt/${receiptPublicId}` : null,
           });
         }
       } catch (chatErr) {
