@@ -1,69 +1,97 @@
 
-# Sửa lỗi "Transfer amount exceeds balance" — Kiểm tra số dư BSC trước khi gửi
+
+# Nâng cấp chuyển đồng FUN Money & Sửa lỗi Light Score
 
 ---
 
-## Nguyên nhân lỗi
+## Phần 1: Cho phép chuyển FUN Money như CAMLY, USDT, BNB
 
-Lỗi **"BEP20: transfer amount exceeds balance"** nghĩa là ví của con **không có đủ 5 USDT** trên mạng BSC để gửi. Hiện tại hệ thống chỉ kiểm tra số dư cho token **nội bộ** (Fun Money), còn token BSC (USDT, CAMLY, BNB) thì **bỏ qua kiểm tra** — luôn cho phép bấm "Xác nhận & Tặng" rồi mới báo lỗi khó hiểu từ blockchain.
+### Nguyên nhân hiện tại
 
-**Dòng gây lỗi** (dòng 306-308 trong `EnhancedDonateModal.tsx`):
-```typescript
-const isValidAmount = selectedToken?.chain === "internal"
-  ? currentBalance !== null && parseFloat(amount) <= currentBalance
-  : true;  // <-- Luôn true cho BSC, không kiểm tra số dư
+Đồng FUN Money trong bảng `donate_tokens` được cấu hình là `chain: "internal"`, khiến hệ thống đọc số dư từ bảng `internal_wallets` (hiện trống). Trong thực tế, FUN Money là token on-chain trên BSC với contract address `0x1aa8DE8B1E4465C6d729E8564893f8EF823a5ff2`.
+
+### Giải pháp
+
+Chuyển FUN Money từ `chain: "internal"` sang `chain: "bsc"` để nó hoạt động giống CAMLY, USDT, BNB — đọc số dư trực tiếp từ ví BSC của người dùng.
+
+### Chi tiết thay đổi
+
+**1. Cập nhật dữ liệu trong bảng `donate_tokens` (Database)**
+
+Cập nhật bản ghi FUN Money:
+- `chain`: `"internal"` → `"bsc"`
+- `contract_address`: thêm `0x1aa8DE8B1E4465C6d729E8564893f8EF823a5ff2`
+- `decimals`: `0` → `18` (FUN Money dùng 18 decimals theo contract)
+
+**2. Thêm FUN vào danh sách token BSC (Frontend)**
+
+Tệp: `src/config/tokens.ts`
+- Thêm FUN Money vào mảng `SUPPORTED_TOKENS` với contract address và 18 decimals
+- Điều này cho phép `EnhancedDonateModal` tự động kiểm tra số dư FUN trên ví BSC
+
+**3. Cập nhật Edge Function `create-donation/index.ts`**
+
+- Xoá toàn bộ logic `internal_wallets` (dòng 115-182) vì FUN không còn là token nội bộ
+- Khi FUN là `chain: "bsc"`, nó sẽ đi theo luồng BSC giống CAMLY/USDT — tạo giao dịch pending, người dùng ký trên ví, rồi xác nhận
+
+**4. Cập nhật `useInternalWallet.ts` (Frontend)**
+
+- Hook này sẽ không còn tìm thấy token internal nào nếu FUN chuyển sang BSC — cần xử lý trường hợp danh sách trống để không bị lỗi
+
+---
+
+## Phần 2: Sửa lỗi tính điểm Light Score
+
+### Nguyên nhân lỗi
+
+Hàm RPC `get_user_activity_summary` đếm uploads sai:
+
+```sql
+-- Hiện tại (SAI): Chỉ đếm reward_type = 'UPLOAD'
+'uploads', COUNT(*) FILTER (WHERE reward_type = 'UPLOAD')
+-- Kết quả: 43 uploads (bỏ sót 94 bản ghi)
+
+-- Thực tế: Hệ thống dùng 3 loại reward_type cho upload:
+-- 'UPLOAD' (43 bản ghi)
+-- 'SHORT_VIDEO_UPLOAD' (53 bản ghi)  
+-- 'LONG_VIDEO_UPLOAD' (41 bản ghi)
+-- 'FIRST_UPLOAD' (28 bản ghi)
 ```
 
----
+Hậu quả: Trụ cột **S (Service)** bị tính thấp hơn thực tế vì uploads bị đếm thiếu → Light Score bị giảm → Người dùng không đủ điểm để mint.
 
-## Giải pháp
+### Giải pháp
 
-Thêm kiểm tra số dư on-chain (BSC) **trước khi cho phép chuyển sang bước xác nhận**, hiển thị cảnh báo rõ ràng bằng tiếng Việt khi không đủ số dư.
+**Cập nhật hàm RPC `get_user_activity_summary` (Database Migration)**
 
----
+Sửa bộ lọc uploads để đếm tất cả các loại upload:
 
-## Chi tiết thay đổi
-
-### Tệp: `src/components/Donate/EnhancedDonateModal.tsx`
-
-**1. Thêm state lưu số dư BSC:**
-- Thêm `bscBalance` (string) và `loadingBscBalance` (boolean)
-- Thêm import `ethers` và `SUPPORTED_TOKENS` từ `@/config/tokens`
-
-**2. Thêm useEffect kiểm tra số dư BSC:**
-- Khi người dùng chọn token BSC và đã kết nối ví (qua `window.ethereum`):
-  - Token native (BNB): Lấy số dư bằng `provider.getBalance()`
-  - Token ERC-20 (USDT, CAMLY): Lấy số dư bằng `contract.balanceOf()`
-- Nếu chưa kết nối ví: Hiện thông báo "Kết nối ví để kiểm tra số dư"
-
-**3. Cập nhật logic `isValidAmount`:**
-```typescript
-const isValidAmount = selectedToken?.chain === "internal"
-  ? currentBalance !== null && parseFloat(amount || "0") <= currentBalance
-  : bscBalance !== null && parseFloat(amount || "0") <= parseFloat(bscBalance);
+```sql
+'uploads', COUNT(*) FILTER (WHERE reward_type IN ('UPLOAD', 'SHORT_VIDEO_UPLOAD', 'LONG_VIDEO_UPLOAD', 'FIRST_UPLOAD'))
 ```
-
-**4. Hiển thị số dư BSC trong giao diện:**
-- Thêm dòng hiển thị: "Số dư ví: X.XX TOKEN" dưới ô chọn token BSC
-- Khi số dư không đủ: Hiển thị cảnh báo đỏ "Số dư không đủ. Ví của bạn chỉ có X.XX TOKEN"
-- Nút "Xem lại & Xác nhận" sẽ bị vô hiệu hóa khi số dư không đủ (nhờ `canProceedToReview` dùng `isValidAmount`)
-
-**5. Cải thiện thông báo lỗi trong `useDonation.ts`:**
-- Bắt lỗi "exceeds balance" từ blockchain và hiển thị tiếng Việt: "Số dư token trong ví không đủ để thực hiện giao dịch này"
 
 ---
 
 ## Tóm tắt tệp cần thay đổi
 
-| # | Tệp | Thay đổi |
-|---|------|----------|
-| 1 | `src/components/Donate/EnhancedDonateModal.tsx` | Thêm kiểm tra số dư BSC, hiển thị cảnh báo, vô hiệu hóa nút khi không đủ |
-| 2 | `src/hooks/useDonation.ts` | Cải thiện thông báo lỗi blockchain sang tiếng Việt |
+| # | Loại | Tệp / Vị trí | Thay đổi |
+|---|------|---------------|----------|
+| 1 | Database (dữ liệu) | Bảng `donate_tokens` | Cập nhật FUN: chain → bsc, thêm contract_address, decimals → 18 |
+| 2 | Database (migration) | Hàm RPC `get_user_activity_summary` | Sửa bộ lọc uploads để đếm đủ các loại |
+| 3 | Frontend | `src/config/tokens.ts` | Thêm FUN Money vào SUPPORTED_TOKENS |
+| 4 | Edge Function | `supabase/functions/create-donation/index.ts` | Xoá logic internal_wallets, FUN đi theo luồng BSC |
+| 5 | Frontend | `src/hooks/useInternalWallet.ts` | Xử lý trường hợp không còn token internal |
 
 ---
 
 ## Kết quả mong đợi
 
-- Người dùng sẽ **thấy số dư ví BSC** ngay trong form tặng
-- Nếu số dư không đủ, nút "Xem lại & Xác nhận" sẽ **bị vô hiệu hóa** và hiện cảnh báo rõ ràng
-- Không còn gặp lỗi blockchain khó hiểu nữa
+**Chuyển FUN:**
+- Người dùng có FUN trong ví BSC sẽ thấy số dư thật trong modal "Thưởng & Tặng"
+- Chuyển FUN hoạt động giống CAMLY, USDT, BNB — ký giao dịch trên ví, xác nhận on-chain
+- Không cần admin nạp thủ công — đọc trực tiếp từ blockchain
+
+**Light Score:**
+- Điểm uploads được tính đúng (bao gồm SHORT_VIDEO_UPLOAD, LONG_VIDEO_UPLOAD, FIRST_UPLOAD)
+- Trụ cột S (Service) tăng → Light Score tăng → Nhiều người dùng đủ điểm để mint FUN Money
+
