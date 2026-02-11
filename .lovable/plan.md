@@ -1,65 +1,80 @@
 
-# Sửa lỗi: Không gửi được FUN trong Thưởng & Quà Tặng
 
-## Nguyên nhân
+# Sửa lỗi: Không gửi được CAMLY & USDT trên Mobile
 
-Dữ liệu cho thấy các giao dịch FUN được tạo thành công (status: "pending") nhưng **không bao giờ hoàn tất** vì bước chuyển on-chain thất bại.
+## Nguyên nhân gốc
 
-Cụ thể: Khi gửi FUN, hệ thống gọi `switchChain(wagmiConfig, { chainId: 97 })` để chuyển ví sang BSC Testnet. Trên mobile (WalletConnect), hầu hết các ví không có sẵn BSC Testnet nên `switchChain` thất bại -> giao dịch bị huỷ -> status mãi ở "pending".
+Qua phân tích console logs và dữ liệu, có **2 vấn đề chính**:
 
-Ngoài ra, edge function `confirm-bsc-donation` dùng sai explorer URL cho FUN (dùng mainnet thay vì testnet).
+### Vấn đề 1: Thiếu logic chuyển mạng BSC Mainnet (ảnh hưởng mobile)
+
+Trong `src/lib/donation.ts`, hệ thống chỉ có logic chuyển mạng cho **FUN Money** (BSC Testnet, chainId 97), nhưng **hoàn toàn thiếu** logic chuyển sang **BSC Mainnet (chainId 56)** cho CAMLY, USDT, BNB. Khi ví mobile (qua WalletConnect) đang ở mạng khác (Ethereum, Polygon...), giao dịch sẽ thất bại ngay lập tức.
+
+### Vấn đề 2: Giao dịch "pending" bị kẹt
+
+Hiện có **20+ giao dịch CAMLY/USDT** ở trạng thái "pending" mà không có tx_hash. Các giao dịch này sẽ không bao giờ hoàn tất và gây nhiễu trong lịch sử.
+
+### Vấn đề phụ: Build error
+
+File `src/lib/pushNotifications.ts` có lỗi TypeScript: `pushManager` không tồn tại trên type `ServiceWorkerRegistration`.
 
 ## Giải pháp
 
-### 1. Tự động thêm BSC Testnet vào ví trước khi chuyển mạng
+### 1. Thêm chuyển mạng BSC Mainnet cho CAMLY/USDT/BNB
 
-**Tệp:** `src/lib/donation.ts`
+**Tep:** `src/lib/donation.ts`
 
-Khi `switchChain` thất bại, thử thêm mạng BSC Testnet vào ví bằng `wallet_addEthereumChain` rồi thử lại. Nếu vẫn thất bại trên mobile (WalletConnect không hỗ trợ addChain), sử dụng fallback: tạo provider trực tiếp từ private key hoặc hiển thị hướng dẫn chi tiết cho người dùng.
-
-Cách tiếp cận thực tế hơn: Sử dụng wagmi `switchChain` kết hợp với `addChain` từ `@wagmi/core` để thêm BSC Testnet nếu chưa có.
-
+Cau truc hien tai chi xu ly FUN:
 ```text
-// Luồng xử lý mới:
-1. Thử switchChain(97)
-2. Nếu thất bại -> thử addChain(bscTestnet) rồi switchChain lại
-3. Nếu vẫn thất bại -> hiện thông báo rõ ràng hướng dẫn thêm BSC Testnet thủ công
-4. Re-fetch walletClient sau khi chuyển mạng thành công
+if (isFunToken) {
+  switchChain(97);  // BSC Testnet
+}
+// CAMLY/USDT/BNB -> khong chuyen mang -> that bai tren mobile
 ```
 
-### 2. Sửa explorer URL cho FUN (testnet)
-
-**Tệp:** `supabase/functions/confirm-bsc-donation/index.ts`
-
-Kiểm tra token chain: nếu token là FUN (BSC Testnet), sử dụng `https://testnet.bscscan.com/tx/` thay vì `https://bscscan.com/tx/`.
-
+Cau truc moi:
 ```text
-// Lấy token info để xác định explorer URL đúng
-const tokenData = await supabase.from("donate_tokens")...
-const isFunTestnet = tokenData.contract_address === "0x1aa8DE8B1E4465C6d729E8564893f8EF823a5ff2";
-const explorerUrl = isFunTestnet 
-  ? `https://testnet.bscscan.com/tx/${tx_hash}`
-  : `https://bscscan.com/tx/${tx_hash}`;
+if (isFunToken) {
+  switchChain(97);   // BSC Testnet cho FUN
+} else {
+  switchChain(56);   // BSC Mainnet cho CAMLY/USDT/BNB
+}
+// Re-fetch walletClient sau khi chuyen mang
 ```
 
-### 3. Dọn dẹp giao dịch "pending" bị kẹt
+Chi tiet:
+- Thêm block `else` để chuyển sang BSC Mainnet (chainId 56) cho tất cả token BSC không phải FUN
+- Sử dụng cùng pattern: `switchChain` -> `wallet_addEthereumChain` fallback -> hướng dẫn thủ công
+- Thông số BSC Mainnet: RPC `https://bsc-dataseed.binance.org/`, chainId `0x38`, symbol `BNB`
+- Re-fetch `walletClient` sau khi chuyển mạng thành công
+- Di chuyển logic re-fetch ra ngoài cả 2 block if/else để tránh trùng code
 
-Các giao dịch FUN cũ đang ở trạng thái "pending" sẽ không bao giờ được hoàn tất. Cần cập nhật status thành "failed" để không gây nhầm lẫn:
+### 2. Dọn dẹp giao dịch pending bị kẹt
 
+Cập nhật tất cả giao dịch đang "pending" mà không có tx_hash thành "failed":
 ```text
-UPDATE donation_transactions 
-SET status = 'failed' 
-WHERE token_id = 'a96baf29-db80-43ed-b5f1-7ac9f203bb88' 
-  AND status = 'pending' 
-  AND tx_hash IS NULL;
+UPDATE donation_transactions
+SET status = 'failed'
+WHERE status = 'pending' AND tx_hash IS NULL;
 ```
 
----
+### 3. Sửa build error pushNotifications.ts
 
-## Tóm tắt
+**Tep:** `src/lib/pushNotifications.ts`
+
+Thêm type assertion cho `registration` khi truy cập `pushManager` hoặc thêm type guard:
+```text
+const reg = registration as any;
+let subscription = await reg.pushManager.getSubscription();
+```
+
+## Tóm tắt thay đổi
 
 | # | Tệp | Thay đổi |
 |---|------|----------|
-| 1 | `src/lib/donation.ts` | Thêm logic addChain BSC Testnet trước switchChain, cải thiện error handling |
-| 2 | `supabase/functions/confirm-bsc-donation/index.ts` | Sửa explorer URL cho FUN Testnet |
+| 1 | `src/lib/donation.ts` | Thêm switchChain(56) cho CAMLY/USDT/BNB trên BSC Mainnet, refactor logic chuyển mạng |
+| 2 | `src/lib/pushNotifications.ts` | Sửa TypeScript error cho pushManager |
 | 3 | Database | Cập nhật giao dịch pending bị kẹt thành failed |
+
+Sau khi sửa, người dùng trên mobile sẽ được tự động chuyển sang đúng mạng BSC khi gửi bất kỳ token nào (CAMLY, USDT, BNB trên Mainnet hoặc FUN trên Testnet).
+
