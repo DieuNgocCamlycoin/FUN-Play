@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import { AngelChat } from './AngelChat';
-import { FlyingCoins } from './FlyingCoins';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useHapticFeedback } from '@/hooks/useHapticFeedback';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
@@ -15,8 +14,6 @@ export const MobileAngelMascot: React.FC<MobileAngelMascotProps> = ({ onTipRecei
   const [position, setPosition] = useState({ x: 20, y: 100 });
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isExcited, setIsExcited] = useState(false);
-  const [showFlyingCoins, setShowFlyingCoins] = useState(false);
-  const [coinOrigin, setCoinOrigin] = useState({ x: 0, y: 0 });
   const [currentAnimation, setCurrentAnimation] = useState<'flying' | 'sitting' | 'dancing' | 'waving'>('flying');
   const controls = useAnimation();
   const angelRef = useRef<HTMLDivElement>(null);
@@ -63,17 +60,6 @@ export const MobileAngelMascot: React.FC<MobileAngelMascotProps> = ({ onTipRecei
       setIsExcited(true);
       setCurrentAnimation('dancing');
       
-      // Get angel position for coin origin
-      if (angelRef.current) {
-        const rect = angelRef.current.getBoundingClientRect();
-        setCoinOrigin({ 
-          x: rect.left + rect.width / 2, 
-          y: rect.top + rect.height / 2 
-        });
-      }
-      
-      // Trigger flying coins animation
-      setShowFlyingCoins(true);
       successFeedback(); // Haptic feedback on reward
       
       // Play celebration sound effects
@@ -84,7 +70,6 @@ export const MobileAngelMascot: React.FC<MobileAngelMascotProps> = ({ onTipRecei
       setTimeout(() => {
         setIsExcited(false);
         setCurrentAnimation('flying');
-        setShowFlyingCoins(false);
       }, 3000);
     };
 
@@ -122,14 +107,6 @@ export const MobileAngelMascot: React.FC<MobileAngelMascotProps> = ({ onTipRecei
 
   return (
     <>
-      {/* Flying Coins Animation */}
-      <FlyingCoins 
-        isActive={showFlyingCoins} 
-        count={12}
-        originX={coinOrigin.x}
-        originY={coinOrigin.y}
-      />
-      
       <motion.div
         ref={angelRef}
         className="fixed z-[9999] cursor-pointer select-none pointer-events-auto"

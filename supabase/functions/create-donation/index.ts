@@ -165,41 +165,6 @@ serve(async (req) => {
       },
     };
 
-    // Create chat message for donation notification
-    try {
-      // Find or create chat between sender and receiver
-      const [minId, maxId] = [user.id, receiver_id].sort();
-      
-      let { data: chat } = await supabase
-        .from("user_chats")
-        .select("id")
-        .eq("user1_id", minId)
-        .eq("user2_id", maxId)
-        .single();
-
-      if (!chat) {
-        const { data: newChat } = await supabase
-          .from("user_chats")
-          .insert({ user1_id: minId, user2_id: maxId })
-          .select("id")
-          .single();
-        chat = newChat;
-      }
-
-      if (chat) {
-        await supabase.from("chat_messages").insert({
-          chat_id: chat.id,
-          sender_id: user.id,
-          message_type: "donation",
-          content: `🎁 Đã tặng ${amount} ${tokenData.symbol}${message ? `: "${message}"` : ""}`,
-          donation_transaction_id: completeTransaction.id,
-          deep_link: `/receipt/${completeTransaction.receipt_public_id}`,
-        });
-      }
-    } catch (chatError) {
-      console.error("Chat message error:", chatError);
-      // Don't fail the transaction if chat fails
-    }
 
     return new Response(
       JSON.stringify({
