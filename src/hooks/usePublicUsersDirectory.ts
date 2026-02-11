@@ -28,8 +28,9 @@ export function usePublicUsersDirectory() {
   const [data, setData] = useState<PublicUserStat[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     const { data: result, error: err } = await supabase.rpc("get_public_users_directory" as any);
@@ -40,20 +41,18 @@ export function usePublicUsersDirectory() {
       setData((result as unknown as PublicUserStat[]) || []);
     }
     setLoading(false);
-  };
-
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  }, []);
 
   const debouncedRefetch = useCallback(() => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(() => {
       fetchData();
     }, 2000);
-  }, []);
+  }, [fetchData]);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
   useEffect(() => {
     const channel = supabase
