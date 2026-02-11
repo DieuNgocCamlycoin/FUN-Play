@@ -311,6 +311,7 @@ export function VideoActionsBar({
           onOpenChange={setDonateModalOpen}
           defaultReceiverId={channelId}
           defaultReceiverName={channelName}
+          defaultReceiverAvatar={channelAvatar || undefined}
         />
       </div>
     </TooltipProvider>

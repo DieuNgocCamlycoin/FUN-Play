@@ -19,6 +19,7 @@ interface ProfileInfoProps {
     username: string;
     display_name: string | null;
     bio: string | null;
+    avatar_url: string | null;
     wallet_address: string | null;
     total_camly_rewards: number;
   };
@@ -227,7 +228,7 @@ export const ProfileInfo = ({
           : {
               defaultReceiverId: profile.id,
               defaultReceiverName: displayName,
-              defaultReceiverAvatar: undefined,
+              defaultReceiverAvatar: profile.avatar_url || undefined,
               defaultReceiverWallet: profile.wallet_address || undefined,
             }
         )}
