@@ -146,7 +146,11 @@ export const useDonation = () => {
         } catch (bscError: any) {
           // Mark transaction as failed
           console.error("BSC transaction failed:", bscError);
-          throw new Error(bscError.message || "Giao dịch BSC thất bại");
+          const msg = bscError.message || "";
+          if (msg.includes("exceeds balance") || msg.includes("insufficient funds")) {
+            throw new Error("Số dư token trong ví không đủ để thực hiện giao dịch này. Vui lòng kiểm tra lại số dư ví BSC của bạn.");
+          }
+          throw new Error(msg || "Giao dịch BSC thất bại");
         }
       }
 

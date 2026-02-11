@@ -12,6 +12,8 @@ import { useDonation, DonationTransaction, DonationToken } from "@/hooks/useDona
 import { useInternalWallet } from "@/hooks/useInternalWallet";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
+import { ethers } from "ethers";
+import { SUPPORTED_TOKENS } from "@/config/tokens";
 import { motion, AnimatePresence } from "framer-motion";
 import { GiftCelebrationModal } from "./GiftCelebrationModal";
 
@@ -105,6 +107,10 @@ export const EnhancedDonateModal = ({
   const [message, setMessage] = useState("");
   const [selectedTheme, setSelectedTheme] = useState("celebration");
   const [selectedMusic, setSelectedMusic] = useState("rich-celebration");
+
+  // BSC balance state
+  const [bscBalance, setBscBalance] = useState<string | null>(null);
+  const [loadingBscBalance, setLoadingBscBalance] = useState(false);
 
   // Success state
   const [completedTransaction, setCompletedTransaction] = useState<DonationTransaction | null>(null);
@@ -226,6 +232,56 @@ export const EnhancedDonateModal = ({
     setCompletedTransaction(null);
   }, [open, defaultReceiverId, defaultReceiverName, defaultReceiverAvatar, defaultReceiverWallet, fetchTokens]);
 
+  // Fetch BSC on-chain balance when selecting a BSC token
+  useEffect(() => {
+    const fetchBscBalance = async () => {
+      if (!selectedToken || selectedToken.chain === "internal") {
+        setBscBalance(null);
+        return;
+      }
+
+      const ethereum = (window as any).ethereum;
+      if (!ethereum) {
+        setBscBalance(null);
+        return;
+      }
+
+      setLoadingBscBalance(true);
+      try {
+        const provider = new ethers.BrowserProvider(ethereum);
+        const signer = await provider.getSigner();
+        const address = await signer.getAddress();
+
+        // Find token config
+        const tokenConfig = SUPPORTED_TOKENS.find(t => t.symbol === selectedToken.symbol);
+
+        if (!tokenConfig) {
+          setBscBalance(null);
+          return;
+        }
+
+        if (tokenConfig.address === "native") {
+          // BNB native
+          const bal = await provider.getBalance(address);
+          setBscBalance(ethers.formatEther(bal));
+        } else {
+          // ERC-20 token
+          const erc20Abi = ["function balanceOf(address) view returns (uint256)"];
+          const contract = new ethers.Contract(tokenConfig.address, erc20Abi, provider);
+          const bal = await contract.balanceOf(address);
+          setBscBalance(ethers.formatUnits(bal, tokenConfig.decimals));
+        }
+      } catch (err) {
+        console.error("Failed to fetch BSC balance:", err);
+        setBscBalance(null);
+      } finally {
+        setLoadingBscBalance(false);
+      }
+    };
+
+    fetchBscBalance();
+  }, [selectedToken?.symbol, selectedToken?.chain, open]);
+
   // Search users
   useEffect(() => {
     const searchUsers = async () => {
@@ -305,7 +361,8 @@ export const EnhancedDonateModal = ({
   const currentBalance = selectedToken?.chain === "internal" ? getBalanceBySymbol(selectedToken.symbol) : null;
   const isValidAmount = selectedToken?.chain === "internal"
     ? currentBalance !== null && parseFloat(amount || "0") <= currentBalance
-    : true;
+    : bscBalance !== null && parseFloat(amount || "0") <= parseFloat(bscBalance);
+  const isBscNoWallet = selectedToken?.chain === "bsc" && !(window as any).ethereum;
   const sortedTokens = [...tokens].sort((a, b) => a.priority - b.priority);
   const currentTheme = DONATION_THEMES.find(t => t.id === selectedTheme);
   const canProceedToReview = selectedReceiver && selectedToken && amount && parseFloat(amount) > 0 && isValidAmount;
@@ -529,6 +586,17 @@ export const EnhancedDonateModal = ({
                       Số dư: <span className={currentBalance === 0 ? "text-destructive" : "text-foreground font-medium"}>{currentBalance} {selectedToken?.symbol}</span>
                     </span>
                   )}
+                  {selectedToken?.chain === "bsc" && (
+                    <span className="text-xs text-muted-foreground">
+                      {loadingBscBalance ? (
+                        <span className="flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" />Đang kiểm tra...</span>
+                      ) : bscBalance !== null ? (
+                        <>Số dư ví: <span className={parseFloat(bscBalance) === 0 ? "text-destructive" : "text-foreground font-medium"}>{parseFloat(bscBalance).toFixed(4)} {selectedToken?.symbol}</span></>
+                      ) : isBscNoWallet ? (
+                        <span className="text-destructive">Chưa kết nối ví</span>
+                      ) : null}
+                    </span>
+                  )}
                 </div>
                 <Select value={selectedToken?.symbol} onValueChange={handleSelectToken}>
                   <SelectTrigger className="hologram-input-trigger">
@@ -550,6 +618,18 @@ export const EnhancedDonateModal = ({
                 {selectedToken?.chain === "internal" && currentBalance === 0 && (
                   <div className="p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg text-xs text-amber-600">⚠️ Bạn chưa có {selectedToken.symbol}. Hãy chọn token khác.</div>
                 )}
+                {selectedToken?.chain === "bsc" && bscBalance !== null && parseFloat(amount || "0") > parseFloat(bscBalance) && (
+                  <div className="p-2 bg-destructive/10 border border-destructive/30 rounded-lg text-xs text-destructive flex items-center gap-1.5">
+                    <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
+                    Số dư không đủ. Ví của bạn chỉ có {parseFloat(bscBalance).toFixed(4)} {selectedToken.symbol}
+                  </div>
+                )}
+                {isBscNoWallet && selectedToken?.chain === "bsc" && (
+                  <div className="p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg text-xs text-amber-600 flex items-center gap-1.5">
+                    <Wallet className="h-3.5 w-3.5 flex-shrink-0" />
+                    Vui lòng kết nối ví BSC để kiểm tra số dư và gửi token.
+                  </div>
+                )}
               </div>
 
               {/* Amount input — no slider */}
@@ -567,7 +647,9 @@ export const EnhancedDonateModal = ({
                 <Input type="text" inputMode="decimal" placeholder="Hoặc nhập số tùy chọn..." value={amount}
                   onChange={(e) => handleAmountChange(e.target.value)} className="text-lg font-bold text-center hologram-input pointer-events-auto" />
                 {!isValidAmount && parseFloat(amount || "0") > 0 && (
-                  <p className="text-xs text-destructive">Số dư không đủ. Bạn chỉ có {currentBalance} {selectedToken?.symbol}</p>
+                  <p className="text-xs text-destructive">
+                    Số dư không đủ. Bạn chỉ có {selectedToken?.chain === "internal" ? currentBalance : bscBalance !== null ? parseFloat(bscBalance).toFixed(4) : "?"} {selectedToken?.symbol}
+                  </p>
                 )}
                 {amount && parseFloat(amount) > 0 && selectedToken && (
                   <p className="text-center text-sm font-medium text-primary">Bạn sẽ tặng: {amount} {selectedToken.symbol}</p>
