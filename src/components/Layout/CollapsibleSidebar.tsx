@@ -48,6 +48,7 @@ const mainNavItems: NavItem[] = [
   { icon: Home, label: "Trang chủ", href: "/" },
   { icon: Zap, label: "Shorts", href: "/shorts" },
   { icon: Users, label: "Kênh đăng ký", href: "/subscriptions" },
+  { icon: Globe, label: "Users Directory", href: "/users" },
   { icon: Sparkles, label: "Thiền cùng Cha", href: "/meditate", special: true },
   { icon: Music, label: "Tạo Nhạc Ánh Sáng", href: "/create-music", special: true },
 ];

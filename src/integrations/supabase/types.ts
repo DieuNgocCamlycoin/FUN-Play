@@ -2380,6 +2380,30 @@ export type Database = {
         Args: { p_admin_id: string; p_reason?: string; p_user_id: string }
         Returns: boolean
       }
+      get_public_users_directory: {
+        Args: never
+        Returns: {
+          avatar_url: string
+          avatar_verified: boolean
+          comments_count: number
+          created_at: string
+          display_name: string
+          donations_received_count: number
+          donations_received_total: number
+          donations_sent_count: number
+          donations_sent_total: number
+          likes_count: number
+          mint_requests_count: number
+          minted_fun_total: number
+          posts_count: number
+          shares_count: number
+          total_camly_rewards: number
+          user_id: string
+          username: string
+          videos_count: number
+          views_count: number
+        }[]
+      }
       get_transaction_stats: {
         Args: { p_wallet_address?: string }
         Returns: Json
