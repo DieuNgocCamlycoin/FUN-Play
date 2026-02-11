@@ -109,77 +109,8 @@ serve(async (req) => {
       );
     }
 
+    // All tokens (BSC on-chain) start as pending — user signs tx on wallet
     let transactionStatus = "pending";
-    let transactionData;
-
-    if (tokenData.chain === "internal") {
-      // Internal token flow (FUN MONEY)
-      // Check sender balance
-      const { data: senderWallet } = await supabase
-        .from("internal_wallets")
-        .select("balance")
-        .eq("user_id", user.id)
-        .eq("token_id", tokenData.id)
-        .single();
-
-      const senderBalance = senderWallet?.balance || 0;
-
-      if (senderBalance < amount) {
-        return new Response(
-          JSON.stringify({ 
-            error: "Số dư không đủ",
-            balance: senderBalance,
-            required: amount
-          }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      // Perform internal transfer using a transaction-like approach
-      // 1. Deduct from sender
-      const { error: deductError } = await supabase.rpc("transfer_internal_balance", {
-        p_sender_id: user.id,
-        p_receiver_id: receiver_id,
-        p_token_id: tokenData.id,
-        p_amount: amount,
-      });
-
-      if (deductError) {
-        // Fallback: manual balance update if RPC doesn't exist
-        // Deduct from sender
-        await supabase
-          .from("internal_wallets")
-          .update({ balance: senderBalance - amount })
-          .eq("user_id", user.id)
-          .eq("token_id", tokenData.id);
-
-        // Add to receiver (upsert)
-        const { data: receiverWallet } = await supabase
-          .from("internal_wallets")
-          .select("balance")
-          .eq("user_id", receiver_id)
-          .eq("token_id", tokenData.id)
-          .single();
-
-        if (receiverWallet) {
-          await supabase
-            .from("internal_wallets")
-            .update({ balance: receiverWallet.balance + amount })
-            .eq("user_id", receiver_id)
-            .eq("token_id", tokenData.id);
-        } else {
-          await supabase
-            .from("internal_wallets")
-            .insert({
-              user_id: receiver_id,
-              token_id: tokenData.id,
-              balance: amount,
-            });
-        }
-      }
-
-      transactionStatus = "success";
-    }
 
     // Create donation transaction record
     const { data: transaction, error: txError } = await supabase
