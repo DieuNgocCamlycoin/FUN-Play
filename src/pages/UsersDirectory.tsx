@@ -8,12 +8,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Users, Search, ArrowUpDown, MessageSquare, Video, Heart, Eye, Share2, Gift, Coins, BadgeCheck } from "lucide-react";
+import { Users, Search, ArrowUpDown, MessageSquare, Video, Heart, Eye, Share2, Gift, Coins, BadgeCheck, Calendar } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { format } from "date-fns";
+import { format, subDays } from "date-fns";
 
 type SortKey = "camly" | "posts" | "videos" | "donations_sent" | "donations_received" | "fun_minted" | "activity";
+type TimeFilter = "all" | "week" | "month" | "3months";
 
 const sortOptions: { value: SortKey; label: string }[] = [
   { value: "camly", label: "CAMLY Rewards" },
@@ -23,6 +24,13 @@ const sortOptions: { value: SortKey; label: string }[] = [
   { value: "donations_sent", label: "Đã tặng" },
   { value: "donations_received", label: "Được nhận" },
   { value: "fun_minted", label: "FUN Minted" },
+];
+
+const timeFilterOptions: { value: TimeFilter; label: string }[] = [
+  { value: "all", label: "Tất cả" },
+  { value: "week", label: "Tuần này" },
+  { value: "month", label: "Tháng này" },
+  { value: "3months", label: "3 tháng" },
 ];
 
 function getSortValue(u: PublicUserStat, key: SortKey): number {
@@ -48,15 +56,26 @@ const UsersDirectory = () => {
   const { data, loading, error } = usePublicUsersDirectory();
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<SortKey>("camly");
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
   const navigate = useNavigate();
   const isMobile = useIsMobile();
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
+    const now = new Date();
+    let cutoff: Date | null = null;
+    if (timeFilter === "week") cutoff = subDays(now, 7);
+    else if (timeFilter === "month") cutoff = subDays(now, 30);
+    else if (timeFilter === "3months") cutoff = subDays(now, 90);
+
     return data
-      .filter(u => !q || u.display_name?.toLowerCase().includes(q) || u.username?.toLowerCase().includes(q))
+      .filter(u => {
+        if (q && !(u.display_name?.toLowerCase().includes(q) || u.username?.toLowerCase().includes(q))) return false;
+        if (cutoff && new Date(u.created_at) < cutoff) return false;
+        return true;
+      })
       .sort((a, b) => getSortValue(b, sortBy) - getSortValue(a, sortBy));
-  }, [data, search, sortBy]);
+  }, [data, search, sortBy, timeFilter]);
 
   const goToProfile = (u: PublicUserStat) => {
     if (u.username) navigate(`/@${u.username}`);
@@ -74,7 +93,7 @@ const UsersDirectory = () => {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-foreground">Users Directory</h1>
-              <p className="text-sm text-muted-foreground">{data.length} thành viên hoạt động</p>
+              <p className="text-sm text-muted-foreground">{filtered.length} / {data.length} thành viên</p>
             </div>
           </div>
 
@@ -89,6 +108,17 @@ const UsersDirectory = () => {
                 className="pl-9"
               />
             </div>
+            <Select value={timeFilter} onValueChange={v => setTimeFilter(v as TimeFilter)}>
+              <SelectTrigger className="w-full sm:w-[160px]">
+                <Calendar className="h-4 w-4 mr-2" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {timeFilterOptions.map(o => (
+                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Select value={sortBy} onValueChange={v => setSortBy(v as SortKey)}>
               <SelectTrigger className="w-full sm:w-[200px]">
                 <ArrowUpDown className="h-4 w-4 mr-2" />
