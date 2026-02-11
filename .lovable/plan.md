@@ -1,80 +1,64 @@
 
-
-# Sửa lỗi: Không gửi được CAMLY & USDT trên Mobile
+# Sửa lỗi: Gửi CAMLY báo "không đủ số dư" dù ví có đủ tiền
 
 ## Nguyên nhân gốc
 
-Qua phân tích console logs và dữ liệu, có **2 vấn đề chính**:
+Lỗi xảy ra do **ví hiển thị số dư và ví gửi giao dịch là 2 ví khác nhau**:
 
-### Vấn đề 1: Thiếu logic chuyển mạng BSC Mainnet (ảnh hưởng mobile)
+- **Ví lưu trong hồ sơ (database):** `0x0673531BF766753f...` -- ví này có 654,800 CAMLY
+- **Ví đang kết nối (WalletConnect):** `0x22e154FE6B2859...` -- ví này KHÔNG có đủ CAMLY
 
-Trong `src/lib/donation.ts`, hệ thống chỉ có logic chuyển mạng cho **FUN Money** (BSC Testnet, chainId 97), nhưng **hoàn toàn thiếu** logic chuyển sang **BSC Mainnet (chainId 56)** cho CAMLY, USDT, BNB. Khi ví mobile (qua WalletConnect) đang ở mạng khác (Ethereum, Polygon...), giao dịch sẽ thất bại ngay lập tức.
-
-### Vấn đề 2: Giao dịch "pending" bị kẹt
-
-Hiện có **20+ giao dịch CAMLY/USDT** ở trạng thái "pending" mà không có tx_hash. Các giao dịch này sẽ không bao giờ hoàn tất và gây nhiễu trong lịch sử.
-
-### Vấn đề phụ: Build error
-
-File `src/lib/pushNotifications.ts` có lỗi TypeScript: `pushManager` không tồn tại trên type `ServiceWorkerRegistration`.
+Giao diện đọc số dư từ `senderProfile.wallet_address` (ví trong database), nhưng khi gửi giao dịch, hệ thống dùng `getWalletClient` từ wagmi (ví đang kết nối). Nếu 2 ví này khác nhau, số dư hiển thị sai so với ví thực tế gửi tiền.
 
 ## Giải pháp
 
-### 1. Thêm chuyển mạng BSC Mainnet cho CAMLY/USDT/BNB
+### 1. Đồng bộ địa chỉ ví: hiển thị số dư từ ví đang kết nối
 
-**Tep:** `src/lib/donation.ts`
+**Tệp:** `src/components/Donate/EnhancedDonateModal.tsx`
 
-Cau truc hien tai chi xu ly FUN:
+Thay đổi thứ tự ưu tiên khi đọc số dư: lấy địa chỉ ví đang kết nối (wagmi) TRƯỚC, chỉ fallback về `senderProfile.wallet_address` nếu wagmi không có.
+
 ```text
-if (isFunToken) {
-  switchChain(97);  // BSC Testnet
+// Hiện tại (SAI):
+let walletAddress = senderProfile?.wallet_address;  // DB wallet
+if (!walletAddress) { walletAddress = wagmiAccount; } // fallback
+
+// Sau khi sửa (ĐÚNG):
+let walletAddress = wagmiAccount;  // Connected wallet (ưu tiên)
+if (!walletAddress) { walletAddress = senderProfile?.wallet_address; } // fallback
+```
+
+### 2. Thêm cảnh báo khi ví kết nối khác ví trong hồ sơ
+
+**Tệp:** `src/components/Donate/EnhancedDonateModal.tsx`
+
+Hiển thị cảnh báo rõ ràng khi ví đang kết nối khác với ví lưu trong hồ sơ, giúp người dùng biết giao dịch sẽ gửi từ ví nào.
+
+### 3. Kiểm tra số dư trước khi gửi giao dịch (pre-flight check)
+
+**Tệp:** `src/lib/donation.ts`
+
+Thêm bước kiểm tra số dư on-chain trước khi thực hiện giao dịch, đưa ra thông báo lỗi rõ ràng hơn (hiển thị số dư thực tế vs số tiền muốn gửi).
+
+```text
+// Trước khi gọi transfer():
+const balance = await tokenContract.balanceOf(fromAddress);
+const needed = ethers.parseUnits(amount.toString(), decimals);
+if (balance < needed) {
+  throw new Error(
+    `Số dư không đủ. Ví ${fromAddress.slice(0,6)}...${fromAddress.slice(-4)} ` +
+    `chỉ có ${ethers.formatUnits(balance, decimals)} ${tokenSymbol}, ` +
+    `cần ${amount} ${tokenSymbol}`
+  );
 }
-// CAMLY/USDT/BNB -> khong chuyen mang -> that bai tren mobile
-```
-
-Cau truc moi:
-```text
-if (isFunToken) {
-  switchChain(97);   // BSC Testnet cho FUN
-} else {
-  switchChain(56);   // BSC Mainnet cho CAMLY/USDT/BNB
-}
-// Re-fetch walletClient sau khi chuyen mang
-```
-
-Chi tiet:
-- Thêm block `else` để chuyển sang BSC Mainnet (chainId 56) cho tất cả token BSC không phải FUN
-- Sử dụng cùng pattern: `switchChain` -> `wallet_addEthereumChain` fallback -> hướng dẫn thủ công
-- Thông số BSC Mainnet: RPC `https://bsc-dataseed.binance.org/`, chainId `0x38`, symbol `BNB`
-- Re-fetch `walletClient` sau khi chuyển mạng thành công
-- Di chuyển logic re-fetch ra ngoài cả 2 block if/else để tránh trùng code
-
-### 2. Dọn dẹp giao dịch pending bị kẹt
-
-Cập nhật tất cả giao dịch đang "pending" mà không có tx_hash thành "failed":
-```text
-UPDATE donation_transactions
-SET status = 'failed'
-WHERE status = 'pending' AND tx_hash IS NULL;
-```
-
-### 3. Sửa build error pushNotifications.ts
-
-**Tep:** `src/lib/pushNotifications.ts`
-
-Thêm type assertion cho `registration` khi truy cập `pushManager` hoặc thêm type guard:
-```text
-const reg = registration as any;
-let subscription = await reg.pushManager.getSubscription();
 ```
 
 ## Tóm tắt thay đổi
 
 | # | Tệp | Thay đổi |
 |---|------|----------|
-| 1 | `src/lib/donation.ts` | Thêm switchChain(56) cho CAMLY/USDT/BNB trên BSC Mainnet, refactor logic chuyển mạng |
-| 2 | `src/lib/pushNotifications.ts` | Sửa TypeScript error cho pushManager |
-| 3 | Database | Cập nhật giao dịch pending bị kẹt thành failed |
+| 1 | `src/components/Donate/EnhancedDonateModal.tsx` | Ưu tiên đọc số dư từ ví đang kết nối (wagmi) thay vì ví trong DB |
+| 2 | `src/components/Donate/EnhancedDonateModal.tsx` | Thêm cảnh báo khi ví kết nối khác ví hồ sơ |
+| 3 | `src/lib/donation.ts` | Thêm pre-flight balance check trước khi gửi giao dịch |
 
-Sau khi sửa, người dùng trên mobile sẽ được tự động chuyển sang đúng mạng BSC khi gửi bất kỳ token nào (CAMLY, USDT, BNB trên Mainnet hoặc FUN trên Testnet).
-
+Sau khi sửa, số dư hiển thị sẽ luôn khớp với ví thực tế gửi giao dịch, và người dùng sẽ nhận được thông báo rõ ràng nếu số dư không đủ.
