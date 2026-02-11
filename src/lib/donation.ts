@@ -36,42 +36,53 @@ export const sendDonation = async ({
   const FUN_MONEY_CONTRACT = "0x1aa8DE8B1E4465C6d729E8564893f8EF823a5ff2";
   const isFunToken = tokenAddress.toLowerCase() === FUN_MONEY_CONTRACT.toLowerCase();
 
-  if (isFunToken) {
-    try {
-      await switchChain(wagmiConfig, { chainId: 97 });
-    } catch (switchError: any) {
-      console.warn("[Donation] switchChain(97) failed, trying wallet_addEthereumChain:", switchError.message);
-      try {
-        // Try adding BSC Testnet via wallet RPC, then switch again
-        const transport = walletClient.transport as any;
-        if (transport?.request) {
-          await transport.request({
-            method: "wallet_addEthereumChain",
-            params: [{
-              chainId: "0x61",
-              chainName: "BSC Testnet",
-              nativeCurrency: { name: "tBNB", symbol: "tBNB", decimals: 18 },
-              rpcUrls: ["https://data-seed-prebsc-1-s1.binance.org:8545/"],
-              blockExplorerUrls: ["https://testnet.bscscan.com"],
-            }],
-          });
-        }
-        await switchChain(wagmiConfig, { chainId: 97 });
-      } catch (addError: any) {
-        console.error("[Donation] addChain + switchChain failed:", addError);
-        throw new Error(
-          "Không thể chuyển sang BSC Testnet. Vui lòng thêm mạng BSC Testnet thủ công trong ví:\n" +
-          "• RPC: https://data-seed-prebsc-1-s1.binance.org:8545/\n" +
-          "• Chain ID: 97 • Symbol: tBNB\n" +
-          "• Explorer: https://testnet.bscscan.com"
-        );
+  // Determine target chain based on token
+  const targetChainId = isFunToken ? 97 : 56; // BSC Testnet for FUN, BSC Mainnet for others
+  const chainConfig = isFunToken
+    ? {
+        chainId: "0x61",
+        chainName: "BSC Testnet",
+        nativeCurrency: { name: "tBNB", symbol: "tBNB", decimals: 18 },
+        rpcUrls: ["https://data-seed-prebsc-1-s1.binance.org:8545/"],
+        blockExplorerUrls: ["https://testnet.bscscan.com"],
       }
+    : {
+        chainId: "0x38",
+        chainName: "BSC Mainnet",
+        nativeCurrency: { name: "BNB", symbol: "BNB", decimals: 18 },
+        rpcUrls: ["https://bsc-dataseed.binance.org/"],
+        blockExplorerUrls: ["https://bscscan.com"],
+      };
+
+  // Switch to the correct chain
+  try {
+    await switchChain(wagmiConfig, { chainId: targetChainId });
+  } catch (switchError: any) {
+    console.warn(`[Donation] switchChain(${targetChainId}) failed, trying wallet_addEthereumChain:`, switchError.message);
+    try {
+      const transport = walletClient.transport as any;
+      if (transport?.request) {
+        await transport.request({
+          method: "wallet_addEthereumChain",
+          params: [chainConfig],
+        });
+      }
+      await switchChain(wagmiConfig, { chainId: targetChainId });
+    } catch (addError: any) {
+      console.error("[Donation] addChain + switchChain failed:", addError);
+      throw new Error(
+        `Không thể chuyển sang ${chainConfig.chainName}. Vui lòng thêm mạng thủ công trong ví:\n` +
+        `• RPC: ${chainConfig.rpcUrls[0]}\n` +
+        `• Chain ID: ${targetChainId} • Symbol: ${chainConfig.nativeCurrency.symbol}\n` +
+        `• Explorer: ${chainConfig.blockExplorerUrls[0]}`
+      );
     }
-    // Re-fetch wallet client after chain switch
-    walletClient = await getWalletClient(wagmiConfig);
-    if (!walletClient) {
-      throw new Error("Không thể kết nối ví sau khi chuyển mạng");
-    }
+  }
+
+  // Re-fetch wallet client after chain switch
+  walletClient = await getWalletClient(wagmiConfig);
+  if (!walletClient) {
+    throw new Error("Không thể kết nối ví sau khi chuyển mạng");
   }
 
   // Create ethers provider from walletClient transport (works with both injected & WalletConnect)
