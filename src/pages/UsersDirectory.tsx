@@ -6,9 +6,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Users, Search, ArrowUpDown, MessageSquare, Video, Heart, Eye, Share2, Gift, Coins, BadgeCheck, Calendar } from "lucide-react";
+import { Users, Search, ArrowUpDown, MessageSquare, Video, Heart, Eye, Share2, Gift, Coins, BadgeCheck, Calendar, CheckCircle2, Clock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { format, subDays } from "date-fns";
@@ -50,6 +51,11 @@ function fmt(n: number): string {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
   if (n >= 1_000) return (n / 1_000).toFixed(1) + "K";
   return Number(n).toLocaleString("en-US", { maximumFractionDigits: 2 });
+}
+
+function claimPercent(u: PublicUserStat): number {
+  if (u.total_camly_rewards <= 0) return 0;
+  return Math.min(100, Math.round((u.claimed_camly / u.total_camly_rewards) * 100));
 }
 
 const UsersDirectory = () => {
@@ -154,7 +160,15 @@ const UsersDirectory = () => {
                 <TableRow>
                   <TableHead className="w-8">#</TableHead>
                   <TableHead>User</TableHead>
-                  <TableHead className="text-right">CAMLY</TableHead>
+                  <TableHead className="text-right">
+                    <span className="flex items-center justify-end gap-1"><Coins className="h-3.5 w-3.5 text-amber-500" /> Tổng</span>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <span className="flex items-center justify-end gap-1"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> Đã nhận</span>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <span className="flex items-center justify-end gap-1"><Clock className="h-3.5 w-3.5 text-orange-500" /> Chưa nhận</span>
+                  </TableHead>
                   <TableHead className="text-right">
                     <span className="flex items-center justify-end gap-1"><Eye className="h-3.5 w-3.5" /> Views</span>
                   </TableHead>
@@ -162,10 +176,7 @@ const UsersDirectory = () => {
                     <span className="flex items-center justify-end gap-1"><Video className="h-3.5 w-3.5" /> Videos</span>
                   </TableHead>
                   <TableHead className="text-right">
-                    <span className="flex items-center justify-end gap-1"><MessageSquare className="h-3.5 w-3.5" /> Comments</span>
-                  </TableHead>
-                  <TableHead className="text-right">
-                    <span className="flex items-center justify-end gap-1"><Gift className="h-3.5 w-3.5" /> Donated</span>
+                    <span className="flex items-center justify-end gap-1"><Gift className="h-3.5 w-3.5" /> Tặng</span>
                   </TableHead>
                   <TableHead className="text-right">
                     <span className="flex items-center justify-end gap-1"><Coins className="h-3.5 w-3.5" /> FUN</span>
@@ -192,16 +203,17 @@ const UsersDirectory = () => {
                       </div>
                     </TableCell>
                     <TableCell className="text-right font-semibold text-amber-600">{fmt(u.total_camly_rewards)}</TableCell>
+                    <TableCell className="text-right font-medium text-emerald-600">{fmt(u.claimed_camly)}</TableCell>
+                    <TableCell className="text-right font-medium text-orange-500">{fmt(u.unclaimed_camly)}</TableCell>
                     <TableCell className="text-right">{fmt(u.views_count)}</TableCell>
                     <TableCell className="text-right">{fmt(u.videos_count)}</TableCell>
-                    <TableCell className="text-right">{fmt(u.comments_count)}</TableCell>
                     <TableCell className="text-right">{fmt(u.donations_sent_total)}</TableCell>
                     <TableCell className="text-right text-primary font-medium">{fmt(u.minted_fun_total)}</TableCell>
                   </TableRow>
                 ))}
                 {filtered.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                       Không tìm thấy user nào
                     </TableCell>
                   </TableRow>
@@ -216,7 +228,8 @@ const UsersDirectory = () => {
           <div className="space-y-3">
             {filtered.map((u, i) => (
               <Card key={u.user_id} className="cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => goToProfile(u)}>
-                <CardContent className="p-4">
+                <CardContent className="p-4 space-y-3">
+                  {/* User info */}
                   <div className="flex items-start gap-3">
                     <div className="relative">
                       <Avatar className="h-11 w-11">
@@ -233,21 +246,59 @@ const UsersDirectory = () => {
                         {u.avatar_verified && <BadgeCheck className="h-4 w-4 text-primary shrink-0" />}
                       </div>
                       <span className="text-xs text-muted-foreground">@{u.username}</span>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        <Badge variant="secondary" className="text-xs gap-1">
-                          <Coins className="h-3 w-3 text-amber-500" /> {fmt(u.total_camly_rewards)} CAMLY
-                        </Badge>
-                        <Badge variant="outline" className="text-xs gap-1">
-                          <Eye className="h-3 w-3" /> {fmt(u.views_count)}
-                        </Badge>
-                        <Badge variant="outline" className="text-xs gap-1">
-                          <Video className="h-3 w-3" /> {fmt(u.videos_count)}
-                        </Badge>
-                        <Badge variant="outline" className="text-xs gap-1">
-                          <Gift className="h-3 w-3" /> {fmt(u.donations_sent_total)}
-                        </Badge>
-                      </div>
                     </div>
+                  </div>
+
+                  {/* CAMLY Breakdown */}
+                  <div className="bg-muted/50 rounded-lg p-3 space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-medium text-amber-600 flex items-center gap-1">
+                        <Coins className="h-3.5 w-3.5" /> {fmt(u.total_camly_rewards)} CAMLY
+                      </span>
+                      <span className="text-xs text-muted-foreground">{claimPercent(u)}% đã nhận</span>
+                    </div>
+                    <Progress value={claimPercent(u)} className="h-2" />
+                    <div className="flex justify-between text-xs">
+                      <span className="text-emerald-600 flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3" /> Đã nhận: {fmt(u.claimed_camly)}
+                      </span>
+                      <span className="text-orange-500 flex items-center gap-1">
+                        <Clock className="h-3 w-3" /> Chưa nhận: {fmt(u.unclaimed_camly)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Stats Grid */}
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-1.5">
+                      <Eye className="h-3 w-3" /> Views: <span className="text-foreground font-medium">{fmt(u.views_count)}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Video className="h-3 w-3" /> Videos: <span className="text-foreground font-medium">{fmt(u.videos_count)}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <MessageSquare className="h-3 w-3" /> Comments: <span className="text-foreground font-medium">{fmt(u.comments_count)}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Heart className="h-3 w-3" /> Likes: <span className="text-foreground font-medium">{fmt(u.likes_count)}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Gift className="h-3 w-3" /> Đã tặng: <span className="text-foreground font-medium">{fmt(u.donations_sent_total)}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Gift className="h-3 w-3" /> Được nhận: <span className="text-foreground font-medium">{fmt(u.donations_received_total)}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Coins className="h-3 w-3 text-primary" /> FUN: <span className="text-primary font-medium">{fmt(u.minted_fun_total)}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Share2 className="h-3 w-3" /> Shares: <span className="text-foreground font-medium">{fmt(u.shares_count)}</span>
+                    </div>
+                  </div>
+
+                  {/* Join date */}
+                  <div className="text-[11px] text-muted-foreground flex items-center gap-1 pt-1 border-t border-border">
+                    <Calendar className="h-3 w-3" /> Tham gia: {format(new Date(u.created_at), "dd/MM/yyyy")}
                   </div>
                 </CardContent>
               </Card>
