@@ -9,6 +9,8 @@ export interface PublicUserStat {
   avatar_verified: boolean;
   created_at: string;
   total_camly_rewards: number;
+  claimed_camly: number;
+  unclaimed_camly: number;
   posts_count: number;
   videos_count: number;
   comments_count: number;

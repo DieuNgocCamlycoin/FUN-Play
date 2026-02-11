@@ -2385,6 +2385,7 @@ export type Database = {
         Returns: {
           avatar_url: string
           avatar_verified: boolean
+          claimed_camly: number
           comments_count: number
           created_at: string
           display_name: string
@@ -2398,6 +2399,7 @@ export type Database = {
           posts_count: number
           shares_count: number
           total_camly_rewards: number
+          unclaimed_camly: number
           user_id: string
           username: string
           videos_count: number
