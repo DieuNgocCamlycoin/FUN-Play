@@ -67,8 +67,17 @@ serve(async (req) => {
       );
     }
 
-    // Update transaction with tx_hash
-    const explorerUrl = `https://bscscan.com/tx/${tx_hash}`;
+    // Determine correct explorer URL based on token chain
+    const { data: tokenData } = await supabase
+      .from("donate_tokens")
+      .select("contract_address, chain")
+      .eq("id", existingTx.token_id)
+      .single();
+
+    const isFunTestnet = tokenData?.contract_address?.toLowerCase() === "0x1aa8de8b1e4465c6d729e8564893f8ef823a5ff2";
+    const explorerUrl = isFunTestnet
+      ? `https://testnet.bscscan.com/tx/${tx_hash}`
+      : `https://bscscan.com/tx/${tx_hash}`;
     
     const { data: updatedTx, error: updateError } = await supabase
       .from("donation_transactions")
