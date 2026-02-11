@@ -240,22 +240,21 @@ export const EnhancedDonateModal = ({
         return;
       }
 
-      // Get wallet address from profile or wallet provider
+      // Get wallet address from profile or wagmi (mobile-compatible)
       let walletAddress = senderProfile?.wallet_address;
       if (!walletAddress) {
-        const ethereum = (window as any).ethereum;
-        if (!ethereum) {
-          setBscBalance(null);
-          return;
-        }
         try {
-          const tempProvider = new ethers.BrowserProvider(ethereum);
-          const signer = await tempProvider.getSigner();
-          walletAddress = await signer.getAddress();
+          const { getAccount } = await import("@wagmi/core");
+          const { wagmiConfig } = await import("@/lib/web3Config");
+          const account = getAccount(wagmiConfig);
+          walletAddress = account?.address || null;
         } catch {
-          setBscBalance(null);
-          return;
+          // ignore
         }
+      }
+      if (!walletAddress) {
+        setBscBalance(null);
+        return;
       }
 
       setLoadingBscBalance(true);
@@ -371,7 +370,7 @@ export const EnhancedDonateModal = ({
   const isValidAmount = selectedToken?.chain === "internal"
     ? currentBalance !== null && parseFloat(amount || "0") <= currentBalance
     : bscBalance !== null && parseFloat(amount || "0") <= parseFloat(bscBalance);
-  const isBscNoWallet = selectedToken?.chain === "bsc" && !(window as any).ethereum;
+  const isBscNoWallet = selectedToken?.chain === "bsc" && !senderProfile?.wallet_address;
   const sortedTokens = [...tokens].sort((a, b) => a.priority - b.priority);
   const currentTheme = DONATION_THEMES.find(t => t.id === selectedTheme);
   const canProceedToReview = selectedReceiver && selectedToken && amount && parseFloat(amount) > 0 && isValidAmount;
