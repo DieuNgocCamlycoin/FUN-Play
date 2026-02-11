@@ -107,17 +107,24 @@ export const sendDonation = async ({
 
   try {
     if (tokenAddress === "native") {
-      // Send BNB
+      // Pre-flight balance check for BNB
+      const bnbBalance = await provider.getBalance(fromAddress);
+      const needed = ethers.parseEther(amount.toString());
+      if (bnbBalance < needed) {
+        throw new Error(
+          `Số dư không đủ. Ví ${fromAddress.slice(0,6)}...${fromAddress.slice(-4)} ` +
+          `chỉ có ${parseFloat(ethers.formatEther(bnbBalance)).toFixed(6)} BNB, ` +
+          `cần ${amount} BNB`
+        );
+      }
+
       const tx = await signer.sendTransaction({
         to: toAddress,
-        value: ethers.parseEther(amount.toString()),
+        value: needed,
       });
       txHash = tx.hash;
-      
-      // Wait for confirmation
       await tx.wait();
     } else {
-      // Send ERC-20 token
       if (tokenAddress === "0x") {
         throw new Error(`${tokenSymbol} contract address not configured. Please contact support.`);
       }
@@ -125,10 +132,18 @@ export const sendDonation = async ({
       const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, signer);
       const amountInWei = ethers.parseUnits(amount.toString(), decimals);
 
+      // Pre-flight balance check for ERC-20
+      const tokenBalance = await tokenContract.balanceOf(fromAddress);
+      if (tokenBalance < amountInWei) {
+        throw new Error(
+          `Số dư không đủ. Ví ${fromAddress.slice(0,6)}...${fromAddress.slice(-4)} ` +
+          `chỉ có ${parseFloat(ethers.formatUnits(tokenBalance, decimals)).toFixed(4)} ${tokenSymbol}, ` +
+          `cần ${amount} ${tokenSymbol}`
+        );
+      }
+
       const tx = await tokenContract.transfer(toAddress, amountInWei);
       txHash = tx.hash;
-      
-      // Wait for confirmation
       await tx.wait();
     }
 
