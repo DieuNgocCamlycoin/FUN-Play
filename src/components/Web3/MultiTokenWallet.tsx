@@ -47,11 +47,12 @@ export const MultiTokenWallet = ({ compact = false }: MultiTokenWalletProps) => 
     const newBalances: TokenBalance[] = [];
 
     try {
-      // Use public RPC provider for balance fetching
-      const provider = new ethers.JsonRpcProvider("https://bsc-dataseed.binance.org/");
-      
       for (const token of SUPPORTED_TOKENS) {
         try {
+          // Use correct RPC per token (FUN = Testnet, others = Mainnet)
+          const { getRpcForToken } = await import("@/config/tokens");
+          const provider = new ethers.JsonRpcProvider(getRpcForToken(token.symbol));
+
           if (token.address === "native") {
             const balance = await provider.getBalance(userAddress);
             const bnbBalance = ethers.formatEther(balance);

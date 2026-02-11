@@ -32,6 +32,32 @@ export const sendDonation = async ({
     throw new Error("Vui lòng kết nối ví để tặng");
   }
 
+  // If sending FUN Money, switch to BSC Testnet first
+  const FUN_MONEY_CONTRACT = "0x1aa8DE8B1E4465C6d729E8564893f8EF823a5ff2";
+  if (tokenAddress.toLowerCase() === FUN_MONEY_CONTRACT.toLowerCase()) {
+    try {
+      await (window as any).ethereum?.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: '0x61' }], // BSC Testnet chain 97
+      });
+    } catch (switchError: any) {
+      if (switchError.code === 4902) {
+        await (window as any).ethereum?.request({
+          method: 'wallet_addEthereumChain',
+          params: [{
+            chainId: '0x61',
+            chainName: 'BNB Smart Chain Testnet',
+            rpcUrls: ['https://data-seed-prebsc-1-s1.binance.org:8545/'],
+            nativeCurrency: { name: 'tBNB', symbol: 'tBNB', decimals: 18 },
+            blockExplorerUrls: ['https://testnet.bscscan.com'],
+          }],
+        });
+      } else {
+        throw new Error("Vui lòng chuyển sang mạng BSC Testnet để gửi FUN");
+      }
+    }
+  }
+
   // Create ethers provider - use window.ethereum if available
   const provider = new ethers.BrowserProvider((window as any).ethereum || walletClient.transport);
   const signer = await provider.getSigner();

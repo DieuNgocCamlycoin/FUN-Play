@@ -260,16 +260,16 @@ export const EnhancedDonateModal = ({
 
       setLoadingBscBalance(true);
       try {
-        // Use public BSC RPC — always reads from BSC regardless of wallet network
-        const BSC_RPC = "https://bsc-dataseed.binance.org/";
-        const readProvider = new ethers.JsonRpcProvider(BSC_RPC);
-
         const tokenConfig = SUPPORTED_TOKENS.find(t => t.symbol === selectedToken!.symbol);
         if (!tokenConfig) {
           setBscBalance("0");
           setLoadingBscBalance(false);
           return;
         }
+
+        // Use correct RPC per token (FUN = Testnet, others = Mainnet)
+        const { getRpcForToken } = await import("@/config/tokens");
+        const readProvider = new ethers.JsonRpcProvider(getRpcForToken(tokenConfig.symbol));
 
         if (tokenConfig.address === "native") {
           const bal = await readProvider.getBalance(walletAddress);
