@@ -249,33 +249,75 @@ export const EnhancedDonateModal = ({
       setLoadingBscBalance(true);
       try {
         const provider = new ethers.BrowserProvider(ethereum);
-        const signer = await provider.getSigner();
-        const address = await signer.getAddress();
 
-        // Find token config
-        const tokenConfig = SUPPORTED_TOKENS.find(t => t.symbol === selectedToken.symbol);
-
-        if (!tokenConfig) {
-          setBscBalance(null);
+        // Check and switch to BSC Mainnet (chainId 56) if needed
+        const network = await provider.getNetwork();
+        const currentChainId = Number(network.chainId);
+        if (currentChainId !== 56) {
+          try {
+            await ethereum.request({
+              method: 'wallet_switchEthereumChain',
+              params: [{ chainId: '0x38' }],
+            });
+          } catch (switchErr: any) {
+            if (switchErr.code === 4902) {
+              await ethereum.request({
+                method: 'wallet_addEthereumChain',
+                params: [{
+                  chainId: '0x38',
+                  chainName: 'BNB Smart Chain',
+                  nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 },
+                  rpcUrls: ['https://bsc-dataseed.binance.org/'],
+                  blockExplorerUrls: ['https://bscscan.com'],
+                }],
+              });
+            } else {
+              console.warn("User rejected network switch");
+              setBscBalance("0");
+              setLoadingBscBalance(false);
+              return;
+            }
+          }
+          // Re-create provider after network switch
+          const newProvider = new ethers.BrowserProvider(ethereum);
+          const signer = await newProvider.getSigner();
+          const address = await signer.getAddress();
+          await fetchBalanceForAddress(newProvider, address);
           return;
         }
 
+        const signer = await provider.getSigner();
+        const address = await signer.getAddress();
+        await fetchBalanceForAddress(provider, address);
+      } catch (err) {
+        console.error("Failed to fetch BSC balance:", err);
+        setBscBalance("0");
+      } finally {
+        setLoadingBscBalance(false);
+      }
+    };
+
+    const fetchBalanceForAddress = async (provider: ethers.BrowserProvider, address: string) => {
+      const tokenConfig = SUPPORTED_TOKENS.find(t => t.symbol === selectedToken!.symbol);
+      if (!tokenConfig) {
+        setBscBalance("0");
+        return;
+      }
+
+      try {
         if (tokenConfig.address === "native") {
-          // BNB native
           const bal = await provider.getBalance(address);
           setBscBalance(ethers.formatEther(bal));
         } else {
-          // ERC-20 token
           const erc20Abi = ["function balanceOf(address) view returns (uint256)"];
           const contract = new ethers.Contract(tokenConfig.address, erc20Abi, provider);
           const bal = await contract.balanceOf(address);
           setBscBalance(ethers.formatUnits(bal, tokenConfig.decimals));
         }
-      } catch (err) {
-        console.error("Failed to fetch BSC balance:", err);
-        setBscBalance(null);
-      } finally {
-        setLoadingBscBalance(false);
+      } catch (balErr: any) {
+        // Handle BAD_DATA / 0x error gracefully
+        console.warn("Balance query failed (possibly wrong network or contract not deployed):", balErr?.code || balErr);
+        setBscBalance("0");
       }
     };
 
