@@ -1,6 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-
 export interface PublicUserStat {
   user_id: string;
   username: string;
@@ -43,9 +42,32 @@ export function usePublicUsersDirectory() {
     setLoading(false);
   };
 
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const debouncedRefetch = useCallback(() => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(() => {
+      fetchData();
+    }, 2000);
+  }, []);
+
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('users-directory-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'likes' }, debouncedRefetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, debouncedRefetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reward_transactions' }, debouncedRefetch)
+      .subscribe();
+
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      supabase.removeChannel(channel);
+    };
+  }, [debouncedRefetch]);
 
   return { data, loading, error, refetch: fetchData };
 }
