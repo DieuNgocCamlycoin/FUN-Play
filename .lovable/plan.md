@@ -1,57 +1,57 @@
 
 
-# Sửa lỗi hiển thị số dư USDT & CAMLY trong modal Thưởng & Tặng
+# Thêm nút Quay lại trên trang Thông báo và Trang cá nhân (Mobile)
 
 ---
 
-## Nguyên nhân gốc
+## Thay đổi
 
-Hiện tại hàm `fetchBscBalance` sử dụng **wallet provider** (MetaMask/Bitget) để đọc số dư. Khi ví đang ở sai mạng, code cố chuyển mạng rồi tạo lại provider, nhưng:
+### 1. Trang Thông báo (`src/pages/Notifications.tsx`)
 
-1. Sau khi gọi `wallet_switchEthereumChain`, provider mới có thể **chưa kịp cập nhật** mạng BSC
-2. Gọi `balanceOf` trên provider chưa sẵn sàng → trả về `0x` hoặc lỗi → hiển thị "0.0000"
-3. Ngay cả khi đã ở đúng mạng BSC, một số ví mobile trả về lỗi khi gọi qua `BrowserProvider`
+- Thêm import `ArrowLeft` từ `lucide-react` và hook `useIsMobile`
+- Thêm nút quay lại (ArrowLeft) bên trái tiêu đề "Thông báo" trên mobile
+- Nút gọi `navigate(-1)` để quay về trang trước đó
+- Chỉ hiển thị trên mobile (`isMobile`)
 
-## Giải pháp
+**Vị trí thay đổi:** Phần header (dòng 137-144)
 
-Thay vì phụ thuộc vào wallet provider để đọc số dư, sử dụng **public BSC RPC** (JsonRpcProvider) cho việc đọc balance — hoàn toàn không cần ví ở đúng mạng.
-
-Luồng mới:
+Trước:
 ```
-1. Lấy địa chỉ ví người dùng từ wallet provider (hoặc từ senderProfile.wallet_address)
-2. Tạo JsonRpcProvider với BSC RPC endpoint (luôn đúng mạng)
-3. Gọi balanceOf trên JsonRpcProvider → luôn chính xác
+<h1 className="text-2xl font-bold">Thông báo</h1>
 ```
 
----
-
-## Chi tiết thay đổi
-
-### Tệp: `src/components/Donate/EnhancedDonateModal.tsx`
-
-**Thay thế toàn bộ hàm `fetchBscBalance` (dòng 236-325):**
-
-- Xoá logic `wallet_switchEthereumChain` và `wallet_addEthereumChain` (không cần thiết cho việc đọc số dư)
-- Tạo `ethers.JsonRpcProvider("https://bsc-dataseed.binance.org/")` — provider chỉ đọc, luôn kết nối BSC
-- Lấy địa chỉ ví từ `senderProfile.wallet_address` (đã có sẵn) hoặc fallback sang wallet provider
-- Gọi `balanceOf` trên JsonRpcProvider → kết quả chính xác bất kể ví đang ở mạng nào
-
-**Logic mới:**
+Sau:
 ```
-const BSC_RPC = "https://bsc-dataseed.binance.org/";
+<div className="flex items-center gap-2">
+  {isMobile && (
+    <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+      <ArrowLeft className="h-5 w-5" />
+    </Button>
+  )}
+  <h1 className="text-2xl font-bold">Thông báo</h1>
+</div>
+```
 
-// Lấy address từ senderProfile hoặc wallet provider
-const walletAddress = senderProfile?.wallet_address || (await getAddressFromWallet());
+### 2. Trang Cá nhân (`src/pages/UserProfile.tsx`)
 
-// Dùng public RPC để đọc số dư (không phụ thuộc mạng ví)
-const readProvider = new ethers.JsonRpcProvider(BSC_RPC);
+- Thêm import `ArrowLeft` từ `lucide-react` và hook `useIsMobile`
+- Thêm nút quay lại dạng floating (vị trí cố định góc trên trái) phía trên ảnh bìa trên mobile
+- Nút có nền bán trong suốt để dễ nhìn trên ảnh bìa
 
-if (tokenConfig.address === "native") {
-  const bal = await readProvider.getBalance(walletAddress);
-} else {
-  const contract = new ethers.Contract(tokenConfig.address, erc20Abi, readProvider);
-  const bal = await contract.balanceOf(walletAddress);
-}
+**Vị trí thay đổi:** Ngay trước `ProfileHeader` (dòng 253-257)
+
+```
+{isMobile && (
+  <Button
+    variant="ghost"
+    size="icon"
+    onClick={() => navigate(-1)}
+    className="fixed top-3 left-3 z-50 bg-black/40 hover:bg-black/60 text-white rounded-full"
+  >
+    <ArrowLeft className="h-5 w-5" />
+  </Button>
+)}
+<ProfileHeader ... />
 ```
 
 ---
@@ -60,13 +60,8 @@ if (tokenConfig.address === "native") {
 
 | # | Tệp | Thay đổi |
 |---|------|----------|
-| 1 | `src/components/Donate/EnhancedDonateModal.tsx` | Dùng public BSC RPC để đọc số dư thay vì wallet provider; lấy address từ senderProfile |
+| 1 | `src/pages/Notifications.tsx` | Thêm nút ArrowLeft bên trái tiêu đề trên mobile |
+| 2 | `src/pages/UserProfile.tsx` | Thêm nút ArrowLeft floating góc trên trái trên mobile |
 
----
-
-## Kết quả mong đợi
-
-- Số dư USDT, CAMLY, FUN, BNB hiển thị đúng bất kể ví đang ở mạng nào
-- Không cần chuyển mạng chỉ để xem số dư
-- Hoạt động ổn định trên cả desktop và mobile
+Cả hai nút đều gọi `navigate(-1)` để quay về trang trước đó và chỉ hiển thị trên mobile.
 
