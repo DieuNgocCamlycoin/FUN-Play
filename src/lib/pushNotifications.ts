@@ -40,13 +40,14 @@ export const subscribeToPush = async (): Promise<PushSubscription | null> => {
 
   try {
     const registration = await navigator.serviceWorker.ready;
+    const reg = registration as any;
     
     // Check if already subscribed
-    let subscription = await registration.pushManager.getSubscription();
+    let subscription = await reg.pushManager.getSubscription();
     
     if (!subscription) {
       // Subscribe to push notifications
-      subscription = await registration.pushManager.subscribe({
+      subscription = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(
           // This is a dummy VAPID key - in production, you'd generate your own
