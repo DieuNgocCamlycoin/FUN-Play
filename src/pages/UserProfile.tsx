@@ -11,6 +11,9 @@ import { DonationCelebration } from "@/components/Profile/DonationCelebration";
 import { BackgroundMusicPlayer } from "@/components/BackgroundMusicPlayer";
 import { useToast } from "@/hooks/use-toast";
 import { AuthRequiredDialog } from "@/components/Auth/AuthRequiredDialog";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface UserProfileData {
   id: string;
@@ -46,6 +49,7 @@ export default function UserProfile() {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showCelebration, setShowCelebration] = useState(false);
+  const isMobile = useIsMobile();
   const [celebrationData, setCelebrationData] = useState<{ amount: number; senderName: string } | null>(null);
 
   // Determine target user ID
@@ -250,6 +254,18 @@ export default function UserProfile() {
       )}
 
       <div className="min-h-screen bg-background">
+        {/* Mobile Back Button */}
+        {isMobile && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate(-1)}
+            className="fixed top-3 left-3 z-50 bg-black/40 hover:bg-black/60 text-white rounded-full"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+        )}
+
         {/* Header with Cover + Avatar + Honor Board */}
         <ProfileHeader
           profile={profile}

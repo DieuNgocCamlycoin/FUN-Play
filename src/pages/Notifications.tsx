@@ -4,12 +4,13 @@ import { MainLayout } from "@/components/Layout/MainLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Bell, BellOff, CheckCheck } from "lucide-react";
+import { ArrowLeft, Bell, BellOff, CheckCheck } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { formatTimestamp } from "@/lib/formatters";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Notification {
   id: string;
@@ -41,6 +42,7 @@ const Notifications = () => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<FilterKey>("all");
@@ -135,7 +137,14 @@ const Notifications = () => {
       <div className="max-w-3xl mx-auto p-4 lg:p-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl font-bold text-foreground">Thông báo</h1>
+          <div className="flex items-center gap-2">
+            {isMobile && (
+              <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+            )}
+            <h1 className="text-2xl font-bold text-foreground">Thông báo</h1>
+          </div>
           {unreadCount > 0 && (
             <Button variant="ghost" size="sm" onClick={markAllRead} className="gap-2">
               <CheckCheck className="h-4 w-4" />
