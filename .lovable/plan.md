@@ -1,86 +1,107 @@
 
 
-# Thêm nút "Xem Celebration Card" vào tin nhắn donation trong Chat
+# Thêm mục "Thống Kê Users" vào Admin Dashboard
 
-## Vấn đề hiện tại
+## Mô tả
 
-Khi gửi giao dịch qua hàm `sendDonation` (luồng gửi trực tiếp từ ví), tin nhắn chat được tạo **thiếu 2 trường quan trọng**:
-- `donation_transaction_id`: null
-- `deep_link`: null
+Thêm một section mới trong Admin Dashboard (`/admin?section=user-stats`) hiển thị danh sách tất cả users kèm thống kê chi tiết: hoạt động, điểm Anh sang, FUN Money, CAMLY rewards, donation USDT/BNB, va lich su tang thuong cho nhau.
 
-Do đó, `ChatDonationCard` hiển thị dạng fallback (chỉ có text) mà không có nút "Xem Celebration Card". Trong khi luồng GiftCelebrationModal thì đầy đủ cả 2 trường nên hiển thị đúng.
+## Cac buoc thuc hien
 
-Nguyên nhân sâu hơn: hàm `sendDonation` chỉ tạo bản ghi `wallet_transactions`, **không tạo bản ghi `donation_transactions`** nên không có `receipt_public_id` để tạo link Celebration Card.
+### 1. Tao RPC `get_users_directory_stats` (Migration SQL)
 
-## Giải pháp
+Tao database function tong hop thong ke cho tat ca users trong 1 query duy nhat, tranh N+1:
+- Activity: dem posts, videos, comments, likes, shares tu `reward_transactions`
+- CAMLY: tong, pending, approved tu `reward_transactions`  
+- Donations: tong gui/nhan tu `donation_transactions` (group by token symbol)
+- Mint requests: so FUN da mint tu `mint_requests`
 
-### 1. Tạo bản ghi `donation_transactions` trong hàm `sendDonation`
+### 2. Them section "user-stats" vao Admin Layout
 
-**Tệp:** `src/lib/donation.ts`
+**Tep:** `src/components/Admin/UnifiedAdminLayout.tsx`
 
-Sau khi giao dịch blockchain thành công (sau `tx.wait()`), thêm bước tạo bản ghi trong bảng `donation_transactions`:
-- Tra cứu `token_id` từ bảng `donate_tokens` dựa trên `tokenSymbol`
-- Insert bản ghi với status "success", tx_hash, và các thông tin cần thiết
-- `receipt_public_id` sẽ được tự động sinh bởi database (có column default)
-- Lấy lại `id` và `receipt_public_id` từ kết quả insert
+- Them `"user-stats"` vao type `AdminSection`
+- Them nav item moi voi icon `BarChart3` va label "Thong Ke Users"
 
-### 2. Truyền `donation_transaction_id` và `deep_link` vào chat message
+### 3. Tao tab moi: `src/components/Admin/tabs/UserStatsTab.tsx`
 
-**Tệp:** `src/lib/donation.ts`
+Tab chinh hien thi danh sach users voi cac cot:
+- **User**: Avatar, ten, username
+- **Hoat dong**: Posts, Videos, Comments, Likes, Shares (so lieu)
+- **Light Score**: Diem tong (progress bar mau gradient)
+- **FUN Money**: So FUN da mint
+- **CAMLY**: Tong / Cho duyet / Da duyet
+- **Donations**: Tong gui/nhan (USDT, BNB, CAMLY qua donation)
 
-Cập nhật phần insert `chat_messages` để truyền thêm:
-- `donation_transaction_id`: ID của bản ghi vừa tạo
-- `deep_link`: `/receipt/{receipt_public_id}`
+Tinh nang:
+- Tim kiem theo ten/username
+- Sap xep theo cac cot
+- Click mo rong de xem chi tiet (pillar scores S/T/H/C/U, lich su donation)
+- Export CSV
+- Responsive: bang tren desktop, card tren mobile
 
-Kết quả: tin nhắn donation trong chat sẽ hiển thị đầy đủ Celebration Card mini với nút "Xem Celebration Card" giống như luồng GiftCelebrationModal.
+### 4. Tao hook: `src/hooks/useUsersDirectoryStats.ts`
 
-## Chi tiết kỹ thuật
+- Goi RPC `get_users_directory_stats` de lay du lieu tong hop
+- Tra ve danh sach users voi day du thong ke
+- Ho tro pagination va search
+
+### 5. Cap nhat `src/pages/UnifiedAdminDashboard.tsx`
+
+- Import `UserStatsTab`
+- Them case `"user-stats"` trong `renderContent()`
+- Them tieu de va mo ta cho section moi
+
+## Chi tiet ky thuat
+
+### RPC Function (SQL)
 
 ```text
-// Sau khi tx.wait() thành công, TRƯỚC khi insert wallet_transactions:
-
-// 1. Tra cứu token_id
-const { data: tokenInfo } = await supabase
-  .from("donate_tokens")
-  .select("id")
-  .eq("symbol", tokenSymbol)
-  .eq("is_enabled", true)
-  .single();
-
-// 2. Tạo donation_transactions
-const { data: donationTx } = await supabase
-  .from("donation_transactions")
-  .insert({
-    sender_id: user.id,
-    receiver_id: toUserId,
-    token_id: tokenInfo.id,
-    amount: amount,
-    status: "success",
-    chain: isFunToken ? "bsc_testnet" : "bsc",
-    tx_hash: txHash,
-    explorer_url: isFunToken
-      ? `https://testnet.bscscan.com/tx/${txHash}`
-      : `https://bscscan.com/tx/${txHash}`,
-  })
-  .select("id, receipt_public_id")
-  .single();
-
-// 3. Trong phần insert chat_messages, thêm:
-await supabase.from("chat_messages").insert({
-  chat_id: chatId,
-  sender_id: user.id,
-  message_type: "donation",
-  content: `🎁 Bạn đã nhận được ${amount} ${tokenSymbol}!`,
-  donation_transaction_id: donationTx?.id || null,
-  deep_link: donationTx ? `/receipt/${donationTx.receipt_public_id}` : null,
-});
+CREATE OR REPLACE FUNCTION get_users_directory_stats()
+RETURNS TABLE (
+  user_id uuid,
+  username text,
+  display_name text,
+  avatar_url text,
+  wallet_address text,
+  created_at timestamptz,
+  banned boolean,
+  avatar_verified boolean,
+  pending_rewards numeric,
+  approved_reward numeric,
+  total_camly_rewards numeric,
+  posts_count bigint,
+  videos_count bigint,
+  comments_count bigint,
+  views_count bigint,
+  likes_count bigint,
+  shares_count bigint,
+  donations_sent_count bigint,
+  donations_sent_total numeric,
+  donations_received_count bigint,
+  donations_received_total numeric,
+  mint_requests_count bigint,
+  minted_fun_total numeric
+)
+-- Uses LEFT JOINs with subqueries for each metric
+-- Security: SECURITY DEFINER, only callable by admins
 ```
 
-## Tệp thay đổi
+### Giao dien expand row
 
-| # | Tệp | Thay đổi |
+Khi click vao 1 user, hien thi them:
+- 5 pillar scores (S, T, H, C, U) dang progress bars
+- Unity Score, Integrity Score
+- Danh sach 5 donation gan nhat (gui va nhan)
+- Link den trang profile cua user
+
+## Tep thay doi
+
+| # | Tep | Thay doi |
 |---|------|----------|
-| 1 | `src/lib/donation.ts` | Thêm tạo bản ghi `donation_transactions` sau khi giao dịch thành công, truyền `donation_transaction_id` và `deep_link` vào chat message |
-
-Sau khi sửa, tất cả tin nhắn donation trong chat (dù gửi qua luồng nào) đều sẽ hiển thị đầy đủ Celebration Card mini với nút "Xem Celebration Card".
+| 1 | Migration SQL | Tao RPC `get_users_directory_stats` |
+| 2 | `src/components/Admin/UnifiedAdminLayout.tsx` | Them section "user-stats" vao nav |
+| 3 | `src/components/Admin/tabs/UserStatsTab.tsx` | Tao tab moi hien thi thong ke users |
+| 4 | `src/hooks/useUsersDirectoryStats.ts` | Hook moi fetch du lieu tu RPC |
+| 5 | `src/pages/UnifiedAdminDashboard.tsx` | Them case render cho section "user-stats" |
 
