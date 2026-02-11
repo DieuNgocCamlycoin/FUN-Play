@@ -1,67 +1,63 @@
 
-# Sửa lỗi gửi FUN trên Mobile
 
-## Nguyên nhân gốc
+# Sửa lỗi: Không hiện thông báo nhận FUN và không hiện trong lịch sử
 
-Hệ thống ví sử dụng **Reown AppKit** với WalletConnect. Trên mobile, không có `window.ethereum` (chỉ có khi dùng in-app browser của MetaMask). Code hiện tại dùng `window.ethereum?.request()` để chuyển mạng sang BSC Testnet - lệnh này **thất bại âm thầm** trên mobile vì `window.ethereum` là `undefined`.
+## Nguyên nhân
 
-Ngoài ra, wagmi config chỉ đăng ký mạng BSC Mainnet (chain 56), không có BSC Testnet (chain 97), nên wagmi cũng không thể switch chain.
+Sau khi phân tích kỹ code và dữ liệu, phát hiện **3 vấn đề chính**:
+
+### Vấn đề 1: Thông báo realtime chỉ theo dõi `wallet_transactions` nhưng bỏ qua `donation_transactions`
+
+Component `GlobalPaymentNotifications` chỉ lắng nghe bảng `wallet_transactions`. Tuy nhiên, luồng tặng qua modal (EnhancedDonateModal) lưu giao dịch chính vào bảng `donation_transactions` (qua edge function `create-donation` + `confirm-bsc-donation`). Ngoài ra, hàm `sendDonation` cũng insert vào `wallet_transactions`, nhưng trường `to_user_id` đôi khi bị null (khi không tìm được profile theo wallet address), khiến filter realtime `to_user_id=eq.{userId}` không bắt được.
+
+### Vấn đề 2: Truy vấn đếm sai trạng thái
+
+Trong `GlobalPaymentNotifications`, truy vấn đếm dùng `.eq('status', 'success')` nhưng dữ liệu thực tế trong `wallet_transactions` lưu `status = 'completed'`. Kết quả: count luôn trả về 0.
+
+### Vấn đề 3: Lấy số dư FUN thất bại trên mobile
+
+Trên mobile (WalletConnect), `window.ethereum` không tồn tại. Code hiện tại kiểm tra `!(window as any).ethereum` và bỏ qua việc fetch balance. Cần lấy wallet address từ profile thay vì từ `window.ethereum`.
+
+---
 
 ## Giải pháp
 
-### 1. Thêm BSC Testnet vào cấu hình wagmi (`src/lib/web3Config.ts`)
+### 1. Sửa `GlobalPaymentNotifications` - Thêm lắng nghe `donation_transactions`
 
-- Import `bscTestnet` từ `@reown/appkit/networks`
-- Thêm vào mảng `networks` để wagmi biết về mạng Testnet
-- Điều này cho phép `switchChain` của wagmi hoạt động với chain 97
+**Tệp:** `src/components/Web3/GlobalPaymentNotifications.tsx`
 
-### 2. Sửa logic gửi FUN (`src/lib/donation.ts`)
+- Thêm channel thứ 2 lắng nghe `donation_transactions` với filter `receiver_id=eq.{userId}` và `status=eq.success`
+- Sửa truy vấn đếm từ `status = 'success'` thành `status = 'completed'` cho `wallet_transactions`
+- Khi nhận event từ `donation_transactions`, fetch token symbol từ `donate_tokens` để hiện đúng tên token
 
-Thay thế `window.ethereum?.request()` bằng `switchChain` từ `@wagmi/core`:
+### 2. Sửa status filter trong count query
 
+**Tệp:** `src/components/Web3/GlobalPaymentNotifications.tsx`
+
+Thay:
 ```text
-Trước (không hoạt động trên mobile):
-  await (window as any).ethereum?.request({
-    method: 'wallet_switchEthereumChain',
-    params: [{ chainId: '0x61' }],
-  });
-
-Sau (hoạt động trên cả web và mobile):
-  import { switchChain, getWalletClient } from '@wagmi/core';
-  await switchChain(wagmiConfig, { chainId: 97 });
-  // Lấy lại walletClient sau khi đổi mạng
-  const newWalletClient = await getWalletClient(wagmiConfig);
+.eq('status', 'success')
+```
+Thành:
+```text
+.in('status', ['success', 'completed'])
 ```
 
-- Sau khi switch chain, cần tạo lại provider và signer từ walletClient mới
-- Dùng `walletClient.transport` thay vì `window.ethereum` để tương thích WalletConnect
-- Xoá toàn bộ logic `window.ethereum?.request` cho FUN
+### 3. Sửa balance fetch trên mobile
 
-### 3. Sửa provider creation
+**Tệp:** `src/components/Donate/EnhancedDonateModal.tsx`
 
-Thay đổi cách tạo provider để ưu tiên walletClient transport (hoạt động với cả injected và WalletConnect):
+- Xoá kiểm tra `window.ethereum` khi lấy wallet address để fetch balance
+- Ưu tiên dùng `senderProfile.wallet_address` (đã có sẵn từ DB)
+- Chỉ dùng wagmi `getAccount` làm fallback thay vì `window.ethereum`
+- Sửa `isBscNoWallet`: kiểm tra `!senderProfile?.wallet_address` thay vì `!window.ethereum`
 
-```text
-Trước:
-  const provider = new ethers.BrowserProvider(
-    (window as any).ethereum || walletClient.transport
-  );
-
-Sau:
-  // Sau khi switchChain, lấy walletClient mới
-  let activeWalletClient = walletClient;
-  if (isFunToken) {
-    await switchChain(wagmiConfig, { chainId: 97 });
-    activeWalletClient = await getWalletClient(wagmiConfig);
-  }
-  const provider = new ethers.BrowserProvider(activeWalletClient.transport);
-```
+---
 
 ## Tóm tắt
 
 | # | Tệp | Thay đổi |
 |---|------|----------|
-| 1 | `src/lib/web3Config.ts` | Thêm BSC Testnet vào networks |
-| 2 | `src/lib/donation.ts` | Dùng wagmi `switchChain` thay vì `window.ethereum`, tạo lại provider sau khi đổi mạng |
+| 1 | `GlobalPaymentNotifications.tsx` | Thêm lắng nghe `donation_transactions`, sửa status filter |
+| 2 | `EnhancedDonateModal.tsx` | Sửa balance fetch trên mobile, bỏ phụ thuộc `window.ethereum` |
 
-Hai thay đổi này đảm bảo FUN hoạt động trên **cả mobile (WalletConnect) và desktop (injected wallet)**.
