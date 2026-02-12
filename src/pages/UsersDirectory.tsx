@@ -84,13 +84,13 @@ const UsersDirectory = () => {
   }, [data, search, sortBy, timeFilter]);
 
   const goToProfile = (u: PublicUserStat) => {
-    if (u.username) navigate(`/@${u.username}`);
+    if (u.username) navigate(`/c/${u.username}`);
     else navigate(`/user/${u.user_id}`);
   };
 
   const goToChannel = (e: React.MouseEvent, u: PublicUserStat) => {
     e.stopPropagation();
-    if (u.username) navigate(`/@${u.username}`);
+    if (u.username) navigate(`/c/${u.username}`);
     else navigate(`/channel/${u.user_id}`);
   };
 
