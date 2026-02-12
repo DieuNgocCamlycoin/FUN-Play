@@ -483,10 +483,10 @@ export default function Upload() {
             const SHORT_VIDEO_MAX_DURATION = 180;
             let uploadType = "SHORT_VIDEO_UPLOAD";
             
-            if (videoDuration > 0 && videoDuration < SHORT_VIDEO_MAX_DURATION) {
+            if (videoDuration > 0 && videoDuration <= SHORT_VIDEO_MAX_DURATION) {
               await awardShortVideoUpload(videoData.id);
               uploadType = "SHORT_VIDEO_UPLOAD";
-            } else if (videoDuration >= SHORT_VIDEO_MAX_DURATION) {
+            } else if (videoDuration > SHORT_VIDEO_MAX_DURATION) {
               await awardLongVideoUpload(videoData.id);
               uploadType = "LONG_VIDEO_UPLOAD";
             } else {
