@@ -512,8 +512,8 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
         totalCount: (serverStats as any)?.totalCount ?? deduped.length,
         totalValue: (serverStats as any)?.totalValue ?? deduped.reduce((sum, t) => sum + t.amount, 0),
         todayCount: (serverStats as any)?.todayCount ?? 0,
-        successCount: (serverStats as any)?.totalCount ?? deduped.length,
-        pendingCount: 0,
+        successCount: (serverStats as any)?.successCount ?? deduped.length,
+        pendingCount: (serverStats as any)?.pendingCount ?? 0,
       };
 
       setStats(newStats);
