@@ -190,6 +190,7 @@ const RewardPoolTab = () => {
 
       // Tính tổng theo ví + token_type + ngày giới hạn
       let w1Camly = 0, w1Usdt = 0, w2Camly = 0, w2Usdt = 0;
+      let missingTimestampCount = 0;
       (txs || []).forEach(tx => {
         const from = tx.from_address?.toLowerCase();
         const tokenType = (tx.token_type || "").toUpperCase();
@@ -197,20 +198,23 @@ const RewardPoolTab = () => {
         const isCamly = tokenType.includes("CAMLY") || tokenType.includes("BEP20") || tokenType === "";
         const isUsdt = tokenType.includes("USDT") || tokenType.includes("USD");
 
+        if (!ts) { missingTimestampCount++; return; }
+
         if (from === w1) {
           // Ví 1: chỉ tính trước 8/1/2026
-          if (!ts || ts < WALLET1_CUTOFF) {
+          if (ts < WALLET1_CUTOFF) {
             if (isUsdt) w1Usdt += Number(tx.amount);
             else w1Camly += Number(tx.amount);
           }
         } else if (from === w2) {
           // Ví 2: chỉ tính trước 18/1/2026
-          if (!ts || ts < WALLET2_CUTOFF) {
+          if (ts < WALLET2_CUTOFF) {
             if (isUsdt) w2Usdt += Number(tx.amount);
             else w2Camly += Number(tx.amount);
           }
         }
       });
+      if (missingTimestampCount > 0) console.warn(`${missingTimestampCount} giao dịch thiếu block_timestamp, bỏ qua`);
 
       setManualStats({
         wallet1Camly: w1Camly, wallet1Usdt: w1Usdt,

@@ -240,7 +240,7 @@ Deno.serve(async (req) => {
             // Check if already exists (COALESCE index workaround)
             const { data: existing } = await supabase
               .from("wallet_transactions")
-              .select("id")
+              .select("id, block_timestamp")
               .eq("chain_id", CHAIN_ID)
               .eq("token_contract", CAMLY_TOKEN)
               .eq("tx_hash", tx.transaction_hash)
@@ -248,6 +248,14 @@ Deno.serve(async (req) => {
               .maybeSingle();
 
             if (existing) {
+              // Update block_timestamp if missing
+              if (!existing.block_timestamp && tx.block_timestamp) {
+                await supabase
+                  .from("wallet_transactions")
+                  .update({ block_timestamp: tx.block_timestamp })
+                  .eq("id", existing.id);
+                console.log(`Updated timestamp for tx ${tx.transaction_hash.slice(0, 16)}...`);
+              }
               result.duplicatesSkipped++;
               continue;
             }
