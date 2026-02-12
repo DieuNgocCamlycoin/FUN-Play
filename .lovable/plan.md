@@ -1,37 +1,28 @@
 
 
-# Sửa thống kê User trong Admin Dashboard + Realtime
-
-## Vấn đề
-
-1. **Số liệu sai**: RPC `get_users_directory_stats` đang đếm videos, comments, views, likes từ bảng `reward_transactions` (chỉ đếm khi user được thưởng). Cần đếm từ bảng thực tế (`videos`, `comments`, `likes`, v.v.) giống như đã sửa cho trang `/users` public.
-
-2. **Không có realtime**: Hook `useUsersDirectoryStats` chỉ tải dữ liệu 1 lần khi mở trang, không tự cập nhật khi có thay đổi.
+# Nhấn vào avatar trong Users Directory sẽ link tới kênh của người dùng
 
 ## Thay đổi
 
-| # | Tệp / Migration | Mô tả |
-|---|-----------------|--------|
-| 1 | Migration SQL | Cập nhật RPC `get_users_directory_stats` - đếm videos từ bảng `videos`, comments từ `comments`, likes từ `likes`, views từ `videos.view_count` |
-| 2 | `src/hooks/useUsersDirectoryStats.ts` | Thêm Realtime listener (debounce 2s) lắng nghe bảng `likes`, `comments`, `reward_transactions` |
+Hiện tại, cả hàng (row) trong bảng Desktop và thẻ (card) trên Mobile đều đã có `onClick` chuyển tới trang cá nhân. Yêu cầu là khi nhấn riêng vào **avatar**, sẽ chuyển tới **kênh** của người đó thay vì trang cá nhân.
 
-## Chi tiết kỹ thuật
+### Cách thực hiện
 
-### 1. Sửa RPC `get_users_directory_stats`
+Chỉ cần sửa **1 file**: `src/pages/UsersDirectory.tsx`
 
-Thay đổi các nguồn dữ liệu:
-- `videos_count`: Đếm từ bảng `videos` (thay vì reward_transactions UPLOAD)
-- `comments_count`: Đếm từ bảng `comments` (thay vì reward_transactions COMMENT)
-- `views_count`: Tính `SUM(view_count)` từ bảng `videos` (thay vì reward_transactions VIEW)
-- `likes_count`: Đếm từ bảng `likes` WHERE `is_dislike = false` (thay vì reward_transactions LIKE)
-- `shares_count`: Giữ nguyên từ `reward_transactions` (không có bảng shares riêng)
-- `total_camly`: Giữ nguyên từ `reward_transactions`
+#### 1. Desktop (bảng Table)
+- Bọc `Avatar` trong thẻ `<div>` có `onClick` riêng, gọi `e.stopPropagation()` để không kích hoạt `onClick` của cả hàng
+- `onClick` của avatar sẽ điều hướng tới `/@${u.username}` hoặc `/channel/${u.user_id}`
+- Thêm `cursor-pointer` và hiệu ứng hover (ring/border sáng) để người dùng biết avatar có thể nhấn được
 
-### 2. Thêm Realtime vào hook
+#### 2. Mobile (thẻ Card)
+- Tương tự, bọc `Avatar` trong thẻ `<div>` có `onClick` riêng với `e.stopPropagation()`
+- Điều hướng tới kênh của người dùng khi nhấn vào avatar
+- Thêm hiệu ứng hover/ring cho avatar
 
-Áp dụng cùng pattern đã dùng cho `usePublicUsersDirectory`:
-- Dùng `useRef` + `useCallback` để đảm bảo thứ tự hooks đúng
-- Debounce 2 giây trước khi gọi lại RPC
-- Lắng nghe 3 bảng: `likes`, `comments`, `reward_transactions`
-- Cleanup khi unmount
+### Chi tiết kỹ thuật
+
+- Tạo hàm `goToChannel(u)` điều hướng tới `/@${u.username}` (nếu có username) hoặc `/channel/${u.user_id}` (nếu không có)
+- Avatar trên cả Desktop và Mobile sẽ gọi `goToChannel` thay vì `goToProfile`
+- Nhấn vào phần còn lại của hàng/thẻ vẫn giữ nguyên hành vi cũ (`goToProfile`)
 
