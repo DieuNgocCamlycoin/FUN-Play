@@ -387,30 +387,14 @@ serve(async (req) => {
       }
     }
 
-    // 11. Get suspicious_score to determine auto-approve
-    const { data: profileData, error: profileError } = await adminSupabase
-      .from("profiles")
-      .select("suspicious_score")
-      .eq("id", userId)
-      .single();
+    // 11. Always auto-approve all rewards (no admin approval needed)
+    const canAutoApprove = true;
 
-    if (profileError) {
-      console.error('Failed to get profile:', profileError);
-      return new Response(
-        JSON.stringify({ success: false, error: 'Profile not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // 12. Determine if auto-approve based on suspicious_score
-    const suspiciousScore = profileData?.suspicious_score || 0;
-    const canAutoApprove = suspiciousScore < validation.AUTO_APPROVE_THRESHOLD;
-
-    // 13. ATOMIC INCREMENT via RPC - prevents race conditions
+    // 12. ATOMIC INCREMENT via RPC - prevents race conditions
     const { data: updatedProfile, error: updateError } = await adminSupabase.rpc('atomic_increment_reward', {
       p_user_id: userId,
       p_amount: amount,
-      p_auto_approve: canAutoApprove
+      p_auto_approve: true
     });
 
     if (updateError) {

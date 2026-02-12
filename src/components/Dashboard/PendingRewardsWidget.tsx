@@ -51,7 +51,7 @@ export const PendingRewardsWidget = ({ userId, onClaimClick }: PendingRewardsWid
         <CardHeader className="pb-2">
           <CardTitle className="text-lg flex items-center gap-2">
             <Gift className="w-5 h-5 text-[#FFD700]" />
-            Phần thưởng chờ claim
+            Phần thưởng sẵn sàng
           </CardTitle>
         </CardHeader>
         <CardContent>

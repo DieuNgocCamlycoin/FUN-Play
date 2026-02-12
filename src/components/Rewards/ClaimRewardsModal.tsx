@@ -64,9 +64,7 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
   const [claimSuccess, setClaimSuccess] = useState(false);
   const [txHash, setTxHash] = useState<string | null>(null);
   const [totalUnclaimed, setTotalUnclaimed] = useState(0);
-  const [totalPending, setTotalPending] = useState(0); // Chờ admin duyệt
   const [breakdown, setBreakdown] = useState<RewardBreakdown[]>([]);
-  const [pendingBreakdown, setPendingBreakdown] = useState<RewardBreakdown[]>([]);
   const [isMobile, setIsMobile] = useState(false);
   const [inWalletApp, setInWalletApp] = useState(false);
   const [showWalletGuide, setShowWalletGuide] = useState(false);
@@ -130,46 +128,26 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
 
       if (error) throw error;
 
-      // Phân tách reward đã duyệt và chưa duyệt
-      const approvedBreakdownMap = new Map<string, { amount: number; count: number }>();
-      const pendingBreakdownMap = new Map<string, { amount: number; count: number }>();
-      let approvedTotal = 0;
-      let pendingTotal = 0;
+      // All rewards are auto-approved now
+      const breakdownMap = new Map<string, { amount: number; count: number }>();
+      let total = 0;
 
       rewards?.forEach((r) => {
-        const isApproved = r.approved === true;
-        const targetMap = isApproved ? approvedBreakdownMap : pendingBreakdownMap;
-        
-        const existing = targetMap.get(r.reward_type) || { amount: 0, count: 0 };
-        targetMap.set(r.reward_type, {
+        const existing = breakdownMap.get(r.reward_type) || { amount: 0, count: 0 };
+        breakdownMap.set(r.reward_type, {
           amount: existing.amount + Number(r.amount),
           count: existing.count + 1,
         });
-        
-        if (isApproved) {
-          approvedTotal += Number(r.amount);
-        } else {
-          pendingTotal += Number(r.amount);
-        }
+        total += Number(r.amount);
       });
 
-      // Set breakdown cho rewards đã duyệt (có thể claim)
       setBreakdown(
-        Array.from(approvedBreakdownMap.entries()).map(([type, data]) => ({
+        Array.from(breakdownMap.entries()).map(([type, data]) => ({
           type,
           ...data,
         }))
       );
-      setTotalUnclaimed(approvedTotal);
-
-      // Set breakdown cho rewards chưa duyệt (chờ admin)
-      setPendingBreakdown(
-        Array.from(pendingBreakdownMap.entries()).map(([type, data]) => ({
-          type,
-          ...data,
-        }))
-      );
-      setTotalPending(pendingTotal);
+      setTotalUnclaimed(total);
     } catch (error) {
       console.error("Error fetching unclaimed rewards:", error);
     } finally {
@@ -605,12 +583,12 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
                   </div>
                 ) : null}
 
-                {/* ✅ Chi tiết phần thưởng đã duyệt */}
+                {/* ✅ Chi tiết phần thưởng */}
                 {breakdown.length > 0 && (
                   <div className="space-y-2">
                     <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                       <ShieldCheck className="h-4 w-4 text-green-500" />
-                      Phần thưởng đã duyệt
+                      Chi tiết phần thưởng
                     </h4>
                     <ScrollArea className="max-h-28">
                       <div className="space-y-1.5">
@@ -636,9 +614,9 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
                 )}
               </div>
 
-              {/* CỘT PHẢI - Tổng quan & Pending */}
+              {/* CỘT PHẢI - Tổng quan */}
               <div className="space-y-4">
-                {/* 📊 TỔNG QUAN PHẦN THƯỞNG - Summary Card */}
+                {/* 📊 TỔNG QUAN PHẦN THƯỞNG */}
                 <motion.div
                   initial={{ y: -10, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
@@ -649,38 +627,14 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
                     <span className="font-semibold text-sm">📊 Tổng quan phần thưởng</span>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-3">
-                    {/* Có thể claim ngay */}
-                    <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20 text-center">
-                      <div className="flex items-center justify-center gap-1 mb-1">
-                        <ShieldCheck className="h-3 w-3 text-green-500" />
-                        <span className="text-[10px] text-green-600 font-medium">Có thể claim</span>
-                      </div>
-                      <p className="text-lg font-bold text-green-500">
-                        {formatNumber(totalUnclaimed)}
-                      </p>
-                    </div>
-                    
-                    {/* Chờ duyệt */}
-                    <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-center">
-                      <div className="flex items-center justify-center gap-1 mb-1">
-                        <Clock className="h-3 w-3 text-yellow-500" />
-                        <span className="text-[10px] text-yellow-600 font-medium">Chờ duyệt</span>
-                      </div>
-                      <p className="text-lg font-bold text-yellow-500">
-                        {formatNumber(totalPending)}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  {/* Tổng cộng */}
-                  <div className="p-3 rounded-lg bg-gradient-to-r from-yellow-500/10 via-cyan-500/10 to-yellow-500/10 border border-primary/20 text-center">
+                  {/* Có thể claim */}
+                  <div className="p-3 rounded-lg bg-gradient-to-r from-green-500/10 via-cyan-500/10 to-green-500/10 border border-green-500/20 text-center">
                     <div className="flex items-center justify-center gap-1 mb-1">
                       <Coins className="h-3 w-3 text-primary" />
-                      <span className="text-[10px] text-muted-foreground font-medium">TỔNG CỘNG</span>
+                      <span className="text-[10px] text-muted-foreground font-medium">CÓ THỂ CLAIM</span>
                     </div>
                     <p className="text-xl font-bold bg-gradient-to-r from-yellow-500 to-cyan-500 bg-clip-text text-transparent">
-                      {formatNumber(totalUnclaimed + totalPending)} CAMLY
+                      {formatNumber(totalUnclaimed)} CAMLY
                     </p>
                   </div>
                 </motion.div>
@@ -693,7 +647,6 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
                       <span className="font-medium text-sm text-blue-600">Tiến độ đến ngưỡng claim</span>
                     </div>
                     
-                    {/* Progress bar */}
                     <div className="space-y-1">
                       <div className="flex justify-between text-xs text-muted-foreground">
                         <span>{formatNumber(totalUnclaimed)}</span>
@@ -707,60 +660,8 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
                   </div>
                 )}
 
-                {/* ⏳ Phần thưởng đang chờ duyệt */}
-                {totalPending > 0 && (
-                  <Alert className="border-yellow-500/30 bg-yellow-500/10">
-                    <Clock className="h-4 w-4 text-yellow-500" />
-                    <AlertTitle className="text-yellow-600 font-semibold">
-                      ⏳ Phần thưởng đang chờ duyệt
-                    </AlertTitle>
-                    <AlertDescription className="text-sm space-y-2">
-                      <p className="text-muted-foreground">
-                        Bạn có <span className="font-bold text-yellow-500">{formatNumber(totalPending)} CAMLY</span> đang chờ Admin duyệt.
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        💡 Thời gian duyệt thường từ 1-24 giờ.
-                      </p>
-                      
-                      {/* Chi tiết pending */}
-                      {pendingBreakdown.length > 0 && (
-                        <ScrollArea className="max-h-24 mt-2">
-                          <div className="space-y-1">
-                            {pendingBreakdown.map((item) => (
-                              <div
-                                key={item.type}
-                                className="flex items-center justify-between p-1.5 rounded bg-yellow-500/5 text-xs"
-                              >
-                                <span className="text-muted-foreground">
-                                  {REWARD_TYPE_LABELS[item.type] || item.type} ({item.count}x)
-                                </span>
-                                <span className="text-yellow-500">
-                                  +{formatNumber(item.amount)}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </ScrollArea>
-                      )}
-                    </AlertDescription>
-                  </Alert>
-                )}
-
-                {/* Thông báo khi không có reward nào để claim */}
-                {totalUnclaimed === 0 && totalPending > 0 && (
-                  <Alert className="border-cyan-500/30 bg-cyan-500/10">
-                    <Sparkles className="h-4 w-4 text-cyan-500" />
-                    <AlertTitle className="text-cyan-600 font-semibold">
-                      🎉 {formatNumber(totalPending)} CAMLY đang chờ duyệt!
-                    </AlertTitle>
-                    <AlertDescription className="text-sm text-muted-foreground">
-                      Sau khi Admin duyệt, bạn có thể claim ngay!
-                    </AlertDescription>
-                  </Alert>
-                )}
-
                 {/* Thông báo khi không có reward gì cả */}
-                {totalUnclaimed === 0 && totalPending === 0 && (
+                {totalUnclaimed === 0 && (
                   <Alert className="border-muted bg-muted/30">
                     <Info className="h-4 w-4 text-muted-foreground" />
                     <AlertTitle className="text-muted-foreground font-semibold">

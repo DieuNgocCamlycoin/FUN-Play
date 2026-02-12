@@ -65,14 +65,14 @@ export const usePendingRewards = (userId: string | undefined) => {
     try {
       const { data: profile, error } = await supabase
         .from("profiles")
-        .select("pending_rewards, last_claim_at, total_camly_rewards")
+        .select("approved_reward, last_claim_at, total_camly_rewards")
         .eq("id", userId)
         .single();
 
       if (error) throw error;
 
       setData({
-        pendingRewards: Number(profile?.pending_rewards) || 0,
+        pendingRewards: Number(profile?.approved_reward) || 0,
         lastClaimAt: profile?.last_claim_at || null,
         totalEarned: Number(profile?.total_camly_rewards) || 0,
       });
