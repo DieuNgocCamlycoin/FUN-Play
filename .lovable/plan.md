@@ -1,58 +1,45 @@
 
 
-# Sửa lỗi nút Like + Phân loại video
+# Sửa lỗi: Click video trên trang cá nhân không xem được
 
-## Lỗi tìm thấy
+## Nguyên nhân
 
-### 1. Nút Like trên PostCard KHÔNG hoạt động (lỗi chính)
-**File: `src/components/Profile/PostCard.tsx`**
+Trong `VideoCard.tsx`, khi click vào thumbnail, hàm `handlePlay` được gọi:
 
-Nút Like chỉ thay đổi giao dien nhưng KHÔNG ghi vao database. Code hiện tại:
 ```text
-const handleLike = async () => {
-  // Optimistic update only - no database call!
-  setIsLiked(!isLiked);
-  setLikeCount(prev => isLiked ? prev - 1 : prev + 1);
-  // TODO: Implement actual like functionality  <-- Bug ở đây
+const handlePlay = () => {
+  lightTap();
+  if (onPlay && videoId) {
+    onPlay(videoId);  // Chỉ gọi callback nếu có prop onPlay
+  }
+  // Nếu KHÔNG có onPlay -> KHÔNG làm gì cả!
 };
 ```
 
-Trong khi hook `usePostLike` đã tồn tại và hoạt động đúng (ghi vào bảng `post_likes`, có trigger tự cập nhật `like_count` trên bảng `posts`). PostCard không dùng hook này.
+`ProfileVideosTab.tsx` render `VideoCard` mà KHÔNG truyền prop `onPlay`, nên click vào video không dẫn tới trang xem video.
 
-**Sửa**: Thay thế logic like thủ công bằng `usePostLike` hook.
+## Sửa lỗi
 
-### 2. Ngưỡng phân loại video: dùng `<` thay vì `<=`
-**File: `src/pages/Upload.tsx` (dòng 486) và `src/contexts/UploadContext.tsx` (dòng 314)**
+**File: `src/components/Video/VideoCard.tsx`**
 
-Code hiện tại: `videoDuration < 180` -- video đúng 180 giây sẽ bị phân loại LONG (sai).
-Chuẩn: Video <= 180s là SHORT, > 180s là LONG.
+Thêm fallback navigation khi không có `onPlay` prop: nếu `onPlay` không được truyền vào, tự động navigate tới `/watch/${videoId}`.
 
-**Sửa**: Đổi `<` thành `<=`.
+```text
+const handlePlay = () => {
+  lightTap();
+  if (onPlay && videoId) {
+    onPlay(videoId);
+  } else if (videoId) {
+    navigate(`/watch/${videoId}`);  // Fallback: navigate trực tiếp
+  }
+};
+```
 
-### 3. Các tính năng đã hoạt động tốt
-- **moderate-content**: Edge function hoạt động, logs cho thấy boot + shutdown bình thường
-- **award-camly**: Auto-approve hoạt động đúng (logs: "AutoApproved: true")
-- **Duration extraction**: Desktop upload đã có code trích xuất duration từ HTML5 Video API
-- **backfill-video-duration**: Edge function đã deploy
+Thay doi chi 1 dong, dam bao tat ca VideoCard trong app deu hoat dong dung - ca khi co onPlay callback va khi khong co.
 
-## Thay đổi cụ thể
+## Chi 1 file can sua
 
-### File 1: `src/components/Profile/PostCard.tsx`
-- Import `usePostLike` hook
-- Xóa state thủ công `isLiked`, `likeCount`
-- Thay `handleLike` bằng `toggleLike` từ hook
-- Hook tự động: kiểm tra trạng thái like, optimistic update, ghi database, có trigger cập nhật `like_count`
-
-### File 2: `src/pages/Upload.tsx` (dòng 486)
-- Đổi `videoDuration < SHORT_VIDEO_MAX_DURATION` thành `videoDuration <= SHORT_VIDEO_MAX_DURATION`
-
-### File 3: `src/contexts/UploadContext.tsx` (dòng 314)
-- Đổi `effectiveDuration < SHORT_VIDEO_MAX_DURATION` thành `effectiveDuration <= SHORT_VIDEO_MAX_DURATION`
-
-## Tóm tắt
-| File | Thay đổi |
+| File | Thay doi |
 |------|----------|
-| `src/components/Profile/PostCard.tsx` | Dùng `usePostLike` hook thay logic like hỏng |
-| `src/pages/Upload.tsx` | Sửa ngưỡng `<` thành `<=` (dòng 486) |
-| `src/contexts/UploadContext.tsx` | Sửa ngưỡng `<` thành `<=` (dòng 314) |
+| `src/components/Video/VideoCard.tsx` | Them fallback `navigate(/watch/${videoId})` trong `handlePlay` |
 
