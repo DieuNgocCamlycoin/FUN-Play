@@ -1,72 +1,106 @@
 
-# Phân tích & Sửa lỗi Hệ thống Thưởng CAMLY
 
-## 3 Lỗi nghiêm trọng phát hiện
+# Thiết kế lại trang Users Directory & Thống kê Users
 
-### Loi 1: Sai lệch số dư profiles vs reward_transactions (CRITICAL)
-Dữ liệu thực tế cho thấy hầu hết users có `total_camly_rewards` trong profiles **thấp hơn** tổng thực tế trong bảng `reward_transactions`. Ví dụ:
-
-| User | profiles.total | Thực tế (reward_transactions) | Chênh lệch |
-|------|---------------|-------------------------------|-------------|
-| Nguyễn Thu | 1,495,000 | 2,720,000 | -1,225,000 |
-| Chí Viễn | 1,625,000 | 2,735,000 | -1,110,000 |
-| Thu Trang | 2,255,000 | 3,340,000 | -1,085,000 |
-| Minh Quân | 2,585,000 | 3,645,000 | -1,060,000 |
-
-**Nguyên nhân**: Edge function `award-camly` sử dụng pattern "đọc rồi ghi" (read-then-write) không atomic. Khi 2 rewards xử lý đồng thời (ví dụ user like + view cùng lúc), một giao dịch sẽ ghi đè lên giao dịch kia, gây mất dữ liệu.
-
-### Loi 2: Bộ lọc loại thưởng không hoạt động (Filter broken)
-Database lưu reward_type dạng UPPERCASE (`VIEW`, `LIKE`, `COMMENT`...) nhưng:
-- `REWARD_TYPE_MAP` dùng key lowercase (`view`, `like`, `comment`)
-- Filter Select dùng value lowercase (`view`, `like`...)
-- So sánh `t.reward_type === "view"` sẽ **không bao giờ khớp** với `"VIEW"` trong database
-
-### Loi 3: Tổng thống kê bị giới hạn 500 dòng
-Trang Reward History tính tổng "Tổng đã kiếm", "Chờ duyệt"... từ dữ liệu fetch được (tối đa 500 dòng). Nhưng nhiều user có 600-900+ giao dịch, nên con số hiển thị sẽ **thiếu chính xác**.
+## Tổng quan
+Nâng cấp 2 trang chính: **Users Directory** (trang /users, công khai) và **User Stats Tab** (Admin) để hiển thị chi tiết hơn về phần thưởng CAMLY -- cụ thể "Đã nhận vì lý do gì" và "Chưa nhận vì sao", cùng giao diện tối ưu cho cả web và mobile.
 
 ---
 
-## Kế hoạch sửa lỗi
+## Thay đổi 1: Nâng cấp RPC `get_public_users_directory`
 
-### Buoc 1: Sửa Edge Function `award-camly` - Dùng SQL atomic update
-Thay vì đọc rồi ghi:
-```
-// CU: read profile -> calculate new total -> update (RACE CONDITION!)
-oldTotal = profile.total_camly_rewards
-newTotal = oldTotal + amount
-update profiles set total_camly_rewards = newTotal
-```
-Chuyển sang atomic increment:
-```
-// MOI: Dùng SQL increment trực tiếp, không bị race condition
-update profiles set 
-  total_camly_rewards = total_camly_rewards + amount,
-  pending_rewards = pending_rewards + amount  -- hoặc approved_reward
-```
+Thêm các cột phân rã reward theo loại hoạt động để hiển thị chi tiết "đã nhận vì lý do gì":
 
-### Buoc 2: Tạo RPC đồng bộ lại số dư cho tất cả users
-Tạo database function `sync_reward_totals()` để:
-- Tính lại `total_camly_rewards` = SUM(amount) từ reward_transactions
-- Tính lại `pending_rewards` = SUM(amount) WHERE approved = false
-- Tính lại `approved_reward` = SUM(amount) WHERE approved = true AND claimed = false
-- Chạy cho tất cả users để sửa dữ liệu sai lệch hiện tại
+- `view_rewards` - Tổng CAMLY từ xem video
+- `like_rewards` - Tổng CAMLY từ thích
+- `comment_rewards` - Tổng CAMLY từ bình luận
+- `share_rewards` - Tổng CAMLY từ chia sẻ
+- `upload_rewards` - Tổng CAMLY từ upload
+- `signup_rewards` - Tổng CAMLY từ đăng ký + kết nối ví
+- `bounty_rewards` - Tổng CAMLY từ bounty
 
-### Buoc 3: Sửa trang RewardHistory
-1. **Fix filter**: Chuyển REWARD_TYPE_MAP sang UPPERCASE keys, và filter Select dùng UPPERCASE values
-2. **Fix tổng thống kê**: Sử dụng RPC `get_user_activity_summary` (đã có sẵn) để lấy tổng chính xác từ server thay vì tính từ 500 dòng client-side
-3. Thêm các loại thưởng còn thiếu: `SHORT_VIDEO_UPLOAD`, `LONG_VIDEO_UPLOAD`, `BOUNTY`
+Tương tự cho RPC `get_users_directory_stats` (admin) -- thêm thêm `pending_by_type` và `approved_by_type`.
+
+**Migration SQL**: Tạo migration DROP + CREATE lại 2 RPC với các cột mới.
+
+---
+
+## Thay đổi 2: Thiết kế lại trang Users Directory (`src/pages/UsersDirectory.tsx`)
+
+### Desktop (bảng rộng)
+- Giữ bảng hiện tại nhưng thêm **hàng mở rộng** (expandable row) khi click vào user
+- Hàng mở rộng hiển thị:
+  - **Phân rã CAMLY**: Biểu đồ thanh ngang mini cho từng loại (View, Like, Comment, Share, Upload...)
+  - **Tiến trình nhận thưởng**: Thanh Progress với 3 phân đoạn (Đã claim / Có thể claim / Chờ duyệt)
+  - Nút "Xem Profile" và "Xem Kênh"
+
+### Mobile (thẻ card)
+- Mỗi card user có nút **bấm mở rộng** (ChevronDown)
+- Khi mở rộng:
+  - Grid 2 cột hiển thị phân rã thưởng theo từng loại hoạt động với icon + số CAMLY
+  - Thanh Progress 3 màu (xanh = đã nhận, cyan = có thể claim, vàng = chờ duyệt)
+  - Mỗi mục có label rõ ràng: "Xem video: 500K CAMLY", "Bình luận: 120K CAMLY"...
+
+### Cập nhật hook `usePublicUsersDirectory`
+- Mở rộng interface `PublicUserStat` thêm các trường reward breakdown mới
+- Realtime vẫn giữ debounce 2s
+
+---
+
+## Thay đổi 3: Thiết kế lại Admin User Stats Tab (`src/components/Admin/tabs/UserStatsTab.tsx`)
+
+### Desktop
+- Giữ bảng sortable hiện tại
+- Nâng cấp `ExpandedDetails`:
+  - Section "CAMLY Chi tiết": Grid hiển thị Pending / Approved / Claimed với phân rã theo loại
+  - Section "Hoạt động": Số liệu Posts, Videos, Comments, Views, Likes, Shares
+  - Section "Tài chính": Donations gửi/nhận, FUN Minted
+
+### Mobile
+- Nâng cấp card mở rộng:
+  - Thêm phân rã CAMLY theo loại hoạt động (View, Like, Comment, Upload...)
+  - Hiển thị 3 trạng thái: Chờ duyệt (vàng), Đã duyệt (xanh dương), Đã claim (xanh lá)
+  - Thanh Progress phân đoạn 3 màu
+
+### Cập nhật hook `useUsersDirectoryStats`
+- Mở rộng interface `UserDirectoryStat` thêm các trường reward breakdown
+
+---
+
+## Thay đổi 4: Cập nhật trang Reward History (`src/pages/RewardHistory.tsx`)
+
+- Thêm section **Tổng hợp theo loại** phía trên danh sách giao dịch
+- Hiển thị grid card nhỏ: mỗi loại hoạt động (View, Like, Comment...) kèm tổng CAMLY kiếm được và số lần
+- Lấy dữ liệu từ RPC `get_user_activity_summary` đã có sẵn
 
 ---
 
 ## Chi tiết kỹ thuật
 
-### Files cần sửa:
-1. `supabase/functions/award-camly/index.ts` - Sửa logic update profile thành atomic increment
-2. `src/pages/RewardHistory.tsx` - Fix filter uppercase, fix tổng thống kê dùng RPC
-3. Tạo migration SQL để tạo RPC `sync_reward_totals` và chạy đồng bộ dữ liệu
+### Files cần tạo/sửa:
+1. **Migration SQL** - DROP + CREATE lại 2 RPC (`get_public_users_directory`, `get_users_directory_stats`) với thêm cột phân rã reward theo loại
+2. **`src/hooks/usePublicUsersDirectory.ts`** - Thêm fields reward breakdown vào interface
+3. **`src/hooks/useUsersDirectoryStats.ts`** - Thêm fields reward breakdown vào interface
+4. **`src/pages/UsersDirectory.tsx`** - Thiết kế lại: thêm expandable rows (desktop) và expandable cards (mobile) với phân rã chi tiết
+5. **`src/components/Admin/tabs/UserStatsTab.tsx`** - Nâng cấp ExpandedDetails với phân rã CAMLY theo loại
+6. **`src/pages/RewardHistory.tsx`** - Thêm section tổng hợp theo loại hoạt động
 
-### Ảnh hưởng:
-- Sau khi sync, tất cả users sẽ thấy số thưởng chính xác
-- Filter loại thưởng sẽ hoạt động đúng
-- Tổng thống kê hiển thị đúng dù user có hàng nghìn giao dịch
-- Không còn mất thưởng do race condition trong tương lai
+### Dữ liệu phân rã reward (thêm vào RPC):
+```text
+LEFT JOIN LATERAL (
+  SELECT
+    SUM(amount) FILTER (WHERE reward_type = 'VIEW') AS view_rewards,
+    SUM(amount) FILTER (WHERE reward_type = 'LIKE') AS like_rewards,
+    SUM(amount) FILTER (WHERE reward_type = 'COMMENT') AS comment_rewards,
+    SUM(amount) FILTER (WHERE reward_type = 'SHARE') AS share_rewards,
+    SUM(amount) FILTER (WHERE reward_type IN ('UPLOAD','SHORT_VIDEO_UPLOAD','LONG_VIDEO_UPLOAD','FIRST_UPLOAD')) AS upload_rewards,
+    SUM(amount) FILTER (WHERE reward_type IN ('SIGNUP','WALLET_CONNECT')) AS signup_rewards,
+    SUM(amount) FILTER (WHERE reward_type = 'BOUNTY') AS bounty_rewards
+  FROM reward_transactions r WHERE r.user_id = p.id
+) rb ON true
+```
+
+### Giao diện phân rã (component dùng chung):
+- Component `RewardBreakdownGrid`: nhận object reward breakdown, render grid icon + label + số CAMLY
+- Dùng lại ở cả 3 noi: UsersDirectory, UserStatsTab, RewardHistory
+
