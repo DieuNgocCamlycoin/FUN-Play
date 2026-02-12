@@ -1,58 +1,144 @@
 
-# Sửa thưởng video "Return To The Light" + Cải thiện xử lý duration NULL
+# Sửa lỗi phân loại video dài + Cập nhật thưởng cho "8 Câu Thần Chú Của Cha"
 
-## Vấn đề tìm thấy
+## Vấn đề gốc
 
-Video **"Return To The Light"** (id: `f52736ad`) của **Angel Thu Ha** có `duration = NULL` trong database. Khi backfill chạy, hệ thống coi NULL = 0, và `0 > 180` = false nên phân loại là SHORT_VIDEO_UPLOAD (20.000 CAMLY). Thực tế video dài trên 4 phút, đáng lẽ phải nhận LONG_VIDEO_UPLOAD (70.000 CAMLY).
+Khi upload video, hệ thống dùng HTML5 Video API để đọc thời lượng. Với một số định dạng video, API này **không đọc được duration** (trả về 0 hoặc NaN). Kết quả:
 
-## Kế hoạch sửa
+```text
+Client: duration = 0 -> 0 <= 180 -> SHORT_VIDEO_UPLOAD (20K)
+Server (award-camly): nhận type = SHORT_VIDEO_UPLOAD -> tin tưởng, cấp 20K
+Database: duration = NULL (vì 0 bị lọc thành null)
+```
 
-### Bước 1: Cập nhật database trực tiếp (SQL Migration)
+Video **"8 Câu Thần Chú Của Cha"** (id: 34da877e) bị ảnh hưởng: duration = NULL, nhận 20K thay vì 70K.
 
-Chạy SQL để:
-1. Cập nhật `duration` cho video "Return To The Light" (đặt 240s = 4 phút, hoặc giá trị chính xác nếu biết)
-2. Sửa reward_transaction: cập nhật `reward_type` từ SHORT sang LONG và `amount` từ 20.000 lên 70.000
-3. Bù thêm 50.000 CAMLY vào `approved_reward` của user
+## Kế hoạch sửa (3 bước)
 
-### Bước 2: Sửa backfill Edge Function
+### Bước 1: Sửa dữ liệu cho "8 Câu Thần Chú Của Cha"
 
-**File: `supabase/functions/backfill-upload-rewards/index.ts`** (dòng 112)
+Cập nhật SQL:
+- Set duration cho video (cần xác nhận thời lượng thực, tạm đặt 240s)
+- Sửa reward_transaction: SHORT -> LONG, 20000 -> 70000
+- Bù 50.000 CAMLY vào approved_reward va total_camly_rewards
 
-Hiện tại: `if (duration > 180)` -- NULL/0 luôn bị coi là SHORT.
+### Bước 2: Server-side validation trong `award-camly` Edge Function
 
-Sửa: Giữ nguyên logic (NULL = SHORT là đúng vì an toàn tài chính), nhưng thêm log cảnh báo khi duration là NULL để admin biết cần kiểm tra thủ công.
+Thêm logic: khi nhận `SHORT_VIDEO_UPLOAD` hoặc `LONG_VIDEO_UPLOAD`, **kiểm tra duration thực từ database** để tự sửa loại nếu client gửi sai:
 
-### Bước 3: Cập nhật duration cho video "8 Câu Thần Chú Của Cha"
+```text
+Client gửi: type = SHORT_VIDEO_UPLOAD, videoId = xxx
+    |
+    v
+Server đọc videos.duration WHERE id = videoId
+    |
+    ├── duration > 180 -> Override type = LONG_VIDEO_UPLOAD, amount = 70K
+    ├── duration <= 180 -> Giữ SHORT_VIDEO_UPLOAD, amount = 20K
+    └── duration = NULL -> Giữ nguyên type client gửi (an toàn), log cảnh báo
+```
 
-Video này (id: `34da877e`) cũng có `duration = NULL` và cũng của cùng user. Cần kiểm tra và cập nhật nếu cần.
+### Bước 3: Cải thiện client-side duration detection
+
+Trong cả `Upload.tsx` (desktop) và `UploadContext.tsx` (mobile), thêm retry logic cho trường hợp `onloadedmetadata` không fire:
+
+```text
+Attempt 1: onloadedmetadata event
+    |
+    ├── duration > 0 -> Dùng giá trị này
+    └── duration = 0/NaN -> Timeout 5s
+        |
+        v
+Attempt 2: Dùng video.readyState check + requestVideoFrameCallback
+        |
+        └── Vẫn fail -> Log cảnh báo, để server tự phân loại từ DB
+```
 
 ## Chi tiết kỹ thuật
 
-### SQL Migration
-```text
--- 1. Cập nhật duration cho video "Return To The Light" (4 phút = 240s)
-UPDATE videos SET duration = 240 WHERE id = 'f52736ad-d0d7-42d3-988c-5f2809dc147b';
+### Files cần sửa
 
--- 2. Sửa reward_transaction: SHORT -> LONG, 20000 -> 70000
+| File | Thay đổi |
+|------|----------|
+| SQL (data fix) | Cập nhật duration, reward_type, bù 50K CAMLY cho "8 Câu Thần Chú" |
+| `supabase/functions/award-camly/index.ts` | Thêm server-side duration verification cho UPLOAD rewards |
+| `src/contexts/UploadContext.tsx` | Cải thiện duration detection + retry logic cho mobile |
+| `src/pages/Upload.tsx` | Cải thiện duration detection + retry logic cho desktop |
+
+### SQL Data Fix
+```text
+-- Cập nhật duration cho video "8 Câu Thần Chú Của Cha"
+UPDATE videos SET duration = 240 WHERE id = '34da877e-9d68-4bd2-b23e-0de8481263a4';
+
+-- Sửa reward: SHORT -> LONG, 20000 -> 70000
 UPDATE reward_transactions 
 SET reward_type = 'LONG_VIDEO_UPLOAD', amount = 70000 
-WHERE video_id = 'f52736ad-d0d7-42d3-988c-5f2809dc147b' 
+WHERE video_id = '34da877e-9d68-4bd2-b23e-0de8481263a4' 
   AND reward_type = 'SHORT_VIDEO_UPLOAD';
 
--- 3. Bù 50000 CAMLY vào approved_reward
+-- Bù 50000 CAMLY
 UPDATE profiles 
 SET approved_reward = COALESCE(approved_reward, 0) + 50000,
     total_camly_rewards = COALESCE(total_camly_rewards, 0) + 50000
 WHERE id = 'd06c21f9-a612-4d0e-8d22-05e89eb5120d';
 ```
 
-### File sửa: `supabase/functions/backfill-upload-rewards/index.ts`
-- Thêm log cảnh báo khi `duration` là NULL: `console.warn("Video has NULL duration, defaulting to SHORT")`
-- Giữ logic an toàn: NULL = SHORT (20.000 CAMLY)
+### award-camly Edge Function - Server-side Duration Check (dòng 227-234)
+Thêm block moi sau dòng 228 (`if (amount === 0)`):
+```text
+// For upload rewards, verify duration from database to override client classification
+if ((type === 'SHORT_VIDEO_UPLOAD' || type === 'LONG_VIDEO_UPLOAD') && videoId) {
+  const { data: videoData } = await adminSupabase
+    .from('videos').select('duration').eq('id', videoId).single();
+  
+  if (videoData?.duration && videoData.duration > 180 && type === 'SHORT_VIDEO_UPLOAD') {
+    console.warn(`Override: Video ${videoId} duration=${videoData.duration}s, changing SHORT -> LONG`);
+    type = 'LONG_VIDEO_UPLOAD';
+    amount = REWARD_AMOUNTS['LONG_VIDEO_UPLOAD'];
+  } else if (videoData?.duration && videoData.duration <= 180 && type === 'LONG_VIDEO_UPLOAD') {
+    console.warn(`Override: Video ${videoId} duration=${videoData.duration}s, changing LONG -> SHORT`);
+    type = 'SHORT_VIDEO_UPLOAD'; 
+    amount = REWARD_AMOUNTS['SHORT_VIDEO_UPLOAD'];
+  } else if (!videoData?.duration) {
+    console.warn(`Video ${videoId} has NULL duration, keeping client type: ${type}`);
+  }
+}
+```
 
-## Tóm tắt
-
-| Thay đổi | Mô tả |
-|----------|-------|
-| SQL Migration | Cập nhật duration, sửa reward, bù 50.000 CAMLY |
-| backfill-upload-rewards | Thêm cảnh báo khi duration NULL |
+### Client Duration Detection (cả Upload.tsx va UploadContext.tsx)
+Thay the Promise don gian bang retry logic:
+```text
+// Retry-capable duration extraction
+const getVideoDuration = (file: File): Promise<number> => {
+  return new Promise((resolve) => {
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    let resolved = false;
+    
+    const finish = (dur: number) => {
+      if (resolved) return;
+      resolved = true;
+      URL.revokeObjectURL(video.src);
+      resolve(dur);
+    };
+    
+    video.onloadedmetadata = () => {
+      if (video.duration && isFinite(video.duration) && video.duration > 0) {
+        finish(video.duration);
+      }
+    };
+    
+    video.ondurationchange = () => {
+      if (video.duration && isFinite(video.duration) && video.duration > 0) {
+        finish(video.duration);
+      }
+    };
+    
+    video.onerror = () => finish(0);
+    
+    // Timeout fallback
+    setTimeout(() => finish(0), 10000);
+    
+    video.src = URL.createObjectURL(file);
+  });
+};
+```
