@@ -13,7 +13,8 @@ const CHAIN_ID = 56;
 // System wallet addresses
 const SYSTEM_WALLETS = [
   "0x8f09073be2B5F4a953939dEBa8c5DFC8098FC0E8", // FUN PLAY TẶNG & THƯỞNG
-  "0x1DC24BFd99c256B12a4A4cC7732c7e3B9aA75998", // FUN PLAY TREASURY
+  "0x1DC24BFd99c256B12a4A4cC7732c7e3B9aA75998", // Ví tặng thưởng 1
+  "0x7b32E82C64FF4f02dA024B47A8653e1707003339", // Ví tặng thưởng 2
 ];
 
 interface MoralisTokenTransfer {

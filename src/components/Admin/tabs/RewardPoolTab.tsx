@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   Coins, 
@@ -13,7 +14,9 @@ import {
   Wallet,
   TrendingUp,
   AlertTriangle,
-  HandCoins
+  HandCoins,
+  Radio,
+  Award
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
@@ -31,6 +34,8 @@ interface ClaimHistory {
   created_at: string;
   processed_at: string | null;
   username?: string;
+  avatar_url?: string;
+  channel_name?: string;
 }
 
 interface PoolStats {
@@ -41,39 +46,60 @@ interface PoolStats {
   pendingCount: number;
 }
 
+interface ManualTx {
+  id: string;
+  amount: number;
+  tx_hash: string;
+  block_timestamp: string;
+  from_address: string;
+  to_address: string;
+  from_wallet: string;
+  recipient_username: string;
+  recipient_avatar: string | null;
+  recipient_channel: string | null;
+}
+
+const CAMLY_TOKEN_ADDRESS = "0x0910320181889fefde0bb1ca63962b0a8882e413";
+
+const shortenAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+const bscscanAddr = (addr: string) => `https://bscscan.com/address/${addr}`;
+const bscscanTx = (hash: string) => `https://bscscan.com/tx/${hash}`;
+const formatNumber = (num: number) => new Intl.NumberFormat("vi-VN").format(num);
+
 const RewardPoolTab = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [claims, setClaims] = useState<ClaimHistory[]>([]);
-  const [stats, setStats] = useState<PoolStats>({
-    totalClaimed: 0,
-    totalPending: 0,
-    totalFailed: 0,
-    claimCount: 0,
-    pendingCount: 0
-  });
+  const [stats, setStats] = useState<PoolStats>({ totalClaimed: 0, totalPending: 0, totalFailed: 0, claimCount: 0, pendingCount: 0 });
   const [poolBalance, setPoolBalance] = useState<string>("--");
   const [bnbBalance, setBnbBalance] = useState<string>("--");
-  const [adminWallet, setAdminWallet] = useState<string>("--");
   const [manualStats, setManualStats] = useState({ wallet1Total: 0, wallet2Total: 0, totalManual: 0 });
-  const [manualTxs, setManualTxs] = useState<any[]>([]);
+  const [manualTxs, setManualTxs] = useState<ManualTx[]>([]);
+  const [isLive, setIsLive] = useState(true);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const CAMLY_TOKEN_ADDRESS = "0x0910320181889fefde0bb1ca63962b0a8882e413";
-  const BSC_RPC_URL = "https://bsc-dataseed.binance.org/";
-
-  useEffect(() => {
-    fetchData();
+  // Fetch all data
+  const fetchData = useCallback(async (showLoading = false) => {
+    if (showLoading) setLoading(true);
+    await Promise.all([fetchClaimHistory(), fetchPoolStats(), fetchPoolBalance(), fetchManualRewards()]);
+    if (showLoading) setLoading(false);
   }, []);
 
-  const fetchData = async () => {
-    setLoading(true);
-    await Promise.all([fetchClaimHistory(), fetchPoolStats(), fetchPoolBalance(), fetchManualRewards()]);
-    setLoading(false);
-  };
+  // Initial load + real-time interval
+  useEffect(() => {
+    fetchData(true);
+  }, []);
+
+  useEffect(() => {
+    if (isLive) {
+      intervalRef.current = setInterval(() => fetchData(false), 2000);
+    }
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+  }, [isLive, fetchData]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await fetchData();
+    await fetchData(false);
     setRefreshing(false);
   };
 
@@ -84,23 +110,31 @@ const RewardPoolTab = () => {
         .select("*")
         .order("created_at", { ascending: false })
         .limit(100);
-
       if (error) throw error;
 
-      // Fetch usernames for each claim
       const userIds = [...new Set(data?.map(c => c.user_id) || [])];
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("id, username")
+        .select("id, username, avatar_url")
         .in("id", userIds);
+      const { data: channels } = await supabase
+        .from("channels")
+        .select("user_id, name")
+        .in("user_id", userIds);
 
-      const profileMap = new Map(profiles?.map(p => [p.id, p.username]) || []);
+      const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+      const channelMap = new Map(channels?.map(c => [c.user_id, c.name]) || []);
 
       setClaims(
-        data?.map(c => ({
-          ...c,
-          username: profileMap.get(c.user_id) || "Không xác định"
-        })) || []
+        data?.map(c => {
+          const prof = profileMap.get(c.user_id);
+          return {
+            ...c,
+            username: prof?.username || "unknown",
+            avatar_url: prof?.avatar_url || null,
+            channel_name: channelMap.get(c.user_id) || prof?.username || "unknown",
+          };
+        }) || []
       );
     } catch (error) {
       console.error("Error fetching claim history:", error);
@@ -109,32 +143,15 @@ const RewardPoolTab = () => {
 
   const fetchPoolStats = async () => {
     try {
-      const { data: claimData, error } = await supabase
-        .from("claim_requests")
-        .select("status, amount");
-
+      const { data: claimData, error } = await supabase.from("claim_requests").select("status, amount");
       if (error) throw error;
 
-      const newStats: PoolStats = {
-        totalClaimed: 0,
-        totalPending: 0,
-        totalFailed: 0,
-        claimCount: 0,
-        pendingCount: 0
-      };
-
+      const newStats: PoolStats = { totalClaimed: 0, totalPending: 0, totalFailed: 0, claimCount: 0, pendingCount: 0 };
       claimData?.forEach(c => {
-        if (c.status === "success") {
-          newStats.totalClaimed += Number(c.amount);
-          newStats.claimCount++;
-        } else if (c.status === "pending") {
-          newStats.totalPending += Number(c.amount);
-          newStats.pendingCount++;
-        } else if (c.status === "failed") {
-          newStats.totalFailed += Number(c.amount);
-        }
+        if (c.status === "success") { newStats.totalClaimed += Number(c.amount); newStats.claimCount++; }
+        else if (c.status === "pending") { newStats.totalPending += Number(c.amount); newStats.pendingCount++; }
+        else if (c.status === "failed") { newStats.totalFailed += Number(c.amount); }
       });
-
       setStats(newStats);
     } catch (error) {
       console.error("Error fetching pool stats:", error);
@@ -145,23 +162,17 @@ const RewardPoolTab = () => {
     try {
       setPoolBalance("Đang tải...");
       setBnbBalance("Đang tải...");
-      
       const { data, error } = await supabase.functions.invoke('admin-wallet-balance');
-      
       if (error) throw error;
-      
       if (data?.success) {
         setPoolBalance(`${formatNumber(Math.floor(data.data.camlyBalance))} CAMLY`);
         setBnbBalance(`${data.data.bnbBalance.toFixed(4)} BNB`);
-        setAdminWallet(data.data.address);
       } else {
-        setPoolBalance("Lỗi tải");
-        setBnbBalance("Lỗi tải");
+        setPoolBalance("Lỗi tải"); setBnbBalance("Lỗi tải");
       }
     } catch (error) {
       console.error("Error fetching pool balance:", error);
-      setPoolBalance("Không thể tải");
-      setBnbBalance("Không thể tải");
+      setPoolBalance("Không thể tải"); setBnbBalance("Không thể tải");
     }
   };
 
@@ -179,7 +190,6 @@ const RewardPoolTab = () => {
         .or(`from_address.ilike.${w1},from_address.ilike.${w2}`)
         .order("block_timestamp", { ascending: false })
         .limit(200);
-
       if (error) throw error;
 
       let w1Total = 0, w2Total = 0;
@@ -188,27 +198,43 @@ const RewardPoolTab = () => {
         if (from === w1) w1Total += Number(tx.amount);
         else if (from === w2) w2Total += Number(tx.amount);
       });
-
       setManualStats({ wallet1Total: w1Total, wallet2Total: w2Total, totalManual: w1Total + w2Total });
 
-      // Get profiles for to_address lookup
+      // Get profiles + channels for recipients
       const toAddresses = [...new Set((txs || []).map(t => t.to_address?.toLowerCase()))];
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("id, username, wallet_address")
+        .select("id, username, avatar_url, wallet_address")
+        .limit(1000);
+      const { data: channels } = await supabase
+        .from("channels")
+        .select("user_id, name")
         .limit(1000);
 
-      const addrToUsername = new Map<string, string>();
+      const addrToProfile = new Map<string, { username: string; avatar_url: string | null; user_id: string }>();
       profiles?.forEach(p => {
-        if (p.wallet_address) addrToUsername.set(p.wallet_address.toLowerCase(), p.username || "unknown");
+        if (p.wallet_address) addrToProfile.set(p.wallet_address.toLowerCase(), { username: p.username || "unknown", avatar_url: p.avatar_url, user_id: p.id });
       });
+      const userToChannel = new Map<string, string>();
+      channels?.forEach(c => { userToChannel.set(c.user_id, c.name); });
 
       setManualTxs(
-        (txs || []).slice(0, 50).map(tx => ({
-          ...tx,
-          recipient_username: addrToUsername.get(tx.to_address?.toLowerCase() || "") || tx.to_address?.slice(0, 8) + "...",
-          from_wallet: tx.from_address?.toLowerCase() === w1 ? "Ví 1" : "Ví 2",
-        }))
+        (txs || []).slice(0, 50).map(tx => {
+          const prof = addrToProfile.get(tx.to_address?.toLowerCase() || "");
+          const channelName = prof ? userToChannel.get(prof.user_id) : null;
+          return {
+            id: tx.id,
+            amount: Number(tx.amount),
+            tx_hash: tx.tx_hash,
+            block_timestamp: tx.block_timestamp,
+            from_address: tx.from_address,
+            to_address: tx.to_address,
+            from_wallet: tx.from_address?.toLowerCase() === w1 ? "Ví 1" : "Ví 2",
+            recipient_username: prof?.username || shortenAddress(tx.to_address || ""),
+            recipient_avatar: prof?.avatar_url || null,
+            recipient_channel: channelName || prof?.username || null,
+          };
+        })
       );
     } catch (err) {
       console.error("Error fetching manual rewards:", err);
@@ -217,18 +243,14 @@ const RewardPoolTab = () => {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "success":
-        return <Badge className="bg-green-500/20 text-green-500 border-green-500/30"><CheckCircle className="w-3 h-3 mr-1" /> Thành công</Badge>;
-      case "pending":
-        return <Badge className="bg-yellow-500/20 text-yellow-500 border-yellow-500/30"><Clock className="w-3 h-3 mr-1" /> Đang xử lý</Badge>;
-      case "failed":
-        return <Badge className="bg-red-500/20 text-red-500 border-red-500/30"><XCircle className="w-3 h-3 mr-1" /> Thất bại</Badge>;
-      default:
-        return <Badge variant="secondary">{status}</Badge>;
+      case "success": return <Badge className="bg-green-500/20 text-green-500 border-green-500/30"><CheckCircle className="w-3 h-3 mr-1" /> Thành công</Badge>;
+      case "pending": return <Badge className="bg-yellow-500/20 text-yellow-500 border-yellow-500/30"><Clock className="w-3 h-3 mr-1" /> Đang xử lý</Badge>;
+      case "failed": return <Badge className="bg-red-500/20 text-red-500 border-red-500/30"><XCircle className="w-3 h-3 mr-1" /> Thất bại</Badge>;
+      default: return <Badge variant="secondary">{status}</Badge>;
     }
   };
 
-  const formatNumber = (num: number) => new Intl.NumberFormat("vi-VN").format(num);
+  const totalSystemRewards = stats.totalClaimed + manualStats.totalManual;
 
   if (loading) {
     return (
@@ -240,95 +262,83 @@ const RewardPoolTab = () => {
 
   return (
     <div className="space-y-6">
-      {/* Pool Balance Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <Card className="bg-gradient-to-br from-yellow-500/10 to-amber-500/10 border-yellow-500/30">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Coins className="w-4 h-4 text-yellow-500" />
-                Số dư CAMLY Pool
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-yellow-500">{poolBalance}</p>
-              <p className="text-xs text-muted-foreground mt-1">Trong ví admin</p>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-        >
-          <Card className="bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border-cyan-500/30">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Wallet className="w-4 h-4 text-cyan-500" />
-                Số dư BNB (Gas)
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-cyan-500">{bnbBalance}</p>
-              <p className="text-xs text-muted-foreground mt-1">Cho phí giao dịch</p>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-        >
-          <Card className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-green-500/30">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-green-500" />
-                Đã claim tổng cộng
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-green-500">{formatNumber(stats.totalClaimed)}</p>
-              <p className="text-xs text-muted-foreground mt-1">{stats.claimCount} giao dịch thành công</p>
-            </CardContent>
-          </Card>
-        </motion.div>
+      {/* Header with Live badge & Refresh */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <h2 className="text-lg font-semibold">CAMLY Rewards</h2>
+          <button
+            onClick={() => setIsLive(!isLive)}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+              isLive ? "bg-green-500/20 text-green-500 border border-green-500/30" : "bg-muted text-muted-foreground border border-muted"
+            }`}
+          >
+            <Radio className={`w-3 h-3 ${isLive ? "animate-pulse" : ""}`} />
+            {isLive ? "Live" : "Paused"}
+          </button>
+        </div>
+        <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing}>
+          <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
+          Làm mới
+        </Button>
       </div>
 
-      {/* Stats Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* Total System Rewards - Hero Card */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+        <Card className="bg-gradient-to-r from-primary/10 via-purple-500/10 to-pink-500/10 border-primary/30">
+          <CardContent className="py-5">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-xl bg-primary/20">
+                <Award className="w-6 h-6 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Tổng đã tặng thưởng hệ thống</p>
+                <p className="text-3xl font-bold">{formatNumber(Math.floor(totalSystemRewards))} <span className="text-base font-normal text-muted-foreground">CAMLY</span></p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  = Đã claim ({formatNumber(Math.floor(stats.totalClaimed))}) + Thưởng tay ({formatNumber(Math.floor(manualStats.totalManual))})
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Pool Balance + Stats Row */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card className="p-4">
-          <div className="text-center">
-            <p className="text-2xl font-bold text-green-500">{formatNumber(stats.totalClaimed)}</p>
-            <p className="text-xs text-muted-foreground">CAMLY đã claim</p>
+          <div className="flex items-center gap-2 mb-2">
+            <Coins className="w-4 h-4 text-yellow-500" />
+            <span className="text-xs text-muted-foreground">CAMLY Pool</span>
           </div>
+          <p className="text-lg font-bold text-yellow-500">{poolBalance}</p>
         </Card>
         <Card className="p-4">
-          <div className="text-center">
-            <p className="text-2xl font-bold text-yellow-500">{formatNumber(stats.totalPending)}</p>
-            <p className="text-xs text-muted-foreground">Đang xử lý</p>
+          <div className="flex items-center gap-2 mb-2">
+            <Wallet className="w-4 h-4 text-cyan-500" />
+            <span className="text-xs text-muted-foreground">BNB Gas</span>
           </div>
+          <p className="text-lg font-bold text-cyan-500">{bnbBalance}</p>
         </Card>
         <Card className="p-4">
-          <div className="text-center">
-            <p className="text-2xl font-bold text-red-500">{formatNumber(stats.totalFailed)}</p>
-            <p className="text-xs text-muted-foreground">Thất bại</p>
+          <div className="flex items-center gap-2 mb-2">
+            <TrendingUp className="w-4 h-4 text-green-500" />
+            <span className="text-xs text-muted-foreground">Đã claim</span>
           </div>
+          <p className="text-lg font-bold text-green-500">{formatNumber(Math.floor(stats.totalClaimed))}</p>
+          <p className="text-xs text-muted-foreground">{stats.claimCount} giao dịch</p>
         </Card>
         <Card className="p-4">
-          <div className="text-center">
-            <p className="text-2xl font-bold">{stats.claimCount}</p>
-            <p className="text-xs text-muted-foreground">Tổng giao dịch</p>
+          <div className="flex items-center gap-2 mb-2">
+            <HandCoins className="w-4 h-4 text-rose-500" />
+            <span className="text-xs text-muted-foreground">Thưởng tay</span>
           </div>
+          <p className="text-lg font-bold text-rose-500">{formatNumber(Math.floor(manualStats.totalManual))}</p>
+          <p className="text-xs text-muted-foreground">Từ 2 ví</p>
         </Card>
       </div>
 
-      {/* Manual Rewards Section */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Wallet Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Ví tặng thưởng 1 */}
         <Card className="bg-gradient-to-br from-rose-500/10 to-pink-500/10 border-rose-500/30">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
@@ -337,10 +347,15 @@ const RewardPoolTab = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-rose-500">{formatNumber(Math.floor(manualStats.wallet1Total))}</p>
-            <p className="text-xs text-muted-foreground mt-1">CAMLY đã gửi tay</p>
+            <p className="text-2xl font-bold text-rose-500">{formatNumber(Math.floor(manualStats.wallet1Total))} <span className="text-sm font-normal">CAMLY</span></p>
+            <a href={bscscanAddr(SYSTEM_WALLETS.TREASURY.address)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary mt-2 font-mono">
+              {shortenAddress(SYSTEM_WALLETS.TREASURY.address)}
+              <ExternalLink className="w-3 h-3" />
+            </a>
           </CardContent>
         </Card>
+
+        {/* Ví tặng thưởng 2 */}
         <Card className="bg-gradient-to-br from-fuchsia-500/10 to-purple-500/10 border-fuchsia-500/30">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
@@ -349,20 +364,11 @@ const RewardPoolTab = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-fuchsia-500">{formatNumber(Math.floor(manualStats.wallet2Total))}</p>
-            <p className="text-xs text-muted-foreground mt-1">CAMLY đã gửi tay</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-gradient-to-br from-amber-500/10 to-orange-500/10 border-amber-500/30">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-amber-500" />
-              Tổng thưởng tay
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-amber-500">{formatNumber(Math.floor(manualStats.totalManual))}</p>
-            <p className="text-xs text-muted-foreground mt-1">Từ cả 2 ví</p>
+            <p className="text-2xl font-bold text-fuchsia-500">{formatNumber(Math.floor(manualStats.wallet2Total))} <span className="text-sm font-normal">CAMLY</span></p>
+            <a href={bscscanAddr(SYSTEM_WALLETS.PERSONAL.address)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary mt-2 font-mono">
+              {shortenAddress(SYSTEM_WALLETS.PERSONAL.address)}
+              <ExternalLink className="w-3 h-3" />
+            </a>
           </CardContent>
         </Card>
       </div>
@@ -389,20 +395,31 @@ const RewardPoolTab = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {manualTxs.map((tx: any) => (
+                  {manualTxs.map((tx) => (
                     <tr key={tx.id} className="border-b border-muted/50 hover:bg-muted/30">
-                      <td className="py-3 px-2 text-muted-foreground">
+                      <td className="py-3 px-2 text-muted-foreground whitespace-nowrap">
                         {tx.block_timestamp ? format(new Date(tx.block_timestamp), "dd/MM HH:mm", { locale: vi }) : "--"}
                       </td>
                       <td className="py-3 px-2">
                         <Badge variant="outline" className="text-xs">{tx.from_wallet}</Badge>
                       </td>
-                      <td className="py-3 px-2 font-medium">@{tx.recipient_username}</td>
-                      <td className="py-3 px-2 text-right font-bold text-rose-500">
-                        {formatNumber(Math.floor(Number(tx.amount)))}
+                      <td className="py-3 px-2">
+                        <a href={`/c/${tx.recipient_username}`} className="flex items-center gap-2 hover:underline">
+                          <Avatar className="w-6 h-6">
+                            <AvatarImage src={tx.recipient_avatar || undefined} />
+                            <AvatarFallback className="text-[10px]">{(tx.recipient_channel || tx.recipient_username)?.[0]?.toUpperCase()}</AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0">
+                            <p className="font-medium text-sm truncate max-w-[120px]">{tx.recipient_channel || tx.recipient_username}</p>
+                            <p className="text-xs text-muted-foreground">@{tx.recipient_username}</p>
+                          </div>
+                        </a>
+                      </td>
+                      <td className="py-3 px-2 text-right font-bold text-rose-500 whitespace-nowrap">
+                        {formatNumber(Math.floor(tx.amount))}
                       </td>
                       <td className="py-3 px-2 text-center">
-                        <a href={`https://bscscan.com/tx/${tx.tx_hash}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+                        <a href={bscscanTx(tx.tx_hash)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
                           <ExternalLink className="w-3 h-3" />
                         </a>
                       </td>
@@ -417,15 +434,11 @@ const RewardPoolTab = () => {
 
       {/* Claim History Table */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Coins className="w-5 h-5 text-yellow-500" />
             Lịch sử Claim
           </CardTitle>
-          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing}>
-            <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
-            Làm mới
-          </Button>
         </CardHeader>
         <CardContent>
           {claims.length === 0 ? (
@@ -439,7 +452,7 @@ const RewardPoolTab = () => {
                 <thead>
                   <tr className="border-b">
                     <th className="text-left py-3 px-2">Thời gian</th>
-                    <th className="text-left py-3 px-2">User</th>
+                    <th className="text-left py-3 px-2">Người nhận</th>
                     <th className="text-right py-3 px-2">Số lượng</th>
                     <th className="text-left py-3 px-2">Ví nhận</th>
                     <th className="text-center py-3 px-2">Trạng thái</th>
@@ -449,11 +462,22 @@ const RewardPoolTab = () => {
                 <tbody>
                   {claims.map((claim) => (
                     <tr key={claim.id} className="border-b border-muted/50 hover:bg-muted/30">
-                      <td className="py-3 px-2 text-muted-foreground">
+                      <td className="py-3 px-2 text-muted-foreground whitespace-nowrap">
                         {format(new Date(claim.created_at), "dd/MM HH:mm", { locale: vi })}
                       </td>
-                      <td className="py-3 px-2 font-medium">@{claim.username}</td>
-                      <td className="py-3 px-2 text-right font-bold text-yellow-500">
+                      <td className="py-3 px-2">
+                        <a href={`/c/${claim.username}`} className="flex items-center gap-2 hover:underline">
+                          <Avatar className="w-6 h-6">
+                            <AvatarImage src={claim.avatar_url || undefined} />
+                            <AvatarFallback className="text-[10px]">{(claim.channel_name || claim.username)?.[0]?.toUpperCase()}</AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0">
+                            <p className="font-medium text-sm truncate max-w-[120px]">{claim.channel_name}</p>
+                            <p className="text-xs text-muted-foreground">@{claim.username}</p>
+                          </div>
+                        </a>
+                      </td>
+                      <td className="py-3 px-2 text-right font-bold text-yellow-500 whitespace-nowrap">
                         {formatNumber(claim.amount)}
                       </td>
                       <td className="py-3 px-2 font-mono text-xs">
@@ -464,18 +488,11 @@ const RewardPoolTab = () => {
                       </td>
                       <td className="py-3 px-2 text-center">
                         {claim.tx_hash ? (
-                          <a
-                            href={`https://bscscan.com/tx/${claim.tx_hash}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-primary hover:underline"
-                          >
+                          <a href={bscscanTx(claim.tx_hash)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
                             <ExternalLink className="w-3 h-3" />
                           </a>
                         ) : claim.error_message ? (
-                          <span className="text-xs text-red-500" title={claim.error_message}>
-                            Lỗi
-                          </span>
+                          <span className="text-xs text-red-500" title={claim.error_message}>Lỗi</span>
                         ) : (
                           <span className="text-muted-foreground">-</span>
                         )}
