@@ -2,6 +2,14 @@ import { TrendingUp, Hash, Calendar, CheckCircle2, Clock } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { TransactionStats as StatsType } from "@/hooks/useTransactionHistory";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
+const formatCompactValue = (value: number): string => {
+  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(2)}B`;
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(2)}M`;
+  if (value >= 100_000) return `${(value / 1_000).toFixed(1)}K`;
+  return value.toLocaleString("vi-VN");
+};
 
 interface TransactionStatsProps {
   stats: StatsType;
@@ -9,6 +17,8 @@ interface TransactionStatsProps {
 }
 
 export function TransactionStats({ stats, className }: TransactionStatsProps) {
+  const fullValue = stats.totalValue.toLocaleString("vi-VN");
+
   const statItems = [
     {
       label: "Tổng giao dịch",
@@ -19,11 +29,13 @@ export function TransactionStats({ stats, className }: TransactionStatsProps) {
     },
     {
       label: "Tổng giá trị",
-      value: stats.totalValue.toLocaleString("vi-VN"),
+      value: formatCompactValue(stats.totalValue),
+      fullValue,
       suffix: "CAMLY",
       icon: TrendingUp,
       color: "text-amber-500",
       bgColor: "bg-amber-500/10",
+      wide: true,
     },
     {
       label: "Hôm nay",
@@ -49,25 +61,55 @@ export function TransactionStats({ stats, className }: TransactionStatsProps) {
   ];
 
   return (
-    <div className={cn("grid grid-cols-2 md:grid-cols-5 gap-3", className)}>
-      {statItems.map((item, index) => (
-        <Card key={index} className="bg-card/50 backdrop-blur-sm border-border/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className={cn("p-2 rounded-lg", item.bgColor)}>
-                <item.icon className={cn("h-4 w-4", item.color)} />
+    <TooltipProvider>
+      <div className={cn("grid grid-cols-2 md:grid-cols-5 gap-3", className)}>
+        {statItems.map((item, index) => (
+          <Card
+            key={index}
+            className={cn(
+              "bg-card/50 backdrop-blur-sm border-border/50",
+              item.wide && "col-span-2 md:col-span-1"
+            )}
+          >
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className={cn("p-2 rounded-lg shrink-0", item.bgColor)}>
+                  <item.icon className={cn("h-4 w-4", item.color)} />
+                </div>
+                <div className="min-w-0 overflow-hidden">
+                  <p className="text-xs text-muted-foreground">{item.label}</p>
+                  {item.fullValue ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <p className="text-lg font-bold truncate cursor-default">
+                          {item.value}
+                          {item.suffix && (
+                            <span className="text-xs font-normal text-muted-foreground ml-1">
+                              {item.suffix}
+                            </span>
+                          )}
+                        </p>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{item.fullValue} CAMLY</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    <p className="text-lg font-bold truncate">
+                      {item.value}
+                      {item.suffix && (
+                        <span className="text-xs font-normal text-muted-foreground ml-1">
+                          {item.suffix}
+                        </span>
+                      )}
+                    </p>
+                  )}
+                </div>
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground">{item.label}</p>
-                <p className="text-lg font-bold">
-                  {item.value}
-                  {item.suffix && <span className="text-xs font-normal text-muted-foreground ml-1">{item.suffix}</span>}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </TooltipProvider>
   );
 }
