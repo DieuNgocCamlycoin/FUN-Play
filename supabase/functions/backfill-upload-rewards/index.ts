@@ -108,8 +108,11 @@ serve(async (req) => {
           amount = REWARD_AMOUNTS.FIRST_UPLOAD;
           firstUploadGranted.add(video.user_id);
         } else {
-          const duration = video.duration || 0;
-          if (duration > 180) {
+        const duration = video.duration;
+          if (duration === null || duration === undefined) {
+            console.warn(`⚠️ Video ${video.id} "${video.title}" has NULL duration, defaulting to SHORT. Admin should verify actual duration.`);
+          }
+          if ((duration || 0) > 180) {
             rewardType = 'LONG_VIDEO_UPLOAD';
             amount = REWARD_AMOUNTS.LONG_VIDEO_UPLOAD;
           } else {
