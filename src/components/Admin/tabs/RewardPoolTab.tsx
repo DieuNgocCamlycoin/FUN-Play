@@ -80,15 +80,11 @@ const bscscanAddr = (addr: string) => `https://bscscan.com/address/${addr}`;
 const bscscanTx = (hash: string) => `https://bscscan.com/tx/${hash}`;
 const formatNumber = (num: number) => new Intl.NumberFormat("vi-VN").format(num);
 
-// Ngày giới hạn thống kê thưởng tay - CAMLY
-const WALLET1_CUTOFF = "2026-01-09T00:00:00Z"; // CAMLY Ví 1: trước 8/1/2026
-const WALLET2_CUTOFF = "2026-01-19T00:00:00Z"; // CAMLY Ví 2: trước 18/1/2026
-
-// Ngày giới hạn thống kê USDT (khoảng thời gian cụ thể)
-const WALLET1_USDT_START = "2025-12-09T00:00:00Z"; // USDT Ví 1: từ 9/12/2025
-const WALLET1_USDT_END   = "2026-01-18T00:00:00Z"; // đến 18/1/2026
-const WALLET2_USDT_START = "2026-01-14T00:00:00Z"; // USDT Ví 2: từ 14/1/2026
-const WALLET2_USDT_END   = "2026-01-18T00:00:00Z"; // đến 18/1/2026
+// Ngày giới hạn thống kê thưởng tay (CAMLY + USDT dùng chung khoảng)
+const WALLET1_START = "2025-12-09T00:00:00Z"; // Ví 1: từ 9/12/2025
+const WALLET1_END   = "2026-01-18T00:00:00Z"; // đến 18/1/2026
+const WALLET2_START = "2026-01-14T00:00:00Z"; // Ví 2: từ 14/1/2026
+const WALLET2_END   = "2026-01-18T00:00:00Z"; // đến 18/1/2026
 
 // ── Component ──────────────────────────────────────────
 
@@ -101,6 +97,7 @@ const RewardPoolTab = () => {
   const [bnbBalance, setBnbBalance] = useState<string>("--");
   const [manualStats, setManualStats] = useState<ManualStats>({ wallet1Camly: 0, wallet1Usdt: 0, wallet2Camly: 0, wallet2Usdt: 0, totalCamly: 0, totalUsdt: 0 });
   const [manualTxs, setManualTxs] = useState<ManualTx[]>([]);
+  const [selectedWallet, setSelectedWallet] = useState<"w1" | "w2" | null>(null);
   const [isLive, setIsLive] = useState(true);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -203,24 +200,17 @@ const RewardPoolTab = () => {
         const tokenType = (tx.token_type || "").toUpperCase();
         const ts = tx.block_timestamp;
         const isUsdt = tokenType.includes("USDT") || tokenType.includes("USD");
-        const isCamly = !isUsdt;
 
         if (from === w1) {
-          if (isUsdt) {
-            // USDT Ví 1: chỉ tính trong khoảng 9/12/2025 - 18/1/2026
-            if (ts && ts >= WALLET1_USDT_START && ts < WALLET1_USDT_END) w1Usdt += Number(tx.amount);
-          } else {
-            // CAMLY Ví 1: trước 8/1/2026
-            if (ts && ts < WALLET1_CUTOFF) w1Camly += Number(tx.amount);
+          if (ts && ts >= WALLET1_START && ts < WALLET1_END) {
+            if (isUsdt) w1Usdt += Number(tx.amount);
+            else w1Camly += Number(tx.amount);
           }
           if (!ts) missingTimestampCount++;
         } else if (from === w2) {
-          if (isUsdt) {
-            // USDT Ví 2: chỉ tính trong khoảng 14/1/2026 - 18/1/2026
-            if (ts && ts >= WALLET2_USDT_START && ts < WALLET2_USDT_END) w2Usdt += Number(tx.amount);
-          } else {
-            // CAMLY Ví 2: trước 18/1/2026
-            if (ts && ts < WALLET2_CUTOFF) w2Camly += Number(tx.amount);
+          if (ts && ts >= WALLET2_START && ts < WALLET2_END) {
+            if (isUsdt) w2Usdt += Number(tx.amount);
+            else w2Camly += Number(tx.amount);
           }
           if (!ts) missingTimestampCount++;
         }
@@ -256,14 +246,8 @@ const RewardPoolTab = () => {
         const from = tx.from_address?.toLowerCase();
         const ts = tx.block_timestamp;
         if (!ts) return false;
-        const tokenType = (tx.token_type || "").toUpperCase();
-        const isUsdt = tokenType.includes("USDT") || tokenType.includes("USD");
-        if (from === w1) {
-          return isUsdt ? (ts >= WALLET1_USDT_START && ts < WALLET1_USDT_END) : (ts < WALLET1_CUTOFF);
-        }
-        if (from === w2) {
-          return isUsdt ? (ts >= WALLET2_USDT_START && ts < WALLET2_USDT_END) : (ts < WALLET2_CUTOFF);
-        }
+        if (from === w1) return ts >= WALLET1_START && ts < WALLET1_END;
+        if (from === w2) return ts >= WALLET2_START && ts < WALLET2_END;
         return false;
       });
 
@@ -400,7 +384,10 @@ const RewardPoolTab = () => {
       {/* Wallet Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Ví 1 */}
-        <Card className="bg-gradient-to-br from-rose-500/10 to-pink-500/10 border-rose-500/30">
+        <Card 
+          className={`bg-gradient-to-br from-rose-500/10 to-pink-500/10 border-rose-500/30 cursor-pointer transition-all hover:ring-2 hover:ring-rose-500/40 ${selectedWallet === "w1" ? "ring-2 ring-rose-500/60" : ""}`}
+          onClick={() => setSelectedWallet(s => s === "w1" ? null : "w1")}
+        >
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <HandCoins className="w-4 h-4 text-rose-500" />
@@ -410,8 +397,8 @@ const RewardPoolTab = () => {
           <CardContent>
             <p className="text-2xl font-bold text-rose-500">{formatNumber(Math.floor(manualStats.wallet1Camly))} <span className="text-sm font-normal">CAMLY</span></p>
             <p className="text-lg font-bold text-emerald-500">{formatNumber(Math.floor(manualStats.wallet1Usdt))} <span className="text-sm font-normal">USDT</span></p>
-            <p className="text-[10px] text-muted-foreground mt-1">CAMLY: trước 8/1/2026 · USDT: 9/12/2025 – 18/1/2026</p>
-            <a href={bscscanAddr(SYSTEM_WALLETS.TREASURY.address)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary mt-2 font-mono">
+            <p className="text-[10px] text-muted-foreground mt-1">9/12/2025 – 18/1/2026</p>
+            <a href={bscscanAddr(SYSTEM_WALLETS.TREASURY.address)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary mt-2 font-mono" onClick={e => e.stopPropagation()}>
               {shortenAddress(SYSTEM_WALLETS.TREASURY.address)}
               <ExternalLink className="w-3 h-3" />
             </a>
@@ -419,7 +406,10 @@ const RewardPoolTab = () => {
         </Card>
 
         {/* Ví 2 */}
-        <Card className="bg-gradient-to-br from-fuchsia-500/10 to-purple-500/10 border-fuchsia-500/30">
+        <Card 
+          className={`bg-gradient-to-br from-fuchsia-500/10 to-purple-500/10 border-fuchsia-500/30 cursor-pointer transition-all hover:ring-2 hover:ring-fuchsia-500/40 ${selectedWallet === "w2" ? "ring-2 ring-fuchsia-500/60" : ""}`}
+          onClick={() => setSelectedWallet(s => s === "w2" ? null : "w2")}
+        >
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <HandCoins className="w-4 h-4 text-fuchsia-500" />
@@ -429,14 +419,77 @@ const RewardPoolTab = () => {
           <CardContent>
             <p className="text-2xl font-bold text-fuchsia-500">{formatNumber(Math.floor(manualStats.wallet2Camly))} <span className="text-sm font-normal">CAMLY</span></p>
             <p className="text-lg font-bold text-emerald-500">{formatNumber(Math.floor(manualStats.wallet2Usdt))} <span className="text-sm font-normal">USDT</span></p>
-            <p className="text-[10px] text-muted-foreground mt-1">CAMLY: trước 18/1/2026 · USDT: 14/1 – 18/1/2026</p>
-            <a href={bscscanAddr(SYSTEM_WALLETS.PERSONAL.address)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary mt-2 font-mono">
+            <p className="text-[10px] text-muted-foreground mt-1">14/1/2026 – 18/1/2026</p>
+            <a href={bscscanAddr(SYSTEM_WALLETS.PERSONAL.address)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary mt-2 font-mono" onClick={e => e.stopPropagation()}>
               {shortenAddress(SYSTEM_WALLETS.PERSONAL.address)}
               <ExternalLink className="w-3 h-3" />
             </a>
           </CardContent>
         </Card>
       </div>
+
+      {/* Selected Wallet Detail Table */}
+      {selectedWallet && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <HandCoins className={`w-5 h-5 ${selectedWallet === "w1" ? "text-rose-500" : "text-fuchsia-500"}`} />
+              Chi tiết {selectedWallet === "w1" ? "Ví 1" : "Ví 2"} ({selectedWallet === "w1" ? "9/12/2025 – 18/1/2026" : "14/1/2026 – 18/1/2026"})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-3 px-2">Thời gian</th>
+                    <th className="text-left py-3 px-2">Người nhận</th>
+                    <th className="text-right py-3 px-2">Số lượng</th>
+                    <th className="text-center py-3 px-2">Token</th>
+                    <th className="text-center py-3 px-2">TX</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {manualTxs.filter(tx => tx.from_wallet === (selectedWallet === "w1" ? "Ví 1" : "Ví 2")).map((tx) => (
+                    <tr key={tx.id} className="border-b border-muted/50 hover:bg-muted/30">
+                      <td className="py-3 px-2 text-muted-foreground whitespace-nowrap">
+                        {tx.block_timestamp ? format(new Date(tx.block_timestamp), "dd/MM HH:mm", { locale: vi }) : "--"}
+                      </td>
+                      <td className="py-3 px-2">
+                        {tx.recipient_user_id ? (
+                          <a href={`/profile/${tx.recipient_user_id}`} className="flex items-center gap-2 hover:underline">
+                            <Avatar className="w-6 h-6">
+                              {tx.recipient_avatar ? <AvatarImage src={tx.recipient_avatar} /> : null}
+                              <AvatarFallback className="text-[10px]">{(tx.recipient_channel || tx.recipient_username)?.[0]?.toUpperCase()}</AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0">
+                              <p className="font-medium text-sm truncate max-w-[120px]">{tx.recipient_channel || tx.recipient_username}</p>
+                            </div>
+                          </a>
+                        ) : (
+                          <a href={bscscanAddr(tx.to_address)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 font-mono text-xs text-muted-foreground hover:text-primary">
+                            {shortenAddress(tx.to_address)}
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        )}
+                      </td>
+                      <td className={`py-3 px-2 text-right font-bold whitespace-nowrap ${tx.token_type === "USDT" ? "text-emerald-500" : "text-yellow-500"}`}>
+                        {formatNumber(Math.floor(tx.amount))}
+                      </td>
+                      <td className="py-3 px-2 text-center">{getTokenBadge(tx.token_type)}</td>
+                      <td className="py-3 px-2 text-center">
+                        <a href={bscscanTx(tx.tx_hash)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Manual Rewards Table */}
       {manualTxs.length > 0 && (
