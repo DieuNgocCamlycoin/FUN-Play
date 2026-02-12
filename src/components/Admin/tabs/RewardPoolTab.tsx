@@ -12,11 +12,13 @@ import {
   Clock,
   Wallet,
   TrendingUp,
-  AlertTriangle
+  AlertTriangle,
+  HandCoins
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
+import { SYSTEM_WALLETS } from "@/config/systemWallets";
 
 interface ClaimHistory {
   id: string;
@@ -53,6 +55,8 @@ const RewardPoolTab = () => {
   const [poolBalance, setPoolBalance] = useState<string>("--");
   const [bnbBalance, setBnbBalance] = useState<string>("--");
   const [adminWallet, setAdminWallet] = useState<string>("--");
+  const [manualStats, setManualStats] = useState({ wallet1Total: 0, wallet2Total: 0, totalManual: 0 });
+  const [manualTxs, setManualTxs] = useState<any[]>([]);
 
   const CAMLY_TOKEN_ADDRESS = "0x0910320181889fefde0bb1ca63962b0a8882e413";
   const BSC_RPC_URL = "https://bsc-dataseed.binance.org/";
@@ -63,7 +67,7 @@ const RewardPoolTab = () => {
 
   const fetchData = async () => {
     setLoading(true);
-    await Promise.all([fetchClaimHistory(), fetchPoolStats(), fetchPoolBalance()]);
+    await Promise.all([fetchClaimHistory(), fetchPoolStats(), fetchPoolBalance(), fetchManualRewards()]);
     setLoading(false);
   };
 
@@ -158,6 +162,56 @@ const RewardPoolTab = () => {
       console.error("Error fetching pool balance:", error);
       setPoolBalance("Không thể tải");
       setBnbBalance("Không thể tải");
+    }
+  };
+
+  const fetchManualRewards = async () => {
+    try {
+      const w1 = SYSTEM_WALLETS.TREASURY.address.toLowerCase();
+      const w2 = SYSTEM_WALLETS.PERSONAL.address.toLowerCase();
+      const camly = CAMLY_TOKEN_ADDRESS.toLowerCase();
+
+      const { data: txs, error } = await supabase
+        .from("wallet_transactions")
+        .select("*")
+        .eq("status", "completed")
+        .ilike("token_contract", camly)
+        .or(`from_address.ilike.${w1},from_address.ilike.${w2}`)
+        .order("block_timestamp", { ascending: false })
+        .limit(200);
+
+      if (error) throw error;
+
+      let w1Total = 0, w2Total = 0;
+      (txs || []).forEach(tx => {
+        const from = tx.from_address?.toLowerCase();
+        if (from === w1) w1Total += Number(tx.amount);
+        else if (from === w2) w2Total += Number(tx.amount);
+      });
+
+      setManualStats({ wallet1Total: w1Total, wallet2Total: w2Total, totalManual: w1Total + w2Total });
+
+      // Get profiles for to_address lookup
+      const toAddresses = [...new Set((txs || []).map(t => t.to_address?.toLowerCase()))];
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, username, wallet_address")
+        .limit(1000);
+
+      const addrToUsername = new Map<string, string>();
+      profiles?.forEach(p => {
+        if (p.wallet_address) addrToUsername.set(p.wallet_address.toLowerCase(), p.username || "unknown");
+      });
+
+      setManualTxs(
+        (txs || []).slice(0, 50).map(tx => ({
+          ...tx,
+          recipient_username: addrToUsername.get(tx.to_address?.toLowerCase() || "") || tx.to_address?.slice(0, 8) + "...",
+          from_wallet: tx.from_address?.toLowerCase() === w1 ? "Ví 1" : "Ví 2",
+        }))
+      );
+    } catch (err) {
+      console.error("Error fetching manual rewards:", err);
     }
   };
 
@@ -272,6 +326,94 @@ const RewardPoolTab = () => {
           </div>
         </Card>
       </div>
+
+      {/* Manual Rewards Section */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="bg-gradient-to-br from-rose-500/10 to-pink-500/10 border-rose-500/30">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <HandCoins className="w-4 h-4 text-rose-500" />
+              Ví tặng thưởng 1
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-rose-500">{formatNumber(Math.floor(manualStats.wallet1Total))}</p>
+            <p className="text-xs text-muted-foreground mt-1">CAMLY đã gửi tay</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-to-br from-fuchsia-500/10 to-purple-500/10 border-fuchsia-500/30">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <HandCoins className="w-4 h-4 text-fuchsia-500" />
+              Ví tặng thưởng 2
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-fuchsia-500">{formatNumber(Math.floor(manualStats.wallet2Total))}</p>
+            <p className="text-xs text-muted-foreground mt-1">CAMLY đã gửi tay</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-to-br from-amber-500/10 to-orange-500/10 border-amber-500/30">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-amber-500" />
+              Tổng thưởng tay
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-amber-500">{formatNumber(Math.floor(manualStats.totalManual))}</p>
+            <p className="text-xs text-muted-foreground mt-1">Từ cả 2 ví</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Manual Rewards Recent Transactions */}
+      {manualTxs.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <HandCoins className="w-5 h-5 text-rose-500" />
+              Thưởng bằng tay gần đây
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-3 px-2">Thời gian</th>
+                    <th className="text-left py-3 px-2">Từ ví</th>
+                    <th className="text-left py-3 px-2">Người nhận</th>
+                    <th className="text-right py-3 px-2">Số lượng</th>
+                    <th className="text-center py-3 px-2">TX</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {manualTxs.map((tx: any) => (
+                    <tr key={tx.id} className="border-b border-muted/50 hover:bg-muted/30">
+                      <td className="py-3 px-2 text-muted-foreground">
+                        {tx.block_timestamp ? format(new Date(tx.block_timestamp), "dd/MM HH:mm", { locale: vi }) : "--"}
+                      </td>
+                      <td className="py-3 px-2">
+                        <Badge variant="outline" className="text-xs">{tx.from_wallet}</Badge>
+                      </td>
+                      <td className="py-3 px-2 font-medium">@{tx.recipient_username}</td>
+                      <td className="py-3 px-2 text-right font-bold text-rose-500">
+                        {formatNumber(Math.floor(Number(tx.amount)))}
+                      </td>
+                      <td className="py-3 px-2 text-center">
+                        <a href={`https://bscscan.com/tx/${tx.tx_hash}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Claim History Table */}
       <Card>

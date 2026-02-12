@@ -1,4 +1,4 @@
-import { Eye, ThumbsUp, MessageSquare, Share2, Upload, Gift, Award } from "lucide-react";
+import { Eye, ThumbsUp, MessageSquare, Share2, Upload, Gift, Award, HandCoins } from "lucide-react";
 
 export interface RewardBreakdown {
   view_rewards: number;
@@ -8,6 +8,7 @@ export interface RewardBreakdown {
   upload_rewards: number;
   signup_rewards: number;
   bounty_rewards: number;
+  manual_rewards?: number;
 }
 
 const REWARD_ITEMS: { key: keyof RewardBreakdown; icon: any; label: string; colorClass: string }[] = [
@@ -18,6 +19,7 @@ const REWARD_ITEMS: { key: keyof RewardBreakdown; icon: any; label: string; colo
   { key: "upload_rewards", icon: Upload, label: "Upload", colorClass: "text-orange-500" },
   { key: "signup_rewards", icon: Gift, label: "Đăng ký", colorClass: "text-cyan-500" },
   { key: "bounty_rewards", icon: Award, label: "Bounty", colorClass: "text-indigo-500" },
+  { key: "manual_rewards", icon: HandCoins, label: "Thưởng tay", colorClass: "text-rose-500" },
 ];
 
 function fmt(n: number): string {
@@ -33,18 +35,18 @@ interface Props {
 }
 
 export function RewardBreakdownGrid({ breakdown, totalCamly, compact = false }: Props) {
-  const items = REWARD_ITEMS.filter(item => breakdown[item.key] > 0);
+  const items = REWARD_ITEMS.filter(item => (breakdown[item.key] ?? 0) > 0);
   
   if (items.length === 0) {
     return <p className="text-xs text-muted-foreground italic">Chưa có phần thưởng nào</p>;
   }
 
-  const maxVal = Math.max(...items.map(i => breakdown[i.key]));
+  const maxVal = Math.max(...items.map(i => breakdown[i.key] ?? 0));
 
   return (
     <div className={compact ? "space-y-1.5" : "space-y-2"}>
       {items.map(({ key, icon: Icon, label, colorClass }) => {
-        const val = breakdown[key];
+        const val = breakdown[key] ?? 0;
         const pct = maxVal > 0 ? (val / maxVal) * 100 : 0;
         return (
           <div key={key} className="flex items-center gap-2">
