@@ -445,28 +445,47 @@ export default function Upload() {
 
       // Award upload reward (duration-based)
       if (videoData?.id) {
-        // Try first upload reward (500K)
-        const firstUploadSuccess = await awardFirstUploadReward(user.id, videoData.id);
-        if (!firstUploadSuccess) {
-          // Already got first upload reward, award duration-based reward
-          const SHORT_VIDEO_MAX_DURATION = 180; // 3 minutes
-          // Default to SHORT_VIDEO when duration unknown (safer: 20K vs 70K)
-          if (videoDuration > 0 && videoDuration < SHORT_VIDEO_MAX_DURATION) {
-            await awardShortVideoUpload(videoData.id);
-          } else if (videoDuration >= SHORT_VIDEO_MAX_DURATION) {
-            await awardLongVideoUpload(videoData.id);
+        try {
+          console.log("[Desktop Upload Reward] Starting for video:", videoData.id, "duration:", videoDuration);
+          
+          // Try first upload reward (500K)
+          const firstUploadSuccess = await awardFirstUploadReward(user.id, videoData.id);
+          
+          if (firstUploadSuccess) {
+            console.log("[Desktop Upload Reward] FIRST_UPLOAD awarded");
+            window.dispatchEvent(new CustomEvent("camly-reward", {
+              detail: { type: "FIRST_UPLOAD", amount: 500000, autoApproved: true }
+            }));
           } else {
-            // duration = 0 or unknown → default to short video
-            console.warn("Video duration unknown, defaulting to SHORT_VIDEO reward");
-            await awardShortVideoUpload(videoData.id);
+            // Already got first upload reward, award duration-based reward
+            const SHORT_VIDEO_MAX_DURATION = 180;
+            let uploadType = "SHORT_VIDEO_UPLOAD";
+            
+            if (videoDuration > 0 && videoDuration < SHORT_VIDEO_MAX_DURATION) {
+              await awardShortVideoUpload(videoData.id);
+              uploadType = "SHORT_VIDEO_UPLOAD";
+            } else if (videoDuration >= SHORT_VIDEO_MAX_DURATION) {
+              await awardLongVideoUpload(videoData.id);
+              uploadType = "LONG_VIDEO_UPLOAD";
+            } else {
+              console.warn("[Desktop Upload Reward] Duration unknown, defaulting to SHORT_VIDEO");
+              await awardShortVideoUpload(videoData.id);
+            }
+            
+            console.log("[Desktop Upload Reward]", uploadType, "awarded");
+            window.dispatchEvent(new CustomEvent("camly-reward", {
+              detail: { type: uploadType, amount: uploadType === "LONG_VIDEO_UPLOAD" ? 70000 : 20000, autoApproved: true }
+            }));
           }
-        }
 
-        // Mark video as rewarded to prevent duplicate rewards
-        await supabase
-          .from("videos")
-          .update({ upload_rewarded: true })
-          .eq("id", videoData.id);
+          // Mark video as rewarded
+          await supabase
+            .from("videos")
+            .update({ upload_rewarded: true })
+            .eq("id", videoData.id);
+        } catch (rewardErr) {
+          console.error("[Desktop Upload Reward] Error (non-blocking):", rewardErr);
+        }
       }
 
       setUploadProgress(100);
