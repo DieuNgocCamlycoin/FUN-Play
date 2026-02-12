@@ -408,15 +408,32 @@ export default function Upload() {
       
       const isMeditation = subCategory === 'light_meditation' || subCategory === 'sound_therapy' || subCategory === 'mantra';
       
-      // Get video duration from file metadata BEFORE inserting into DB
+      // Get video duration from file metadata BEFORE inserting into DB (with retry)
       const videoDuration = await new Promise<number>((resolve) => {
         const videoEl = document.createElement('video');
         videoEl.preload = 'metadata';
-        videoEl.onloadedmetadata = () => {
-          resolve(videoEl.duration);
+        let resolved = false;
+        const finish = (dur: number) => {
+          if (resolved) return;
+          resolved = true;
           URL.revokeObjectURL(videoEl.src);
+          resolve(dur);
         };
-        videoEl.onerror = () => resolve(0);
+        videoEl.onloadedmetadata = () => {
+          if (videoEl.duration && isFinite(videoEl.duration) && videoEl.duration > 0) {
+            finish(videoEl.duration);
+          }
+        };
+        videoEl.ondurationchange = () => {
+          if (videoEl.duration && isFinite(videoEl.duration) && videoEl.duration > 0) {
+            finish(videoEl.duration);
+          }
+        };
+        videoEl.onerror = () => finish(0);
+        setTimeout(() => {
+          console.warn('[Duration] Timeout - could not extract duration from video file');
+          finish(0);
+        }, 10000);
         videoEl.src = URL.createObjectURL(videoFile!);
       });
 

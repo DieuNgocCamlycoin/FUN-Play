@@ -144,16 +144,36 @@ export function MobileUploadFlow({ open, onOpenChange }: MobileUploadFlowProps) 
     return new Promise((resolve) => {
       const video = document.createElement("video");
       video.preload = "metadata";
-      video.onloadedmetadata = () => {
-        const isVerticalOrSquare = video.videoHeight >= video.videoWidth;
-        const isShortDuration = video.duration <= 180;
-        setVideoDuration(video.duration);
+      let resolved = false;
+
+      const finish = (dur: number, w: number, h: number) => {
+        if (resolved) return;
+        resolved = true;
         URL.revokeObjectURL(video.src);
+        const isVerticalOrSquare = h >= w;
+        const isShortDuration = dur <= 180;
+        setVideoDuration(dur);
         resolve({
           isShort: isVerticalOrSquare && isShortDuration,
-          duration: video.duration,
+          duration: dur,
         });
       };
+
+      video.onloadedmetadata = () => {
+        if (video.duration && isFinite(video.duration) && video.duration > 0) {
+          finish(video.duration, video.videoWidth, video.videoHeight);
+        }
+      };
+      video.ondurationchange = () => {
+        if (video.duration && isFinite(video.duration) && video.duration > 0) {
+          finish(video.duration, video.videoWidth, video.videoHeight);
+        }
+      };
+      video.onerror = () => finish(0, 0, 0);
+      setTimeout(() => {
+        console.warn('[Duration] Mobile timeout - could not extract duration');
+        finish(0, 0, 0);
+      }, 10000);
       video.src = URL.createObjectURL(file);
     });
   }, []);
