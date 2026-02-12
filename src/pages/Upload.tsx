@@ -450,12 +450,23 @@ export default function Upload() {
         if (!firstUploadSuccess) {
           // Already got first upload reward, award duration-based reward
           const SHORT_VIDEO_MAX_DURATION = 180; // 3 minutes
+          // Default to SHORT_VIDEO when duration unknown (safer: 20K vs 70K)
           if (videoDuration > 0 && videoDuration < SHORT_VIDEO_MAX_DURATION) {
             await awardShortVideoUpload(videoData.id);
-          } else {
+          } else if (videoDuration >= SHORT_VIDEO_MAX_DURATION) {
             await awardLongVideoUpload(videoData.id);
+          } else {
+            // duration = 0 or unknown → default to short video
+            console.warn("Video duration unknown, defaulting to SHORT_VIDEO reward");
+            await awardShortVideoUpload(videoData.id);
           }
         }
+
+        // Mark video as rewarded to prevent duplicate rewards
+        await supabase
+          .from("videos")
+          .update({ upload_rewarded: true })
+          .eq("id", videoData.id);
       }
 
       setUploadProgress(100);
