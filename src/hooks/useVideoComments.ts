@@ -259,6 +259,28 @@ export function useVideoComments(optionsOrVideoId: UseVideoCommentsOptions | str
 
     setSubmitting(true);
     try {
+      // PPLP Content Moderation via Angel AI
+      let isFlagged = false;
+      try {
+        const { data: moderationResult } = await supabase.functions.invoke('moderate-content', {
+          body: { content: trimmedContent, contentType: 'comment' }
+        });
+        if (moderationResult && !moderationResult.approved) {
+          isFlagged = true;
+          toast({
+            title: "⚠️ Lưu ý",
+            description: moderationResult.reason || "Bình luận của bạn cần được xem xét trước khi hiển thị.",
+          });
+        }
+      } catch (modErr) {
+        console.warn("[Comment Moderation] Error (non-blocking):", modErr);
+      }
+
+      if (isFlagged) {
+        // Don't insert flagged comments
+        return false;
+      }
+
       const { error } = await supabase.from("comments").insert({
         video_id: videoId,
         user_id: user.id,

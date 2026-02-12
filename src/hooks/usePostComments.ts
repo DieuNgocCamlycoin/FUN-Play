@@ -167,6 +167,22 @@ export const usePostComments = (postId: string): UsePostCommentsReturn => {
     try {
       setSubmitting(true);
 
+      // PPLP Content Moderation via Angel AI
+      try {
+        const { data: moderationResult } = await supabase.functions.invoke('moderate-content', {
+          body: { content: trimmedContent, contentType: 'comment' }
+        });
+        if (moderationResult && !moderationResult.approved) {
+          toast({
+            title: "⚠️ Lưu ý",
+            description: moderationResult.reason || "Bình luận không phù hợp với tiêu chuẩn PPLP.",
+          });
+          return false;
+        }
+      } catch (modErr) {
+        console.warn("[Comment Moderation] Error (non-blocking):", modErr);
+      }
+
       const { error } = await supabase
         .from('post_comments')
         .insert({

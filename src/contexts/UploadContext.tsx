@@ -232,6 +232,20 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error("Chưa đăng nhập");
 
+        // PPLP Content Moderation via Angel AI
+        updateUpload(id, { progress: 91, stage: "Angel AI đang kiểm duyệt..." });
+        let approvalStatus = "approved";
+        try {
+          const { data: moderationResult } = await supabase.functions.invoke('moderate-content', {
+            body: { content: `${metadata.title}\n${metadata.description}`, contentType: 'video_title' }
+          });
+          if (moderationResult && !moderationResult.approved) {
+            approvalStatus = "pending_review";
+          }
+        } catch (modErr) {
+          console.warn("[Moderation] Error (non-blocking):", modErr);
+        }
+
         // Step 4: Create database record
         const { data: videoData, error: videoError } = await supabase
           .from("videos")
@@ -246,7 +260,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
             duration: Math.round(metadata.duration),
             is_public: metadata.visibility === "public",
             category: metadata.isShort ? "shorts" : "general",
-            approval_status: "approved",
+            approval_status: approvalStatus,
           })
           .select("id")
           .single();
@@ -256,75 +270,72 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         updateUpload(id, {
           progress: 100,
           status: "completed",
-          stage: "Hoàn thành!",
+          stage: approvalStatus === "approved" ? "Hoàn thành!" : "Đang chờ xem xét nội dung",
           videoId: videoData.id,
         });
 
-        // Award upload reward (mobile background upload)
-        try {
-          console.log("[Upload Reward] Starting reward process for video:", videoData.id);
-          
-          // Check first upload reward (500K)
-          const { data: profileData } = await supabase
-            .from("profiles")
-            .select("first_upload_rewarded")
-            .eq("id", user.id)
-            .single();
-
-          let rewardAwarded = false;
-
-          if (!profileData?.first_upload_rewarded) {
-            console.log("[Upload Reward] Attempting FIRST_UPLOAD for video:", videoData.id);
-            const { data: firstResult, error: firstError } = await supabase.functions.invoke("award-camly", {
-              body: { type: "FIRST_UPLOAD", videoId: videoData.id },
-            });
-            console.log("[Upload Reward] FIRST_UPLOAD result:", JSON.stringify(firstResult), "error:", firstError);
+        // Award upload reward (mobile background upload) - only if content approved
+        if (approvalStatus === "approved") {
+          try {
+            console.log("[Upload Reward] Starting reward process for video:", videoData.id);
             
-            if (!firstError && firstResult?.success) {
-              rewardAwarded = true;
-              await supabase
-                .from("profiles")
-                .update({ first_upload_rewarded: true })
-                .eq("id", user.id);
+            // Check first upload reward (500K)
+            const { data: profileData } = await supabase
+              .from("profiles")
+              .select("first_upload_rewarded")
+              .eq("id", user.id)
+              .single();
+
+            let rewardAwarded = false;
+
+            if (!profileData?.first_upload_rewarded) {
+              console.log("[Upload Reward] Attempting FIRST_UPLOAD for video:", videoData.id);
+              const { data: firstResult, error: firstError } = await supabase.functions.invoke("award-camly", {
+                body: { type: "FIRST_UPLOAD", videoId: videoData.id },
+              });
               
-              // Dispatch event for realtime UI update
-              window.dispatchEvent(new CustomEvent("camly-reward", {
-                detail: { type: "FIRST_UPLOAD", amount: firstResult?.amount || 500000, autoApproved: firstResult?.autoApproved }
-              }));
+              if (!firstError && firstResult?.success) {
+                rewardAwarded = true;
+                await supabase
+                  .from("profiles")
+                  .update({ first_upload_rewarded: true })
+                  .eq("id", user.id);
+                
+                window.dispatchEvent(new CustomEvent("camly-reward", {
+                  detail: { type: "FIRST_UPLOAD", amount: firstResult?.amount || 500000, autoApproved: firstResult?.autoApproved }
+                }));
+              }
             }
-          }
 
-          // Only award duration-based reward if FIRST_UPLOAD was NOT awarded
-          if (!rewardAwarded) {
-            const SHORT_VIDEO_MAX_DURATION = 180;
-            const effectiveDuration = metadata.duration || 0;
-            if (effectiveDuration <= 0) {
-              console.warn("[Upload Reward] Video duration unknown, defaulting to SHORT_VIDEO reward");
+            // Only award duration-based reward if FIRST_UPLOAD was NOT awarded
+            if (!rewardAwarded) {
+              const SHORT_VIDEO_MAX_DURATION = 180;
+              const effectiveDuration = metadata.duration || 0;
+              const uploadType = effectiveDuration < SHORT_VIDEO_MAX_DURATION
+                ? "SHORT_VIDEO_UPLOAD"
+                : "LONG_VIDEO_UPLOAD";
+              
+              const { data: durationResult, error: durationError } = await supabase.functions.invoke("award-camly", {
+                body: { type: uploadType, videoId: videoData.id },
+              });
+              
+              if (!durationError && durationResult?.success) {
+                window.dispatchEvent(new CustomEvent("camly-reward", {
+                  detail: { type: uploadType, amount: durationResult?.amount || 0, autoApproved: durationResult?.autoApproved }
+                }));
+              }
             }
-            const uploadType = effectiveDuration < SHORT_VIDEO_MAX_DURATION
-              ? "SHORT_VIDEO_UPLOAD"
-              : "LONG_VIDEO_UPLOAD";
-            
-            console.log("[Upload Reward] Attempting", uploadType, "for video:", videoData.id, "duration:", effectiveDuration);
-            const { data: durationResult, error: durationError } = await supabase.functions.invoke("award-camly", {
-              body: { type: uploadType, videoId: videoData.id },
-            });
-            console.log("[Upload Reward]", uploadType, "result:", JSON.stringify(durationResult), "error:", durationError);
-            
-            if (!durationError && durationResult?.success) {
-              window.dispatchEvent(new CustomEvent("camly-reward", {
-                detail: { type: uploadType, amount: durationResult?.amount || 0, autoApproved: durationResult?.autoApproved }
-              }));
-            }
-          }
 
-          // Mark video as rewarded to prevent duplicate rewards
-          await supabase
-            .from("videos")
-            .update({ upload_rewarded: true })
-            .eq("id", videoData.id);
-        } catch (rewardError) {
-          console.error("[Upload Reward] Error (non-blocking):", rewardError);
+            // Mark video as rewarded
+            await supabase
+              .from("videos")
+              .update({ upload_rewarded: true })
+              .eq("id", videoData.id);
+          } catch (rewardError) {
+            console.error("[Upload Reward] Error (non-blocking):", rewardError);
+          }
+        } else {
+          console.log("[Upload Reward] Skipped - content pending review");
         }
 
         toast({

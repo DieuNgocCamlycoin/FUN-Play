@@ -420,6 +420,28 @@ export default function Upload() {
         videoEl.src = URL.createObjectURL(videoFile!);
       });
 
+      // PPLP Content Moderation via Angel AI
+      setUploadStage("Angel AI đang kiểm duyệt nội dung...");
+      setUploadProgress(94);
+      
+      let approvalStatus = "approved";
+      try {
+        const { data: moderationResult } = await supabase.functions.invoke('moderate-content', {
+          body: { content: `${title}\n${description}`, contentType: 'video_title' }
+        });
+        
+        if (moderationResult && !moderationResult.approved) {
+          approvalStatus = "pending_review";
+          toast({
+            title: "📋 Video đang được xem xét",
+            description: moderationResult.reason || "Nội dung cần được xem xét trước khi hiển thị công khai.",
+            duration: 6000,
+          });
+        }
+      } catch (modErr) {
+        console.warn("[Moderation] Error (non-blocking):", modErr);
+      }
+
       const { data: videoData, error: videoError } = await supabase.from("videos").insert({
         user_id: user.id,
         channel_id: channelId,
@@ -432,7 +454,7 @@ export default function Upload() {
         is_public: true,
         category: "general",
         sub_category: null,
-        approval_status: "approved",
+        approval_status: approvalStatus,
       }).select('id').single();
 
       if (videoError) {
@@ -443,8 +465,8 @@ export default function Upload() {
       setUploadProgress(98);
       setUploadStage("Đang hoàn tất...");
 
-      // Award upload reward (duration-based)
-      if (videoData?.id) {
+      // Award upload reward (duration-based) - only if content approved
+      if (videoData?.id && approvalStatus === "approved") {
         try {
           console.log("[Desktop Upload Reward] Starting for video:", videoData.id, "duration:", videoDuration);
           
@@ -486,6 +508,8 @@ export default function Upload() {
         } catch (rewardErr) {
           console.error("[Desktop Upload Reward] Error (non-blocking):", rewardErr);
         }
+      } else if (approvalStatus === "pending_review") {
+        console.log("[Desktop Upload Reward] Skipped - content pending review");
       }
 
       setUploadProgress(100);
