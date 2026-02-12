@@ -16,12 +16,15 @@ import {
   AlertTriangle,
   HandCoins,
   Radio,
-  Award
+  Award,
+  DollarSign
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import { SYSTEM_WALLETS } from "@/config/systemWallets";
+
+// ── Types ──────────────────────────────────────────────
 
 interface ClaimHistory {
   id: string;
@@ -54,17 +57,33 @@ interface ManualTx {
   from_address: string;
   to_address: string;
   from_wallet: string;
+  token_type: string;
   recipient_username: string;
   recipient_avatar: string | null;
   recipient_channel: string | null;
 }
 
-const CAMLY_TOKEN_ADDRESS = "0x0910320181889fefde0bb1ca63962b0a8882e413";
+interface ManualStats {
+  wallet1Camly: number;
+  wallet1Usdt: number;
+  wallet2Camly: number;
+  wallet2Usdt: number;
+  totalCamly: number;
+  totalUsdt: number;
+}
+
+// ── Helpers ────────────────────────────────────────────
 
 const shortenAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 const bscscanAddr = (addr: string) => `https://bscscan.com/address/${addr}`;
 const bscscanTx = (hash: string) => `https://bscscan.com/tx/${hash}`;
 const formatNumber = (num: number) => new Intl.NumberFormat("vi-VN").format(num);
+
+// Ngày giới hạn thống kê thưởng tay
+const WALLET1_CUTOFF = "2026-01-09T00:00:00Z"; // trước 8/1/2026
+const WALLET2_CUTOFF = "2026-01-19T00:00:00Z"; // trước 18/1/2026
+
+// ── Component ──────────────────────────────────────────
 
 const RewardPoolTab = () => {
   const [loading, setLoading] = useState(true);
@@ -73,22 +92,18 @@ const RewardPoolTab = () => {
   const [stats, setStats] = useState<PoolStats>({ totalClaimed: 0, totalPending: 0, totalFailed: 0, claimCount: 0, pendingCount: 0 });
   const [poolBalance, setPoolBalance] = useState<string>("--");
   const [bnbBalance, setBnbBalance] = useState<string>("--");
-  const [manualStats, setManualStats] = useState({ wallet1Total: 0, wallet2Total: 0, totalManual: 0 });
+  const [manualStats, setManualStats] = useState<ManualStats>({ wallet1Camly: 0, wallet1Usdt: 0, wallet2Camly: 0, wallet2Usdt: 0, totalCamly: 0, totalUsdt: 0 });
   const [manualTxs, setManualTxs] = useState<ManualTx[]>([]);
   const [isLive, setIsLive] = useState(true);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Fetch all data
   const fetchData = useCallback(async (showLoading = false) => {
     if (showLoading) setLoading(true);
     await Promise.all([fetchClaimHistory(), fetchPoolStats(), fetchPoolBalance(), fetchManualRewards()]);
     if (showLoading) setLoading(false);
   }, []);
 
-  // Initial load + real-time interval
-  useEffect(() => {
-    fetchData(true);
-  }, []);
+  useEffect(() => { fetchData(true); }, []);
 
   useEffect(() => {
     if (isLive) {
@@ -103,6 +118,7 @@ const RewardPoolTab = () => {
     setRefreshing(false);
   };
 
+  // ── Fetch claim history ──
   const fetchClaimHistory = async () => {
     try {
       const { data, error } = await supabase
@@ -113,14 +129,8 @@ const RewardPoolTab = () => {
       if (error) throw error;
 
       const userIds = [...new Set(data?.map(c => c.user_id) || [])];
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, username, avatar_url")
-        .in("id", userIds);
-      const { data: channels } = await supabase
-        .from("channels")
-        .select("user_id, name")
-        .in("user_id", userIds);
+      const { data: profiles } = await supabase.from("profiles").select("id, username, avatar_url").in("id", userIds);
+      const { data: channels } = await supabase.from("channels").select("user_id, name").in("user_id", userIds);
 
       const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
       const channelMap = new Map(channels?.map(c => [c.user_id, c.name]) || []);
@@ -128,24 +138,17 @@ const RewardPoolTab = () => {
       setClaims(
         data?.map(c => {
           const prof = profileMap.get(c.user_id);
-          return {
-            ...c,
-            username: prof?.username || "unknown",
-            avatar_url: prof?.avatar_url || null,
-            channel_name: channelMap.get(c.user_id) || prof?.username || "unknown",
-          };
+          return { ...c, username: prof?.username || "unknown", avatar_url: prof?.avatar_url || null, channel_name: channelMap.get(c.user_id) || prof?.username || "unknown" };
         }) || []
       );
-    } catch (error) {
-      console.error("Error fetching claim history:", error);
-    }
+    } catch (error) { console.error("Error fetching claim history:", error); }
   };
 
+  // ── Fetch pool stats ──
   const fetchPoolStats = async () => {
     try {
       const { data: claimData, error } = await supabase.from("claim_requests").select("status, amount");
       if (error) throw error;
-
       const newStats: PoolStats = { totalClaimed: 0, totalPending: 0, totalFailed: 0, claimCount: 0, pendingCount: 0 };
       claimData?.forEach(c => {
         if (c.status === "success") { newStats.totalClaimed += Number(c.amount); newStats.claimCount++; }
@@ -153,63 +156,71 @@ const RewardPoolTab = () => {
         else if (c.status === "failed") { newStats.totalFailed += Number(c.amount); }
       });
       setStats(newStats);
-    } catch (error) {
-      console.error("Error fetching pool stats:", error);
-    }
+    } catch (error) { console.error("Error fetching pool stats:", error); }
   };
 
+  // ── Fetch pool balance ──
   const fetchPoolBalance = async () => {
     try {
-      setPoolBalance("Đang tải...");
-      setBnbBalance("Đang tải...");
+      setPoolBalance("Đang tải..."); setBnbBalance("Đang tải...");
       const { data, error } = await supabase.functions.invoke('admin-wallet-balance');
       if (error) throw error;
       if (data?.success) {
         setPoolBalance(`${formatNumber(Math.floor(data.data.camlyBalance))} CAMLY`);
         setBnbBalance(`${data.data.bnbBalance.toFixed(4)} BNB`);
-      } else {
-        setPoolBalance("Lỗi tải"); setBnbBalance("Lỗi tải");
-      }
-    } catch (error) {
-      console.error("Error fetching pool balance:", error);
-      setPoolBalance("Không thể tải"); setBnbBalance("Không thể tải");
-    }
+      } else { setPoolBalance("Lỗi tải"); setBnbBalance("Lỗi tải"); }
+    } catch (error) { console.error("Error fetching pool balance:", error); setPoolBalance("Không thể tải"); setBnbBalance("Không thể tải"); }
   };
 
+  // ── Fetch manual rewards (CAMLY + USDT, with date filtering) ──
   const fetchManualRewards = async () => {
     try {
       const w1 = SYSTEM_WALLETS.TREASURY.address.toLowerCase();
       const w2 = SYSTEM_WALLETS.PERSONAL.address.toLowerCase();
-      const camly = CAMLY_TOKEN_ADDRESS.toLowerCase();
 
+      // Lấy TẤT CẢ giao dịch từ 2 ví (không lọc token_contract)
       const { data: txs, error } = await supabase
         .from("wallet_transactions")
         .select("*")
         .eq("status", "completed")
-        .ilike("token_contract", camly)
         .or(`from_address.ilike.${w1},from_address.ilike.${w2}`)
         .order("block_timestamp", { ascending: false })
-        .limit(200);
+        .limit(500);
       if (error) throw error;
 
-      let w1Total = 0, w2Total = 0;
+      // Tính tổng theo ví + token_type + ngày giới hạn
+      let w1Camly = 0, w1Usdt = 0, w2Camly = 0, w2Usdt = 0;
       (txs || []).forEach(tx => {
         const from = tx.from_address?.toLowerCase();
-        if (from === w1) w1Total += Number(tx.amount);
-        else if (from === w2) w2Total += Number(tx.amount);
-      });
-      setManualStats({ wallet1Total: w1Total, wallet2Total: w2Total, totalManual: w1Total + w2Total });
+        const tokenType = (tx.token_type || "").toUpperCase();
+        const ts = tx.block_timestamp;
+        const isCamly = tokenType.includes("CAMLY") || tokenType.includes("BEP20") || tokenType === "";
+        const isUsdt = tokenType.includes("USDT") || tokenType.includes("USD");
 
-      // Get profiles + channels for recipients
-      const toAddresses = [...new Set((txs || []).map(t => t.to_address?.toLowerCase()))];
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, username, avatar_url, wallet_address")
-        .limit(1000);
-      const { data: channels } = await supabase
-        .from("channels")
-        .select("user_id, name")
-        .limit(1000);
+        if (from === w1) {
+          // Ví 1: chỉ tính trước 8/1/2026
+          if (!ts || ts < WALLET1_CUTOFF) {
+            if (isUsdt) w1Usdt += Number(tx.amount);
+            else w1Camly += Number(tx.amount);
+          }
+        } else if (from === w2) {
+          // Ví 2: chỉ tính trước 18/1/2026
+          if (!ts || ts < WALLET2_CUTOFF) {
+            if (isUsdt) w2Usdt += Number(tx.amount);
+            else w2Camly += Number(tx.amount);
+          }
+        }
+      });
+
+      setManualStats({
+        wallet1Camly: w1Camly, wallet1Usdt: w1Usdt,
+        wallet2Camly: w2Camly, wallet2Usdt: w2Usdt,
+        totalCamly: w1Camly + w2Camly, totalUsdt: w1Usdt + w2Usdt,
+      });
+
+      // Get profiles for recipients
+      const { data: profiles } = await supabase.from("profiles").select("id, username, avatar_url, wallet_address").limit(1000);
+      const { data: channels } = await supabase.from("channels").select("user_id, name").limit(1000);
 
       const addrToProfile = new Map<string, { username: string; avatar_url: string | null; user_id: string }>();
       profiles?.forEach(p => {
@@ -222,6 +233,7 @@ const RewardPoolTab = () => {
         (txs || []).slice(0, 50).map(tx => {
           const prof = addrToProfile.get(tx.to_address?.toLowerCase() || "");
           const channelName = prof ? userToChannel.get(prof.user_id) : null;
+          const tokenType = (tx.token_type || "CAMLY").toUpperCase();
           return {
             id: tx.id,
             amount: Number(tx.amount),
@@ -230,15 +242,14 @@ const RewardPoolTab = () => {
             from_address: tx.from_address,
             to_address: tx.to_address,
             from_wallet: tx.from_address?.toLowerCase() === w1 ? "Ví 1" : "Ví 2",
+            token_type: tokenType.includes("USDT") || tokenType.includes("USD") ? "USDT" : "CAMLY",
             recipient_username: prof?.username || shortenAddress(tx.to_address || ""),
             recipient_avatar: prof?.avatar_url || null,
             recipient_channel: channelName || prof?.username || null,
           };
         })
       );
-    } catch (err) {
-      console.error("Error fetching manual rewards:", err);
-    }
+    } catch (err) { console.error("Error fetching manual rewards:", err); }
   };
 
   const getStatusBadge = (status: string) => {
@@ -250,7 +261,12 @@ const RewardPoolTab = () => {
     }
   };
 
-  const totalSystemRewards = stats.totalClaimed + manualStats.totalManual;
+  const getTokenBadge = (tokenType: string) => {
+    if (tokenType === "USDT") return <Badge className="bg-emerald-500/20 text-emerald-500 border-emerald-500/30 text-[10px] px-1.5">USDT</Badge>;
+    return <Badge className="bg-yellow-500/20 text-yellow-500 border-yellow-500/30 text-[10px] px-1.5">CAMLY</Badge>;
+  };
+
+  const totalSystemRewards = stats.totalClaimed + manualStats.totalCamly;
 
   if (loading) {
     return (
@@ -262,7 +278,7 @@ const RewardPoolTab = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header with Live badge & Refresh */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h2 className="text-lg font-semibold">CAMLY Rewards</h2>
@@ -282,7 +298,7 @@ const RewardPoolTab = () => {
         </Button>
       </div>
 
-      {/* Total System Rewards - Hero Card */}
+      {/* Hero: Tổng đã tặng thưởng */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
         <Card className="bg-gradient-to-r from-primary/10 via-purple-500/10 to-pink-500/10 border-primary/30">
           <CardContent className="py-5">
@@ -294,15 +310,21 @@ const RewardPoolTab = () => {
                 <p className="text-sm text-muted-foreground">Tổng đã tặng thưởng hệ thống</p>
                 <p className="text-3xl font-bold">{formatNumber(Math.floor(totalSystemRewards))} <span className="text-base font-normal text-muted-foreground">CAMLY</span></p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  = Đã claim ({formatNumber(Math.floor(stats.totalClaimed))}) + Thưởng tay ({formatNumber(Math.floor(manualStats.totalManual))})
+                  = Đã claim ({formatNumber(Math.floor(stats.totalClaimed))}) + Thưởng tay ({formatNumber(Math.floor(manualStats.totalCamly))})
                 </p>
+                {manualStats.totalUsdt > 0 && (
+                  <p className="text-xs text-emerald-500 mt-0.5 flex items-center gap-1">
+                    <DollarSign className="w-3 h-3" />
+                    + {formatNumber(Math.floor(manualStats.totalUsdt))} USDT đã tặng
+                  </p>
+                )}
               </div>
             </div>
           </CardContent>
         </Card>
       </motion.div>
 
-      {/* Pool Balance + Stats Row */}
+      {/* Stats Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card className="p-4">
           <div className="flex items-center gap-2 mb-2">
@@ -331,14 +353,14 @@ const RewardPoolTab = () => {
             <HandCoins className="w-4 h-4 text-rose-500" />
             <span className="text-xs text-muted-foreground">Thưởng tay</span>
           </div>
-          <p className="text-lg font-bold text-rose-500">{formatNumber(Math.floor(manualStats.totalManual))}</p>
-          <p className="text-xs text-muted-foreground">Từ 2 ví</p>
+          <p className="text-lg font-bold text-rose-500">{formatNumber(Math.floor(manualStats.totalCamly))}</p>
+          {manualStats.totalUsdt > 0 && <p className="text-xs text-emerald-500">+ {formatNumber(Math.floor(manualStats.totalUsdt))} USDT</p>}
         </Card>
       </div>
 
       {/* Wallet Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Ví tặng thưởng 1 */}
+        {/* Ví 1 */}
         <Card className="bg-gradient-to-br from-rose-500/10 to-pink-500/10 border-rose-500/30">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
@@ -347,7 +369,11 @@ const RewardPoolTab = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-rose-500">{formatNumber(Math.floor(manualStats.wallet1Total))} <span className="text-sm font-normal">CAMLY</span></p>
+            <p className="text-2xl font-bold text-rose-500">{formatNumber(Math.floor(manualStats.wallet1Camly))} <span className="text-sm font-normal">CAMLY</span></p>
+            {manualStats.wallet1Usdt > 0 && (
+              <p className="text-lg font-bold text-emerald-500">{formatNumber(Math.floor(manualStats.wallet1Usdt))} <span className="text-sm font-normal">USDT</span></p>
+            )}
+            <p className="text-[10px] text-muted-foreground mt-1">Tính đến trước 8/1/2026</p>
             <a href={bscscanAddr(SYSTEM_WALLETS.TREASURY.address)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary mt-2 font-mono">
               {shortenAddress(SYSTEM_WALLETS.TREASURY.address)}
               <ExternalLink className="w-3 h-3" />
@@ -355,7 +381,7 @@ const RewardPoolTab = () => {
           </CardContent>
         </Card>
 
-        {/* Ví tặng thưởng 2 */}
+        {/* Ví 2 */}
         <Card className="bg-gradient-to-br from-fuchsia-500/10 to-purple-500/10 border-fuchsia-500/30">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
@@ -364,7 +390,11 @@ const RewardPoolTab = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-fuchsia-500">{formatNumber(Math.floor(manualStats.wallet2Total))} <span className="text-sm font-normal">CAMLY</span></p>
+            <p className="text-2xl font-bold text-fuchsia-500">{formatNumber(Math.floor(manualStats.wallet2Camly))} <span className="text-sm font-normal">CAMLY</span></p>
+            {manualStats.wallet2Usdt > 0 && (
+              <p className="text-lg font-bold text-emerald-500">{formatNumber(Math.floor(manualStats.wallet2Usdt))} <span className="text-sm font-normal">USDT</span></p>
+            )}
+            <p className="text-[10px] text-muted-foreground mt-1">Tính đến trước 18/1/2026</p>
             <a href={bscscanAddr(SYSTEM_WALLETS.PERSONAL.address)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary mt-2 font-mono">
               {shortenAddress(SYSTEM_WALLETS.PERSONAL.address)}
               <ExternalLink className="w-3 h-3" />
@@ -373,7 +403,7 @@ const RewardPoolTab = () => {
         </Card>
       </div>
 
-      {/* Manual Rewards Recent Transactions */}
+      {/* Manual Rewards Table */}
       {manualTxs.length > 0 && (
         <Card>
           <CardHeader>
@@ -391,6 +421,7 @@ const RewardPoolTab = () => {
                     <th className="text-left py-3 px-2">Từ ví</th>
                     <th className="text-left py-3 px-2">Người nhận</th>
                     <th className="text-right py-3 px-2">Số lượng</th>
+                    <th className="text-center py-3 px-2">Token</th>
                     <th className="text-center py-3 px-2">TX</th>
                   </tr>
                 </thead>
@@ -404,19 +435,29 @@ const RewardPoolTab = () => {
                         <Badge variant="outline" className="text-xs">{tx.from_wallet}</Badge>
                       </td>
                       <td className="py-3 px-2">
-                        <a href={`/c/${tx.recipient_username}`} className="flex items-center gap-2 hover:underline">
-                          <Avatar className="w-6 h-6">
-                            <AvatarImage src={tx.recipient_avatar || undefined} />
-                            <AvatarFallback className="text-[10px]">{(tx.recipient_channel || tx.recipient_username)?.[0]?.toUpperCase()}</AvatarFallback>
-                          </Avatar>
-                          <div className="min-w-0">
-                            <p className="font-medium text-sm truncate max-w-[120px]">{tx.recipient_channel || tx.recipient_username}</p>
-                            <p className="text-xs text-muted-foreground">@{tx.recipient_username}</p>
-                          </div>
-                        </a>
+                        {tx.recipient_avatar ? (
+                          <a href={`/c/${tx.recipient_username}`} className="flex items-center gap-2 hover:underline">
+                            <Avatar className="w-6 h-6">
+                              <AvatarImage src={tx.recipient_avatar} />
+                              <AvatarFallback className="text-[10px]">{(tx.recipient_channel || tx.recipient_username)?.[0]?.toUpperCase()}</AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0">
+                              <p className="font-medium text-sm truncate max-w-[120px]">{tx.recipient_channel || tx.recipient_username}</p>
+                              <p className="text-xs text-muted-foreground">@{tx.recipient_username}</p>
+                            </div>
+                          </a>
+                        ) : (
+                          <a href={bscscanAddr(tx.to_address)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 font-mono text-xs text-muted-foreground hover:text-primary">
+                            {shortenAddress(tx.to_address)}
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        )}
                       </td>
-                      <td className="py-3 px-2 text-right font-bold text-rose-500 whitespace-nowrap">
+                      <td className={`py-3 px-2 text-right font-bold whitespace-nowrap ${tx.token_type === "USDT" ? "text-emerald-500" : "text-yellow-500"}`}>
                         {formatNumber(Math.floor(tx.amount))}
+                      </td>
+                      <td className="py-3 px-2 text-center">
+                        {getTokenBadge(tx.token_type)}
                       </td>
                       <td className="py-3 px-2 text-center">
                         <a href={bscscanTx(tx.tx_hash)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
