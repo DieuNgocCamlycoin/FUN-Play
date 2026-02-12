@@ -225,12 +225,31 @@ serve(async (req) => {
     const { amounts: REWARD_AMOUNTS, limits: DAILY_LIMITS, validation } = await getRewardConfig(adminSupabase);
 
     // 7. Get server-controlled reward amount
-    const amount = REWARD_AMOUNTS[type] || 0;
+    let effectiveType = type;
+    let amount = REWARD_AMOUNTS[type] || 0;
     if (amount === 0) {
       return new Response(
         JSON.stringify({ success: false, error: 'Reward type not configured' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // 7b. Server-side duration verification for upload rewards
+    if ((effectiveType === 'SHORT_VIDEO_UPLOAD' || effectiveType === 'LONG_VIDEO_UPLOAD') && videoId) {
+      const { data: videoData } = await adminSupabase
+        .from('videos').select('duration').eq('id', videoId).single();
+      
+      if (videoData?.duration && videoData.duration > 180 && effectiveType === 'SHORT_VIDEO_UPLOAD') {
+        console.warn(`Override: Video ${videoId} duration=${videoData.duration}s, changing SHORT -> LONG`);
+        effectiveType = 'LONG_VIDEO_UPLOAD';
+        amount = REWARD_AMOUNTS['LONG_VIDEO_UPLOAD'];
+      } else if (videoData?.duration && videoData.duration <= 180 && effectiveType === 'LONG_VIDEO_UPLOAD') {
+        console.warn(`Override: Video ${videoId} duration=${videoData.duration}s, changing LONG -> SHORT`);
+        effectiveType = 'SHORT_VIDEO_UPLOAD';
+        amount = REWARD_AMOUNTS['SHORT_VIDEO_UPLOAD'];
+      } else if (!videoData?.duration) {
+        console.warn(`Video ${videoId} has NULL duration, keeping client type: ${effectiveType}`);
+      }
     }
 
     // 8. Anti-fraud checks
@@ -410,12 +429,12 @@ serve(async (req) => {
     const newApproved = Number(updatedProfile?.approved_reward) || 0;
 
     // 14. Create reward transaction record
-    const txHash = `REWARD_${type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const txHash = `REWARD_${effectiveType}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     await adminSupabase.from("reward_transactions").insert({
       user_id: userId,
       video_id: videoId || null,
       amount: amount,
-      reward_type: type,
+      reward_type: effectiveType,
       status: "success",
       tx_hash: txHash,
       approved: canAutoApprove,
@@ -446,7 +465,7 @@ serve(async (req) => {
     } else if (type === "COMMENT") {
       updateFields.comment_count = currentCommentCount + 1;
       updateFields.comment_rewards_earned = (limits?.comment_rewards_earned || 0) + amount;
-    } else if (type === "UPLOAD" || type === "SHORT_VIDEO_UPLOAD" || type === "LONG_VIDEO_UPLOAD") {
+    } else if (effectiveType === "UPLOAD" || effectiveType === "SHORT_VIDEO_UPLOAD" || effectiveType === "LONG_VIDEO_UPLOAD") {
       updateFields.uploads_count = (limits?.uploads_count || 0) + 1;
       updateFields.upload_rewards_earned = (limits?.upload_rewards_earned || 0) + amount;
     }
@@ -466,7 +485,7 @@ serve(async (req) => {
       milestone => oldTotal < milestone && newTotal >= milestone
     ) || null;
 
-    console.log(`Awarded ${amount} CAMLY to user ${userId} for ${type}. New total: ${newTotal}, AutoApproved: ${canAutoApprove}`);
+    console.log(`Awarded ${amount} CAMLY to user ${userId} for ${effectiveType}. New total: ${newTotal}, AutoApproved: ${canAutoApprove}`);
 
     return new Response(
       JSON.stringify({ 
