@@ -1,72 +1,96 @@
 
 
-# Cập nhật mốc thời gian tính USDT cho Ví 1 và Ví 2
+# Cập nhật mốc CAMLY và thêm chi tiết khi nhấn vào ô ví
 
-## Vấn đề hiện tại
+## Thay đổi chính
 
-Code hiện tại dùng chung 1 mốc cutoff cho cả CAMLY và USDT:
-- Vi 1: truoc 8/1/2026 (tinh tat ca USDT tu dau -> sai)
-- Vi 2: truoc 18/1/2026 (tinh tat ca USDT tu dau -> sai)
+### 1. Cập nhật mốc thời gian CAMLY (dùng chung với USDT)
 
-Nguoi dung yeu cau moc thoi gian rieng cho USDT:
-- Vi 1 USDT: tu **9/12/2025** den **18/1/2026** = **320 USDT**
-- Vi 2 USDT: tu **14/1/2026** den **18/1/2026** = **250 USDT**
+Bỏ `WALLET1_CUTOFF` và `WALLET2_CUTOFF` cũ. Cả CAMLY và USDT dùng chung khoảng thời gian:
 
-## Thay doi
+| Ví | Từ ngày | Đến ngày | CAMLY | USDT |
+|----|---------|----------|-------|------|
+| Ví 1 | 9/12/2025 | 18/1/2026 | 17,521,473 (36 tx) | 320 (8 tx) |
+| Ví 2 | 14/1/2026 | 18/1/2026 | 2,500,000 (5 tx) | 250 (5 tx) |
+
+Sử dụng constants đơn giản hơn:
+- `WALLET1_START = "2025-12-09"`, `WALLET1_END = "2026-01-18"`
+- `WALLET2_START = "2026-01-14"`, `WALLET2_END = "2026-01-18"`
+
+### 2. Nhấn vào ô ví -> hiện danh sách giao dịch
+
+Thêm state `selectedWallet` ("w1" | "w2" | null). Khi nhấn vào card ví:
+- Lọc `manualTxs` theo `from_wallet`
+- Hiện bảng chi tiết bên dưới card (giống bảng "Thưởng bằng tay gần đây") gồm: thời gian, người nhận (avatar + tên kênh + link profile), số lượng, token (CAMLY/USDT), link TX
+- Nhấn lại để đóng
+
+### 3. Cập nhật trên mobile
+
+- Card ví có hiệu ứng nhấn (cursor-pointer, hover)
+- Bảng chi tiết responsive (overflow-x-auto)
+- Giữ nguyên bảng "Thưởng bằng tay gần đây" hiện tất cả giao dịch từ cả 2 ví
+
+## Chi tiết kỹ thuật
 
 ### File: `src/components/Admin/tabs/RewardPoolTab.tsx`
 
-**1. Them constant moc thoi gian USDT (dong 82-85)**
+**A. Constants mới (thay thế dòng 83-91)**
 
 ```text
-// CAMLY cutoffs (giu nguyen)
-WALLET1_CUTOFF = "2026-01-09T00:00:00Z"  // CAMLY Vi 1: truoc 8/1
-WALLET2_CUTOFF = "2026-01-19T00:00:00Z"  // CAMLY Vi 2: truoc 18/1
-
-// USDT cutoffs (moi)
-WALLET1_USDT_START = "2025-12-09T00:00:00Z"  // USDT Vi 1: tu 9/12/2025
-WALLET1_USDT_END   = "2026-01-18T00:00:00Z"  // den 18/1/2026
-WALLET2_USDT_START = "2026-01-14T00:00:00Z"  // USDT Vi 2: tu 14/1/2026
-WALLET2_USDT_END   = "2026-01-18T00:00:00Z"  // den 18/1/2026
+WALLET1_START = "2025-12-09T00:00:00Z"
+WALLET1_END   = "2026-01-18T00:00:00Z"
+WALLET2_START = "2026-01-14T00:00:00Z"
+WALLET2_END   = "2026-01-18T00:00:00Z"
 ```
 
-**2. Sua logic tinh tong (dong 195-222)**
-
-Thay vi chi check `ts < CUTOFF`, kiem tra ca khoang thoi gian start-end cho USDT:
+**B. Logic tính tổng (dòng 208-226)**
 
 ```text
 if (from === w1) {
-  if (isUsdt) {
-    // USDT Vi 1: chi tinh trong khoang 9/12/2025 - 18/1/2026
-    if (ts && ts >= WALLET1_USDT_START && ts < WALLET1_USDT_END)
-      w1Usdt += amount
-  } else {
-    // CAMLY Vi 1: truoc 8/1/2026 (giu nguyen)
-    if (ts && ts < WALLET1_CUTOFF)
-      w1Camly += amount
+  if (ts && ts >= WALLET1_START && ts < WALLET1_END) {
+    if (isUsdt) w1Usdt += amount;
+    else w1Camly += amount;
+  }
+} else if (from === w2) {
+  if (ts && ts >= WALLET2_START && ts < WALLET2_END) {
+    if (isUsdt) w2Usdt += amount;
+    else w2Camly += amount;
   }
 }
-// Tuong tu cho Vi 2 voi WALLET2_USDT_START va WALLET2_USDT_END
 ```
 
-**3. Sua filter bang giao dich (dong 250-261)**
+**C. Filter bảng (dòng 255-268)**
 
-Dong bo logic loc bang voi logic tinh tong, dam bao bang chi hien giao dich trong khoang thoi gian dung.
+```text
+if (from === w1) return ts >= WALLET1_START && ts < WALLET1_END;
+if (from === w2) return ts >= WALLET2_START && ts < WALLET2_END;
+```
 
-**4. Bo logic `!ts && isUsdt` (dong 207-209)**
+**D. State + UI cho chọn ví (mới)**
 
-Khong con tinh USDT thieu timestamp nua (da co du timestamp tu Moralis).
+```text
+const [selectedWallet, setSelectedWallet] = useState<"w1"|"w2"|null>(null);
 
-**5. Sua flickering Pool/Gas (dong 164-166)**
+// Card ví 1: onClick={() => setSelectedWallet(s => s === "w1" ? null : "w1")}
+// Card ví 2: onClick={() => setSelectedWallet(s => s === "w2" ? null : "w2")}
 
-Chi hien "Dang tai..." lan dau, khong reset khi polling.
+// Bảng chi tiết ví được chọn (hiện ngay dưới 2 card)
+const selectedTxs = manualTxs.filter(tx => 
+  selectedWallet === "w1" ? tx.from_wallet === "Ví 1" : tx.from_wallet === "Ví 2"
+);
+```
 
-## Ket qua mong doi
+**E. Mô tả card ví cập nhật**
+- Ví 1: "9/12/2025 – 18/1/2026"
+- Ví 2: "14/1/2026 – 18/1/2026"
 
-| Vi | CAMLY | USDT |
+### Kết quả mong đợi
+
+| Ví | CAMLY | USDT |
 |----|-------|------|
-| Vi 1 | 19,701,561 (truoc 8/1) | 320 (9/12 - 18/1) |
-| Vi 2 | 3,500,000 (truoc 18/1) | 250 (14/1 - 18/1) |
+| Ví 1 | 17,521,473 | 320 |
+| Ví 2 | 2,500,000 | 250 |
 
-## Files can sua
+### File cần sửa
 1. `src/components/Admin/tabs/RewardPoolTab.tsx`
+
