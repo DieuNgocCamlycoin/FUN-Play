@@ -120,6 +120,8 @@ export const VideoCard = ({
     lightTap();
     if (onPlay && videoId) {
       onPlay(videoId);
+    } else if (videoId) {
+      navigate(`/watch/${videoId}`);
     }
   };
 
