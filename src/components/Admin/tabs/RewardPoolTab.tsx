@@ -80,9 +80,15 @@ const bscscanAddr = (addr: string) => `https://bscscan.com/address/${addr}`;
 const bscscanTx = (hash: string) => `https://bscscan.com/tx/${hash}`;
 const formatNumber = (num: number) => new Intl.NumberFormat("vi-VN").format(num);
 
-// Ngày giới hạn thống kê thưởng tay
-const WALLET1_CUTOFF = "2026-01-09T00:00:00Z"; // trước 8/1/2026
-const WALLET2_CUTOFF = "2026-01-19T00:00:00Z"; // trước 18/1/2026
+// Ngày giới hạn thống kê thưởng tay - CAMLY
+const WALLET1_CUTOFF = "2026-01-09T00:00:00Z"; // CAMLY Ví 1: trước 8/1/2026
+const WALLET2_CUTOFF = "2026-01-19T00:00:00Z"; // CAMLY Ví 2: trước 18/1/2026
+
+// Ngày giới hạn thống kê USDT (khoảng thời gian cụ thể)
+const WALLET1_USDT_START = "2025-12-09T00:00:00Z"; // USDT Ví 1: từ 9/12/2025
+const WALLET1_USDT_END   = "2026-01-18T00:00:00Z"; // đến 18/1/2026
+const WALLET2_USDT_START = "2026-01-14T00:00:00Z"; // USDT Ví 2: từ 14/1/2026
+const WALLET2_USDT_END   = "2026-01-18T00:00:00Z"; // đến 18/1/2026
 
 // ── Component ──────────────────────────────────────────
 
@@ -100,7 +106,7 @@ const RewardPoolTab = () => {
 
   const fetchData = useCallback(async (showLoading = false) => {
     if (showLoading) setLoading(true);
-    await Promise.all([fetchClaimHistory(), fetchPoolStats(), fetchPoolBalance(), fetchManualRewards()]);
+    await Promise.all([fetchClaimHistory(), fetchPoolStats(), fetchPoolBalance(showLoading), fetchManualRewards()]);
     if (showLoading) setLoading(false);
   }, []);
 
@@ -161,9 +167,9 @@ const RewardPoolTab = () => {
   };
 
   // ── Fetch pool balance ──
-  const fetchPoolBalance = async () => {
+  const fetchPoolBalance = async (isInitial = false) => {
     try {
-      setPoolBalance("Đang tải..."); setBnbBalance("Đang tải...");
+      if (isInitial) { setPoolBalance("Đang tải..."); setBnbBalance("Đang tải..."); }
       const { data, error } = await supabase.functions.invoke('admin-wallet-balance');
       if (error) throw error;
       if (data?.success) {
@@ -200,24 +206,23 @@ const RewardPoolTab = () => {
         const isCamly = !isUsdt;
 
         if (from === w1) {
-          // Ví 1: chỉ tính trước 8/1/2026
-          if (ts && ts < WALLET1_CUTOFF) {
-            if (isUsdt) w1Usdt += Number(tx.amount);
-            else w1Camly += Number(tx.amount);
-          } else if (!ts && isUsdt) {
-            // USDT cũ chưa có timestamp (BscScan import) — vẫn tính
-            w1Usdt += Number(tx.amount);
-          } else if (!ts) {
-            missingTimestampCount++;
+          if (isUsdt) {
+            // USDT Ví 1: chỉ tính trong khoảng 9/12/2025 - 18/1/2026
+            if (ts && ts >= WALLET1_USDT_START && ts < WALLET1_USDT_END) w1Usdt += Number(tx.amount);
+          } else {
+            // CAMLY Ví 1: trước 8/1/2026
+            if (ts && ts < WALLET1_CUTOFF) w1Camly += Number(tx.amount);
           }
+          if (!ts) missingTimestampCount++;
         } else if (from === w2) {
-          // Ví 2: chỉ tính trước 18/1/2026
-          if (ts && ts < WALLET2_CUTOFF) {
-            if (isUsdt) w2Usdt += Number(tx.amount);
-            else w2Camly += Number(tx.amount);
-          } else if (!ts) {
-            missingTimestampCount++;
+          if (isUsdt) {
+            // USDT Ví 2: chỉ tính trong khoảng 14/1/2026 - 18/1/2026
+            if (ts && ts >= WALLET2_USDT_START && ts < WALLET2_USDT_END) w2Usdt += Number(tx.amount);
+          } else {
+            // CAMLY Ví 2: trước 18/1/2026
+            if (ts && ts < WALLET2_CUTOFF) w2Camly += Number(tx.amount);
           }
+          if (!ts) missingTimestampCount++;
         }
       });
       if (missingTimestampCount > 0) console.warn(`${missingTimestampCount} giao dịch thiếu block_timestamp, bỏ qua`);
@@ -250,13 +255,14 @@ const RewardPoolTab = () => {
       const filteredForTable = (txs || []).filter(tx => {
         const from = tx.from_address?.toLowerCase();
         const ts = tx.block_timestamp;
+        if (!ts) return false;
         const tokenType = (tx.token_type || "").toUpperCase();
         const isUsdt = tokenType.includes("USDT") || tokenType.includes("USD");
         if (from === w1) {
-          return (ts && ts < WALLET1_CUTOFF) || (!ts && isUsdt);
+          return isUsdt ? (ts >= WALLET1_USDT_START && ts < WALLET1_USDT_END) : (ts < WALLET1_CUTOFF);
         }
         if (from === w2) {
-          return (ts && ts < WALLET2_CUTOFF) || (!ts && isUsdt);
+          return isUsdt ? (ts >= WALLET2_USDT_START && ts < WALLET2_USDT_END) : (ts < WALLET2_CUTOFF);
         }
         return false;
       });
@@ -403,10 +409,8 @@ const RewardPoolTab = () => {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-rose-500">{formatNumber(Math.floor(manualStats.wallet1Camly))} <span className="text-sm font-normal">CAMLY</span></p>
-            {manualStats.wallet1Usdt > 0 && (
-              <p className="text-lg font-bold text-emerald-500">{formatNumber(Math.floor(manualStats.wallet1Usdt))} <span className="text-sm font-normal">USDT</span></p>
-            )}
-            <p className="text-[10px] text-muted-foreground mt-1">Tính đến trước 8/1/2026</p>
+            <p className="text-lg font-bold text-emerald-500">{formatNumber(Math.floor(manualStats.wallet1Usdt))} <span className="text-sm font-normal">USDT</span></p>
+            <p className="text-[10px] text-muted-foreground mt-1">CAMLY: trước 8/1/2026 · USDT: 9/12/2025 – 18/1/2026</p>
             <a href={bscscanAddr(SYSTEM_WALLETS.TREASURY.address)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary mt-2 font-mono">
               {shortenAddress(SYSTEM_WALLETS.TREASURY.address)}
               <ExternalLink className="w-3 h-3" />
@@ -425,7 +429,7 @@ const RewardPoolTab = () => {
           <CardContent>
             <p className="text-2xl font-bold text-fuchsia-500">{formatNumber(Math.floor(manualStats.wallet2Camly))} <span className="text-sm font-normal">CAMLY</span></p>
             <p className="text-lg font-bold text-emerald-500">{formatNumber(Math.floor(manualStats.wallet2Usdt))} <span className="text-sm font-normal">USDT</span></p>
-            <p className="text-[10px] text-muted-foreground mt-1">Tính đến trước 18/1/2026</p>
+            <p className="text-[10px] text-muted-foreground mt-1">CAMLY: trước 18/1/2026 · USDT: 14/1 – 18/1/2026</p>
             <a href={bscscanAddr(SYSTEM_WALLETS.PERSONAL.address)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary mt-2 font-mono">
               {shortenAddress(SYSTEM_WALLETS.PERSONAL.address)}
               <ExternalLink className="w-3 h-3" />
@@ -466,10 +470,10 @@ const RewardPoolTab = () => {
                         <Badge variant="outline" className="text-xs">{tx.from_wallet}</Badge>
                       </td>
                       <td className="py-3 px-2">
-                        {tx.recipient_avatar ? (
-                          <a href={tx.recipient_user_id ? `/profile/${tx.recipient_user_id}` : bscscanAddr(tx.to_address)} className="flex items-center gap-2 hover:underline">
+                        {tx.recipient_user_id ? (
+                          <a href={`/profile/${tx.recipient_user_id}`} className="flex items-center gap-2 hover:underline">
                             <Avatar className="w-6 h-6">
-                              <AvatarImage src={tx.recipient_avatar} />
+                              {tx.recipient_avatar ? <AvatarImage src={tx.recipient_avatar} /> : null}
                               <AvatarFallback className="text-[10px]">{(tx.recipient_channel || tx.recipient_username)?.[0]?.toUpperCase()}</AvatarFallback>
                             </Avatar>
                             <div className="min-w-0">
