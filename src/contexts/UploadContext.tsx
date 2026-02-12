@@ -36,7 +36,7 @@ interface UploadContextType {
   hasActiveUploads: boolean;
 }
 
-const UploadContext = createContext<UploadContextType | null>(null);
+export const UploadContext = createContext<UploadContextType | null>(null);
 
 export function UploadProvider({ children }: { children: React.ReactNode }) {
   const [uploads, setUploads] = useState<UploadItem[]>([]);

@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useContext } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Upload, CheckCircle2, AlertCircle, ChevronUp, ChevronDown } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
-import { useUpload, UploadItem } from "@/contexts/UploadContext";
+import { UploadContext, type UploadItem } from "@/contexts/UploadContext";
 import { cn } from "@/lib/utils";
 
 function UploadItemRow({ item, onCancel, onRemove }: {
@@ -76,8 +76,13 @@ function UploadItemRow({ item, onCancel, onRemove }: {
 }
 
 export function BackgroundUploadIndicator() {
-  const { uploads, cancelUpload, removeUpload, hasActiveUploads } = useUpload();
+  const context = useContext(UploadContext);
   const [isExpanded, setIsExpanded] = useState(true);
+
+  // Safely handle being rendered outside UploadProvider
+  if (!context) return null;
+
+  const { uploads, cancelUpload, removeUpload, hasActiveUploads } = context;
 
   // Only show if there are uploads
   if (uploads.length === 0) return null;
