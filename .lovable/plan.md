@@ -1,144 +1,147 @@
 
-# Sửa lỗi phân loại video dài + Cập nhật thưởng cho "8 Câu Thần Chú Của Cha"
+# Sửa Lỗi Giao Dịch Onchain Không Hiển Thị
 
-## Vấn đề gốc
+## Nguyên nhân gốc
 
-Khi upload video, hệ thống dùng HTML5 Video API để đọc thời lượng. Với một số định dạng video, API này **không đọc được duration** (trả về 0 hoặc NaN). Kết quả:
-
-```text
-Client: duration = 0 -> 0 <= 180 -> SHORT_VIDEO_UPLOAD (20K)
-Server (award-camly): nhận type = SHORT_VIDEO_UPLOAD -> tin tưởng, cấp 20K
-Database: duration = NULL (vì 0 bị lọc thành null)
-```
-
-Video **"8 Câu Thần Chú Của Cha"** (id: 34da877e) bị ảnh hưởng: duration = NULL, nhận 20K thay vì 70K.
-
-## Kế hoạch sửa (3 bước)
-
-### Bước 1: Sửa dữ liệu cho "8 Câu Thần Chú Của Cha"
-
-Cập nhật SQL:
-- Set duration cho video (cần xác nhận thời lượng thực, tạm đặt 240s)
-- Sửa reward_transaction: SHORT -> LONG, 20000 -> 70000
-- Bù 50.000 CAMLY vào approved_reward va total_camly_rewards
-
-### Bước 2: Server-side validation trong `award-camly` Edge Function
-
-Thêm logic: khi nhận `SHORT_VIDEO_UPLOAD` hoặc `LONG_VIDEO_UPLOAD`, **kiểm tra duration thực từ database** để tự sửa loại nếu client gửi sai:
+Hiện tại, hook `useTransactionHistory` ở **chế độ cá nhân** (private mode) truy vấn bảng `wallet_transactions` theo điều kiện:
 
 ```text
-Client gửi: type = SHORT_VIDEO_UPLOAD, videoId = xxx
-    |
-    v
-Server đọc videos.duration WHERE id = videoId
-    |
-    ├── duration > 180 -> Override type = LONG_VIDEO_UPLOAD, amount = 70K
-    ├── duration <= 180 -> Giữ SHORT_VIDEO_UPLOAD, amount = 20K
-    └── duration = NULL -> Giữ nguyên type client gửi (an toàn), log cảnh báo
+or(from_user_id.eq.${user.id}, to_user_id.eq.${user.id})
 ```
 
-### Bước 3: Cải thiện client-side duration detection
+Tuy nhiên, trong cơ sở dữ liệu có **74/492 giao dịch** (15%) không có `from_user_id` hoặc `to_user_id` (đều là NULL). Đây là các giao dịch được đồng bộ từ blockchain nhưng không thể liên kết ngược với hồ sơ người dùng (vì địa chỉ ví không khớp hoặc chưa được đăng ký trên Fun Play).
 
-Trong cả `Upload.tsx` (desktop) và `UploadContext.tsx` (mobile), thêm retry logic cho trường hợp `onloadedmetadata` không fire:
+Kết quả: Người dùng **không thấy** các giao dịch liên quan đến ví mình nếu giao dịch đó không có `user_id` được gán.
+
+## Giải pháp
+
+### Bước 1: Sửa truy vấn `wallet_transactions` trong `useTransactionHistory.ts`
+
+Thay đổi logic truy vấn ở chế độ cá nhân:
+- **Trước**: Chỉ tìm theo `from_user_id` hoặc `to_user_id`
+- **Sau**: Tìm theo **cả** `user_id` **và** `wallet_address` của người dùng
+
+Cụ thể:
+1. Lấy `wallet_address` của user từ bảng `profiles` (đã có sẵn trong đoạn code dòng 471-478)
+2. Di chuyển việc lấy `wallet_address` lên **trước** khi truy vấn `wallet_transactions`
+3. Xây dựng điều kiện `or()` mở rộng:
 
 ```text
-Attempt 1: onloadedmetadata event
-    |
-    ├── duration > 0 -> Dùng giá trị này
-    └── duration = 0/NaN -> Timeout 5s
-        |
-        v
-Attempt 2: Dùng video.readyState check + requestVideoFrameCallback
-        |
-        └── Vẫn fail -> Log cảnh báo, để server tự phân loại từ DB
+-- Trước (bỏ lỡ giao dịch không có user_id):
+or(from_user_id.eq.userId, to_user_id.eq.userId)
+
+-- Sau (bắt được tất cả giao dịch liên quan đến ví):
+or(
+  from_user_id.eq.userId,
+  to_user_id.eq.userId,
+  from_address.ilike.walletAddress,
+  to_address.ilike.walletAddress
+)
 ```
+
+### Bước 2: Cập nhật hiển thị cho giao dịch không có profile
+
+Khi `from_user_id` hoặc `to_user_id` là NULL và không phải ví hệ thống, hiển thị địa chỉ ví rút gọn thay vì "Không rõ":
+- Đã có sẵn logic `getSystemWalletDisplayInfo` cho ví hệ thống
+- Thêm fallback: nếu không có profile và không phải ví hệ thống, hiển thị `0x1234...abcd` làm tên
+
+### Bước 3: Backfill `user_id` cho các giao dịch hiện có
+
+Chạy SQL để liên kết lại các giao dịch có NULL user_id với profile dựa trên `wallet_address`:
+
+```text
+UPDATE wallet_transactions wt
+SET to_user_id = p.id
+FROM profiles p
+WHERE LOWER(wt.to_address) = LOWER(p.wallet_address)
+  AND wt.to_user_id IS NULL;
+
+UPDATE wallet_transactions wt
+SET from_user_id = p.id
+FROM profiles p
+WHERE LOWER(wt.from_address) = LOWER(p.wallet_address)
+  AND wt.from_user_id IS NULL;
+```
+
+### Bước 4: Cập nhật `sync-transactions-cron` để luôn liên kết user_id
+
+Trong edge function `sync-transactions-cron`, logic hiện tại đã có `walletToUserId` map nhưng sử dụng **case-sensitive matching**. Cần đảm bảo:
+- So sánh địa chỉ ví luôn dùng `toLowerCase()`
+- Đã có trong code hiện tại (dòng `walletToUserId[p.wallet_address.toLowerCase()]`) - xác nhận hoạt động đúng
+
+### Bước 5: Đảm bảo tương thích mobile
+
+Trang `/reward-history` (RewardHistory.tsx) đã responsive. Thay đổi chính nằm ở hook `useTransactionHistory.ts` nên tự động áp dụng cho cả desktop và mobile, bao gồm:
+- Trang Ví (`/wallet`) → `TransactionHistorySection`
+- Trang Giao Dịch Công Khai (`/transactions`)
 
 ## Chi tiết kỹ thuật
 
-### Files cần sửa
+### File cần sửa
 
 | File | Thay đổi |
 |------|----------|
-| SQL (data fix) | Cập nhật duration, reward_type, bù 50K CAMLY cho "8 Câu Thần Chú" |
-| `supabase/functions/award-camly/index.ts` | Thêm server-side duration verification cho UPLOAD rewards |
-| `src/contexts/UploadContext.tsx` | Cải thiện duration detection + retry logic cho mobile |
-| `src/pages/Upload.tsx` | Cải thiện duration detection + retry logic cho desktop |
+| `src/hooks/useTransactionHistory.ts` | Mở rộng query wallet_transactions theo wallet_address, di chuyển lấy wallet_address lên trước |
+| SQL (data fix) | Backfill from_user_id/to_user_id cho 74 giao dịch thiếu |
 
-### SQL Data Fix
+### Thay đổi cụ thể trong `useTransactionHistory.ts`
+
+**Dòng 199-229**: Sửa truy vấn wallet_transactions ở chế độ cá nhân
+
+Trước:
 ```text
--- Cập nhật duration cho video "8 Câu Thần Chú Của Cha"
-UPDATE videos SET duration = 240 WHERE id = '34da877e-9d68-4bd2-b23e-0de8481263a4';
-
--- Sửa reward: SHORT -> LONG, 20000 -> 70000
-UPDATE reward_transactions 
-SET reward_type = 'LONG_VIDEO_UPLOAD', amount = 70000 
-WHERE video_id = '34da877e-9d68-4bd2-b23e-0de8481263a4' 
-  AND reward_type = 'SHORT_VIDEO_UPLOAD';
-
--- Bù 50000 CAMLY
-UPDATE profiles 
-SET approved_reward = COALESCE(approved_reward, 0) + 50000,
-    total_camly_rewards = COALESCE(total_camly_rewards, 0) + 50000
-WHERE id = 'd06c21f9-a612-4d0e-8d22-05e89eb5120d';
+user?.id
+  ? supabase
+      .from("wallet_transactions")
+      .select("*")
+      .or(`from_user_id.eq.${user.id},to_user_id.eq.${user.id}`)
+      .eq("status", "completed")
+      ...
 ```
 
-### award-camly Edge Function - Server-side Duration Check (dòng 227-234)
-Thêm block moi sau dòng 228 (`if (amount === 0)`):
+Sau:
 ```text
-// For upload rewards, verify duration from database to override client classification
-if ((type === 'SHORT_VIDEO_UPLOAD' || type === 'LONG_VIDEO_UPLOAD') && videoId) {
-  const { data: videoData } = await adminSupabase
-    .from('videos').select('duration').eq('id', videoId).single();
-  
-  if (videoData?.duration && videoData.duration > 180 && type === 'SHORT_VIDEO_UPLOAD') {
-    console.warn(`Override: Video ${videoId} duration=${videoData.duration}s, changing SHORT -> LONG`);
-    type = 'LONG_VIDEO_UPLOAD';
-    amount = REWARD_AMOUNTS['LONG_VIDEO_UPLOAD'];
-  } else if (videoData?.duration && videoData.duration <= 180 && type === 'LONG_VIDEO_UPLOAD') {
-    console.warn(`Override: Video ${videoId} duration=${videoData.duration}s, changing LONG -> SHORT`);
-    type = 'SHORT_VIDEO_UPLOAD'; 
-    amount = REWARD_AMOUNTS['SHORT_VIDEO_UPLOAD'];
-  } else if (!videoData?.duration) {
-    console.warn(`Video ${videoId} has NULL duration, keeping client type: ${type}`);
-  }
+// Lấy wallet_address trước (di chuyển từ dòng 471-478)
+let userWalletAddress = null;
+if (!publicMode && user?.id) {
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("wallet_address")
+    .eq("id", user.id)
+    .single();
+  userWalletAddress = profile?.wallet_address?.toLowerCase() || null;
 }
+
+// Query mở rộng
+const orConditions = [`from_user_id.eq.${user.id}`, `to_user_id.eq.${user.id}`];
+if (userWalletAddress) {
+  orConditions.push(`from_address.ilike.${userWalletAddress}`);
+  orConditions.push(`to_address.ilike.${userWalletAddress}`);
+}
+
+supabase
+  .from("wallet_transactions")
+  .select("*")
+  .or(orConditions.join(","))
+  .eq("status", "completed")
+  ...
 ```
 
-### Client Duration Detection (cả Upload.tsx va UploadContext.tsx)
-Thay the Promise don gian bang retry logic:
+**Dòng 382-432**: Cập nhật normalize wallet_transactions - thêm fallback hiển thị khi không có profile:
 ```text
-// Retry-capable duration extraction
-const getVideoDuration = (file: File): Promise<number> => {
-  return new Promise((resolve) => {
-    const video = document.createElement('video');
-    video.preload = 'metadata';
-    let resolved = false;
-    
-    const finish = (dur: number) => {
-      if (resolved) return;
-      resolved = true;
-      URL.revokeObjectURL(video.src);
-      resolve(dur);
-    };
-    
-    video.onloadedmetadata = () => {
-      if (video.duration && isFinite(video.duration) && video.duration > 0) {
-        finish(video.duration);
-      }
-    };
-    
-    video.ondurationchange = () => {
-      if (video.duration && isFinite(video.duration) && video.duration > 0) {
-        finish(video.duration);
-      }
-    };
-    
-    video.onerror = () => finish(0);
-    
-    // Timeout fallback
-    setTimeout(() => finish(0), 10000);
-    
-    video.src = URL.createObjectURL(file);
-  });
+// Nếu không có profile và không phải ví hệ thống, dùng địa chỉ ví làm tên
+const fallbackFromInfo = {
+  displayName: formatAddress(w.from_address),
+  username: formatAddress(w.from_address),
+  avatarUrl: null,
+  channelName: formatAddress(w.from_address),
 };
+const finalFromInfo = senderSystemWallet || (fromProfile ? fromInfo : fallbackFromInfo);
 ```
+
+## Tác động
+
+- Người dùng sẽ thấy **toàn bộ** giao dịch onchain liên quan đến ví mình, kể cả giao dịch không có `user_id`
+- Không ảnh hưởng đến logic thưởng, claim, hoặc donation
+- Tương thích cả desktop và mobile
+- Backfill SQL sẽ liên kết lại 74 giao dịch thiếu user_id với profile tương ứng
