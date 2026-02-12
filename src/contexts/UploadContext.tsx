@@ -262,6 +262,8 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
 
         // Award upload reward (mobile background upload)
         try {
+          console.log("[Upload Reward] Starting reward process for video:", videoData.id);
+          
           // Check first upload reward (500K)
           const { data: profileData } = await supabase
             .from("profiles")
@@ -272,34 +274,48 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
           let rewardAwarded = false;
 
           if (!profileData?.first_upload_rewarded) {
-            // First upload ever - award 500K CAMLY (NOT both first + duration)
-            const { data: firstResult } = await supabase.functions.invoke("award-camly", {
+            console.log("[Upload Reward] Attempting FIRST_UPLOAD for video:", videoData.id);
+            const { data: firstResult, error: firstError } = await supabase.functions.invoke("award-camly", {
               body: { type: "FIRST_UPLOAD", videoId: videoData.id },
             });
-            if (firstResult?.success) {
+            console.log("[Upload Reward] FIRST_UPLOAD result:", JSON.stringify(firstResult), "error:", firstError);
+            
+            if (!firstError && firstResult?.success) {
               rewardAwarded = true;
               await supabase
                 .from("profiles")
                 .update({ first_upload_rewarded: true })
                 .eq("id", user.id);
+              
+              // Dispatch event for realtime UI update
+              window.dispatchEvent(new CustomEvent("camly-reward", {
+                detail: { type: "FIRST_UPLOAD", amount: firstResult?.amount || 500000, autoApproved: firstResult?.autoApproved }
+              }));
             }
           }
 
           // Only award duration-based reward if FIRST_UPLOAD was NOT awarded
           if (!rewardAwarded) {
-            const SHORT_VIDEO_MAX_DURATION = 180; // 3 minutes
-            // Default to SHORT_VIDEO when duration is 0 or unknown (safer: 20K vs 70K)
+            const SHORT_VIDEO_MAX_DURATION = 180;
             const effectiveDuration = metadata.duration || 0;
             if (effectiveDuration <= 0) {
-              console.warn("Video duration unknown, defaulting to SHORT_VIDEO reward");
+              console.warn("[Upload Reward] Video duration unknown, defaulting to SHORT_VIDEO reward");
             }
             const uploadType = effectiveDuration < SHORT_VIDEO_MAX_DURATION
               ? "SHORT_VIDEO_UPLOAD"
               : "LONG_VIDEO_UPLOAD";
             
-            await supabase.functions.invoke("award-camly", {
+            console.log("[Upload Reward] Attempting", uploadType, "for video:", videoData.id, "duration:", effectiveDuration);
+            const { data: durationResult, error: durationError } = await supabase.functions.invoke("award-camly", {
               body: { type: uploadType, videoId: videoData.id },
             });
+            console.log("[Upload Reward]", uploadType, "result:", JSON.stringify(durationResult), "error:", durationError);
+            
+            if (!durationError && durationResult?.success) {
+              window.dispatchEvent(new CustomEvent("camly-reward", {
+                detail: { type: uploadType, amount: durationResult?.amount || 0, autoApproved: durationResult?.autoApproved }
+              }));
+            }
           }
 
           // Mark video as rewarded to prevent duplicate rewards
@@ -308,7 +324,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
             .update({ upload_rewarded: true })
             .eq("id", videoData.id);
         } catch (rewardError) {
-          console.error("Upload reward error (non-blocking):", rewardError);
+          console.error("[Upload Reward] Error (non-blocking):", rewardError);
         }
 
         toast({
