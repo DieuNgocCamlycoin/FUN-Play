@@ -1,79 +1,60 @@
 
-# Sửa Lỗi Giao Dịch Onchain Không Hiển Thị
+# Sửa Giao Diện Lịch Sử Giao Dịch Trên Mobile
 
-## Nguyên nhân gốc
+## Kết quả kiểm tra
 
-Hiện tại, hook `useTransactionHistory` ở **chế độ cá nhân** (private mode) truy vấn bảng `wallet_transactions` theo điều kiện:
+Sau khi phân tích kỹ lưỡng:
+- **Dữ liệu đúng và đầy đủ**: User hiện tại có 11 giao dịch onchain (11 wallet_transactions + 11 donation_transactions trùng tx_hash, sau dedup còn 11). Tất cả đều hiển thị.
+- **Desktop**: Hiển thị tốt, đầy đủ thông tin.
+- **Mobile**: Có lỗi hiển thị nghiêm trọng - card giao dịch bị tràn ngang, text bị cắt ("FUN ...", "Angel..."), số tiền bị cắt ("CAMLY C..."), badges xếp lộn xộn.
 
-```text
-or(from_user_id.eq.${user.id}, to_user_id.eq.${user.id})
-```
+## Vấn đề cần sửa
 
-Tuy nhiên, trong cơ sở dữ liệu có **74/492 giao dịch** (15%) không có `from_user_id` hoặc `to_user_id` (đều là NULL). Đây là các giao dịch được đồng bộ từ blockchain nhưng không thể liên kết ngược với hồ sơ người dùng (vì địa chỉ ví không khớp hoặc chưa được đăng ký trên Fun Play).
-
-Kết quả: Người dùng **không thấy** các giao dịch liên quan đến ví mình nếu giao dịch đó không có `user_id` được gán.
+1. **TransactionCard trên mobile**: Layout sender -> receiver nằm ngang không vừa màn hình nhỏ
+2. **Tên hiển thị bị cắt**: Tên người gửi/nhận quá ngắn trên mobile
+3. **Số tiền bị cắt**: Amount + token symbol tràn ra ngoài
+4. **Badges chồng chéo**: "Tặng thưởng" + "Onchain" wrap xấu
+5. **Footer thông tin quá dài**: Trạng thái, thời gian, chain, TX hash nằm 1 dòng bị tràn
 
 ## Giải pháp
 
-### Bước 1: Sửa truy vấn `wallet_transactions` trong `useTransactionHistory.ts`
+### Sửa `TransactionCard.tsx` - Layout responsive cho mobile
 
-Thay đổi logic truy vấn ở chế độ cá nhân:
-- **Trước**: Chỉ tìm theo `from_user_id` hoặc `to_user_id`
-- **Sau**: Tìm theo **cả** `user_id` **và** `wallet_address` của người dùng
+Thay đổi layout từ **1 hàng ngang** (Sender -> Receiver) sang **layout dọc xếp chồng** trên mobile:
 
-Cụ thể:
-1. Lấy `wallet_address` của user từ bảng `profiles` (đã có sẵn trong đoạn code dòng 471-478)
-2. Di chuyển việc lấy `wallet_address` lên **trước** khi truy vấn `wallet_transactions`
-3. Xây dựng điều kiện `or()` mở rộng:
-
+**Mobile (< 640px):**
 ```text
--- Trước (bỏ lỡ giao dịch không có user_id):
-or(from_user_id.eq.userId, to_user_id.eq.userId)
-
--- Sau (bắt được tất cả giao dịch liên quan đến ví):
-or(
-  from_user_id.eq.userId,
-  to_user_id.eq.userId,
-  from_address.ilike.walletAddress,
-  to_address.ilike.walletAddress
-)
++----------------------------------+
+| [Avatar] Tên Người Gửi          |
+|   0xa496...DA5d                  |
+|           ↓                      |
+| [Avatar] Tên Người Nhận         |
+|   0xa2e2...CC59                  |
++----------------------------------+
+| Tặng thưởng  Onchain    +100 USDT|
++----------------------------------+
+| "Lời nhắn..."                    |
++----------------------------------+
+| Thành công • 09:04 12/02/2026    |
+| BSC • TX: 0x6f15... [Copy] [Link]|
++----------------------------------+
 ```
 
-### Bước 2: Cập nhật hiển thị cho giao dịch không có profile
+**Desktop (>= 640px):** Giữ nguyên layout ngang hiện tại.
 
-Khi `from_user_id` hoặc `to_user_id` là NULL và không phải ví hệ thống, hiển thị địa chỉ ví rút gọn thay vì "Không rõ":
-- Đã có sẵn logic `getSystemWalletDisplayInfo` cho ví hệ thống
-- Thêm fallback: nếu không có profile và không phải ví hệ thống, hiển thị `0x1234...abcd` làm tên
+Cụ thể thay đổi:
 
-### Bước 3: Backfill `user_id` cho các giao dịch hiện có
+1. **Header (Sender -> Receiver)**: Dùng `flex-col sm:flex-row` để trên mobile hiển thị dọc, desktop hiển thị ngang
+2. **Arrow**: Đổi từ `ArrowRight` sang `ArrowDown` trên mobile
+3. **Amount section**: Đưa số tiền xuống dòng riêng trên mobile, font-size lớn hơn
+4. **Footer**: Chia thành 2 dòng trên mobile (dòng 1: trạng thái + thời gian, dòng 2: chain + TX hash)
+5. **Badges**: Cho phép wrap tự nhiên với gap nhỏ hơn
 
-Chạy SQL để liên kết lại các giao dịch có NULL user_id với profile dựa trên `wallet_address`:
+### Sửa `TransactionHistorySection.tsx` - Header buttons responsive
 
-```text
-UPDATE wallet_transactions wt
-SET to_user_id = p.id
-FROM profiles p
-WHERE LOWER(wt.to_address) = LOWER(p.wallet_address)
-  AND wt.to_user_id IS NULL;
-
-UPDATE wallet_transactions wt
-SET from_user_id = p.id
-FROM profiles p
-WHERE LOWER(wt.from_address) = LOWER(p.wallet_address)
-  AND wt.from_user_id IS NULL;
-```
-
-### Bước 4: Cập nhật `sync-transactions-cron` để luôn liên kết user_id
-
-Trong edge function `sync-transactions-cron`, logic hiện tại đã có `walletToUserId` map nhưng sử dụng **case-sensitive matching**. Cần đảm bảo:
-- So sánh địa chỉ ví luôn dùng `toLowerCase()`
-- Đã có trong code hiện tại (dòng `walletToUserId[p.wallet_address.toLowerCase()]`) - xác nhận hoạt động đúng
-
-### Bước 5: Đảm bảo tương thích mobile
-
-Trang `/reward-history` (RewardHistory.tsx) đã responsive. Thay đổi chính nằm ở hook `useTransactionHistory.ts` nên tự động áp dụng cho cả desktop và mobile, bao gồm:
-- Trang Ví (`/wallet`) → `TransactionHistorySection`
-- Trang Giao Dịch Công Khai (`/transactions`)
+Các nút "Làm mới", "Xem Tất Cả", "Xuất CSV" trên mobile bị tràn. Thay đổi:
+- Ẩn text trên mobile, chỉ hiện icon
+- Sắp xếp lại flex-wrap
 
 ## Chi tiết kỹ thuật
 
@@ -81,67 +62,35 @@ Trang `/reward-history` (RewardHistory.tsx) đã responsive. Thay đổi chính 
 
 | File | Thay đổi |
 |------|----------|
-| `src/hooks/useTransactionHistory.ts` | Mở rộng query wallet_transactions theo wallet_address, di chuyển lấy wallet_address lên trước |
-| SQL (data fix) | Backfill from_user_id/to_user_id cho 74 giao dịch thiếu |
+| `src/components/Transactions/TransactionCard.tsx` | Layout responsive: dọc trên mobile, ngang trên desktop |
+| `src/components/Wallet/TransactionHistorySection.tsx` | Header buttons responsive |
 
-### Thay đổi cụ thể trong `useTransactionHistory.ts`
+### Thay đổi trong `TransactionCard.tsx`
 
-**Dòng 199-229**: Sửa truy vấn wallet_transactions ở chế độ cá nhân
+**Dòng 107-174 (Header section):**
+- Thay `flex items-center justify-between gap-4` thành `flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4`
+- Sender block: bỏ `flex-1` trên mobile, dùng full width
+- Arrow: `hidden sm:flex` cho ArrowRight ngang, thêm ArrowDown `flex sm:hidden` cho mobile
+- Receiver block: bỏ `justify-end` trên mobile
 
-Trước:
-```text
-user?.id
-  ? supabase
-      .from("wallet_transactions")
-      .select("*")
-      .or(`from_user_id.eq.${user.id},to_user_id.eq.${user.id}`)
-      .eq("status", "completed")
-      ...
-```
+**Dòng 176-197 (Amount & Type):**
+- Thay `flex items-center justify-between` thành `flex flex-wrap items-center justify-between gap-2`
+- Đảm bảo amount không bị cắt: thêm `whitespace-nowrap`
 
-Sau:
-```text
-// Lấy wallet_address trước (di chuyển từ dòng 471-478)
-let userWalletAddress = null;
-if (!publicMode && user?.id) {
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("wallet_address")
-    .eq("id", user.id)
-    .single();
-  userWalletAddress = profile?.wallet_address?.toLowerCase() || null;
-}
+**Dòng 218-262 (Footer):**
+- Thay thành `flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2`
+- Dòng 1: trạng thái + thời gian
+- Dòng 2: chain + TX hash + copy/link buttons
 
-// Query mở rộng
-const orConditions = [`from_user_id.eq.${user.id}`, `to_user_id.eq.${user.id}`];
-if (userWalletAddress) {
-  orConditions.push(`from_address.ilike.${userWalletAddress}`);
-  orConditions.push(`to_address.ilike.${userWalletAddress}`);
-}
+### Thay đổi trong `TransactionHistorySection.tsx`
 
-supabase
-  .from("wallet_transactions")
-  .select("*")
-  .or(orConditions.join(","))
-  .eq("status", "completed")
-  ...
-```
-
-**Dòng 382-432**: Cập nhật normalize wallet_transactions - thêm fallback hiển thị khi không có profile:
-```text
-// Nếu không có profile và không phải ví hệ thống, dùng địa chỉ ví làm tên
-const fallbackFromInfo = {
-  displayName: formatAddress(w.from_address),
-  username: formatAddress(w.from_address),
-  avatarUrl: null,
-  channelName: formatAddress(w.from_address),
-};
-const finalFromInfo = senderSystemWallet || (fromProfile ? fromInfo : fallbackFromInfo);
-```
+**Dòng 46-67 (Header buttons):**
+- "Làm mới": ẩn text trên mobile `<span className="hidden sm:inline">Làm mới</span>`
+- "Xem Tất Cả": ẩn text trên mobile
+- Cả 3 nút dùng `size="icon"` trên mobile via responsive classes
 
 ## Tác động
 
-- Người dùng sẽ thấy **toàn bộ** giao dịch onchain liên quan đến ví mình, kể cả giao dịch không có `user_id`
-- Không ảnh hưởng đến logic thưởng, claim, hoặc donation
-- Tương thích cả desktop và mobile
-- Backfill SQL sẽ liên kết lại 74 giao dịch thiếu user_id với profile tương ứng
+- Giao dịch sẽ hiển thị đầy đủ thông tin trên cả mobile và desktop
+- Không thay đổi logic dữ liệu - chỉ sửa giao diện
+- Tương thích với tất cả kích thước màn hình (iPhone SE đến desktop)
