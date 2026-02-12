@@ -311,7 +311,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
             if (!rewardAwarded) {
               const SHORT_VIDEO_MAX_DURATION = 180;
               const effectiveDuration = metadata.duration || 0;
-              const uploadType = effectiveDuration < SHORT_VIDEO_MAX_DURATION
+              const uploadType = effectiveDuration <= SHORT_VIDEO_MAX_DURATION
                 ? "SHORT_VIDEO_UPLOAD"
                 : "LONG_VIDEO_UPLOAD";
               

@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { usePostLike } from "@/hooks/usePostLike";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -44,8 +44,7 @@ export const PostCard = ({ post, onUpdate }: PostCardProps) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
-  const [isLiked, setIsLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(post.like_count || 0);
+  const { isLiked, likeCount, toggleLike, loading: likeLoading } = usePostLike(post.id, post.like_count);
   const [donateModalOpen, setDonateModalOpen] = useState(false);
 
   const displayName = post.profiles?.display_name || post.profiles?.username || "User";
@@ -63,12 +62,7 @@ export const PostCard = ({ post, onUpdate }: PostCardProps) => {
       navigate("/auth");
       return;
     }
-
-    // Optimistic update
-    setIsLiked(!isLiked);
-    setLikeCount((prev) => (isLiked ? prev - 1 : prev + 1));
-
-    // TODO: Implement actual like functionality when post_likes table exists
+    await toggleLike();
   };
 
   const handleShare = () => {
