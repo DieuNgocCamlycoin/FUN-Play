@@ -195,22 +195,27 @@ const RewardPoolTab = () => {
         const from = tx.from_address?.toLowerCase();
         const tokenType = (tx.token_type || "").toUpperCase();
         const ts = tx.block_timestamp;
-        const isCamly = tokenType.includes("CAMLY") || tokenType.includes("BEP20") || tokenType === "";
         const isUsdt = tokenType.includes("USDT") || tokenType.includes("USD");
-
-        if (!ts) { missingTimestampCount++; return; }
+        const isCamly = !isUsdt;
 
         if (from === w1) {
           // Ví 1: chỉ tính trước 8/1/2026
-          if (ts < WALLET1_CUTOFF) {
+          if (ts && ts < WALLET1_CUTOFF) {
             if (isUsdt) w1Usdt += Number(tx.amount);
             else w1Camly += Number(tx.amount);
+          } else if (!ts && isUsdt) {
+            // USDT cũ chưa có timestamp (BscScan import) — vẫn tính
+            w1Usdt += Number(tx.amount);
+          } else if (!ts) {
+            missingTimestampCount++;
           }
         } else if (from === w2) {
           // Ví 2: chỉ tính trước 18/1/2026
-          if (ts < WALLET2_CUTOFF) {
+          if (ts && ts < WALLET2_CUTOFF) {
             if (isUsdt) w2Usdt += Number(tx.amount);
             else w2Camly += Number(tx.amount);
+          } else if (!ts) {
+            missingTimestampCount++;
           }
         }
       });
