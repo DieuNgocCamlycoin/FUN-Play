@@ -1,67 +1,72 @@
 
-# Sửa lỗi thiếu giao dịch USDT Ví 2 và hiển thị sai
 
-## Nguyên nhân gốc
+# Cập nhật mốc thời gian tính USDT cho Ví 1 và Ví 2
 
-Cả hai edge function `backfill-moralis` và `sync-transactions-cron` chỉ đồng bộ token CAMLY (contract `0x0910...e413`). Giao dịch USDT (contract `0x55d3...9553`) từ Ví 2 trên blockchain **chưa bao giờ được import** vào database.
+## Vấn đề hiện tại
 
-Theo ảnh BscScan, Ví 2 có 12 giao dịch USDT tổng cộng (bao gồm cả gửi đi và nhận vào). Các giao dịch gửi đi (OUT) bao gồm: 100 + 50 + 50 + 50 + 50 + 50 + 50 = **400 USDT**.
+Code hiện tại dùng chung 1 mốc cutoff cho cả CAMLY và USDT:
+- Vi 1: truoc 8/1/2026 (tinh tat ca USDT tu dau -> sai)
+- Vi 2: truoc 18/1/2026 (tinh tat ca USDT tu dau -> sai)
 
-## Kế hoạch sửa
+Nguoi dung yeu cau moc thoi gian rieng cho USDT:
+- Vi 1 USDT: tu **9/12/2025** den **18/1/2026** = **320 USDT**
+- Vi 2 USDT: tu **14/1/2026** den **18/1/2026** = **250 USDT**
 
-### Bước 1: Cập nhật `backfill-moralis` -- hỗ trợ cả USDT
+## Thay doi
 
-**File:** `supabase/functions/backfill-moralis/index.ts`
+### File: `src/components/Admin/tabs/RewardPoolTab.tsx`
 
-- Thêm constant USDT token contract: `0x55d398326f99059fF775485246999027B3197955`
-- Gọi Moralis API 2 lần cho mỗi ví: 1 lần cho CAMLY, 1 lần cho USDT
-- Khi insert giao dịch USDT, set `token_type = "USDT"` và `token_contract` đúng
-- Giữ nguyên logic cũ cho CAMLY, chỉ bổ sung thêm luồng USDT
-
-### Bước 2: Cập nhật `sync-transactions-cron` -- đồng bộ USDT định kỳ
-
-**File:** `supabase/functions/sync-transactions-cron/index.ts`
-
-- Tương tự backfill, thêm luồng đồng bộ USDT cho mỗi ví hệ thống
-- Lưu sync cursor riêng cho USDT (khác token_contract)
-
-### Bước 3: Sửa `RewardPoolTab.tsx` -- hiển thị chính xác
-
-**File:** `src/components/Admin/tabs/RewardPoolTab.tsx`
-
-- Luôn hiển thị dòng USDT cho Ví 2 (kể cả khi = 0, chờ sync)
-- Sửa profile lookup: ưu tiên profile có avatar khi trùng wallet address
-- Lọc bảng giao dịch theo mốc cutoff đồng bộ với thẻ tổng
-
-### Bước 4: Deploy và chạy backfill USDT
-
-1. Deploy `backfill-moralis` mới
-2. Gọi backfill cho Ví 2 (USDT sẽ tự động được sync)
-3. Kiểm tra database: xác nhận giao dịch USDT Ví 2 đã có
-4. Kiểm tra giao diện: tổng USDT Ví 2 hiển thị đúng
-
----
-
-## Chi tiết kỹ thuật
-
-### Thay đổi chính trong `backfill-moralis`:
+**1. Them constant moc thoi gian USDT (dong 82-85)**
 
 ```text
-const USDT_TOKEN = "0x55d398326f99059fF775485246999027B3197955";
+// CAMLY cutoffs (giu nguyen)
+WALLET1_CUTOFF = "2026-01-09T00:00:00Z"  // CAMLY Vi 1: truoc 8/1
+WALLET2_CUTOFF = "2026-01-19T00:00:00Z"  // CAMLY Vi 2: truoc 18/1
 
-// Fetch cho mỗi ví: CAMLY transfers + USDT transfers
-const camlyTransfers = await fetchAllTransfers(wallet, apiKey, fromBlock, CAMLY_TOKEN);
-const usdtTransfers = await fetchAllTransfers(wallet, apiKey, fromBlock, USDT_TOKEN);
-
-// Insert USDT với token_type = "USDT", token_contract = USDT_TOKEN
+// USDT cutoffs (moi)
+WALLET1_USDT_START = "2025-12-09T00:00:00Z"  // USDT Vi 1: tu 9/12/2025
+WALLET1_USDT_END   = "2026-01-18T00:00:00Z"  // den 18/1/2026
+WALLET2_USDT_START = "2026-01-14T00:00:00Z"  // USDT Vi 2: tu 14/1/2026
+WALLET2_USDT_END   = "2026-01-18T00:00:00Z"  // den 18/1/2026
 ```
 
-### Thay đổi trong `RewardPoolTab.tsx`:
+**2. Sua logic tinh tong (dong 195-222)**
 
-- Bỏ điều kiện `manualStats.wallet2Usdt > 0` -- luôn hiển thị USDT
-- Profile Map: ưu tiên profile có avatar_url khi trùng wallet
+Thay vi chi check `ts < CUTOFF`, kiem tra ca khoang thoi gian start-end cho USDT:
 
-### Files cần sửa (3 files):
-1. `supabase/functions/backfill-moralis/index.ts`
-2. `supabase/functions/sync-transactions-cron/index.ts`
-3. `src/components/Admin/tabs/RewardPoolTab.tsx`
+```text
+if (from === w1) {
+  if (isUsdt) {
+    // USDT Vi 1: chi tinh trong khoang 9/12/2025 - 18/1/2026
+    if (ts && ts >= WALLET1_USDT_START && ts < WALLET1_USDT_END)
+      w1Usdt += amount
+  } else {
+    // CAMLY Vi 1: truoc 8/1/2026 (giu nguyen)
+    if (ts && ts < WALLET1_CUTOFF)
+      w1Camly += amount
+  }
+}
+// Tuong tu cho Vi 2 voi WALLET2_USDT_START va WALLET2_USDT_END
+```
+
+**3. Sua filter bang giao dich (dong 250-261)**
+
+Dong bo logic loc bang voi logic tinh tong, dam bao bang chi hien giao dich trong khoang thoi gian dung.
+
+**4. Bo logic `!ts && isUsdt` (dong 207-209)**
+
+Khong con tinh USDT thieu timestamp nua (da co du timestamp tu Moralis).
+
+**5. Sua flickering Pool/Gas (dong 164-166)**
+
+Chi hien "Dang tai..." lan dau, khong reset khi polling.
+
+## Ket qua mong doi
+
+| Vi | CAMLY | USDT |
+|----|-------|------|
+| Vi 1 | 19,701,561 (truoc 8/1) | 320 (9/12 - 18/1) |
+| Vi 2 | 3,500,000 (truoc 18/1) | 250 (14/1 - 18/1) |
+
+## Files can sua
+1. `src/components/Admin/tabs/RewardPoolTab.tsx`
