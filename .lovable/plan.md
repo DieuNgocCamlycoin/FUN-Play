@@ -1,96 +1,78 @@
 
-# Sửa Giao Diện Lịch Sử Giao Dịch Trên Mobile
 
-## Kết quả kiểm tra
+# Sửa Lỗi Giới Hạn Hiển Thị Giao Dịch Onchain
 
-Sau khi phân tích kỹ lưỡng:
-- **Dữ liệu đúng và đầy đủ**: User hiện tại có 11 giao dịch onchain (11 wallet_transactions + 11 donation_transactions trùng tx_hash, sau dedup còn 11). Tất cả đều hiển thị.
-- **Desktop**: Hiển thị tốt, đầy đủ thông tin.
-- **Mobile**: Có lỗi hiển thị nghiêm trọng - card giao dịch bị tràn ngang, text bị cắt ("FUN ...", "Angel..."), số tiền bị cắt ("CAMLY C..."), badges xếp lộn xộn.
+## Kết quả kiểm tra chi tiết
+
+Sau khi kiểm tra toàn bộ hệ thống:
+
+### Dữ liệu trong cơ sở dữ liệu
+- **502** giao dịch wallet_transactions (CAMLY: 390, USDT: 107, BNB: 3, BTC: 3)
+- **182** giao dịch donation_transactions
+- **23** giao dịch claim_requests
+- **Tổng: 707** giao dịch onchain
+- **73** giao dịch từ ví bên ngoài (không có tài khoản trên Fun Play)
+
+### Trang Ví cá nhân (Angel Thu Ha)
+- 10 wallet_transactions + 11 donation_transactions = **11 sau dedup** -- Hiển thị **đầy đủ** và đúng
+- Query mở rộng theo wallet_address hoạt động tốt
+
+### Trang Giao Dịch công khai (/transactions)
+- Hiển thị **707 tổng** nhưng thực tế chỉ tải tối đa **500 wallet_transactions** do giới hạn hardcode
+- **2 giao dịch cũ nhất bị thiếu** (502 - 500 = 2)
+- Con số này sẽ tăng khi có thêm giao dịch mới
+
+### Mobile UI
+- Layout responsive đã hoạt động tốt (dọc trên mobile, ngang trên desktop)
+- Thông tin hiển thị đầy đủ, không bị cắt
 
 ## Vấn đề cần sửa
 
-1. **TransactionCard trên mobile**: Layout sender -> receiver nằm ngang không vừa màn hình nhỏ
-2. **Tên hiển thị bị cắt**: Tên người gửi/nhận quá ngắn trên mobile
-3. **Số tiền bị cắt**: Amount + token symbol tràn ra ngoài
-4. **Badges chồng chéo**: "Tặng thưởng" + "Onchain" wrap xấu
-5. **Footer thông tin quá dài**: Trạng thái, thời gian, chain, TX hash nằm 1 dòng bị tràn
+1. **Giới hạn 500 record cho wallet_transactions**: Dòng 142 hardcode `walletLimit = Math.max(limit, 500)`. Với 502+ records hiện tại, giao dịch cũ bị mất
+2. **Pagination không đồng bộ**: Offset dùng chung cho 3 bảng nhưng mỗi bảng có số lượng khác nhau
 
 ## Giải pháp
 
-### Sửa `TransactionCard.tsx` - Layout responsive cho mobile
+### Sửa `src/hooks/useTransactionHistory.ts`
 
-Thay đổi layout từ **1 hàng ngang** (Sender -> Receiver) sang **layout dọc xếp chồng** trên mobile:
+**Thay đổi 1: Tăng giới hạn wallet_transactions**
 
-**Mobile (< 640px):**
-```text
-+----------------------------------+
-| [Avatar] Tên Người Gửi          |
-|   0xa496...DA5d                  |
-|           ↓                      |
-| [Avatar] Tên Người Nhận         |
-|   0xa2e2...CC59                  |
-+----------------------------------+
-| Tặng thưởng  Onchain    +100 USDT|
-+----------------------------------+
-| "Lời nhắn..."                    |
-+----------------------------------+
-| Thành công • 09:04 12/02/2026    |
-| BSC • TX: 0x6f15... [Copy] [Link]|
-+----------------------------------+
-```
+Thay `walletLimit = Math.max(limit, 500)` thành `walletLimit = Math.max(limit, 1000)` để đảm bảo lấy đủ dữ liệu khi số giao dịch tăng.
 
-**Desktop (>= 640px):** Giữ nguyên layout ngang hiện tại.
+**Thay đổi 2: Đảm bảo donation và claim cũng lấy đủ**
 
-Cụ thể thay đổi:
-
-1. **Header (Sender -> Receiver)**: Dùng `flex-col sm:flex-row` để trên mobile hiển thị dọc, desktop hiển thị ngang
-2. **Arrow**: Đổi từ `ArrowRight` sang `ArrowDown` trên mobile
-3. **Amount section**: Đưa số tiền xuống dòng riêng trên mobile, font-size lớn hơn
-4. **Footer**: Chia thành 2 dòng trên mobile (dòng 1: trạng thái + thời gian, dòng 2: chain + TX hash)
-5. **Badges**: Cho phép wrap tự nhiên với gap nhỏ hơn
-
-### Sửa `TransactionHistorySection.tsx` - Header buttons responsive
-
-Các nút "Làm mới", "Xem Tất Cả", "Xuất CSV" trên mobile bị tràn. Thay đổi:
-- Ẩn text trên mobile, chỉ hiện icon
-- Sắp xếp lại flex-wrap
+Tăng limit cho donation_transactions và claim_requests trong public mode từ `limit` (200) lên `Math.max(limit, 500)` để không bỏ sót giao dịch cũ.
 
 ## Chi tiết kỹ thuật
 
-### File cần sửa
-
 | File | Thay đổi |
 |------|----------|
-| `src/components/Transactions/TransactionCard.tsx` | Layout responsive: dọc trên mobile, ngang trên desktop |
-| `src/components/Wallet/TransactionHistorySection.tsx` | Header buttons responsive |
+| `src/hooks/useTransactionHistory.ts` | Dòng 142: tăng walletLimit từ 500 lên 1000. Dòng 144-163: tăng limit cho donations/claims trong public mode |
 
-### Thay đổi trong `TransactionCard.tsx`
+### Thay đổi cụ thể
 
-**Dòng 107-174 (Header section):**
-- Thay `flex items-center justify-between gap-4` thành `flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4`
-- Sender block: bỏ `flex-1` trên mobile, dùng full width
-- Arrow: `hidden sm:flex` cho ArrowRight ngang, thêm ArrowDown `flex sm:hidden` cho mobile
-- Receiver block: bỏ `justify-end` trên mobile
+Dòng 142:
+```text
+-- Trước:
+const walletLimit = Math.max(limit, 500);
+-- Sau:
+const walletLimit = Math.max(limit, 1000);
+```
 
-**Dòng 176-197 (Amount & Type):**
-- Thay `flex items-center justify-between` thành `flex flex-wrap items-center justify-between gap-2`
-- Đảm bảo amount không bị cắt: thêm `whitespace-nowrap`
+Dòng 144-163 (donation query):
+```text
+-- Trước (public mode):
+.range(currentOffset, currentOffset + limit - 1);
+-- Sau (public mode):
+.range(currentOffset, currentOffset + Math.max(limit, 500) - 1);
+```
 
-**Dòng 218-262 (Footer):**
-- Thay thành `flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2`
-- Dòng 1: trạng thái + thời gian
-- Dòng 2: chain + TX hash + copy/link buttons
-
-### Thay đổi trong `TransactionHistorySection.tsx`
-
-**Dòng 46-67 (Header buttons):**
-- "Làm mới": ẩn text trên mobile `<span className="hidden sm:inline">Làm mới</span>`
-- "Xem Tất Cả": ẩn text trên mobile
-- Cả 3 nút dùng `size="icon"` trên mobile via responsive classes
+Tương tự cho claim_requests query (dòng 174-191).
 
 ## Tác động
 
-- Giao dịch sẽ hiển thị đầy đủ thông tin trên cả mobile và desktop
-- Không thay đổi logic dữ liệu - chỉ sửa giao diện
-- Tương thích với tất cả kích thước màn hình (iPhone SE đến desktop)
+- Trang `/transactions` sẽ hiển thị **tất cả 707+ giao dịch** thay vì bị giới hạn
+- Trang `/wallet` (cá nhân) không ảnh hưởng vì số giao dịch cá nhân luôn nhỏ hơn 500
+- Tương thích cả desktop và mobile
+- Không thay đổi logic UI, chỉ sửa giới hạn truy vấn
+
