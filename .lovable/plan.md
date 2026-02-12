@@ -1,73 +1,50 @@
 
+# Xóa bước duyệt Admin - Tự động duyệt tất cả thưởng CAMLY
 
-# Backfill thưởng Upload CAMLY cho 433 video chưa được thưởng
+## Tổng quan
+Chuyển hệ thống thưởng CAMLY từ mô hình "chờ Admin duyệt" sang "tự động duyệt ngay lập tức". Tất cả phần thưởng sẽ được chuyển thẳng vào số dư có thể claim, người dùng chỉ cần kết nối ví và đủ ngưỡng 200,000 CAMLY là claim được.
 
-## Vấn đề
+## Thay đổi
 
-Hiện có **433 video** đã upload thành công nhưng chưa nhận được phần thưởng CAMLY. Nguyên nhân do các lỗi trước đó trong code upload đã được sửa, nhưng các video cũ vẫn chưa được bù thưởng.
+### 1. Edge Function `award-camly` - Luôn auto-approve
+**File: `supabase/functions/award-camly/index.ts`**
+- Bỏ logic kiểm tra `suspicious_score` để quyết định auto-approve
+- Luôn gọi `atomic_increment_reward` với `p_auto_approve = true`
+- Luôn set `approved = true` và `approved_at` khi tạo `reward_transaction`
+- Giữ nguyên tất cả anti-fraud checks khác (daily limits, spam, duplicate)
 
-**Thống kê theo user (top):**
-- Trần Văn Lực: 56 video chưa thưởng
-- Hoangtydo: 54 video
-- Hồng ThienHanh68: 35 video
-- THU TRANG: 27 video
-- ... và 40+ users khác
+### 2. Trang Lịch sử thưởng (`RewardHistory.tsx`)
+- Xóa thẻ thống kê "Chờ duyệt" (thay bằng thẻ "Có thể Claim")
+- Xóa option lọc "Chờ duyệt" trong filter trạng thái
+- Thay đổi badge trạng thái: chỉ còn "Có thể claim" và "Đã claim" (không còn "Chờ duyệt")
+- Cập nhật tính toán tổng: bỏ `totalPending`, gộp vào `totalApproved`
 
-## Giải pháp
+### 3. Claim Rewards Modal (`ClaimRewardsModal.tsx`)
+- Xóa toàn bộ phần "Phần thưởng đang chờ duyệt" (pending breakdown)
+- Xóa cột "Chờ duyệt" trong tổng quan
+- Đơn giản hóa UI: chỉ hiển thị tổng có thể claim và nút Claim
 
-Tạo một **edge function mới** `backfill-upload-rewards` chạy server-side (admin-only) để:
+### 4. Claim Rewards Section trên Wallet (`ClaimRewardsSection.tsx`)
+- Xóa thẻ "Đang chờ duyệt"
+- Xóa ghi chú "Thưởng cần được Admin duyệt"
+- Giữ 3 thẻ: Tổng đã nhận, Có thể Claim, Đã Claim
 
-1. Tìm tất cả video chưa có upload reward trong bảng `reward_transactions`
-2. Với mỗi video:
-   - Kiểm tra `first_upload_rewarded` của user -> nếu chưa, thưởng FIRST_UPLOAD (500K)
-   - Nếu đã có first upload, thưởng theo duration: SHORT (20K) nếu duration <= 180s hoặc NULL, LONG (70K) nếu > 180s
-3. Cập nhật `upload_rewarded = true` trên video
-4. Cập nhật `first_upload_rewarded = true` trên profile nếu cần
-5. Tạo `reward_transaction` record với auto-approve
+### 5. Pending Rewards Widget (`PendingRewardsWidget.tsx`)
+- Đổi tiêu đề "Phần thưởng chờ claim" thành "Phần thưởng sẵn sàng"
+- Dùng `approved_reward` thay cho `pending_rewards` làm nguồn dữ liệu chính
 
-### Chi tiết kỹ thuật
+### 6. Hook `useClaimHistory.ts`
+- Cập nhật `usePendingRewards` để lấy `approved_reward` thay `pending_rewards`
 
-**File mới: `supabase/functions/backfill-upload-rewards/index.ts`**
-- Chỉ admin mới gọi được (kiểm tra `user_roles`)
-- Xử lý theo batch (50 video/lần) để tránh timeout
-- Sử dụng `atomic_increment_reward` RPC để cập nhật profile an toàn
-- Log chi tiết từng video được thưởng
-- Trả về báo cáo tổng hợp
+## File cần sửa
+1. `supabase/functions/award-camly/index.ts` - Luôn auto-approve
+2. `src/pages/RewardHistory.tsx` - Xóa UI chờ duyệt
+3. `src/components/Rewards/ClaimRewardsModal.tsx` - Đơn giản hóa
+4. `src/components/Wallet/ClaimRewardsSection.tsx` - Xóa thẻ chờ duyệt
+5. `src/components/Dashboard/PendingRewardsWidget.tsx` - Cập nhật nguồn dữ liệu
+6. `src/hooks/useClaimHistory.ts` - Cập nhật hook
 
-**Cập nhật: `src/pages/RewardHistory.tsx`**
-- Không cần thay đổi - realtime subscription đã có sẽ tự động hiển thị rewards mới khi backfill chạy
-
-### Flow xử lý
-
-```text
-Admin gọi backfill-upload-rewards
-    |
-    v
-Lấy danh sách video chưa thưởng (batch 50)
-    |
-    v
-Với mỗi video:
-  - User chưa có first_upload_rewarded? -> FIRST_UPLOAD (500K)
-  - Đã có? -> Duration <= 180s/NULL -> SHORT (20K)
-  -          Duration > 180s -> LONG (70K)
-    |
-    v
-Tạo reward_transaction + atomic_increment_reward
-    |
-    v
-Cập nhật video.upload_rewarded = true
-    |
-    v
-RewardHistory tự động nhận qua Realtime
-```
-
-### Kết quả mong đợi
-- 433 video sẽ được thưởng chính xác
-- Khoảng 20 users chưa có `first_upload_rewarded` sẽ nhận 500K
-- Trang Lịch sử thưởng cập nhật realtime ngay sau khi backfill chạy
-- Tất cả hoạt động đồng bộ trên mobile
-
-## File cần tạo/sửa
-1. **Tạo mới**: `supabase/functions/backfill-upload-rewards/index.ts`
-2. **Cập nhật**: `supabase/config.toml` (thêm config cho function mới, verify_jwt = false)
-
+## Lưu ý
+- Anti-fraud checks (daily limits, spam detection, duplicate prevention) vẫn giữ nguyên
+- Admin vẫn có thể xem tất cả reward transactions trong Admin Dashboard
+- Ngưỡng claim tối thiểu 200,000 CAMLY vẫn giữ nguyên
