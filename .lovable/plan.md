@@ -1,78 +1,93 @@
 
 
-# Sửa Lỗi Giới Hạn Hiển Thị Giao Dịch Onchain
+# Sửa Thống Kê Giao Dịch Cá Nhân Hiển Thị 0
 
-## Kết quả kiểm tra chi tiết
+## Nguyên nhân lỗi
 
-Sau khi kiểm tra toàn bộ hệ thống:
+Hàm RPC `get_transaction_stats` so sánh địa chỉ ví **phân biệt hoa thường** (`from_address = p_wallet_address`), nhưng:
+- Địa chỉ trong database lưu dạng checksummed: `0xa2e24F18Fd2664E1DbD2431504dbf3f166BfCC59`
+- Địa chỉ truyền vào từ app dạng lowercase: `0xa2e24f18fd2664e1dbd2431504dbf3f166bfcc59`
 
-### Dữ liệu trong cơ sở dữ liệu
-- **502** giao dịch wallet_transactions (CAMLY: 390, USDT: 107, BNB: 3, BTC: 3)
-- **182** giao dịch donation_transactions
-- **23** giao dịch claim_requests
-- **Tổng: 707** giao dịch onchain
-- **73** giao dịch từ ví bên ngoài (không có tài khoản trên Fun Play)
+Kết quả: **không khớp bất kỳ giao dịch nào**, tất cả stats hiển thị 0.
 
-### Trang Ví cá nhân (Angel Thu Ha)
-- 10 wallet_transactions + 11 donation_transactions = **11 sau dedup** -- Hiển thị **đầy đủ** và đúng
-- Query mở rộng theo wallet_address hoạt động tốt
-
-### Trang Giao Dịch công khai (/transactions)
-- Hiển thị **707 tổng** nhưng thực tế chỉ tải tối đa **500 wallet_transactions** do giới hạn hardcode
-- **2 giao dịch cũ nhất bị thiếu** (502 - 500 = 2)
-- Con số này sẽ tăng khi có thêm giao dịch mới
-
-### Mobile UI
-- Layout responsive đã hoạt động tốt (dọc trên mobile, ngang trên desktop)
-- Thông tin hiển thị đầy đủ, không bị cắt
-
-## Vấn đề cần sửa
-
-1. **Giới hạn 500 record cho wallet_transactions**: Dòng 142 hardcode `walletLimit = Math.max(limit, 500)`. Với 502+ records hiện tại, giao dịch cũ bị mất
-2. **Pagination không đồng bộ**: Offset dùng chung cho 3 bảng nhưng mỗi bảng có số lượng khác nhau
+Ngoài ra, hàm RPC hiện tại thiếu 2 trường `successCount` và `pendingCount` mà giao diện cần hiển thị.
 
 ## Giải pháp
 
-### Sửa `src/hooks/useTransactionHistory.ts`
+### 1. Cập nhật hàm RPC `get_transaction_stats` (Database migration)
 
-**Thay đổi 1: Tăng giới hạn wallet_transactions**
+Thêm `LOWER()` cho tất cả phép so sánh địa chỉ ví và bổ sung `successCount`, `pendingCount`:
 
-Thay `walletLimit = Math.max(limit, 500)` thành `walletLimit = Math.max(limit, 1000)` để đảm bảo lấy đủ dữ liệu khi số giao dịch tăng.
-
-**Thay đổi 2: Đảm bảo donation và claim cũng lấy đủ**
-
-Tăng limit cho donation_transactions và claim_requests trong public mode từ `limit` (200) lên `Math.max(limit, 500)` để không bỏ sót giao dịch cũ.
-
-## Chi tiết kỹ thuật
-
-| File | Thay đổi |
-|------|----------|
-| `src/hooks/useTransactionHistory.ts` | Dòng 142: tăng walletLimit từ 500 lên 1000. Dòng 144-163: tăng limit cho donations/claims trong public mode |
-
-### Thay đổi cụ thể
-
-Dòng 142:
-```text
--- Trước:
-const walletLimit = Math.max(limit, 500);
--- Sau:
-const walletLimit = Math.max(limit, 1000);
+```sql
+CREATE OR REPLACE FUNCTION public.get_transaction_stats(p_wallet_address text DEFAULT NULL)
+RETURNS jsonb
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+  SELECT jsonb_build_object(
+    'totalCount', 
+      (SELECT COUNT(*) FROM wallet_transactions WHERE status='completed' AND tx_hash IS NOT NULL
+        AND (p_wallet_address IS NULL OR LOWER(from_address)=LOWER(p_wallet_address) OR LOWER(to_address)=LOWER(p_wallet_address)))
+      + (SELECT COUNT(*) FROM donation_transactions WHERE status='success' AND tx_hash IS NOT NULL
+        AND (p_wallet_address IS NULL OR sender_id IN (SELECT id FROM profiles WHERE LOWER(wallet_address)=LOWER(p_wallet_address)) OR receiver_id IN (SELECT id FROM profiles WHERE LOWER(wallet_address)=LOWER(p_wallet_address))))
+      + (SELECT COUNT(*) FROM claim_requests WHERE status='success' AND tx_hash IS NOT NULL
+        AND (p_wallet_address IS NULL OR LOWER(wallet_address)=LOWER(p_wallet_address))),
+    'totalValue',
+      COALESCE((SELECT SUM(amount) FROM wallet_transactions WHERE status='completed' AND tx_hash IS NOT NULL
+        AND (p_wallet_address IS NULL OR LOWER(from_address)=LOWER(p_wallet_address) OR LOWER(to_address)=LOWER(p_wallet_address))), 0)
+      + COALESCE((SELECT SUM(amount) FROM donation_transactions WHERE status='success' AND tx_hash IS NOT NULL
+        AND (p_wallet_address IS NULL OR sender_id IN (SELECT id FROM profiles WHERE LOWER(wallet_address)=LOWER(p_wallet_address)) OR receiver_id IN (SELECT id FROM profiles WHERE LOWER(wallet_address)=LOWER(p_wallet_address)))), 0)
+      + COALESCE((SELECT SUM(amount) FROM claim_requests WHERE status='success' AND tx_hash IS NOT NULL
+        AND (p_wallet_address IS NULL OR LOWER(wallet_address)=LOWER(p_wallet_address))), 0),
+    'todayCount',
+      (SELECT COUNT(*) FROM wallet_transactions WHERE status='completed' AND tx_hash IS NOT NULL AND block_timestamp::date=CURRENT_DATE
+        AND (p_wallet_address IS NULL OR LOWER(from_address)=LOWER(p_wallet_address) OR LOWER(to_address)=LOWER(p_wallet_address)))
+      + (SELECT COUNT(*) FROM donation_transactions WHERE status='success' AND tx_hash IS NOT NULL AND created_at::date=CURRENT_DATE
+        AND (p_wallet_address IS NULL OR sender_id IN (SELECT id FROM profiles WHERE LOWER(wallet_address)=LOWER(p_wallet_address)) OR receiver_id IN (SELECT id FROM profiles WHERE LOWER(wallet_address)=LOWER(p_wallet_address))))
+      + (SELECT COUNT(*) FROM claim_requests WHERE status='success' AND tx_hash IS NOT NULL AND processed_at::date=CURRENT_DATE
+        AND (p_wallet_address IS NULL OR LOWER(wallet_address)=LOWER(p_wallet_address))),
+    'successCount',
+      (SELECT COUNT(*) FROM wallet_transactions WHERE status='completed' AND tx_hash IS NOT NULL
+        AND (p_wallet_address IS NULL OR LOWER(from_address)=LOWER(p_wallet_address) OR LOWER(to_address)=LOWER(p_wallet_address)))
+      + (SELECT COUNT(*) FROM donation_transactions WHERE status='success' AND tx_hash IS NOT NULL
+        AND (p_wallet_address IS NULL OR sender_id IN (SELECT id FROM profiles WHERE LOWER(wallet_address)=LOWER(p_wallet_address)) OR receiver_id IN (SELECT id FROM profiles WHERE LOWER(wallet_address)=LOWER(p_wallet_address))))
+      + (SELECT COUNT(*) FROM claim_requests WHERE status='success' AND tx_hash IS NOT NULL
+        AND (p_wallet_address IS NULL OR LOWER(wallet_address)=LOWER(p_wallet_address))),
+    'pendingCount',
+      (SELECT COUNT(*) FROM wallet_transactions WHERE status='pending'
+        AND (p_wallet_address IS NULL OR LOWER(from_address)=LOWER(p_wallet_address) OR LOWER(to_address)=LOWER(p_wallet_address)))
+      + (SELECT COUNT(*) FROM donation_transactions WHERE status='pending'
+        AND (p_wallet_address IS NULL OR sender_id IN (SELECT id FROM profiles WHERE LOWER(wallet_address)=LOWER(p_wallet_address)) OR receiver_id IN (SELECT id FROM profiles WHERE LOWER(wallet_address)=LOWER(p_wallet_address))))
+      + (SELECT COUNT(*) FROM claim_requests WHERE status='pending'
+        AND (p_wallet_address IS NULL OR LOWER(wallet_address)=LOWER(p_wallet_address)))
+  );
+$$;
 ```
 
-Dòng 144-163 (donation query):
-```text
--- Trước (public mode):
-.range(currentOffset, currentOffset + limit - 1);
--- Sau (public mode):
-.range(currentOffset, currentOffset + Math.max(limit, 500) - 1);
-```
+### 2. Cập nhật `src/hooks/useTransactionHistory.ts`
 
-Tương tự cho claim_requests query (dòng 174-191).
+Cập nhật phần đọc stats từ RPC để sử dụng đầy đủ `successCount` và `pendingCount` từ server thay vì hardcode:
+
+```typescript
+const newStats: TransactionStats = {
+  totalCount: (serverStats as any)?.totalCount ?? deduped.length,
+  totalValue: (serverStats as any)?.totalValue ?? 0,
+  todayCount: (serverStats as any)?.todayCount ?? 0,
+  successCount: (serverStats as any)?.successCount ?? deduped.length,
+  pendingCount: (serverStats as any)?.pendingCount ?? 0,
+};
+```
 
 ## Tác động
 
-- Trang `/transactions` sẽ hiển thị **tất cả 707+ giao dịch** thay vì bị giới hạn
-- Trang `/wallet` (cá nhân) không ảnh hưởng vì số giao dịch cá nhân luôn nhỏ hơn 500
-- Tương thích cả desktop và mobile
-- Không thay đổi logic UI, chỉ sửa giới hạn truy vấn
+- Thống kê cá nhân sẽ hiển thị **chính xác** số giao dịch, tổng giá trị CAMLY, giao dịch hôm nay, thành công và chờ xử lý
+- Thống kê toàn hệ thống (public mode) cũng được cải thiện với thêm `successCount` và `pendingCount`
+- Cập nhật realtime vẫn hoạt động bình thường vì hook đã có cơ chế refresh
+
+## File cần thay đổi
+
+| File | Thay đổi |
+|------|----------|
+| Database migration | Cập nhật RPC `get_transaction_stats` thêm `LOWER()` và 2 trường mới |
+| `src/hooks/useTransactionHistory.ts` | Dòng 511-516: đọc `successCount` và `pendingCount` từ RPC |
 
