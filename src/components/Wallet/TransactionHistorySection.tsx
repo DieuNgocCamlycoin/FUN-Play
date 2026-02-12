@@ -42,25 +42,25 @@ export const TransactionHistorySection = () => {
               Giao dịch onchain liên quan đến ví của bạn (Tặng thưởng, Ủng hộ, Rút thưởng)
             </CardDescription>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-1.5 sm:gap-2">
             <Button 
               variant="outline" 
               size="sm" 
               onClick={refresh} 
-              className="gap-2"
+              className="gap-1.5 h-8 px-2 sm:px-3"
               disabled={loading}
             >
               <RefreshCcw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-              Làm mới
+              <span className="hidden sm:inline">Làm mới</span>
             </Button>
             <Button 
               variant="outline" 
               size="sm" 
               onClick={() => navigate("/transactions")} 
-              className="gap-2"
+              className="gap-1.5 h-8 px-2 sm:px-3"
             >
               <Globe className="h-4 w-4" />
-              Xem Tất Cả
+              <span className="hidden sm:inline">Xem Tất Cả</span>
             </Button>
             <TransactionExport 
               transactions={transactions} 
