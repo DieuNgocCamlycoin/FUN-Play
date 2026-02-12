@@ -1,93 +1,53 @@
 
+# Sửa Tràn Số Liệu Thống Kê Giao Dịch
 
-# Sửa Thống Kê Giao Dịch Cá Nhân Hiển Thị 0
-
-## Nguyên nhân lỗi
-
-Hàm RPC `get_transaction_stats` so sánh địa chỉ ví **phân biệt hoa thường** (`from_address = p_wallet_address`), nhưng:
-- Địa chỉ trong database lưu dạng checksummed: `0xa2e24F18Fd2664E1DbD2431504dbf3f166BfCC59`
-- Địa chỉ truyền vào từ app dạng lowercase: `0xa2e24f18fd2664e1dbd2431504dbf3f166bfcc59`
-
-Kết quả: **không khớp bất kỳ giao dịch nào**, tất cả stats hiển thị 0.
-
-Ngoài ra, hàm RPC hiện tại thiếu 2 trường `successCount` và `pendingCount` mà giao diện cần hiển thị.
+## Vấn đề
+Giá trị "Tổng giá trị" hiển thị số rất lớn (1.435.495.638,78) bị tràn ra ngoài khung thẻ trên cả web và mobile.
 
 ## Giải pháp
 
-### 1. Cập nhật hàm RPC `get_transaction_stats` (Database migration)
+### Sửa `src/components/Transactions/TransactionStats.tsx`
 
-Thêm `LOWER()` cho tất cả phép so sánh địa chỉ ví và bổ sung `successCount`, `pendingCount`:
+**1. Thêm hàm format số lớn gọn hơn:**
+- Số >= 1 tỷ: hiển thị dạng `1.44B`
+- Số >= 1 triệu: hiển thị dạng `1.44M`  
+- Số >= 1 nghìn: hiển thị dạng `1.44K`
+- Số nhỏ hơn: giữ nguyên format vi-VN
 
-```sql
-CREATE OR REPLACE FUNCTION public.get_transaction_stats(p_wallet_address text DEFAULT NULL)
-RETURNS jsonb
-LANGUAGE sql STABLE SECURITY DEFINER
-SET search_path TO 'public'
-AS $$
-  SELECT jsonb_build_object(
-    'totalCount', 
-      (SELECT COUNT(*) FROM wallet_transactions WHERE status='completed' AND tx_hash IS NOT NULL
-        AND (p_wallet_address IS NULL OR LOWER(from_address)=LOWER(p_wallet_address) OR LOWER(to_address)=LOWER(p_wallet_address)))
-      + (SELECT COUNT(*) FROM donation_transactions WHERE status='success' AND tx_hash IS NOT NULL
-        AND (p_wallet_address IS NULL OR sender_id IN (SELECT id FROM profiles WHERE LOWER(wallet_address)=LOWER(p_wallet_address)) OR receiver_id IN (SELECT id FROM profiles WHERE LOWER(wallet_address)=LOWER(p_wallet_address))))
-      + (SELECT COUNT(*) FROM claim_requests WHERE status='success' AND tx_hash IS NOT NULL
-        AND (p_wallet_address IS NULL OR LOWER(wallet_address)=LOWER(p_wallet_address))),
-    'totalValue',
-      COALESCE((SELECT SUM(amount) FROM wallet_transactions WHERE status='completed' AND tx_hash IS NOT NULL
-        AND (p_wallet_address IS NULL OR LOWER(from_address)=LOWER(p_wallet_address) OR LOWER(to_address)=LOWER(p_wallet_address))), 0)
-      + COALESCE((SELECT SUM(amount) FROM donation_transactions WHERE status='success' AND tx_hash IS NOT NULL
-        AND (p_wallet_address IS NULL OR sender_id IN (SELECT id FROM profiles WHERE LOWER(wallet_address)=LOWER(p_wallet_address)) OR receiver_id IN (SELECT id FROM profiles WHERE LOWER(wallet_address)=LOWER(p_wallet_address)))), 0)
-      + COALESCE((SELECT SUM(amount) FROM claim_requests WHERE status='success' AND tx_hash IS NOT NULL
-        AND (p_wallet_address IS NULL OR LOWER(wallet_address)=LOWER(p_wallet_address))), 0),
-    'todayCount',
-      (SELECT COUNT(*) FROM wallet_transactions WHERE status='completed' AND tx_hash IS NOT NULL AND block_timestamp::date=CURRENT_DATE
-        AND (p_wallet_address IS NULL OR LOWER(from_address)=LOWER(p_wallet_address) OR LOWER(to_address)=LOWER(p_wallet_address)))
-      + (SELECT COUNT(*) FROM donation_transactions WHERE status='success' AND tx_hash IS NOT NULL AND created_at::date=CURRENT_DATE
-        AND (p_wallet_address IS NULL OR sender_id IN (SELECT id FROM profiles WHERE LOWER(wallet_address)=LOWER(p_wallet_address)) OR receiver_id IN (SELECT id FROM profiles WHERE LOWER(wallet_address)=LOWER(p_wallet_address))))
-      + (SELECT COUNT(*) FROM claim_requests WHERE status='success' AND tx_hash IS NOT NULL AND processed_at::date=CURRENT_DATE
-        AND (p_wallet_address IS NULL OR LOWER(wallet_address)=LOWER(p_wallet_address))),
-    'successCount',
-      (SELECT COUNT(*) FROM wallet_transactions WHERE status='completed' AND tx_hash IS NOT NULL
-        AND (p_wallet_address IS NULL OR LOWER(from_address)=LOWER(p_wallet_address) OR LOWER(to_address)=LOWER(p_wallet_address)))
-      + (SELECT COUNT(*) FROM donation_transactions WHERE status='success' AND tx_hash IS NOT NULL
-        AND (p_wallet_address IS NULL OR sender_id IN (SELECT id FROM profiles WHERE LOWER(wallet_address)=LOWER(p_wallet_address)) OR receiver_id IN (SELECT id FROM profiles WHERE LOWER(wallet_address)=LOWER(p_wallet_address))))
-      + (SELECT COUNT(*) FROM claim_requests WHERE status='success' AND tx_hash IS NOT NULL
-        AND (p_wallet_address IS NULL OR LOWER(wallet_address)=LOWER(p_wallet_address))),
-    'pendingCount',
-      (SELECT COUNT(*) FROM wallet_transactions WHERE status='pending'
-        AND (p_wallet_address IS NULL OR LOWER(from_address)=LOWER(p_wallet_address) OR LOWER(to_address)=LOWER(p_wallet_address)))
-      + (SELECT COUNT(*) FROM donation_transactions WHERE status='pending'
-        AND (p_wallet_address IS NULL OR sender_id IN (SELECT id FROM profiles WHERE LOWER(wallet_address)=LOWER(p_wallet_address)) OR receiver_id IN (SELECT id FROM profiles WHERE LOWER(wallet_address)=LOWER(p_wallet_address))))
-      + (SELECT COUNT(*) FROM claim_requests WHERE status='pending'
-        AND (p_wallet_address IS NULL OR LOWER(wallet_address)=LOWER(p_wallet_address)))
-  );
-$$;
-```
+**2. Cải thiện CSS để chống tràn:**
+- Thêm `overflow-hidden` và `min-w-0` cho container text
+- Thêm `truncate` cho dòng giá trị số
+- Giảm font size cho giá trị lớn (`text-base` thay vì `text-lg` khi cần)
+- Thêm `title` tooltip để xem đầy đủ số khi hover
 
-### 2. Cập nhật `src/hooks/useTransactionHistory.ts`
+**3. Responsive grid:**
+- Mobile: giữ `grid-cols-2` nhưng cho thẻ "Tổng giá trị" chiếm `col-span-2` để có thêm không gian
+- Hoặc chuyển sang `grid-cols-1` trên màn hình rất nhỏ
 
-Cập nhật phần đọc stats từ RPC để sử dụng đầy đủ `successCount` và `pendingCount` từ server thay vì hardcode:
-
-```typescript
-const newStats: TransactionStats = {
-  totalCount: (serverStats as any)?.totalCount ?? deduped.length,
-  totalValue: (serverStats as any)?.totalValue ?? 0,
-  todayCount: (serverStats as any)?.todayCount ?? 0,
-  successCount: (serverStats as any)?.successCount ?? deduped.length,
-  pendingCount: (serverStats as any)?.pendingCount ?? 0,
-};
-```
-
-## Tác động
-
-- Thống kê cá nhân sẽ hiển thị **chính xác** số giao dịch, tổng giá trị CAMLY, giao dịch hôm nay, thành công và chờ xử lý
-- Thống kê toàn hệ thống (public mode) cũng được cải thiện với thêm `successCount` và `pendingCount`
-- Cập nhật realtime vẫn hoạt động bình thường vì hook đã có cơ chế refresh
-
-## File cần thay đổi
+## Chi tiết kỹ thuật
 
 | File | Thay đổi |
 |------|----------|
-| Database migration | Cập nhật RPC `get_transaction_stats` thêm `LOWER()` và 2 trường mới |
-| `src/hooks/useTransactionHistory.ts` | Dòng 511-516: đọc `successCount` và `pendingCount` từ RPC |
+| `src/components/Transactions/TransactionStats.tsx` | Thêm hàm formatCompactNumber, cập nhật CSS chống tràn, cải thiện responsive |
 
+### Code thay đổi cụ thể
+
+Thêm hàm format gọn:
+```typescript
+const formatCompactValue = (value: number): string => {
+  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(2)}B`;
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(2)}M`;
+  if (value >= 100_000) return `${(value / 1_000).toFixed(1)}K`;
+  return value.toLocaleString("vi-VN");
+};
+```
+
+Sử dụng cho trường totalValue và thêm CSS:
+- Container div: thêm `min-w-0 overflow-hidden`
+- Giá trị p: thêm `truncate` và `title={fullValue}` để hover xem đầy đủ
+
+## Tác động
+- Số liệu lớn hiển thị gọn gàng trên mọi kích thước màn hình
+- Hover vào số sẽ hiện đầy đủ giá trị
+- Không ảnh hưởng đến các thẻ khác (Tổng giao dịch, Hôm nay, Thành công, Chờ xử lý) vì giá trị nhỏ
+- Tương thích cả web desktop và mobile
