@@ -1,23 +1,30 @@
 
-# Sửa lỗi 404 khi nhấn vào avatar/tên trong Users Directory
+# Sắp xếp lại thứ tự tab trong trang Channel
 
-## Nguyên nhân
+## Thay đổi
 
-React Router v6.5+ yêu cầu tham số động (`:param`) phải là **toàn bộ phân đoạn URL**. Route `/@:username` không hoạt động vì ký tự `@` đứng trước tham số `:username`, khiến nó không phải là phân đoạn URL đầy đủ.
+Sửa **1 file**: `src/components/Profile/ProfileTabs.tsx`
 
-Route `/c/:username` (dòng 113 trong App.tsx) hoạt động bình thường.
+### Thứ tự hiện tại:
+1. Bài viết (posts)
+2. Video
+3. Shorts
+4. Livestream
+5. Playlist
+6. Giới thiệu
 
-## Thay doi
+### Thứ tự mới:
+1. **Video** (đưa lên đầu)
+2. Shorts
+3. Livestream
+4. **Bài viết** (chuyển xuống sau Livestream)
+5. Playlist
+6. Giới thiệu
 
-Chỉ cần sửa **1 file**: `src/pages/UsersDirectory.tsx`
+### Chi tiết kỹ thuật
 
-- Hàm `goToProfile`: thay `/@${u.username}` thanh `/c/${u.username}`
-- Hàm `goToChannel`: thay `/@${u.username}` thanh `/c/${u.username}`
+1. Sắp xếp lại mảng `tabs` (dòng 26-33) theo thứ tự mới
+2. Đổi `useState("posts")` thành `useState("videos")` (dòng 19) để tab Video được chọn mặc định khi vào trang
+3. Sắp xếp lại các `TabsContent` tương ứng cho khớp thứ tự
 
-Tat ca cac link trong Users Directory (ca Desktop va Mobile) se hoat dong dung, dẫn tới trang kenh cua nguoi dung.
-
-## Chi tiet ky thuat
-
-- Dòng 87: `navigate(\`/@\${u.username}\`)` -> `navigate(\`/c/\${u.username}\`)`
-- Dòng 93: `navigate(\`/@\${u.username}\`)` -> `navigate(\`/c/\${u.username}\`)`
-- Sau khi sửa, sẽ kiểm tra lại trên cả Desktop và Mobile để đảm bảo hoạt động đúng
+Thay đổi áp dụng cho cả Desktop và Mobile vì cùng dùng chung component `ProfileTabs`.
