@@ -125,15 +125,20 @@ export const ShareModal = ({
   };
 
   const awardShare = async () => {
-    if (!userId || !id || hasShared) return;
+    if (!id || hasShared) return;
     setHasShared(true);
-    // Use supabase functions invoke directly since we can't use hooks here
     try {
-      const { data } = await import('@/integrations/supabase/client').then(m => 
-        m.supabase.functions.invoke('award-camly', {
-          body: { type: 'SHARE', videoId: id }
-        })
-      );
+      // Always get userId from auth session - don't rely on prop
+      const { supabase } = await import('@/integrations/supabase/client');
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      
+      const { data } = await supabase.functions.invoke('award-camly', {
+        body: { type: 'SHARE', videoId: id }
+      });
+      if (data?.success) {
+        console.log('Share reward awarded:', data.amount, 'CAMLY');
+      }
       if (data?.milestone) {
         toast({
           title: "🎉 Chúc mừng! Milestone đạt được!",

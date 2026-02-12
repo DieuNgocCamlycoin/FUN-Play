@@ -269,12 +269,15 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
             .eq("id", user.id)
             .single();
 
+          let rewardAwarded = false;
+
           if (!profileData?.first_upload_rewarded) {
-            // First upload ever - award 500K CAMLY
+            // First upload ever - award 500K CAMLY (NOT both first + duration)
             const { data: firstResult } = await supabase.functions.invoke("award-camly", {
               body: { type: "FIRST_UPLOAD", videoId: videoData.id },
             });
             if (firstResult?.success) {
+              rewardAwarded = true;
               await supabase
                 .from("profiles")
                 .update({ first_upload_rewarded: true })
@@ -282,15 +285,28 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
             }
           }
 
-          // Award duration-based upload reward
-          const SHORT_VIDEO_MAX_DURATION = 180; // 3 minutes
-          const uploadType = metadata.duration < SHORT_VIDEO_MAX_DURATION
-            ? "SHORT_VIDEO_UPLOAD"
-            : "LONG_VIDEO_UPLOAD";
-          
-          await supabase.functions.invoke("award-camly", {
-            body: { type: uploadType, videoId: videoData.id },
-          });
+          // Only award duration-based reward if FIRST_UPLOAD was NOT awarded
+          if (!rewardAwarded) {
+            const SHORT_VIDEO_MAX_DURATION = 180; // 3 minutes
+            // Default to SHORT_VIDEO when duration is 0 or unknown (safer: 20K vs 70K)
+            const effectiveDuration = metadata.duration || 0;
+            if (effectiveDuration <= 0) {
+              console.warn("Video duration unknown, defaulting to SHORT_VIDEO reward");
+            }
+            const uploadType = effectiveDuration < SHORT_VIDEO_MAX_DURATION
+              ? "SHORT_VIDEO_UPLOAD"
+              : "LONG_VIDEO_UPLOAD";
+            
+            await supabase.functions.invoke("award-camly", {
+              body: { type: uploadType, videoId: videoData.id },
+            });
+          }
+
+          // Mark video as rewarded to prevent duplicate rewards
+          await supabase
+            .from("videos")
+            .update({ upload_rewarded: true })
+            .eq("id", videoData.id);
         } catch (rewardError) {
           console.error("Upload reward error (non-blocking):", rewardError);
         }
