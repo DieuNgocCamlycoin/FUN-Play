@@ -14,7 +14,7 @@ interface ProfileTabsProps {
 }
 
 export const ProfileTabs = ({ userId, channelId, isOwnProfile }: ProfileTabsProps) => {
-  const [activeTab, setActiveTab] = useState("posts");
+  const [activeTab, setActiveTab] = useState("videos");
 
   const [aboutData, setAboutData] = useState<{
     description: string | null;
@@ -24,10 +24,10 @@ export const ProfileTabs = ({ userId, channelId, isOwnProfile }: ProfileTabsProp
   } | null>(null);
 
   const tabs = [
-    { id: "posts", label: "Bài viết", icon: FileText },
     { id: "videos", label: "Video", icon: Video },
     { id: "shorts", label: "Shorts", icon: Zap },
     { id: "livestream", label: "Livestream", icon: Radio },
+    { id: "posts", label: "Bài viết", icon: FileText },
     { id: "playlists", label: "Playlist", icon: ListMusic },
     { id: "about", label: "Giới thiệu", icon: Info },
   ];
@@ -99,10 +99,6 @@ export const ProfileTabs = ({ userId, channelId, isOwnProfile }: ProfileTabsProp
         </div>
 
         {/* Tab Contents */}
-        <TabsContent value="posts" className="mt-0">
-          <ProfilePostsTab userId={userId} isOwnProfile={isOwnProfile} />
-        </TabsContent>
-
         <TabsContent value="videos" className="mt-0">
           <ProfileVideosTab userId={userId} channelId={channelId} type="video" />
         </TabsContent>
@@ -119,6 +115,10 @@ export const ProfileTabs = ({ userId, channelId, isOwnProfile }: ProfileTabsProp
               Tính năng Livestream sẽ sớm ra mắt! 🎥
             </p>
           </div>
+        </TabsContent>
+
+        <TabsContent value="posts" className="mt-0">
+          <ProfilePostsTab userId={userId} isOwnProfile={isOwnProfile} />
         </TabsContent>
 
         <TabsContent value="playlists" className="mt-0">
