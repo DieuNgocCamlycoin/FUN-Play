@@ -139,7 +139,7 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
       const allTransactions: UnifiedTransaction[] = reset ? [] : [...transactions];
       
       // Use a much higher effective limit for wallet_transactions (largest table)
-      const walletLimit = Math.max(limit, 500);
+      const walletLimit = Math.max(limit, 1000);
       
       // ========== 1. Lấy donation_transactions (ONCHAIN ONLY) ==========
       let donationQuery = supabase
@@ -148,7 +148,7 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
         .eq("status", "success")
         .not("tx_hash", "is", null)  // CHỈ LẤY ONCHAIN
         .order("created_at", { ascending: false })
-        .range(currentOffset, currentOffset + limit - 1);
+        .range(currentOffset, currentOffset + Math.max(limit, 500) - 1);
       
       // Nếu không phải public mode, chỉ lấy giao dịch của user hiện tại
       if (!publicMode && user?.id) {
@@ -178,7 +178,7 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
             .eq("status", "success")
             .not("tx_hash", "is", null)
             .order("created_at", { ascending: false })
-            .range(currentOffset, currentOffset + limit - 1)
+            .range(currentOffset, currentOffset + Math.max(limit, 500) - 1)
         : user?.id
           ? supabase
               .from("claim_requests")
