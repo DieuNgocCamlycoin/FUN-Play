@@ -7,14 +7,19 @@ const corsHeaders = {
 
 // Constants
 const CAMLY_TOKEN = "0x0910320181889fefde0bb1ca63962b0a8882e413";
+const USDT_TOKEN = "0x55d398326f99059ff775485246999027b3197955";
 const MORALIS_API_URL = "https://deep-index.moralis.io/api/v2.2";
 const CHAIN_ID = 56;
 
-// System wallet addresses to always sync
 const SYSTEM_WALLETS = [
-  "0x8f09073be2B5F4a953939dEBa8c5DFC8098FC0E8", // FUN PLAY TẶNG & THƯỞNG
-  "0x1DC24BFd99c256B12a4A4cC7732c7e3B9aA75998", // Ví tặng thưởng 1
-  "0x7b32E82C64FF4f02dA024B47A8653e1707003339", // Ví tặng thưởng 2
+  "0x8f09073be2B5F4a953939dEBa8c5DFC8098FC0E8",
+  "0x1DC24BFd99c256B12a4A4cC7732c7e3B9aA75998",
+  "0x7b32E82C64FF4f02dA024B47A8653e1707003339",
+];
+
+const TOKEN_CONFIGS = [
+  { contract: CAMLY_TOKEN, type: "CAMLY" },
+  { contract: USDT_TOKEN, type: "USDT" },
 ];
 
 interface MoralisTokenTransfer {
@@ -34,20 +39,10 @@ interface MoralisResponse {
   cursor: string | null;
 }
 
-interface SyncResult {
-  wallet: string;
-  fromBlock: number;
-  toBlock: number;
-  newTransfers: number;
-  errors: string[];
-}
-
-/**
- * Fetch recent transfers since a specific block
- */
 async function fetchRecentTransfers(
   wallet: string,
   apiKey: string,
+  tokenContract: string,
   fromBlock: number
 ): Promise<MoralisTokenTransfer[]> {
   const transfers: MoralisTokenTransfer[] = [];
@@ -60,18 +55,12 @@ async function fetchRecentTransfers(
       order: "ASC",
       from_block: fromBlock.toString(),
     });
-    
-    params.append("contract_addresses[]", CAMLY_TOKEN);
-    
+    params.append("contract_addresses[]", tokenContract);
     if (cursor) params.append("cursor", cursor);
 
     const url = `${MORALIS_API_URL}/${wallet}/erc20/transfers?${params}`;
-
     const response = await fetch(url, {
-      headers: {
-        "X-API-Key": apiKey,
-        "Accept": "application/json"
-      }
+      headers: { "X-API-Key": apiKey, "Accept": "application/json" }
     });
 
     if (!response.ok) {
@@ -80,23 +69,15 @@ async function fetchRecentTransfers(
     }
 
     const data: MoralisResponse = await response.json();
-
-    if (data.result && Array.isArray(data.result)) {
-      transfers.push(...data.result);
-    }
-
+    if (data.result && Array.isArray(data.result)) transfers.push(...data.result);
     cursor = data.cursor || null;
-
-    // Rate limit protection
     await new Promise(r => setTimeout(r, 200));
-
   } while (cursor);
 
   return transfers;
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -115,18 +96,11 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Check source (cron or manual)
     let source = "manual";
-    try {
-      const body = await req.json();
-      source = body.source || "manual";
-    } catch {
-      // No body
-    }
+    try { const body = await req.json(); source = body.source || "manual"; } catch { /* no body */ }
 
-    console.log(`[sync-transactions-cron] Starting sync, source: ${source}`);
+    console.log(`[sync-cron] Starting sync, source: ${source}`);
 
-    // Fetch wallet -> user_id mapping
     const { data: profiles } = await supabase
       .from("profiles")
       .select("id, wallet_address")
@@ -134,145 +108,109 @@ Deno.serve(async (req) => {
 
     const walletToUserId: Record<string, string> = {};
     profiles?.forEach((p: { id: string; wallet_address: string }) => {
-      if (p.wallet_address) {
-        walletToUserId[p.wallet_address.toLowerCase()] = p.id;
-      }
+      if (p.wallet_address) walletToUserId[p.wallet_address.toLowerCase()] = p.id;
     });
 
-    const results: SyncResult[] = [];
+    const results: { wallet: string; token: string; fromBlock: number; newTransfers: number; errors: string[] }[] = [];
     let totalNewTransfers = 0;
 
     for (const wallet of SYSTEM_WALLETS) {
-      const result: SyncResult = {
-        wallet: wallet.slice(0, 10) + "...",
-        fromBlock: 0,
-        toBlock: 0,
-        newTransfers: 0,
-        errors: [],
-      };
+      for (const tokenCfg of TOKEN_CONFIGS) {
+        const result = { wallet: wallet.slice(0, 10) + "...", token: tokenCfg.type, fromBlock: 0, newTransfers: 0, errors: [] as string[] };
 
-      try {
-        // Get last synced block from sync_cursors
-        const { data: cursor } = await supabase
-          .from("sync_cursors")
-          .select("last_block_number")
-          .eq("wallet_address", wallet.toLowerCase())
-          .eq("chain_id", CHAIN_ID)
-          .eq("token_contract", CAMLY_TOKEN)
-          .single();
-
-        const lastBlock = cursor?.last_block_number || 0;
-        result.fromBlock = lastBlock + 1;
-
-        console.log(`[${wallet.slice(0, 10)}] Syncing from block ${result.fromBlock}`);
-
-        // Fetch new transfers
-        const transfers = await fetchRecentTransfers(wallet, MORALIS_API_KEY, result.fromBlock);
-        
-        console.log(`[${wallet.slice(0, 10)}] Found ${transfers.length} new transfers`);
-
-        let maxBlockNumber = lastBlock;
-
-        for (const tx of transfers) {
-          const decimals = parseInt(tx.token_decimals) || 18;
-          const amount = Number(tx.value) / Math.pow(10, decimals);
-          const blockNum = parseInt(tx.block_number);
-
-          if (blockNum > maxBlockNumber) {
-            maxBlockNumber = blockNum;
-          }
-
-          const fromUserId = walletToUserId[tx.from_address.toLowerCase()] || null;
-          const toUserId = walletToUserId[tx.to_address.toLowerCase()] || null;
-          const logIndex = parseInt(tx.log_index) || 0;
-
-          // Check if already exists (COALESCE index workaround)
-          const { data: existing } = await supabase
-            .from("wallet_transactions")
-            .select("id")
-            .eq("chain_id", CHAIN_ID)
-            .eq("token_contract", CAMLY_TOKEN)
-            .eq("tx_hash", tx.transaction_hash)
-            .eq("log_index", logIndex)
-            .maybeSingle();
-
-          if (existing) {
-            continue; // Skip duplicate
-          }
-
-          const { error: insertError } = await supabase
-            .from("wallet_transactions")
-            .insert({
-              chain_id: CHAIN_ID,
-              token_contract: CAMLY_TOKEN,
-              from_address: tx.from_address.toLowerCase(),
-              to_address: tx.to_address.toLowerCase(),
-              from_user_id: fromUserId,
-              to_user_id: toUserId,
-              amount: amount,
-              token_type: "CAMLY",
-              tx_hash: tx.transaction_hash,
-              log_index: logIndex,
-              block_number: blockNum,
-              block_timestamp: tx.block_timestamp,
-              status: "completed",
-              created_at: tx.block_timestamp,
-            });
-
-          if (!insertError) {
-            result.newTransfers++;
-          }
-        }
-
-        result.toBlock = maxBlockNumber;
-        totalNewTransfers += result.newTransfers;
-
-        // Update sync cursor
-        if (maxBlockNumber > lastBlock) {
-          await supabase
+        try {
+          const { data: cursor } = await supabase
             .from("sync_cursors")
-            .upsert({
+            .select("last_block_number")
+            .eq("wallet_address", wallet.toLowerCase())
+            .eq("chain_id", CHAIN_ID)
+            .eq("token_contract", tokenCfg.contract)
+            .single();
+
+          const lastBlock = cursor?.last_block_number || 0;
+          result.fromBlock = lastBlock + 1;
+
+          const transfers = await fetchRecentTransfers(wallet, MORALIS_API_KEY, tokenCfg.contract, result.fromBlock);
+          console.log(`[${wallet.slice(0, 10)}][${tokenCfg.type}] Found ${transfers.length} new transfers`);
+
+          let maxBlockNumber = lastBlock;
+
+          for (const tx of transfers) {
+            const decimals = parseInt(tx.token_decimals) || 18;
+            const amount = Number(tx.value) / Math.pow(10, decimals);
+            const blockNum = parseInt(tx.block_number);
+            if (blockNum > maxBlockNumber) maxBlockNumber = blockNum;
+
+            const fromUserId = walletToUserId[tx.from_address.toLowerCase()] || null;
+            const toUserId = walletToUserId[tx.to_address.toLowerCase()] || null;
+            const logIndex = parseInt(tx.log_index) || 0;
+
+            const { data: existing } = await supabase
+              .from("wallet_transactions")
+              .select("id")
+              .eq("chain_id", CHAIN_ID)
+              .eq("token_contract", tokenCfg.contract)
+              .eq("tx_hash", tx.transaction_hash)
+              .eq("log_index", logIndex)
+              .maybeSingle();
+
+            if (existing) continue;
+
+            const { error: insertError } = await supabase
+              .from("wallet_transactions")
+              .insert({
+                chain_id: CHAIN_ID,
+                token_contract: tokenCfg.contract,
+                from_address: tx.from_address.toLowerCase(),
+                to_address: tx.to_address.toLowerCase(),
+                from_user_id: fromUserId,
+                to_user_id: toUserId,
+                amount,
+                token_type: tokenCfg.type,
+                tx_hash: tx.transaction_hash,
+                log_index: logIndex,
+                block_number: blockNum,
+                block_timestamp: tx.block_timestamp,
+                status: "completed",
+                created_at: tx.block_timestamp,
+              });
+
+            if (!insertError) result.newTransfers++;
+          }
+
+          totalNewTransfers += result.newTransfers;
+
+          if (maxBlockNumber > lastBlock) {
+            await supabase.from("sync_cursors").upsert({
               wallet_address: wallet.toLowerCase(),
               chain_id: CHAIN_ID,
-              token_contract: CAMLY_TOKEN,
+              token_contract: tokenCfg.contract,
               last_block_number: maxBlockNumber,
               last_sync_at: new Date().toISOString(),
               total_synced: (cursor?.last_block_number || 0) + result.newTransfers,
-            }, {
-              onConflict: "wallet_address,chain_id,token_contract"
-            });
+            }, { onConflict: "wallet_address,chain_id,token_contract" });
+          }
+        } catch (err) {
+          const errorMsg = err instanceof Error ? err.message : String(err);
+          result.errors.push(errorMsg);
+          console.error(`[${wallet.slice(0, 10)}][${tokenCfg.type}] Error:`, errorMsg);
         }
 
-      } catch (err) {
-        const errorMsg = err instanceof Error ? err.message : String(err);
-        result.errors.push(errorMsg);
-        console.error(`[${wallet.slice(0, 10)}] Error:`, errorMsg);
+        results.push(result);
       }
-
-      results.push(result);
     }
 
-    const summary = {
-      success: true,
-      source,
-      totalNewTransfers,
-      results,
-      timestamp: new Date().toISOString(),
-    };
+    const summary = { success: true, source, totalNewTransfers, results, timestamp: new Date().toISOString() };
+    console.log("[sync-cron] Completed:", JSON.stringify(summary, null, 2));
 
-    console.log("[sync-transactions-cron] Completed:", JSON.stringify(summary, null, 2));
-
-    return new Response(
-      JSON.stringify(summary),
-      {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
-      }
-    );
+    return new Response(JSON.stringify(summary), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" }
+    });
 
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    console.error("[sync-transactions-cron] Error:", errorMsg);
+    console.error("[sync-cron] Error:", errorMsg);
     return new Response(
       JSON.stringify({ error: errorMsg }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

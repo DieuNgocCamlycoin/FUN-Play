@@ -61,6 +61,7 @@ interface ManualTx {
   recipient_username: string;
   recipient_avatar: string | null;
   recipient_channel: string | null;
+  recipient_user_id: string | null;
 }
 
 interface ManualStats {
@@ -233,13 +234,35 @@ const RewardPoolTab = () => {
 
       const addrToProfile = new Map<string, { username: string; avatar_url: string | null; user_id: string }>();
       profiles?.forEach(p => {
-        if (p.wallet_address) addrToProfile.set(p.wallet_address.toLowerCase(), { username: p.username || "unknown", avatar_url: p.avatar_url, user_id: p.id });
+        if (p.wallet_address) {
+          const key = p.wallet_address.toLowerCase();
+          const existing = addrToProfile.get(key);
+          // Ưu tiên profile có avatar khi trùng wallet address
+          if (!existing || (!existing.avatar_url && p.avatar_url)) {
+            addrToProfile.set(key, { username: p.username || "unknown", avatar_url: p.avatar_url, user_id: p.id });
+          }
+        }
       });
       const userToChannel = new Map<string, string>();
       channels?.forEach(c => { userToChannel.set(c.user_id, c.name); });
 
+      // Lọc bảng giao dịch theo mốc cutoff (đồng bộ với thẻ tổng)
+      const filteredForTable = (txs || []).filter(tx => {
+        const from = tx.from_address?.toLowerCase();
+        const ts = tx.block_timestamp;
+        const tokenType = (tx.token_type || "").toUpperCase();
+        const isUsdt = tokenType.includes("USDT") || tokenType.includes("USD");
+        if (from === w1) {
+          return (ts && ts < WALLET1_CUTOFF) || (!ts && isUsdt);
+        }
+        if (from === w2) {
+          return (ts && ts < WALLET2_CUTOFF) || (!ts && isUsdt);
+        }
+        return false;
+      });
+
       setManualTxs(
-        (txs || []).slice(0, 50).map(tx => {
+        filteredForTable.slice(0, 50).map(tx => {
           const prof = addrToProfile.get(tx.to_address?.toLowerCase() || "");
           const channelName = prof ? userToChannel.get(prof.user_id) : null;
           const tokenType = (tx.token_type || "CAMLY").toUpperCase();
@@ -255,6 +278,7 @@ const RewardPoolTab = () => {
             recipient_username: prof?.username || shortenAddress(tx.to_address || ""),
             recipient_avatar: prof?.avatar_url || null,
             recipient_channel: channelName || prof?.username || null,
+            recipient_user_id: prof?.user_id || null,
           };
         })
       );
@@ -400,9 +424,7 @@ const RewardPoolTab = () => {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-fuchsia-500">{formatNumber(Math.floor(manualStats.wallet2Camly))} <span className="text-sm font-normal">CAMLY</span></p>
-            {manualStats.wallet2Usdt > 0 && (
-              <p className="text-lg font-bold text-emerald-500">{formatNumber(Math.floor(manualStats.wallet2Usdt))} <span className="text-sm font-normal">USDT</span></p>
-            )}
+            <p className="text-lg font-bold text-emerald-500">{formatNumber(Math.floor(manualStats.wallet2Usdt))} <span className="text-sm font-normal">USDT</span></p>
             <p className="text-[10px] text-muted-foreground mt-1">Tính đến trước 18/1/2026</p>
             <a href={bscscanAddr(SYSTEM_WALLETS.PERSONAL.address)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary mt-2 font-mono">
               {shortenAddress(SYSTEM_WALLETS.PERSONAL.address)}
@@ -445,7 +467,7 @@ const RewardPoolTab = () => {
                       </td>
                       <td className="py-3 px-2">
                         {tx.recipient_avatar ? (
-                          <a href={`/c/${tx.recipient_username}`} className="flex items-center gap-2 hover:underline">
+                          <a href={tx.recipient_user_id ? `/profile/${tx.recipient_user_id}` : bscscanAddr(tx.to_address)} className="flex items-center gap-2 hover:underline">
                             <Avatar className="w-6 h-6">
                               <AvatarImage src={tx.recipient_avatar} />
                               <AvatarFallback className="text-[10px]">{(tx.recipient_channel || tx.recipient_username)?.[0]?.toUpperCase()}</AvatarFallback>
