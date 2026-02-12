@@ -59,14 +59,17 @@ interface ClaimRequest {
 }
 
 const REWARD_TYPE_MAP: Record<string, { icon: any; label: string; color: string }> = {
-  view: { icon: Eye, label: "Xem video", color: "text-blue-500" },
-  like: { icon: ThumbsUp, label: "Thích video", color: "text-pink-500" },
-  comment: { icon: MessageSquare, label: "Bình luận", color: "text-green-500" },
-  share: { icon: Share2, label: "Chia sẻ", color: "text-purple-500" },
-  upload: { icon: Upload, label: "Tải lên video", color: "text-orange-500" },
-  first_upload: { icon: Gift, label: "Video đầu tiên", color: "text-yellow-500" },
-  signup: { icon: Gift, label: "Đăng ký tài khoản", color: "text-cyan-500" },
-  wallet_connect: { icon: Wallet, label: "Kết nối ví", color: "text-emerald-500" },
+  VIEW: { icon: Eye, label: "Xem video", color: "text-blue-500" },
+  LIKE: { icon: ThumbsUp, label: "Thích video", color: "text-pink-500" },
+  COMMENT: { icon: MessageSquare, label: "Bình luận", color: "text-green-500" },
+  SHARE: { icon: Share2, label: "Chia sẻ", color: "text-purple-500" },
+  UPLOAD: { icon: Upload, label: "Tải lên video", color: "text-orange-500" },
+  SHORT_VIDEO_UPLOAD: { icon: Upload, label: "Video ngắn", color: "text-orange-400" },
+  LONG_VIDEO_UPLOAD: { icon: Upload, label: "Video dài", color: "text-orange-600" },
+  FIRST_UPLOAD: { icon: Gift, label: "Video đầu tiên", color: "text-yellow-500" },
+  SIGNUP: { icon: Gift, label: "Đăng ký tài khoản", color: "text-cyan-500" },
+  WALLET_CONNECT: { icon: Wallet, label: "Kết nối ví", color: "text-emerald-500" },
+  BOUNTY: { icon: Gift, label: "Bounty", color: "text-indigo-500" },
 };
 
 export default function RewardHistory() {
@@ -121,6 +124,21 @@ export default function RewardHistory() {
     setLoading(true);
 
     try {
+      // Fetch accurate totals from RPC (not limited by row count)
+      const { data: summary } = await supabase.rpc('get_user_activity_summary', {
+        p_user_id: user.id
+      });
+
+      if (summary) {
+        const s = summary as Record<string, unknown>;
+        setTotalEarned(Number(s.total_camly) || 0);
+        setTotalPending(Number(s.pending_camly) || 0);
+        setTotalApproved(Number(s.approved_camly) || 0);
+        setTotalClaimed(
+          Math.max(0, (Number(s.total_camly) || 0) - (Number(s.pending_camly) || 0) - (Number(s.approved_camly) || 0))
+        );
+      }
+
       const { data, error } = await supabase
         .from("reward_transactions")
         .select(`
@@ -160,26 +178,6 @@ export default function RewardHistory() {
       })) || [];
 
       setTransactions(enrichedData);
-
-      // Calculate totals with 3 statuses
-      let earned = 0;
-      let pending = 0;
-      let approved = 0;
-      let claimed = 0;
-      data?.forEach(t => {
-        earned += Number(t.amount);
-        if (t.claimed) {
-          claimed += Number(t.amount);
-        } else if (t.approved) {
-          approved += Number(t.amount);
-        } else {
-          pending += Number(t.amount);
-        }
-      });
-      setTotalEarned(earned);
-      setTotalPending(pending);
-      setTotalApproved(approved);
-      setTotalClaimed(claimed);
     } catch (error) {
       console.error("Error fetching reward history:", error);
     } finally {
@@ -332,14 +330,17 @@ export default function RewardHistory() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Tất cả loại</SelectItem>
-                  <SelectItem value="view">Xem video</SelectItem>
-                  <SelectItem value="like">Thích video</SelectItem>
-                  <SelectItem value="comment">Bình luận</SelectItem>
-                  <SelectItem value="share">Chia sẻ</SelectItem>
-                  <SelectItem value="upload">Tải lên</SelectItem>
-                  <SelectItem value="first_upload">Video đầu tiên</SelectItem>
-                  <SelectItem value="signup">Đăng ký</SelectItem>
-                  <SelectItem value="wallet_connect">Kết nối ví</SelectItem>
+                  <SelectItem value="VIEW">Xem video</SelectItem>
+                  <SelectItem value="LIKE">Thích video</SelectItem>
+                  <SelectItem value="COMMENT">Bình luận</SelectItem>
+                  <SelectItem value="SHARE">Chia sẻ</SelectItem>
+                  <SelectItem value="UPLOAD">Tải lên</SelectItem>
+                  <SelectItem value="SHORT_VIDEO_UPLOAD">Video ngắn</SelectItem>
+                  <SelectItem value="LONG_VIDEO_UPLOAD">Video dài</SelectItem>
+                  <SelectItem value="FIRST_UPLOAD">Video đầu tiên</SelectItem>
+                  <SelectItem value="SIGNUP">Đăng ký</SelectItem>
+                  <SelectItem value="WALLET_CONNECT">Kết nối ví</SelectItem>
+                  <SelectItem value="BOUNTY">Bounty</SelectItem>
                 </SelectContent>
               </Select>
 

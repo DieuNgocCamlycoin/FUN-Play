@@ -406,10 +406,7 @@ serve(async (req) => {
     const suspiciousScore = profileData?.suspicious_score || 0;
     const canAutoApprove = suspiciousScore < validation.AUTO_APPROVE_THRESHOLD;
 
-    // 13. ATOMIC INCREMENT - no race condition
-    // Use rpc or raw update with increment to avoid read-then-write pattern
-    const incrementField = canAutoApprove ? 'approved_reward' : 'pending_rewards';
-    
+    // 13. ATOMIC INCREMENT via RPC - prevents race conditions
     const { data: updatedProfile, error: updateError } = await adminSupabase.rpc('atomic_increment_reward', {
       p_user_id: userId,
       p_amount: amount,
@@ -418,39 +415,15 @@ serve(async (req) => {
 
     if (updateError) {
       console.error('Failed to update rewards:', updateError);
-      // Fallback to direct atomic SQL if RPC not available
-      const { error: fallbackError } = await adminSupabase
-        .from("profiles")
-        .update({
-          total_camly_rewards: adminSupabase.rpc ? undefined : amount,
-        })
-        .eq("id", userId);
-
-      // Use raw SQL approach as fallback
-      const { data: profileAfter, error: fetchError } = await adminSupabase
-        .from("profiles")
-        .select("total_camly_rewards, pending_rewards, approved_reward")
-        .eq("id", userId)
-        .single();
-        
-      if (fetchError) {
-        return new Response(
-          JSON.stringify({ success: false, error: 'Failed to update rewards' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
+      return new Response(
+        JSON.stringify({ success: false, error: 'Failed to update rewards' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    // Get updated totals for response
-    const { data: finalProfile } = await adminSupabase
-      .from("profiles")
-      .select("total_camly_rewards, pending_rewards, approved_reward")
-      .eq("id", userId)
-      .single();
-
-    const newTotal = Number(finalProfile?.total_camly_rewards) || 0;
-    const newPending = Number(finalProfile?.pending_rewards) || 0;
-    const newApproved = Number(finalProfile?.approved_reward) || 0;
+    const newTotal = Number(updatedProfile?.total_camly_rewards) || 0;
+    const newPending = Number(updatedProfile?.pending_rewards) || 0;
+    const newApproved = Number(updatedProfile?.approved_reward) || 0;
 
     // 14. Create reward transaction record
     const txHash = `REWARD_${type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -502,8 +475,9 @@ serve(async (req) => {
         .eq("date", today);
     }
 
-    // 17. Check for milestones
+    // 17. Check for milestones (use newTotal - amount as oldTotal approximation)
     const MILESTONES = [10, 100, 1000, 10000, 100000, 500000, 1000000];
+    const oldTotal = newTotal - amount;
     const reachedMilestone = MILESTONES.find(
       milestone => oldTotal < milestone && newTotal >= milestone
     ) || null;

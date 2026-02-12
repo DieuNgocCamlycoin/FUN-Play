@@ -2376,6 +2376,10 @@ export type Database = {
         Args: { p_admin_id: string; p_note?: string; p_user_id: string }
         Returns: number
       }
+      atomic_increment_reward: {
+        Args: { p_amount: number; p_auto_approve: boolean; p_user_id: string }
+        Returns: Json
+      }
       ban_user_permanently: {
         Args: { p_admin_id: string; p_reason?: string; p_user_id: string }
         Returns: boolean
