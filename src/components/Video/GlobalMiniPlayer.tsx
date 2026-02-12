@@ -154,15 +154,15 @@ export function GlobalMiniPlayer() {
         <video
           ref={videoRef}
           src={miniPlayerVideo.videoUrl}
-          className="hidden"
+          className="absolute w-[1px] h-[1px] opacity-0 pointer-events-none"
           playsInline
           onTimeUpdate={() => {
             const video = videoRef.current;
             if (video) updateProgress(video.currentTime, video.duration);
           }}
-          onPlay={() => setIsPlaying(true)}
-          onPause={() => setIsPlaying(false)}
           onEnded={() => setIsPlaying(false)}
+          onLoadedData={() => console.log("[MiniPlayer] Video loaded successfully")}
+          onError={(e) => console.error("[MiniPlayer] Video error:", e.currentTarget.error?.message)}
         />
 
         {/* Progress bar - full width at top */}
