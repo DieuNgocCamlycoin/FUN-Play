@@ -89,3 +89,9 @@ verify_jwt = false
 
 [functions.backfill-upload-rewards]
 verify_jwt = false
+
+[functions.moderate-content]
+verify_jwt = false
+
+[functions.backfill-video-duration]
+verify_jwt = false
