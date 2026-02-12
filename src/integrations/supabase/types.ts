@@ -2401,6 +2401,7 @@ export type Database = {
           donations_sent_total: number
           like_rewards: number
           likes_count: number
+          manual_rewards: number
           mint_requests_count: number
           minted_fun_total: number
           posts_count: number
@@ -2440,6 +2441,7 @@ export type Database = {
           donations_sent_total: number
           like_rewards: number
           likes_count: number
+          manual_rewards: number
           mint_requests_count: number
           minted_fun_total: number
           pending_rewards: number

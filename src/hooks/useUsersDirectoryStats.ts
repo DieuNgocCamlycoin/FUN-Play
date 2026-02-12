@@ -20,6 +20,7 @@ export interface UserDirectoryStat {
   upload_rewards: number;
   signup_rewards: number;
   bounty_rewards: number;
+  manual_rewards: number;
   posts_count: number;
   videos_count: number;
   comments_count: number;
