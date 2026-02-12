@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { MainLayout } from "@/components/Layout/MainLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { 
@@ -16,7 +16,8 @@ import {
   CheckCircle,
   ExternalLink,
   Clock,
-  XCircle
+  XCircle,
+  Radio
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
@@ -87,12 +88,63 @@ export default function RewardHistory() {
   const [totalClaimed, setTotalClaimed] = useState(0);
   const { user, loading: authLoading } = useAuth();
 
+  const [isLive, setIsLive] = useState(false);
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  const debouncedRefresh = useCallback(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      fetchTransactions();
+    }, 500);
+  }, [user]);
+
   useEffect(() => {
     if (user) {
       fetchTransactions();
       fetchClaimHistory();
     }
   }, [user]);
+
+  // Realtime subscription for reward_transactions
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel(`reward-history-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'reward_transactions',
+          filter: `user_id=eq.${user.id}`
+        },
+        () => debouncedRefresh()
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'reward_transactions',
+          filter: `user_id=eq.${user.id}`
+        },
+        () => debouncedRefresh()
+      )
+      .subscribe((status) => {
+        setIsLive(status === 'SUBSCRIBED');
+      });
+
+    // Listen for camly-reward window events for instant feedback
+    const handleRewardEvent = () => debouncedRefresh();
+    window.addEventListener('camly-reward', handleRewardEvent);
+
+    return () => {
+      supabase.removeChannel(channel);
+      window.removeEventListener('camly-reward', handleRewardEvent);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [user, debouncedRefresh]);
 
   const fetchClaimHistory = async () => {
     if (!user) return;
@@ -259,6 +311,12 @@ export default function RewardHistory() {
               <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 bg-clip-text text-transparent">
                 Lịch Sử Thưởng CAMLY
               </h1>
+              {isLive && (
+                <Badge variant="secondary" className="bg-green-500/20 text-green-500 text-xs gap-1 animate-pulse">
+                  <Radio className="w-3 h-3" />
+                  Live
+                </Badge>
+              )}
             </div>
             <p className="text-muted-foreground">
               Chi tiết các phần thưởng bạn đã nhận được
