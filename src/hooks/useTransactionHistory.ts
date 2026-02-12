@@ -199,28 +199,49 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
       // ========== 3. Lấy wallet_transactions (ONCHAIN ONLY) ==========
       let walletData: any[] = [];
       
+      // Lấy wallet_address của user trước để mở rộng query
+      let userWalletAddress: string | null = null;
+      if (!publicMode && user?.id) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("wallet_address")
+          .eq("id", user.id)
+          .single();
+        userWalletAddress = profile?.wallet_address?.toLowerCase() || null;
+      }
+      
       // FIXED: Query 'completed' status (actual data uses 'completed', not 'success')
       // UPDATED: Sort by block_timestamp for better accuracy, fallback to created_at
-      const walletQuery = publicMode
-        ? supabase
-            .from("wallet_transactions")
-            .select("*")
-            .eq("status", "completed")
-            .not("tx_hash", "is", null)
-            .order("block_timestamp", { ascending: false, nullsFirst: false })
-            .order("created_at", { ascending: false })
-            .range(currentOffset, currentOffset + walletLimit - 1)
-        : user?.id
-          ? supabase
-              .from("wallet_transactions")
-              .select("*")
-              .or(`from_user_id.eq.${user.id},to_user_id.eq.${user.id}`)
-              .eq("status", "completed")
-              .not("tx_hash", "is", null)
-              .order("block_timestamp", { ascending: false, nullsFirst: false })
-              .order("created_at", { ascending: false })
-              .range(currentOffset, currentOffset + walletLimit - 1)
-          : null;
+      // EXPANDED: Query by both user_id AND wallet_address to catch all onchain txs
+      let walletQuery;
+      if (publicMode) {
+        walletQuery = supabase
+          .from("wallet_transactions")
+          .select("*")
+          .eq("status", "completed")
+          .not("tx_hash", "is", null)
+          .order("block_timestamp", { ascending: false, nullsFirst: false })
+          .order("created_at", { ascending: false })
+          .range(currentOffset, currentOffset + walletLimit - 1);
+      } else if (user?.id) {
+        // Mở rộng: tìm theo cả user_id VÀ wallet_address
+        const orConditions = [`from_user_id.eq.${user.id}`, `to_user_id.eq.${user.id}`];
+        if (userWalletAddress) {
+          orConditions.push(`from_address.ilike.${userWalletAddress}`);
+          orConditions.push(`to_address.ilike.${userWalletAddress}`);
+        }
+        walletQuery = supabase
+          .from("wallet_transactions")
+          .select("*")
+          .or(orConditions.join(","))
+          .eq("status", "completed")
+          .not("tx_hash", "is", null)
+          .order("block_timestamp", { ascending: false, nullsFirst: false })
+          .order("created_at", { ascending: false })
+          .range(currentOffset, currentOffset + walletLimit - 1);
+      } else {
+        walletQuery = null;
+      }
       
       if (walletQuery) {
         const { data: wallets, error: walletError } = await walletQuery;
@@ -392,8 +413,22 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
         const senderSystemWallet = getSystemWalletDisplayInfo(w.from_address);
         const receiverSystemWallet = getSystemWalletDisplayInfo(w.to_address);
         
-        const finalFromInfo = senderSystemWallet || fromInfo;
-        const finalToInfo = receiverSystemWallet || toInfo;
+        // Fallback: hiển thị địa chỉ ví rút gọn khi không có profile và không phải ví hệ thống
+        const fallbackFromInfo = {
+          displayName: formatAddress(w.from_address),
+          username: formatAddress(w.from_address),
+          avatarUrl: null as string | null,
+          channelName: formatAddress(w.from_address),
+        };
+        const fallbackToInfo = {
+          displayName: formatAddress(w.to_address),
+          username: formatAddress(w.to_address),
+          avatarUrl: null as string | null,
+          channelName: formatAddress(w.to_address),
+        };
+        
+        const finalFromInfo = senderSystemWallet || (fromProfile ? fromInfo : fallbackFromInfo);
+        const finalToInfo = receiverSystemWallet || (toProfile ? toInfo : fallbackToInfo);
         
         allTransactions.push({
           id: w.id,
@@ -467,16 +502,7 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
       );
 
       // ========== 10. Fetch stats from server-side RPC ==========
-      // Get user's wallet address for personal mode
-      let userWalletAddress: string | null = null;
-      if (!publicMode && user?.id) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("wallet_address")
-          .eq("id", user.id)
-          .single();
-        userWalletAddress = profile?.wallet_address || null;
-      }
+      // userWalletAddress đã được lấy ở bước 3
       
       const { data: serverStats } = await supabase.rpc('get_transaction_stats', {
         p_wallet_address: publicMode ? null : (userWalletAddress || null)
