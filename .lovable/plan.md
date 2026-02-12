@@ -1,68 +1,73 @@
 
 
-# Sửa lỗi thưởng Upload CAMLY bị mất + Đồng bộ Realtime
+# Backfill thưởng Upload CAMLY cho 433 video chưa được thưởng
 
-## Nguyên nhân gốc rễ
+## Vấn đề
 
-### 1. UploadContext gọi edge function trực tiếp, không qua useAutoReward
-- Mobile upload gọi `supabase.functions.invoke("award-camly")` trực tiếp
-- KHÔNG dispatch sự kiện `camly-reward` trên window
-- Trang RewardHistory chỉ cập nhật qua Realtime DB (chậm hơn), không nhận event tức thì
+Hiện có **433 video** đã upload thành công nhưng chưa nhận được phần thưởng CAMLY. Nguyên nhân do các lỗi trước đó trong code upload đã được sửa, nhưng các video cũ vẫn chưa được bù thưởng.
 
-### 2. Thưởng gấp đôi vẫn xảy ra (user 353a2784)
-- FIRST_UPLOAD (500K) lúc 09:47:32 VÀ SHORT_VIDEO_UPLOAD (20K) lúc 09:47:35
-- Biến `rewardAwarded` không ngăn được vì `supabase.functions.invoke` trả về `{ data, error }` nhưng code check `firstResult?.success` - nếu `data` wrapper khác cấu trúc, rewardAwarded vẫn false
+**Thống kê theo user (top):**
+- Trần Văn Lực: 56 video chưa thưởng
+- Hoangtydo: 54 video
+- Hồng ThienHanh68: 35 video
+- THU TRANG: 27 video
+- ... và 40+ users khác
 
-### 3. Thưởng upload thất bại hoàn toàn (user d06c21f9)
-- Video "8 Câu Thần Chú Của Cha" tạo thành công nhưng KHÔNG có reward nào
-- Lỗi bị nuốt bởi try/catch chỉ log `console.error`
+## Giải pháp
 
-## Kế hoạch sửa lỗi
+Tạo một **edge function mới** `backfill-upload-rewards` chạy server-side (admin-only) để:
 
-### A. Sửa UploadContext.tsx - Thêm event dispatch + sửa double reward
-**File: `src/contexts/UploadContext.tsx`**
+1. Tìm tất cả video chưa có upload reward trong bảng `reward_transactions`
+2. Với mỗi video:
+   - Kiểm tra `first_upload_rewarded` của user -> nếu chưa, thưởng FIRST_UPLOAD (500K)
+   - Nếu đã có first upload, thưởng theo duration: SHORT (20K) nếu duration <= 180s hoặc NULL, LONG (70K) nếu > 180s
+3. Cập nhật `upload_rewarded = true` trên video
+4. Cập nhật `first_upload_rewarded = true` trên profile nếu cần
+5. Tạo `reward_transaction` record với auto-approve
 
-1. Sau khi gọi `award-camly` thành công, dispatch `camly-reward` event:
-```typescript
-window.dispatchEvent(new CustomEvent("camly-reward", { 
-  detail: { type: uploadType, amount: result.amount, autoApproved: true } 
-}));
+### Chi tiết kỹ thuật
+
+**File mới: `supabase/functions/backfill-upload-rewards/index.ts`**
+- Chỉ admin mới gọi được (kiểm tra `user_roles`)
+- Xử lý theo batch (50 video/lần) để tránh timeout
+- Sử dụng `atomic_increment_reward` RPC để cập nhật profile an toàn
+- Log chi tiết từng video được thưởng
+- Trả về báo cáo tổng hợp
+
+**Cập nhật: `src/pages/RewardHistory.tsx`**
+- Không cần thay đổi - realtime subscription đã có sẽ tự động hiển thị rewards mới khi backfill chạy
+
+### Flow xử lý
+
+```text
+Admin gọi backfill-upload-rewards
+    |
+    v
+Lấy danh sách video chưa thưởng (batch 50)
+    |
+    v
+Với mỗi video:
+  - User chưa có first_upload_rewarded? -> FIRST_UPLOAD (500K)
+  - Đã có? -> Duration <= 180s/NULL -> SHORT (20K)
+  -          Duration > 180s -> LONG (70K)
+    |
+    v
+Tạo reward_transaction + atomic_increment_reward
+    |
+    v
+Cập nhật video.upload_rewarded = true
+    |
+    v
+RewardHistory tự động nhận qua Realtime
 ```
 
-2. Sửa logic kiểm tra double reward - kiểm tra response đúng cách:
-```typescript
-const { data: firstResult, error: firstError } = await supabase.functions.invoke("award-camly", ...);
-if (!firstError && firstResult?.success) {
-  rewardAwarded = true;
-}
-```
+### Kết quả mong đợi
+- 433 video sẽ được thưởng chính xác
+- Khoảng 20 users chưa có `first_upload_rewarded` sẽ nhận 500K
+- Trang Lịch sử thưởng cập nhật realtime ngay sau khi backfill chạy
+- Tất cả hoạt động đồng bộ trên mobile
 
-3. Thêm logging chi tiết để debug khi thưởng thất bại:
-```typescript
-console.log("[Upload Reward] Attempting FIRST_UPLOAD for video:", videoData.id);
-console.log("[Upload Reward] Result:", JSON.stringify(firstResult), "Error:", firstError);
-```
+## File cần tạo/sửa
+1. **Tạo mới**: `supabase/functions/backfill-upload-rewards/index.ts`
+2. **Cập nhật**: `supabase/config.toml` (thêm config cho function mới, verify_jwt = false)
 
-### B. Sửa Upload.tsx (Desktop) - Cùng logic
-**File: `src/pages/Upload.tsx`**
-
-1. Bọc phần thưởng trong try/catch riêng (đã có nhưng cần thêm logging)
-2. Dispatch `camly-reward` event sau khi thưởng thành công
-3. Thêm logging chi tiết
-
-### C. Đảm bảo RewardHistory nhận event từ cả mobile lẫn desktop
-- Đã có listener `camly-reward` từ bản trước
-- Sau khi sửa A + B, event sẽ được dispatch đúng -> RewardHistory cập nhật tức thì
-
-## Tóm tắt
-
-| Lỗi | File | Sửa |
-|-----|------|-----|
-| Không dispatch camly-reward event | UploadContext.tsx | Thêm dispatchEvent sau reward thành công |
-| Double reward FIRST_UPLOAD | UploadContext.tsx | Check cả error lẫn data.success |
-| Thưởng thất bại im lặng | UploadContext.tsx, Upload.tsx | Thêm logging chi tiết |
-| Desktop không dispatch event | Upload.tsx | Thêm dispatchEvent |
-
-## File cần sửa
-1. `src/contexts/UploadContext.tsx`
-2. `src/pages/Upload.tsx`
