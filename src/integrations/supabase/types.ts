@@ -2455,6 +2455,18 @@ export type Database = {
         Args: { p_owner_id: string; p_target_user_id: string }
         Returns: boolean
       }
+      sync_reward_totals: {
+        Args: never
+        Returns: {
+          new_approved: number
+          new_pending: number
+          new_total: number
+          old_approved: number
+          old_pending: number
+          old_total: number
+          user_id: string
+        }[]
+      }
       unapprove_user_reward: {
         Args: { p_admin_id: string; p_note?: string; p_user_id: string }
         Returns: number

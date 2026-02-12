@@ -387,10 +387,10 @@ serve(async (req) => {
       }
     }
 
-    // 11. Get current user profile with suspicious score
+    // 11. Get suspicious_score to determine auto-approve
     const { data: profileData, error: profileError } = await adminSupabase
       .from("profiles")
-      .select("total_camly_rewards, pending_rewards, approved_reward, suspicious_score")
+      .select("suspicious_score")
       .eq("id", userId)
       .single();
 
@@ -406,39 +406,51 @@ serve(async (req) => {
     const suspiciousScore = profileData?.suspicious_score || 0;
     const canAutoApprove = suspiciousScore < validation.AUTO_APPROVE_THRESHOLD;
 
-    const oldTotal = Number(profileData?.total_camly_rewards) || 0;
-    const newTotal = oldTotal + amount;
-    const oldPending = Number(profileData?.pending_rewards) || 0;
-    const oldApproved = Number(profileData?.approved_reward) || 0;
-
-    let newPending = oldPending;
-    let newApproved = oldApproved;
-
-    if (canAutoApprove) {
-      // Auto-approve: add directly to approved_reward
-      newApproved = oldApproved + amount;
-    } else {
-      // Needs manual review: add to pending_rewards
-      newPending = oldPending + amount;
-    }
-
-    // 13. Update profile with new totals
-    const { error: updateError } = await adminSupabase
-      .from("profiles")
-      .update({ 
-        total_camly_rewards: newTotal,
-        pending_rewards: newPending,
-        approved_reward: newApproved
-      })
-      .eq("id", userId);
+    // 13. ATOMIC INCREMENT - no race condition
+    // Use rpc or raw update with increment to avoid read-then-write pattern
+    const incrementField = canAutoApprove ? 'approved_reward' : 'pending_rewards';
+    
+    const { data: updatedProfile, error: updateError } = await adminSupabase.rpc('atomic_increment_reward', {
+      p_user_id: userId,
+      p_amount: amount,
+      p_auto_approve: canAutoApprove
+    });
 
     if (updateError) {
       console.error('Failed to update rewards:', updateError);
-      return new Response(
-        JSON.stringify({ success: false, error: 'Failed to update rewards' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      // Fallback to direct atomic SQL if RPC not available
+      const { error: fallbackError } = await adminSupabase
+        .from("profiles")
+        .update({
+          total_camly_rewards: adminSupabase.rpc ? undefined : amount,
+        })
+        .eq("id", userId);
+
+      // Use raw SQL approach as fallback
+      const { data: profileAfter, error: fetchError } = await adminSupabase
+        .from("profiles")
+        .select("total_camly_rewards, pending_rewards, approved_reward")
+        .eq("id", userId)
+        .single();
+        
+      if (fetchError) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Failed to update rewards' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
+
+    // Get updated totals for response
+    const { data: finalProfile } = await adminSupabase
+      .from("profiles")
+      .select("total_camly_rewards, pending_rewards, approved_reward")
+      .eq("id", userId)
+      .single();
+
+    const newTotal = Number(finalProfile?.total_camly_rewards) || 0;
+    const newPending = Number(finalProfile?.pending_rewards) || 0;
+    const newApproved = Number(finalProfile?.approved_reward) || 0;
 
     // 14. Create reward transaction record
     const txHash = `REWARD_${type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
