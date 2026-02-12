@@ -22,12 +22,21 @@ export const SYSTEM_WALLETS = {
     avatarUrl: "/images/fun-play-wallet-icon.png",
   } as SystemWalletInfo,
   
-  // Ví Treasury (claim, distribution)
+  // Ví tặng thưởng 1 (Treasury)
   TREASURY: {
     address: "0x1DC24BFd99c256B12a4A4cC7732c7e3B9aA75998",
-    displayName: "FUN PLAY TREASURY",
-    username: "@funplaytreasury",
-    channelName: "FUN PLAY TREASURY",
+    displayName: "Ví tặng thưởng 1",
+    username: "@vitangthuong1",
+    channelName: "Ví tặng thưởng 1",
+    avatarUrl: "/images/fun-play-wallet-icon.png",
+  } as SystemWalletInfo,
+
+  // Ví tặng thưởng 2
+  PERSONAL: {
+    address: "0x7b32E82C64FF4f02dA024B47A8653e1707003339",
+    displayName: "Ví tặng thưởng 2",
+    username: "@vitangthuong2",
+    channelName: "Ví tặng thưởng 2",
     avatarUrl: "/images/fun-play-wallet-icon.png",
   } as SystemWalletInfo,
 } as const;
@@ -47,6 +56,9 @@ export function getSystemWalletInfo(address: string | null | undefined): SystemW
   }
   if (normalizedAddress === SYSTEM_WALLETS.TREASURY.address.toLowerCase()) {
     return SYSTEM_WALLETS.TREASURY;
+  }
+  if (normalizedAddress === SYSTEM_WALLETS.PERSONAL.address.toLowerCase()) {
+    return SYSTEM_WALLETS.PERSONAL;
   }
   
   return null;
