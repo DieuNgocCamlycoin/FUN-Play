@@ -1,28 +1,23 @@
 
+# Sửa lỗi 404 khi nhấn vào avatar/tên trong Users Directory
 
-# Nhấn vào avatar trong Users Directory sẽ link tới kênh của người dùng
+## Nguyên nhân
 
-## Thay đổi
+React Router v6.5+ yêu cầu tham số động (`:param`) phải là **toàn bộ phân đoạn URL**. Route `/@:username` không hoạt động vì ký tự `@` đứng trước tham số `:username`, khiến nó không phải là phân đoạn URL đầy đủ.
 
-Hiện tại, cả hàng (row) trong bảng Desktop và thẻ (card) trên Mobile đều đã có `onClick` chuyển tới trang cá nhân. Yêu cầu là khi nhấn riêng vào **avatar**, sẽ chuyển tới **kênh** của người đó thay vì trang cá nhân.
+Route `/c/:username` (dòng 113 trong App.tsx) hoạt động bình thường.
 
-### Cách thực hiện
+## Thay doi
 
 Chỉ cần sửa **1 file**: `src/pages/UsersDirectory.tsx`
 
-#### 1. Desktop (bảng Table)
-- Bọc `Avatar` trong thẻ `<div>` có `onClick` riêng, gọi `e.stopPropagation()` để không kích hoạt `onClick` của cả hàng
-- `onClick` của avatar sẽ điều hướng tới `/@${u.username}` hoặc `/channel/${u.user_id}`
-- Thêm `cursor-pointer` và hiệu ứng hover (ring/border sáng) để người dùng biết avatar có thể nhấn được
+- Hàm `goToProfile`: thay `/@${u.username}` thanh `/c/${u.username}`
+- Hàm `goToChannel`: thay `/@${u.username}` thanh `/c/${u.username}`
 
-#### 2. Mobile (thẻ Card)
-- Tương tự, bọc `Avatar` trong thẻ `<div>` có `onClick` riêng với `e.stopPropagation()`
-- Điều hướng tới kênh của người dùng khi nhấn vào avatar
-- Thêm hiệu ứng hover/ring cho avatar
+Tat ca cac link trong Users Directory (ca Desktop va Mobile) se hoat dong dung, dẫn tới trang kenh cua nguoi dung.
 
-### Chi tiết kỹ thuật
+## Chi tiet ky thuat
 
-- Tạo hàm `goToChannel(u)` điều hướng tới `/@${u.username}` (nếu có username) hoặc `/channel/${u.user_id}` (nếu không có)
-- Avatar trên cả Desktop và Mobile sẽ gọi `goToChannel` thay vì `goToProfile`
-- Nhấn vào phần còn lại của hàng/thẻ vẫn giữ nguyên hành vi cũ (`goToProfile`)
-
+- Dòng 87: `navigate(\`/@\${u.username}\`)` -> `navigate(\`/c/\${u.username}\`)`
+- Dòng 93: `navigate(\`/@\${u.username}\`)` -> `navigate(\`/c/\${u.username}\`)`
+- Sau khi sửa, sẽ kiểm tra lại trên cả Desktop và Mobile để đảm bảo hoạt động đúng
