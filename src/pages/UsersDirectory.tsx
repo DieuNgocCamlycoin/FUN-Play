@@ -88,6 +88,12 @@ const UsersDirectory = () => {
     else navigate(`/user/${u.user_id}`);
   };
 
+  const goToChannel = (e: React.MouseEvent, u: PublicUserStat) => {
+    e.stopPropagation();
+    if (u.username) navigate(`/@${u.username}`);
+    else navigate(`/channel/${u.user_id}`);
+  };
+
   return (
     <MainLayout>
       <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
@@ -189,10 +195,12 @@ const UsersDirectory = () => {
                     <TableCell className="font-medium text-muted-foreground">{i + 1}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-3">
-                        <Avatar className="h-9 w-9">
-                          <AvatarImage src={u.avatar_url || undefined} />
-                          <AvatarFallback>{(u.display_name || u.username || "?")[0]?.toUpperCase()}</AvatarFallback>
-                        </Avatar>
+                        <div onClick={(e) => goToChannel(e, u)} className="cursor-pointer rounded-full ring-2 ring-transparent hover:ring-primary/50 transition-all">
+                          <Avatar className="h-9 w-9">
+                            <AvatarImage src={u.avatar_url || undefined} />
+                            <AvatarFallback>{(u.display_name || u.username || "?")[0]?.toUpperCase()}</AvatarFallback>
+                          </Avatar>
+                        </div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5">
                             <span className="font-medium truncate">{u.display_name || u.username}</span>
@@ -232,10 +240,12 @@ const UsersDirectory = () => {
                   {/* User info */}
                   <div className="flex items-start gap-3">
                     <div className="relative">
-                      <Avatar className="h-11 w-11">
-                        <AvatarImage src={u.avatar_url || undefined} />
-                        <AvatarFallback>{(u.display_name || u.username || "?")[0]?.toUpperCase()}</AvatarFallback>
-                      </Avatar>
+                      <div onClick={(e) => goToChannel(e, u)} className="cursor-pointer rounded-full ring-2 ring-transparent hover:ring-primary/50 transition-all">
+                        <Avatar className="h-11 w-11">
+                          <AvatarImage src={u.avatar_url || undefined} />
+                          <AvatarFallback>{(u.display_name || u.username || "?")[0]?.toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                      </div>
                       <span className="absolute -top-1 -left-1 bg-primary text-primary-foreground text-[10px] font-bold rounded-full h-5 w-5 flex items-center justify-center">
                         {i + 1}
                       </span>
