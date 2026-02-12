@@ -1,61 +1,55 @@
 
 
-# Sửa Mini Player: Không nghe được âm thanh trên mobile
+# Redesign Mini Player theo kiểu YouTube + Sửa lỗi âm thanh
 
-## Nguyên nhân
+## Vấn đề hiện tại
 
-Trình duyệt mobile (iOS Safari, Chrome Android) **chặn autoplay có âm thanh** nếu chưa có tương tác người dùng. Code hiện tại:
+### 1. Giao diện không giống YouTube
+Mini player hiện tại là **ô vuông nhỏ 176px ở góc phải** với video trên, controls dưới. YouTube mobile dùng **thanh ngang full-width ở đáy màn hình** với thumbnail bên trái, thông tin + controls bên phải.
 
-```text
-// GlobalMiniPlayer.tsx dòng 36-40
-if (isPlaying) {
-  video.play().catch(() => {});  // <-- Lỗi bị nuốt im lặng!
-}
-```
-
-Video gọi `play()` với `muted={false}` nhưng mobile browser chặn -> lỗi bị bắt bởi `.catch(() => {})` -> không có âm thanh, không có thông báo.
+### 2. Không nghe được âm thanh
+Hàm `attemptPlay` luôn reset `video.muted = false` mỗi lần `isPlaying` thay đổi, khiến trình duyệt mobile liên tục chặn autoplay. Khi user đã bấm unmute rồi nhưng pause/play lại thì bị mute lại.
 
 ## Giải pháp
 
-### File: `src/components/Video/GlobalMiniPlayer.tsx`
+### File: `src/components/Video/GlobalMiniPlayer.tsx` (viết lại)
 
-1. **Reliable Autoplay Pattern**: Thử play unmuted trước, nếu bị chặn thì tự mute + hiện nút "Bật âm thanh"
-2. **Thêm nút Volume/Mute**: Cho phép user bật/tắt âm thanh trực tiếp trên mini player
-3. **Thêm thanh progress có thể tương tác**: Hiển thị thời gian và tiến trình phát
-4. **Cải thiện UI**: Theo đúng screenshot - hiện label "Đang phát", tên bài, channel, nút Audio, nút Play/Pause, nút Volume
-
-### Chi tiết thay đổi:
-
+**Layout mới theo YouTube:**
 ```text
-User nhấn minimize video
-    |
-    v
-Mini Player hiện lên, thử play() unmuted
-    |
-    ├── Thành công -> Phát có âm thanh bình thường
-    |
-    └── Bị chặn (autoplay policy)
-        |
-        v
-    Tự mute video, play() lại (muted)
-        |
-        v
-    Hiện nút "Bật âm thanh" (tap to unmute)
-        |
-        v
-    User tap -> unmute -> phát có tiếng
++----------------------------------------------------------+
+| [Thumbnail] | Đang phát              | [^] [><] [X]      |
+|  60x34px    | CHA LUON TRONG TIM...  |                    |
+|             | Angle Vinh Nguyen...   |                    |
++========== progress bar (full width) =====================+
+| [Audio]     [<<] [ Play/Pause ] [>>]         [Volume]    |
++----------------------------------------------------------+
 ```
 
-### Thay đổi UI cụ thể:
-- Thêm state `isMuted` và `showUnmutePrompt`
-- Thêm nút Volume (Volume2/VolumeX icon) bên cạnh nút Close
-- Hiện badge "Nhấn để bật âm thanh" khi bị mute do autoplay policy
-- Giữ nguyên swipe-to-dismiss, expand, progress bar hiện tại
-- Thêm `playsInline` attribute (đã có) để tránh fullscreen trên iOS
+- Thanh ngang full-width, fixed ở bottom (trên bottom nav)
+- Thumbnail bên trái, thông tin ở giữa, nút expand/close bên phải
+- Progress bar spanning full width
+- Hàng controls phía dưới: Audio label, play/pause lớn, volume
+
+**Sửa lỗi âm thanh:**
+- Tách biệt logic autoplay khỏi play/pause toggle
+- Chỉ chạy autoplay pattern (muted fallback) lần đầu video được load
+- Khi user đã tương tác (tap play/unmute), giữ trạng thái muted/unmuted ổn định
+- Dùng ref `userHasInteracted` để track và không reset mute state sau tương tác
+
+### Chi tiết kỹ thuật:
+
+**Thay đổi chính:**
+1. Layout từ vertical card 176px -> horizontal bar full-width (`left-2 right-2 bottom-[72px]`)
+2. Thumbnail tĩnh thay vì video element cho phần hiển thị (tiết kiệm tài nguyên)
+3. Video element ẩn (chỉ phát audio), dùng thumbnail cho hình ảnh
+4. Fix autoplay: thêm `userInteractedRef` để không reset mute sau khi user đã bấm
+5. Hiển thị thời gian (mm:ss) cho currentTime
+6. Nút play/pause to hơn, nổi bật hơn với gradient background
+7. Giữ nguyên swipe-to-dismiss
 
 ## Chỉ 1 file cần sửa
 
 | File | Thay đổi |
 |------|----------|
-| `src/components/Video/GlobalMiniPlayer.tsx` | Reliable autoplay pattern + nút volume + unmute prompt |
+| `src/components/Video/GlobalMiniPlayer.tsx` | Redesign layout YouTube-style + fix audio autoplay logic |
 
