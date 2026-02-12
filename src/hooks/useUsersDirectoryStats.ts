@@ -13,6 +13,13 @@ export interface UserDirectoryStat {
   pending_rewards: number;
   approved_reward: number;
   total_camly_rewards: number;
+  view_rewards: number;
+  like_rewards: number;
+  comment_rewards: number;
+  share_rewards: number;
+  upload_rewards: number;
+  signup_rewards: number;
+  bounty_rewards: number;
   posts_count: number;
   videos_count: number;
   comments_count: number;
@@ -36,15 +43,9 @@ export function useUsersDirectoryStats() {
   const fetchStats = useCallback(async () => {
     setLoading(true);
     setError(null);
-
     try {
       const { data: result, error: err } = await supabase.rpc("get_users_directory_stats");
-      if (err) {
-        setError(err.message);
-        setData([]);
-        return;
-      }
-
+      if (err) { setError(err.message); setData([]); return; }
       setData((result as unknown as UserDirectoryStat[]) || []);
     } catch (e) {
       const message = e instanceof Error ? e.message : "Unknown error";
@@ -58,14 +59,10 @@ export function useUsersDirectoryStats() {
 
   const debouncedRefetch = useCallback(() => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    timeoutRef.current = setTimeout(() => {
-      void fetchStats();
-    }, 2000);
+    timeoutRef.current = setTimeout(() => { void fetchStats(); }, 2000);
   }, [fetchStats]);
 
-  useEffect(() => {
-    void fetchStats();
-  }, [fetchStats]);
+  useEffect(() => { void fetchStats(); }, [fetchStats]);
 
   useEffect(() => {
     const channel = supabase
@@ -74,7 +71,6 @@ export function useUsersDirectoryStats() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, debouncedRefetch)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'reward_transactions' }, debouncedRefetch)
       .subscribe();
-
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       supabase.removeChannel(channel);

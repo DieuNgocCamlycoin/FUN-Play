@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+
 export interface PublicUserStat {
   user_id: string;
   username: string;
@@ -10,6 +11,13 @@ export interface PublicUserStat {
   total_camly_rewards: number;
   claimed_camly: number;
   unclaimed_camly: number;
+  view_rewards: number;
+  like_rewards: number;
+  comment_rewards: number;
+  share_rewards: number;
+  upload_rewards: number;
+  signup_rewards: number;
+  bounty_rewards: number;
   posts_count: number;
   videos_count: number;
   comments_count: number;
