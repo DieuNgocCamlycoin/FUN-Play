@@ -265,6 +265,34 @@ export default function RewardHistory() {
             </p>
           </motion.div>
 
+          {/* Summary by Type */}
+          <Card className="mb-6">
+            <CardContent className="p-4">
+              <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                <Coins className="w-4 h-4 text-amber-500" /> Tổng hợp theo loại hoạt động
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {Object.entries(REWARD_TYPE_MAP).map(([key, { icon: TypeIcon, label, color }]) => {
+                  const typeTotal = transactions.filter(t => t.reward_type === key).reduce((sum, t) => sum + t.amount, 0);
+                  const typeCount = transactions.filter(t => t.reward_type === key).length;
+                  if (typeCount === 0) return null;
+                  return (
+                    <div key={key} className="flex items-center gap-2 p-2 rounded-lg bg-muted/30">
+                      <div className={`p-1.5 rounded-full bg-muted ${color}`}>
+                        <TypeIcon className="w-3.5 h-3.5" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs text-muted-foreground truncate">{label}</p>
+                        <p className="text-sm font-semibold text-foreground">{formatNumber(typeTotal)}</p>
+                        <p className="text-[10px] text-muted-foreground">{typeCount} lần</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Stats Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>

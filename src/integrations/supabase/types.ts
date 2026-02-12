@@ -2389,7 +2389,9 @@ export type Database = {
         Returns: {
           avatar_url: string
           avatar_verified: boolean
+          bounty_rewards: number
           claimed_camly: number
+          comment_rewards: number
           comments_count: number
           created_at: string
           display_name: string
@@ -2397,16 +2399,21 @@ export type Database = {
           donations_received_total: number
           donations_sent_count: number
           donations_sent_total: number
+          like_rewards: number
           likes_count: number
           mint_requests_count: number
           minted_fun_total: number
           posts_count: number
+          share_rewards: number
           shares_count: number
+          signup_rewards: number
           total_camly_rewards: number
           unclaimed_camly: number
+          upload_rewards: number
           user_id: string
           username: string
           videos_count: number
+          view_rewards: number
           views_count: number
         }[]
       }
@@ -2422,6 +2429,8 @@ export type Database = {
           avatar_url: string
           avatar_verified: boolean
           banned: boolean
+          bounty_rewards: number
+          comment_rewards: number
           comments_count: number
           created_at: string
           display_name: string
@@ -2429,16 +2438,21 @@ export type Database = {
           donations_received_total: number
           donations_sent_count: number
           donations_sent_total: number
+          like_rewards: number
           likes_count: number
           mint_requests_count: number
           minted_fun_total: number
           pending_rewards: number
           posts_count: number
+          share_rewards: number
           shares_count: number
+          signup_rewards: number
           total_camly_rewards: number
+          upload_rewards: number
           user_id: string
           username: string
           videos_count: number
+          view_rewards: number
           views_count: number
           wallet_address: string
         }[]
