@@ -184,10 +184,10 @@ export default function RewardHistory() {
       if (summary) {
         const s = summary as Record<string, unknown>;
         setTotalEarned(Number(s.total_camly) || 0);
-        setTotalPending(Number(s.pending_camly) || 0);
+        setTotalPending(0);
         setTotalApproved(Number(s.approved_camly) || 0);
         setTotalClaimed(
-          Math.max(0, (Number(s.total_camly) || 0) - (Number(s.pending_camly) || 0) - (Number(s.approved_camly) || 0))
+          Math.max(0, (Number(s.total_camly) || 0) - (Number(s.approved_camly) || 0))
         );
       }
 
@@ -366,18 +366,6 @@ export default function RewardHistory() {
             </motion.div>
 
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-              <Card className="bg-gradient-to-br from-amber-500/10 to-orange-500/10 border-amber-500/30">
-                <CardContent className="p-4 text-center">
-                  <Clock className="w-6 h-6 mx-auto text-amber-500 mb-1" />
-                  <p className="text-xl md:text-2xl font-bold text-amber-500">
-                    <CounterAnimation value={totalPending} decimals={0} />
-                  </p>
-                  <p className="text-xs text-muted-foreground">Chờ duyệt</p>
-                </CardContent>
-              </Card>
-            </motion.div>
-
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
               <Card className="bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border-cyan-500/30">
                 <CardContent className="p-4 text-center">
                   <Gift className="w-6 h-6 mx-auto text-cyan-500 mb-1" />
@@ -436,8 +424,7 @@ export default function RewardHistory() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Tất cả trạng thái</SelectItem>
-                  <SelectItem value="pending">Chờ duyệt</SelectItem>
-                  <SelectItem value="approved">Đã duyệt</SelectItem>
+                  <SelectItem value="approved">Có thể claim</SelectItem>
                   <SelectItem value="claimed">Đã claim</SelectItem>
                 </SelectContent>
               </Select>
@@ -603,9 +590,7 @@ export default function RewardHistory() {
                               className={
                                 tx.claimed 
                                   ? "bg-green-500/20 text-green-500 text-xs" 
-                                  : tx.approved 
-                                    ? "bg-cyan-500/20 text-cyan-500 text-xs"
-                                    : "bg-amber-500/20 text-amber-500 text-xs"
+                                  : "bg-cyan-500/20 text-cyan-500 text-xs"
                               }
                             >
                               {tx.claimed ? (
@@ -613,15 +598,10 @@ export default function RewardHistory() {
                                   <CheckCircle className="w-3 h-3 mr-1" />
                                   Đã claim
                                 </>
-                              ) : tx.approved ? (
+                              ) : (
                                 <>
                                   <Gift className="w-3 h-3 mr-1" />
                                   Có thể claim
-                                </>
-                              ) : (
-                                <>
-                                  <Clock className="w-3 h-3 mr-1" />
-                                  Chờ duyệt
                                 </>
                               )}
                             </Badge>

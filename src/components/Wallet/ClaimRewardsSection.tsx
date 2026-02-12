@@ -179,7 +179,7 @@ export const ClaimRewardsSection = () => {
       
       <CardContent className="space-y-6">
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-3 gap-4">
           <StatCard
             icon={Trophy}
             label="Tổng đã nhận"
@@ -192,14 +192,7 @@ export const ClaimRewardsSection = () => {
             label="Có thể Claim"
             value={stats.approvedRewards}
             color="from-green-500/10 to-emerald-500/10 border-green-500/20"
-            tooltip="Số CAMLY đã được Admin duyệt, có thể rút về ví"
-          />
-          <StatCard
-            icon={Clock}
-            label="Đang chờ duyệt"
-            value={stats.pendingRewards}
-            color="from-yellow-500/10 to-orange-500/10 border-yellow-500/20"
-            tooltip="Số CAMLY đang chờ Admin xét duyệt"
+            tooltip="Số CAMLY có thể rút về ví"
           />
           <StatCard
             icon={Wallet}
@@ -259,10 +252,6 @@ export const ClaimRewardsSection = () => {
 
         {/* Info Notes */}
         <div className="p-3 bg-muted/50 rounded-lg text-sm text-muted-foreground space-y-1">
-          <p className="flex items-center gap-2">
-            <Info className="h-4 w-4" />
-            <span>Thưởng cần được Admin duyệt trước khi có thể Claim</span>
-          </p>
           <p className="flex items-center gap-2">
             <CheckCircle className="h-4 w-4 text-green-500" />
             <span>Ngưỡng tối thiểu: 200,000 CAMLY</span>
