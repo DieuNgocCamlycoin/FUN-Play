@@ -81,8 +81,8 @@ const bscscanTx = (hash: string) => `https://bscscan.com/tx/${hash}`;
 const formatNumber = (num: number) => new Intl.NumberFormat("vi-VN").format(num);
 
 // Ngày giới hạn thống kê thưởng tay (CAMLY + USDT dùng chung khoảng)
-const WALLET1_START = "2025-12-09T00:00:00Z"; // Ví 1: từ 9/12/2025
-const WALLET1_END   = "2026-01-18T00:00:00Z"; // đến 18/1/2026
+const WALLET1_START = "2025-11-25T00:00:00Z"; // Ví 1: từ 25/11/2025
+const WALLET1_END   = "2026-01-09T00:00:00Z"; // đến hết 8/1/2026
 const WALLET2_START = "2026-01-14T00:00:00Z"; // Ví 2: từ 14/1/2026
 const WALLET2_END   = "2026-01-18T00:00:00Z"; // đến 18/1/2026
 
@@ -397,7 +397,7 @@ const RewardPoolTab = () => {
           <CardContent>
             <p className="text-2xl font-bold text-rose-500">{formatNumber(Math.floor(manualStats.wallet1Camly))} <span className="text-sm font-normal">CAMLY</span></p>
             <p className="text-lg font-bold text-emerald-500">{formatNumber(Math.floor(manualStats.wallet1Usdt))} <span className="text-sm font-normal">USDT</span></p>
-            <p className="text-[10px] text-muted-foreground mt-1">9/12/2025 – 18/1/2026</p>
+            <p className="text-[10px] text-muted-foreground mt-1">25/11/2025 – 8/1/2026</p>
             <a href={bscscanAddr(SYSTEM_WALLETS.TREASURY.address)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary mt-2 font-mono" onClick={e => e.stopPropagation()}>
               {shortenAddress(SYSTEM_WALLETS.TREASURY.address)}
               <ExternalLink className="w-3 h-3" />
@@ -434,7 +434,7 @@ const RewardPoolTab = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <HandCoins className={`w-5 h-5 ${selectedWallet === "w1" ? "text-rose-500" : "text-fuchsia-500"}`} />
-              Chi tiết {selectedWallet === "w1" ? "Ví 1" : "Ví 2"} ({selectedWallet === "w1" ? "9/12/2025 – 18/1/2026" : "14/1/2026 – 18/1/2026"})
+              Chi tiết {selectedWallet === "w1" ? "Ví 1" : "Ví 2"} ({selectedWallet === "w1" ? "25/11/2025 – 8/1/2026" : "14/1/2026 – 18/1/2026"})
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -477,76 +477,6 @@ const RewardPoolTab = () => {
                         {formatNumber(Math.floor(tx.amount))}
                       </td>
                       <td className="py-3 px-2 text-center">{getTokenBadge(tx.token_type)}</td>
-                      <td className="py-3 px-2 text-center">
-                        <a href={bscscanTx(tx.tx_hash)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
-                          <ExternalLink className="w-3 h-3" />
-                        </a>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Manual Rewards Table */}
-      {manualTxs.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <HandCoins className="w-5 h-5 text-rose-500" />
-              Thưởng bằng tay gần đây
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-3 px-2">Thời gian</th>
-                    <th className="text-left py-3 px-2">Từ ví</th>
-                    <th className="text-left py-3 px-2">Người nhận</th>
-                    <th className="text-right py-3 px-2">Số lượng</th>
-                    <th className="text-center py-3 px-2">Token</th>
-                    <th className="text-center py-3 px-2">TX</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {manualTxs.map((tx) => (
-                    <tr key={tx.id} className="border-b border-muted/50 hover:bg-muted/30">
-                      <td className="py-3 px-2 text-muted-foreground whitespace-nowrap">
-                        {tx.block_timestamp ? format(new Date(tx.block_timestamp), "dd/MM HH:mm", { locale: vi }) : "--"}
-                      </td>
-                      <td className="py-3 px-2">
-                        <Badge variant="outline" className="text-xs">{tx.from_wallet}</Badge>
-                      </td>
-                      <td className="py-3 px-2">
-                        {tx.recipient_user_id ? (
-                          <a href={`/profile/${tx.recipient_user_id}`} className="flex items-center gap-2 hover:underline">
-                            <Avatar className="w-6 h-6">
-                              {tx.recipient_avatar ? <AvatarImage src={tx.recipient_avatar} /> : null}
-                              <AvatarFallback className="text-[10px]">{(tx.recipient_channel || tx.recipient_username)?.[0]?.toUpperCase()}</AvatarFallback>
-                            </Avatar>
-                            <div className="min-w-0">
-                              <p className="font-medium text-sm truncate max-w-[120px]">{tx.recipient_channel || tx.recipient_username}</p>
-                              <p className="text-xs text-muted-foreground">@{tx.recipient_username}</p>
-                            </div>
-                          </a>
-                        ) : (
-                          <a href={bscscanAddr(tx.to_address)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 font-mono text-xs text-muted-foreground hover:text-primary">
-                            {shortenAddress(tx.to_address)}
-                            <ExternalLink className="w-3 h-3" />
-                          </a>
-                        )}
-                      </td>
-                      <td className={`py-3 px-2 text-right font-bold whitespace-nowrap ${tx.token_type === "USDT" ? "text-emerald-500" : "text-yellow-500"}`}>
-                        {formatNumber(Math.floor(tx.amount))}
-                      </td>
-                      <td className="py-3 px-2 text-center">
-                        {getTokenBadge(tx.token_type)}
-                      </td>
                       <td className="py-3 px-2 text-center">
                         <a href={bscscanTx(tx.tx_hash)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
                           <ExternalLink className="w-3 h-3" />
