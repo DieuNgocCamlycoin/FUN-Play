@@ -1,30 +1,17 @@
 
-# Sắp xếp lại thứ tự tab trong trang Channel
+# Thêm nút Ngắt kết nối ví trên mobile trang Wallet
+
+## Vấn đề
+Khi ví đã kết nối, trang Wallet chỉ hiển thị địa chỉ ví nhưng không có nút "Ngắt kết nối" (disconnect). Trên desktop, người dùng có thể ngắt qua dropdown trong header, nhưng trên mobile thì không có cách nào dễ dàng.
 
 ## Thay đổi
 
-Sửa **1 file**: `src/components/Profile/ProfileTabs.tsx`
+Sửa **1 file**: `src/pages/Wallet.tsx`
 
-### Thứ tự hiện tại:
-1. Bài viết (posts)
-2. Video
-3. Shorts
-4. Livestream
-5. Playlist
-6. Giới thiệu
-
-### Thứ tự mới:
-1. **Video** (đưa lên đầu)
-2. Shorts
-3. Livestream
-4. **Bài viết** (chuyển xuống sau Livestream)
-5. Playlist
-6. Giới thiệu
+1. Import thêm `disconnectWallet` từ hook `useWalletConnectionWithRetry` và icon `LogOut` từ lucide-react
+2. Khi ví đã kết nối (dòng 76-80), thêm nút "Ngắt kết nối" (icon LogOut) ngay cạnh badge địa chỉ ví
 
 ### Chi tiết kỹ thuật
-
-1. Sắp xếp lại mảng `tabs` (dòng 26-33) theo thứ tự mới
-2. Đổi `useState("posts")` thành `useState("videos")` (dòng 19) để tab Video được chọn mặc định khi vào trang
-3. Sắp xếp lại các `TabsContent` tương ứng cho khớp thứ tự
-
-Thay đổi áp dụng cho cả Desktop và Mobile vì cùng dùng chung component `ProfileTabs`.
+- Destructure thêm `disconnectWallet` từ hook (dòng 20-32)
+- Thay thế badge địa chỉ ví (dòng 77-80) thành một nhóm gồm: badge địa chỉ + nút nhỏ icon LogOut để ngắt kết nối
+- Nút sẽ có style `variant="ghost" size="icon"` với icon màu đỏ (destructive) để dễ nhận biết
