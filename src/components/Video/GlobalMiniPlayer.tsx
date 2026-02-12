@@ -33,9 +33,9 @@ export function GlobalMiniPlayer() {
 
   // First-load autoplay: try unmuted, fallback muted + prompt
   const initialPlay = useCallback(async (video: HTMLVideoElement) => {
+    console.log("[MiniPlayer] initialPlay called, src:", video.src?.slice(-60), "userInteracted:", userInteractedRef.current);
     if (userInteractedRef.current) {
-      // User already interacted — respect their mute choice
-      try { await video.play(); } catch { /* give up */ }
+      try { await video.play(); console.log("[MiniPlayer] Resumed (user-interacted)"); } catch (e: any) { console.error("[MiniPlayer] Resume failed:", e?.message); }
       return;
     }
     video.muted = false;
@@ -43,11 +43,13 @@ export function GlobalMiniPlayer() {
       await video.play();
       setIsMuted(false);
       setShowUnmutePrompt(false);
-    } catch {
+      console.log("[MiniPlayer] Autoplay unmuted OK");
+    } catch (e: any) {
+      console.warn("[MiniPlayer] Unmuted blocked:", e?.message, "-> trying muted");
       video.muted = true;
       setIsMuted(true);
       setShowUnmutePrompt(true);
-      try { await video.play(); } catch { /* give up */ }
+      try { await video.play(); console.log("[MiniPlayer] Autoplay muted OK"); } catch (e2: any) { console.error("[MiniPlayer] Muted also failed:", e2?.message); }
     }
   }, []);
 
@@ -62,16 +64,13 @@ export function GlobalMiniPlayer() {
     }
   }, [isPlaying, miniPlayerVideo, initialPlay]);
 
-  // Reset on new video
+  // Reset on new video (currentTime set via onLoadedMetadata)
   useEffect(() => {
-    const video = videoRef.current;
-    if (!video || !miniPlayerVideo) return;
+    if (!miniPlayerVideo) return;
     userInteractedRef.current = false;
     setIsMuted(false);
     setShowUnmutePrompt(false);
-    if (miniPlayerVideo.currentTime > 0) {
-      video.currentTime = miniPlayerVideo.currentTime;
-    }
+    console.log("[MiniPlayer] New video:", miniPlayerVideo.id, "url:", miniPlayerVideo.videoUrl?.slice(-60));
   }, [miniPlayerVideo?.id]);
 
   const handleExpand = () => {
@@ -156,13 +155,22 @@ export function GlobalMiniPlayer() {
           src={miniPlayerVideo.videoUrl}
           className="absolute w-[1px] h-[1px] opacity-0 pointer-events-none"
           playsInline
+          preload="auto"
+          crossOrigin="anonymous"
+          onLoadedMetadata={(e) => {
+            const t = miniPlayerVideo.currentTime;
+            if (t > 0) {
+              e.currentTarget.currentTime = t;
+              console.log("[MiniPlayer] Set currentTime to", t);
+            }
+          }}
           onTimeUpdate={() => {
             const video = videoRef.current;
             if (video) updateProgress(video.currentTime, video.duration);
           }}
           onEnded={() => setIsPlaying(false)}
           onLoadedData={() => console.log("[MiniPlayer] Video loaded successfully")}
-          onError={(e) => console.error("[MiniPlayer] Video error:", e.currentTarget.error?.message)}
+          onError={(e) => console.error("[MiniPlayer] Video error:", e.currentTarget.error?.message, "src:", e.currentTarget.src?.slice(-60))}
         />
 
         {/* Progress bar - full width at top */}
