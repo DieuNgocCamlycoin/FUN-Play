@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, Wallet as WalletIcon } from "lucide-react";
+import { ArrowLeft, Wallet as WalletIcon, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -21,6 +21,7 @@ const WalletPage = () => {
     isConnected, 
     address, 
     connectWithRetry, 
+    disconnectWallet,
     isConnecting, 
     isInitialized,
     // Wallet change dialog
@@ -74,9 +75,14 @@ const WalletPage = () => {
             
             <div className="flex items-center gap-2">
               {isConnected && address ? (
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/30">
-                  <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-                  <span className="text-sm font-mono text-primary">{formatAddress(address)}</span>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/30">
+                    <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                    <span className="text-sm font-mono text-primary">{formatAddress(address)}</span>
+                  </div>
+                  <Button variant="ghost" size="icon" onClick={disconnectWallet} className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10">
+                    <LogOut className="h-4 w-4" />
+                  </Button>
                 </div>
               ) : (
                 <Button variant="outline" size="sm" onClick={() => setShowWalletModal(true)} disabled={isConnecting || !isInitialized} className="gap-2">
