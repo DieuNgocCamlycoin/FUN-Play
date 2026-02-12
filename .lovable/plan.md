@@ -1,83 +1,77 @@
 
+# Cập nhật dữ liệu thưởng tay trên trang CAMLY Rewards Admin
 
-# Đồng bộ giao dịch Ví tặng thưởng 2 và nâng cấp trang CAMLY Rewards Admin
+## Phát hiện từ dữ liệu database
 
-## Nguyên nhân gốc
+### Vấn đề 1: Thiếu block_timestamp
+- **65 trên 132** giao dịch từ Ví 1 có `block_timestamp = NULL` (do backfill cũ từ BscScan không lấy timestamp)
+- Cần chạy lại `backfill-moralis` cho Ví 1 để cập nhật timestamp cho các giao dịch cũ
 
-Ví tặng thưởng 2 (`0x7b32E82C64FF4f02dA024B47A8653e1707003339`) đã có **9 giao dịch CAMLY trên blockchain** (tổng khoảng 3.500.000 CAMLY gửi ra + 5.009.999 CAMLY nhận vào), nhưng hệ thống hiển thị 0 vì:
+### Vấn đề 2: Hiển thị sai avatar/tên người nhận
+- Địa chỉ `0xB34F...2e18` không có profile nào trong database, nên hiển thị dạng địa chỉ rút gọn thay vì avatar
+- Các địa chỉ khác đã có đầy đủ profile (Kim. Rich, Angel Thu Huyền, Huỳnh Tỷ Đô, Angel Ngọc Lắm, v.v.)
 
-- Hai edge function đồng bộ dữ liệu (`sync-transactions-cron` và `backfill-moralis`) chỉ liệt kê **2 ví hệ thống** (REWARD và TREASURY), **chưa có ví thứ 3** (`0x7b32...`).
-- Do đó, giao dịch từ ví 2 chưa bao giờ được import vào bảng `wallet_transactions` trong database.
+### Vấn đề 3: Chưa phân tách CAMLY và USDT
+- Có 6 giao dịch USDT (tổng 72 USDT) từ Ví 1 -- cùng token_contract nhưng khác `token_type`
+- Hiện tại code gộp tất cả vào "CAMLY" mà không phân biệt
+
+### Dữ liệu thực tế đã kiểm chứng:
+- **Ví 1** (trước 8/1/2026): 59 giao dịch CAMLY, tổng ~19.691.562 CAMLY
+- **Ví 2** (trước 18/1/2026): 7 giao dịch CAMLY, tổng 3.500.000 CAMLY
+- **USDT** (Ví 1): 6 giao dịch, tổng 72 USDT (đều chưa có timestamp)
 
 ---
 
-## Bước 1: Thêm ví tặng thưởng 2 vào hệ thống đồng bộ
+## Bước 1: Chạy lại backfill để cập nhật block_timestamp
 
-### File `supabase/functions/sync-transactions-cron/index.ts`
-- Thêm địa chỉ `0x7b32E82C64FF4f02dA024B47A8653e1707003339` vào mảng `SYSTEM_WALLETS`
-
-### File `supabase/functions/backfill-moralis/index.ts`
-- Thêm địa chỉ `0x7b32E82C64FF4f02dA024B47A8653e1707003339` vào mảng `SYSTEM_WALLETS`
-
-Sau khi deploy, gọi `backfill-moralis` để import toàn bộ lịch sử giao dịch của ví 2 từ blockchain vào database.
+Gọi Edge Function `backfill-moralis` để lấy lại dữ liệu từ blockchain cho Ví 1, cập nhật timestamp cho 65 giao dịch đang thiếu.
 
 ---
 
-## Bước 2: Nâng cấp trang CAMLY Rewards Admin
+## Bước 2: Cập nhật `RewardPoolTab.tsx`
 
-### File `src/components/Admin/tabs/RewardPoolTab.tsx`
+### 2a. Bỏ lọc theo token_contract, thêm phân tách CAMLY/USDT
+- Xoá bộ lọc `.ilike("token_contract", camly)` để lấy TẤT CẢ giao dịch (CAMLY + USDT + BNB + BTC)
+- Tính riêng tổng CAMLY và tổng USDT dựa trên trường `token_type`
+- Hiển thị tổng từng loại trên card ví
 
-**2a. Đổi tên card ví thành địa chỉ ví rút gọn:**
-- "Ví tặng thưởng 1" thành hiển thị `0x1DC2...5998` kèm link BscScan
-- "Ví tặng thưởng 2" thành hiển thị `0x7b32...3339` kèm link BscScan
+### 2b. Thêm bộ lọc ngày cho phần thống kê tặng thưởng
+- Ví 1: chỉ tính giao dịch có `block_timestamp < 2026-01-09` (trước ngày 8/1/2026)
+- Ví 2: chỉ tính giao dịch có `block_timestamp < 2026-01-19` (trước ngày 18/1/2026)
+- Ghi chú rõ mốc thời gian trên mỗi card ví
 
-**2b. Thêm card "Tổng đã tặng thưởng hệ thống":**
-- Giá trị = CAMLY đã claim (từ `claim_requests`) + Tổng thưởng tay (từ `wallet_transactions`)
-- Đặt ở vị trí nổi bật phía trên cùng
+### 2c. Sửa hiển thị người nhận
+- Giữ nguyên logic lookup profile qua `wallet_address`
+- Với địa chỉ không có profile: hiển thị địa chỉ rút gọn kèm link BscScan (thay vì avatar trống)
+- Hiển thị đúng avatar cho các user đã có profile
 
-**2c. Hiển thị avatar + tên kênh người nhận:**
-- Truy vấn bổ sung `display_name`, `avatar_url` từ bảng `profiles` và `name` từ bảng `channels`
-- Mỗi dòng trong bảng "Thưởng bằng tay gần đây" hiển thị: Avatar, tên kênh, @username (link tới `/c/{username}`)
+### 2d. Hiển thị số lượng riêng CAMLY và USDT trong bảng
+- Thêm cột hoặc badge hiển thị loại token (CAMLY/USDT)
+- Số lượng CAMLY hiển thị màu vàng, USDT hiển thị màu xanh lá
 
-**2d. Cập nhật thời gian thực mỗi 2 giây:**
-- Thêm `useEffect` với `setInterval(2000)` để tự động gọi lại `fetchData()`
-- Hiển thị badge "Live" cho biết dữ liệu đang cập nhật real-time
-- Cleanup interval khi component unmount
-
-**2e. Sắp xếp lại bố cục tối ưu web và mobile:**
-
-```text
-+-------------------------------------------------------+
-| [Tổng đã tặng thưởng hệ thống] [Live]  [Làm mới]     |
-+-------------------------------------------------------+
-| Pool CAMLY  |  BNB Gas  |  Đã claim  |  Thưởng tay    |
-+-------------------------------------------------------+
-| Ví 0x1DC2...5998       |  Ví 0x7b32...3339            |
-+-------------------------------------------------------+
-| Bảng: Thưởng tay gần đây (avatar + tên kênh + link)   |
-+-------------------------------------------------------+
-| Bảng: Lịch sử Claim                                   |
-+-------------------------------------------------------+
-```
-
-- Mobile: các card tự động xếp 1 cột, bảng cuộn ngang
-
-**2f. Liên kết với trang User Stats:**
-- Click vào tên người nhận trong bảng sẽ mở trang channel `/c/{username}`
+### 2e. Cập nhật card "Tổng đã tặng thưởng hệ thống"
+- Tổng = Đã claim + Thưởng tay CAMLY
+- Hiển thị riêng dòng phụ cho USDT
 
 ---
 
 ## Chi tiết kỹ thuật
 
-### Files cần sửa (3 files):
+### File cần sửa (1 file):
+`src/components/Admin/tabs/RewardPoolTab.tsx`
 
-1. `supabase/functions/sync-transactions-cron/index.ts` -- Thêm ví 2 vào mảng SYSTEM_WALLETS
-2. `supabase/functions/backfill-moralis/index.ts` -- Thêm ví 2 vào mảng SYSTEM_WALLETS
-3. `src/components/Admin/tabs/RewardPoolTab.tsx` -- Toàn bộ nâng cấp giao diện (địa chỉ ví, tổng tặng thưởng, avatar + tên kênh, real-time 2s, bố cục mới)
+### Thay đổi trong `fetchManualRewards()`:
+- Xoá filter `.ilike("token_contract", camly)`
+- Thêm xử lý phân loại theo `token_type` khi tính tổng
+- Thêm điều kiện lọc ngày cho mỗi ví
+- Cập nhật state `manualStats` để chứa thêm `wallet1Usdt`, `wallet2Usdt`, `totalUsdt`
+
+### Thay đổi giao diện:
+- Card ví: hiển thị "X CAMLY + Y USDT"
+- Bảng giao dịch: thêm badge token_type cho mỗi dòng
+- Card tổng: thêm dòng USDT riêng
 
 ### Thứ tự thực hiện:
-1. Cập nhật 2 edge function để thêm ví 2
-2. Deploy và gọi `backfill-moralis` để đồng bộ lịch sử giao dịch ví 2
-3. Cập nhật giao diện RewardPoolTab với đầy đủ tính năng mới
-4. Kiểm tra dữ liệu hiển thị chính xác trên cả web và mobile
-
+1. Chạy `backfill-moralis` để cập nhật block_timestamp cho các giao dịch cũ
+2. Cập nhật `RewardPoolTab.tsx` với logic mới (phân tách token, lọc ngày, avatar chính xác)
+3. Kiểm tra hiển thị trên web và mobile
