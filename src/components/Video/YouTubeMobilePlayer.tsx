@@ -327,8 +327,8 @@ export function YouTubeMobilePlayer({
       const isShortVideo = duration < SHORT_VIDEO_THRESHOLD;
       
       if (isShortVideo) {
-        // Short video: Must watch 90%+
-        if (currentTime >= duration * 0.9) {
+        // Short video: Must watch 60%+
+        if (currentTime >= duration * 0.6) {
           setViewRewarded(true);
           console.log('[Mobile Reward] Short video 90% reached, awarding view reward');
           const result = await awardViewReward(videoId);
