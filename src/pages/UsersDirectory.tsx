@@ -180,7 +180,7 @@ const UsersDirectory = () => {
 
         {/* Desktop Table */}
         {!loading && !error && !isMobile && (
-          <Card>
+          <Card className="max-h-[calc(100vh-220px)] overflow-auto">
             <Table>
               <TableHeader className="sticky top-0 z-10 bg-background">
                 <TableRow>
