@@ -1,101 +1,56 @@
 
 
-# Fix Upload Reward System: Daily Limits and Category Tracking
+# Update LIKE Reward to 2,000 CAMLY and Add Daily Progress
 
-## Issues Found
+## Current State
 
-### Issue 1: No Daily Limit Enforcement for Short/Long Video Uploads (CRITICAL)
-The `award-camly` edge function checks daily limits for VIEW, LIKE, SHARE, COMMENT but **completely skips** limit checks for SHORT_VIDEO_UPLOAD and LONG_VIDEO_UPLOAD. The database columns `short_video_count` and `long_video_count` in `daily_reward_limits` exist but are never checked or updated. A user could theoretically upload unlimited videos and get unlimited rewards.
+| Source | LIKE Value | Status |
+|--------|-----------|--------|
+| Edge function default | 2,000 | Correct |
+| Database `reward_config` | 5,000 | Wrong - needs update to 2,000 |
+| Client `enhancedRewards.ts` | 5,000 | Wrong - needs update to 2,000 |
 
-- **Required**: Short videos limited to 5/day, Long videos limited to 3/day
-- **Current**: No enforcement at all
-
-### Issue 2: Edge Function Not Tracking Upload Counts by Type
-The edge function only increments `uploads_count` (a generic counter) for upload rewards. It does not update `short_video_count` or `long_video_count`, making it impossible to enforce per-type limits.
-
-### Issue 3: Mobile Upload Context Has Extra Dispatch (Minor)
-The `UploadContext.tsx` (mobile background upload) calls `supabase.functions.invoke("award-camly")` directly and then manually dispatches `camly-reward` events (lines 304 and 323). This is correct since it bypasses the `useAutoReward` hook, but it is inconsistent with the desktop flow.
+The database value overrides the edge function default, so users are currently receiving 5,000 CAMLY per like instead of the intended 2,000.
 
 ## Changes
 
-### File 1: `supabase/functions/award-camly/index.ts`
-Add daily limit checks for SHORT_VIDEO_UPLOAD and LONG_VIDEO_UPLOAD before awarding.
-
-**Add after the COMMENT daily limit check (around line 417):**
-```typescript
-// Check SHORT_VIDEO daily limit
-if (effectiveType === "SHORT_VIDEO_UPLOAD") {
-  const currentShortCount = limits?.short_video_count || 0;
-  if (currentShortCount >= DAILY_LIMITS.SHORT_VIDEO) {
-    return Response({ 
-      success: false, 
-      reason: `Daily short video limit reached (${DAILY_LIMITS.SHORT_VIDEO} videos)`,
-      ...
-    });
-  }
-}
-
-// Check LONG_VIDEO daily limit
-if (effectiveType === "LONG_VIDEO_UPLOAD") {
-  const currentLongCount = limits?.long_video_count || 0;
-  if (currentLongCount >= DAILY_LIMITS.LONG_VIDEO) {
-    return Response({
-      success: false,
-      reason: `Daily long video limit reached (${DAILY_LIMITS.LONG_VIDEO} videos)`,
-      ...
-    });
-  }
-}
+### 1. Update Database `reward_config` (Data Update)
+Update the `LIKE_REWARD` config value from `5000` to `2000` using the insert tool:
+```sql
+UPDATE reward_config SET config_value = '2000' WHERE config_key = 'LIKE_REWARD';
 ```
 
-**Update the daily limits tracking section (around line 498):**
-```typescript
-} else if (effectiveType === "SHORT_VIDEO_UPLOAD") {
-  updateFields.short_video_count = (limits?.short_video_count || 0) + 1;
-  updateFields.uploads_count = (limits?.uploads_count || 0) + 1;
-  updateFields.upload_rewards_earned = (limits?.upload_rewards_earned || 0) + amount;
-} else if (effectiveType === "LONG_VIDEO_UPLOAD") {
-  updateFields.long_video_count = (limits?.long_video_count || 0) + 1;
-  updateFields.uploads_count = (limits?.uploads_count || 0) + 1;
-  updateFields.upload_rewards_earned = (limits?.upload_rewards_earned || 0) + amount;
-} else if (effectiveType === "UPLOAD" || effectiveType === "FIRST_UPLOAD") {
-  updateFields.uploads_count = (limits?.uploads_count || 0) + 1;
-  updateFields.upload_rewards_earned = (limits?.upload_rewards_earned || 0) + amount;
-}
-```
+### 2. Update Client Constant (`src/lib/enhancedRewards.ts`)
+Change line 7 from `LIKE: 5000` to `LIKE: 2000` to match the edge function and database.
 
-### File 2: `src/contexts/UploadContext.tsx`
-Remove duplicate `window.dispatchEvent` calls (lines 304-306 and 323-325) since when the mobile upload calls `supabase.functions.invoke("award-camly")` directly, these manual dispatches create inconsistency. Instead, refactor to use the `useAutoReward` hook pattern, or keep direct calls but remove manual dispatches since the reward history page already has Realtime subscription.
+### 3. Add Daily Progress Card (`src/pages/RewardHistory.tsx`)
+Add a "Daily Progress" section after the header showing today's usage vs. limits:
+- Views: X/10 (5,000 CAMLY each)
+- Likes: X/20 (2,000 CAMLY each)
+- Comments: X/10 (5,000 CAMLY each)
+- Shares: X/10 (5,000 CAMLY each)
+- Short Videos: X/5 (20,000 CAMLY each)
+- Long Videos: X/3 (70,000 CAMLY each)
+- Total daily earnings vs. 500,000 CAMLY hard cap
 
-However, since `UploadContext` cannot use the `useAutoReward` hook (it's a context provider, not a component with hooks from other hooks), we keep the direct invoke but ensure only one dispatch path. The simplest fix: keep the manual dispatches since these are the ONLY source (no hook involved). This path is actually correct -- no change needed here.
+The card fetches from the `daily_reward_limits` table for today's date and auto-refreshes on `camly-reward` events.
 
-### File 3: `src/lib/enhancedRewards.ts`
-Already has correct constants (SHORT_VIDEO: 5, LONG_VIDEO: 3). No change needed.
+### 4. No Edge Function Change Needed
+The edge function already has `LIKE: 2000` as default, and will now load `2000` from the database too.
 
-### File 4: `src/pages/RewardHistory.tsx`
-Already has correct labels for SHORT_VIDEO_UPLOAD and LONG_VIDEO_UPLOAD. No change needed.
+## Reward Formula Summary (After Fix)
 
-## Summary
-
-| Item | Status |
-|------|--------|
-| Short video reward: 20,000 CAMLY | Already correct |
-| Long video reward: 70,000 CAMLY | Already correct |
-| Short video daily limit: 5/day | **NOT ENFORCED -- needs fix** |
-| Long video daily limit: 3/day | **NOT ENFORCED -- needs fix** |
-| short_video_count tracking | **NOT UPDATED -- needs fix** |
-| long_video_count tracking | **NOT UPDATED -- needs fix** |
-| Content moderation (Angel AI) | Already working |
-| Pending review on negative content | Already working |
-| Reward categorization in history | Already correct |
-| Desktop upload reward flow | Already correct |
-| Mobile upload reward flow | Already correct |
+| Action | Reward | Daily Limit | Max Daily |
+|--------|--------|-------------|-----------|
+| View | 5,000 | 10 views | 50,000 |
+| Like | 2,000 | 20 likes | 40,000 |
+| Comment | 5,000 | 10 comments | 50,000 |
+| Share | 5,000 | 10 shares | 50,000 |
+| Short Video Upload | 20,000 | 5 videos | 100,000 |
+| Long Video Upload | 70,000 | 3 videos | 210,000 |
+| **Hard Cap** | -- | -- | **500,000/day** |
 
 ## Expected Result
-- Short video uploads (3 min or less): Earn 20,000 CAMLY, max 5 per day
-- Long video uploads (over 3 min): Earn 70,000 CAMLY, max 3 per day
-- Daily limits enforced server-side in the edge function
-- Upload counts tracked separately for short and long videos
-- Content moderation flags negative content for admin review
-- Reward history correctly categorizes and displays upload rewards
-
+- LIKE rewards correctly award 2,000 CAMLY per like (no duplicates, max 20/day)
+- Reward History page shows daily progress with accurate limits and counts
+- All values consistent across database, edge function, and client
