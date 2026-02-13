@@ -258,6 +258,24 @@ export const useAdminManage = () => {
     }
   };
 
+  const bulkApproveAll = async () => {
+    if (!user) return null;
+    setActionLoading(true);
+    try {
+      const { data, error } = await supabase.rpc("bulk_approve_all_rewards", {
+        p_admin_id: user.id,
+      });
+      if (error) throw error;
+      await fetchUsers();
+      return data as { affected_users: number; total_amount: number };
+    } catch (error) {
+      console.error("Error bulk approving:", error);
+      return null;
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   return {
     users,
     loading,
@@ -271,6 +289,7 @@ export const useAdminManage = () => {
     approveReward,
     rejectReward,
     unapproveReward,
+    bulkApproveAll,
     refetch: fetchUsers,
   };
 };
