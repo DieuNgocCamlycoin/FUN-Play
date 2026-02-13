@@ -1,21 +1,38 @@
 
+# Add Fun Play Logo to Key Pages
 
-# Remove Daily Progress Card from Reward History
+## Overview
+Save the uploaded Fun Play logo to `src/assets/funplay-planet-logo.png` and place it in the header area of 6 pages/components, replacing the current icon circles with the logo image.
 
-## What will be removed
+## Pages to Update
 
-The "Daily Progress" card (lines 340-389 in `src/pages/RewardHistory.tsx`) that shows progress bars for views, likes, comments, shares, short videos, and long videos with their daily limits and totals.
+### 1. Reward History (`src/pages/RewardHistory.tsx`)
+- Replace the `<Coins>` icon (line 310) with the Fun Play logo (h-10 w-10 rounded-full)
+- Logo sits next to the "Lich Su Thuong CAMLY" title
 
-## Changes
+### 2. Transactions (`src/pages/Transactions.tsx`)
+- Replace the `<Globe>` icon inside the animated circle (lines 44-57) with the Fun Play logo image
+- Keep the glowing animation, swap icon for logo
 
-### File: `src/pages/RewardHistory.tsx`
+### 3. Watch History (`src/pages/WatchHistory.tsx`)
+- Replace the gradient circle with `<History>` icon (lines 102-104) with the Fun Play logo
+- Keep the same size (w-12 h-12 rounded-full)
 
-1. **Remove the Daily Progress card JSX** (lines 340-389) -- the entire `{dailyProgress && (...)}` block
-2. **Remove the `dailyProgress` state** (lines 95-98)
-3. **Remove the `fetchDailyProgress` function** (lines 108-112)
-4. **Remove `fetchDailyProgress()` call** from the `debouncedRefresh` callback (line 104) and from the `useEffect` (line 118)
-5. **Remove unused imports**: `Progress`, `getDailyRewardStatus`, `DAILY_LIMITS`, `REWARD_AMOUNTS`, and the `Calendar` icon (since it's only used by the daily progress card)
+### 4. Users Directory (`src/pages/UsersDirectory.tsx`)
+- Replace the `<Users>` icon in header (lines 135-137) with the Fun Play logo
+- Same container style (p-2.5 rounded-xl)
 
-### No other files need changes
-The reward system logic in `enhancedRewards.ts` and the `award-camly` edge function remain untouched -- only the UI display is being removed.
+### 5. Admin Dashboard Layout (`src/components/Admin/UnifiedAdminLayout.tsx`)
+- Replace the gradient div with `<Crown>` icon (lines 84-86) with the Fun Play logo
+- Keep the same size (w-10 h-10 rounded-xl)
 
+### 6. Receipt Page (`src/pages/Receipt.tsx`)
+- Replace the Gift icon circle (lines 94-97) with the Fun Play logo
+- Keep centered layout, same size (h-12 w-12)
+
+## Technical Details
+
+- Copy `user-uploads://7.png` to `src/assets/funplay-planet-logo.png`
+- Import in each file: `import funplayPlanetLogo from "@/assets/funplay-planet-logo.png"`
+- Use `<img src={funplayPlanetLogo} alt="FUN Play" className="h-10 w-10 rounded-full object-cover" />` (sizes adjusted per page)
+- Mobile-optimized sizing maintained in all pages
