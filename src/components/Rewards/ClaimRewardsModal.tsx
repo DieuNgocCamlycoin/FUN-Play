@@ -249,7 +249,19 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
       }
     } catch (error: any) {
       logWalletDebug('Claim error', error);
-      const errorMessage = error.message || "Không thể claim rewards. Vui lòng thử lại.";
+      const rawMsg = error.message || "";
+      let errorMessage: string;
+      
+      if (rawMsg.toLowerCase().includes("insufficient funds") || rawMsg.toLowerCase().includes("insufficient_funds")) {
+        errorMessage = "⚠️ Hệ thống đang bảo trì ví thưởng. Vui lòng thử lại sau ít phút.";
+      } else if (rawMsg.toLowerCase().includes("reward pool temporarily unavailable")) {
+        errorMessage = "💰 Bể thưởng tạm thời hết. Vui lòng chờ admin nạp thêm.";
+      } else if (rawMsg.toLowerCase().includes("pending claim")) {
+        errorMessage = "⏳ Bạn có yêu cầu claim đang xử lý. Vui lòng đợi hoàn tất.";
+      } else {
+        errorMessage = rawMsg || "Không thể claim rewards. Vui lòng thử lại.";
+      }
+      
       setClaimError(errorMessage);
       toast({
         title: "Lỗi claim",

@@ -126,11 +126,12 @@ serve(async (req) => {
     const { data: configData } = await supabaseAdmin
       .from('reward_config')
       .select('config_key, config_value')
-      .in('config_key', ['MIN_CLAIM_AMOUNT', 'DAILY_CLAIM_LIMIT']);
+      .in('config_key', ['MIN_CLAIM_AMOUNT', 'DAILY_CLAIM_LIMIT', 'MAX_CLAIM_PER_USER']);
 
     const config: Record<string, number> = {
       MIN_CLAIM_AMOUNT: 200000,
-      DAILY_CLAIM_LIMIT: 500000
+      DAILY_CLAIM_LIMIT: 500000,
+      MAX_CLAIM_PER_USER: 500000
     };
 
     configData?.forEach(c => {
@@ -170,8 +171,41 @@ serve(async (req) => {
     }
 
     // Limit claim amount to remaining daily limit
-    const claimAmount = Math.min(totalAmount, remainingLimit);
-    console.log(`Claim amount (after limit): ${claimAmount} CAMLY`);
+    let claimAmount = Math.min(totalAmount, remainingLimit);
+    
+    // Check MAX_CLAIM_PER_USER lifetime cap
+    const { data: lifetimeClaims } = await supabaseAdmin
+      .from('claim_requests')
+      .select('amount')
+      .eq('user_id', user.id)
+      .eq('status', 'success');
+    
+    const lifetimeClaimed = lifetimeClaims?.reduce((sum, c) => sum + Number(c.amount), 0) || 0;
+    const lifetimeRemaining = config.MAX_CLAIM_PER_USER - lifetimeClaimed;
+    console.log(`Lifetime claimed: ${lifetimeClaimed}, MAX_CLAIM_PER_USER: ${config.MAX_CLAIM_PER_USER}, Remaining: ${lifetimeRemaining}`);
+    
+    if (lifetimeRemaining <= 0) {
+      return new Response(
+        JSON.stringify({ error: `Bạn đã đạt giới hạn rút tổng ${config.MAX_CLAIM_PER_USER.toLocaleString()} CAMLY. Vui lòng chờ admin phê duyệt thêm.` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    claimAmount = Math.min(claimAmount, lifetimeRemaining);
+    console.log(`Claim amount (after all limits): ${claimAmount} CAMLY`);
+
+    // Auto-cleanup stuck pending claims (older than 5 minutes)
+    console.log("Auto-cleaning stuck pending claims...");
+    await supabaseAdmin
+      .from('claim_requests')
+      .update({ 
+        status: 'failed', 
+        error_message: 'Auto-timeout after 5 minutes',
+        processed_at: new Date().toISOString()
+      })
+      .eq('user_id', user.id)
+      .eq('status', 'pending')
+      .lt('created_at', new Date(Date.now() - 5 * 60 * 1000).toISOString());
 
     // Check for pending claims (prevent double claiming)
     console.log("Checking for pending claims...");

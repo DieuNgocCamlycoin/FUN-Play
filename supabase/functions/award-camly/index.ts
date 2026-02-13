@@ -478,14 +478,34 @@ serve(async (req) => {
       );
     }
 
-    // 11. Always auto-approve all rewards (no admin approval needed)
-    const canAutoApprove = true;
+    // 11. Trust score gating - check suspicious_score to decide auto-approve
+    let canAutoApprove = false;
+    const autoApproveThreshold = validation.AUTO_APPROVE_THRESHOLD || 3;
+    
+    try {
+      const { data: profileData } = await adminSupabase
+        .from("profiles")
+        .select("suspicious_score")
+        .eq("id", userId)
+        .single();
+      
+      const suspiciousScore = profileData?.suspicious_score || 0;
+      canAutoApprove = suspiciousScore < autoApproveThreshold;
+      
+      if (!canAutoApprove) {
+        console.log(`User ${userId} suspicious_score=${suspiciousScore} >= threshold=${autoApproveThreshold}, requiring admin approval`);
+      }
+    } catch (err) {
+      // If we can't check, default to requiring approval
+      console.warn("Could not check suspicious_score, defaulting to pending:", err);
+      canAutoApprove = false;
+    }
 
     // 12. ATOMIC INCREMENT via RPC - prevents race conditions
     const { data: updatedProfile, error: updateError } = await adminSupabase.rpc('atomic_increment_reward', {
       p_user_id: userId,
       p_amount: amount,
-      p_auto_approve: true
+      p_auto_approve: canAutoApprove
     });
 
     if (updateError) {
