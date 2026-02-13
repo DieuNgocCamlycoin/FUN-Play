@@ -3,8 +3,8 @@ import confetti from "canvas-confetti";
 
 // Reward amounts (matching edge function defaults)
 export const REWARD_AMOUNTS = {
-  VIEW: 5000,
-  LIKE: 2000,
+  VIEW: 10000,
+  LIKE: 5000,
   COMMENT: 5000,
   SHARE: 5000,
   SHORT_VIDEO_UPLOAD: 20000,

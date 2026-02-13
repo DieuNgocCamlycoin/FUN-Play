@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { YouTubeMobilePlayer } from "../YouTubeMobilePlayer";
 import { VideoInfoSection } from "./VideoInfoSection";
@@ -10,6 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useVideoPlayback } from "@/contexts/VideoPlaybackContext";
 import { useMiniPlayer } from "@/contexts/MiniPlayerContext";
 import { useVideoComments } from "@/hooks/useVideoComments";
+import { toast } from "sonner";
 
 interface Video {
   id: string;
@@ -68,6 +69,20 @@ export function MobileWatchView({
 
   // Use new hook for comments
   const { comments, totalCount } = useVideoComments({ videoId: video.id, videoOwnerId: video.user_id });
+
+  // Listen for reward events and show toast on mobile
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      const typeLabel = detail.type === 'VIEW' ? 'xem video' : detail.type;
+      toast.success(`+${Number(detail.amount).toLocaleString()} CAMLY`, {
+        description: `Thưởng ${typeLabel}`,
+        duration: 3000,
+      });
+    };
+    window.addEventListener('camly-reward', handler);
+    return () => window.removeEventListener('camly-reward', handler);
+  }, []);
 
   // Handle minimize - show mini player and navigate to home
   const handleMinimize = () => {
