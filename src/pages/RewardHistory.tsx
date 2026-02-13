@@ -87,6 +87,7 @@ export default function RewardHistory() {
   const [totalPending, setTotalPending] = useState(0);
   const [totalApproved, setTotalApproved] = useState(0);
   const [totalClaimed, setTotalClaimed] = useState(0);
+  const [typeTotals, setTypeTotals] = useState<Record<string, number>>({});
   const { user, loading: authLoading } = useAuth();
 
   const [isLive, setIsLive] = useState(false);
@@ -186,10 +187,14 @@ export default function RewardHistory() {
         const s = summary as Record<string, unknown>;
         setTotalEarned(Number(s.total_camly) || 0);
         setTotalPending(0);
-        setTotalApproved(Number(s.approved_camly) || 0);
-        setTotalClaimed(
-          Math.max(0, (Number(s.total_camly) || 0) - (Number(s.approved_camly) || 0))
-        );
+        setTotalApproved(Number(s.claimable_balance) || 0);
+        setTotalClaimed(Number(s.total_claimed) || 0);
+        const ta = s.type_amounts as Record<string, number> | undefined;
+        if (ta) {
+          const mapped: Record<string, number> = {};
+          Object.entries(ta).forEach(([k, v]) => { mapped[k] = Number(v) || 0; });
+          setTypeTotals(mapped);
+        }
       }
 
       const { data, error } = await supabase
@@ -332,9 +337,9 @@ export default function RewardHistory() {
               </h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {Object.entries(REWARD_TYPE_MAP).map(([key, { icon: TypeIcon, label, color }]) => {
-                  const typeTotal = transactions.filter(t => t.reward_type === key).reduce((sum, t) => sum + t.amount, 0);
+                  const typeTotal = typeTotals[key] || 0;
                   const typeCount = transactions.filter(t => t.reward_type === key).length;
-                  if (typeCount === 0) return null;
+                  if (typeTotal === 0 && typeCount === 0) return null;
                   return (
                     <div key={key} className="flex items-center gap-2 p-2 rounded-lg bg-muted/30">
                       <div className={`p-1.5 rounded-full bg-muted ${color}`}>
