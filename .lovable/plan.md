@@ -1,72 +1,87 @@
 
 
-# Fix Remaining Long Video Reward Issues
+# Fix Daily Limit Violations for Video Upload Rewards
 
 ## Problems Found
 
-### Problem 1: 2 Legacy UPLOAD Transactions (Wrong Type)
-Two transactions from user "Angel Tran Mau" use the old `UPLOAD` type (100,000 CAMLY each) for videos > 180s. These should be reclassified to `LONG_VIDEO_UPLOAD` (70,000 CAMLY).
+### Problem 1: LONG_VIDEO_UPLOAD Daily Limit Violations (max 3/day)
+- **10 users** exceeded the 3 long videos/day limit
+- **61 excess transactions** totaling **4,270,000 CAMLY** overpaid
+- Worst case: "Angel QuynhHoa" uploaded 12 long videos in one day (9 over limit = 630,000 excess)
 
-| Video | Duration | Current Type | Current Amount | Correct Type | Correct Amount |
-|-------|----------|-------------|----------------|--------------|----------------|
-| Angel Tran Mau (8011b0a1) | 194s | UPLOAD | 100,000 | LONG_VIDEO_UPLOAD | 70,000 |
-| Angel Tran Mau (76eb5fd4) | 230s | UPLOAD | 100,000 | LONG_VIDEO_UPLOAD | 70,000 |
+| User | Date | Count | Limit | Excess | Excess CAMLY |
+|------|------|-------|-------|--------|-------------|
+| Angel QuynhHoa | 2026-02-12 | 12 | 3 | 9 | 630,000 |
+| Nguyen Hoa_Richer | 2026-02-12 | 10 | 3 | 7 | 490,000 |
+| Angel Vinh Nguyen | 2026-02-12 | 10 | 3 | 7 | 490,000 |
+| Angel Quynh Hoa | 2026-02-12 | 9 | 3 | 6 | 420,000 |
+| Mau Tran | 2026-02-12 | 9 | 3 | 6 | 420,000 |
+| ...and 10 more date-user combos | | | | | |
 
-**Note:** These users were actually OVERPAID (100k vs 70k). Reclassifying the type but keeping the amount at 100k to avoid taking back rewards, OR reducing to 70k for consistency. Recommendation: reduce to 70k for integrity and deduct 60,000 total from user balance.
+### Problem 2: SHORT_VIDEO_UPLOAD Daily Limit Violations (max 5/day)
+- **22 users** exceeded the 5 short videos/day limit
+- **352 excess transactions** totaling **7,040,000 CAMLY** overpaid
+- Worst case: "Tran Van Luc" uploaded 68 short videos in one day (63 over limit = 1,260,000 excess)
 
-### Problem 2: 6 Videos With NO Upload Reward (Missing Rewards)
-These users uploaded long videos (> 180s) but never received any upload reward:
+### Problem 3: Daily Total Cap Violations (max 500,000 CAMLY/day)
+- Over 30 user-day combinations exceeded the 500,000 CAMLY daily cap
+- This overlaps significantly with the upload limit violations
 
-| User | Video | Duration | Missing Reward |
-|------|-------|----------|---------------|
-| Angel Kieu Phi | Nha Thong Thai Angel AI | 189s | 70,000 |
-| THANH TIEN | TAM CAU THAN CHU | 215s | 70,000 |
-| Angel Quynh Hoa | 1000004891 | 242s | 70,000 |
-| Angel Hiep | Thu gian som mai | 270s | 70,000 |
-| Nguyenthanhvi | Ngan Nam De Cau Nguyen | 815s | 70,000 |
-| ANGEL-BACHVIET | Happy New Year | 328s | 70,000 |
-
-**Total missing: 420,000 CAMLY** for 6 users.
+### No Misclassification Issues
+- **0 videos** longer than 3 minutes are incorrectly showing 20,000 CAMLY (all clean)
 
 ## Solution
 
-### Step 1: Fix the 2 legacy UPLOAD transactions
-Update `reward_type` from `UPLOAD` to `LONG_VIDEO_UPLOAD` and adjust `amount` from 100,000 to 70,000. Then deduct the 60,000 CAMLY overpayment from the user's balance.
+### Step 1: Remove Excess LONG_VIDEO Transactions
+For each user+date that exceeded 3 long video uploads, keep the first 3 (ordered by created_at) and delete the rest. This removes 61 transactions worth 4,270,000 CAMLY.
 
-### Step 2: Create missing reward transactions for the 6 videos
-Insert new `reward_transactions` with `reward_type = 'LONG_VIDEO_UPLOAD'` and `amount = 70,000` for each of the 6 missing videos. Credit each user's `approved_reward` and `total_camly_rewards` by 70,000.
+### Step 2: Remove Excess SHORT_VIDEO Transactions
+For each user+date that exceeded 5 short video uploads, keep the first 5 and delete the rest. This removes 352 transactions worth 7,040,000 CAMLY.
 
-### Step 3: Sync all user balances
-Run `sync_reward_totals()` to ensure all profile balances match the transaction records exactly.
+### Step 3: Sync All User Balances
+Run `sync_reward_totals()` to recalculate `approved_reward` and `total_camly_rewards` for all affected users based on the corrected transaction history.
 
 ### Step 4: Verify
-Query the database to confirm:
-- 0 remaining `UPLOAD` type transactions for videos > 180s
-- 0 videos > 180s missing upload rewards
-- All user balances are correctly synchronized
+- Confirm 0 daily limit violations remain
+- Confirm all user balances match transaction history
 
 ## Technical Details
 
-### SQL for Step 1 (legacy UPLOAD fix):
+### SQL for Step 1 (delete excess LONG_VIDEO):
 ```sql
-UPDATE reward_transactions
-SET reward_type = 'LONG_VIDEO_UPLOAD', amount = 70000
-WHERE id IN ('0789fd42-85c0-4ddb-beba-e94c45937507', '68bc1638-935d-4b67-bae6-45690d2b0d37');
+DELETE FROM reward_transactions
+WHERE id IN (
+  SELECT id FROM (
+    SELECT id, 
+      ROW_NUMBER() OVER (PARTITION BY user_id, DATE(created_at) ORDER BY created_at) as rn
+    FROM reward_transactions
+    WHERE reward_type = 'LONG_VIDEO_UPLOAD' AND status = 'success'
+  ) ranked
+  WHERE rn > 3
+);
 ```
 
-### SQL for Step 2 (insert missing rewards):
+### SQL for Step 2 (delete excess SHORT_VIDEO):
 ```sql
-INSERT INTO reward_transactions (user_id, video_id, amount, reward_type, status, approved, approved_at, tx_hash)
-VALUES
-  ('67b18962-...', '635236de-...', 70000, 'LONG_VIDEO_UPLOAD', 'success', true, now(), 'RECONCILE_LONG_...'),
-  -- ... for each of the 6 videos
-;
+DELETE FROM reward_transactions
+WHERE id IN (
+  SELECT id FROM (
+    SELECT id,
+      ROW_NUMBER() OVER (PARTITION BY user_id, DATE(created_at) ORDER BY created_at) as rn
+    FROM reward_transactions
+    WHERE reward_type = 'SHORT_VIDEO_UPLOAD' AND status = 'success'
+  ) ranked
+  WHERE rn > 5
+);
 ```
 
-### SQL for Step 3 (balance sync):
+### SQL for Step 3:
 ```sql
-SELECT sync_reward_totals();
+SELECT * FROM sync_reward_totals();
 ```
 
-No UI/mobile code changes are needed -- the Reward History page already correctly displays `LONG_VIDEO_UPLOAD` labels and amounts. Once the database is fixed, the display updates automatically on both desktop and mobile.
+### Impact Summary
+- **Total CAMLY to be deducted**: ~11,310,000 (4,270,000 long + 7,040,000 short)
+- **Users affected**: ~25 unique users
+- **No code changes needed** -- the edge function already enforces daily limits correctly going forward. These are historical violations from before the limits were properly enforced.
 
