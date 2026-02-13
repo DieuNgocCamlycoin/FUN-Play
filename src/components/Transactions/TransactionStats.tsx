@@ -71,17 +71,17 @@ export function TransactionStats({ stats, className }: TransactionStatsProps) {
               item.wide && "col-span-2 md:col-span-1"
             )}
           >
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className={cn("p-2 rounded-lg shrink-0", item.bgColor)}>
-                  <item.icon className={cn("h-4 w-4", item.color)} />
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                <div className={cn("p-1.5 sm:p-2 rounded-lg shrink-0", item.bgColor)}>
+                  <item.icon className={cn("h-3.5 w-3.5 sm:h-4 sm:w-4", item.color)} />
                 </div>
                 <div className="min-w-0 overflow-hidden">
-                  <p className="text-xs text-muted-foreground">{item.label}</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground">{item.label}</p>
                   {item.fullValue ? (
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <p className="text-lg font-bold truncate cursor-default">
+                        <p className="text-sm sm:text-lg font-bold truncate cursor-default">
                           {item.value}
                           {item.suffix && (
                             <span className="text-xs font-normal text-muted-foreground ml-1">
@@ -95,7 +95,7 @@ export function TransactionStats({ stats, className }: TransactionStatsProps) {
                       </TooltipContent>
                     </Tooltip>
                   ) : (
-                    <p className="text-lg font-bold truncate">
+                    <p className="text-sm sm:text-lg font-bold truncate">
                       {item.value}
                       {item.suffix && (
                         <span className="text-xs font-normal text-muted-foreground ml-1">

@@ -135,10 +135,10 @@ export function TransactionFilters({
       </div>
 
       {/* Filter Row */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex items-center gap-3 overflow-x-auto pb-2 sm:flex-wrap sm:overflow-visible sm:pb-0 -mx-1 px-1">
         {/* Token */}
         <Select value={filters.token || "all"} onValueChange={(v) => updateFilter("token", v)}>
-          <SelectTrigger className="w-[140px]">
+          <SelectTrigger className="w-[120px] sm:w-[140px] flex-shrink-0">
             <SelectValue placeholder="Token" />
           </SelectTrigger>
           <SelectContent>
@@ -150,7 +150,7 @@ export function TransactionFilters({
 
         {/* Type */}
         <Select value={filters.type || "all"} onValueChange={(v) => updateFilter("type", v as TransactionType | "all")}>
-          <SelectTrigger className="w-[140px]">
+          <SelectTrigger className="w-[120px] sm:w-[140px] flex-shrink-0">
             <SelectValue placeholder="Loại giao dịch" />
           </SelectTrigger>
           <SelectContent>
@@ -162,7 +162,7 @@ export function TransactionFilters({
 
         {/* Time */}
         <Select value={filters.timeRange || "all"} onValueChange={(v) => updateFilter("timeRange", v as FilterType["timeRange"])}>
-          <SelectTrigger className="w-[160px]">
+          <SelectTrigger className="w-[130px] sm:w-[160px] flex-shrink-0">
             <SelectValue placeholder="Thời gian" />
           </SelectTrigger>
           <SelectContent>
@@ -174,7 +174,7 @@ export function TransactionFilters({
 
         {/* Status */}
         <Select value={filters.status || "all"} onValueChange={(v) => updateFilter("status", v as TransactionStatus | "all")}>
-          <SelectTrigger className="w-[150px]">
+          <SelectTrigger className="w-[120px] sm:w-[150px] flex-shrink-0">
             <SelectValue placeholder="Trạng thái" />
           </SelectTrigger>
           <SelectContent>
@@ -185,7 +185,7 @@ export function TransactionFilters({
         </Select>
 
         {/* Onchain toggle */}
-        <div className="flex items-center gap-2 px-3 py-2 rounded-md border bg-background">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-md border bg-background flex-shrink-0">
           <Checkbox
             id="onchain-filter"
             checked={filters.isOnchain === true}
