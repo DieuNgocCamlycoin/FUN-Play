@@ -52,9 +52,9 @@ export const ProfileVideosTab = ({ userId, channelId, type }: ProfileVideosTabPr
 
       // Filter by type (shorts are videos up to 180 seconds)
       if (type === "shorts") {
-        query = query.lte("duration", 180);
+        query = query.or("duration.lte.180,and(duration.is.null,category.eq.shorts)");
       } else {
-        query = query.or("duration.gt.180,duration.is.null");
+        query = query.or("duration.gt.180,and(duration.is.null,category.neq.shorts)");
       }
 
       const { data, error } = await query;
