@@ -234,21 +234,31 @@ serve(async (req) => {
       );
     }
 
-    // 7b. Server-side duration verification for upload rewards
-    if ((effectiveType === 'SHORT_VIDEO_UPLOAD' || effectiveType === 'LONG_VIDEO_UPLOAD') && videoId) {
+    // 7b. Server-side duration verification for ALL upload reward types (including legacy UPLOAD)
+    if ((effectiveType === 'SHORT_VIDEO_UPLOAD' || effectiveType === 'LONG_VIDEO_UPLOAD' || effectiveType === 'UPLOAD') && videoId) {
       const { data: videoData } = await adminSupabase
         .from('videos').select('duration').eq('id', videoId).single();
       
-      if (videoData?.duration && videoData.duration > 180 && effectiveType === 'SHORT_VIDEO_UPLOAD') {
-        console.warn(`Override: Video ${videoId} duration=${videoData.duration}s, changing SHORT -> LONG`);
-        effectiveType = 'LONG_VIDEO_UPLOAD';
-        amount = REWARD_AMOUNTS['LONG_VIDEO_UPLOAD'];
-      } else if (videoData?.duration && videoData.duration <= 180 && effectiveType === 'LONG_VIDEO_UPLOAD') {
-        console.warn(`Override: Video ${videoId} duration=${videoData.duration}s, changing LONG -> SHORT`);
+      if (videoData?.duration) {
+        // Always reclassify based on actual duration from DB
+        if (videoData.duration > 180) {
+          if (effectiveType !== 'LONG_VIDEO_UPLOAD') {
+            console.warn(`Override: Video ${videoId} duration=${videoData.duration}s, changing ${effectiveType} -> LONG_VIDEO_UPLOAD`);
+          }
+          effectiveType = 'LONG_VIDEO_UPLOAD';
+          amount = REWARD_AMOUNTS['LONG_VIDEO_UPLOAD'];
+        } else {
+          if (effectiveType !== 'SHORT_VIDEO_UPLOAD') {
+            console.warn(`Override: Video ${videoId} duration=${videoData.duration}s, changing ${effectiveType} -> SHORT_VIDEO_UPLOAD`);
+          }
+          effectiveType = 'SHORT_VIDEO_UPLOAD';
+          amount = REWARD_AMOUNTS['SHORT_VIDEO_UPLOAD'];
+        }
+      } else {
+        // Duration is NULL - default to SHORT but log for reconciliation
+        console.warn(`Video ${videoId} has NULL duration, defaulting to SHORT_VIDEO_UPLOAD. Will be reconciled later.`);
         effectiveType = 'SHORT_VIDEO_UPLOAD';
         amount = REWARD_AMOUNTS['SHORT_VIDEO_UPLOAD'];
-      } else if (!videoData?.duration) {
-        console.warn(`Video ${videoId} has NULL duration, keeping client type: ${effectiveType}`);
       }
     }
 
