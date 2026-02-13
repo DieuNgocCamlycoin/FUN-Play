@@ -1,53 +1,30 @@
 
+# Sửa Lỗi Header Bảng Không Cố Định Khi Cuộn Trang Users Directory
 
-# Nâng Cấp Trang Users Directory -- Hiển Thị Chi Tiết & Header Cố Định
+## Nguyên nhân
 
-## Thay đổi chính
+Component `Table` bọc bảng trong một `<div className="overflow-auto">`, nhưng div này không có chiều cao cố định nên nội dung không cuộn bên trong nó -- toàn bộ trang cuộn thay thế. CSS `sticky top-0` chỉ hoạt động khi phần tử cha có cuộn nội bộ (overflow scroll), nên header bảng không dính lại khi cuộn trang.
 
-### 1. Desktop: Thêm cột hoạt động vào bảng chính + Header cố định
+## Giải pháp
 
-Thêm các cột trực tiếp vào bảng (không cần mở rộng mới thấy):
-- **Lượt xem** (views_count)
-- **Lượt thích** (likes_count)  
-- **Bình luận** (comments_count)
-- **Chia sẻ** (shares_count)
-- **Upload** (videos_count -- đã có, giữ nguyên)
+Đặt chiều cao tối đa cho Card chứa bảng và thêm `overflow-auto` lên Card, biến nó thành vùng cuộn nội bộ. Khi đó `sticky top-0` trên `TableHeader` sẽ hoạt động đúng.
 
-Header bảng sẽ được cố định (sticky) khi cuộn xuống bằng CSS `sticky top-0 z-10 bg-background`.
+### Tệp: `src/pages/UsersDirectory.tsx`
 
-### 2. Mobile: Hiển thị stats ngay trên thẻ chính (không cần mở rộng)
+Thay đổi dòng Card bọc bảng desktop:
 
-Thêm một hàng nhỏ gọn ngay dưới tên user hiển thị:
-- 👁 Views | 👍 Likes | 💬 Comments | 🔗 Shares  
+**Trước:**
+```tsx
+<Card>
+```
 
-Các số liệu này hiển thị ngay mà không cần bấm mở rộng, giúp người dùng thấy được hoạt động tổng quan ngay lập tức.
+**Sau:**
+```tsx
+<Card className="max-h-[calc(100vh-220px)] overflow-auto">
+```
 
-### 3. Realtime
-
-Hook `usePublicUsersDirectory` đã có sẵn Realtime listener trên `likes`, `comments`, `reward_transactions` với debounce 2 giây -- không cần thay đổi.
-
-## Chi tiết kỹ thuật
+Điều này tạo một vùng cuộn có chiều cao tối đa (chiều cao màn hình trừ phần header + bộ lọc), và `sticky top-0` trên `TableHeader` sẽ giữ tiêu đề cố định khi cuộn bảng.
 
 | Tệp | Thay đổi |
 |------|----------|
-| `src/pages/UsersDirectory.tsx` | Thêm cột stats vào desktop table, thêm stats mini vào mobile cards, sticky header |
-| `src/components/ui/table.tsx` | Không cần sửa -- dùng className trực tiếp trên TableHeader |
-
-### Desktop Table -- Cấu trúc mới
-
-```
-# | User | Views | Likes | Comments | Shares | Tổng CAMLY | Videos | FUN | ▼
-```
-
-Header cố định: `<TableHeader className="sticky top-0 z-10 bg-background">`
-
-### Mobile Card -- Cấu trúc mới
-
-```
-[Avatar] Tên user              10.5K CAMLY
-         @username             
-         👁 500  👍 120  💬 45  🔗 30
-```
-
-Stats hiển thị trực tiếp, vẫn giữ phần mở rộng cho chi tiết CAMLY breakdown.
-
+| `src/pages/UsersDirectory.tsx` | Thêm `max-h` và `overflow-auto` vào Card bọc bảng desktop |
