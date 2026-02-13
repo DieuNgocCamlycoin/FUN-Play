@@ -95,3 +95,6 @@ verify_jwt = false
 
 [functions.backfill-video-duration]
 verify_jwt = false
+
+[functions.recalculate-upload-rewards]
+verify_jwt = false
