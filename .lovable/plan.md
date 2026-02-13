@@ -1,76 +1,74 @@
 
 
-# Fix View Reward: 5,000 CAMLY at 30% Watch for ALL Videos
+# Fix Double-Dispatch Bug and Verify View Reward System
 
-## 3 problems to fix
+## Problem Found
 
-1. **Interval thrashing bug** -- `currentTime` in useEffect dependencies causes interval to reset every 250ms, so `checkViewReward` never fires reliably
-2. **Wrong threshold** -- Currently 60%, user wants **30%** for both short AND long videos
-3. **Wrong amount** -- DB has VIEW_REWARD=10,000, hardcoded dispatch uses 10,000, but user wants **5,000 CAMLY**
-4. **Long video uses time-based check** -- Currently requires 5 minutes continuous watch. Should use 30% of duration instead (same rule as short videos)
+There is a **double event dispatch** bug causing the `camly-reward` event to fire TWICE per reward:
 
-## Changes
+1. **First dispatch**: Inside `useAutoReward.ts` `awardCAMLY()` function (line 57-63) -- this fires for ALL reward types automatically
+2. **Second dispatch**: Inside each video player (`EnhancedVideoPlayer`, `YouTubeMobilePlayer`, `MobileVideoPlayer`) after calling `awardViewReward()` which calls `awardCAMLY()`
 
-### 1. Update DB config: VIEW_REWARD 10,000 to 5,000
+This means:
+- Toast notification shows **twice** ("+5,000 CAMLY" appears 2 times)
+- RewardHistory page refreshes **twice** unnecessarily
+- Upload.tsx also double-dispatches for upload rewards
 
-### 2. Update client constants
-**File**: `src/lib/enhancedRewards.ts`
-- `VIEW: 10000` to `VIEW: 5000`
+## Current State (Already Correct)
 
-### 3. Fix `awardViewReward` to return full result
-**File**: `src/hooks/useAutoReward.ts`
-- Change return type from `Promise<boolean>` to `Promise<RewardResult>`
-- Return the full result object (with `amount`, `success`, `reason`)
+These items are already properly configured:
+- DB `VIEW_REWARD = 5000` (confirmed)
+- Client constant `VIEW: 5000` in `enhancedRewards.ts`
+- `awardViewReward()` returns `RewardResult` with amount
+- 30% threshold in all 3 players
+- Dependencies: `[isPlaying, viewRewarded, user, videoId, awardViewReward]` (no `currentTime`)
+- Edge function default `VIEW: 5000`
 
-### 4. Fix all 3 players (same pattern for each)
-**Files**:
-- `src/components/Video/EnhancedVideoPlayer.tsx`
-- `src/components/Video/YouTubeMobilePlayer.tsx`
-- `src/components/Video/MobileVideoPlayer.tsx`
+## Fix Required
 
-Changes in each:
-- Remove `LONG_VIDEO_MIN_WATCH` constant (no longer needed)
-- Remove short/long distinction -- use **30% of duration** for ALL videos
-- Read `video.currentTime` and `video.duration` from DOM ref (not React state)
-- Remove `currentTime` and `duration` from useEffect dependencies (fixes interval thrashing)
-- Use `result.amount` from server response instead of hardcoded 10000
+### File 1: `src/components/Video/EnhancedVideoPlayer.tsx`
+Remove the duplicate `window.dispatchEvent` call. Since `awardCAMLY()` already dispatches the event internally, the player should NOT dispatch it again.
 
-New logic:
+**Before:**
+```tsx
+const result = await awardViewReward(videoId);
+if (result.success) {
+  window.dispatchEvent(new CustomEvent("camly-reward", {
+    detail: { type: "VIEW", amount: result.amount || 5000 }
+  }));
+}
 ```
-const checkViewReward = async () => {
-  const video = videoRef.current;
-  if (!video || viewRewarded || !user || !videoId) return;
-  const dur = video.duration;
-  if (!dur || dur <= 0) return;
-  
-  if (video.currentTime >= dur * 0.3) {
-    setViewRewarded(true);
-    const result = await awardViewReward(videoId);
-    if (result.success) {
-      window.dispatchEvent(new CustomEvent("camly-reward", {
-        detail: { type: "VIEW", amount: result.amount || 5000 }
-      }));
-    }
-  }
-};
 
-// Dependencies: only [isPlaying, viewRewarded, user, videoId]
-// NO currentTime, NO duration -- read from DOM
+**After:**
+```tsx
+const result = await awardViewReward(videoId);
+if (result.success) {
+  console.log('[Desktop Reward] View reward awarded:', result.amount);
+}
 ```
+
+### File 2: `src/components/Video/YouTubeMobilePlayer.tsx`
+Same fix -- remove duplicate dispatch.
+
+### File 3: `src/components/Video/MobileVideoPlayer.tsx`
+Same fix -- remove duplicate dispatch.
+
+### File 4: `src/pages/Upload.tsx`
+Same fix -- remove duplicate dispatches for FIRST_UPLOAD and SHORT/LONG_VIDEO_UPLOAD (since `awardCAMLY` already dispatches).
 
 ## Summary
 
-| Item | Before | After |
-|------|--------|-------|
-| Watch threshold (short) | 60% | **30%** |
-| Watch threshold (long) | 5 min continuous | **30% of duration** |
-| Reward amount | 10,000 | **5,000** |
-| Interval deps | includes currentTime (broken) | excludes it (stable) |
-| awardViewReward return | boolean | RewardResult (with amount) |
-| DB VIEW_REWARD config | 10,000 | **5,000** |
+| Item | Status |
+|------|--------|
+| DB VIEW_REWARD = 5000 | Already correct |
+| Client VIEW = 5000 | Already correct |
+| 30% threshold all players | Already correct |
+| Interval deps (no currentTime) | Already correct |
+| awardViewReward returns RewardResult | Already correct |
+| Double event dispatch | **BUG -- needs fix** |
 
 ## Expected Result
-- User watches any video to 30% and reliably receives 5,000 CAMLY
-- Toast notification shows "+5,000 CAMLY" on both desktop and mobile
-- Reward appears immediately in reward history page
-- Max 10 rewarded views per day (enforced by edge function)
+- User watches any video to 30%, receives exactly 5,000 CAMLY
+- Toast notification shows "+5,000 CAMLY" exactly ONCE
+- Reward history page updates once via the single event from `awardCAMLY()`
+- Works identically on desktop and mobile
