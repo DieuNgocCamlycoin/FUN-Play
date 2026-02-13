@@ -9,7 +9,7 @@ const corsHeaders = {
 // Default reward amounts (fallback if reward_config not available)
 const DEFAULT_REWARD_AMOUNTS: Record<string, number> = {
   VIEW: 5000,
-  LIKE: 5000,
+  LIKE: 2000,
   COMMENT: 5000,
   SHARE: 5000,
   SHORT_VIDEO_UPLOAD: 20000,
@@ -285,13 +285,23 @@ serve(async (req) => {
       }
     }
 
-    // 8c. Comment length check
-    if (type === "COMMENT" && commentLength !== undefined) {
-      if (commentLength < validation.MIN_COMMENT_LENGTH) {
+    // 8c. Server-side comment content validation (không tin client)
+    if (type === "COMMENT" && videoId) {
+      const { data: latestComment } = await adminSupabase
+        .from("comments")
+        .select("content")
+        .eq("user_id", userId)
+        .eq("video_id", videoId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (!latestComment?.content ||
+          latestComment.content.trim().length < validation.MIN_COMMENT_LENGTH) {
         return new Response(
           JSON.stringify({ 
             success: false, 
-            reason: `Comment must be at least ${validation.MIN_COMMENT_LENGTH} characters`,
+            reason: `Bình luận phải có ít nhất ${validation.MIN_COMMENT_LENGTH} ký tự`,
             milestone: null, newTotal: 0, amount: 0, type
           }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -299,15 +309,15 @@ serve(async (req) => {
       }
     }
 
-    // 8d. Already rewarded check for LIKE/SHARE (only once per video)
-    if ((type === "LIKE" || type === "SHARE") && videoId) {
+    // 8d. Already rewarded check for ALL action types with videoId
+    if (["LIKE", "SHARE", "VIEW", "COMMENT"].includes(type) && videoId) {
       const alreadyRewarded = await checkAlreadyRewarded(adminSupabase, userId, videoId, type);
       if (alreadyRewarded) {
         console.log(`User ${userId} already rewarded for ${type} on video ${videoId}`);
         return new Response(
           JSON.stringify({ 
             success: false, 
-            reason: `You already received a ${type.toLowerCase()} reward for this video`,
+            reason: `Bạn đã nhận thưởng ${type.toLowerCase()} cho video này rồi`,
             milestone: null, newTotal: 0, amount: 0, type
           }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -406,6 +416,26 @@ serve(async (req) => {
       }
     }
 
+    // 10b. GIỚI HẠN CỨNG 500.000 CAMLY/NGÀY/NGƯỜI
+    const DAILY_TOTAL_CAP = 500000;
+    const totalTodayEarned =
+      (limits?.view_rewards_earned || 0) +
+      (limits?.like_rewards_earned || 0) +
+      (limits?.share_rewards_earned || 0) +
+      (limits?.comment_rewards_earned || 0) +
+      (limits?.upload_rewards_earned || 0);
+
+    if (totalTodayEarned + amount > DAILY_TOTAL_CAP) {
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          reason: `Đã đạt giới hạn thưởng hàng ngày (${DAILY_TOTAL_CAP.toLocaleString()} CAMLY)`,
+          milestone: null, newTotal: 0, amount: 0, type
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // 11. Always auto-approve all rewards (no admin approval needed)
     const canAutoApprove = true;
 
@@ -442,7 +472,7 @@ serve(async (req) => {
     });
 
     // 15. Record reward action for LIKE/SHARE to prevent duplicates
-    if ((type === "LIKE" || type === "SHARE") && videoId) {
+    if (["LIKE", "SHARE", "VIEW", "COMMENT"].includes(type) && videoId) {
       await adminSupabase.from("reward_actions").upsert({
         user_id: userId,
         video_id: videoId,
