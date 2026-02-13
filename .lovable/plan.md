@@ -1,91 +1,92 @@
 
 
-# Sửa Hệ Thống Thưởng Upload & Phân Loại Shorts
+# Kiểm Tra & Sửa Hệ Thống Thưởng và Phân Loại Shorts
 
-## Nguyên nhân gốc
+## Kết quả kiểm tra
 
-**442 trên 675 video (65%) có duration = NULL trong database.** Đây là nguyên nhân gốc của cả hai vấn đề:
+### 1. Thưởng video dai (70K) -- Hoat dong dung cho video moi
+- Edge function `award-camly` da co logic xac minh duration phia server (dong 238-253)
+- Khi video co duration > 180s, he thong tu dong chuyen tu SHORT (20K) thanh LONG (70K)
+- **127 giao dich LONG_VIDEO_UPLOAD** da ghi nhan dung 70.000 CAMLY
 
-1. **Video dai > 3 phut khong duoc thuong 70K**: Khi duration = NULL, he thong mac dinh coi la SHORT (20K) thay vi LONG (70K).
-2. **Video ngan khong hien trong tab Shorts**: Tab Shorts loc `duration <= 180`, nhung NULL khong khop voi dieu kien nay nen video khong hien.
+### 2. Van de con lai: 442 video co duration = NULL
+- 393 video NULL duration da bi thuong nham la SHORT (20K)
+- Co che auto-detect duration khi xem video (Watch page) da duoc cai dat va hoat dong
+- Edge function `recalculate-upload-rewards` da san sang nhung can cho duration duoc backfill truoc
 
-### Tai sao duration = NULL?
+### 3. Loi tab Shorts trong trang ca nhan channel
+- **31 video** co `category='shorts'` nhung `duration = NULL`
+- Bo loc hien tai: `query.lte("duration", 180)` -- NULL khong khop nen video khong hien
+- Can sua bo loc de dung ca `category` lam tieu chi phu
 
-Client-side duration extraction (dung HTML5 `<video>` element) that bai do:
-- Timeout 10 giay khi video lon hoac format kho doc metadata
-- Tren mobile, browser khong ho tro tot viec doc metadata tu mot so codec
-- Desktop Upload.tsx luu `null` khi extraction that bai (dong 470: `duration: videoDuration > 0 ? Math.round(videoDuration) : null`)
+## Giai phap
 
-## Giai phap (3 buoc)
+### Tep 1: `src/components/Profile/ProfileVideosTab.tsx`
 
-### Buoc 1: Tu dong phat hien duration khi xem video (Watch page)
+Sua bo loc Shorts de bao gom ca video co `category='shorts'` khi duration la NULL:
 
-Khi nguoi dung xem video va player tai metadata thanh cong, tu dong cap nhat duration vao database neu hien tai la NULL. Day la cach tu nhien nhat de backfill duration -- moi video duoc xem se tu dong co duration.
-
-**Tep**: `src/pages/Watch.tsx`
-- Them logic: khi `onLoadedMetadata` cua video player, kiem tra neu video trong DB co `duration = NULL`, thi goi `supabase.from('videos').update({ duration }).eq('id', videoId)`
-
-### Buoc 2: Sua mobile upload luu duration = NULL thay vi 0
-
-**Tep**: `src/contexts/UploadContext.tsx` (dong 260)
-
-Truoc:
+**Truoc (dong 54-58):**
 ```tsx
-duration: Math.round(metadata.duration),
+if (type === "shorts") {
+  query = query.lte("duration", 180);
+} else {
+  query = query.or("duration.gt.180,duration.is.null");
+}
 ```
 
-Sau:
+**Sau:**
 ```tsx
-duration: metadata.duration > 0 ? Math.round(metadata.duration) : null,
+if (type === "shorts") {
+  query = query.or("duration.lte.180,and(duration.is.null,category.eq.shorts)");
+} else {
+  query = query.or("duration.gt.180,and(duration.is.null,category.neq.shorts)");
+}
 ```
 
-Dieu nay dam bao video co duration khong ro se duoc danh dau NULL thay vi 0, de he thong biet can phat hien lai.
+### Tep 2: `src/pages/YourVideos.tsx`
 
-### Buoc 3: Edge function backfill thuong dung cho tat ca user
+Tuong tu, sua bo loc trong trang quan ly video cua nguoi dung:
 
-Tao edge function `recalculate-upload-rewards` de:
-1. Tim tat ca video co `upload_rewarded = true` nhung `duration IS NOT NULL`
-2. Kiem tra reward_transaction tuong ung co dung loai (SHORT vs LONG) khong
-3. Neu sai (vi du: video 5 phut nhung duoc thuong SHORT 20K thay vi LONG 70K), thi:
-   - Tinh chenh lech: 70K - 20K = 50K
-   - Goi `atomic_increment_reward` de cong them 50K
-   - Cap nhat reward_transaction tu SHORT_VIDEO_UPLOAD thanh LONG_VIDEO_UPLOAD va so tien moi
+**Truoc (dong 58-62):**
+```tsx
+if (activeTab === "video") {
+  query = query.or("duration.gt.180,duration.is.null");
+} else if (activeTab === "shorts") {
+  query = query.lte("duration", 180);
+}
+```
 
-**Tep**: `supabase/functions/recalculate-upload-rewards/index.ts`
+**Sau:**
+```tsx
+if (activeTab === "video") {
+  query = query.or("duration.gt.180,and(duration.is.null,category.neq.shorts)");
+} else if (activeTab === "shorts") {
+  query = query.or("duration.lte.180,and(duration.is.null,category.eq.shorts)");
+}
+```
 
-## Chi tiet ky thuat
+### Tep 3: `src/contexts/UploadContext.tsx` -- Da dung
+
+Da luu `null` thay vi `0` khi duration extraction that bai. Khong can thay doi them.
+
+### Tep 4: `src/pages/Watch.tsx` -- Da dung
+
+Auto-detect duration da hoat dong. Khong can thay doi them.
+
+### Tep 5: `supabase/functions/recalculate-upload-rewards/index.ts` -- Da dung
+
+Edge function da san sang. Admin goi voi `{"dryRun": false}` sau khi cac video da duoc backfill duration.
+
+## Tom tat thay doi
 
 | Tep | Thay doi |
 |------|----------|
-| `src/pages/Watch.tsx` | Them auto-detect duration khi video load, cap nhat DB neu NULL |
-| `src/contexts/UploadContext.tsx` | Luu NULL thay vi 0 khi duration extraction that bai |
-| `supabase/functions/recalculate-upload-rewards/index.ts` | Edge function moi de sua thuong cho tat ca user |
+| `src/components/Profile/ProfileVideosTab.tsx` | Sua bo loc Shorts de dung `category` lam fallback khi duration = NULL |
+| `src/pages/YourVideos.tsx` | Tuong tu -- sua bo loc Shorts/Video cho trang quan ly |
 
-### Logic recalculate-upload-rewards
+## Tong ket
 
-```
-1. Admin-only (kiem tra user_roles)
-2. Tham so: { dryRun: boolean, batchSize: number }
-3. Query tat ca reward_transactions co reward_type IN ('SHORT_VIDEO_UPLOAD', 'LONG_VIDEO_UPLOAD')
-4. JOIN voi videos de lay duration thuc te
-5. Voi moi transaction:
-   - Neu video.duration > 180 VA reward_type = 'SHORT_VIDEO_UPLOAD':
-     → Chenh lech = LONG_REWARD - SHORT_REWARD (70K - 20K = 50K)
-     → atomic_increment_reward(user_id, 50K, true)
-     → Update reward_transaction: reward_type = 'LONG_VIDEO_UPLOAD', amount = 70K
-   - Neu video.duration <= 180 VA reward_type = 'LONG_VIDEO_UPLOAD':
-     → Giam chenh lech (hiem gap, nhung xu ly cho day du)
-6. Tra ve bao cao: so luong da sua, tong CAMLY chenh lech
-```
-
-### Auto-detect duration logic (Watch page)
-
-```
-1. Khi EnhancedVideoPlayer/MobileVideoPlayer goi onLoadedMetadata
-2. Kiem tra video hien tai co duration = NULL trong DB khong
-3. Neu NULL va player.duration > 0:
-   → supabase.from('videos').update({ duration: Math.round(player.duration) }).eq('id', videoId)
-   → Console.log de theo doi
-4. Khong can cap nhat UI -- chi la background fix
-```
-
+- He thong thuong 70K cho video dai **da hoat dong dung** cho video moi co duration
+- 442 video cu se duoc tu dong cap nhat duration khi co nguoi xem
+- Sau khi duration duoc backfill, admin chay `recalculate-upload-rewards` de bu thuong
+- Loi Shorts khong hien duoc sua bang cach dung `category` lam tieu chi phu khi `duration = NULL`
