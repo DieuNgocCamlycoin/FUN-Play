@@ -492,9 +492,6 @@ export default function Upload() {
           
           if (firstUploadSuccess) {
             console.log("[Desktop Upload Reward] FIRST_UPLOAD awarded");
-            window.dispatchEvent(new CustomEvent("camly-reward", {
-              detail: { type: "FIRST_UPLOAD", amount: 500000, autoApproved: true }
-            }));
           } else {
             // Already got first upload reward, award duration-based reward
             const SHORT_VIDEO_MAX_DURATION = 180;
@@ -512,9 +509,6 @@ export default function Upload() {
             }
             
             console.log("[Desktop Upload Reward]", uploadType, "awarded");
-            window.dispatchEvent(new CustomEvent("camly-reward", {
-              detail: { type: uploadType, amount: uploadType === "LONG_VIDEO_UPLOAD" ? 70000 : 20000, autoApproved: true }
-            }));
           }
 
           // Mark video as rewarded

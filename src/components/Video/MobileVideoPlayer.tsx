@@ -245,9 +245,7 @@ export function MobileVideoPlayer({
         console.log('[Mobile Reward] 30% reached, awarding view reward');
         const result = await awardViewReward(videoId);
         if (result.success) {
-          window.dispatchEvent(new CustomEvent("camly-reward", {
-            detail: { type: "VIEW", amount: result.amount || 5000 }
-          }));
+          console.log('[Mobile Reward] View reward awarded:', result.amount);
         }
       }
     };
