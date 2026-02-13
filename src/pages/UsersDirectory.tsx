@@ -182,13 +182,15 @@ const UsersDirectory = () => {
         {!loading && !error && !isMobile && (
           <Card>
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-10 bg-background">
                 <TableRow>
                   <TableHead className="w-8">#</TableHead>
                   <TableHead>User</TableHead>
+                  <TableHead className="text-right">👁 Views</TableHead>
+                  <TableHead className="text-right">👍 Likes</TableHead>
+                  <TableHead className="text-right">💬 Comments</TableHead>
+                  <TableHead className="text-right">🔗 Shares</TableHead>
                   <TableHead className="text-right">Tổng CAMLY</TableHead>
-                  <TableHead className="text-right">Đã nhận</TableHead>
-                  <TableHead className="text-right">Chưa nhận</TableHead>
                   <TableHead className="text-right">Videos</TableHead>
                   <TableHead className="text-right">FUN</TableHead>
                   <TableHead className="w-8"></TableHead>
@@ -217,9 +219,11 @@ const UsersDirectory = () => {
                             </div>
                           </div>
                         </TableCell>
+                        <TableCell className="text-right">{fmt(u.views_count)}</TableCell>
+                        <TableCell className="text-right">{fmt(u.likes_count)}</TableCell>
+                        <TableCell className="text-right">{fmt(u.comments_count)}</TableCell>
+                        <TableCell className="text-right">{fmt(u.shares_count)}</TableCell>
                         <TableCell className="text-right font-semibold text-amber-600">{fmt(u.total_camly_rewards)}</TableCell>
-                        <TableCell className="text-right font-medium text-emerald-600">{fmt(u.claimed_camly)}</TableCell>
-                        <TableCell className="text-right font-medium text-orange-500">{fmt(u.unclaimed_camly)}</TableCell>
                         <TableCell className="text-right">{fmt(u.videos_count)}</TableCell>
                         <TableCell className="text-right text-primary font-medium">{fmt(u.minted_fun_total)}</TableCell>
                         <TableCell>
@@ -228,7 +232,7 @@ const UsersDirectory = () => {
                       </TableRow>
                       {expandedId === u.user_id && (
                         <TableRow>
-                          <TableCell colSpan={8} className="p-0">
+                          <TableCell colSpan={10} className="p-0">
                             <ExpandedRow u={u} />
                           </TableCell>
                         </TableRow>
@@ -238,7 +242,7 @@ const UsersDirectory = () => {
                 ))}
                 {filtered.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Không tìm thấy user nào</TableCell>
+                    <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">Không tìm thấy user nào</TableCell>
                   </TableRow>
                 )}
               </TableBody>
@@ -264,13 +268,19 @@ const UsersDirectory = () => {
                           </div>
                           <span className="absolute -top-1 -left-1 bg-primary text-primary-foreground text-[10px] font-bold rounded-full h-5 w-5 flex items-center justify-center">{i + 1}</span>
                         </div>
-                        <div className="flex-1 min-w-0 text-left">
+                         <div className="flex-1 min-w-0 text-left">
                           <div className="flex items-center gap-1.5">
-                            <span className="font-semibold truncate">{u.display_name || u.username}</span>
-                            {u.avatar_verified && <BadgeCheck className="h-4 w-4 text-primary shrink-0" />}
-                          </div>
-                          <span className="text-xs text-muted-foreground">@{u.username}</span>
-                        </div>
+                             <span className="font-semibold truncate">{u.display_name || u.username}</span>
+                             {u.avatar_verified && <BadgeCheck className="h-4 w-4 text-primary shrink-0" />}
+                           </div>
+                           <span className="text-xs text-muted-foreground">@{u.username}</span>
+                           <div className="flex items-center gap-3 text-[11px] text-muted-foreground mt-0.5">
+                             <span>👁 {fmt(u.views_count)}</span>
+                             <span>👍 {fmt(u.likes_count)}</span>
+                             <span>💬 {fmt(u.comments_count)}</span>
+                             <span>🔗 {fmt(u.shares_count)}</span>
+                           </div>
+                         </div>
                         <div className="text-right shrink-0">
                           <p className="font-bold text-amber-600 text-sm">{fmt(u.total_camly_rewards)}</p>
                           <p className="text-[10px] text-muted-foreground">CAMLY</p>
