@@ -1,34 +1,53 @@
 
-# Thêm Link Lịch Sử Giao Dịch Vào Menu Di Động
 
-## Kết quả kiểm tra
+# Nâng Cấp Trang Users Directory -- Hiển Thị Chi Tiết & Header Cố Định
 
-Trang `/transactions` **đã hoạt động tốt** trên di động:
-- Giao diện responsive, hiển thị đầy đủ thống kê (789 giao dịch, 1.67B CAMLY)
-- Người chưa đăng nhập vẫn xem được (publicMode: true)
-- Bộ lọc, tìm kiếm, nút "Tải thêm" đều hoạt động
-- Thẻ giao dịch hiển thị bố cục dọc phù hợp màn hình nhỏ
+## Thay đổi chính
 
-## Vấn đề duy nhất
+### 1. Desktop: Thêm cột hoạt động vào bảng chính + Header cố định
 
-**Thiếu link trong menu di động (MobileDrawer)** -- người dùng trên điện thoại không có cách nào truy cập trang này từ menu.
+Thêm các cột trực tiếp vào bảng (không cần mở rộng mới thấy):
+- **Lượt xem** (views_count)
+- **Lượt thích** (likes_count)  
+- **Bình luận** (comments_count)
+- **Chia sẻ** (shares_count)
+- **Upload** (videos_count -- đã có, giữ nguyên)
 
-## Kế hoạch sửa
+Header bảng sẽ được cố định (sticky) khi cuộn xuống bằng CSS `sticky top-0 z-10 bg-background`.
 
-### Tệp: `src/components/Layout/MobileDrawer.tsx`
+### 2. Mobile: Hiển thị stats ngay trên thẻ chính (không cần mở rộng)
 
-Thêm 1 mục mới vào mảng `rewardItems` (dòng 70), ngay sau "Lịch Sử Phần Thưởng":
+Thêm một hàng nhỏ gọn ngay dưới tên user hiển thị:
+- 👁 Views | 👍 Likes | 💬 Comments | 🔗 Shares  
 
-```typescript
-{ icon: Globe, label: "Lịch Sử Giao Dịch", href: "/transactions" },
-```
+Các số liệu này hiển thị ngay mà không cần bấm mở rộng, giúp người dùng thấy được hoạt động tổng quan ngay lập tức.
 
-Icon `Globe` đã có sẵn trong import. Chỉ cần thêm **1 dòng code**.
+### 3. Realtime
 
-### Tổng kết
+Hook `usePublicUsersDirectory` đã có sẵn Realtime listener trên `likes`, `comments`, `reward_transactions` với debounce 2 giây -- không cần thay đổi.
+
+## Chi tiết kỹ thuật
 
 | Tệp | Thay đổi |
 |------|----------|
-| `src/components/Layout/MobileDrawer.tsx` | Thêm 1 mục nav "Lịch Sử Giao Dịch" vào `rewardItems` |
+| `src/pages/UsersDirectory.tsx` | Thêm cột stats vào desktop table, thêm stats mini vào mobile cards, sticky header |
+| `src/components/ui/table.tsx` | Không cần sửa -- dùng className trực tiếp trên TableHeader |
 
-Không cần thay đổi gì khác -- trang giao dịch đã sẵn sàng cho di động.
+### Desktop Table -- Cấu trúc mới
+
+```
+# | User | Views | Likes | Comments | Shares | Tổng CAMLY | Videos | FUN | ▼
+```
+
+Header cố định: `<TableHeader className="sticky top-0 z-10 bg-background">`
+
+### Mobile Card -- Cấu trúc mới
+
+```
+[Avatar] Tên user              10.5K CAMLY
+         @username             
+         👁 500  👍 120  💬 45  🔗 30
+```
+
+Stats hiển thị trực tiếp, vẫn giữ phần mở rộng cho chi tiết CAMLY breakdown.
+
