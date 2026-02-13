@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import funplayPlanetLogo from "@/assets/funplay-planet-logo.png";
 import { useParams, Link } from "react-router-dom";
 import { Gift, ExternalLink, Copy, ArrowRight, Play, FileText, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -92,9 +93,7 @@ export default function Receipt() {
           {/* Header */}
           <div className="text-center space-y-2">
             <div className="flex justify-center">
-              <div className="h-12 w-12 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 flex items-center justify-center">
-                <Gift className="h-6 w-6 text-white" />
-              </div>
+              <img src={funplayPlanetLogo} alt="FUN Play" className="h-12 w-12 rounded-full object-cover" />
             </div>
             <h1 className="text-xl font-bold">FUN PLAY - Biên Nhận Tặng</h1>
             <p className="text-sm text-muted-foreground">#{receipt.receipt_public_id}</p>

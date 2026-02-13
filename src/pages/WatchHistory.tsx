@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import funplayPlanetLogo from "@/assets/funplay-planet-logo.png";
 import { useNavigate } from 'react-router-dom';
 import { History, Play, Trash2, ArrowLeft, AlertCircle, Search, X, MoreVertical, Bookmark, Share2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -99,9 +100,7 @@ const WatchHistory = () => {
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-r from-cosmic-magenta to-cosmic-cyan flex items-center justify-center">
-                <History className="w-6 h-6 text-white" />
-              </div>
+              <img src={funplayPlanetLogo} alt="FUN Play" className="w-12 h-12 rounded-full object-cover" />
               <div>
                 <h1 className="text-2xl font-bold text-[#004eac]">
                   Lịch sử xem
