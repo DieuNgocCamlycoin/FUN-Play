@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Coins, CheckCircle, Clock, Wallet, Trophy, Info } from "lucide-react";
+import { Coins, CheckCircle, Clock, Wallet, Trophy, Info, Hourglass } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { ClaimRewardsModal } from "@/components/Rewards/ClaimRewardsModal";
@@ -179,7 +179,7 @@ export const ClaimRewardsSection = () => {
       
       <CardContent className="space-y-6">
         {/* Stats Grid */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 gap-3">
           <StatCard
             icon={Trophy}
             label="Tổng đã nhận"
@@ -192,7 +192,14 @@ export const ClaimRewardsSection = () => {
             label="Có thể Claim"
             value={stats.approvedRewards}
             color="from-green-500/10 to-emerald-500/10 border-green-500/20"
-            tooltip="Số CAMLY có thể rút về ví"
+            tooltip="Số CAMLY đã được admin duyệt, có thể rút về ví"
+          />
+          <StatCard
+            icon={Hourglass}
+            label="Chờ duyệt"
+            value={stats.pendingRewards}
+            color="from-amber-500/10 to-yellow-500/10 border-amber-500/20"
+            tooltip="Số CAMLY đang chờ admin phê duyệt"
           />
           <StatCard
             icon={Wallet}
@@ -251,10 +258,14 @@ export const ClaimRewardsSection = () => {
         </div>
 
         {/* Info Notes */}
-        <div className="p-3 bg-muted/50 rounded-lg text-sm text-muted-foreground space-y-1">
+        <div className="p-3 bg-muted/50 rounded-lg text-sm text-muted-foreground space-y-1.5">
           <p className="flex items-center gap-2">
             <CheckCircle className="h-4 w-4 text-green-500" />
             <span>Ngưỡng tối thiểu: 200,000 CAMLY</span>
+          </p>
+          <p className="flex items-center gap-2">
+            <Hourglass className="h-4 w-4 text-amber-500" />
+            <span>Phần thưởng được admin duyệt trước khi claim</span>
           </p>
         </div>
       </CardContent>
