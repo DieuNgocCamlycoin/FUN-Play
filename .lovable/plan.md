@@ -1,92 +1,102 @@
 
+# Sua Loi Thuong Upload va View Reward
 
-# Kiểm Tra & Sửa Hệ Thống Thưởng và Phân Loại Shorts
+## Ket qua kiem tra chi tiet
 
-## Kết quả kiểm tra
+### 1. Thuong video dai (70K) -- VAN CON LOI CU
 
-### 1. Thưởng video dai (70K) -- Hoat dong dung cho video moi
-- Edge function `award-camly` da co logic xac minh duration phia server (dong 238-253)
-- Khi video co duration > 180s, he thong tu dong chuyen tu SHORT (20K) thanh LONG (70K)
-- **127 giao dich LONG_VIDEO_UPLOAD** da ghi nhan dung 70.000 CAMLY
+| Tinh trang | So luong | Chi tiet |
+|---|---|---|
+| Video dai, thuong dung 70K | 127 | OK |
+| Video dai, thuong SAI 20K | **3** | Co duration > 180 nhung bi ghi SHORT |
+| Video NULL duration, thuong 20K | **389** | Chua co duration de phan loai dung |
 
-### 2. Van de con lai: 442 video co duration = NULL
-- 393 video NULL duration da bi thuong nham la SHORT (20K)
-- Co che auto-detect duration khi xem video (Watch page) da duoc cai dat va hoat dong
-- Edge function `recalculate-upload-rewards` da san sang nhung can cho duration duoc backfill truoc
+**Nguyen nhan**: 389 video co `duration = NULL` trong database. Edge function `award-camly` (dong 250-252) khi gap NULL duration thi giu nguyen loai tu client gui len (thuong la SHORT = 20K).
 
-### 3. Loi tab Shorts trong trang ca nhan channel
-- **31 video** co `category='shorts'` nhung `duration = NULL`
-- Bo loc hien tai: `query.lte("duration", 180)` -- NULL khong khop nen video khong hien
-- Can sua bo loc de dung ca `category` lam tieu chi phu
+### 2. Thuong xem video (VIEW) -- DANG HOAT DONG nhung co van de
 
-## Giai phap
+- **279 giao dich VIEW** da ghi nhan, moi nhat luc 08:42 hom nay
+- **Van de 1**: `reward_config` trong DB dat `VIEW_REWARD = 10.000` nhung client-side `enhancedRewards.ts` hien thi `VIEW = 5.000` -- gay nham lan cho user
+- **Van de 2**: Tren desktop, `EnhancedVideoPlayer` yeu cau xem **90% video ngan** hoac **5 phut lien tuc video dai (>5 phut)** -- nguong kha cao, nhieu user co the chua dat duoc
+- **Van de 3**: Tren mobile, `YouTubeMobilePlayer` cung logic nhung khong co thong bao (toast) khi nhan thuong
 
-### Tep 1: `src/components/Profile/ProfileVideosTab.tsx`
+### 3. Lich su phan thuong -- HIEN THI DUNG nhung du lieu sai
 
-Sua bo loc Shorts de bao gom ca video co `category='shorts'` khi duration la NULL:
+Trang RewardHistory.tsx da co map dung:
+- `SHORT_VIDEO_UPLOAD` = "Video ngan" (cam nhat)
+- `LONG_VIDEO_UPLOAD` = "Video dai" (cam dam)
 
-**Truoc (dong 54-58):**
+Nhung vi 389 video bi ghi nham thanh SHORT_VIDEO_UPLOAD (20K) nen lich su hien thi 20K cho video dai. **Loi khong phai o UI ma o du lieu**.
+
+## Giai phap (4 buoc)
+
+### Buoc 1: Dong bo client-side constants voi DB config
+
+**Tep**: `src/lib/enhancedRewards.ts`
+
+Cap nhat REWARD_AMOUNTS cho khop voi `reward_config` trong DB:
+- `VIEW: 5000` thanh `VIEW: 10000` (khop voi DB)
+- `LIKE: 2000` thanh `LIKE: 5000` (khop voi DB)
+
+Dieu nay dam bao cac man hinh hien thi so tien dung cho user.
+
+### Buoc 2: Sua award-camly xu ly NULL duration thong minh hon
+
+**Tep**: `supabase/functions/award-camly/index.ts` (dong 250-252)
+
+Hien tai khi duration = NULL, server giu nguyen client type (thuong la SHORT). Can sua de:
+1. Khi duration NULL, thu lay duration tu video URL bang cach check video metadata
+2. Neu van khong lay duoc, **tam ghi nhan la SHORT nhung danh dau `needs_review = true`** de admin kiem tra sau
+3. Hoac don gian hon: khi duration = NULL, mac dinh la LONG (70K) vi da so video dai hon 3 phut -- tranh thiet hai cho user
+
+**De xuat**: Mac dinh la SHORT (20K) nhung tu dong tao log de `recalculate-upload-rewards` xu ly sau khi duration duoc backfill. Day la cach an toan nhat.
+
+### Buoc 3: Chay recalculate-upload-rewards cho 3 video da biet sai
+
+Goi edge function `recalculate-upload-rewards` voi `dryRun: false` de:
+- Fix 3 video co duration > 180 nhung bi thuong 20K thay vi 70K
+- Cong bu 50.000 CAMLY/video cho user bi thieu
+
+### Buoc 4: Them thong bao thuong tren mobile
+
+**Tep**: `src/components/Video/Mobile/MobileWatchView.tsx`
+
+Them `useEffect` lang nghe su kien `camly-reward` va hien thi toast:
 ```tsx
-if (type === "shorts") {
-  query = query.lte("duration", 180);
-} else {
-  query = query.or("duration.gt.180,duration.is.null");
-}
+useEffect(() => {
+  const handler = (e: CustomEvent) => {
+    toast({ title: `+${e.detail.amount.toLocaleString()} CAMLY` });
+  };
+  window.addEventListener('camly-reward', handler);
+  return () => window.removeEventListener('camly-reward', handler);
+}, []);
 ```
 
-**Sau:**
+**Tep**: `src/components/Video/YouTubeMobilePlayer.tsx` va `MobileVideoPlayer.tsx`
+
+Sau khi `awardViewReward` thanh cong, dispatch event:
 ```tsx
-if (type === "shorts") {
-  query = query.or("duration.lte.180,and(duration.is.null,category.eq.shorts)");
-} else {
-  query = query.or("duration.gt.180,and(duration.is.null,category.neq.shorts)");
+const success = await awardViewReward(videoId);
+if (success) {
+  window.dispatchEvent(new CustomEvent("camly-reward", {
+    detail: { type: "VIEW", amount: 10000 }
+  }));
 }
 ```
-
-### Tep 2: `src/pages/YourVideos.tsx`
-
-Tuong tu, sua bo loc trong trang quan ly video cua nguoi dung:
-
-**Truoc (dong 58-62):**
-```tsx
-if (activeTab === "video") {
-  query = query.or("duration.gt.180,duration.is.null");
-} else if (activeTab === "shorts") {
-  query = query.lte("duration", 180);
-}
-```
-
-**Sau:**
-```tsx
-if (activeTab === "video") {
-  query = query.or("duration.gt.180,and(duration.is.null,category.neq.shorts)");
-} else if (activeTab === "shorts") {
-  query = query.or("duration.lte.180,and(duration.is.null,category.eq.shorts)");
-}
-```
-
-### Tep 3: `src/contexts/UploadContext.tsx` -- Da dung
-
-Da luu `null` thay vi `0` khi duration extraction that bai. Khong can thay doi them.
-
-### Tep 4: `src/pages/Watch.tsx` -- Da dung
-
-Auto-detect duration da hoat dong. Khong can thay doi them.
-
-### Tep 5: `supabase/functions/recalculate-upload-rewards/index.ts` -- Da dung
-
-Edge function da san sang. Admin goi voi `{"dryRun": false}` sau khi cac video da duoc backfill duration.
 
 ## Tom tat thay doi
 
 | Tep | Thay doi |
-|------|----------|
-| `src/components/Profile/ProfileVideosTab.tsx` | Sua bo loc Shorts de dung `category` lam fallback khi duration = NULL |
-| `src/pages/YourVideos.tsx` | Tuong tu -- sua bo loc Shorts/Video cho trang quan ly |
+|---|---|
+| `src/lib/enhancedRewards.ts` | Cap nhat VIEW=10000, LIKE=5000 cho khop DB |
+| `supabase/functions/award-camly/index.ts` | Giu nguyen logic (da dung), chi can chay recalculate |
+| `src/components/Video/Mobile/MobileWatchView.tsx` | Them toast thong bao khi nhan thuong |
+| `src/components/Video/YouTubeMobilePlayer.tsx` | Dispatch camly-reward event sau khi thuong thanh cong |
+| `src/components/Video/MobileVideoPlayer.tsx` | Tuong tu -- dispatch event |
 
-## Tong ket
+## Ket luan
 
-- He thong thuong 70K cho video dai **da hoat dong dung** cho video moi co duration
-- 442 video cu se duoc tu dong cap nhat duration khi co nguoi xem
-- Sau khi duration duoc backfill, admin chay `recalculate-upload-rewards` de bu thuong
-- Loi Shorts khong hien duoc sua bang cach dung `category` lam tieu chi phu khi `duration = NULL`
+- **He thong thuong VIEW**: Dang hoat dong nhung user khong thay thong bao tren mobile
+- **He thong thuong 70K**: Dang hoat dong cho video moi co duration. 392 video cu can backfill duration roi chay recalculate
+- **Lich su phan thuong**: UI dung, du lieu sai do NULL duration
+- **Hanh dong ngay**: Chay recalculate cho 3 video da biet sai, them toast mobile, dong bo constants
