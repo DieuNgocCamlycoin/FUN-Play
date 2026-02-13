@@ -1,78 +1,76 @@
 
-# Sua Loi Thuong Xem Video (VIEW Reward) va Cap Nhat Mobile
 
-## Van de phat hien
+# Fix View Reward: 5,000 CAMLY at 30% Watch for ALL Videos
 
-### 1. Desktop khong co thong bao khi nhan thuong VIEW
-- `EnhancedVideoPlayer.tsx` (desktop) goi `awardViewReward()` nhung **KHONG dispatch event** `camly-reward`
-- Ket qua: user xem video tren desktop, nhan thuong nhung khong thay thong bao gi
-- Mobile da duoc sua lan truoc, nhung desktop chua
+## 3 problems to fix
 
-### 2. Nguong xem video qua cao (90% cho video ngan)
-- Tat ca 3 player (Desktop, YouTubeMobile, MobileVideoPlayer) yeu cau xem **90% video ngan (<5 phut)** hoac **5 phut lien tuc cho video dai**
-- Nhung `reward_config` trong DB chi yeu cau **MIN_WATCH_PERCENTAGE = 30%**
-- Day la nguyen nhan chinh khien user cam thay "xem video ma khong duoc thuong": ho phai xem gan het video moi duoc thuong
-- **De xuat**: Giam nguong xuong **60%** cho video ngan (hop ly hon, van chong gian lan)
+1. **Interval thrashing bug** -- `currentTime` in useEffect dependencies causes interval to reset every 250ms, so `checkViewReward` never fires reliably
+2. **Wrong threshold** -- Currently 60%, user wants **30%** for both short AND long videos
+3. **Wrong amount** -- DB has VIEW_REWARD=10,000, hardcoded dispatch uses 10,000, but user wants **5,000 CAMLY**
+4. **Long video uses time-based check** -- Currently requires 5 minutes continuous watch. Should use 30% of duration instead (same rule as short videos)
 
-### 3. Du lieu thuong VIEW dang hoat dong
-- 25 giao dich VIEW trong 48h qua (1 giao dich 10.000, 24 giao dich 5.000)
-- He thong dang hoat dong nhung nguong xem qua cao nen it user dat duoc
+## Changes
 
-## Giai phap
+### 1. Update DB config: VIEW_REWARD 10,000 to 5,000
 
-### Tep 1: `src/components/Video/EnhancedVideoPlayer.tsx`
-Them dispatch event `camly-reward` sau khi `awardViewReward` thanh cong (giong mobile):
+### 2. Update client constants
+**File**: `src/lib/enhancedRewards.ts`
+- `VIEW: 10000` to `VIEW: 5000`
 
-```tsx
-// Truoc:
-await awardViewReward(videoId);
+### 3. Fix `awardViewReward` to return full result
+**File**: `src/hooks/useAutoReward.ts`
+- Change return type from `Promise<boolean>` to `Promise<RewardResult>`
+- Return the full result object (with `amount`, `success`, `reason`)
 
-// Sau:
-const result = await awardViewReward(videoId);
-if (result) {
-  window.dispatchEvent(new CustomEvent("camly-reward", {
-    detail: { type: "VIEW", amount: 10000 }
-  }));
-}
+### 4. Fix all 3 players (same pattern for each)
+**Files**:
+- `src/components/Video/EnhancedVideoPlayer.tsx`
+- `src/components/Video/YouTubeMobilePlayer.tsx`
+- `src/components/Video/MobileVideoPlayer.tsx`
+
+Changes in each:
+- Remove `LONG_VIDEO_MIN_WATCH` constant (no longer needed)
+- Remove short/long distinction -- use **30% of duration** for ALL videos
+- Read `video.currentTime` and `video.duration` from DOM ref (not React state)
+- Remove `currentTime` and `duration` from useEffect dependencies (fixes interval thrashing)
+- Use `result.amount` from server response instead of hardcoded 10000
+
+New logic:
+```
+const checkViewReward = async () => {
+  const video = videoRef.current;
+  if (!video || viewRewarded || !user || !videoId) return;
+  const dur = video.duration;
+  if (!dur || dur <= 0) return;
+  
+  if (video.currentTime >= dur * 0.3) {
+    setViewRewarded(true);
+    const result = await awardViewReward(videoId);
+    if (result.success) {
+      window.dispatchEvent(new CustomEvent("camly-reward", {
+        detail: { type: "VIEW", amount: result.amount || 5000 }
+      }));
+    }
+  }
+};
+
+// Dependencies: only [isPlaying, viewRewarded, user, videoId]
+// NO currentTime, NO duration -- read from DOM
 ```
 
-### Tep 2: Giam nguong xem video de nhan thuong (tat ca 3 player)
+## Summary
 
-Thay doi nguong tu 90% xuong 60% cho video ngan:
+| Item | Before | After |
+|------|--------|-------|
+| Watch threshold (short) | 60% | **30%** |
+| Watch threshold (long) | 5 min continuous | **30% of duration** |
+| Reward amount | 10,000 | **5,000** |
+| Interval deps | includes currentTime (broken) | excludes it (stable) |
+| awardViewReward return | boolean | RewardResult (with amount) |
+| DB VIEW_REWARD config | 10,000 | **5,000** |
 
-| Tep | Thay doi |
-|---|---|
-| `src/components/Video/EnhancedVideoPlayer.tsx` | `0.9` thanh `0.6` |
-| `src/components/Video/YouTubeMobilePlayer.tsx` | `0.9` thanh `0.6` |
-| `src/components/Video/MobileVideoPlayer.tsx` | `0.9` thanh `0.6` |
-
-### Tep 3: `src/pages/Watch.tsx` (Desktop watch page)
-Them listener `camly-reward` de hien thi toast thong bao khi nhan thuong (tuong tu MobileWatchView):
-
-```tsx
-useEffect(() => {
-  const handler = (e: Event) => {
-    const detail = (e as CustomEvent).detail;
-    toast.success(`+${Number(detail.amount).toLocaleString()} CAMLY`, {
-      description: `Thuong xem video`,
-      duration: 3000,
-    });
-  };
-  window.addEventListener('camly-reward', handler);
-  return () => window.removeEventListener('camly-reward', handler);
-}, []);
-```
-
-## Tom tat thay doi
-
-| Tep | Thay doi |
-|---|---|
-| `src/components/Video/EnhancedVideoPlayer.tsx` | Dispatch camly-reward event + giam nguong 90% xuong 60% |
-| `src/components/Video/YouTubeMobilePlayer.tsx` | Giam nguong 90% xuong 60% |
-| `src/components/Video/MobileVideoPlayer.tsx` | Giam nguong 90% xuong 60% |
-| `src/pages/Watch.tsx` | Them toast thong bao khi nhan thuong VIEW tren desktop |
-
-## Ket qua mong doi
-- User se thay thong bao "+10.000 CAMLY" khi xem video du tren desktop hay mobile
-- Nguong xem giam tu 90% xuong 60%, nhieu user hon se dat duoc dieu kien nhan thuong
-- Trang lich su thuong se cap nhat realtime khi nhan thuong moi (da co san)
+## Expected Result
+- User watches any video to 30% and reliably receives 5,000 CAMLY
+- Toast notification shows "+5,000 CAMLY" on both desktop and mobile
+- Reward appears immediately in reward history page
+- Max 10 rewarded views per day (enforced by edge function)
