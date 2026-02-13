@@ -25,6 +25,7 @@ export function RewardsManagementTab() {
     approveReward,
     rejectReward,
     unapproveReward,
+    bulkApproveAll,
   } = useAdminManage();
 
   return (
@@ -65,6 +66,7 @@ export function RewardsManagementTab() {
           users={users} 
           onApprove={approveReward} 
           onReject={rejectReward} 
+          onBulkApproveAll={bulkApproveAll}
           loading={actionLoading} 
         />
       </TabsContent>

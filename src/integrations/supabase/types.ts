@@ -2435,6 +2435,7 @@ export type Database = {
         Args: { p_admin_id: string; p_reason?: string; p_user_id: string }
         Returns: boolean
       }
+      bulk_approve_all_rewards: { Args: { p_admin_id: string }; Returns: Json }
       get_public_users_directory: {
         Args: never
         Returns: {
