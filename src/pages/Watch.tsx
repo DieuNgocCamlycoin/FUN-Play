@@ -42,6 +42,7 @@ interface Video {
   view_count: number;
   like_count: number;
   dislike_count: number;
+  duration: number | null;
   created_at: string;
   user_id: string;
   channels: {
@@ -239,6 +240,26 @@ export default function Watch() {
         .eq("id", id);
 
       // View reward is now handled in EnhancedVideoPlayer based on watch time policy
+
+      // Auto-detect duration: if DB has NULL duration, update when player loads metadata
+      if (data.duration == null) {
+        const videoEl = document.createElement("video");
+        videoEl.preload = "metadata";
+        videoEl.src = data.video_url;
+        videoEl.onloadedmetadata = async () => {
+          const detectedDuration = videoEl.duration;
+          if (detectedDuration && detectedDuration > 0 && isFinite(detectedDuration)) {
+            const rounded = Math.round(detectedDuration);
+            console.log(`[Auto-Duration] Updating video ${data.id} duration to ${rounded}s`);
+            await supabase
+              .from("videos")
+              .update({ duration: rounded })
+              .eq("id", data.id);
+          }
+          videoEl.src = "";
+        };
+        videoEl.onerror = () => { videoEl.src = ""; };
+      }
     } catch (error: any) {
       toast({
         title: "Lỗi tải video",

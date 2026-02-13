@@ -257,7 +257,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
             video_url: videoUrl,
             thumbnail_url: thumbnailUrl,
             file_size: file.size,
-            duration: Math.round(metadata.duration),
+            duration: metadata.duration > 0 ? Math.round(metadata.duration) : null,
             is_public: metadata.visibility === "public",
             category: metadata.isShort ? "shorts" : "general",
             approval_status: approvalStatus,
