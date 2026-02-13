@@ -143,16 +143,26 @@ export function EnhancedVideoPlayer({
       const isShortVideo = videoDuration < SHORT_VIDEO_THRESHOLD;
       
       if (isShortVideo) {
-        // Short video: Must watch entire video (90%+ for edge cases)
-        if (currentTime >= videoDuration * 0.9) {
+        // Short video: Must watch 60%+ to earn reward
+        if (currentTime >= videoDuration * 0.6) {
           setViewRewarded(true);
-          await awardViewReward(videoId);
+          const result = await awardViewReward(videoId);
+          if (result) {
+            window.dispatchEvent(new CustomEvent("camly-reward", {
+              detail: { type: "VIEW", amount: 10000 }
+            }));
+          }
         }
       } else {
         // Long video: Must watch at least 5 minutes continuously
         if (watchTimeRef.current >= LONG_VIDEO_MIN_WATCH) {
           setViewRewarded(true);
-          await awardViewReward(videoId);
+          const result = await awardViewReward(videoId);
+          if (result) {
+            window.dispatchEvent(new CustomEvent("camly-reward", {
+              detail: { type: "VIEW", amount: 10000 }
+            }));
+          }
         }
       }
     };

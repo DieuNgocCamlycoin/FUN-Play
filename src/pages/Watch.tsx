@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { toast as sonnerToast } from "sonner";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Header } from "@/components/Layout/Header";
 import { CollapsibleSidebar } from "@/components/Layout/CollapsibleSidebar";
@@ -99,7 +100,19 @@ export default function Watch() {
   const { createSession, nextVideo, previousVideo, isAutoplayEnabled, session, getUpNext } = useVideoPlayback();
   const { awardCommentReward, awardLikeReward } = useAutoReward();
 
-  // Swipe navigation for mobile
+  // Listen for CAMLY reward events and show toast notification
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      sonnerToast.success(`+${Number(detail.amount).toLocaleString()} CAMLY`, {
+        description: "Thưởng xem video",
+        duration: 3000,
+      });
+    };
+    window.addEventListener('camly-reward', handler);
+    return () => window.removeEventListener('camly-reward', handler);
+  }, []);
+
   const handleSwipeLeft = () => {
     const next = nextVideo();
     if (next) {
