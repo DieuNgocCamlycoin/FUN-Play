@@ -140,9 +140,7 @@ export function EnhancedVideoPlayer({
         setViewRewarded(true);
         const result = await awardViewReward(videoId);
         if (result.success) {
-          window.dispatchEvent(new CustomEvent("camly-reward", {
-            detail: { type: "VIEW", amount: result.amount || 5000 }
-          }));
+          console.log('[Desktop Reward] View reward awarded:', result.amount);
         }
       }
     };
