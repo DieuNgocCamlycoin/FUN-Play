@@ -1780,6 +1780,57 @@ export type Database = {
         }
         Relationships: []
       }
+      reward_snapshot_20260213: {
+        Row: {
+          amount: number | null
+          approved: boolean | null
+          approved_at: string | null
+          approved_by: string | null
+          claim_tx_hash: string | null
+          claimed: boolean | null
+          claimed_at: string | null
+          created_at: string | null
+          id: string | null
+          reward_type: string | null
+          status: string | null
+          tx_hash: string | null
+          user_id: string | null
+          video_id: string | null
+        }
+        Insert: {
+          amount?: number | null
+          approved?: boolean | null
+          approved_at?: string | null
+          approved_by?: string | null
+          claim_tx_hash?: string | null
+          claimed?: boolean | null
+          claimed_at?: string | null
+          created_at?: string | null
+          id?: string | null
+          reward_type?: string | null
+          status?: string | null
+          tx_hash?: string | null
+          user_id?: string | null
+          video_id?: string | null
+        }
+        Update: {
+          amount?: number | null
+          approved?: boolean | null
+          approved_at?: string | null
+          approved_by?: string | null
+          claim_tx_hash?: string | null
+          claimed?: boolean | null
+          claimed_at?: string | null
+          created_at?: string | null
+          id?: string | null
+          reward_type?: string | null
+          status?: string | null
+          tx_hash?: string | null
+          user_id?: string | null
+          video_id?: string | null
+        }
+        Relationships: []
+      }
       reward_transactions: {
         Row: {
           amount: number
