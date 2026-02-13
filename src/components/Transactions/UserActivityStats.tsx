@@ -30,25 +30,15 @@ export function UserActivityStats({ className }: { className?: string }) {
         p_user_id: user.id,
       });
       if (error) throw error;
-      if (summary && Array.isArray(summary)) {
-        const stats: ActivityData = { views: 0, likes: 0, comments: 0, shares: 0, uploads: 0, totalCamly: 0 };
-        summary.forEach((row: any) => {
-          const type = (row.reward_type || "").toUpperCase();
-          const count = Number(row.total_count) || 0;
-          const amount = Number(row.total_amount) || 0;
-          stats.totalCamly += amount;
-          switch (type) {
-            case "VIEW": stats.views = count; break;
-            case "LIKE": stats.likes = count; break;
-            case "COMMENT": stats.comments = count; break;
-            case "SHARE": stats.shares = count; break;
-            case "UPLOAD":
-            case "SHORT_VIDEO_UPLOAD":
-            case "LONG_VIDEO_UPLOAD":
-              stats.uploads += count; break;
-          }
+      if (summary && typeof summary === 'object') {
+        setData({
+          views: Number((summary as any).views) || 0,
+          likes: Number((summary as any).likes) || 0,
+          comments: Number((summary as any).comments) || 0,
+          shares: Number((summary as any).shares) || 0,
+          uploads: Number((summary as any).uploads) || 0,
+          totalCamly: Number((summary as any).total_camly) || 0,
         });
-        setData(stats);
       }
     } catch (err) {
       console.error("Error fetching activity stats:", err);
