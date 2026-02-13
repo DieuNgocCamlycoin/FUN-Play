@@ -92,9 +92,6 @@ export function YouTubeMobilePlayer({
   // Skip amount changed from 10s to 15s
   const SKIP_SECONDS = 15;
   
-  // Reward thresholds
-  const SHORT_VIDEO_THRESHOLD = 5 * 60; // 5 minutes
-  const LONG_VIDEO_MIN_WATCH = 5 * 60; // 5 minutes for long videos
 
   // Format time
   const formatTime = (seconds: number) => {
@@ -322,55 +319,32 @@ export function YouTubeMobilePlayer({
   // View reward tracking - Award CAMLY for watching videos
   useEffect(() => {
     const checkViewReward = async () => {
-      if (viewRewarded || !user || !videoId || duration <= 0) return;
-      
-      const isShortVideo = duration < SHORT_VIDEO_THRESHOLD;
-      
-      if (isShortVideo) {
-        // Short video: Must watch 60%+
-        if (currentTime >= duration * 0.6) {
-          setViewRewarded(true);
-          console.log('[Mobile Reward] Short video 90% reached, awarding view reward');
-          const result = await awardViewReward(videoId);
-          if (result) {
-            window.dispatchEvent(new CustomEvent("camly-reward", {
-              detail: { type: "VIEW", amount: 10000 }
-            }));
-          }
-        }
-      } else {
-        // Long video: Must watch at least 5 minutes continuously
-        if (watchTimeRef.current >= LONG_VIDEO_MIN_WATCH) {
-          setViewRewarded(true);
-          console.log('[Mobile Reward] Long video 5min reached, awarding view reward');
-          const result = await awardViewReward(videoId);
-          if (result) {
-            window.dispatchEvent(new CustomEvent("camly-reward", {
-              detail: { type: "VIEW", amount: 10000 }
-            }));
-          }
+      const video = videoRef.current;
+      if (!video || viewRewarded || !user || !videoId) return;
+      const dur = video.duration;
+      if (!dur || dur <= 0) return;
+
+      // 30% watch threshold for ALL videos
+      if (video.currentTime >= dur * 0.3) {
+        setViewRewarded(true);
+        console.log('[Mobile Reward] 30% reached, awarding view reward');
+        const result = await awardViewReward(videoId);
+        if (result.success) {
+          window.dispatchEvent(new CustomEvent("camly-reward", {
+            detail: { type: "VIEW", amount: result.amount || 5000 }
+          }));
         }
       }
     };
     
-    if (isPlaying && duration > 0) {
+    if (isPlaying) {
       const interval = setInterval(() => {
-        const video = videoRef.current;
-        if (!video) return;
-        
-        const current = video.currentTime;
-        // Only count time if watching continuously (not skipping)
-        if (Math.abs(current - lastTimeRef.current) < 2) {
-          watchTimeRef.current += 1;
-        }
-        lastTimeRef.current = current;
-        
         checkViewReward();
       }, 1000);
       
       return () => clearInterval(interval);
     }
-  }, [isPlaying, duration, currentTime, viewRewarded, user, videoId, awardViewReward]);
+  }, [isPlaying, viewRewarded, user, videoId, awardViewReward]);
 
   // Reset reward state when video changes
   useEffect(() => {

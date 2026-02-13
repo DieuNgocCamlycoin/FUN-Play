@@ -193,13 +193,12 @@ export const useAutoReward = () => {
   }, []);
 
   // Award view reward
-  const awardViewReward = useCallback(async (videoId: string): Promise<boolean> => {
+  const awardViewReward = useCallback(async (videoId: string): Promise<RewardResult> => {
     try {
-      const result = await awardCAMLY('VIEW', videoId);
-      return result.success;
+      return await awardCAMLY('VIEW', videoId);
     } catch (err) {
       console.error('View reward error:', err);
-      return false;
+      return { success: false, reason: 'Error' };
     }
   }, [awardCAMLY]);
 
