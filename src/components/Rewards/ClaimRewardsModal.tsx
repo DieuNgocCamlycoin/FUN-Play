@@ -30,6 +30,7 @@ interface RewardBreakdown {
   type: string;
   amount: number;
   count: number;
+  approved: boolean;
 }
 
 const REWARD_TYPE_LABELS: Record<string, string> = {
@@ -63,8 +64,10 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
   const [claiming, setClaiming] = useState(false);
   const [claimSuccess, setClaimSuccess] = useState(false);
   const [txHash, setTxHash] = useState<string | null>(null);
-  const [totalUnclaimed, setTotalUnclaimed] = useState(0);
-  const [breakdown, setBreakdown] = useState<RewardBreakdown[]>([]);
+  const [totalClaimable, setTotalClaimable] = useState(0);
+  const [totalPending, setTotalPending] = useState(0);
+  const [approvedBreakdown, setApprovedBreakdown] = useState<RewardBreakdown[]>([]);
+  const [pendingBreakdown, setPendingBreakdown] = useState<RewardBreakdown[]>([]);
   const [isMobile, setIsMobile] = useState(false);
   const [inWalletApp, setInWalletApp] = useState(false);
   const [showWalletGuide, setShowWalletGuide] = useState(false);
@@ -128,30 +131,42 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
 
       if (error) throw error;
 
-      // All rewards are auto-approved now
-      const breakdownMap = new Map<string, { amount: number; count: number }>();
-      let total = 0;
+      // Separate approved vs pending rewards
+      const approvedMap = new Map<string, { amount: number; count: number }>();
+      const pendingMap = new Map<string, { amount: number; count: number }>();
+      let claimableTotal = 0;
+      let pendingTotal = 0;
 
       rewards?.forEach((r) => {
-        const existing = breakdownMap.get(r.reward_type) || { amount: 0, count: 0 };
-        breakdownMap.set(r.reward_type, {
+        const isApproved = r.approved === true;
+        const map = isApproved ? approvedMap : pendingMap;
+        const existing = map.get(r.reward_type) || { amount: 0, count: 0 };
+        map.set(r.reward_type, {
           amount: existing.amount + Number(r.amount),
           count: existing.count + 1,
         });
-        total += Number(r.amount);
+        if (isApproved) {
+          claimableTotal += Number(r.amount);
+        } else {
+          pendingTotal += Number(r.amount);
+        }
       });
 
-      setBreakdown(
-        Array.from(breakdownMap.entries()).map(([type, data]) => ({
-          type,
-          ...data,
+      setApprovedBreakdown(
+        Array.from(approvedMap.entries()).map(([type, data]) => ({
+          type, ...data, approved: true,
         }))
       );
-      setTotalUnclaimed(total);
+      setPendingBreakdown(
+        Array.from(pendingMap.entries()).map(([type, data]) => ({
+          type, ...data, approved: false,
+        }))
+      );
+      setTotalClaimable(claimableTotal);
+      setTotalPending(pendingTotal);
     } catch (error) {
       console.error("Error fetching unclaimed rewards:", error);
     } finally {
-      // Ensure minimum loading time for smooth UX
       const elapsed = Date.now() - startTime;
       const minDelay = 300;
       if (elapsed < minDelay) {
@@ -186,7 +201,7 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
     logWalletDebug('Starting claim', { 
       userId: user.id, 
       walletAddress: address,
-      totalUnclaimed 
+      totalClaimable 
     });
     
     try {
@@ -447,21 +462,42 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
                       animate={{ scale: [1, 1.02, 1] }}
                       transition={{ duration: 2, repeat: Infinity }}
                     >
-                      {formatNumber(totalUnclaimed)}
+                      {formatNumber(totalClaimable)}
                     </motion.p>
                     <p className="text-sm text-muted-foreground">CAMLY</p>
                   </div>
                 </motion.div>
 
+                {/* ⏳ SỐ CAMLY CHỜ DUYỆT */}
+                {totalPending > 0 && (
+                  <motion.div
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.1 }}
+                    className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/15 to-yellow-500/15 border border-amber-500/30"
+                  >
+                    <div className="text-center">
+                      <div className="flex items-center justify-center gap-2 mb-1">
+                        <Clock className="h-5 w-5 text-amber-500" />
+                        <span className="text-xs text-muted-foreground">⏳ Chờ admin duyệt</span>
+                      </div>
+                      <p className="text-xl font-bold text-amber-500">
+                        {formatNumber(totalPending)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">CAMLY</p>
+                    </div>
+                  </motion.div>
+                )}
+
                 {/* 🎉 Thông báo ngưỡng claim */}
-                {totalUnclaimed >= MIN_CLAIM_THRESHOLD && (
+                {totalClaimable >= MIN_CLAIM_THRESHOLD && (
                   <Alert className="border-green-500/30 bg-green-500/10">
                     <CheckCircle className="h-4 w-4 text-green-500" />
                     <AlertTitle className="text-green-600 font-semibold">
                       🎉 Đủ điều kiện claim!
                     </AlertTitle>
                     <AlertDescription className="text-sm text-muted-foreground">
-                      Bạn có thể claim {formatNumber(totalUnclaimed)} CAMLY về ví ngay bây giờ!
+                      Bạn có thể claim {formatNumber(totalClaimable)} CAMLY về ví ngay bây giờ!
                     </AlertDescription>
                   </Alert>
                 )}
@@ -558,7 +594,7 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
                   <div className="space-y-3">
                     <Button
                       onClick={handleClaim}
-                      disabled={claiming || totalUnclaimed < MIN_CLAIM_THRESHOLD}
+                      disabled={claiming || totalClaimable < MIN_CLAIM_THRESHOLD}
                       className="w-full bg-gradient-to-r from-yellow-500 to-cyan-500 hover:from-yellow-600 hover:to-cyan-600 text-white font-bold py-5"
                     >
                       {claiming ? (
@@ -566,8 +602,8 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
                           <Loader2 className="h-5 w-5 mr-2 animate-spin" />
                           Đang gửi CAMLY...
                         </>
-                      ) : totalUnclaimed < MIN_CLAIM_THRESHOLD ? (
-                        `Cần ${formatNumber(Math.max(MIN_CLAIM_THRESHOLD - totalUnclaimed, 0))} CAMLY nữa`
+                      ) : totalClaimable < MIN_CLAIM_THRESHOLD ? (
+                        `Cần ${formatNumber(Math.max(MIN_CLAIM_THRESHOLD - totalClaimable, 0))} CAMLY nữa`
                       ) : (
                         <>
                           <motion.div
@@ -576,23 +612,23 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
                           >
                             <Coins className="h-5 w-5 mr-2" />
                           </motion.div>
-                          Claim {formatNumber(totalUnclaimed)} CAMLY
+                          Claim {formatNumber(totalClaimable)} CAMLY
                         </>
                       )}
                     </Button>
                   </div>
                 ) : null}
 
-                {/* ✅ Chi tiết phần thưởng */}
-                {breakdown.length > 0 && (
+                {/* ✅ Chi tiết phần thưởng đã duyệt */}
+                {approvedBreakdown.length > 0 && (
                   <div className="space-y-2">
                     <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                       <ShieldCheck className="h-4 w-4 text-green-500" />
-                      Chi tiết phần thưởng
+                      Phần thưởng đã duyệt
                     </h4>
                     <ScrollArea className="max-h-28">
                       <div className="space-y-1.5">
-                        {breakdown.map((item, index) => (
+                        {approvedBreakdown.map((item, index) => (
                           <motion.div
                             key={item.type}
                             initial={{ x: -20, opacity: 0 }}
@@ -604,6 +640,36 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
                               {REWARD_TYPE_LABELS[item.type] || item.type} ({item.count}x)
                             </span>
                             <span className="font-medium text-green-500">
+                              +{formatNumber(item.amount)}
+                            </span>
+                          </motion.div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                )}
+
+                {/* ⏳ Chi tiết phần thưởng chờ duyệt */}
+                {pendingBreakdown.length > 0 && (
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-amber-500" />
+                      Chờ admin duyệt
+                    </h4>
+                    <ScrollArea className="max-h-28">
+                      <div className="space-y-1.5">
+                        {pendingBreakdown.map((item, index) => (
+                          <motion.div
+                            key={item.type}
+                            initial={{ x: -20, opacity: 0 }}
+                            animate={{ x: 0, opacity: 1 }}
+                            transition={{ delay: index * 0.05 }}
+                            className="flex items-center justify-between p-2 rounded-lg bg-amber-500/10 border border-amber-500/20"
+                          >
+                            <span className="text-sm">
+                              {REWARD_TYPE_LABELS[item.type] || item.type} ({item.count}x)
+                            </span>
+                            <span className="font-medium text-amber-500">
                               +{formatNumber(item.amount)}
                             </span>
                           </motion.div>
@@ -634,13 +700,26 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
                       <span className="text-[10px] text-muted-foreground font-medium">CÓ THỂ CLAIM</span>
                     </div>
                     <p className="text-xl font-bold bg-gradient-to-r from-yellow-500 to-cyan-500 bg-clip-text text-transparent">
-                      {formatNumber(totalUnclaimed)} CAMLY
+                      {formatNumber(totalClaimable)} CAMLY
                     </p>
                   </div>
+
+                  {/* Chờ duyệt */}
+                  {totalPending > 0 && (
+                    <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-center">
+                      <div className="flex items-center justify-center gap-1 mb-1">
+                        <Clock className="h-3 w-3 text-amber-500" />
+                        <span className="text-[10px] text-muted-foreground font-medium">CHỜ DUYỆT</span>
+                      </div>
+                      <p className="text-xl font-bold text-amber-500">
+                        {formatNumber(totalPending)} CAMLY
+                      </p>
+                    </div>
+                  )}
                 </motion.div>
 
                 {/* ⏳ Tiến độ đến ngưỡng claim */}
-                {totalUnclaimed > 0 && totalUnclaimed < MIN_CLAIM_THRESHOLD && (
+                {totalClaimable > 0 && totalClaimable < MIN_CLAIM_THRESHOLD && (
                   <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 space-y-2">
                     <div className="flex items-center gap-2">
                       <Info className="h-4 w-4 text-blue-500" />
@@ -649,19 +728,19 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
                     
                     <div className="space-y-1">
                       <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>{formatNumber(totalUnclaimed)}</span>
+                        <span>{formatNumber(totalClaimable)}</span>
                         <span>{formatNumber(MIN_CLAIM_THRESHOLD)}</span>
                       </div>
-                      <Progress value={Math.min((totalUnclaimed / MIN_CLAIM_THRESHOLD) * 100, 100)} className="h-2" />
+                      <Progress value={Math.min((totalClaimable / MIN_CLAIM_THRESHOLD) * 100, 100)} className="h-2" />
                       <p className="text-xs text-center text-muted-foreground">
-                        {((totalUnclaimed / MIN_CLAIM_THRESHOLD) * 100).toFixed(0)}% - Còn cần <span className="font-bold text-blue-500">{formatNumber(MIN_CLAIM_THRESHOLD - totalUnclaimed)}</span>
+                        {((totalClaimable / MIN_CLAIM_THRESHOLD) * 100).toFixed(0)}% - Còn cần <span className="font-bold text-blue-500">{formatNumber(MIN_CLAIM_THRESHOLD - totalClaimable)}</span>
                       </p>
                     </div>
                   </div>
                 )}
 
                 {/* Thông báo khi không có reward gì cả */}
-                {totalUnclaimed === 0 && (
+                {totalClaimable === 0 && totalPending === 0 && (
                   <Alert className="border-muted bg-muted/30">
                     <Info className="h-4 w-4 text-muted-foreground" />
                     <AlertTitle className="text-muted-foreground font-semibold">
@@ -672,6 +751,22 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
                     </AlertDescription>
                   </Alert>
                 )}
+
+                {/* Giải thích quy trình */}
+                <div className="p-3 rounded-lg bg-muted/30 border border-border text-xs text-muted-foreground space-y-1.5">
+                  <p className="flex items-center gap-1.5">
+                    <CheckCircle className="h-3 w-3 text-green-500 flex-shrink-0" />
+                    Phần thưởng được admin duyệt trước khi claim
+                  </p>
+                  <p className="flex items-center gap-1.5">
+                    <Clock className="h-3 w-3 text-amber-500 flex-shrink-0" />
+                    Phần thưởng chờ duyệt sẽ tự động chuyển khi được phê duyệt
+                  </p>
+                  <p className="flex items-center gap-1.5">
+                    <ShieldCheck className="h-3 w-3 text-primary flex-shrink-0" />
+                    Ngưỡng tối thiểu: {formatNumber(MIN_CLAIM_THRESHOLD)} CAMLY
+                  </p>
+                </div>
               </div>
             </div>
           )}
