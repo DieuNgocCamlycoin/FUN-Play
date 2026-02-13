@@ -1,52 +1,72 @@
 
 
-# Fix Video Classification: Long Videos Incorrectly Showing as Short
+# Fix Remaining Long Video Reward Issues
 
-## Problem Found
+## Problems Found
 
-Database analysis confirms **8 reward transactions** where videos longer than 3 minutes (180s) were incorrectly classified as `SHORT_VIDEO_UPLOAD` (20,000 CAMLY) instead of `LONG_VIDEO_UPLOAD` (70,000 CAMLY). Total underpaid: **400,000 CAMLY**.
+### Problem 1: 2 Legacy UPLOAD Transactions (Wrong Type)
+Two transactions from user "Angel Tran Mau" use the old `UPLOAD` type (100,000 CAMLY each) for videos > 180s. These should be reclassified to `LONG_VIDEO_UPLOAD` (70,000 CAMLY).
 
-### Root Cause
-When a video is uploaded, the duration may still be NULL in the database. The `award-camly` edge function (line 250-252) falls back to trusting the client-provided type when duration is NULL:
-```text
-if (!videoData?.duration) {
-  console.warn("Video has NULL duration, keeping client type");
-}
-```
-The client sometimes sends `SHORT_VIDEO_UPLOAD` before metadata is fully extracted.
+| Video | Duration | Current Type | Current Amount | Correct Type | Correct Amount |
+|-------|----------|-------------|----------------|--------------|----------------|
+| Angel Tran Mau (8011b0a1) | 194s | UPLOAD | 100,000 | LONG_VIDEO_UPLOAD | 70,000 |
+| Angel Tran Mau (76eb5fd4) | 230s | UPLOAD | 100,000 | LONG_VIDEO_UPLOAD | 70,000 |
 
-## Solution (2 Parts)
+**Note:** These users were actually OVERPAID (100k vs 70k). Reclassifying the type but keeping the amount at 100k to avoid taking back rewards, OR reducing to 70k for consistency. Recommendation: reduce to 70k for integrity and deduct 60,000 total from user balance.
 
-### Part 1: Fix existing misclassified transactions
-Run the existing `recalculate-upload-rewards` edge function to:
-- Find all `SHORT_VIDEO_UPLOAD` transactions where the video duration is actually > 180s
-- Update their `reward_type` to `LONG_VIDEO_UPLOAD`
-- Update their `amount` from 20,000 to 70,000
-- Credit the 50,000 CAMLY difference to each affected user's balance
+### Problem 2: 6 Videos With NO Upload Reward (Missing Rewards)
+These users uploaded long videos (> 180s) but never received any upload reward:
 
-### Part 2: Fix the root cause in `award-camly`
-Update the edge function so that when duration is NULL at reward time, it **defers the upload reward** instead of trusting the client type. Alternatively, improve the fallback logic to:
-- If duration is NULL and client says SHORT, try to extract duration from the video file metadata
-- If still NULL, default to SHORT but **flag the transaction for later reconciliation**
+| User | Video | Duration | Missing Reward |
+|------|-------|----------|---------------|
+| Angel Kieu Phi | Nha Thong Thai Angel AI | 189s | 70,000 |
+| THANH TIEN | TAM CAU THAN CHU | 215s | 70,000 |
+| Angel Quynh Hoa | 1000004891 | 242s | 70,000 |
+| Angel Hiep | Thu gian som mai | 270s | 70,000 |
+| Nguyenthanhvi | Ngan Nam De Cau Nguyen | 815s | 70,000 |
+| ANGEL-BACHVIET | Happy New Year | 328s | 70,000 |
 
-A simpler approach: Update `award-camly` to **always re-check duration** from the `videos` table for ANY upload reward type (including `UPLOAD` legacy type), and if duration is still NULL, temporarily store the reward as `SHORT_VIDEO_UPLOAD` but add a background check that runs the `recalculate-upload-rewards` reconciliation periodically.
+**Total missing: 420,000 CAMLY** for 6 users.
 
-### Part 3: Update RewardHistory display
-No UI changes needed -- the page already correctly maps `SHORT_VIDEO_UPLOAD` and `LONG_VIDEO_UPLOAD` to their labels. Once the database records are fixed, the display will automatically show correctly.
+## Solution
+
+### Step 1: Fix the 2 legacy UPLOAD transactions
+Update `reward_type` from `UPLOAD` to `LONG_VIDEO_UPLOAD` and adjust `amount` from 100,000 to 70,000. Then deduct the 60,000 CAMLY overpayment from the user's balance.
+
+### Step 2: Create missing reward transactions for the 6 videos
+Insert new `reward_transactions` with `reward_type = 'LONG_VIDEO_UPLOAD'` and `amount = 70,000` for each of the 6 missing videos. Credit each user's `approved_reward` and `total_camly_rewards` by 70,000.
+
+### Step 3: Sync all user balances
+Run `sync_reward_totals()` to ensure all profile balances match the transaction records exactly.
+
+### Step 4: Verify
+Query the database to confirm:
+- 0 remaining `UPLOAD` type transactions for videos > 180s
+- 0 videos > 180s missing upload rewards
+- All user balances are correctly synchronized
 
 ## Technical Details
 
-### Step 1: Run reconciliation (one-time fix)
-Call the `recalculate-upload-rewards` edge function with `dryRun: false` to fix the 8 misclassified transactions and credit 400,000 CAMLY total to affected users.
+### SQL for Step 1 (legacy UPLOAD fix):
+```sql
+UPDATE reward_transactions
+SET reward_type = 'LONG_VIDEO_UPLOAD', amount = 70000
+WHERE id IN ('0789fd42-85c0-4ddb-beba-e94c45937507', '68bc1638-935d-4b67-bae6-45690d2b0d37');
+```
 
-### Step 2: Improve `award-camly` edge function
-Update lines 237-253 to also handle the legacy `UPLOAD` type by checking video duration and reclassifying:
-- If type is `UPLOAD` and video has duration > 180s, use `LONG_VIDEO_UPLOAD`
-- If type is `UPLOAD` and video has duration <= 180s, use `SHORT_VIDEO_UPLOAD`
-- If duration is NULL, keep the client type but log a warning for reconciliation
+### SQL for Step 2 (insert missing rewards):
+```sql
+INSERT INTO reward_transactions (user_id, video_id, amount, reward_type, status, approved, approved_at, tx_hash)
+VALUES
+  ('67b18962-...', '635236de-...', 70000, 'LONG_VIDEO_UPLOAD', 'success', true, now(), 'RECONCILE_LONG_...'),
+  -- ... for each of the 6 videos
+;
+```
 
-### Step 3: Deploy and verify
-- Deploy the updated `award-camly` edge function
-- Verify the 8 transactions are now correctly classified
-- Check the Reward History page on mobile to confirm correct labels and amounts
+### SQL for Step 3 (balance sync):
+```sql
+SELECT sync_reward_totals();
+```
+
+No UI/mobile code changes are needed -- the Reward History page already correctly displays `LONG_VIDEO_UPLOAD` labels and amounts. Once the database is fixed, the display updates automatically on both desktop and mobile.
 
