@@ -331,14 +331,24 @@ export function YouTubeMobilePlayer({
         if (currentTime >= duration * 0.9) {
           setViewRewarded(true);
           console.log('[Mobile Reward] Short video 90% reached, awarding view reward');
-          await awardViewReward(videoId);
+          const result = await awardViewReward(videoId);
+          if (result) {
+            window.dispatchEvent(new CustomEvent("camly-reward", {
+              detail: { type: "VIEW", amount: 10000 }
+            }));
+          }
         }
       } else {
         // Long video: Must watch at least 5 minutes continuously
         if (watchTimeRef.current >= LONG_VIDEO_MIN_WATCH) {
           setViewRewarded(true);
           console.log('[Mobile Reward] Long video 5min reached, awarding view reward');
-          await awardViewReward(videoId);
+          const result = await awardViewReward(videoId);
+          if (result) {
+            window.dispatchEvent(new CustomEvent("camly-reward", {
+              detail: { type: "VIEW", amount: 10000 }
+            }));
+          }
         }
       }
     };
