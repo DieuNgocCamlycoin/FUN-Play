@@ -1,41 +1,34 @@
 
+# Thêm Link Lịch Sử Giao Dịch Vào Menu Di Động
 
-# Sửa 4 Giao Dịch LIKE Còn Sót & Đồng Bộ Lại Số Dư
+## Kết quả kiểm tra
 
-## Vấn đề
-Có **4 giao dịch LIKE** chưa claim vẫn đang ở mức thưởng cũ (5.000 CAMLY thay vì 2.000 CAMLY). Đây là các giao dịch được tạo trong khoảng thời gian giữa lúc migration chạy xong và Edge Function được cập nhật. Chênh lệch: 4 x 3.000 = **12.000 CAMLY**.
+Trang `/transactions` **đã hoạt động tốt** trên di động:
+- Giao diện responsive, hiển thị đầy đủ thống kê (789 giao dịch, 1.67B CAMLY)
+- Người chưa đăng nhập vẫn xem được (publicMode: true)
+- Bộ lọc, tìm kiếm, nút "Tải thêm" đều hoạt động
+- Thẻ giao dịch hiển thị bố cục dọc phù hợp màn hình nhỏ
 
-## Kế hoạch thực hiện
+## Vấn đề duy nhất
 
-### Bước 1: Database Migration
+**Thiếu link trong menu di động (MobileDrawer)** -- người dùng trên điện thoại không có cách nào truy cập trang này từ menu.
 
-Chạy SQL để:
+## Kế hoạch sửa
 
-1. Cập nhật 4 giao dịch LIKE còn sót về mức 2.000 CAMLY
-2. Chạy lại `sync_reward_totals()` để đồng bộ số dư
+### Tệp: `src/components/Layout/MobileDrawer.tsx`
 
-```sql
--- Sửa 4 giao dịch LIKE còn ở mức 5.000
-UPDATE reward_transactions
-SET amount = 2000
-WHERE reward_type = 'LIKE'
-  AND claimed = false
-  AND amount != 2000;
+Thêm 1 mục mới vào mảng `rewardItems` (dòng 70), ngay sau "Lịch Sử Phần Thưởng":
 
--- Đồng bộ lại số dư cho tất cả người dùng
-SELECT sync_reward_totals();
+```typescript
+{ icon: Globe, label: "Lịch Sử Giao Dịch", href: "/transactions" },
 ```
 
-### Tác động
+Icon `Globe` đã có sẵn trong import. Chỉ cần thêm **1 dòng code**.
 
-- Giảm thêm **12.000 CAMLY** (4 giao dịch x 3.000 chênh lệch)
-- Sau khi sửa: **0 giao dịch LIKE sai mức** trong hệ thống
+### Tổng kết
 
-### Tệp cần thay đổi
-
-| Tệp | Nội dung |
+| Tệp | Thay đổi |
 |------|----------|
-| Database migration (SQL) | Cập nhật 4 LIKE còn sót + chạy `sync_reward_totals()` |
+| `src/components/Layout/MobileDrawer.tsx` | Thêm 1 mục nav "Lịch Sử Giao Dịch" vào `rewardItems` |
 
-Không cần thay đổi Edge Function hay code client -- tất cả đã được cập nhật đúng từ lần trước.
-
+Không cần thay đổi gì khác -- trang giao dịch đã sẵn sàng cho di động.
