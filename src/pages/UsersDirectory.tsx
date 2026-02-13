@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import funplayPlanetLogo from "@/assets/funplay-planet-logo.png";
 import { MainLayout } from "@/components/Layout/MainLayout";
 import { usePublicUsersDirectory, PublicUserStat } from "@/hooks/usePublicUsersDirectory";
 import { Input } from "@/components/ui/input";
@@ -132,9 +133,7 @@ const UsersDirectory = () => {
         {/* Header */}
         <div className="flex flex-col gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-primary/10">
-              <Users className="h-6 w-6 text-primary" />
-            </div>
+            <img src={funplayPlanetLogo} alt="FUN Play" className="h-10 w-10 rounded-xl object-cover" />
             <div>
               <h1 className="text-2xl font-bold text-foreground">Users Directory</h1>
               <p className="text-sm text-muted-foreground">{filtered.length} / {data.length} thành viên</p>

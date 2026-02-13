@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import funplayPlanetLogo from "@/assets/funplay-planet-logo.png";
 import { MainLayout } from "@/components/Layout/MainLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { 
@@ -307,7 +308,7 @@ export default function RewardHistory() {
             className="mb-6"
           >
             <div className="flex items-center gap-3 mb-2">
-              <Coins className="w-8 h-8 text-yellow-500 animate-pulse" />
+              <img src={funplayPlanetLogo} alt="FUN Play" className="w-10 h-10 rounded-full object-cover animate-pulse" />
               <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 bg-clip-text text-transparent">
                 Lịch Sử Thưởng CAMLY
               </h1>

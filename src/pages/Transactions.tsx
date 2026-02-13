@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, History, RefreshCw, Loader2, Globe, Link2 } from "lucide-react";
+import { ArrowLeft, History, RefreshCw, Loader2, Link2 } from "lucide-react";
+import funplayPlanetLogo from "@/assets/funplay-planet-logo.png";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -53,7 +54,7 @@ const TransactionsPage = () => {
                   transition={{ duration: 2, repeat: Infinity }}
                   className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center"
                 >
-                  <Globe className="h-6 w-6 text-primary" />
+                  <img src={funplayPlanetLogo} alt="FUN Play" className="h-10 w-10 rounded-full object-cover" />
                 </motion.div>
                 <div>
                   <h1 className="text-2xl font-bold text-foreground">Lịch Sử Giao Dịch</h1>
