@@ -127,65 +127,34 @@ export function EnhancedVideoPlayer({
   const { awardViewReward } = useAutoReward();
   const { user } = useAuth();
 
-  // Constants for view reward policy
-  const SHORT_VIDEO_THRESHOLD = 5 * 60; // 5 minutes in seconds
-  const LONG_VIDEO_MIN_WATCH = 5 * 60; // Must watch at least 5 minutes for long videos
-
   // Track continuous watch time and award view reward
   useEffect(() => {
-    let lastTime = 0;
-    let accumulatedTime = 0;
-
     const checkViewReward = async () => {
-      if (viewRewarded || !user || !videoId) return;
-      
-      const videoDuration = duration;
-      const isShortVideo = videoDuration < SHORT_VIDEO_THRESHOLD;
-      
-      if (isShortVideo) {
-        // Short video: Must watch 60%+ to earn reward
-        if (currentTime >= videoDuration * 0.6) {
-          setViewRewarded(true);
-          const result = await awardViewReward(videoId);
-          if (result) {
-            window.dispatchEvent(new CustomEvent("camly-reward", {
-              detail: { type: "VIEW", amount: 10000 }
-            }));
-          }
-        }
-      } else {
-        // Long video: Must watch at least 5 minutes continuously
-        if (watchTimeRef.current >= LONG_VIDEO_MIN_WATCH) {
-          setViewRewarded(true);
-          const result = await awardViewReward(videoId);
-          if (result) {
-            window.dispatchEvent(new CustomEvent("camly-reward", {
-              detail: { type: "VIEW", amount: 10000 }
-            }));
-          }
+      const video = videoRef.current;
+      if (!video || viewRewarded || !user || !videoId) return;
+      const dur = video.duration;
+      if (!dur || dur <= 0) return;
+
+      // 30% watch threshold for ALL videos
+      if (video.currentTime >= dur * 0.3) {
+        setViewRewarded(true);
+        const result = await awardViewReward(videoId);
+        if (result.success) {
+          window.dispatchEvent(new CustomEvent("camly-reward", {
+            detail: { type: "VIEW", amount: result.amount || 5000 }
+          }));
         }
       }
     };
 
-    // Track continuous watch time (not skipped)
-    if (isPlaying && duration > 0) {
+    if (isPlaying) {
       const interval = setInterval(() => {
-        const video = videoRef.current;
-        if (!video) return;
-        
-        const current = video.currentTime;
-        // Only count time if watching continuously (not seeking forward)
-        if (Math.abs(current - lastTime) < 2) {
-          watchTimeRef.current += 1;
-        }
-        lastTime = current;
-        
         checkViewReward();
       }, 1000);
 
       return () => clearInterval(interval);
     }
-  }, [isPlaying, duration, currentTime, viewRewarded, user, videoId, awardViewReward]);
+  }, [isPlaying, viewRewarded, user, videoId, awardViewReward]);
 
   // Reset reward state when video changes
   useEffect(() => {
