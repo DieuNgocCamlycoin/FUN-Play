@@ -1,102 +1,78 @@
 
-# Sua Loi Thuong Upload va View Reward
+# Sua Loi Thuong Xem Video (VIEW Reward) va Cap Nhat Mobile
 
-## Ket qua kiem tra chi tiet
+## Van de phat hien
 
-### 1. Thuong video dai (70K) -- VAN CON LOI CU
+### 1. Desktop khong co thong bao khi nhan thuong VIEW
+- `EnhancedVideoPlayer.tsx` (desktop) goi `awardViewReward()` nhung **KHONG dispatch event** `camly-reward`
+- Ket qua: user xem video tren desktop, nhan thuong nhung khong thay thong bao gi
+- Mobile da duoc sua lan truoc, nhung desktop chua
 
-| Tinh trang | So luong | Chi tiet |
-|---|---|---|
-| Video dai, thuong dung 70K | 127 | OK |
-| Video dai, thuong SAI 20K | **3** | Co duration > 180 nhung bi ghi SHORT |
-| Video NULL duration, thuong 20K | **389** | Chua co duration de phan loai dung |
+### 2. Nguong xem video qua cao (90% cho video ngan)
+- Tat ca 3 player (Desktop, YouTubeMobile, MobileVideoPlayer) yeu cau xem **90% video ngan (<5 phut)** hoac **5 phut lien tuc cho video dai**
+- Nhung `reward_config` trong DB chi yeu cau **MIN_WATCH_PERCENTAGE = 30%**
+- Day la nguyen nhan chinh khien user cam thay "xem video ma khong duoc thuong": ho phai xem gan het video moi duoc thuong
+- **De xuat**: Giam nguong xuong **60%** cho video ngan (hop ly hon, van chong gian lan)
 
-**Nguyen nhan**: 389 video co `duration = NULL` trong database. Edge function `award-camly` (dong 250-252) khi gap NULL duration thi giu nguyen loai tu client gui len (thuong la SHORT = 20K).
+### 3. Du lieu thuong VIEW dang hoat dong
+- 25 giao dich VIEW trong 48h qua (1 giao dich 10.000, 24 giao dich 5.000)
+- He thong dang hoat dong nhung nguong xem qua cao nen it user dat duoc
 
-### 2. Thuong xem video (VIEW) -- DANG HOAT DONG nhung co van de
+## Giai phap
 
-- **279 giao dich VIEW** da ghi nhan, moi nhat luc 08:42 hom nay
-- **Van de 1**: `reward_config` trong DB dat `VIEW_REWARD = 10.000` nhung client-side `enhancedRewards.ts` hien thi `VIEW = 5.000` -- gay nham lan cho user
-- **Van de 2**: Tren desktop, `EnhancedVideoPlayer` yeu cau xem **90% video ngan** hoac **5 phut lien tuc video dai (>5 phut)** -- nguong kha cao, nhieu user co the chua dat duoc
-- **Van de 3**: Tren mobile, `YouTubeMobilePlayer` cung logic nhung khong co thong bao (toast) khi nhan thuong
+### Tep 1: `src/components/Video/EnhancedVideoPlayer.tsx`
+Them dispatch event `camly-reward` sau khi `awardViewReward` thanh cong (giong mobile):
 
-### 3. Lich su phan thuong -- HIEN THI DUNG nhung du lieu sai
-
-Trang RewardHistory.tsx da co map dung:
-- `SHORT_VIDEO_UPLOAD` = "Video ngan" (cam nhat)
-- `LONG_VIDEO_UPLOAD` = "Video dai" (cam dam)
-
-Nhung vi 389 video bi ghi nham thanh SHORT_VIDEO_UPLOAD (20K) nen lich su hien thi 20K cho video dai. **Loi khong phai o UI ma o du lieu**.
-
-## Giai phap (4 buoc)
-
-### Buoc 1: Dong bo client-side constants voi DB config
-
-**Tep**: `src/lib/enhancedRewards.ts`
-
-Cap nhat REWARD_AMOUNTS cho khop voi `reward_config` trong DB:
-- `VIEW: 5000` thanh `VIEW: 10000` (khop voi DB)
-- `LIKE: 2000` thanh `LIKE: 5000` (khop voi DB)
-
-Dieu nay dam bao cac man hinh hien thi so tien dung cho user.
-
-### Buoc 2: Sua award-camly xu ly NULL duration thong minh hon
-
-**Tep**: `supabase/functions/award-camly/index.ts` (dong 250-252)
-
-Hien tai khi duration = NULL, server giu nguyen client type (thuong la SHORT). Can sua de:
-1. Khi duration NULL, thu lay duration tu video URL bang cach check video metadata
-2. Neu van khong lay duoc, **tam ghi nhan la SHORT nhung danh dau `needs_review = true`** de admin kiem tra sau
-3. Hoac don gian hon: khi duration = NULL, mac dinh la LONG (70K) vi da so video dai hon 3 phut -- tranh thiet hai cho user
-
-**De xuat**: Mac dinh la SHORT (20K) nhung tu dong tao log de `recalculate-upload-rewards` xu ly sau khi duration duoc backfill. Day la cach an toan nhat.
-
-### Buoc 3: Chay recalculate-upload-rewards cho 3 video da biet sai
-
-Goi edge function `recalculate-upload-rewards` voi `dryRun: false` de:
-- Fix 3 video co duration > 180 nhung bi thuong 20K thay vi 70K
-- Cong bu 50.000 CAMLY/video cho user bi thieu
-
-### Buoc 4: Them thong bao thuong tren mobile
-
-**Tep**: `src/components/Video/Mobile/MobileWatchView.tsx`
-
-Them `useEffect` lang nghe su kien `camly-reward` va hien thi toast:
 ```tsx
-useEffect(() => {
-  const handler = (e: CustomEvent) => {
-    toast({ title: `+${e.detail.amount.toLocaleString()} CAMLY` });
-  };
-  window.addEventListener('camly-reward', handler);
-  return () => window.removeEventListener('camly-reward', handler);
-}, []);
-```
+// Truoc:
+await awardViewReward(videoId);
 
-**Tep**: `src/components/Video/YouTubeMobilePlayer.tsx` va `MobileVideoPlayer.tsx`
-
-Sau khi `awardViewReward` thanh cong, dispatch event:
-```tsx
-const success = await awardViewReward(videoId);
-if (success) {
+// Sau:
+const result = await awardViewReward(videoId);
+if (result) {
   window.dispatchEvent(new CustomEvent("camly-reward", {
     detail: { type: "VIEW", amount: 10000 }
   }));
 }
 ```
 
+### Tep 2: Giam nguong xem video de nhan thuong (tat ca 3 player)
+
+Thay doi nguong tu 90% xuong 60% cho video ngan:
+
+| Tep | Thay doi |
+|---|---|
+| `src/components/Video/EnhancedVideoPlayer.tsx` | `0.9` thanh `0.6` |
+| `src/components/Video/YouTubeMobilePlayer.tsx` | `0.9` thanh `0.6` |
+| `src/components/Video/MobileVideoPlayer.tsx` | `0.9` thanh `0.6` |
+
+### Tep 3: `src/pages/Watch.tsx` (Desktop watch page)
+Them listener `camly-reward` de hien thi toast thong bao khi nhan thuong (tuong tu MobileWatchView):
+
+```tsx
+useEffect(() => {
+  const handler = (e: Event) => {
+    const detail = (e as CustomEvent).detail;
+    toast.success(`+${Number(detail.amount).toLocaleString()} CAMLY`, {
+      description: `Thuong xem video`,
+      duration: 3000,
+    });
+  };
+  window.addEventListener('camly-reward', handler);
+  return () => window.removeEventListener('camly-reward', handler);
+}, []);
+```
+
 ## Tom tat thay doi
 
 | Tep | Thay doi |
 |---|---|
-| `src/lib/enhancedRewards.ts` | Cap nhat VIEW=10000, LIKE=5000 cho khop DB |
-| `supabase/functions/award-camly/index.ts` | Giu nguyen logic (da dung), chi can chay recalculate |
-| `src/components/Video/Mobile/MobileWatchView.tsx` | Them toast thong bao khi nhan thuong |
-| `src/components/Video/YouTubeMobilePlayer.tsx` | Dispatch camly-reward event sau khi thuong thanh cong |
-| `src/components/Video/MobileVideoPlayer.tsx` | Tuong tu -- dispatch event |
+| `src/components/Video/EnhancedVideoPlayer.tsx` | Dispatch camly-reward event + giam nguong 90% xuong 60% |
+| `src/components/Video/YouTubeMobilePlayer.tsx` | Giam nguong 90% xuong 60% |
+| `src/components/Video/MobileVideoPlayer.tsx` | Giam nguong 90% xuong 60% |
+| `src/pages/Watch.tsx` | Them toast thong bao khi nhan thuong VIEW tren desktop |
 
-## Ket luan
-
-- **He thong thuong VIEW**: Dang hoat dong nhung user khong thay thong bao tren mobile
-- **He thong thuong 70K**: Dang hoat dong cho video moi co duration. 392 video cu can backfill duration roi chay recalculate
-- **Lich su phan thuong**: UI dung, du lieu sai do NULL duration
-- **Hanh dong ngay**: Chay recalculate cho 3 video da biet sai, them toast mobile, dong bo constants
+## Ket qua mong doi
+- User se thay thong bao "+10.000 CAMLY" khi xem video du tren desktop hay mobile
+- Nguong xem giam tu 90% xuong 60%, nhieu user hon se dat duoc dieu kien nhan thuong
+- Trang lich su thuong se cap nhat realtime khi nhan thuong moi (da co san)
