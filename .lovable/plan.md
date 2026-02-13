@@ -1,87 +1,92 @@
 
 
-# Fix Daily Limit Violations for Video Upload Rewards
+# Bulk & Individual Reward Approval System
 
-## Problems Found
+## Current Situation
 
-### Problem 1: LONG_VIDEO_UPLOAD Daily Limit Violations (max 3/day)
-- **10 users** exceeded the 3 long videos/day limit
-- **61 excess transactions** totaling **4,270,000 CAMLY** overpaid
-- Worst case: "Angel QuynhHoa" uploaded 12 long videos in one day (9 over limit = 630,000 excess)
+- **122 users** have unapproved rewards totaling **25,621,000 CAMLY** (4,717 transactions)
+- **191 users** already have approved rewards totaling **66,362,000 CAMLY** ready to claim
+- The existing admin page has individual approve/reject buttons but **no bulk approval**
+- After approval, users can claim rewards to their wallets via the existing claim system
 
-| User | Date | Count | Limit | Excess | Excess CAMLY |
-|------|------|-------|-------|--------|-------------|
-| Angel QuynhHoa | 2026-02-12 | 12 | 3 | 9 | 630,000 |
-| Nguyen Hoa_Richer | 2026-02-12 | 10 | 3 | 7 | 490,000 |
-| Angel Vinh Nguyen | 2026-02-12 | 10 | 3 | 7 | 490,000 |
-| Angel Quynh Hoa | 2026-02-12 | 9 | 3 | 6 | 420,000 |
-| Mau Tran | 2026-02-12 | 9 | 3 | 6 | 420,000 |
-| ...and 10 more date-user combos | | | | | |
+## What Will Be Built
 
-### Problem 2: SHORT_VIDEO_UPLOAD Daily Limit Violations (max 5/day)
-- **22 users** exceeded the 5 short videos/day limit
-- **352 excess transactions** totaling **7,040,000 CAMLY** overpaid
-- Worst case: "Tran Van Luc" uploaded 68 short videos in one day (63 over limit = 1,260,000 excess)
+### 1. New Database Function: `bulk_approve_all_rewards`
+A server-side function that approves ALL pending rewards for ALL users in one atomic operation:
+- Moves `pending_rewards` to `approved_reward` for every user
+- Marks all unapproved `reward_transactions` as `approved = true`
+- Logs each approval in `reward_approvals` table
+- Returns count of affected users and total amount
 
-### Problem 3: Daily Total Cap Violations (max 500,000 CAMLY/day)
-- Over 30 user-day combinations exceeded the 500,000 CAMLY daily cap
-- This overlaps significantly with the upload limit violations
+### 2. Updated Admin Reward Approval Tab
+Add two new buttons at the top of the "Cho Duyet" (Pending) tab:
 
-### No Misclassification Issues
-- **0 videos** longer than 3 minutes are incorrectly showing 20,000 CAMLY (all clean)
+- **"Duyet Tat Ca" (Approve All)** button -- bulk approves all 122 pending users at once with a confirmation dialog
+- Keep existing **individual approve/reject** buttons per user (already working)
 
-## Solution
-
-### Step 1: Remove Excess LONG_VIDEO Transactions
-For each user+date that exceeded 3 long video uploads, keep the first 3 (ordered by created_at) and delete the rest. This removes 61 transactions worth 4,270,000 CAMLY.
-
-### Step 2: Remove Excess SHORT_VIDEO Transactions
-For each user+date that exceeded 5 short video uploads, keep the first 5 and delete the rest. This removes 352 transactions worth 7,040,000 CAMLY.
-
-### Step 3: Sync All User Balances
-Run `sync_reward_totals()` to recalculate `approved_reward` and `total_camly_rewards` for all affected users based on the corrected transaction history.
-
-### Step 4: Verify
-- Confirm 0 daily limit violations remain
-- Confirm all user balances match transaction history
+### 3. Mobile-Optimized UI
+- Buttons sized appropriately for touch targets
+- Confirmation dialog before bulk approval to prevent accidents
+- Toast notifications showing results (e.g., "Da duyet 122 users, tong 25,621,000 CAMLY")
 
 ## Technical Details
 
-### SQL for Step 1 (delete excess LONG_VIDEO):
+### New RPC Function SQL:
 ```sql
-DELETE FROM reward_transactions
-WHERE id IN (
-  SELECT id FROM (
-    SELECT id, 
-      ROW_NUMBER() OVER (PARTITION BY user_id, DATE(created_at) ORDER BY created_at) as rn
-    FROM reward_transactions
-    WHERE reward_type = 'LONG_VIDEO_UPLOAD' AND status = 'success'
-  ) ranked
-  WHERE rn > 3
-);
+CREATE OR REPLACE FUNCTION bulk_approve_all_rewards(p_admin_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER
+AS $$
+DECLARE
+  v_affected_users integer;
+  v_total_amount numeric;
+BEGIN
+  -- Verify admin role
+  IF NOT has_role(p_admin_id, 'admin') THEN
+    RAISE EXCEPTION 'Only admins can bulk approve';
+  END IF;
+
+  -- Count what will be affected
+  SELECT COUNT(DISTINCT user_id), COALESCE(SUM(pending_rewards), 0)
+  INTO v_affected_users, v_total_amount
+  FROM profiles WHERE pending_rewards > 0;
+
+  -- Move pending to approved for all users
+  UPDATE profiles SET
+    approved_reward = COALESCE(approved_reward, 0) + COALESCE(pending_rewards, 0),
+    pending_rewards = 0
+  WHERE pending_rewards > 0;
+
+  -- Mark all unapproved transactions as approved
+  UPDATE reward_transactions SET
+    approved = true,
+    approved_at = now(),
+    approved_by = p_admin_id
+  WHERE approved = false AND claimed = false AND status = 'success';
+
+  -- Log bulk approval
+  INSERT INTO reward_approvals (user_id, amount, status, admin_id, admin_note, reviewed_at)
+  SELECT id, pending_amt, 'approved', p_admin_id, 'Bulk approval', now()
+  FROM (SELECT id, COALESCE(pending_rewards,0) as pending_amt FROM profiles) sub
+  WHERE pending_amt > 0;
+
+  RETURN jsonb_build_object(
+    'affected_users', v_affected_users,
+    'total_amount', v_total_amount
+  );
+END;
+$$;
 ```
 
-### SQL for Step 2 (delete excess SHORT_VIDEO):
-```sql
-DELETE FROM reward_transactions
-WHERE id IN (
-  SELECT id FROM (
-    SELECT id,
-      ROW_NUMBER() OVER (PARTITION BY user_id, DATE(created_at) ORDER BY created_at) as rn
-    FROM reward_transactions
-    WHERE reward_type = 'SHORT_VIDEO_UPLOAD' AND status = 'success'
-  ) ranked
-  WHERE rn > 5
-);
-```
+### Frontend Changes:
+- **File: `src/components/Admin/tabs/RewardApprovalTab.tsx`** -- Add "Duyet Tat Ca" button with AlertDialog confirmation, connect to new RPC
+- **File: `src/hooks/useAdminManage.ts`** -- Add `bulkApproveAll()` function calling the new RPC
 
-### SQL for Step 3:
-```sql
-SELECT * FROM sync_reward_totals();
-```
+### User Flow After Approval:
+1. Admin clicks "Duyet Tat Ca" on admin page
+2. All 122 users' rewards become "approved" instantly
+3. Each user opens their Wallet page and sees claimable CAMLY
+4. User connects wallet and clicks "Claim" -- existing `claim-camly` edge function sends CAMLY tokens on-chain
 
-### Impact Summary
-- **Total CAMLY to be deducted**: ~11,310,000 (4,270,000 long + 7,040,000 short)
-- **Users affected**: ~25 unique users
-- **No code changes needed** -- the edge function already enforces daily limits correctly going forward. These are historical violations from before the limits were properly enforced.
+No changes needed to the claim flow -- it already works correctly with approved rewards.
 
