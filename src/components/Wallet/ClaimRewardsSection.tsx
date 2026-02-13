@@ -7,6 +7,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { ClaimRewardsModal } from "@/components/Rewards/ClaimRewardsModal";
 import { useWalletConnectionWithRetry } from "@/hooks/useWalletConnectionWithRetry";
+import { AdminQuickApprove } from "@/components/Wallet/AdminQuickApprove";
+import { toast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -89,9 +91,11 @@ export const ClaimRewardsSection = () => {
     };
   }, [fetchStats, debouncedFetch]);
 
-  // Realtime subscription - simplified
+  // Realtime subscription - with approval notification
   useEffect(() => {
     if (!user?.id) return;
+
+    let prevApproved = stats.approvedRewards;
 
     const channel = supabase
       .channel('claim-section-profile')
@@ -103,7 +107,18 @@ export const ClaimRewardsSection = () => {
           table: 'profiles',
           filter: `id=eq.${user.id}`
         },
-        () => debouncedFetch()
+        (payload: any) => {
+          const newApproved = Number(payload.new?.approved_reward || 0);
+          if (newApproved > prevApproved && prevApproved >= 0) {
+            const increase = newApproved - prevApproved;
+            toast({
+              title: "🎉 Phần thưởng đã được duyệt!",
+              description: `+${increase.toLocaleString()} CAMLY sẵn sàng để claim!`,
+            });
+          }
+          prevApproved = newApproved;
+          debouncedFetch();
+        }
       )
       .subscribe();
 
@@ -271,6 +286,9 @@ export const ClaimRewardsSection = () => {
       </CardContent>
 
       <ClaimRewardsModal open={modalOpen} onOpenChange={setModalOpen} />
+
+      {/* Admin Quick Approve */}
+      <AdminQuickApprove />
     </Card>
   );
 };
