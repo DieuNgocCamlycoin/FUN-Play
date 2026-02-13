@@ -35,6 +35,8 @@ import {
 } from "@/components/ui/select";
 import { useNavigate } from "react-router-dom";
 import { CounterAnimation } from "@/components/Layout/CounterAnimation";
+import { Progress } from "@/components/ui/progress";
+import { getDailyRewardStatus, DAILY_LIMITS, REWARD_AMOUNTS } from "@/lib/enhancedRewards";
 
 interface RewardTransaction {
   id: string;
@@ -90,18 +92,30 @@ export default function RewardHistory() {
 
   const [isLive, setIsLive] = useState(false);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const [dailyProgress, setDailyProgress] = useState<{
+    viewCount: number; likeCount: number; shareCount: number;
+    commentCount: number; shortVideoCount: number; longVideoCount: number;
+  } | null>(null);
 
   const debouncedRefresh = useCallback(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       fetchTransactions();
+      fetchDailyProgress();
     }, 500);
+  }, [user]);
+
+  const fetchDailyProgress = useCallback(async () => {
+    if (!user) return;
+    const result = await getDailyRewardStatus(user.id);
+    setDailyProgress(result);
   }, [user]);
 
   useEffect(() => {
     if (user) {
       fetchTransactions();
       fetchClaimHistory();
+      fetchDailyProgress();
     }
   }, [user]);
 
@@ -322,6 +336,57 @@ export default function RewardHistory() {
               Chi tiết các phần thưởng bạn đã nhận được
             </p>
           </motion.div>
+
+          {/* Daily Progress Card */}
+          {dailyProgress && (
+            <Card className="mb-6 border-primary/20">
+              <CardContent className="p-4">
+                <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-primary" /> Tiến độ hôm nay
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+                  {[
+                    { label: "Xem", count: dailyProgress.viewCount, limit: DAILY_LIMITS.VIEW_COUNT, reward: REWARD_AMOUNTS.VIEW, icon: Eye, color: "text-blue-500" },
+                    { label: "Thích", count: dailyProgress.likeCount, limit: DAILY_LIMITS.LIKE_COUNT, reward: REWARD_AMOUNTS.LIKE, icon: ThumbsUp, color: "text-pink-500" },
+                    { label: "Bình luận", count: dailyProgress.commentCount, limit: DAILY_LIMITS.COMMENT_COUNT, reward: REWARD_AMOUNTS.COMMENT, icon: MessageSquare, color: "text-green-500" },
+                    { label: "Chia sẻ", count: dailyProgress.shareCount, limit: DAILY_LIMITS.SHARE_COUNT, reward: REWARD_AMOUNTS.SHARE, icon: Share2, color: "text-purple-500" },
+                    { label: "Video ngắn", count: dailyProgress.shortVideoCount, limit: DAILY_LIMITS.SHORT_VIDEO, reward: REWARD_AMOUNTS.SHORT_VIDEO_UPLOAD, icon: Upload, color: "text-orange-400" },
+                    { label: "Video dài", count: dailyProgress.longVideoCount, limit: DAILY_LIMITS.LONG_VIDEO, reward: REWARD_AMOUNTS.LONG_VIDEO_UPLOAD, icon: Upload, color: "text-orange-600" },
+                  ].map(({ label, count, limit, reward, icon: ItemIcon, color }) => (
+                    <div key={label} className="p-2.5 rounded-lg bg-muted/30">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <ItemIcon className={`w-3.5 h-3.5 ${color}`} />
+                        <span className="text-xs font-medium">{label}</span>
+                        <span className="text-[10px] text-muted-foreground ml-auto">{formatNumber(reward)}/lần</span>
+                      </div>
+                      <Progress value={(count / limit) * 100} className="h-2 mb-1" />
+                      <p className="text-[10px] text-muted-foreground">{count}/{limit} ({formatNumber(count * reward)} CAMLY)</p>
+                    </div>
+                  ))}
+                </div>
+                {/* Daily cap */}
+                {(() => {
+                  const totalToday = 
+                    (dailyProgress.viewCount * REWARD_AMOUNTS.VIEW) +
+                    (dailyProgress.likeCount * REWARD_AMOUNTS.LIKE) +
+                    (dailyProgress.commentCount * REWARD_AMOUNTS.COMMENT) +
+                    (dailyProgress.shareCount * REWARD_AMOUNTS.SHARE) +
+                    (dailyProgress.shortVideoCount * REWARD_AMOUNTS.SHORT_VIDEO_UPLOAD) +
+                    (dailyProgress.longVideoCount * REWARD_AMOUNTS.LONG_VIDEO_UPLOAD);
+                  const cap = 500000;
+                  return (
+                    <div className="p-2.5 rounded-lg bg-primary/5 border border-primary/10">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-semibold">Tổng hôm nay</span>
+                        <span className="text-xs font-bold text-primary">{formatNumber(totalToday)} / {formatNumber(cap)}</span>
+                      </div>
+                      <Progress value={Math.min((totalToday / cap) * 100, 100)} className="h-2.5" />
+                    </div>
+                  );
+                })()}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Summary by Type */}
           <Card className="mb-6">
