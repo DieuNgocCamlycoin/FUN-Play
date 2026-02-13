@@ -323,9 +323,18 @@ serve(async (req) => {
       })
       .eq('id', claimRequest.id);
 
-    // Mark rewards as claimed (only up to claimAmount)
-    // We claim ALL approved rewards since we're limited by daily limit
-    const rewardIds = unclaimedRewards.map(r => r.id);
+    // Mark rewards as claimed -- only up to actual claimAmount
+    // Sort by amount ascending and pick IDs until sum reaches claimAmount
+    const sortedRewards = [...unclaimedRewards].sort((a, b) => Number(a.amount) - Number(b.amount));
+    const rewardIdsToMark: string[] = [];
+    let accumulated = 0;
+    for (const r of sortedRewards) {
+      if (accumulated >= claimAmount) break;
+      rewardIdsToMark.push(r.id);
+      accumulated += Number(r.amount);
+    }
+    console.log(`Marking ${rewardIdsToMark.length} of ${unclaimedRewards.length} rewards as claimed (accumulated: ${accumulated})`);
+    
     await supabaseAdmin
       .from('reward_transactions')
       .update({ 
@@ -333,7 +342,7 @@ serve(async (req) => {
         claimed_at: new Date().toISOString(),
         claim_tx_hash: receipt.hash
       })
-      .in('id', rewardIds);
+      .in('id', rewardIdsToMark);
 
     // Update daily claim records
     console.log("Updating daily claim records...");
@@ -347,11 +356,18 @@ serve(async (req) => {
         claim_count: currentClaimCount + 1
       }, { onConflict: 'user_id,date' });
 
-    // Reset approved_reward in profiles to 0 after successful claim
-    console.log("Resetting approved_reward to 0...");
+    // Subtract claimAmount from approved_reward (not reset to 0)
+    console.log(`Subtracting ${claimAmount} from approved_reward...`);
+    const { data: currentProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('approved_reward')
+      .eq('id', user.id)
+      .single();
+    const currentApproved = Number(currentProfile?.approved_reward) || 0;
+    const newApproved = Math.max(currentApproved - claimAmount, 0);
     await supabaseAdmin
       .from('profiles')
-      .update({ approved_reward: 0 })
+      .update({ approved_reward: newApproved })
       .eq('id', user.id);
 
     console.log(`Successfully claimed ${claimAmount} CAMLY for user ${user.id}`);
@@ -372,6 +388,37 @@ serve(async (req) => {
   } catch (error: unknown) {
     console.error('Claim error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Claim failed';
+    
+    // Update claim_request to failed so user can retry immediately
+    try {
+      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+      
+      // Find the most recent pending claim for this error context
+      const authHeader = req.headers.get('Authorization');
+      if (authHeader) {
+        const supabaseAuth = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
+          global: { headers: { Authorization: authHeader } }
+        });
+        const { data: { user } } = await supabaseAuth.auth.getUser();
+        if (user) {
+          await supabaseAdmin
+            .from('claim_requests')
+            .update({ 
+              status: 'failed', 
+              error_message: errorMessage,
+              processed_at: new Date().toISOString()
+            })
+            .eq('user_id', user.id)
+            .eq('status', 'pending');
+          console.log('Updated pending claim_request to failed for user:', user.id);
+        }
+      }
+    } catch (cleanupError) {
+      console.error('Failed to cleanup claim_request:', cleanupError);
+    }
+    
     return new Response(
       JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
