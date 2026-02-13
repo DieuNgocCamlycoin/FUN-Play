@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { ArrowLeft, History, RefreshCw, Loader2, Globe, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,12 +7,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { MainLayout } from "@/components/Layout/MainLayout";
 import { useNavigate } from "react-router-dom";
 import { useTransactionHistory, TransactionFilters as FilterType } from "@/hooks/useTransactionHistory";
-import { TransactionCard, TransactionFilters, TransactionExport, TransactionStats, UserActivityStats } from "@/components/Transactions";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { TransactionCard, TransactionFilters, TransactionExport, TransactionStats } from "@/components/Transactions";
 
 const TransactionsPage = () => {
   const navigate = useNavigate();
-  const isMobile = useIsMobile();
   const [filters, setFilters] = useState<FilterType>({});
   
   const { 
@@ -32,18 +30,18 @@ const TransactionsPage = () => {
   return (
     <MainLayout>
       <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
-        <div className="container mx-auto px-3 py-4 sm:px-4 sm:py-6 max-w-5xl">
+        <div className="container mx-auto px-4 py-6 max-w-5xl">
           {/* Header */}
           <motion.div 
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex items-center justify-between mb-4 sm:mb-6"
+            className="flex items-center justify-between mb-6"
           >
-            <div className="flex items-center gap-2 sm:gap-4 min-w-0">
-              <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0">
-                <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
+            <div className="flex items-center gap-4">
+              <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+                <ArrowLeft className="h-5 w-5" />
               </Button>
-              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <div className="flex items-center gap-3">
                 <motion.div
                   animate={{ 
                     boxShadow: [
@@ -53,44 +51,33 @@ const TransactionsPage = () => {
                     ] 
                   }}
                   transition={{ duration: 2, repeat: Infinity }}
-                  className="h-9 w-9 sm:h-12 sm:w-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0"
+                  className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center"
                 >
-                  <Globe className="h-4 w-4 sm:h-6 sm:w-6 text-primary" />
+                  <Globe className="h-6 w-6 text-primary" />
                 </motion.div>
-                <div className="min-w-0">
-                  <h1 className="text-lg sm:text-2xl font-bold text-foreground truncate">Lịch Sử Giao Dịch</h1>
-                  <p className="text-xs sm:text-sm text-muted-foreground flex items-center gap-1 truncate">
-                    <Link2 className="h-3 w-3 flex-shrink-0" />
-                    <span className="truncate">
-                      {isMobile ? "Blockchain • Web3" : "Minh bạch • Truy vết Blockchain • Chuẩn Web3"}
-                    </span>
+                <div>
+                  <h1 className="text-2xl font-bold text-foreground">Lịch Sử Giao Dịch</h1>
+                  <p className="text-sm text-muted-foreground flex items-center gap-1">
+                    <Link2 className="h-3 w-3" />
+                    Minh bạch • Truy vết Blockchain • Chuẩn Web3
                   </p>
                 </div>
               </div>
             </div>
             
-            <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+            <div className="flex items-center gap-2">
               <Button 
                 variant="outline" 
-                size="icon"
+                size="sm" 
                 onClick={refresh}
                 disabled={loading}
-                className="h-8 w-8 sm:h-9 sm:w-auto sm:px-3"
+                className="gap-2"
               >
                 <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-                <span className="hidden sm:inline ml-2">Làm mới</span>
+                <span className="hidden sm:inline">Làm mới</span>
               </Button>
               <TransactionExport transactions={transactions} filename="FUN_Play_Public_Transactions" />
             </div>
-          </motion.div>
-
-          {/* User Activity Stats (only for logged-in users) */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.05 }}
-          >
-            <UserActivityStats className="mb-4 sm:mb-6" />
           </motion.div>
 
           {/* Stats */}
@@ -99,7 +86,7 @@ const TransactionsPage = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
           >
-            <TransactionStats stats={stats} className="mb-4 sm:mb-6" />
+            <TransactionStats stats={stats} className="mb-6" />
           </motion.div>
 
           {/* Filters */}
@@ -108,23 +95,17 @@ const TransactionsPage = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
-            {isMobile ? (
-              <div className="mb-4">
+            <Card className="mb-6 bg-card/50 backdrop-blur-sm border-border/50">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <History className="h-4 w-4 text-primary" />
+                  Bộ lọc & Tìm kiếm
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
                 <TransactionFilters filters={filters} onFiltersChange={setFilters} />
-              </div>
-            ) : (
-              <Card className="mb-6 bg-card/50 backdrop-blur-sm border-border/50">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <History className="h-4 w-4 text-primary" />
-                    Bộ lọc & Tìm kiếm
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <TransactionFilters filters={filters} onFiltersChange={setFilters} />
-                </CardContent>
-              </Card>
-            )}
+              </CardContent>
+            </Card>
           </motion.div>
 
           {/* Transaction List */}
@@ -134,17 +115,17 @@ const TransactionsPage = () => {
             transition={{ delay: 0.3 }}
           >
             <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-              <CardHeader className="pb-3 px-3 sm:px-6">
+              <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-sm sm:text-base">Danh Sách Giao Dịch</CardTitle>
-                    <CardDescription className="text-xs sm:text-sm">
-                      {isMobile ? "Giao dịch onchain công khai" : "Mọi giao dịch onchain công khai (ai cũng có thể xem)"}
+                    <CardTitle className="text-base">Danh Sách Giao Dịch</CardTitle>
+                    <CardDescription>
+                      Mọi giao dịch onchain công khai (ai cũng có thể xem)
                     </CardDescription>
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="px-3 sm:px-6">
+              <CardContent>
                 {error && (
                   <div className="text-center py-8 text-destructive">
                     <p>Lỗi: {error}</p>
@@ -157,22 +138,22 @@ const TransactionsPage = () => {
                 {loading && transactions.length === 0 ? (
                   <div className="space-y-3">
                     {[1, 2, 3, 4, 5].map((i) => (
-                      <Skeleton key={i} className="h-24 sm:h-32 w-full rounded-lg" />
+                      <Skeleton key={i} className="h-32 w-full rounded-lg" />
                     ))}
                   </div>
                 ) : transactions.length === 0 ? (
-                  <div className="text-center py-8 sm:py-12 text-muted-foreground">
-                    <History className="h-12 w-12 sm:h-16 sm:w-16 mx-auto mb-4 opacity-30" />
-                    <p className="text-base sm:text-lg font-medium">Chưa có giao dịch nào</p>
-                    <p className="text-xs sm:text-sm mt-1">Các giao dịch công khai sẽ hiển thị ở đây</p>
+                  <div className="text-center py-12 text-muted-foreground">
+                    <History className="h-16 w-16 mx-auto mb-4 opacity-30" />
+                    <p className="text-lg font-medium">Chưa có giao dịch nào</p>
+                    <p className="text-sm mt-1">Các giao dịch công khai sẽ hiển thị ở đây</p>
                   </div>
                 ) : (
-                  <div className="space-y-2 sm:space-y-3">
+                  <div className="space-y-3">
                     {transactions.map((tx, index) => (
                       <TransactionCard 
                         key={tx.id} 
                         transaction={tx} 
-                        showFullDetails={!isMobile}
+                        showFullDetails={true}
                         index={index}
                       />
                     ))}
@@ -204,7 +185,7 @@ const TransactionsPage = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
-            className="text-center mt-6 sm:mt-8 text-xs text-muted-foreground"
+            className="text-center mt-8 text-xs text-muted-foreground"
           >
             <p>FUN PLAY • Blockchain Transparent • Web3 Standard</p>
             <p className="mt-1">Tất cả giao dịch có thể được xác minh trên blockchain</p>
