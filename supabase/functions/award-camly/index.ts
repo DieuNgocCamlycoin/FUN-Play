@@ -416,6 +416,38 @@ serve(async (req) => {
       }
     }
 
+    // Check SHORT_VIDEO daily limit
+    if (effectiveType === "SHORT_VIDEO_UPLOAD") {
+      const currentShortCount = limits?.short_video_count || 0;
+      if (currentShortCount >= DAILY_LIMITS.SHORT_VIDEO) {
+        console.log(`Short video daily limit reached for user ${userId}: ${currentShortCount}/${DAILY_LIMITS.SHORT_VIDEO}`);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            reason: `Đã đạt giới hạn video ngắn hàng ngày (${DAILY_LIMITS.SHORT_VIDEO} video)`,
+            milestone: null, newTotal: 0, amount: 0, type: effectiveType
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // Check LONG_VIDEO daily limit
+    if (effectiveType === "LONG_VIDEO_UPLOAD") {
+      const currentLongCount = limits?.long_video_count || 0;
+      if (currentLongCount >= DAILY_LIMITS.LONG_VIDEO) {
+        console.log(`Long video daily limit reached for user ${userId}: ${currentLongCount}/${DAILY_LIMITS.LONG_VIDEO}`);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            reason: `Đã đạt giới hạn video dài hàng ngày (${DAILY_LIMITS.LONG_VIDEO} video)`,
+            milestone: null, newTotal: 0, amount: 0, type: effectiveType
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     // 10b. GIỚI HẠN CỨNG 500.000 CAMLY/NGÀY/NGƯỜI
     const DAILY_TOTAL_CAP = 500000;
     const totalTodayEarned =
@@ -495,7 +527,15 @@ serve(async (req) => {
     } else if (type === "COMMENT") {
       updateFields.comment_count = currentCommentCount + 1;
       updateFields.comment_rewards_earned = (limits?.comment_rewards_earned || 0) + amount;
-    } else if (effectiveType === "UPLOAD" || effectiveType === "SHORT_VIDEO_UPLOAD" || effectiveType === "LONG_VIDEO_UPLOAD") {
+    } else if (effectiveType === "SHORT_VIDEO_UPLOAD") {
+      updateFields.short_video_count = (limits?.short_video_count || 0) + 1;
+      updateFields.uploads_count = (limits?.uploads_count || 0) + 1;
+      updateFields.upload_rewards_earned = (limits?.upload_rewards_earned || 0) + amount;
+    } else if (effectiveType === "LONG_VIDEO_UPLOAD") {
+      updateFields.long_video_count = (limits?.long_video_count || 0) + 1;
+      updateFields.uploads_count = (limits?.uploads_count || 0) + 1;
+      updateFields.upload_rewards_earned = (limits?.upload_rewards_earned || 0) + amount;
+    } else if (effectiveType === "UPLOAD" || effectiveType === "FIRST_UPLOAD") {
       updateFields.uploads_count = (limits?.uploads_count || 0) + 1;
       updateFields.upload_rewards_earned = (limits?.upload_rewards_earned || 0) + amount;
     }
