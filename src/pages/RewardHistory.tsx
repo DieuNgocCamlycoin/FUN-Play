@@ -186,7 +186,7 @@ export default function RewardHistory() {
       if (summary) {
         const s = summary as Record<string, unknown>;
         setTotalEarned(Number(s.total_camly) || 0);
-        setTotalPending(0);
+        setTotalPending(Number(s.pending_camly) || 0);
         setTotalApproved(Number(s.claimable_balance) || 0);
         setTotalClaimed(Number(s.total_claimed) || 0);
         const ta = s.type_amounts as Record<string, number> | undefined;
@@ -372,6 +372,18 @@ export default function RewardHistory() {
             </motion.div>
 
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
+              <Card className="bg-gradient-to-br from-orange-500/10 to-amber-500/10 border-orange-500/30">
+                <CardContent className="p-4 text-center">
+                  <Clock className="w-6 h-6 mx-auto text-orange-500 mb-1" />
+                  <p className="text-xl md:text-2xl font-bold text-orange-500">
+                    <CounterAnimation value={totalPending} decimals={0} />
+                  </p>
+                  <p className="text-xs text-muted-foreground">Chờ duyệt</p>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
               <Card className="bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border-cyan-500/30">
                 <CardContent className="p-4 text-center">
                   <Gift className="w-6 h-6 mx-auto text-cyan-500 mb-1" />
@@ -430,6 +442,7 @@ export default function RewardHistory() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Tất cả trạng thái</SelectItem>
+                  <SelectItem value="pending">Chờ duyệt</SelectItem>
                   <SelectItem value="approved">Có thể claim</SelectItem>
                   <SelectItem value="claimed">Đã claim</SelectItem>
                 </SelectContent>
