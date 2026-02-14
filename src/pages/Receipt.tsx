@@ -1,30 +1,175 @@
 import { useEffect, useState } from "react";
 import funplayPlanetLogo from "@/assets/funplay-planet-logo.png";
 import { useParams, Link } from "react-router-dom";
-import { Gift, ExternalLink, Copy, ArrowRight, Play, FileText, Loader2 } from "lucide-react";
+import { Gift, ExternalLink, Copy, ArrowRight, Play, FileText, Loader2, Wallet, CheckCircle, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { useDonation } from "@/hooks/useDonation";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
+import { supabase } from "@/integrations/supabase/client";
 
-export default function Receipt() {
-  const { receiptPublicId } = useParams<{ receiptPublicId: string }>();
+function ClaimReceipt({ claimId }: { claimId: string }) {
+  const [claim, setClaim] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchClaim = async () => {
+      try {
+        const { data, error: fetchErr } = await supabase
+          .from("claim_requests")
+          .select("*, profiles:user_id(username, display_name, avatar_url)")
+          .eq("id", claimId)
+          .single();
+
+        if (fetchErr || !data) {
+          setError("Không tìm thấy biên nhận claim");
+        } else {
+          setClaim(data);
+        }
+      } catch {
+        setError("Lỗi khi tải biên nhận");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchClaim();
+  }, [claimId]);
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(window.location.href);
+    toast({ title: "Đã copy link biên nhận!" });
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30">
+        <Loader2 className="h-8 w-8 animate-spin text-green-500" />
+      </div>
+    );
+  }
+
+  if (error || !claim) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 p-4">
+        <Wallet className="h-16 w-16 text-muted-foreground mb-4" />
+        <h1 className="text-2xl font-bold mb-2">Không tìm thấy biên nhận</h1>
+        <p className="text-muted-foreground mb-4">{error}</p>
+        <Link to="/">
+          <Button>Về trang chủ</Button>
+        </Link>
+      </div>
+    );
+  }
+
+  const profile = claim.profiles;
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 p-4 flex items-center justify-center">
+      <Card className="w-full max-w-md shadow-xl border-green-200 dark:border-green-800 overflow-hidden">
+        {/* Premium gradient header */}
+        <div className="bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 p-6 text-white text-center">
+          <div className="flex justify-center mb-3">
+            <img src={funplayPlanetLogo} alt="FUN Play" className="h-14 w-14 rounded-full object-cover border-2 border-white/50" />
+          </div>
+          <h1 className="text-lg font-bold tracking-wide">FUN PLAY - BIÊN NHẬN CLAIM</h1>
+          <p className="text-xs text-white/70 mt-1">Rút thưởng CAMLY thành công</p>
+        </div>
+
+        <CardContent className="p-6 space-y-5">
+          {/* User info */}
+          <div className="flex items-center gap-3">
+            <Avatar className="h-12 w-12 border-2 border-green-200">
+              <AvatarImage src={profile?.avatar_url || ""} />
+              <AvatarFallback>{profile?.username?.[0]?.toUpperCase() || "?"}</AvatarFallback>
+            </Avatar>
+            <div>
+              <p className="font-medium">{profile?.display_name || profile?.username}</p>
+              <p className="text-sm text-muted-foreground">@{profile?.username}</p>
+            </div>
+            <CheckCircle className="h-5 w-5 text-green-500 ml-auto" />
+          </div>
+
+          <Separator />
+
+          {/* Amount */}
+          <div className="text-center py-4">
+            <p className="text-sm text-muted-foreground mb-1">Số CAMLY đã rút</p>
+            <div className="flex items-center justify-center gap-2">
+              <TrendingUp className="h-7 w-7 text-green-500" />
+              <span className="text-4xl font-bold bg-gradient-to-r from-green-500 to-emerald-500 bg-clip-text text-transparent">
+                {new Intl.NumberFormat("vi-VN").format(claim.amount)}
+              </span>
+            </div>
+            <p className="text-sm text-muted-foreground mt-1">CAMLY</p>
+          </div>
+
+          <Separator />
+
+          {/* Wallet */}
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Ví nhận</span>
+              <span className="font-mono text-xs">{claim.wallet_address?.slice(0, 10)}...{claim.wallet_address?.slice(-8)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Thời gian</span>
+              <span>{format(new Date(claim.created_at), "HH:mm dd/MM/yyyy", { locale: vi })}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Trạng thái</span>
+              <span className={`font-medium ${
+                claim.status === "success" ? "text-green-600" : 
+                claim.status === "pending" ? "text-amber-600" : "text-red-600"
+              }`}>
+                {claim.status === "success" ? "✅ Thành công" : 
+                 claim.status === "pending" ? "⏳ Đang xử lý" : "❌ Thất bại"}
+              </span>
+            </div>
+            {claim.tx_hash && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">TX Hash</span>
+                <a
+                  href={`https://bscscan.com/tx/${claim.tx_hash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary flex items-center gap-1"
+                >
+                  {claim.tx_hash.substring(0, 8)}...{claim.tx_hash.substring(claim.tx_hash.length - 6)}
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+            )}
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-2 pt-4">
+            <Button variant="outline" className="flex-1" onClick={handleCopyLink}>
+              <Copy className="h-4 w-4 mr-2" />
+              Sao chép link
+            </Button>
+            <Link to="/" className="flex-1">
+              <Button className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white">
+                Về FUN Play
+              </Button>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function DonationReceipt({ receiptPublicId }: { receiptPublicId: string }) {
   const [receipt, setReceipt] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchReceipt = async () => {
-      if (!receiptPublicId) {
-        setError("Mã biên nhận không hợp lệ");
-        setLoading(false);
-        return;
-      }
-
       try {
         const response = await fetch(
           `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-donation-receipt?receipt_public_id=${receiptPublicId}`,
@@ -36,22 +181,18 @@ export default function Receipt() {
             },
           }
         );
-
         const data = await response.json();
-
         if (!response.ok || !data.success) {
           setError(data.error || "Không tìm thấy biên nhận");
         } else {
           setReceipt(data.receipt);
         }
-      } catch (err) {
-        console.error("Error fetching receipt:", err);
+      } catch {
         setError("Lỗi khi tải biên nhận");
       } finally {
         setLoading(false);
       }
     };
-
     fetchReceipt();
   }, [receiptPublicId]);
 
@@ -250,4 +391,26 @@ export default function Receipt() {
       </Card>
     </div>
   );
+}
+
+export default function Receipt() {
+  const { receiptPublicId } = useParams<{ receiptPublicId: string }>();
+
+  if (!receiptPublicId) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-4">
+        <Gift className="h-16 w-16 text-muted-foreground mb-4" />
+        <h1 className="text-2xl font-bold mb-2">Không tìm thấy biên nhận</h1>
+        <Link to="/"><Button>Về trang chủ</Button></Link>
+      </div>
+    );
+  }
+
+  // Detect claim receipt vs donation receipt
+  if (receiptPublicId.startsWith("claim-")) {
+    const claimId = receiptPublicId.replace("claim-", "");
+    return <ClaimReceipt claimId={claimId} />;
+  }
+
+  return <DonationReceipt receiptPublicId={receiptPublicId} />;
 }

@@ -282,6 +282,18 @@ export const TransactionCard = memo(function TransactionCard({
                   🎉 Xem Card
                 </Button>
               )}
+
+              {/* Xem Biên Nhận for claim transactions */}
+              {transaction.source_table === "claim_requests" && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate(`/receipt/claim-${transaction.id}`)}
+                  className="text-xs text-green-500 hover:text-green-600 h-6 px-2"
+                >
+                  📜 Biên Nhận
+                </Button>
+              )}
             </div>
           </div>
         </div>

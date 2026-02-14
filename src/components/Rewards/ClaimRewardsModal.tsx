@@ -73,6 +73,7 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
   const [showWalletGuide, setShowWalletGuide] = useState(false);
   const [claimError, setClaimError] = useState<string | null>(null);
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const claimInProgressRef = useRef(false);
 
   useEffect(() => {
     setIsMobile(isMobileBrowser());
@@ -186,6 +187,7 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
   }, [user]);
 
   const handleClaim = async () => {
+    if (claimInProgressRef.current) return;
     if (!user || !isConnected || !address) {
       toast({
         title: "Vui lòng kết nối ví",
@@ -195,6 +197,7 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
       return;
     }
 
+    claimInProgressRef.current = true;
     setClaiming(true);
     setClaimError(null);
     
@@ -270,6 +273,9 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
       });
     } finally {
       setClaiming(false);
+      claimInProgressRef.current = false;
+      // Refresh balance immediately after claim attempt
+      fetchUnclaimedRewards();
     }
   };
 

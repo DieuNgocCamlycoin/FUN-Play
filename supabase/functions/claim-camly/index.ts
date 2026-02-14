@@ -323,51 +323,28 @@ serve(async (req) => {
       })
       .eq('id', claimRequest.id);
 
-    // Mark rewards as claimed -- only up to actual claimAmount
-    // Sort by amount ascending and pick IDs until sum reaches claimAmount
-    const sortedRewards = [...unclaimedRewards].sort((a, b) => Number(a.amount) - Number(b.amount));
-    const rewardIdsToMark: string[] = [];
-    let accumulated = 0;
-    for (const r of sortedRewards) {
-      if (accumulated >= claimAmount) break;
-      rewardIdsToMark.push(r.id);
-      accumulated += Number(r.amount);
-    }
-    console.log(`Marking ${rewardIdsToMark.length} of ${unclaimedRewards.length} rewards as claimed (accumulated: ${accumulated})`);
+    // Mark ALL unclaimed approved rewards as claimed (reset to zero)
+    const allRewardIds = unclaimedRewards.map(r => r.id);
+    console.log(`Marking ALL ${allRewardIds.length} unclaimed rewards as claimed`);
     
-    await supabaseAdmin
-      .from('reward_transactions')
-      .update({ 
-        claimed: true, 
-        claimed_at: new Date().toISOString(),
-        claim_tx_hash: receipt.hash
-      })
-      .in('id', rewardIdsToMark);
+    // Batch update in chunks of 100 to avoid query limits
+    for (let i = 0; i < allRewardIds.length; i += 100) {
+      const chunk = allRewardIds.slice(i, i + 100);
+      await supabaseAdmin
+        .from('reward_transactions')
+        .update({ 
+          claimed: true, 
+          claimed_at: new Date().toISOString(),
+          claim_tx_hash: receipt.hash
+        })
+        .in('id', chunk);
+    }
 
-    // Update daily claim records
-    console.log("Updating daily claim records...");
-    const currentClaimCount = dailyClaim?.claim_count || 0;
-    await supabaseAdmin
-      .from('daily_claim_records')
-      .upsert({
-        user_id: user.id,
-        date: today,
-        total_claimed: todayClaimed + claimAmount,
-        claim_count: currentClaimCount + 1
-      }, { onConflict: 'user_id,date' });
-
-    // Subtract claimAmount from approved_reward (not reset to 0)
-    console.log(`Subtracting ${claimAmount} from approved_reward...`);
-    const { data: currentProfile } = await supabaseAdmin
-      .from('profiles')
-      .select('approved_reward')
-      .eq('id', user.id)
-      .single();
-    const currentApproved = Number(currentProfile?.approved_reward) || 0;
-    const newApproved = Math.max(currentApproved - claimAmount, 0);
+    // Reset approved_reward to 0 (all approved rewards have been claimed)
+    console.log(`Resetting approved_reward to 0 for user ${user.id}`);
     await supabaseAdmin
       .from('profiles')
-      .update({ approved_reward: newApproved })
+      .update({ approved_reward: 0 })
       .eq('id', user.id);
 
     console.log(`Successfully claimed ${claimAmount} CAMLY for user ${user.id}`);
