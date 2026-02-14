@@ -106,29 +106,22 @@ export const ValentineMusicButton = () => {
           dragElastic={0.1}
           dragMomentum={false}
           dragListener={true}
-          onDragStart={(_, info) => {
-            dragStartRef.current = { x: info.point.x, y: info.point.y };
+          onDragStart={() => {
             isDraggingRef.current = false;
           }}
           onDrag={() => {
             isDraggingRef.current = true;
           }}
-          onDragEnd={(_, info) => {
-            const start = dragStartRef.current;
-            const dist = start
-              ? Math.hypot(info.point.x - start.x, info.point.y - start.y)
-              : 999;
-            
-            // Save position
+          onDragEnd={() => {
             localStorage.setItem(POS_KEY, JSON.stringify({
               x: motionX.get(),
               y: motionY.get(),
             }));
-
-            if (dist < 5) {
+          }}
+          onPointerUp={() => {
+            if (!isDraggingRef.current) {
               toggle();
             }
-            dragStartRef.current = null;
           }}
           style={{
             x: motionX,
