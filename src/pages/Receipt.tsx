@@ -19,16 +19,21 @@ function ClaimReceipt({ claimId }: { claimId: string }) {
   useEffect(() => {
     const fetchClaim = async () => {
       try {
-        const { data, error: fetchErr } = await supabase
-          .from("claim_requests")
-          .select("*, profiles:user_id(username, display_name, avatar_url)")
-          .eq("id", claimId)
-          .single();
-
-        if (fetchErr || !data) {
-          setError("Không tìm thấy biên nhận claim");
+        const response = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-claim-receipt?claim_id=${claimId}`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            },
+          }
+        );
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+          setError(data.error || "Không tìm thấy biên nhận claim");
         } else {
-          setClaim(data);
+          setClaim(data.claim);
         }
       } catch {
         setError("Lỗi khi tải biên nhận");

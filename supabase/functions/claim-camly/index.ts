@@ -165,7 +165,7 @@ serve(async (req) => {
 
     if (remainingLimit <= 0) {
       return new Response(
-        JSON.stringify({ error: `Bạn đã đạt giới hạn rút ${config.DAILY_CLAIM_LIMIT.toLocaleString()} CAMLY hôm nay. Vui lòng quay lại ngày mai!` }),
+        JSON.stringify({ error: `Chúc mừng, bạn đã claim thành công! Bạn đã đạt giới hạn rút ${config.DAILY_CLAIM_LIMIT.toLocaleString()} CAMLY trong ngày. Vui lòng quay lại ngày mai để rút tiếp nhé!` }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -346,6 +346,17 @@ serve(async (req) => {
       .from('profiles')
       .update({ approved_reward: 0 })
       .eq('id', user.id);
+
+    // Record daily claim in daily_claim_records
+    console.log("Recording daily claim...");
+    await supabaseAdmin
+      .from('daily_claim_records')
+      .upsert({
+        user_id: user.id,
+        date: today,
+        total_claimed: todayClaimed + claimAmount,
+        claim_count: (dailyClaim?.claim_count || 0) + 1
+      }, { onConflict: 'user_id,date' });
 
     console.log(`Successfully claimed ${claimAmount} CAMLY for user ${user.id}`);
 
