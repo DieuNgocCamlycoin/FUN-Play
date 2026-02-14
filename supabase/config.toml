@@ -99,5 +99,8 @@ verify_jwt = false
 [functions.recalculate-upload-rewards]
 verify_jwt = false
 
+[functions.update-video-durations]
+verify_jwt = false
+
 [functions.get-claim-receipt]
 verify_jwt = false

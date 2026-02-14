@@ -311,9 +311,17 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
             if (!rewardAwarded) {
               const SHORT_VIDEO_MAX_DURATION = 180;
               const effectiveDuration = metadata.duration || 0;
-              const uploadType = effectiveDuration <= SHORT_VIDEO_MAX_DURATION
-                ? "SHORT_VIDEO_UPLOAD"
-                : "LONG_VIDEO_UPLOAD";
+              let uploadType: string;
+              
+              if (effectiveDuration > SHORT_VIDEO_MAX_DURATION) {
+                uploadType = "LONG_VIDEO_UPLOAD";
+              } else if (effectiveDuration > 0) {
+                uploadType = "SHORT_VIDEO_UPLOAD";
+              } else {
+                // Duration unknown - default SHORT, will be reconciled later
+                uploadType = "SHORT_VIDEO_UPLOAD";
+                console.warn("[Upload Reward] Duration unknown, defaulting to SHORT. Will reconcile later.");
+              }
               
               const { data: durationResult, error: durationError } = await supabase.functions.invoke("award-camly", {
                 body: { type: uploadType, videoId: videoData.id },

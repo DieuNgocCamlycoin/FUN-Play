@@ -53,10 +53,26 @@ serve(async (req) => {
       });
     }
 
-    const { dryRun = true } = await req.json().catch(() => ({ dryRun: true }));
+    const { dryRun = true, autoDetectDurations = true } = await req.json().catch(() => ({ dryRun: true, autoDetectDurations: true }));
 
-    // Find all upload reward transactions with mismatched type
-    // We need to join reward_transactions with videos to compare duration vs reward_type
+    // Step 1: Auto-detect durations for videos with NULL duration
+    let durationUpdateResult = null;
+    if (autoDetectDurations) {
+      try {
+        console.log('[Recalculate] Step 1: Auto-detecting video durations...');
+        const { data, error } = await adminSupabase.functions.invoke('update-video-durations', {
+          body: { limit: 200 },
+          headers: { Authorization: authHeader },
+        });
+        durationUpdateResult = error ? { error: error.message } : data;
+        console.log('[Recalculate] Duration update result:', JSON.stringify(durationUpdateResult));
+      } catch (e) {
+        durationUpdateResult = { error: e.message };
+        console.warn('[Recalculate] Duration update failed (non-blocking):', e.message);
+      }
+    }
+
+    // Step 2: Find all upload reward transactions with mismatched type
     const { data: transactions, error: txError } = await adminSupabase
       .from('reward_transactions')
       .select('id, user_id, video_id, amount, reward_type')
@@ -72,7 +88,8 @@ serve(async (req) => {
     if (!transactions || transactions.length === 0) {
       return new Response(JSON.stringify({ 
         message: 'No upload reward transactions found', 
-        fixed: 0, totalDiff: 0 
+        fixed: 0, totalDiff: 0,
+        durationUpdateResult,
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
@@ -103,8 +120,6 @@ serve(async (req) => {
     for (const tx of transactions) {
       if (!tx.video_id) continue;
       const duration = videoDurationMap.get(tx.video_id);
-      
-      // Skip if duration is still NULL (can't determine correct type)
       if (duration == null) continue;
 
       const shouldBeLong = duration > SHORT_MAX_DURATION;
@@ -112,30 +127,18 @@ serve(async (req) => {
       const isCurrentlyLong = tx.reward_type === 'LONG_VIDEO_UPLOAD';
 
       if (shouldBeLong && isCurrentlyShort) {
-        // Should be LONG but got SHORT reward
         fixes.push({
-          txId: tx.id,
-          userId: tx.user_id,
-          videoId: tx.video_id,
-          oldType: 'SHORT_VIDEO_UPLOAD',
-          newType: 'LONG_VIDEO_UPLOAD',
-          oldAmount: tx.amount,
-          newAmount: LONG_REWARD,
-          diff: LONG_REWARD - tx.amount,
-          duration,
+          txId: tx.id, userId: tx.user_id, videoId: tx.video_id,
+          oldType: 'SHORT_VIDEO_UPLOAD', newType: 'LONG_VIDEO_UPLOAD',
+          oldAmount: tx.amount, newAmount: LONG_REWARD,
+          diff: LONG_REWARD - tx.amount, duration,
         });
       } else if (!shouldBeLong && isCurrentlyLong) {
-        // Should be SHORT but got LONG reward (rare)
         fixes.push({
-          txId: tx.id,
-          userId: tx.user_id,
-          videoId: tx.video_id,
-          oldType: 'LONG_VIDEO_UPLOAD',
-          newType: 'SHORT_VIDEO_UPLOAD',
-          oldAmount: tx.amount,
-          newAmount: SHORT_REWARD,
-          diff: SHORT_REWARD - tx.amount, // negative
-          duration,
+          txId: tx.id, userId: tx.user_id, videoId: tx.video_id,
+          oldType: 'LONG_VIDEO_UPLOAD', newType: 'SHORT_VIDEO_UPLOAD',
+          oldAmount: tx.amount, newAmount: SHORT_REWARD,
+          diff: SHORT_REWARD - tx.amount, duration,
         });
       }
     }
@@ -146,7 +149,8 @@ serve(async (req) => {
         dryRun: true,
         fixesNeeded: fixes.length,
         totalDiff,
-        fixes: fixes.slice(0, 50), // Show first 50
+        fixes: fixes.slice(0, 50),
+        durationUpdateResult,
         message: `Found ${fixes.length} transactions to fix. Total CAMLY diff: ${totalDiff}. Set dryRun=false to apply.`
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -160,32 +164,18 @@ serve(async (req) => {
 
     for (const fix of fixes) {
       try {
-        // Update reward_transaction type and amount
         const { error: updateErr } = await adminSupabase
           .from('reward_transactions')
-          .update({ 
-            reward_type: fix.newType, 
-            amount: fix.newAmount 
-          })
+          .update({ reward_type: fix.newType, amount: fix.newAmount })
           .eq('id', fix.txId);
 
-        if (updateErr) {
-          errors.push(`TX ${fix.txId}: ${updateErr.message}`);
-          continue;
-        }
+        if (updateErr) { errors.push(`TX ${fix.txId}: ${updateErr.message}`); continue; }
 
-        // Adjust user balance via atomic_increment_reward
         if (fix.diff !== 0) {
           const { error: balErr } = await adminSupabase.rpc('atomic_increment_reward', {
-            p_user_id: fix.userId,
-            p_amount: fix.diff,
-            p_auto_approve: true,
+            p_user_id: fix.userId, p_amount: fix.diff, p_auto_approve: true,
           });
-
-          if (balErr) {
-            errors.push(`Balance ${fix.userId}: ${balErr.message}`);
-            continue;
-          }
+          if (balErr) { errors.push(`Balance ${fix.userId}: ${balErr.message}`); continue; }
         }
 
         applied++;
@@ -199,6 +189,7 @@ serve(async (req) => {
       dryRun: false,
       applied,
       totalDiffApplied,
+      durationUpdateResult,
       errors: errors.length > 0 ? errors : undefined,
       message: `Applied ${applied}/${fixes.length} fixes. Total CAMLY adjusted: ${totalDiffApplied}`
     }), {
