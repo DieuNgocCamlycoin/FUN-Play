@@ -1,80 +1,71 @@
 
 
-# Claim System Analysis and Bug Fixes
+# Fix: "Chờ duyệt" Always Shows 0 -- Trust Score & Notification Issues
 
-## How the Claim System Works (Step-by-Step)
+## Root Cause Analysis
 
-### What the USER does:
-1. Earn CAMLY rewards by watching videos, liking, commenting, sharing, uploading
-2. Go to `/wallet` page and see the "Claim Rewards" section
-3. Rewards start as "Cho duyet" (Pending Approval) -- waiting for admin
-4. Once admin approves, rewards move to "Co the Claim" (Claimable)
-5. When claimable amount reaches 200,000 CAMLY, the "CLAIM CAMLY" button activates
-6. User connects their wallet (MetaMask/Bitget/Trust), clicks CLAIM
-7. The system sends real CAMLY tokens on BSC blockchain to user's wallet
+The "Cho duyet" (Pending Approval) section correctly shows **0 CAMLY** because **all rewards are being auto-approved**. Here's why:
 
-### What the ADMIN does:
-1. Go to `/wallet` page (if admin, a green "Admin Quick Actions" card appears)
-2. Click "Duyet Tat Ca" to bulk-approve all pending rewards for all users
-3. Or go to `/admin?section=rewards` for individual user approval
-4. After approval, users get a real-time toast notification and can claim
+- Every user currently has `suspicious_score = 0`
+- The auto-approve threshold is set to `3`
+- Since `0 < 3`, ALL rewards skip admin approval and go directly to "Co the Claim"
+- The admin "Duyet Tat Ca" button also shows "Khong co pending" because there is nothing to approve
 
----
+This means the admin approval step is effectively bypassed for all users.
 
-## Bugs Found (3 Critical Issues)
+## What Needs to Change
 
-### Bug 1: Partial claim marks ALL rewards as claimed
-**File**: `supabase/functions/claim-camly/index.ts` (lines 326-336)
+### 1. Make Auto-Approve Configurable (Default OFF)
+Currently the system auto-approves when `suspicious_score < 3`, but since no user has a score above 0, everything is auto-approved. 
 
-When daily limit or lifetime cap reduces `claimAmount` below `totalAmount`, the code still marks ALL `unclaimedRewards` as claimed. This means users lose rewards they never actually received.
+**Fix**: Add a master toggle `AUTO_APPROVE_ENABLED` in `reward_config`. When set to `false` (default), ALL rewards require admin approval regardless of trust score. Admin can enable auto-approve later when the trust score system has enough data.
 
-Example: User has 400,000 CAMLY approved but daily limit only allows 300,000. The system sends 300,000 but marks all 400,000 as claimed -- losing 100,000.
+**File**: `supabase/functions/award-camly/index.ts` (lines 481-502)
 
-**Fix**: Only mark rewards as claimed up to the actual `claimAmount`. Sort rewards and pick IDs until sum reaches `claimAmount`.
+### 2. Add Real-Time Notification When Admin Approves
+The wallet page already has a realtime listener on `profiles`, but it uses `stats.approvedRewards` as the initial `prevApproved` value inside the effect. Since the effect re-runs when `debouncedFetch` changes, `prevApproved` can reset, causing missed notifications.
 
-### Bug 2: Blockchain error leaves claim_request stuck as "pending"
-**File**: `supabase/functions/claim-camly/index.ts` (lines 372-378)
+**Fix**: Use a `useRef` to track the previous approved value persistently across renders instead of a local `let` variable inside the effect.
 
-When the blockchain transaction fails (e.g., insufficient BNB gas), the catch block returns an error but never updates the `claim_request` record to `status: 'failed'`. Although the 5-minute auto-cleanup helps, users are blocked from retrying for 5 minutes unnecessarily.
+**File**: `src/components/Wallet/ClaimRewardsSection.tsx` (lines 94-128)
 
-**Fix**: In the catch block, update the claim_request to `failed` with the error message before returning.
-
-### Bug 3: approved_reward reset to 0 even on partial claim
-**File**: `supabase/functions/claim-camly/index.ts` (line 354)
-
-After a successful claim, `approved_reward` is always reset to 0, even when only a portion was claimed (due to daily/lifetime limits). The remaining approved amount disappears from the UI.
-
-**Fix**: Subtract `claimAmount` instead of resetting to 0:
-```
-approved_reward = GREATEST(approved_reward - claimAmount, 0)
-```
+### 3. Database Config Insert
+Add `AUTO_APPROVE_ENABLED = false` to `reward_config` table so all future rewards require admin approval.
 
 ---
 
-## Implementation Plan
+## User and Admin Workflow After Fix
 
-### 1. Fix claim-camly edge function (all 3 bugs)
+### User Flow:
+1. Earn CAMLY through watching, liking, commenting, uploading
+2. Rewards appear in **"Cho duyet"** (Pending Approval) -- waiting for admin
+3. Admin approves rewards -- user gets a toast notification instantly
+4. Approved rewards move to **"Co the Claim"**
+5. When balance reaches 200,000 CAMLY, the **CLAIM** button activates
+6. Connect wallet and click CLAIM to receive tokens on BSC
 
-**Partial claim fix** (lines 326-336):
-- Sort `unclaimedRewards` and accumulate IDs until sum reaches `claimAmount`
-- Only mark those specific reward IDs as claimed
-
-**Catch block fix** (lines 372-378):
-- Add `claimRequest?.id` tracking and update status to `failed` in the catch block
-
-**Approved reward fix** (line 354):
-- Change from `update({ approved_reward: 0 })` to a decrement: subtract `claimAmount` from current `approved_reward` using raw SQL or careful logic
-
-### 2. Mobile optimization check
-- The existing `ClaimRewardsSection` and `ClaimRewardsModal` already use `useIsMobile()` and responsive grids
-- No additional mobile changes needed -- the bug fixes are all backend
+### Admin Flow:
+1. Open `/wallet` -- see green **Admin Quick Actions** card
+2. Card shows count of users waiting and total CAMLY pending
+3. Click **"Duyet Tat Ca"** to approve all at once
+4. Or go to `/admin?section=rewards` for individual user management
 
 ---
 
-## Files to Change
+## Technical Details
 
-| File | Change | Type |
-|------|--------|------|
-| `supabase/functions/claim-camly/index.ts` | Fix partial claim, catch block, approved_reward reset | Bug fix |
+| File | Change |
+|------|--------|
+| `supabase/functions/award-camly/index.ts` | Check `AUTO_APPROVE_ENABLED` config before auto-approving |
+| `src/components/Wallet/ClaimRewardsSection.tsx` | Fix notification ref to persist across renders |
+| Database migration | Insert `AUTO_APPROVE_ENABLED = false` into `reward_config` |
 
-All 3 fixes are in the same file. No frontend changes needed -- the UI is correct, only the backend logic has bugs.
+### award-camly change (lines 481-502):
+- Before the suspicious_score check, fetch `AUTO_APPROVE_ENABLED` from `reward_config`
+- If `false`, set `canAutoApprove = false` immediately (skip trust score check)
+- If `true`, proceed with the existing suspicious_score logic
+
+### ClaimRewardsSection notification fix:
+- Replace `let prevApproved = stats.approvedRewards` with a `useRef` that updates when stats change
+- This ensures the toast fires correctly even after re-renders
+
