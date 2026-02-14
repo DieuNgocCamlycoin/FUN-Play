@@ -1,29 +1,31 @@
 
 
-# Fix Mobile Autoplay for Valentine Music Button
+# Fix Music Autoplay After Page Reload (Mobile)
 
 ## Problem
-On mobile browsers, music does not automatically play when users open Fun Play. Mobile browsers (Safari, Chrome) have strict autoplay policies that require audio to be initiated from a **direct, synchronous user gesture**. The current implementation has two issues:
+After reloading the page on mobile, the music button does not automatically resume playing. The root causes are:
 
-1. The document-level interaction listeners (`click`, `touchstart`, `pointerdown`) fire and set `hasInteracted = true`, but `audio.play()` may still be rejected by the browser because the call is not directly inside the gesture handler's synchronous call stack.
-2. Once `hasInteracted` becomes `true`, the listeners are never re-registered, so the user has no second chance to unlock audio.
+1. **Audio element not ready on mount**: `tryPlay()` fires immediately on mount, but the audio file may not have loaded yet (especially on mobile with slower connections). The `play()` call fails silently.
+2. **No `canplaythrough` listener**: There is no retry when the audio finishes loading -- if the initial `tryPlay()` fails because the audio isn't buffered, there's no second attempt before the user interacts.
+3. **Autoplay success not persisted**: When autoplay succeeds (via mount or first interaction), `localStorage` is never set to `"false"`. This means the system has no record that the user wants music playing. Setting it explicitly ensures consistent behavior across reloads.
 
 ## Solution
 
 ### File: `src/components/ValentineMusicButton.tsx`
 
-1. **Remove `hasInteracted` guard from the interaction listener** -- instead, keep retrying on every user interaction until audio actually plays successfully. Only stop listening once `audio.play()` resolves.
+1. **Add `canplaythrough` event listener on the audio element** -- when the audio finishes buffering, call `tryPlay()` again. This catches the case where `tryPlay()` on mount failed because the audio wasn't loaded yet. On desktop this fires almost immediately; on mobile it fires once enough data is buffered.
 
-2. **Add audio unlock on the button's own `onTap`** -- if audio isn't playing and the user taps the music button, try to play (in addition to toggle logic). This is the most reliable gesture source on mobile since it's a direct tap.
+2. **Persist "not muted" state on successful autoplay** -- in `tryPlay()` and in the interaction handler, after `audio.play()` succeeds, also call `localStorage.setItem(STORAGE_KEY, "false")`. This ensures that after reload, the system knows the user had music on.
 
-3. **Update `toggle()` to handle first-play scenario** -- when the user taps the button and music isn't playing yet (never started), treat it as an unlock + play attempt rather than requiring a separate "first interaction".
+3. **Add a retry with delay for mobile** -- add a second `tryPlay()` attempt after a short delay (e.g., 1.5s) to catch cases where the audio element is ready but the browser's autoplay policy check was too early.
 
-4. **Keep the document-level listeners as fallback** -- they work well on desktop and help on some mobile browsers. But now they retry until successful instead of giving up after the first attempt.
+### Changes summary:
 
-### Key changes:
-- Remove `hasInteracted` state entirely (simplifies logic)
-- Use a ref (`audioUnlockedRef`) to track whether audio has been successfully played at least once
-- Document listeners keep firing until audio unlocks, then remove themselves
-- `toggle()` works correctly regardless of whether audio was previously unlocked
-- No other files are changed
+| Change | Purpose |
+|--------|---------|
+| Add `onCanPlayThrough` handler on `<audio>` | Retry play when audio finishes loading |
+| `localStorage.setItem(STORAGE_KEY, "false")` on autoplay success | Persist "music on" state for reloads |
+| Add delayed retry `setTimeout(tryPlay, 1500)` | Catch edge cases on slow mobile loads |
+
+Single file change, no new dependencies.
 
