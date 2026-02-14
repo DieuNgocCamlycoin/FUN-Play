@@ -368,6 +368,81 @@ serve(async (req) => {
 
     console.log(`Successfully claimed ${claimAmount} CAMLY for user ${user.id}`);
 
+    // === SEND CHAT MESSAGE FROM FUN PAY TREASURER ===
+    const TREASURER_ID = 'f0f0f0f0-0000-0000-0000-000000000001';
+    const bscscanUrl = `https://bscscan.com/tx/${receipt.hash}`;
+    
+    try {
+      console.log("Sending chat message from Fun Pay Treasurer...");
+      
+      // Find or create chat between treasurer and user
+      const { data: existingChat } = await supabaseAdmin
+        .from('user_chats')
+        .select('id')
+        .or(`and(user1_id.eq.${TREASURER_ID},user2_id.eq.${user.id}),and(user1_id.eq.${user.id},user2_id.eq.${TREASURER_ID})`)
+        .limit(1)
+        .single();
+
+      let chatId = existingChat?.id;
+
+      if (!chatId) {
+        const { data: newChat, error: chatCreateError } = await supabaseAdmin
+          .from('user_chats')
+          .insert({ user1_id: TREASURER_ID, user2_id: user.id })
+          .select('id')
+          .single();
+        
+        if (chatCreateError) {
+          console.error('Failed to create chat:', chatCreateError);
+        } else {
+          chatId = newChat.id;
+        }
+      }
+
+      if (chatId) {
+        const { error: msgError } = await supabaseAdmin
+          .from('chat_messages')
+          .insert({
+            chat_id: chatId,
+            sender_id: TREASURER_ID,
+            message_type: 'system',
+            content: `🎉 Bạn vừa claim thành công ${claimAmount.toLocaleString()} CAMLY!\n\n💰 Số lượng: ${claimAmount.toLocaleString()} CAMLY\n📦 Tx: ${receipt.hash.slice(0, 10)}...${receipt.hash.slice(-8)}\n\nXem chi tiết giao dịch trên BSCScan.`,
+            deep_link: bscscanUrl,
+          });
+        
+        if (msgError) console.error('Failed to send chat message:', msgError);
+        else console.log('Chat message sent successfully');
+
+        // Update chat timestamp
+        await supabaseAdmin
+          .from('user_chats')
+          .update({ updated_at: new Date().toISOString() })
+          .eq('id', chatId);
+      }
+    } catch (chatError) {
+      console.error('Chat message error (non-fatal):', chatError);
+    }
+
+    // === INSERT NOTIFICATION ===
+    try {
+      console.log("Inserting claim success notification...");
+      const { error: notifError } = await supabaseAdmin
+        .from('notifications')
+        .insert({
+          user_id: user.id,
+          type: 'claim_success',
+          title: '🎉 Claim CAMLY thành công!',
+          message: `Bạn đã claim thành công ${claimAmount.toLocaleString()} CAMLY vào ví ${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`,
+          link: bscscanUrl,
+          actor_id: TREASURER_ID,
+        });
+      
+      if (notifError) console.error('Failed to insert notification:', notifError);
+      else console.log('Notification inserted successfully');
+    } catch (notifError) {
+      console.error('Notification error (non-fatal):', notifError);
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
