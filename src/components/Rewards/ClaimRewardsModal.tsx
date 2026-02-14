@@ -34,14 +34,17 @@ interface RewardBreakdown {
 }
 
 const REWARD_TYPE_LABELS: Record<string, string> = {
-  view: "Xem video",
-  like: "Thích video",
-  comment: "Bình luận",
-  share: "Chia sẻ",
-  upload: "Upload video",
-  first_upload: "Upload đầu tiên",
-  signup: "Đăng ký",
-  wallet_connect: "Kết nối ví",
+  VIEW: "Xem video",
+  LIKE: "Thích video",
+  COMMENT: "Bình luận",
+  SHARE: "Chia sẻ",
+  UPLOAD: "Upload video",
+  FIRST_UPLOAD: "Upload đầu tiên",
+  SHORT_VIDEO_UPLOAD: "Upload video ngắn",
+  LONG_VIDEO_UPLOAD: "Upload video dài",
+  SIGNUP: "Đăng ký",
+  WALLET_CONNECT: "Kết nối ví",
+  BOUNTY: "Bounty",
 };
 
 export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps) => {
@@ -644,7 +647,7 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
                       <ShieldCheck className="h-4 w-4 text-green-500" />
                       Phần thưởng đã duyệt
                     </h4>
-                    <ScrollArea className="max-h-28">
+                    <ScrollArea className="max-h-48">
                       <div className="space-y-1.5">
                         {approvedBreakdown.map((item, index) => (
                           <motion.div
@@ -674,7 +677,7 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
                       <Clock className="h-4 w-4 text-amber-500" />
                       Chờ admin duyệt
                     </h4>
-                    <ScrollArea className="max-h-28">
+                    <ScrollArea className="max-h-48">
                       <div className="space-y-1.5">
                         {pendingBreakdown.map((item, index) => (
                           <motion.div
