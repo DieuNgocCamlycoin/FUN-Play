@@ -293,15 +293,15 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
                 onClick={() => navigate("/messages")}
                 className="relative"
               >
-                <MessageCircle className="h-5 w-5" />
+                <img src="/images/icon-chat-holographic.png" alt="Tin nhắn" className="h-6 w-6 object-contain drop-shadow-md" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>Tin nhắn</TooltipContent>
           </Tooltip>
         </TooltipProvider>
         
-        <Button variant="ghost" size="icon" className="hidden md:flex relative" onClick={() => navigate("/notifications")}>
-          <Bell className="h-5 w-5" />
+        <Button variant="ghost" size="icon" className="relative" onClick={() => navigate("/notifications")}>
+          <img src="/images/icon-bell-holographic.png" alt="Thông báo" className="h-6 w-6 object-contain drop-shadow-md" />
           <NotificationBadge userId={user?.id} />
         </Button>
         
