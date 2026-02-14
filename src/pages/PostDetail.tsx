@@ -11,6 +11,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { motion } from 'framer-motion';
 import { toast } from '@/hooks/use-toast';
+import { getShareUrl, copyToClipboard } from '@/lib/shareUtils';
 
 interface PostProfile {
   id: string;
@@ -87,7 +88,7 @@ const PostDetail: React.FC = () => {
   }, [id]);
 
   const handleShare = async () => {
-    const url = window.location.href;
+    const url = getShareUrl(`/post/${id}`);
     
     if (navigator.share) {
       try {
@@ -96,14 +97,15 @@ const PostDetail: React.FC = () => {
           text: post?.content.slice(0, 100) + '...',
           url
         });
-      } catch (error) {
-        // User cancelled or error
+      } catch {
+        // User cancelled
       }
     } else {
-      await navigator.clipboard.writeText(url);
+      const success = await copyToClipboard(url);
       toast({
-        title: "Đã sao chép",
-        description: "Link bài đăng đã được sao chép"
+        title: success ? "Đã sao chép" : "Lỗi",
+        description: success ? "Link bài đăng đã được sao chép" : "Không thể sao chép link",
+        variant: success ? "default" : "destructive"
       });
     }
   };

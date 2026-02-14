@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { EnhancedDonateModal } from "@/components/Donate/EnhancedDonateModal";
 import { motion } from "framer-motion";
 import { formatViewsShort } from "@/lib/formatters";
+import { getShareUrl, copyToClipboard } from "@/lib/shareUtils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -50,32 +51,34 @@ export const ProfileInfo = ({
     .replace("'s Channel", "");
   const subscriberCount = channel?.subscriber_count || 0;
 
-  const handleShare = (platform: string) => {
-    const profileUrl = `${window.location.origin}/u/${profile.username}`;
+  const handleShare = async (platform: string) => {
+    const profileUrl = getShareUrl(`/u/${profile.username}`);
     const text = `Khám phá trang cá nhân của ${displayName} trên FUN PLAY! 🎉`;
 
-    let shareUrl = "";
+    let shareLink = "";
     switch (platform) {
       case "telegram":
-        shareUrl = `https://t.me/share/url?url=${encodeURIComponent(profileUrl)}&text=${encodeURIComponent(text)}`;
+        shareLink = `https://t.me/share/url?url=${encodeURIComponent(profileUrl)}&text=${encodeURIComponent(text)}`;
         break;
       case "facebook":
-        shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(profileUrl)}`;
+        shareLink = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(profileUrl)}`;
         break;
       case "twitter":
-        shareUrl = `https://twitter.com/intent/tweet?url=${encodeURIComponent(profileUrl)}&text=${encodeURIComponent(text)}`;
+        shareLink = `https://twitter.com/intent/tweet?url=${encodeURIComponent(profileUrl)}&text=${encodeURIComponent(text)}`;
         break;
-      case "copy":
-        navigator.clipboard.writeText(profileUrl);
+      case "copy": {
+        const success = await copyToClipboard(profileUrl);
         toast({
-          title: "Đã copy! ✨",
-          description: "Link trang cá nhân đã được sao chép",
+          title: success ? "Đã copy! ✨" : "Lỗi",
+          description: success ? "Link trang cá nhân đã được sao chép" : "Không thể sao chép link",
+          variant: success ? "default" : "destructive",
         });
         return;
+      }
     }
 
-    if (shareUrl) {
-      window.open(shareUrl, "_blank", "width=600,height=400");
+    if (shareLink) {
+      window.open(shareLink, "_blank", "width=600,height=400");
     }
   };
 

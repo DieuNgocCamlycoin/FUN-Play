@@ -29,6 +29,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { useAutoReward } from "@/hooks/useAutoReward";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { PRODUCTION_URL, copyToClipboard as sharedCopyToClipboard } from "@/lib/shareUtils";
 
 // TikTok SVG Icon
 const TikTokIcon = () => (
@@ -85,7 +86,7 @@ export const ShareModal = ({
   
   // Generate share URL based on content type - always use production URL for sharing
   const getShareUrl = () => {
-    const baseUrl = 'https://official-funplay.lovable.app';
+    const baseUrl = PRODUCTION_URL;
     switch (contentType) {
       case 'video':
         return `${baseUrl}/watch/${id}`;
@@ -151,33 +152,8 @@ export const ShareModal = ({
     }
   };
 
-  // Helper function with fallback for clipboard
-  const copyToClipboard = async (text: string): Promise<boolean> => {
-    try {
-      // Modern Clipboard API
-      await navigator.clipboard.writeText(text);
-      return true;
-    } catch (err) {
-      // Fallback: execCommand (deprecated but works better on mobile)
-      try {
-        const textArea = document.createElement('textarea');
-        textArea.value = text;
-        textArea.style.position = 'fixed';
-        textArea.style.left = '-9999px';
-        textArea.style.top = '-9999px';
-        textArea.style.opacity = '0';
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-        const success = document.execCommand('copy');
-        document.body.removeChild(textArea);
-        return success;
-      } catch (fallbackErr) {
-        console.error('All copy methods failed:', fallbackErr);
-        return false;
-      }
-    }
-  };
+  // Use shared clipboard utility
+  const copyToClipboard = sharedCopyToClipboard;
 
   const handleCopyLink = async () => {
     const success = await copyToClipboard(shareUrl);

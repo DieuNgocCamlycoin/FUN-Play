@@ -6,6 +6,7 @@ import { PostEmojiPicker } from './PostEmojiPicker';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { getShareUrl, copyToClipboard } from '@/lib/shareUtils';
 
 interface PostReactionsProps {
   postId: string;
@@ -44,7 +45,7 @@ export const PostReactions = ({
   };
 
   const handleShare = async () => {
-    const url = `${window.location.origin}/post/${postId}`;
+    const url = getShareUrl(`/post/${postId}`);
     if (navigator.share) {
       try {
         await navigator.share({
@@ -54,10 +55,11 @@ export const PostReactions = ({
         });
       } catch { /* user cancelled */ }
     } else {
-      await navigator.clipboard.writeText(url);
+      const success = await copyToClipboard(url);
       toast({
-        title: "Đã sao chép",
-        description: "Link bài đăng đã được sao chép"
+        title: success ? "Đã sao chép" : "Lỗi",
+        description: success ? "Link bài đăng đã được sao chép" : "Không thể sao chép link",
+        variant: success ? "default" : "destructive"
       });
     }
   };
