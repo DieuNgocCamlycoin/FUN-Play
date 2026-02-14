@@ -274,13 +274,6 @@ export const ClaimRewardsSection = () => {
         {/* Stats Grid */}
         <div className="grid grid-cols-2 gap-3">
           <StatCard
-            icon={Trophy}
-            label="Tổng đã nhận"
-            value={stats.totalRewards}
-            color="from-purple-500/10 to-pink-500/10 border-purple-500/20"
-            tooltip="Tổng CAMLY bạn đã kiếm được từ mọi hoạt động"
-          />
-          <StatCard
             icon={CheckCircle}
             label="Có thể Claim"
             value={stats.approvedRewards}
@@ -301,55 +294,16 @@ export const ClaimRewardsSection = () => {
             color="from-blue-500/10 to-cyan-500/10 border-blue-500/20"
             tooltip="Tổng CAMLY bạn đã rút về ví thành công"
           />
+          <StatCard
+            icon={Trophy}
+            label="Tổng đã nhận"
+            value={stats.totalRewards}
+            color="from-purple-500/10 to-pink-500/10 border-purple-500/20"
+            tooltip="Tổng CAMLY bạn đã kiếm được từ mọi hoạt động"
+          />
         </div>
 
-        {/* Progress to Threshold */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Tiến độ đến ngưỡng Claim</span>
-            <span className="font-medium">
-              {stats.approvedRewards.toLocaleString()} / {CLAIM_THRESHOLD.toLocaleString()} CAMLY
-            </span>
-          </div>
-          <Progress value={progressPercent} className="h-3" />
-          {stats.approvedRewards < CLAIM_THRESHOLD && (
-            <p className="text-xs text-muted-foreground">
-              Cần thêm {(CLAIM_THRESHOLD - stats.approvedRewards).toLocaleString()} CAMLY để có thể Claim
-            </p>
-          )}
-        </div>
-
-        {/* Avatar Warning */}
-        {!loading && !avatarUrl && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="p-3 rounded-xl bg-gradient-to-r from-orange-500/15 to-amber-500/15 border border-orange-400/30"
-          >
-            <div className="flex items-start gap-3">
-              <Camera className="h-5 w-5 text-orange-500 flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-orange-600 dark:text-orange-400">
-                  Cập nhật ảnh đại diện để nhận thưởng!
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Bạn cần cập nhật ảnh đại diện và thông tin cá nhân trước khi claim CAMLY. Đảm bảo ảnh không trùng lặp với người dùng khác.
-                </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => navigate("/profile-settings")}
-                  className="mt-2 text-xs border-orange-400/50 text-orange-600 hover:bg-orange-500/10"
-                >
-                  <Camera className="h-3 w-3 mr-1" />
-                  Cập nhật hồ sơ
-                </Button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Action Buttons */}
+        {/* Action Buttons - Right after stats */}
         <div className="flex flex-col sm:flex-row gap-3">
           {!isConnected ? (
             <Button
@@ -386,24 +340,56 @@ export const ClaimRewardsSection = () => {
           )}
         </div>
 
-        {/* Daily Limit Progress */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-sm">
-            <span className="flex items-center gap-2 text-muted-foreground">
-              <Clock className="h-4 w-4 text-blue-500" />
-              Giới hạn rút hàng ngày
-            </span>
-            <span className="font-medium">
-              {stats.dailyClaimed.toLocaleString()} / {DAILY_CLAIM_LIMIT.toLocaleString()} CAMLY
-            </span>
+        {/* Consolidated Progress Section */}
+        <div className="space-y-3 p-3 rounded-xl bg-muted/30 border border-border">
+          {/* Threshold progress */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">Ngưỡng Claim</span>
+              <span className="font-medium">
+                {stats.approvedRewards.toLocaleString()} / {CLAIM_THRESHOLD.toLocaleString()}
+              </span>
+            </div>
+            <Progress value={progressPercent} className="h-2" />
           </div>
-          <Progress value={dailyProgressPercent} className="h-2" />
-          {dailyLimitReached && (
-            <p className="text-xs text-amber-600 font-medium">
-              🎉 Bạn đã đạt giới hạn rút hôm nay. Quay lại ngày mai nhé!
-            </p>
-          )}
+          {/* Daily limit progress */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between text-xs">
+              <span className="flex items-center gap-1.5 text-muted-foreground">
+                <Clock className="h-3 w-3 text-blue-500" />
+                Giới hạn hàng ngày
+              </span>
+              <span className="font-medium">
+                {stats.dailyClaimed.toLocaleString()} / {DAILY_CLAIM_LIMIT.toLocaleString()}
+              </span>
+            </div>
+            <Progress value={dailyProgressPercent} className="h-2" />
+            {dailyLimitReached && (
+              <p className="text-xs text-amber-600 font-medium">
+                🎉 Đã đạt giới hạn hôm nay. Quay lại ngày mai!
+              </p>
+            )}
+          </div>
         </div>
+
+        {/* Avatar Warning - Compact */}
+        {!loading && !avatarUrl && (
+          <div className="flex items-center gap-2 p-3 rounded-xl bg-gradient-to-r from-orange-500/15 to-amber-500/15 border border-orange-400/30">
+            <Camera className="h-4 w-4 text-orange-500 flex-shrink-0" />
+            <p className="text-xs text-muted-foreground flex-1">
+              Cập nhật ảnh đại diện để nhận thưởng
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate("/profile-settings")}
+              className="text-xs h-7 px-2 border-orange-400/50 text-orange-600 hover:bg-orange-500/10"
+            >
+              <Camera className="h-3 w-3 mr-1" />
+              Cập nhật
+            </Button>
+          </div>
+        )}
 
         {/* Info Notes */}
         <div className="p-3 bg-muted/50 rounded-lg text-sm text-muted-foreground space-y-1.5">
