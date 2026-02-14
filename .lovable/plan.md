@@ -1,42 +1,35 @@
 
-
-# Fix Valentine Music Button - Play/Pause and Autoplay
+# Fix Music Button Toggle After Drag
 
 ## Problem
-After making the music button draggable, three issues appeared:
-- Clicking/tapping the button no longer toggles music on/off
-- Music does not auto-play when users first visit Fun Play
-- The drag-to-tap detection logic is unreliable
+After dragging the music button, tapping it no longer toggles play/pause. This is because `isDraggingRef` is set to `true` during drag but never reset, so every subsequent `onPointerUp` thinks a drag just happened and skips the `toggle()` call.
 
 ## Root Cause
-The `onClick` handler was removed when drag was added, and the replacement logic (detecting short drags in `onDragEnd`) does not fire reliably on simple taps/clicks. Framer Motion's `onDragEnd` may not trigger if the user just clicks without moving.
+- `onDrag` sets `isDraggingRef.current = true`
+- `onPointerUp` checks `if (!isDraggingRef.current)` to call `toggle()`
+- But `isDraggingRef` is never reset to `false` after drag ends
+- So after the first drag, all taps are permanently ignored
 
-## Fix (single file change)
+## Fix
 
 ### File: `src/components/ValentineMusicButton.tsx`
 
-1. **Add an explicit `onPointerUp` handler** that checks whether a drag occurred and calls `toggle()` if it was just a tap (not a drag). This replaces the unreliable `onDragEnd`-based tap detection.
-
-2. **Keep `onDragEnd` for position saving only** -- remove the toggle logic from it.
-
-3. **Track drag state properly**:
-   - Set `isDraggingRef = false` in `onDragStart`
-   - Set `isDraggingRef = true` in `onDrag` (any movement)
-   - In `onPointerUp`: if `isDraggingRef` is still `false`, call `toggle()`
-   - Reset after handling
-
-4. **Ensure autoplay works**: The existing autoplay logic looks correct (attempts play on mount, listens for first user interaction as fallback). No changes needed there -- once clicks work again, the fallback interaction listener will also work properly.
-
-## Technical Details
+**Single change** -- add `isDraggingRef.current = false` at the end of `onDragEnd`, using a small `setTimeout` so the reset happens after `onPointerUp` fires:
 
 ```
-Key change: Replace tap-via-onDragEnd with onPointerUp handler
-
-onDragStart -> isDraggingRef = false
-onDrag      -> isDraggingRef = true  
-onDragEnd   -> save position only
-onPointerUp -> if (!isDraggingRef) toggle()
+onDragEnd={() => {
+  localStorage.setItem(POS_KEY, JSON.stringify({
+    x: motionX.get(),
+    y: motionY.get(),
+  }));
+  // Reset after a tick so onPointerUp (which fires first) still sees true for this drag
+  setTimeout(() => {
+    isDraggingRef.current = false;
+  }, 0);
+}}
 ```
 
-Only one file is modified: `src/components/ValentineMusicButton.tsx`
-
+This ensures:
+1. During a drag: `onPointerUp` sees `isDraggingRef = true` and correctly skips toggle
+2. After the drag completes: `isDraggingRef` resets to `false` so the next tap works
+3. Autoplay continues to work as before since no autoplay logic is changed
