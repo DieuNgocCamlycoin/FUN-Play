@@ -323,13 +323,20 @@ serve(async (req) => {
       })
       .eq('id', claimRequest.id);
 
-    // Mark ALL unclaimed approved rewards as claimed (reset to zero)
-    const allRewardIds = unclaimedRewards.map(r => r.id);
-    console.log(`Marking ALL ${allRewardIds.length} unclaimed rewards as claimed`);
+    // Only mark rewards up to claimAmount as claimed (partial marking)
+    const sorted = [...unclaimedRewards].sort((a, b) => Number(a.amount) - Number(b.amount));
+    let remaining = claimAmount;
+    const idsToMark: string[] = [];
+    for (const r of sorted) {
+      if (remaining <= 0) break;
+      idsToMark.push(r.id);
+      remaining -= Number(r.amount);
+    }
+    console.log(`Marking ${idsToMark.length} of ${unclaimedRewards.length} rewards as claimed (claimAmount: ${claimAmount}, total: ${totalAmount})`);
     
-    // Batch update in chunks of 100 to avoid query limits
-    for (let i = 0; i < allRewardIds.length; i += 100) {
-      const chunk = allRewardIds.slice(i, i + 100);
+    // Batch update in chunks of 100
+    for (let i = 0; i < idsToMark.length; i += 100) {
+      const chunk = idsToMark.slice(i, i + 100);
       await supabaseAdmin
         .from('reward_transactions')
         .update({ 
@@ -340,11 +347,12 @@ serve(async (req) => {
         .in('id', chunk);
     }
 
-    // Reset approved_reward to 0 (all approved rewards have been claimed)
-    console.log(`Resetting approved_reward to 0 for user ${user.id}`);
+    // Set approved_reward to remainder (not 0)
+    const remainderReward = totalAmount - claimAmount;
+    console.log(`Setting approved_reward to ${remainderReward} for user ${user.id} (was ${totalAmount}, claimed ${claimAmount})`);
     await supabaseAdmin
       .from('profiles')
-      .update({ approved_reward: 0 })
+      .update({ approved_reward: remainderReward })
       .eq('id', user.id);
 
     // Record daily claim in daily_claim_records
