@@ -368,10 +368,62 @@ serve(async (req) => {
 
     console.log(`Successfully claimed ${claimAmount} CAMLY for user ${user.id}`);
 
-    // === SEND CHAT MESSAGE FROM FUN PAY TREASURER ===
+    // === CREATE DONATION TRANSACTION RECORD FOR RICH CARD ===
     const TREASURER_ID = 'f0f0f0f0-0000-0000-0000-000000000001';
     const bscscanUrl = `https://bscscan.com/tx/${receipt.hash}`;
-    
+    let donationTxId: string | null = null;
+    let receiptPublicId: string | null = null;
+
+    try {
+      console.log("Creating donation_transactions record for claim...");
+
+      // Look up CAMLY token ID
+      const { data: camlyToken } = await supabaseAdmin
+        .from('donate_tokens')
+        .select('id')
+        .eq('symbol', 'CAMLY')
+        .limit(1)
+        .maybeSingle();
+
+      const tokenId = camlyToken?.id;
+      if (!tokenId) {
+        console.error('CAMLY token not found in donate_tokens, skipping donation record');
+      } else {
+        const { data: donationTx, error: donationError } = await supabaseAdmin
+          .from('donation_transactions')
+          .insert({
+            sender_id: TREASURER_ID,
+            receiver_id: user.id,
+            token_id: tokenId,
+            amount: claimAmount,
+            chain: 'bsc',
+            tx_hash: receipt.hash,
+            explorer_url: bscscanUrl,
+            status: 'success',
+            context_type: 'claim',
+            message: `🎉 Claim thành công ${claimAmount.toLocaleString()} CAMLY!`,
+            metadata: {
+              theme: 'celebration',
+              background: '/images/celebration-bg/celebration-1.png',
+              claim_request_id: claimRequest.id,
+            },
+          })
+          .select('id, receipt_public_id')
+          .single();
+
+        if (donationError) {
+          console.error('Failed to create donation transaction:', donationError);
+        } else {
+          donationTxId = donationTx.id;
+          receiptPublicId = donationTx.receipt_public_id;
+          console.log('Donation transaction created:', donationTxId, 'receipt:', receiptPublicId);
+        }
+      }
+    } catch (dtError) {
+      console.error('Donation transaction error (non-fatal):', dtError);
+    }
+
+    // === SEND CHAT MESSAGE FROM FUN PAY TREASURER ===
     try {
       console.log("Sending chat message from Fun Pay Treasurer...");
       
@@ -400,6 +452,7 @@ serve(async (req) => {
       }
 
       if (chatId) {
+        const deepLink = receiptPublicId ? `/receipt/${receiptPublicId}` : `/receipt/claim-${claimRequest.id}`;
         const { error: msgError } = await supabaseAdmin
           .from('chat_messages')
           .insert({
@@ -407,11 +460,12 @@ serve(async (req) => {
             sender_id: TREASURER_ID,
             message_type: 'donation',
             content: `🎉 Bạn vừa claim thành công ${claimAmount.toLocaleString()} CAMLY!\n\n💰 Số lượng: ${claimAmount.toLocaleString()} CAMLY\n📦 Tx: ${receipt.hash.slice(0, 10)}...${receipt.hash.slice(-8)}\n\nXem chi tiết giao dịch trên BSCScan.`,
-            deep_link: `/receipt/claim-${claimRequest.id}`,
+            deep_link: deepLink,
+            donation_transaction_id: donationTxId,
           });
         
         if (msgError) console.error('Failed to send chat message:', msgError);
-        else console.log('Chat message sent successfully');
+        else console.log('Chat message sent successfully with donation_transaction_id:', donationTxId);
 
         // Update chat timestamp
         await supabaseAdmin
@@ -426,6 +480,7 @@ serve(async (req) => {
     // === INSERT NOTIFICATION ===
     try {
       console.log("Inserting claim success notification...");
+      const notifLink = receiptPublicId ? `/receipt/${receiptPublicId}` : bscscanUrl;
       const { error: notifError } = await supabaseAdmin
         .from('notifications')
         .insert({
@@ -433,7 +488,7 @@ serve(async (req) => {
           type: 'claim_success',
           title: '🎉 Claim CAMLY thành công!',
           message: `Bạn đã claim thành công ${claimAmount.toLocaleString()} CAMLY vào ví ${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`,
-          link: bscscanUrl,
+          link: notifLink,
           actor_id: TREASURER_ID,
         });
       
