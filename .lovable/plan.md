@@ -1,54 +1,69 @@
 
+# Fix: Prevent Double Claiming + Reset Balance to Zero + Add Claim Receipt Card
 
-# Fix: Reward History Not Showing Pending + Long Videos Miscounted
+## Problem 1: Users Can Claim Again After Successful Claim
 
-## Problems Found
+**Root Cause**: In `supabase/functions/claim-camly/index.ts` (lines 359-371), after a successful claim, the system only **subtracts** `claimAmount` from `approved_reward`. If the user had more approved rewards than the daily/lifetime cap allowed, there's a remaining balance that lets them click Claim again.
 
-### Problem 1: "Cho duyet" (Pending) Always Shows 0
-On line 189 of `src/pages/RewardHistory.tsx`, the code hardcodes `setTotalPending(0)` instead of using the `pending_camly` value returned by the RPC function. Since we turned off auto-approve, all new rewards go to pending -- but the page never shows them.
+**Fix**: After a successful claim, reset `approved_reward` to **0** and mark **ALL** approved unclaimed reward_transactions as `claimed`. This ensures no leftover balance triggers a second claim attempt.
 
-### Problem 2: 153 Videos Got Wrong Reward (20,000 instead of 70,000)
-The database has 153 reward transactions marked as `SHORT_VIDEO_UPLOAD` (20,000 CAMLY) where the video has `duration = NULL`. Many of these are likely long videos (>3 minutes) that should receive 70,000 CAMLY. When duration metadata wasn't available at upload time, the system defaulted to SHORT.
+Additionally, add a **client-side ref guard** in `ClaimRewardsModal.tsx` to prevent rapid double-clicks from sending multiple requests before the first one completes (the `claiming` state already does this, but a ref provides an extra layer).
 
-The `recalculate-upload-rewards` edge function already exists and can fix this, but only after the videos get their duration metadata backfilled (which happens when someone watches them on the Watch page).
+## Problem 2: Add Receipt Card for Claim Transactions
 
-### Problem 3: Status Filter Missing "Pending" Option
-The filter dropdown on line 431-435 removed the "Cho duyet" (Pending) option, so users can't filter to see their pending rewards.
+Currently, only donation transactions show a "Xem Card" button linking to `/receipt/:id`. Claim transactions (source_table = "claim_requests") have no receipt card.
 
----
-
-## Fixes
-
-### 1. Fix Reward History Page (`src/pages/RewardHistory.tsx`)
-
-**Line 189**: Change `setTotalPending(0)` to `setTotalPending(Number(s.pending_camly) || 0)`
-
-**Lines 431-435**: Add back the "Cho duyet" filter option in the status dropdown
-
-**Add "Cho duyet" stats card**: Currently there are only 3 stats cards (Total Earned, Claimable, Claimed). Add a 4th card for "Cho duyet" (Pending) between Total Earned and Claimable, using an orange/amber color theme with a Clock icon.
-
-**Grid adjustment**: Change stats grid from `grid-cols-2 md:grid-cols-4` with 3 items to 4 items to fill properly.
-
-### 2. Trigger Duration Backfill + Reward Recalculation
-Deploy and call the existing `recalculate-upload-rewards` function in dry-run mode first to see how many videos need fixing. Then the admin can run it with `dryRun=false` to apply corrections.
-
-### 3. Mobile Responsiveness
-The stats grid will use `grid-cols-2 md:grid-cols-4` so on mobile, the 4 cards display in a clean 2x2 grid.
+**Fix**: Add a "Xem Biên Nhận" (View Receipt) button on claim transaction cards in the TransactionCard component. This will link to a new claim receipt view that displays the claim details in a shareable, social-media-friendly format.
 
 ---
 
 ## Technical Changes
 
+### 1. Edge Function: `supabase/functions/claim-camly/index.ts`
+
+**Lines 326-371** -- Replace the partial marking logic with full reset:
+
+- Mark **ALL** `unclaimedRewards` as `claimed` (not just up to `claimAmount`)
+- Set `approved_reward = 0` on the user's profile (not `currentApproved - claimAmount`)
+- This prevents any leftover balance from allowing a second claim
+
+### 2. Frontend: `src/components/Transactions/TransactionCard.tsx`
+
+**Lines 274-284** -- Add a receipt button for claim transactions:
+
+- Add a condition for `transaction.source_table === "claim_requests"` alongside the existing donation check
+- Link to `/receipt/claim-${transaction.id}` for claim transactions
+- Style with a green theme (matching the claim color scheme)
+
+### 3. New Component: Claim Receipt Card
+
+Create a shareable receipt card that displays:
+- FUN PLAY branding with logo
+- Claim amount in large text
+- Wallet address (sender: Treasury, receiver: User)
+- Transaction hash with BscScan link
+- Date and time
+- Share button for social media
+- Styled with gradients for a premium, screenshot-worthy look
+
+This will be handled within the existing Receipt page by detecting claim-type receipts and rendering a different layout.
+
+### 4. Frontend: `src/components/Rewards/ClaimRewardsModal.tsx`
+
+**Line 188-274** -- Add a `useRef` guard to `handleClaim`:
+
+- `const claimInProgressRef = useRef(false)` to block concurrent calls
+- Check `if (claimInProgressRef.current) return` at the start of `handleClaim`
+- Set it to `true` before the API call and `false` in `finally`
+- After success, also call `fetchUnclaimedRewards()` to refresh the balance immediately
+
+---
+
+## Summary of Changes
+
 | File | Change |
 |------|--------|
-| `src/pages/RewardHistory.tsx` | Fix pending display, add pending stats card, add pending filter option |
-
-### Detailed Changes in RewardHistory.tsx:
-
-1. **Line 189**: `setTotalPending(Number(s.pending_camly) or 0)` instead of `setTotalPending(0)`
-
-2. **Lines 361-397**: Add 4th stats card for "Cho duyet" (Pending) with Clock icon and orange gradient, between the "Total Earned" and "Claimable" cards
-
-3. **Lines 431-435**: Add `<SelectItem value="pending">Cho duyet</SelectItem>` to the status filter dropdown
-
-No edge function changes needed -- the award-camly logic is correct. The display-only bug in RewardHistory was hiding the pending data from users.
+| `supabase/functions/claim-camly/index.ts` | Reset approved_reward to 0, mark all rewards as claimed |
+| `src/components/Rewards/ClaimRewardsModal.tsx` | Add ref guard against double-clicks |
+| `src/components/Transactions/TransactionCard.tsx` | Add receipt button for claim transactions |
+| `src/pages/Receipt.tsx` | Handle claim receipt type with shareable card design |
