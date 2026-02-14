@@ -29,6 +29,7 @@ import { useRewardRealtimeNotification } from './hooks/useRewardRealtimeNotifica
 import { useMusicCompletionNotification } from './hooks/useMusicCompletionNotification';
 import { RecoveryModeGuard } from './components/Auth/RecoveryModeGuard';
 import { Skeleton } from "./components/ui/skeleton";
+import { ValentineMusicButton } from './components/ValentineMusicButton';
 
 // Lazy loaded pages - Less frequently used
 const ProfileSettings = lazy(() => import("./pages/ProfileSettings"));
@@ -180,6 +181,7 @@ function AppContent() {
         </Suspense>
       </RecoveryModeGuard>
       <GlobalMiniPlayer />
+      <ValentineMusicButton />
       <BackgroundUploadIndicator />
       <Toaster />
       <Sonner />
