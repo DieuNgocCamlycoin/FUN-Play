@@ -1,53 +1,44 @@
 
 
-# Fix: Claim Modal - Incorrect Reward Type Labels + Hidden Breakdown Items
+# Fix: Incorrect Claim Rewards Balances (Unmarked Claimed Rewards)
 
-## Problems
+## Problem
 
-### 1. Reward Type Labels Not Matching (Case Mismatch)
-The `REWARD_TYPE_LABELS` dictionary in `ClaimRewardsModal.tsx` uses **lowercase** keys (`view`, `like`, `comment`), but the database stores reward types in **UPPERCASE** (`VIEW`, `LIKE`, `COMMENT`, `FIRST_UPLOAD`, `LONG_VIDEO_UPLOAD`, `SHORT_VIDEO_UPLOAD`).
+18 users show inflated "Co the Claim" (approved_reward) balances because their reward_transactions were not fully marked as `claimed` when on-chain claims succeeded. 
 
-This causes:
-- Labels showing raw database names like "LONG_VIDEO_UPLOAD" instead of "Upload video dai"
-- Missing Vietnamese translations for several types (`FIRST_UPLOAD`, `SHORT_VIDEO_UPLOAD`, `LONG_VIDEO_UPLOAD`, `BOUNTY`, `WALLET_CONNECT`)
+**Example (Angel Thu Ha):**
+- Total earned: 781,000 CAMLY
+- Successfully claimed on-chain: 500,000 CAMLY
+- But only 70,000 worth of reward_transactions marked as `claimed = true`
+- So `approved_reward` shows 711,000 instead of the correct 281,000
 
-### 2. Breakdown List Too Short on Mobile
-The ScrollArea for approved rewards uses `max-h-28` (112px), which only fits ~3 items. Users with 6+ reward types cannot see all their rewards without scrolling, and on mobile scrolling inside a modal scroll area is not obvious.
+This is a data inconsistency from the same partial-marking bug we fixed in the edge function. The code fix is already deployed, but the historical data was never fully repaired.
 
-### 3. Missing Reward Types in Label Map
-Several reward types stored in the database are completely absent from the label dictionary: `FIRST_UPLOAD`, `SHORT_VIDEO_UPLOAD`, `LONG_VIDEO_UPLOAD`, `BOUNTY`.
+## Root Cause
 
----
+Previous claim operations only marked a subset of reward_transactions as claimed. The gap between `total_claimed` (from claim_requests) and `total_marked` (from reward_transactions where claimed=true) ranges from 3,000 to 475,000 CAMLY across 18 users.
 
-## Changes
+## Fix (Data Repair Only - No Code Changes Needed)
 
-### File: `src/components/Rewards/ClaimRewardsModal.tsx`
+### Step 1: Mark missing claimed rewards
 
-1. **Update `REWARD_TYPE_LABELS`** to use UPPERCASE keys matching the database, and add all missing types:
+Run a SQL migration that for each affected user:
+1. Calculates the `unmarked_gap` (claimed on-chain minus marked in transactions)
+2. Marks additional reward_transactions as `claimed = true` (oldest first) until the gap is filled
 
-```
-REWARD_TYPE_LABELS = {
-  VIEW: "Xem video",
-  LIKE: "Thich video",
-  COMMENT: "Binh luan",
-  SHARE: "Chia se",
-  UPLOAD: "Upload video",
-  FIRST_UPLOAD: "Upload dau tien",
-  SHORT_VIDEO_UPLOAD: "Upload video ngan",
-  LONG_VIDEO_UPLOAD: "Upload video dai",
-  SIGNUP: "Dang ky",
-  WALLET_CONNECT: "Ket noi vi",
-  BOUNTY: "Bounty",
-}
-```
+### Step 2: Re-sync profile balances
 
-2. **Increase ScrollArea height** from `max-h-28` to `max-h-48` for both approved and pending breakdown lists so all items are visible without scrolling.
+Run `sync_reward_totals()` to recalculate `approved_reward` and `pending_rewards` from the corrected transaction data.
 
----
+### Affected Users (18 total)
 
-## Summary
+| User | Claimed On-Chain | Marked as Claimed | Gap | Current approved_reward |
+|------|-----------------|-------------------|-----|------------------------|
+| Angel Vinh Nguyen | 1,310,000 | 835,000 | 475,000 | 3,780,000 |
+| THANH TIEN | 500,000 | 64,000 | 436,000 | 680,000 |
+| Angel Thu Ha | 500,000 | 70,000 | 430,000 | 711,000 |
+| Nguyen Hoa_Richer | 500,000 | 152,000 | 348,000 | 1,054,000 |
+| + 14 more users with smaller gaps | | | | |
 
-| File | Change |
-|------|--------|
-| `src/components/Rewards/ClaimRewardsModal.tsx` | Fix REWARD_TYPE_LABELS to UPPERCASE keys, add missing types, increase breakdown scroll height |
+After the fix, `approved_reward` will correctly reflect only the unclaimed portion of each user's rewards.
 
