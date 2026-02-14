@@ -4,6 +4,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 
 const STORAGE_KEY = "valentine-music-muted";
 const POS_KEY = "valentine-music-pos";
+const SESSION_KEY = "valentine-music-session";
 
 const getDefaultPos = (isMobile: boolean) => {
   if (isMobile) return { x: 16, y: window.innerHeight - 112 };
@@ -27,7 +28,9 @@ const getSavedPos = (isMobile: boolean) => {
 export const ValentineMusicButton = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [showUnmuteHint, setShowUnmuteHint] = useState(false);
   const audioUnlockedRef = useRef(false);
+  const userMutedRef = useRef(false);
   const isMobile = useIsMobile();
   const constraintsRef = useRef<HTMLDivElement | null>(null);
 
@@ -35,28 +38,53 @@ export const ValentineMusicButton = () => {
   const motionX = useMotionValue(initialPos.x);
   const motionY = useMotionValue(initialPos.y);
 
-  const isMutedStored = () => localStorage.getItem(STORAGE_KEY) === "true";
+  // Session-based mute reset: clear mute pref on new session/reload
+  useEffect(() => {
+    if (!sessionStorage.getItem(SESSION_KEY)) {
+      localStorage.removeItem(STORAGE_KEY);
+      sessionStorage.setItem(SESSION_KEY, "1");
+    }
+    userMutedRef.current = localStorage.getItem(STORAGE_KEY) === "true";
+  }, []);
 
   const tryPlay = useCallback(() => {
     const audio = audioRef.current;
-    if (!audio || isMutedStored() || audioUnlockedRef.current) return;
-    audio.play().then(() => {
-      setIsPlaying(true);
-      audioUnlockedRef.current = true;
-      localStorage.setItem(STORAGE_KEY, "false");
-    }).catch(() => {});
+    if (!audio || userMutedRef.current || audioUnlockedRef.current) return;
+
+    // Tier 1: Try unmuted
+    audio.muted = false;
+    audio.play()
+      .then(() => {
+        setIsPlaying(true);
+        setShowUnmuteHint(false);
+        audioUnlockedRef.current = true;
+        localStorage.setItem(STORAGE_KEY, "false");
+      })
+      .catch(() => {
+        // Tier 2: Try muted autoplay
+        audio.muted = true;
+        audio.play()
+          .then(() => {
+            setIsPlaying(true);
+            setShowUnmuteHint(true);
+            // Don't set audioUnlockedRef — we still need user tap to unmute
+          })
+          .catch(() => {
+            // Tier 3: wait for user interaction (handled by interaction listeners)
+          });
+      });
   }, []);
 
-  // Try to play on mount + delayed retry for mobile
+  // Try to play on mount + delayed retry
   useEffect(() => {
     tryPlay();
     const timer = setTimeout(tryPlay, 1500);
     return () => clearTimeout(timer);
   }, [tryPlay]);
 
-  // Keep retrying on every user interaction until audio unlocks
+  // Interaction-based fallback: keep retrying on every user interaction until audio unlocks
   useEffect(() => {
-    if (isMutedStored()) return;
+    if (userMutedRef.current) return;
 
     const handler = () => {
       const audio = audioRef.current;
@@ -64,12 +92,16 @@ export const ValentineMusicButton = () => {
         removeListeners();
         return;
       }
-      audio.play().then(() => {
-        setIsPlaying(true);
-        audioUnlockedRef.current = true;
-        localStorage.setItem(STORAGE_KEY, "false");
-        removeListeners();
-      }).catch(() => {});
+      audio.muted = false;
+      audio.play()
+        .then(() => {
+          setIsPlaying(true);
+          setShowUnmuteHint(false);
+          audioUnlockedRef.current = true;
+          localStorage.setItem(STORAGE_KEY, "false");
+          removeListeners();
+        })
+        .catch(() => {});
     };
 
     const removeListeners = () => {
@@ -85,19 +117,51 @@ export const ValentineMusicButton = () => {
     return removeListeners;
   }, []);
 
+  // Visibility handler: resume when user returns to tab
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible" && !userMutedRef.current) {
+        const audio = audioRef.current;
+        if (audio && audio.paused) {
+          tryPlay();
+        }
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [tryPlay]);
+
   const toggle = () => {
     const audio = audioRef.current;
     if (!audio) return;
+
+    // If playing muted, unmute on tap
+    if (audio.muted && !audio.paused) {
+      audio.muted = false;
+      setShowUnmuteHint(false);
+      audioUnlockedRef.current = true;
+      localStorage.setItem(STORAGE_KEY, "false");
+      userMutedRef.current = false;
+      return;
+    }
+
     if (isPlaying) {
       audio.pause();
       setIsPlaying(false);
+      setShowUnmuteHint(false);
       localStorage.setItem(STORAGE_KEY, "true");
+      userMutedRef.current = true;
     } else {
-      audio.play().then(() => {
-        setIsPlaying(true);
-        audioUnlockedRef.current = true;
-        localStorage.setItem(STORAGE_KEY, "false");
-      }).catch(() => {});
+      audio.muted = false;
+      audio.play()
+        .then(() => {
+          setIsPlaying(true);
+          setShowUnmuteHint(false);
+          audioUnlockedRef.current = true;
+          localStorage.setItem(STORAGE_KEY, "false");
+          userMutedRef.current = false;
+        })
+        .catch(() => {});
     }
   };
 
@@ -164,6 +228,16 @@ export const ValentineMusicButton = () => {
             }
             style={{ opacity: isPlaying ? 1 : 0.6 }}
           />
+          {/* Unmute hint badge */}
+          {showUnmuteHint && (
+            <motion.div
+              className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-pink-500 flex items-center justify-center"
+              animate={{ scale: [1, 1.2, 1] }}
+              transition={{ repeat: Infinity, duration: 1.5 }}
+            >
+              <span className="text-white text-[10px] font-bold">🔊</span>
+            </motion.div>
+          )}
         </motion.button>
       </AnimatePresence>
     </>
