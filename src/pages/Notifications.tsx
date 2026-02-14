@@ -130,7 +130,9 @@ const Notifications = () => {
 
   const filteredNotifications = activeFilter === "all"
     ? notifications
-    : notifications.filter(n => n.type === activeFilter);
+    : activeFilter === "reward"
+      ? notifications.filter(n => n.type === "reward" || n.type === "claim_success")
+      : notifications.filter(n => n.type === activeFilter);
 
   return (
     <MainLayout>
