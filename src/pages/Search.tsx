@@ -210,8 +210,8 @@ const Search = () => {
   return (
     <MainLayout>
       <div className="max-w-7xl mx-auto p-4 lg:p-6">
-        {/* Search input */}
-        <form onSubmit={handleSubmit} className="mb-4">
+        {/* Search input - hidden on mobile (header already has search) */}
+        <form onSubmit={handleSubmit} className="mb-4 hidden lg:block">
           <div className="relative max-w-2xl">
             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
             <Input
@@ -226,7 +226,7 @@ const Search = () => {
         {/* Filter tabs + Sort */}
         {query && (
           <div className="flex items-center justify-between gap-4 mb-6 flex-wrap">
-            <div className="flex gap-2 overflow-x-auto">
+            <div className="flex gap-2 overflow-x-auto scrollbar-hide">
               {filterTabs.map((tab) => (
                 <Button
                   key={tab.id}
@@ -268,7 +268,7 @@ const Search = () => {
           <div className="space-y-4">
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="flex gap-4">
-                <Skeleton className="w-[360px] aspect-video rounded-lg shrink-0" />
+                <Skeleton className="w-full max-w-[360px] aspect-video rounded-lg shrink-0" />
                 <div className="flex-1 space-y-2 pt-1">
                   <Skeleton className="h-5 w-3/4" />
                   <Skeleton className="h-4 w-1/2" />
