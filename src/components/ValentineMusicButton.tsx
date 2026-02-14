@@ -15,7 +15,6 @@ const getSavedPos = (isMobile: boolean) => {
     const saved = localStorage.getItem(POS_KEY);
     if (saved) {
       const pos = JSON.parse(saved);
-      // Clamp to current viewport
       return {
         x: Math.min(Math.max(0, pos.x), window.innerWidth - 48),
         y: Math.min(Math.max(0, pos.y), window.innerHeight - 48),
@@ -30,8 +29,6 @@ export const ValentineMusicButton = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
   const isMobile = useIsMobile();
-  const dragStartRef = useRef<{ x: number; y: number } | null>(null);
-  const isDraggingRef = useRef(false);
   const constraintsRef = useRef<HTMLDivElement | null>(null);
 
   const initialPos = getSavedPos(isMobile);
@@ -57,12 +54,15 @@ export const ValentineMusicButton = () => {
       tryPlay();
       document.removeEventListener("click", handler);
       document.removeEventListener("touchstart", handler);
+      document.removeEventListener("pointerdown", handler);
     };
     document.addEventListener("click", handler, { once: true });
     document.addEventListener("touchstart", handler, { once: true });
+    document.addEventListener("pointerdown", handler, { once: true });
     return () => {
       document.removeEventListener("click", handler);
       document.removeEventListener("touchstart", handler);
+      document.removeEventListener("pointerdown", handler);
     };
   }, [hasInteracted, tryPlay]);
 
@@ -94,7 +94,6 @@ export const ValentineMusicButton = () => {
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
       />
-      {/* Full-screen drag constraints container */}
       <div
         ref={constraintsRef}
         className="fixed inset-0 z-[49] pointer-events-none"
@@ -106,25 +105,12 @@ export const ValentineMusicButton = () => {
           dragElastic={0.1}
           dragMomentum={false}
           dragListener={true}
-          onDragStart={() => {
-            isDraggingRef.current = false;
-          }}
-          onDrag={() => {
-            isDraggingRef.current = true;
-          }}
+          onTap={toggle}
           onDragEnd={() => {
             localStorage.setItem(POS_KEY, JSON.stringify({
               x: motionX.get(),
               y: motionY.get(),
             }));
-            setTimeout(() => {
-              isDraggingRef.current = false;
-            }, 0);
-          }}
-          onPointerUp={() => {
-            if (!isDraggingRef.current) {
-              toggle();
-            }
           }}
           style={{
             x: motionX,
@@ -141,7 +127,7 @@ export const ValentineMusicButton = () => {
           initial={{ scale: 0, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ type: "spring", stiffness: 260, damping: 20, delay: 1 }}
-          className="z-50 rounded-full p-1 cursor-grab active:cursor-grabbing focus:outline-none touch-none"
+          className="z-50 rounded-full p-1 cursor-grab active:cursor-grabbing focus:outline-none"
           aria-label={isPlaying ? "Tắt nhạc nền" : "Bật nhạc nền"}
           title={isPlaying ? "Tắt nhạc nền" : "Bật nhạc nền"}
         >
