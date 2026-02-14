@@ -28,11 +28,13 @@ export const ClaimRewardsSection = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const isMountedRef = useRef(true);
+  const DAILY_CLAIM_LIMIT = 500000;
   const [stats, setStats] = useState({
     totalRewards: 0,
     pendingRewards: 0,
     approvedRewards: 0,
     claimedTotal: 0,
+    dailyClaimed: 0,
   });
 
   const fetchStats = useCallback(async () => {
@@ -56,12 +58,24 @@ export const ClaimRewardsSection = () => {
 
       const claimedTotal = claims?.reduce((sum, c) => sum + Number(c.amount), 0) || 0;
 
+      // Fetch today's daily claimed amount
+      const today = new Date().toISOString().split('T')[0];
+      const { data: dailyRecord } = await supabase
+        .from("daily_claim_records")
+        .select("total_claimed")
+        .eq("user_id", user.id)
+        .eq("date", today)
+        .maybeSingle();
+
+      const dailyClaimed = Number(dailyRecord?.total_claimed || 0);
+
       if (profile && isMountedRef.current) {
         setStats({
           totalRewards: profile.total_camly_rewards || 0,
           pendingRewards: profile.pending_rewards || 0,
           approvedRewards: profile.approved_reward || 0,
           claimedTotal,
+          dailyClaimed,
         });
       }
     } catch (error) {
@@ -136,7 +150,20 @@ export const ClaimRewardsSection = () => {
   }, [user?.id, debouncedFetch]);
 
   const progressPercent = Math.min((stats.approvedRewards / CLAIM_THRESHOLD) * 100, 100);
-  const canClaim = stats.approvedRewards >= CLAIM_THRESHOLD && isConnected;
+  const dailyLimitReached = stats.dailyClaimed >= DAILY_CLAIM_LIMIT;
+  const dailyProgressPercent = Math.min((stats.dailyClaimed / DAILY_CLAIM_LIMIT) * 100, 100);
+  const canClaim = stats.approvedRewards >= CLAIM_THRESHOLD && isConnected && !dailyLimitReached;
+
+  const handleClaimClick = () => {
+    if (dailyLimitReached) {
+      toast({
+        title: "🎉 Chúc mừng!",
+        description: `Bạn đã đạt giới hạn rút ${DAILY_CLAIM_LIMIT.toLocaleString()} CAMLY trong ngày. Vui lòng quay lại ngày mai!`,
+      });
+      return;
+    }
+    setModalOpen(true);
+  };
 
   const StatCard = ({ 
     icon: Icon, 
@@ -262,21 +289,46 @@ export const ClaimRewardsSection = () => {
             </Button>
           ) : (
             <Button
-              onClick={() => setModalOpen(true)}
-              disabled={!canClaim}
+              onClick={handleClaimClick}
+              disabled={!canClaim && !dailyLimitReached}
               className={cn(
                 "flex-1 gap-2 font-bold",
-                canClaim
-                  ? "bg-gradient-to-r from-[#FFD700] via-[#FFEA00] to-[#E5A800] text-[#7C5800] hover:from-[#FFEA00] hover:via-[#FFD700] hover:to-[#E5A800]"
-                  : "bg-muted text-muted-foreground"
+                dailyLimitReached
+                  ? "bg-muted text-muted-foreground"
+                  : canClaim
+                    ? "bg-gradient-to-r from-[#FFD700] via-[#FFEA00] to-[#E5A800] text-[#7C5800] hover:from-[#FFEA00] hover:via-[#FFD700] hover:to-[#E5A800]"
+                    : "bg-muted text-muted-foreground"
               )}
-              style={canClaim ? {
+              style={canClaim && !dailyLimitReached ? {
                 boxShadow: "0 0 20px rgba(255, 215, 0, 0.4), inset 0 2px 4px rgba(255, 255, 255, 0.6)"
               } : undefined}
             >
               <Coins className="h-5 w-5" />
-              {canClaim ? "CLAIM CAMLY" : `Cần ${CLAIM_THRESHOLD.toLocaleString()} CAMLY`}
+              {dailyLimitReached
+                ? "Đã đạt giới hạn hôm nay"
+                : canClaim
+                  ? "CLAIM CAMLY"
+                  : `Cần ${CLAIM_THRESHOLD.toLocaleString()} CAMLY`}
             </Button>
+          )}
+        </div>
+
+        {/* Daily Limit Progress */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="flex items-center gap-2 text-muted-foreground">
+              <Clock className="h-4 w-4 text-blue-500" />
+              Giới hạn rút hàng ngày
+            </span>
+            <span className="font-medium">
+              {stats.dailyClaimed.toLocaleString()} / {DAILY_CLAIM_LIMIT.toLocaleString()} CAMLY
+            </span>
+          </div>
+          <Progress value={dailyProgressPercent} className="h-2" />
+          {dailyLimitReached && (
+            <p className="text-xs text-amber-600 font-medium">
+              🎉 Bạn đã đạt giới hạn rút hôm nay. Quay lại ngày mai nhé!
+            </p>
           )}
         </div>
 
@@ -289,6 +341,10 @@ export const ClaimRewardsSection = () => {
           <p className="flex items-center gap-2">
             <Hourglass className="h-4 w-4 text-amber-500" />
             <span>Phần thưởng được admin duyệt trước khi claim</span>
+          </p>
+          <p className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-blue-500" />
+            <span>Giới hạn rút hàng ngày: {DAILY_CLAIM_LIMIT.toLocaleString()} CAMLY</span>
           </p>
         </div>
       </CardContent>
