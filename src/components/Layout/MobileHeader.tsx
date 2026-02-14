@@ -1,11 +1,12 @@
-import { Search, Menu, X, Plus, Upload, Music, FileText, Shield, Crown, Settings, LogOut } from "lucide-react";
+import { Search, Menu, X, Plus, Upload, Music, FileText, Shield, Crown, Settings, LogOut, Users } from "lucide-react";
 import funplayLogo from "@/assets/funplay-logo.jpg";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { useNavigate } from "react-router-dom";
+import { useSearchSuggestions } from "@/hooks/useSearchSuggestions";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -30,11 +31,8 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
   const { profile } = useProfile();
   const navigate = useNavigate();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [suggestions, setSuggestions] = useState<Array<{ id: string; title: string }>>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
+  const { videos: suggestedVideos, channels: suggestedChannels, query: searchQuery, setQuery: setSearchQuery, clear: clearSearch } = useSearchSuggestions();
   const [notificationCount, setNotificationCount] = useState(0);
-  const suggestionsDebounceRef = useRef<NodeJS.Timeout | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
@@ -77,40 +75,25 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
     };
   }, [user]);
 
-  // Search suggestions debounce
-  useEffect(() => {
-    if (suggestionsDebounceRef.current) clearTimeout(suggestionsDebounceRef.current);
-    if (!isSearchOpen || searchQuery.trim().length < 2) {
-      setSuggestions([]); setShowSuggestions(false); return;
-    }
-    suggestionsDebounceRef.current = setTimeout(async () => {
-      try {
-        const { data } = await supabase
-          .from('videos')
-          .select('id, title')
-          .eq('is_public', true)
-          .eq('approval_status', 'approved')
-          .ilike('title', `%${searchQuery.trim()}%`)
-          .order('view_count', { ascending: false })
-          .limit(5);
-        setSuggestions(data || []);
-        setShowSuggestions((data || []).length > 0);
-      } catch { setSuggestions([]); }
-    }, 300);
-    return () => { if (suggestionsDebounceRef.current) clearTimeout(suggestionsDebounceRef.current); };
-  }, [searchQuery, isSearchOpen]);
-
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
       navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
-      setIsSearchOpen(false); setSearchQuery(""); setSuggestions([]); setShowSuggestions(false);
+      setIsSearchOpen(false);
+      clearSearch();
     }
   };
 
   const handleSuggestionClick = (videoId: string) => {
     navigate(`/watch/${videoId}`);
-    setIsSearchOpen(false); setSearchQuery(""); setSuggestions([]); setShowSuggestions(false);
+    setIsSearchOpen(false);
+    clearSearch();
+  };
+
+  const handleChannelClick = (channelId: string) => {
+    navigate(`/channel/${channelId}`);
+    setIsSearchOpen(false);
+    clearSearch();
   };
 
   return (
@@ -280,7 +263,7 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
           )}
         >
           <button
-            onClick={() => { setIsSearchOpen(false); setSuggestions([]); setShowSuggestions(false); }}
+            onClick={() => { setIsSearchOpen(false); clearSearch(); }}
             className="flex items-center justify-center h-9 w-9 shrink-0 rounded-full active:bg-muted/60"
             aria-label="Đóng tìm kiếm"
           >
@@ -297,16 +280,34 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
                 className="w-full h-9 text-base bg-muted border-border focus:border-primary rounded-full px-4"
               />
             </form>
-            {showSuggestions && suggestions.length > 0 && (
+            {(suggestedVideos.length > 0 || suggestedChannels.length > 0) && (
               <div className="absolute top-11 left-0 right-0 bg-card border border-border rounded-xl shadow-lg z-50 overflow-hidden">
-                {suggestions.map((s) => (
+                {suggestedVideos.map((s) => (
                   <button
                     key={s.id}
                     onClick={() => handleSuggestionClick(s.id)}
-                    className="flex items-center gap-3 w-full px-4 py-3 hover:bg-muted/60 active:bg-muted transition-colors text-left"
+                    className="flex items-center gap-3 w-full px-4 min-h-[48px] hover:bg-muted/60 active:bg-muted transition-colors text-left"
                   >
                     <Search className="h-4 w-4 text-muted-foreground shrink-0" />
                     <span className="text-sm text-foreground line-clamp-1">{s.title}</span>
+                  </button>
+                ))}
+                {suggestedChannels.length > 0 && suggestedVideos.length > 0 && (
+                  <div className="border-t border-border" />
+                )}
+                {suggestedChannels.map((ch) => (
+                  <button
+                    key={ch.id}
+                    onClick={() => handleChannelClick(ch.id)}
+                    className="flex items-center gap-3 w-full px-4 min-h-[48px] hover:bg-muted/60 active:bg-muted transition-colors text-left"
+                  >
+                    {ch.avatar_url ? (
+                      <img src={ch.avatar_url} alt="" className="h-6 w-6 rounded-full object-cover shrink-0" />
+                    ) : (
+                      <Users className="h-4 w-4 text-muted-foreground shrink-0" />
+                    )}
+                    <span className="text-sm text-foreground line-clamp-1">{ch.name}</span>
+                    <span className="text-xs text-muted-foreground ml-auto shrink-0">Kênh</span>
                   </button>
                 ))}
               </div>

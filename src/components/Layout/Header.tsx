@@ -1,4 +1,4 @@
-import { Search, Video, Bell, Menu, User as UserIcon, LogOut, Settings, Radio, SquarePen, Plus, FileVideo, List, Music, Shield, Crown, MessageCircle } from "lucide-react";
+import { Search, Video, Bell, Menu, User as UserIcon, LogOut, Settings, Radio, SquarePen, Plus, FileVideo, List, Music, Shield, Crown, MessageCircle, Users } from "lucide-react";
 import funplayLogo from "@/assets/funplay-logo.jpg";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { GlobalDonateButton } from "@/components/Donate/GlobalDonateButton";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { useNavigate } from "react-router-dom";
+import { useSearchSuggestions } from "@/hooks/useSearchSuggestions";
 import { motion } from "framer-motion";
 import {
   DropdownMenu,
@@ -53,82 +54,38 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
   const { profile } = useProfile();
   const navigate = useNavigate();
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [suggestions, setSuggestions] = useState<Array<{ id: string; title: string }>>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
+  const { videos: suggestedVideos, channels: suggestedChannels, isOpen: showSuggestions, query: searchQuery, setQuery: setSearchQuery, open: openSuggestions, close: closeSuggestions, clear: clearSearch } = useSearchSuggestions();
   const [isAdmin, setIsAdmin] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
-  
 
   // Check admin/owner role
   useEffect(() => {
     const checkRoles = async () => {
-      if (!user) {
-        setIsAdmin(false);
-        setIsOwner(false);
-        return;
-      }
-      
-      const { data: adminData } = await supabase.rpc("has_role", {
-        _user_id: user.id,
-        _role: "admin",
-      });
-      
-      const { data: ownerData } = await supabase.rpc("is_owner", {
-        _user_id: user.id,
-      });
-      
+      if (!user) { setIsAdmin(false); setIsOwner(false); return; }
+      const { data: adminData } = await supabase.rpc("has_role", { _user_id: user.id, _role: "admin" });
+      const { data: ownerData } = await supabase.rpc("is_owner", { _user_id: user.id });
       setIsAdmin(adminData === true);
       setIsOwner(ownerData === true);
     };
     checkRoles();
   }, [user]);
 
-  // Fetch search suggestions
-  useEffect(() => {
-    const fetchSuggestions = async () => {
-      if (searchQuery.trim().length < 2) {
-        setSuggestions([]);
-        return;
-      }
-
-      const { data } = await supabase
-        .from("videos")
-        .select("id, title")
-        .ilike("title", `%${searchQuery}%`)
-        .eq("is_public", true)
-        .eq("approval_status", "approved")
-        .limit(5);
-
-      setSuggestions(data || []);
-    };
-
-    const debounce = setTimeout(fetchSuggestions, 300);
-    return () => clearTimeout(debounce);
-  }, [searchQuery]);
-
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      // Check if it's a YouTube URL
-      const youtubeRegex = /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]+)/;
-      const match = searchQuery.match(youtubeRegex);
-
-      if (match && match[1]) {
-        // Open YouTube video in new tab
-        window.open(`https://www.youtube.com/watch?v=${match[1]}`, "_blank");
-        setSearchQuery("");
-      } else {
-        navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
-      }
+      navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
     }
-    setShowSuggestions(false);
+    closeSuggestions();
   };
 
   const handleSuggestionClick = (videoId: string) => {
     navigate(`/watch/${videoId}`);
-    setSearchQuery("");
-    setShowSuggestions(false);
+    clearSearch();
+  };
+
+  const handleChannelClick = (channelId: string) => {
+    navigate(`/channel/${channelId}`);
+    clearSearch();
   };
 
   return (
@@ -159,10 +116,10 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
             value={searchQuery}
             onChange={(e) => {
               setSearchQuery(e.target.value);
-              setShowSuggestions(true);
+              openSuggestions();
             }}
-            onFocus={() => setShowSuggestions(true)}
-            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+            onFocus={openSuggestions}
+            onBlur={() => setTimeout(closeSuggestions, 200)}
             placeholder="Tìm kiếm"
             className="w-full pl-4 pr-12 h-10 bg-muted border-border focus:border-primary rounded-full"
           />
@@ -177,16 +134,34 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
         </form>
 
         {/* Search Suggestions */}
-        {showSuggestions && suggestions.length > 0 && (
+        {showSuggestions && (suggestedVideos.length > 0 || suggestedChannels.length > 0) && (
           <div className="absolute top-full mt-2 w-full bg-card border border-border rounded-lg shadow-lg overflow-hidden z-50">
-            {suggestions.map((suggestion) => (
+            {suggestedVideos.map((s) => (
               <button
-                key={suggestion.id}
-                onClick={() => handleSuggestionClick(suggestion.id)}
+                key={s.id}
+                onClick={() => handleSuggestionClick(s.id)}
                 className="w-full px-4 py-3 text-left hover:bg-accent flex items-center gap-3 transition-colors"
               >
                 <Search className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm">{suggestion.title}</span>
+                <span className="text-sm">{s.title}</span>
+              </button>
+            ))}
+            {suggestedChannels.length > 0 && suggestedVideos.length > 0 && (
+              <div className="border-t border-border" />
+            )}
+            {suggestedChannels.map((ch) => (
+              <button
+                key={ch.id}
+                onClick={() => handleChannelClick(ch.id)}
+                className="w-full px-4 py-3 text-left hover:bg-accent flex items-center gap-3 transition-colors"
+              >
+                {ch.avatar_url ? (
+                  <img src={ch.avatar_url} alt="" className="h-6 w-6 rounded-full object-cover" />
+                ) : (
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                )}
+                <span className="text-sm">{ch.name}</span>
+                <span className="text-xs text-muted-foreground ml-auto">Kênh</span>
               </button>
             ))}
           </div>
