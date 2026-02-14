@@ -50,6 +50,7 @@ interface FullCardData {
   chain: string;
   created_at: string;
   explorer_url: string | null;
+  context_type: string;
 }
 
 export const ChatDonationCard = ({
@@ -69,7 +70,7 @@ export const ChatDonationCard = ({
         const { data: tx } = await supabase
           .from("donation_transactions")
           .select(`
-            amount, receipt_public_id, metadata, message, tx_hash, chain, created_at, explorer_url,
+            amount, receipt_public_id, metadata, message, tx_hash, chain, created_at, explorer_url, context_type,
             token:donate_tokens(symbol, icon_url),
             sender:profiles!donation_transactions_sender_id_fkey(display_name, username, avatar_url, wallet_address),
             receiver:profiles!donation_transactions_receiver_id_fkey(display_name, username, avatar_url, wallet_address)
@@ -113,6 +114,7 @@ export const ChatDonationCard = ({
           chain: tx.chain,
           created_at: tx.created_at,
           explorer_url: tx.explorer_url,
+          context_type: (tx as any).context_type || "global",
         });
       } catch {
         // silently fail — fallback to text
@@ -168,7 +170,9 @@ export const ChatDonationCard = ({
             {/* TOP: Title + Avatars */}
             <div className="space-y-2">
               <p className="text-xs font-bold tracking-wide text-center drop-shadow-lg">
-                🎉 CHÚC MỪNG TẶNG THƯỞNG THÀNH CÔNG 🎉
+                {cardData.context_type === "claim"
+                  ? "💰 CLAIM CAMLY THÀNH CÔNG 💰"
+                  : "🎉 CHÚC MỪNG TẶNG THƯỞNG THÀNH CÔNG 🎉"}
               </p>
 
               <div className="flex items-center justify-between gap-2">
