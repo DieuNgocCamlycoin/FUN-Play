@@ -225,6 +225,38 @@ export const ClaimRewardsSection = () => {
         <CardDescription>
           Nhận thưởng CAMLY từ hoạt động trên FUN PLAY
         </CardDescription>
+
+        {/* Valentine's Day Greeting */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="mt-3 relative overflow-hidden rounded-xl bg-gradient-to-r from-pink-500/15 via-rose-500/15 to-red-500/15 border border-pink-300/30 p-3"
+        >
+          <div className="flex items-center gap-2">
+            <motion.span
+              animate={{ scale: [1, 1.2, 1] }}
+              transition={{ repeat: Infinity, duration: 1.5 }}
+              className="text-lg"
+            >
+              💖
+            </motion.span>
+            <div>
+              <p className="text-sm font-semibold text-pink-600 dark:text-pink-400">
+                Happy Valentine's Day!
+              </p>
+              <p className="text-xs text-pink-500/80 dark:text-pink-400/70">
+                Chúc bạn ngày lễ tình nhân tràn đầy yêu thương và hạnh phúc! 💕
+              </p>
+            </div>
+            <motion.span
+              animate={{ scale: [1, 1.2, 1] }}
+              transition={{ repeat: Infinity, duration: 1.5, delay: 0.5 }}
+              className="text-lg ml-auto"
+            >
+              💝
+            </motion.span>
+          </div>
+        </motion.div>
       </CardHeader>
       
       <CardContent className="space-y-6">
