@@ -117,6 +117,9 @@ export const ValentineMusicButton = () => {
               x: motionX.get(),
               y: motionY.get(),
             }));
+            setTimeout(() => {
+              isDraggingRef.current = false;
+            }, 0);
           }}
           onPointerUp={() => {
             if (!isDraggingRef.current) {
