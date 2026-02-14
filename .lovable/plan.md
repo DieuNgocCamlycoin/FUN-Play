@@ -1,56 +1,41 @@
 
 
-# Fix Messaging and Notification Features
+# Fix Messaging and Notification: Redeploy Edge Function
 
-## Issues Found
+## Problem
 
-### Critical: Edge Function Not Deployed
-The `claim-camly` edge function has no recent logs, meaning the code changes from previous updates (creating donation_transactions, sending chat messages from Treasurer, inserting rich notifications) are NOT executing. This is the root cause of claims not generating messages/notifications like gifts.
+The `claim-camly` edge function code already contains the correct logic for:
+- Creating `donation_transactions` records for claims
+- Sending Treasurer chat messages with `donation_transaction_id`
+- Inserting rich notifications with `action_type: 'share_celebration'` and `metadata` (transaction_id, receipt_public_id, amount, token_symbol)
 
-**Fix**: Redeploy the `claim-camly` edge function.
-
-### Issue 2: Old Claim Notifications Still Link to BSCScan
-Recent claim_success notifications (from today) still have:
+However, **the deployed version is outdated**. Database evidence confirms this -- the two most recent `claim_success` notifications (today at 07:08 and 05:57) still have:
 - `action_type: null` (should be `share_celebration`)
-- `metadata: null` (should contain transaction_id, receipt_public_id, etc.)
+- `metadata: null` (should contain transaction details)
 - `link: https://bscscan.com/tx/...` (should be `/receipt/{id}`)
 
-This confirms the edge function redeployment is needed.
+Meanwhile, `gift_received` notifications from the same period correctly have all metadata populated.
 
-### Issue 3: Mobile Messages Page Layout
-The Messages page uses `h-[calc(100vh-0px)]` which is effectively just `h-screen`. On mobile browsers with dynamic toolbars, `100vh` can cause content to overflow behind the browser chrome. Should use `h-dvh` (dynamic viewport height) or a safer calculation.
+## Previous Frontend Fixes (Already Applied)
 
-### Issue 4: Notifications Page Mobile UX
-- The Notifications page does not pass `showBottomNav={false}` to MainLayout, unlike the Messages page. This is inconsistent. However, notifications should keep bottom nav since it's a browsable page.
-- The notification items could benefit from better touch targets on mobile (minimum 44px height).
+These changes from the last edit are already live and working:
+- `src/pages/Messages.tsx`: Uses `h-dvh` for proper mobile viewport
+- `src/pages/Notifications.tsx`: Has `min-h-[56px]` touch targets and `active:scale-[0.98]` feedback; Rewards filter includes `gift_received`
+- `src/components/Chat/ChatMessageItem.tsx`: Has `px-1 sm:px-0` mobile padding
+- `src/components/Chat/ChatDonationCard.tsx`: Has responsive `max-w-[280px] sm:max-w-[320px]` and scaled avatars/text
 
-## Plan
+## Action Required
 
 ### Step 1: Redeploy `claim-camly` Edge Function
-No code changes needed -- just trigger redeployment so the existing code (donation_transactions creation, Treasurer chat message, rich notification with metadata) takes effect.
+Force redeploy the edge function so the existing code (lines 480-507 with metadata, action_type, and receipt link) takes effect for future claims.
 
-### Step 2: Fix Mobile Messages Height
-Update `src/pages/Messages.tsx`:
-- Replace `h-[calc(100vh-0px)]` with `h-dvh` for mobile views to handle dynamic browser chrome properly
+No code changes are needed -- the source code is correct. Only deployment is required.
 
-### Step 3: Improve Mobile Chat Card Interaction
-Update `src/components/Chat/ChatMessageItem.tsx`:
-- Add proper touch padding for donation cards on mobile
+### Expected Result After Fix
 
-### Step 4: Improve Mobile Notification Touch Targets
-Update `src/pages/Notifications.tsx`:
-- Increase notification item padding on mobile from `p-3` to `p-3 sm:p-3` with minimum height
-- Ensure notification thumbnails scale properly on small screens
+Future CAMLY claims will:
+1. Create a `donation_transactions` record with `context_type: 'claim'`
+2. Send a Treasurer chat message with the `donation_transaction_id` (rendering a full Celebration Card)
+3. Insert a notification with `action_type: 'share_celebration'`, rich metadata, and an internal `/receipt/{id}` link
+4. Appear correctly in the "Rewards" notification filter tab
 
-## Files Changed
-
-| File | Change |
-|------|--------|
-| `supabase/functions/claim-camly/index.ts` | Redeploy (no code change) |
-| `src/pages/Messages.tsx` | Fix mobile viewport height |
-| `src/pages/Notifications.tsx` | Mobile touch target improvements |
-
-## Execution Order
-1. Redeploy edge function
-2. Fix Messages mobile height
-3. Improve Notifications mobile UX
