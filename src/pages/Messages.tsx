@@ -33,7 +33,7 @@ const Messages = () => {
     if (chatId) {
       return (
         <MainLayout showBottomNav={false}>
-          <div className="h-[calc(100vh-0px)] flex flex-col">
+          <div className="h-dvh flex flex-col">
             <ChatWindow chatId={chatId} showBackButton />
           </div>
         </MainLayout>
@@ -42,7 +42,7 @@ const Messages = () => {
 
     return (
       <MainLayout showBottomNav={false}>
-        <div className="h-[calc(100vh-0px)] flex flex-col">
+        <div className="h-dvh flex flex-col">
           {/* Mobile header */}
           <div className="h-14 border-b flex items-center gap-3 px-4 bg-background/95 backdrop-blur">
             <Button
