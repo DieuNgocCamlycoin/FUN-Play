@@ -478,26 +478,42 @@ serve(async (req) => {
       );
     }
 
-    // 11. Trust score gating - check suspicious_score to decide auto-approve
+    // 11. Trust score gating - check AUTO_APPROVE_ENABLED config first
     let canAutoApprove = false;
-    const autoApproveThreshold = validation.AUTO_APPROVE_THRESHOLD || 3;
     
     try {
-      const { data: profileData } = await adminSupabase
-        .from("profiles")
-        .select("suspicious_score")
-        .eq("id", userId)
+      // Check master toggle first
+      const { data: autoApproveConfig } = await adminSupabase
+        .from("reward_config")
+        .select("config_value")
+        .eq("config_key", "AUTO_APPROVE_ENABLED")
         .single();
       
-      const suspiciousScore = profileData?.suspicious_score || 0;
-      canAutoApprove = suspiciousScore < autoApproveThreshold;
+      const isAutoApproveEnabled = autoApproveConfig?.config_value === 1;
       
-      if (!canAutoApprove) {
-        console.log(`User ${userId} suspicious_score=${suspiciousScore} >= threshold=${autoApproveThreshold}, requiring admin approval`);
+      if (!isAutoApproveEnabled) {
+        // Auto-approve is OFF globally -- all rewards require admin approval
+        canAutoApprove = false;
+        console.log(`AUTO_APPROVE_ENABLED=false, reward for user ${userId} requires admin approval`);
+      } else {
+        // Auto-approve is ON -- use trust score gating
+        const autoApproveThreshold = validation.AUTO_APPROVE_THRESHOLD || 3;
+        const { data: profileData } = await adminSupabase
+          .from("profiles")
+          .select("suspicious_score")
+          .eq("id", userId)
+          .single();
+        
+        const suspiciousScore = profileData?.suspicious_score || 0;
+        canAutoApprove = suspiciousScore < autoApproveThreshold;
+        
+        if (!canAutoApprove) {
+          console.log(`User ${userId} suspicious_score=${suspiciousScore} >= threshold=${autoApproveThreshold}, requiring admin approval`);
+        }
       }
     } catch (err) {
       // If we can't check, default to requiring approval
-      console.warn("Could not check suspicious_score, defaulting to pending:", err);
+      console.warn("Could not check auto-approve config, defaulting to pending:", err);
       canAutoApprove = false;
     }
 
