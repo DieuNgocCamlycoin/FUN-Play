@@ -1,19 +1,27 @@
 
-# Fix: Prevent Double Claiming + Reset Balance to Zero + Add Claim Receipt Card
 
-## Problem 1: Users Can Claim Again After Successful Claim
+# Fix: Daily Claim Limit Enforcement + Friendly Messages + Claim Receipt
 
-**Root Cause**: In `supabase/functions/claim-camly/index.ts` (lines 359-371), after a successful claim, the system only **subtracts** `claimAmount` from `approved_reward`. If the user had more approved rewards than the daily/lifetime cap allowed, there's a remaining balance that lets them click Claim again.
+## Problems Found
 
-**Fix**: After a successful claim, reset `approved_reward` to **0** and mark **ALL** approved unclaimed reward_transactions as `claimed`. This ensures no leftover balance triggers a second claim attempt.
+### Problem 1: Daily Claim Limit Never Enforced
+The `claim-camly` edge function checks `daily_claim_records` for the daily 500,000 CAMLY cap (line 155-163), but **never writes to it** after a successful claim. This means the daily limit always reads as 0 and users can claim unlimited times per day.
 
-Additionally, add a **client-side ref guard** in `ClaimRewardsModal.tsx` to prevent rapid double-clicks from sending multiple requests before the first one completes (the `claiming` state already does this, but a ref provides an extra layer).
+**Fix**: After a successful claim, upsert a record into `daily_claim_records` with the claimed amount.
 
-## Problem 2: Add Receipt Card for Claim Transactions
+### Problem 2: Friendly Vietnamese Message When Hitting Daily Limit
+When a user tries to claim again after reaching the 500,000/day cap, the current error message is functional but not as friendly as requested. Update it to:
+"Chuc mung ban da claim thanh cong! Ban da dat gioi han rut trong ngay. Vui long quay lai ngay mai de rut tiep."
 
-Currently, only donation transactions show a "Xem Card" button linking to `/receipt/:id`. Claim transactions (source_table = "claim_requests") have no receipt card.
+### Problem 3: Gradual Deduction After 24 Hours
+The daily limit resets naturally because `daily_claim_records` uses a `date` column. When a new day starts (UTC), the query for today's date returns no record, so the full 500,000 limit is available again. The remaining approved balance stays intact and can be claimed the next day. This already works correctly once we fix Problem 1.
 
-**Fix**: Add a "Xem Biên Nhận" (View Receipt) button on claim transaction cards in the TransactionCard component. This will link to a new claim receipt view that displays the claim details in a shareable, social-media-friendly format.
+### Problem 4: Claim Receipt Not Showing
+The `ClaimReceipt` component in `Receipt.tsx` uses the frontend Supabase client to query `claim_requests` directly. This relies on RLS policies. For public viewing (e.g., sharing on social media), the RLS policy requires `tx_hash IS NOT NULL AND status = 'success'` -- which should work for successful claims.
+
+However, the real issue is that `ClaimReceipt` uses the **regular supabase client** which requires the viewer to either be the claim owner OR the claim must be public (successful + has tx_hash). For shared links where the viewer is not logged in, the anon key should match the public policy. But there may be a query issue with the join syntax `profiles:user_id(...)` not working with anon access.
+
+**Fix**: Create a dedicated edge function `get-claim-receipt` (like the existing `get-donation-receipt`) that uses the service role key to fetch claim data, bypassing RLS issues entirely. This ensures the receipt is always accessible via public link.
 
 ---
 
@@ -21,41 +29,38 @@ Currently, only donation transactions show a "Xem Card" button linking to `/rece
 
 ### 1. Edge Function: `supabase/functions/claim-camly/index.ts`
 
-**Lines 326-371** -- Replace the partial marking logic with full reset:
+After the successful claim block (after line 348), add a daily_claim_records upsert:
 
-- Mark **ALL** `unclaimedRewards` as `claimed` (not just up to `claimAmount`)
-- Set `approved_reward = 0` on the user's profile (not `currentApproved - claimAmount`)
-- This prevents any leftover balance from allowing a second claim
+```
+// Record daily claim
+await supabaseAdmin
+  .from('daily_claim_records')
+  .upsert({
+    user_id: user.id,
+    date: today,
+    total_claimed: todayClaimed + claimAmount,
+    claim_count: (dailyClaim?.claim_count || 0) + 1
+  }, { onConflict: 'user_id,date' });
+```
 
-### 2. Frontend: `src/components/Transactions/TransactionCard.tsx`
+Also update the daily limit error message (line 168) to the friendly Vietnamese message:
+"Chuc mung, ban da claim thanh cong! Ban da dat gioi han rut 500.000 CAMLY trong ngay. Vui long quay lai ngay mai de rut tiep nhe!"
 
-**Lines 274-284** -- Add a receipt button for claim transactions:
+### 2. New Edge Function: `supabase/functions/get-claim-receipt/index.ts`
 
-- Add a condition for `transaction.source_table === "claim_requests"` alongside the existing donation check
-- Link to `/receipt/claim-${transaction.id}` for claim transactions
-- Style with a green theme (matching the claim color scheme)
+Create a simple GET endpoint that:
+- Accepts `claim_id` as query parameter
+- Uses service role key to fetch `claim_requests` joined with `profiles`
+- Returns the claim data with user profile info
+- No auth required (public receipt viewing)
 
-### 3. New Component: Claim Receipt Card
+### 3. Frontend: `src/pages/Receipt.tsx`
 
-Create a shareable receipt card that displays:
-- FUN PLAY branding with logo
-- Claim amount in large text
-- Wallet address (sender: Treasury, receiver: User)
-- Transaction hash with BscScan link
-- Date and time
-- Share button for social media
-- Styled with gradients for a premium, screenshot-worthy look
-
-This will be handled within the existing Receipt page by detecting claim-type receipts and rendering a different layout.
+Update `ClaimReceipt` to call the `get-claim-receipt` edge function instead of querying Supabase directly (matching how `DonationReceipt` uses `get-donation-receipt`).
 
 ### 4. Frontend: `src/components/Rewards/ClaimRewardsModal.tsx`
 
-**Line 188-274** -- Add a `useRef` guard to `handleClaim`:
-
-- `const claimInProgressRef = useRef(false)` to block concurrent calls
-- Check `if (claimInProgressRef.current) return` at the start of `handleClaim`
-- Set it to `true` before the API call and `false` in `finally`
-- After success, also call `fetchUnclaimedRewards()` to refresh the balance immediately
+Update the claim error handling to show the friendly daily limit message with proper Vietnamese text.
 
 ---
 
@@ -63,7 +68,8 @@ This will be handled within the existing Receipt page by detecting claim-type re
 
 | File | Change |
 |------|--------|
-| `supabase/functions/claim-camly/index.ts` | Reset approved_reward to 0, mark all rewards as claimed |
-| `src/components/Rewards/ClaimRewardsModal.tsx` | Add ref guard against double-clicks |
-| `src/components/Transactions/TransactionCard.tsx` | Add receipt button for claim transactions |
-| `src/pages/Receipt.tsx` | Handle claim receipt type with shareable card design |
+| `supabase/functions/claim-camly/index.ts` | Add daily_claim_records upsert after success, update daily limit message |
+| `supabase/functions/get-claim-receipt/index.ts` | New edge function for public claim receipt access |
+| `src/pages/Receipt.tsx` | Use edge function instead of direct Supabase query for claim receipts |
+| `src/components/Rewards/ClaimRewardsModal.tsx` | Better Vietnamese error messages for daily limit |
+
