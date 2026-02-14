@@ -91,11 +91,19 @@ export const ClaimRewardsSection = () => {
     };
   }, [fetchStats, debouncedFetch]);
 
+  // Persistent ref for tracking previous approved value across renders
+  const prevApprovedRef = useRef<number>(-1);
+  
+  // Keep ref in sync with fetched stats
+  useEffect(() => {
+    if (!loading && prevApprovedRef.current === -1) {
+      prevApprovedRef.current = stats.approvedRewards;
+    }
+  }, [loading, stats.approvedRewards]);
+
   // Realtime subscription - with approval notification
   useEffect(() => {
     if (!user?.id) return;
-
-    let prevApproved = stats.approvedRewards;
 
     const channel = supabase
       .channel('claim-section-profile')
@@ -109,14 +117,14 @@ export const ClaimRewardsSection = () => {
         },
         (payload: any) => {
           const newApproved = Number(payload.new?.approved_reward || 0);
-          if (newApproved > prevApproved && prevApproved >= 0) {
-            const increase = newApproved - prevApproved;
+          if (prevApprovedRef.current >= 0 && newApproved > prevApprovedRef.current) {
+            const increase = newApproved - prevApprovedRef.current;
             toast({
               title: "🎉 Phần thưởng đã được duyệt!",
               description: `+${increase.toLocaleString()} CAMLY sẵn sàng để claim!`,
             });
           }
-          prevApproved = newApproved;
+          prevApprovedRef.current = newApproved;
           debouncedFetch();
         }
       )
