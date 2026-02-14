@@ -1,71 +1,54 @@
 
 
-# Fix: "Chờ duyệt" Always Shows 0 -- Trust Score & Notification Issues
+# Fix: Reward History Not Showing Pending + Long Videos Miscounted
 
-## Root Cause Analysis
+## Problems Found
 
-The "Cho duyet" (Pending Approval) section correctly shows **0 CAMLY** because **all rewards are being auto-approved**. Here's why:
+### Problem 1: "Cho duyet" (Pending) Always Shows 0
+On line 189 of `src/pages/RewardHistory.tsx`, the code hardcodes `setTotalPending(0)` instead of using the `pending_camly` value returned by the RPC function. Since we turned off auto-approve, all new rewards go to pending -- but the page never shows them.
 
-- Every user currently has `suspicious_score = 0`
-- The auto-approve threshold is set to `3`
-- Since `0 < 3`, ALL rewards skip admin approval and go directly to "Co the Claim"
-- The admin "Duyet Tat Ca" button also shows "Khong co pending" because there is nothing to approve
+### Problem 2: 153 Videos Got Wrong Reward (20,000 instead of 70,000)
+The database has 153 reward transactions marked as `SHORT_VIDEO_UPLOAD` (20,000 CAMLY) where the video has `duration = NULL`. Many of these are likely long videos (>3 minutes) that should receive 70,000 CAMLY. When duration metadata wasn't available at upload time, the system defaulted to SHORT.
 
-This means the admin approval step is effectively bypassed for all users.
+The `recalculate-upload-rewards` edge function already exists and can fix this, but only after the videos get their duration metadata backfilled (which happens when someone watches them on the Watch page).
 
-## What Needs to Change
-
-### 1. Make Auto-Approve Configurable (Default OFF)
-Currently the system auto-approves when `suspicious_score < 3`, but since no user has a score above 0, everything is auto-approved. 
-
-**Fix**: Add a master toggle `AUTO_APPROVE_ENABLED` in `reward_config`. When set to `false` (default), ALL rewards require admin approval regardless of trust score. Admin can enable auto-approve later when the trust score system has enough data.
-
-**File**: `supabase/functions/award-camly/index.ts` (lines 481-502)
-
-### 2. Add Real-Time Notification When Admin Approves
-The wallet page already has a realtime listener on `profiles`, but it uses `stats.approvedRewards` as the initial `prevApproved` value inside the effect. Since the effect re-runs when `debouncedFetch` changes, `prevApproved` can reset, causing missed notifications.
-
-**Fix**: Use a `useRef` to track the previous approved value persistently across renders instead of a local `let` variable inside the effect.
-
-**File**: `src/components/Wallet/ClaimRewardsSection.tsx` (lines 94-128)
-
-### 3. Database Config Insert
-Add `AUTO_APPROVE_ENABLED = false` to `reward_config` table so all future rewards require admin approval.
+### Problem 3: Status Filter Missing "Pending" Option
+The filter dropdown on line 431-435 removed the "Cho duyet" (Pending) option, so users can't filter to see their pending rewards.
 
 ---
 
-## User and Admin Workflow After Fix
+## Fixes
 
-### User Flow:
-1. Earn CAMLY through watching, liking, commenting, uploading
-2. Rewards appear in **"Cho duyet"** (Pending Approval) -- waiting for admin
-3. Admin approves rewards -- user gets a toast notification instantly
-4. Approved rewards move to **"Co the Claim"**
-5. When balance reaches 200,000 CAMLY, the **CLAIM** button activates
-6. Connect wallet and click CLAIM to receive tokens on BSC
+### 1. Fix Reward History Page (`src/pages/RewardHistory.tsx`)
 
-### Admin Flow:
-1. Open `/wallet` -- see green **Admin Quick Actions** card
-2. Card shows count of users waiting and total CAMLY pending
-3. Click **"Duyet Tat Ca"** to approve all at once
-4. Or go to `/admin?section=rewards` for individual user management
+**Line 189**: Change `setTotalPending(0)` to `setTotalPending(Number(s.pending_camly) || 0)`
+
+**Lines 431-435**: Add back the "Cho duyet" filter option in the status dropdown
+
+**Add "Cho duyet" stats card**: Currently there are only 3 stats cards (Total Earned, Claimable, Claimed). Add a 4th card for "Cho duyet" (Pending) between Total Earned and Claimable, using an orange/amber color theme with a Clock icon.
+
+**Grid adjustment**: Change stats grid from `grid-cols-2 md:grid-cols-4` with 3 items to 4 items to fill properly.
+
+### 2. Trigger Duration Backfill + Reward Recalculation
+Deploy and call the existing `recalculate-upload-rewards` function in dry-run mode first to see how many videos need fixing. Then the admin can run it with `dryRun=false` to apply corrections.
+
+### 3. Mobile Responsiveness
+The stats grid will use `grid-cols-2 md:grid-cols-4` so on mobile, the 4 cards display in a clean 2x2 grid.
 
 ---
 
-## Technical Details
+## Technical Changes
 
 | File | Change |
 |------|--------|
-| `supabase/functions/award-camly/index.ts` | Check `AUTO_APPROVE_ENABLED` config before auto-approving |
-| `src/components/Wallet/ClaimRewardsSection.tsx` | Fix notification ref to persist across renders |
-| Database migration | Insert `AUTO_APPROVE_ENABLED = false` into `reward_config` |
+| `src/pages/RewardHistory.tsx` | Fix pending display, add pending stats card, add pending filter option |
 
-### award-camly change (lines 481-502):
-- Before the suspicious_score check, fetch `AUTO_APPROVE_ENABLED` from `reward_config`
-- If `false`, set `canAutoApprove = false` immediately (skip trust score check)
-- If `true`, proceed with the existing suspicious_score logic
+### Detailed Changes in RewardHistory.tsx:
 
-### ClaimRewardsSection notification fix:
-- Replace `let prevApproved = stats.approvedRewards` with a `useRef` that updates when stats change
-- This ensures the toast fires correctly even after re-renders
+1. **Line 189**: `setTotalPending(Number(s.pending_camly) or 0)` instead of `setTotalPending(0)`
 
+2. **Lines 361-397**: Add 4th stats card for "Cho duyet" (Pending) with Clock icon and orange gradient, between the "Total Earned" and "Claimable" cards
+
+3. **Lines 431-435**: Add `<SelectItem value="pending">Cho duyet</SelectItem>` to the status filter dropdown
+
+No edge function changes needed -- the award-camly logic is correct. The display-only bug in RewardHistory was hiding the pending data from users.
