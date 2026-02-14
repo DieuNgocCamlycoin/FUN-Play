@@ -1,44 +1,53 @@
 
 
-# Fix: Incorrect Claim Rewards Balances (Unmarked Claimed Rewards)
+# Fix: Disable Claim Button During On-Chain Transfer + Daily Limit Notification
 
-## Problem
+## Problems
 
-18 users show inflated "Co the Claim" (approved_reward) balances because their reward_transactions were not fully marked as `claimed` when on-chain claims succeeded. 
+### 1. Claim Button Not Disabled When Reopening Modal During Pending Transaction
+The `claiming` state correctly disables the button during the current session, but if the user closes the modal and reopens it while the on-chain transaction is still processing, the button becomes active again. The edge function does check for pending claims (line 210-225), but the UI doesn't pre-check this when the modal opens, allowing the user to click "Claim" and only then see an error.
 
-**Example (Angel Thu Ha):**
-- Total earned: 781,000 CAMLY
-- Successfully claimed on-chain: 500,000 CAMLY
-- But only 70,000 worth of reward_transactions marked as `claimed = true`
-- So `approved_reward` shows 711,000 instead of the correct 281,000
+### 2. Daily Limit Message Shown as Error Instead of Friendly Notification
+When the user has already claimed 500,000 CAMLY in a day and presses Claim again, the edge function returns a 400 error with the message. The client catches this in the error handler and shows it as a red "destructive" toast, which feels like something went wrong rather than a congratulatory message.
 
-This is a data inconsistency from the same partial-marking bug we fixed in the edge function. The code fix is already deployed, but the historical data was never fully repaired.
+---
 
-## Root Cause
+## Changes
 
-Previous claim operations only marked a subset of reward_transactions as claimed. The gap between `total_claimed` (from claim_requests) and `total_marked` (from reward_transactions where claimed=true) ranges from 3,000 to 475,000 CAMLY across 18 users.
+### File: `src/components/Rewards/ClaimRewardsModal.tsx`
 
-## Fix (Data Repair Only - No Code Changes Needed)
+#### 1. Check for pending claims on modal open
+Add a `hasPendingClaim` state. When the modal opens, query `claim_requests` for any `status = 'pending'` record for the current user. If found, set `hasPendingClaim = true`.
 
-### Step 1: Mark missing claimed rewards
+- Show a yellow info alert: "Giao dich dang xu ly tren blockchain. Vui long doi hoan tat..."
+- Disable the Claim button when `hasPendingClaim` is true
+- Subscribe to realtime changes on `claim_requests` to auto-detect when the pending claim completes (status changes to 'success' or 'failed'), then refresh data and re-enable the button
 
-Run a SQL migration that for each affected user:
-1. Calculates the `unmarked_gap` (claimed on-chain minus marked in transactions)
-2. Marks additional reward_transactions as `claimed = true` (oldest first) until the gap is filled
+#### 2. Check daily claim limit before calling edge function
+Before invoking the `claim-camly` edge function in `handleClaim`:
+- Query `daily_claim_records` for today's date and current user
+- If `total_claimed >= 500000`, show a **friendly (non-destructive) toast**:
+  - Title: "Chuc mung, ban da claim thanh cong!"
+  - Description: "Ban da dat gioi han rut 500,000 CAMLY trong ngay. Vui long quay lai ngay mai de rut tiep nhe!"
+- Return early without calling the edge function
 
-### Step 2: Re-sync profile balances
+#### 3. Detect daily limit error from edge function response
+In the `handleClaim` catch block, detect the daily limit message from the edge function response and show a friendly toast instead of a destructive one:
+- Check if error message contains "gioi han rut" or "quay lai ngay mai"
+- If so, show a success-style toast with the congratulatory message instead of the red error toast
 
-Run `sync_reward_totals()` to recalculate `approved_reward` and `pending_rewards` from the corrected transaction data.
+#### 4. Disable button text update
+When `hasPendingClaim` is true, change the button text to show a spinner + "Dang xu ly giao dich..." to make it clear the system is working.
 
-### Affected Users (18 total)
+---
 
-| User | Claimed On-Chain | Marked as Claimed | Gap | Current approved_reward |
-|------|-----------------|-------------------|-----|------------------------|
-| Angel Vinh Nguyen | 1,310,000 | 835,000 | 475,000 | 3,780,000 |
-| THANH TIEN | 500,000 | 64,000 | 436,000 | 680,000 |
-| Angel Thu Ha | 500,000 | 70,000 | 430,000 | 711,000 |
-| Nguyen Hoa_Richer | 500,000 | 152,000 | 348,000 | 1,054,000 |
-| + 14 more users with smaller gaps | | | | |
+## Summary
 
-After the fix, `approved_reward` will correctly reflect only the unclaimed portion of each user's rewards.
+| Change | What |
+|--------|------|
+| Add `hasPendingClaim` state + query on modal open | Prevents re-clicking while on-chain tx is processing |
+| Realtime subscription on `claim_requests` | Auto-refreshes when pending claim completes |
+| Pre-check daily limit before calling edge function | Shows friendly message without wasting an API call |
+| Detect daily limit error in catch block | Shows congratulatory toast instead of red error |
+| Update button text for pending state | Clear UX feedback that transaction is in progress |
 
