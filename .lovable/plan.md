@@ -1,49 +1,47 @@
 
 # Fix Claim CAMLY Chat Messages and Notifications
 
-## Problem Summary
+## Problem
 
-When users successfully claim CAMLY coins, neither chat messages from Fun Pay Treasurer nor proper notifications appear. The root cause is a bug in the backend function, and the frontend needs updates to properly display claim-related messages.
+When users claim CAMLY, the chat message from Fun Pay Treasurer appears as a plain text fallback card instead of the rich Celebration Card seen in gift transactions. This happens because:
 
-## Issues Found
-
-### Issue 1: Chat message creation fails silently (Backend Bug)
-The `claim-camly` backend function uses `.single()` when searching for an existing chat with the Treasurer. This method throws an error when no chat exists (first-time claim), which gets caught silently. As a result, no chat is ever created and no message is sent.
-
-**Fix**: Change `.single()` to `.maybeSingle()` -- this returns `null` instead of throwing an error when no row is found, allowing the code to proceed to create a new chat.
-
-### Issue 2: System messages render as plain centered pills (Frontend)
-The claim chat message uses `message_type: "system"`, which renders as a tiny centered gray pill (designed for "User joined" style messages). Donation messages use `message_type: "donation"` and render as rich cards with buttons and links.
-
-**Fix**: Change the claim message type to `"donation"` in the backend, or add a new claim-specific card rendering in `ChatMessageItem`. Since the donation card already supports `deep_link` (BSCScan URL) and rich display, using `message_type: "donation"` is the simplest approach -- consistent with the gift transfer flow.
-
-### Issue 3: Notification filter doesn't show claim notifications
-The Notifications page has filter tabs: "All", "Comments", "Subscriptions", "Rewards". Claim notifications use `type: "claim_success"` which only appears under "All". Users filtering by "Rewards" won't see claim notifications.
-
-**Fix**: Add a "Claim" tab or include `claim_success` in the "Rewards" filter logic.
+1. The claim flow does not create a `donation_transactions` record, so the `ChatDonationCard` component has no data to fetch for the rich card display.
+2. The notification link points to an external BSCScan URL instead of an internal receipt page.
 
 ## Solution
 
-### File 1: `supabase/functions/claim-camly/index.ts`
-- Change `.single()` to `.maybeSingle()` on the existing chat query (line 384)
-- Change `message_type: 'system'` to `message_type: 'donation'` for richer display
-- Add a claim receipt link using the claim request ID as deep_link (e.g., `/receipt/claim-{claimId}`)
+### Backend: `supabase/functions/claim-camly/index.ts`
 
-### File 2: `src/pages/Notifications.tsx`
-- Update the filter logic so "Rewards" tab also matches `claim_success` type notifications
-- This ensures claim notifications are visible in both "All" and "Rewards" filter tabs
+**Step 1 - Create a `donation_transactions` record for each successful claim**
 
-### File 3: `src/components/Chat/ChatMessageItem.tsx`
-- No changes needed -- donation message type already renders with `ChatDonationCard` which shows the BSCScan link button and rich card styling
+After the on-chain transaction succeeds, insert a record into `donation_transactions` (sender = Treasurer, receiver = user), mirroring how gift transactions work. This gives the chat card a `donation_transaction_id` to reference.
 
-## Files Changed
+Fields:
+- `sender_id`: Treasurer ID
+- `receiver_id`: User ID
+- `token_id`: Look up the CAMLY token from `donate_tokens`
+- `amount`: Claim amount
+- `chain`: `"bsc"`
+- `tx_hash`: The blockchain transaction hash
+- `explorer_url`: BSCScan link
+- `status`: `"success"`
+- `context_type`: `"claim"`
+- `message`: Claim success message
+
+**Step 2 - Include `donation_transaction_id` in the chat message insert**
+
+Pass the newly created `donation_transactions.id` so `ChatDonationCard` can fetch and render the full rich card.
+
+**Step 3 - Update notification link**
+
+Change the notification `link` from the BSCScan URL to an internal receipt route: `/receipt/{receipt_public_id}`.
+
+### Frontend: `src/pages/Notifications.tsx`
+
+No additional changes needed beyond the filter fix already applied.
+
+### Files Changed
 
 | File | Change |
 |------|--------|
-| `supabase/functions/claim-camly/index.ts` | Fix `.single()` to `.maybeSingle()`, change message_type to "donation", add receipt deep_link |
-| `src/pages/Notifications.tsx` | Include `claim_success` in "Rewards" filter tab |
-
-## Execution Order
-1. Fix the backend function (`.maybeSingle()` + message_type change)
-2. Update notification filter on frontend
-3. Deploy and test with a claim transaction
+| `supabase/functions/claim-camly/index.ts` | Create `donation_transactions` record for claims, pass its ID to chat message, update notification link to internal receipt |
