@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import funplayPlanetLogo from "@/assets/funplay-planet-logo.png";
 import { useParams, Link } from "react-router-dom";
-import { Gift, ExternalLink, Copy, ArrowRight, Play, FileText, Loader2, Wallet, CheckCircle, TrendingUp } from "lucide-react";
+import { Gift, ExternalLink, Copy, ArrowRight, Play, FileText, Loader2, Wallet, CheckCircle, TrendingUp, Heart } from "lucide-react";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
@@ -74,14 +75,30 @@ function ClaimReceipt({ claimId }: { claimId: string }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 p-4 flex items-center justify-center">
-      <Card className="w-full max-w-md shadow-xl border-green-200 dark:border-green-800 overflow-hidden">
+      <Card className="w-full max-w-md shadow-xl border-pink-300 dark:border-pink-800 overflow-hidden ring-2 ring-pink-200/50 dark:ring-pink-800/30">
         {/* Premium gradient header */}
-        <div className="bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 p-6 text-white text-center">
+        <div className="bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 p-6 text-white text-center relative overflow-hidden">
+          {/* Floating hearts */}
+          {[...Array(6)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute text-white/20"
+              style={{ left: `${10 + i * 15}%`, top: `${20 + (i % 3) * 25}%` }}
+              animate={{ y: [-5, 5, -5], opacity: [0.2, 0.4, 0.2] }}
+              transition={{ repeat: Infinity, duration: 2 + i * 0.3, delay: i * 0.2 }}
+            >
+              <Heart className="h-4 w-4" fill="currentColor" />
+            </motion.div>
+          ))}
           <div className="flex justify-center mb-3">
             <img src={funplayPlanetLogo} alt="FUN Play" className="h-14 w-14 rounded-full object-cover border-2 border-white/50" />
           </div>
           <h1 className="text-lg font-bold tracking-wide">FUN PLAY - BIÊN NHẬN CLAIM</h1>
           <p className="text-xs text-white/70 mt-1">Rút thưởng CAMLY thành công</p>
+          {/* Valentine ribbon */}
+          <div className="mt-2 inline-flex items-center gap-1 bg-pink-500/30 backdrop-blur-sm rounded-full px-3 py-1 text-xs">
+            <span>💕</span> Happy Valentine's Day <span>💕</span>
+          </div>
         </div>
 
         <CardContent className="p-6 space-y-5">
@@ -150,8 +167,14 @@ function ClaimReceipt({ claimId }: { claimId: string }) {
             )}
           </div>
 
+          {/* Valentine Footer */}
+          <div className="text-center py-3 bg-gradient-to-r from-pink-50 to-rose-50 dark:from-pink-950/20 dark:to-rose-950/20 rounded-lg border border-pink-200/50">
+            <p className="text-xs text-pink-500 font-medium">💖 With Love from FUN Play 💖</p>
+            <p className="text-[10px] text-pink-400">Happy Valentine's Day 2026</p>
+          </div>
+
           {/* Actions */}
-          <div className="flex gap-2 pt-4">
+          <div className="flex gap-2 pt-2">
             <Button variant="outline" className="flex-1" onClick={handleCopyLink}>
               <Copy className="h-4 w-4 mr-2" />
               Sao chép link
@@ -237,12 +260,27 @@ function DonationReceipt({ receiptPublicId }: { receiptPublicId: string }) {
       <Card className="w-full max-w-md shadow-xl border-amber-200">
         <CardContent className="p-6 space-y-6">
           {/* Header */}
-          <div className="text-center space-y-2">
+          <div className="text-center space-y-2 relative">
+            {/* Floating hearts */}
+            {[...Array(4)].map((_, i) => (
+              <motion.span
+                key={i}
+                className="absolute text-pink-300/40"
+                style={{ left: `${5 + i * 25}%`, top: `${-5 + (i % 2) * 10}%` }}
+                animate={{ y: [-3, 3, -3], scale: [1, 1.15, 1] }}
+                transition={{ repeat: Infinity, duration: 2 + i * 0.4, delay: i * 0.3 }}
+              >
+                💕
+              </motion.span>
+            ))}
             <div className="flex justify-center">
               <img src={funplayPlanetLogo} alt="FUN Play" className="h-12 w-12 rounded-full object-cover" />
             </div>
             <h1 className="text-xl font-bold">FUN PLAY - Biên Nhận Tặng</h1>
             <p className="text-sm text-muted-foreground">#{receipt.receipt_public_id}</p>
+            <div className="inline-flex items-center gap-1 bg-pink-500/10 rounded-full px-3 py-1 text-xs text-pink-500 font-medium">
+              💖 Happy Valentine's Day 💖
+            </div>
           </div>
 
           <Separator />
@@ -380,8 +418,14 @@ function DonationReceipt({ receiptPublicId }: { receiptPublicId: string }) {
             </div>
           </div>
 
+          {/* Valentine Footer */}
+          <div className="text-center py-3 bg-gradient-to-r from-pink-50 to-rose-50 dark:from-pink-950/20 dark:to-rose-950/20 rounded-lg border border-pink-200/50">
+            <p className="text-xs text-pink-500 font-medium">💖 With Love from FUN Play 💖</p>
+            <p className="text-[10px] text-pink-400">Happy Valentine's Day 2026</p>
+          </div>
+
           {/* Actions */}
-          <div className="flex gap-2 pt-4">
+          <div className="flex gap-2 pt-2">
             <Button variant="outline" className="flex-1" onClick={handleCopyLink}>
               <Copy className="h-4 w-4 mr-2" />
               Sao chép link
