@@ -1,49 +1,81 @@
 
 
-# Fix Claim-CAMLY Edge Function Deployment
+# Fix Valentine Music Button: Reliable Autoplay on All Devices
 
 ## Problem
 
-The `claim-camly` edge function source code is correct but the **deployed version is outdated**. Evidence:
+The current music button tries to autoplay unmuted audio, which modern browsers (especially mobile Safari and Chrome) block silently. The `catch(() => {})` swallows the error without any fallback, so users see a non-spinning icon with no music and no way to know they need to interact.
 
-- Two recent `claim_success` notifications (today 07:08 and 05:57) still have `metadata: null`, `action_type: null`, and link to BSCScan instead of internal receipt pages
-- Meanwhile, `gift_received` notifications correctly have full metadata
-- Edge function logs show "No logs found" -- no claims processed since last deploy attempt
+Additionally, there is no handling for page reload or tab re-focus -- the music does not resume when a user returns to the page.
 
-## Root Cause
+## Solution: Reliable Autoplay Pattern
 
-The CORS headers in the edge function are missing the newer Supabase client platform headers. This can cause silent preflight failures on some clients. The fix is to update the CORS headers to match the standard format, then redeploy.
+Implement a three-tier autoplay strategy:
+
+1. **Try unmuted autoplay** -- works on desktop browsers that allow it
+2. **Fallback to muted autoplay** -- works on most mobile browsers, then show a subtle "Tap to unmute" prompt
+3. **Fallback to interaction-based play** -- attach listeners to the first user touch/click to start playback
+
+Also add `visibilitychange` listener so music resumes when user returns to the tab/app.
 
 ## Changes
 
-### 1. Update CORS Headers (`supabase/functions/claim-camly/index.ts`, line 6)
+### File: `src/components/ValentineMusicButton.tsx`
 
-**Before:**
+**1. Enhanced `tryPlay` function with muted fallback:**
+- First attempt: `audio.play()` (unmuted)
+- If blocked: set `audio.muted = true`, retry `audio.play()`
+- If muted play works: show a small unmute indicator on the button
+- If even muted fails: wait for user interaction (existing listener pattern)
+
+**2. Add `showUnmuteHint` state:**
+- When music is playing muted, show a small pulsing indicator or badge on the button so users know to tap it
+- Tapping the button unmutes and dismisses the hint
+
+**3. Add page visibility handler:**
+- Listen for `visibilitychange` event
+- When page becomes visible again and user hasn't muted: resume playback
+- This handles tab switching, mobile app switching, and page reload scenarios
+
+**4. Fix localStorage logic on fresh visits:**
+- Currently `isMutedStored()` returns `false` on first visit (key doesn't exist), which is correct
+- But after a user explicitly pauses, it stays muted forever -- add logic to reset on new sessions (using `sessionStorage` flag)
+
+**5. Update toggle function:**
+- When user taps while muted-autoplay is active: unmute instead of pause
+- Clear the unmute hint
+
+## Technical Details
+
+```text
+Autoplay Flow:
+  Mount --> tryPlay()
+    |
+    +--> audio.play() succeeds? --> Done (playing unmuted)
+    |
+    +--> Failed --> audio.muted=true, audio.play()
+           |
+           +--> Succeeds? --> Show unmute hint, wait for tap
+           |
+           +--> Failed --> Attach click/touch/pointer listeners
+                           First interaction --> audio.play()
 ```
-'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-```
 
-**After:**
-```
-'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
-```
+### Visibility Handler
+- On `visibilitychange` to "visible": if not user-muted and not playing, call `tryPlay()`
+- On `visibilitychange` to "hidden": optionally pause (or keep playing in background)
 
-### 2. Force Redeploy
+### Session-based Mute Reset
+- On mount, check if `sessionStorage` has a "visited" flag
+- If not (new session/reload), clear the mute preference so music auto-starts fresh
+- Set the "visited" flag in `sessionStorage`
 
-Deploy the edge function after the CORS fix to ensure the updated code (rich notifications, Treasurer chat messages, donation_transactions creation) is live.
+## Files Changed
 
-### Expected Result
+| File | Change |
+|------|--------|
+| `src/components/ValentineMusicButton.tsx` | Implement reliable autoplay with muted fallback, unmute hint, visibility handler, session reset |
 
-Future CAMLY claims will:
-1. Create a `donation_transactions` record with `context_type: 'claim'`
-2. Send a Treasurer chat message with Celebration Card
-3. Insert a notification with `action_type: 'share_celebration'`, rich metadata, and internal `/receipt/{id}` link
-4. Appear in the "Rewards" notification filter tab
-
-### Frontend Status (No Changes Needed)
-
-All previous mobile fixes are confirmed live:
-- Messages page: `h-dvh` for proper mobile viewport
-- Notifications: `min-h-[56px]` touch targets, `active:scale-[0.98]` feedback, `gift_received` in Rewards filter
-- Chat donation cards: responsive `max-w-[280px] sm:max-w-[320px]`, scaled avatars/text
+## No Other Files Affected
+The component is self-contained and already mounted in `App.tsx`. No other changes needed.
 
