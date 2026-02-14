@@ -1,82 +1,53 @@
 
-# Fix: Claim Function Marks Too Many Rewards as Claimed (Critical Data Loss Bug)
 
-## Problem
+# Fix: Claim Modal - Incorrect Reward Type Labels + Hidden Breakdown Items
 
-When a user has more approved rewards than the daily/lifetime cap allows (500,000 CAMLY), the `claim-camly` edge function:
+## Problems
 
-1. Correctly caps the claim amount to 500,000
-2. Correctly sends 500,000 CAMLY on-chain
-3. **BUG**: Marks ALL unclaimed rewards as claimed (not just 500,000 worth)
-4. **BUG**: Resets `approved_reward` to 0 (should be `totalAmount - claimAmount`)
+### 1. Reward Type Labels Not Matching (Case Mismatch)
+The `REWARD_TYPE_LABELS` dictionary in `ClaimRewardsModal.tsx` uses **lowercase** keys (`view`, `like`, `comment`), but the database stores reward types in **UPPERCASE** (`VIEW`, `LIKE`, `COMMENT`, `FIRST_UPLOAD`, `LONG_VIDEO_UPLOAD`, `SHORT_VIDEO_UPLOAD`).
 
-This caused 6 users to lose a combined ~3,039,000 CAMLY in rewards that were incorrectly marked as claimed.
+This causes:
+- Labels showing raw database names like "LONG_VIDEO_UPLOAD" instead of "Upload video dai"
+- Missing Vietnamese translations for several types (`FIRST_UPLOAD`, `SHORT_VIDEO_UPLOAD`, `LONG_VIDEO_UPLOAD`, `BOUNTY`, `WALLET_CONNECT`)
 
-## Root Cause
+### 2. Breakdown List Too Short on Mobile
+The ScrollArea for approved rewards uses `max-h-28` (112px), which only fits ~3 items. Users with 6+ reward types cannot see all their rewards without scrolling, and on mobile scrolling inside a modal scroll area is not obvious.
 
-Lines 326-348 in `supabase/functions/claim-camly/index.ts` mark ALL reward IDs from `unclaimedRewards` as claimed, regardless of whether the actual claim amount was capped. The previous fix changed from partial marking to full marking, which introduced this regression.
-
-## Fixes
-
-### 1. Fix `claim-camly` Edge Function (Partial Marking)
-
-**File**: `supabase/functions/claim-camly/index.ts`
-
-Replace lines 326-348 with logic that only marks rewards up to `claimAmount`:
-
-- Sort rewards by amount (smallest first) to mark as many individual transactions as possible
-- Accumulate reward IDs until reaching the `claimAmount` cap
-- Only mark those specific IDs as `claimed`
-- Set `approved_reward = totalAmount - claimAmount` (not 0)
-
-### 2. Restore Lost Rewards (Database Fix)
-
-Run a data repair migration to unmark the excess rewards for the 6 affected users:
-
-For each affected user, calculate `excess = marked_amount - claimed_amount`, then unmark that many reward_transactions (set `claimed = false, claimed_at = NULL, claim_tx_hash = NULL`) and restore `approved_reward` in their profile.
-
-The repair will use `sync_reward_totals()` RPC after unmarking to ensure profile balances are perfectly reconciled.
-
-### 3. Profile Balance Sync
-
-After restoring lost rewards, call `sync_reward_totals()` to reconcile all profile balances with the actual reward_transactions data.
+### 3. Missing Reward Types in Label Map
+Several reward types stored in the database are completely absent from the label dictionary: `FIRST_UPLOAD`, `SHORT_VIDEO_UPLOAD`, `LONG_VIDEO_UPLOAD`, `BOUNTY`.
 
 ---
 
-## Technical Details
+## Changes
 
-### Edge Function Changes (`claim-camly/index.ts`)
+### File: `src/components/Rewards/ClaimRewardsModal.tsx`
 
-Replace lines 326-348:
+1. **Update `REWARD_TYPE_LABELS`** to use UPPERCASE keys matching the database, and add all missing types:
 
-```text
-// OLD (buggy): marks ALL rewards, resets to 0
-const allRewardIds = unclaimedRewards.map(r => r.id);
-// ... marks all, sets approved_reward = 0
-
-// NEW (fixed): only mark rewards up to claimAmount
-const sorted = [...unclaimedRewards].sort((a, b) => Number(a.amount) - Number(b.amount));
-let remaining = claimAmount;
-const idsToMark = [];
-for (const r of sorted) {
-  if (remaining <= 0) break;
-  idsToMark.push(r.id);
-  remaining -= Number(r.amount);
+```
+REWARD_TYPE_LABELS = {
+  VIEW: "Xem video",
+  LIKE: "Thich video",
+  COMMENT: "Binh luan",
+  SHARE: "Chia se",
+  UPLOAD: "Upload video",
+  FIRST_UPLOAD: "Upload dau tien",
+  SHORT_VIDEO_UPLOAD: "Upload video ngan",
+  LONG_VIDEO_UPLOAD: "Upload video dai",
+  SIGNUP: "Dang ky",
+  WALLET_CONNECT: "Ket noi vi",
+  BOUNTY: "Bounty",
 }
-// Mark only selected IDs as claimed
-// Set approved_reward = totalAmount - claimAmount
 ```
 
-### Data Repair (SQL Migration)
-
-For each of the 6 affected users, identify excess claimed rewards and unmark them. Then run `sync_reward_totals()` to reconcile.
+2. **Increase ScrollArea height** from `max-h-28` to `max-h-48` for both approved and pending breakdown lists so all items are visible without scrolling.
 
 ---
 
-## Summary of Changes
+## Summary
 
-| File/Action | Change |
-|-------------|--------|
-| `supabase/functions/claim-camly/index.ts` | Only mark rewards up to claimAmount as claimed; set approved_reward to remainder |
-| Database migration | Restore incorrectly claimed rewards for 6 affected users |
-| Run `sync_reward_totals()` | Reconcile all profile balances |
+| File | Change |
+|------|--------|
+| `src/components/Rewards/ClaimRewardsModal.tsx` | Fix REWARD_TYPE_LABELS to UPPERCASE keys, add missing types, increase breakdown scroll height |
+
