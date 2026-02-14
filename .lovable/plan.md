@@ -1,42 +1,44 @@
 
 
-# Require Profile Picture Before Claiming Rewards
+# Valentine's Day Background Music + Holographic Music Icon
 
 ## Overview
-Users without a profile picture (avatar) will be blocked from claiming rewards. They'll see a clear notification explaining they need to update their profile picture and personal info first.
+Add the uploaded Valentine's Day MP3 as auto-playing background music when users visit FUN Play, with the uploaded holographic music note icon as the toggle button. Music plays automatically on first visit and users can toggle it on/off. State persists via localStorage.
 
 ## Changes
 
-### File: `src/components/Rewards/ClaimRewardsModal.tsx`
+### 1. Copy uploaded assets to the project
+- Copy `VALENTINE.mp3` to `public/audio/valentine-bg.mp3`
+- Copy `19.png` to `public/images/icon-music-valentine.png`
 
-1. **Fetch profile data on modal open**
-   - Query the `profiles` table for `avatar_url` and `avatar_verified` when the modal opens
-   - Store in a `profileCheck` state: `{ hasAvatar: boolean, isVerified: boolean }`
+### 2. Create `src/components/ValentineMusicButton.tsx`
+A floating button component that:
+- Uses the holographic music note icon (uploaded image)
+- Auto-plays `valentine-bg.mp3` on first visit (respecting browser autoplay policies with user interaction fallback)
+- Loops the music continuously
+- Toggles music on/off on click
+- Saves mute preference to `localStorage` (`valentine-music-muted`)
+- Animated pulse/glow effect when music is playing
+- **Desktop**: Fixed position bottom-right corner (above other floating elements)
+- **Mobile**: Fixed position bottom-left corner (to avoid conflict with bottom nav), slightly above the nav bar with `bottom: 5rem`
+- Size: 48px touch target on mobile, 44px on desktop
+- Uses `framer-motion` for smooth entrance animation and a subtle bounce/pulse when playing
 
-2. **Block claim if no avatar**
-   - Before the claim action area, show a prominent warning alert if `avatar_url` is null/empty:
-     - Icon: User/Camera icon
-     - Title: "Vui long cap nhat anh dai dien!"
-     - Description: "Ban can cap nhat anh dai dien va thong tin ca nhan de nhan thuong CAMLY. Sau khi cap nhat, ban co the claim thuong."
-     - A button linking to `/profile-settings` to update their profile
-   - Disable the Claim button when `hasAvatar` is false
-   - Show additional note if avatar is not yet verified: "Anh dai dien cua ban dang cho xac minh. Vui long dam bao anh khong trung lap voi nguoi dung khac."
-
-### File: `src/components/Wallet/ClaimRewardsSection.tsx`
-
-3. **Pre-check avatar before opening modal**
-   - Fetch `avatar_url` from the profile (already available or add a quick query)
-   - In `handleClaimClick`, if user has no avatar, show a friendly toast instead of opening the modal:
-     - Title: "Cap nhat ho so de nhan thuong"
-     - Description: "Vui long cap nhat anh dai dien va thong tin ca nhan truoc khi claim CAMLY."
-   - Keep the Claim button visible but intercept the click
+### 3. Update `src/App.tsx`
+- Import and render `<ValentineMusicButton />` inside `AppContent`, alongside other global elements (after `<BackgroundUploadIndicator />`)
 
 ## Technical Details
 
-| Change | File | What |
-|--------|------|------|
-| Fetch `avatar_url` + `avatar_verified` on modal open | `ClaimRewardsModal.tsx` | Query profiles table |
-| Show warning alert if no avatar | `ClaimRewardsModal.tsx` | Alert with link to profile settings |
-| Disable Claim button if no avatar | `ClaimRewardsModal.tsx` | Prevent claim action |
-| Pre-check in ClaimRewardsSection | `ClaimRewardsSection.tsx` | Toast + block modal open if no avatar |
+| File | Action | Description |
+|------|--------|-------------|
+| `public/audio/valentine-bg.mp3` | Create (copy) | Valentine background music file |
+| `public/images/icon-music-valentine.png` | Create (copy) | Holographic music note icon |
+| `src/components/ValentineMusicButton.tsx` | Create | Floating music toggle with autoplay, localStorage persistence, responsive positioning |
+| `src/App.tsx` | Edit (1 import + 1 line) | Add `<ValentineMusicButton />` to global layout |
+
+### Component behavior:
+- On mount: check `localStorage` for mute state. If not muted, attempt `audio.play()`. If blocked by browser, listen for first user click/tap to start playback.
+- On click: toggle play/pause, save state to localStorage
+- Visual: the icon spins slowly when playing, stops when muted. Subtle pink/purple glow ring around the button.
+- Audio element: `<audio>` with `loop` attribute, volume at 30% (background-appropriate level)
 
