@@ -75,6 +75,7 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
   const [inWalletApp, setInWalletApp] = useState(false);
   const [showWalletGuide, setShowWalletGuide] = useState(false);
   const [claimError, setClaimError] = useState<string | null>(null);
+  const [hasPendingClaim, setHasPendingClaim] = useState(false);
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const claimInProgressRef = useRef(false);
 
@@ -87,9 +88,22 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
     });
   }, []);
 
+  // Check for pending claims on modal open
+  const checkPendingClaims = useCallback(async () => {
+    if (!user?.id) return;
+    const { data } = await supabase
+      .from('claim_requests')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('status', 'pending')
+      .limit(1);
+    setHasPendingClaim((data && data.length > 0) || false);
+  }, [user?.id]);
+
   useEffect(() => {
     if (open && user) {
       fetchUnclaimedRewards();
+      checkPendingClaims();
     }
   }, [open, user]);
 
@@ -97,7 +111,7 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
   useEffect(() => {
     if (!open || !user?.id) return;
 
-    const channel = supabase
+    const rewardsChannel = supabase
       .channel('claim-modal-rewards')
       .on(
         'postgres_changes',
@@ -111,8 +125,30 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
       )
       .subscribe();
 
+    // Listen for claim_requests status changes (pending → success/failed)
+    const claimsChannel = supabase
+      .channel('claim-modal-claims')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'claim_requests',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload: any) => {
+          const newStatus = payload.new?.status;
+          if (newStatus === 'success' || newStatus === 'failed') {
+            setHasPendingClaim(false);
+            fetchUnclaimedRewards();
+          }
+        }
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(rewardsChannel);
+      supabase.removeChannel(claimsChannel);
       if (debounceTimeoutRef.current) {
         clearTimeout(debounceTimeoutRef.current);
       }
@@ -190,7 +226,7 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
   }, [user]);
 
   const handleClaim = async () => {
-    if (claimInProgressRef.current) return;
+    if (claimInProgressRef.current || hasPendingClaim) return;
     if (!user || !isConnected || !address) {
       toast({
         title: "Vui lòng kết nối ví",
@@ -198,6 +234,28 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
         variant: "destructive",
       });
       return;
+    }
+
+    // Pre-check daily claim limit before calling edge function
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const { data: dailyClaim } = await supabase
+        .from('daily_claim_records')
+        .select('total_claimed')
+        .eq('user_id', user.id)
+        .eq('date', today)
+        .single();
+
+      const todayClaimed = Number(dailyClaim?.total_claimed) || 0;
+      if (todayClaimed >= 500000) {
+        toast({
+          title: "🎉 Chúc mừng, bạn đã claim thành công!",
+          description: "Bạn đã đạt giới hạn rút 500,000 CAMLY trong ngày. Vui lòng quay lại ngày mai để rút tiếp nhé!",
+        });
+        return;
+      }
+    } catch {
+      // If query fails (no record yet), proceed normally
     }
 
     claimInProgressRef.current = true;
@@ -256,6 +314,16 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
     } catch (error: any) {
       logWalletDebug('Claim error', error);
       const rawMsg = error.message || "";
+      
+      // Detect daily limit message → show friendly toast instead of error
+      if (rawMsg.includes("giới hạn rút") || rawMsg.includes("quay lại ngày mai")) {
+        toast({
+          title: "🎉 Chúc mừng, bạn đã claim thành công!",
+          description: "Bạn đã đạt giới hạn rút 500,000 CAMLY trong ngày. Vui lòng quay lại ngày mai để rút tiếp nhé!",
+        });
+        return;
+      }
+
       let errorMessage: string;
       
       if (rawMsg.toLowerCase().includes("insufficient funds") || rawMsg.toLowerCase().includes("insufficient_funds")) {
@@ -264,6 +332,7 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
         errorMessage = "💰 Bể thưởng tạm thời hết. Vui lòng chờ admin nạp thêm.";
       } else if (rawMsg.toLowerCase().includes("pending claim")) {
         errorMessage = "⏳ Bạn có yêu cầu claim đang xử lý. Vui lòng đợi hoàn tất.";
+        setHasPendingClaim(true);
       } else {
         errorMessage = rawMsg || "Không thể claim rewards. Vui lòng thử lại.";
       }
@@ -510,8 +579,21 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
                   </motion.div>
                 )}
 
+                {/* ⚠️ Pending claim warning */}
+                {hasPendingClaim && (
+                  <Alert className="border-amber-500/30 bg-amber-500/10">
+                    <Loader2 className="h-4 w-4 text-amber-500 animate-spin" />
+                    <AlertTitle className="text-amber-600 font-semibold">
+                      ⏳ Giao dịch đang xử lý trên blockchain
+                    </AlertTitle>
+                    <AlertDescription className="text-sm text-muted-foreground">
+                      Vui lòng đợi hoàn tất trước khi claim tiếp. Hệ thống sẽ tự động cập nhật khi xong.
+                    </AlertDescription>
+                  </Alert>
+                )}
+
                 {/* 🎉 Thông báo ngưỡng claim */}
-                {totalClaimable >= MIN_CLAIM_THRESHOLD && (
+                {!hasPendingClaim && totalClaimable >= MIN_CLAIM_THRESHOLD && (
                   <Alert className="border-green-500/30 bg-green-500/10">
                     <CheckCircle className="h-4 w-4 text-green-500" />
                     <AlertTitle className="text-green-600 font-semibold">
@@ -615,10 +697,15 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
                   <div className="space-y-3">
                     <Button
                       onClick={handleClaim}
-                      disabled={claiming || totalClaimable < MIN_CLAIM_THRESHOLD}
+                      disabled={claiming || hasPendingClaim || totalClaimable < MIN_CLAIM_THRESHOLD}
                       className="w-full bg-gradient-to-r from-yellow-500 to-cyan-500 hover:from-yellow-600 hover:to-cyan-600 text-white font-bold py-5"
                     >
-                      {claiming ? (
+                      {hasPendingClaim ? (
+                        <>
+                          <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                          Đang xử lý giao dịch...
+                        </>
+                      ) : claiming ? (
                         <>
                           <Loader2 className="h-5 w-5 mr-2 animate-spin" />
                           Đang gửi CAMLY...
