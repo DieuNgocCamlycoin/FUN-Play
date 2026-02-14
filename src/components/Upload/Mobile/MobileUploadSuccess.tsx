@@ -4,6 +4,7 @@ import { CheckCircle, ExternalLink, Home, Sparkles, Share2, Copy } from "lucide-
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useHapticFeedback } from "@/hooks/useHapticFeedback";
+import { getShareUrl, copyToClipboard } from "@/lib/shareUtils";
 import confetti from "canvas-confetti";
 
 interface MobileUploadSuccessProps {
@@ -54,14 +55,15 @@ export function MobileUploadSuccess({ videoId, onViewVideo, onClose }: MobileUpl
     return () => clearInterval(interval);
   }, [heavyTap]);
 
-  const handleCopyLink = () => {
+  const handleCopyLink = async () => {
     if (videoId) {
-      const url = `${window.location.origin}/watch/${videoId}`;
-      navigator.clipboard.writeText(url);
+      const url = getShareUrl(`/watch/${videoId}`);
       mediumTap();
+      const success = await copyToClipboard(url);
       toast({
-        title: "Đã sao chép!",
-        description: "Link video đã được sao chép vào clipboard 📋",
+        title: success ? "Đã sao chép!" : "Lỗi",
+        description: success ? "Link video đã được sao chép vào clipboard 📋" : "Không thể sao chép link",
+        variant: success ? "default" : "destructive",
       });
     }
   };
@@ -73,9 +75,9 @@ export function MobileUploadSuccess({ videoId, onViewVideo, onClose }: MobileUpl
         await navigator.share({
           title: "Xem video mới của tôi!",
           text: "Xem video mới của tôi trên FUN PLAY! 🎬✨",
-          url: `${window.location.origin}/watch/${videoId}`,
+          url: getShareUrl(`/watch/${videoId}`),
         });
-      } catch (err) {
+      } catch {
         // User cancelled share
       }
     } else {
