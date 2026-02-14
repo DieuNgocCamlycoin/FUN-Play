@@ -1622,6 +1622,39 @@ export type Database = {
         }
         Relationships: []
       }
+      reward_amount_fix_backup_20260214: {
+        Row: {
+          amount: number | null
+          approved: boolean | null
+          claimed: boolean | null
+          created_at: string | null
+          id: string | null
+          reward_type: string | null
+          status: string | null
+          user_id: string | null
+        }
+        Insert: {
+          amount?: number | null
+          approved?: boolean | null
+          claimed?: boolean | null
+          created_at?: string | null
+          id?: string | null
+          reward_type?: string | null
+          status?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          amount?: number | null
+          approved?: boolean | null
+          claimed?: boolean | null
+          created_at?: string | null
+          id?: string | null
+          reward_type?: string | null
+          status?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       reward_approvals: {
         Row: {
           admin_id: string | null
