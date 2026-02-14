@@ -1,52 +1,78 @@
 
 
-# Optimize Search Logic Across Header and Search Page
+# Fix and Optimize All Share Buttons Across FUN Play
 
-## Current Issues
+## Issues Found
 
-1. **Desktop Header** (`Header.tsx`): Contains a YouTube URL detection regex that opens YouTube links in a new tab -- unnecessary complexity for a video platform search bar
-2. **Mobile Header** (`MobileHeader.tsx`): Search suggestions only search video titles, missing channels and users
-3. **Search Page** (`Search.tsx`): Loading skeleton shows a fixed `w-[360px]` thumbnail that overflows on mobile; search input duplicates header functionality
-4. **All three locations**: Search suggestion queries don't filter by `view_count` ordering consistently, and none search channels/users in suggestions
+### 1. PostReactions.tsx -- Share uses `window.location.origin` (preview URL, not production)
+The share button in post reactions generates a URL like `https://53abc96f-...lovableproject.com/post/{id}` instead of the production URL. The `ShareModal` already correctly uses `https://official-funplay.lovable.app` as the base URL, but `PostReactions` does not.
+
+### 2. PostDetail.tsx -- Same problem: shares `window.location.href` directly
+The share button on the post detail page shares the current browser URL, which on preview/development would be a non-public URL.
+
+### 3. ProfileInfo.tsx -- Share uses `window.location.origin` and has no clipboard fallback
+- Generates profile URL from `window.location.origin` (wrong in preview)
+- The "copy" action calls `navigator.clipboard.writeText()` without a try/catch fallback (fails on some mobile browsers without HTTPS or focus)
+
+### 4. MobileUploadSuccess.tsx -- Share uses `window.location.origin`
+Same issue: generates video share URL from current origin instead of production URL.
+
+### 5. PostReactions.tsx -- No clipboard fallback
+Uses `navigator.clipboard.writeText()` directly without the robust fallback that `ShareModal` already has (textarea fallback for older mobile browsers).
+
+### 6. Inconsistent share experience
+- `ShareModal` has a full-featured share dialog with social platforms, QR code, copy fallback, and CAMLY rewards
+- Post share buttons and Profile share only use basic `navigator.share` or simple clipboard copy -- no social platform options, no rewards
 
 ## Plan
 
-### 1. Create a shared search hook (`src/hooks/useSearchSuggestions.ts`)
+### Step 1: Create a shared utility for production URLs (`src/lib/shareUtils.ts`)
 
-Extract the duplicated suggestion logic from both headers into one reusable hook:
-- Debounced search (300ms)
-- Search both **videos** (by title) and **channels** (by name) in parallel
-- Return grouped results: `{ videos: [...], channels: [...] }`
-- Limit: 5 videos + 3 channels
-- Order videos by `view_count` descending for better relevance
+Create a helper that always returns the production base URL, and a `copyToClipboard` function with fallback (extracted from `ShareModal`):
 
-### 2. Simplify Desktop Header search (`Header.tsx`)
+```typescript
+export const PRODUCTION_URL = 'https://official-funplay.lovable.app';
 
-- Remove the YouTube URL regex detection (lines 113-120) -- just navigate to `/search?q=...`
-- Replace inline suggestion state/effects with the new `useSearchSuggestions` hook
-- Show channel suggestions with avatar in the dropdown (below video suggestions)
-- Clicking a channel navigates to `/channel/{id}`
+export function getShareUrl(path: string): string {
+  return `${PRODUCTION_URL}${path}`;
+}
 
-### 3. Optimize Mobile Header search (`MobileHeader.tsx`)
+export async function copyToClipboard(text: string): Promise<boolean> {
+  // Same robust fallback logic currently in ShareModal
+}
+```
 
-- Replace inline suggestion state/effects with the new `useSearchSuggestions` hook
-- Show both video and channel suggestions in the dropdown
-- Channel suggestions show a small avatar + name with "Kenh" label
-- Add `min-h-[48px]` touch targets on suggestion items for mobile-first design
-- Clear search state properly when navigating
+### Step 2: Fix PostReactions.tsx
 
-### 4. Improve Search Page mobile layout (`Search.tsx`)
+- Use `getShareUrl(`/post/${postId}`)` instead of `window.location.origin`
+- Use the shared `copyToClipboard` with fallback instead of raw `navigator.clipboard`
 
-- Fix loading skeleton: replace `w-[360px]` with responsive `w-full max-w-[360px]` or just use `aspect-video` alone
-- On mobile, hide the duplicate search input at the top (the header already has search) and show only filter tabs + results
-- Add `scrollbar-hide` to filter tabs horizontal scroll
+### Step 3: Fix PostDetail.tsx
+
+- Use `getShareUrl(`/post/${id}`)` instead of `window.location.href`
+- Use shared `copyToClipboard` with fallback
+
+### Step 4: Fix ProfileInfo.tsx
+
+- Use `getShareUrl(`/u/${profile.username}`)` instead of `window.location.origin`
+- Use shared `copyToClipboard` with try/catch fallback for the "copy" action
+
+### Step 5: Fix MobileUploadSuccess.tsx
+
+- Use `getShareUrl(`/watch/${videoId}`)` instead of `window.location.origin`
+
+### Step 6: Update ShareModal.tsx to use the shared utility
+
+- Replace the hardcoded `'https://official-funplay.lovable.app'` string and the inline `copyToClipboard` function with imports from `shareUtils.ts` -- single source of truth
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/hooks/useSearchSuggestions.ts` | **New** -- shared debounced search hook returning videos + channels |
-| `src/components/Layout/Header.tsx` | Use shared hook, remove YouTube regex, show channel suggestions |
-| `src/components/Layout/MobileHeader.tsx` | Use shared hook, show channel suggestions, 48px touch targets |
-| `src/pages/Search.tsx` | Fix skeleton overflow, hide redundant search input on mobile |
+| `src/lib/shareUtils.ts` | **New** -- production URL helper + clipboard fallback utility |
+| `src/components/Post/PostReactions.tsx` | Use production URL + clipboard fallback |
+| `src/pages/PostDetail.tsx` | Use production URL + clipboard fallback |
+| `src/components/Profile/ProfileInfo.tsx` | Use production URL + clipboard fallback |
+| `src/components/Upload/Mobile/MobileUploadSuccess.tsx` | Use production URL |
+| `src/components/Video/ShareModal.tsx` | Import shared utilities instead of inline duplicates |
 
