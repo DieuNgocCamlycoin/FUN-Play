@@ -1,71 +1,60 @@
 
 
-# Add Chat Message and Notification for Successful CAMLY Claims
+# Fix Video Upload Reward Classification and Compensation
 
-## Problem
-When a user successfully claims CAMLY coins, there is:
-1. **No chat message** from a system account (like "Fun Pay Treasurer") informing the user
-2. **No notification** in the notifications page
+## Root Cause
 
-This is inconsistent with the gift/donation flow, which sends both a chat message (message_type: "donation") and a notification entry upon success.
+When users upload videos, the `award-camly` edge function checks the video's `duration` field to classify it as SHORT (<=3 min, 20,000 CAMLY) or LONG (>3 min, 70,000 CAMLY). However, **153 videos** currently have `duration = NULL` in the database because the video metadata hadn't finished processing at upload time. The system defaults these to SHORT, resulting in all uploads showing as "Video ngan" with 20,000 CAMLY -- even for videos that are actually longer than 3 minutes.
 
-## Solution
+## Solution (3 Parts)
 
-### 1. Create a "Fun Pay Treasurer" System Profile
-A system profile needs to exist in the `profiles` table so it can be the `sender_id` for chat messages. This will be created via a database migration with a fixed UUID.
+### Part 1: Create `update-video-durations` Edge Function (new)
 
-### 2. Update the `claim-camly` Edge Function
-After a successful blockchain transaction (after line 368 in the current code), add two operations using the admin Supabase client:
+A new backend function that fetches each video file's MP4 metadata to extract the actual duration, then updates the `videos` table. This works by:
+- Querying all videos with `duration IS NULL`
+- For each video URL, downloading a small portion of the file header (MP4 moov atom) to extract duration
+- Updating the `videos.duration` column with the correct value
+- Admin-only access, supports batch processing
 
-**A. Send a chat message:**
-- Find or create a `user_chats` entry between the system account and the claiming user
-- Insert a `chat_messages` record with:
-  - `sender_id`: Fun Pay Treasurer system UUID
-  - `message_type`: "system"
-  - `content`: "You just claimed X CAMLY successfully! Tx: [hash]"
-  - `deep_link`: link to BSCScan transaction or claim receipt
+### Part 2: Enhance `recalculate-upload-rewards` Edge Function (existing)
 
-**B. Insert a notification:**
-- Insert into `notifications` table with:
-  - `user_id`: the claiming user
-  - `type`: "claim_success"
-  - `title`: "CAMLY Claim successful!"
-  - `message`: amount + tx info
-  - `link`: link to claim receipt or BSCScan
-  - `actor_id`: Fun Pay Treasurer system UUID
+After durations are populated, this function will:
+- Find all `SHORT_VIDEO_UPLOAD` transactions where the video's actual duration > 180 seconds
+- Reclassify them to `LONG_VIDEO_UPLOAD` and update amount from 20,000 to 70,000
+- Compensate affected users with the 50,000 CAMLY difference via `atomic_increment_reward`
+- Already supports dry-run mode for safety
 
-### 3. No Frontend Changes Needed
-- The chat sidebar (`useChats`) already listens to realtime changes on `chat_messages` -- messages from Fun Pay Treasurer will appear automatically
-- The notifications page already listens to realtime `INSERT` events on the `notifications` table -- new claim notifications will appear automatically
-- `GlobalPaymentNotifications` already monitors `wallet_transactions` for received payments
+The enhancement adds: **auto-call to `update-video-durations` first**, so it becomes a single operation: detect durations then fix rewards.
 
-## Technical Details
+### Part 3: Fix Upload Flow to Capture Duration Earlier
 
-### Database Migration
-```sql
--- Create Fun Pay Treasurer system profile
-INSERT INTO profiles (id, username, display_name, avatar_url)
-VALUES (
-  'f0f0f0f0-0000-0000-0000-000000000001',
-  'fun_pay_treasurer',
-  'Fun Pay Treasurer',
-  '/images/camly-coin.png'
-) ON CONFLICT (id) DO NOTHING;
-```
+Update the upload process in `src/contexts/UploadContext.tsx` and `src/pages/Upload.tsx` to:
+- Extract video duration from the file **before** upload completes (using browser's HTMLVideoElement)
+- Save duration to the `videos` table immediately during insert, not after
+- This prevents future NULL duration issues
 
-### Edge Function Changes (`supabase/functions/claim-camly/index.ts`)
-After the daily claim record update (line ~367), add:
+### No Display Changes Needed
 
-1. **Chat message block**: Find/create user_chats between treasurer and user, then insert chat_messages with claim details
-2. **Notification block**: Insert into notifications table
+The reward history page (`RewardHistory.tsx`) already correctly maps:
+- `SHORT_VIDEO_UPLOAD` -> "Video ngan" (orange)
+- `LONG_VIDEO_UPLOAD` -> "Video dai" (dark orange)
 
-Both operations use `supabaseAdmin` (service role) so RLS is bypassed -- this is necessary because the system account is not an authenticated user.
+Once the database records are corrected, the display will automatically show the right labels and amounts. The existing Realtime subscription ensures updates appear instantly.
 
-### Files Changed
+## Files Changed
+
 | File | Change |
 |------|--------|
-| Database migration (SQL) | Create Fun Pay Treasurer system profile |
-| `supabase/functions/claim-camly/index.ts` | Add chat message + notification after successful claim |
+| `supabase/functions/update-video-durations/index.ts` | **New** - Extract and save video durations from file metadata |
+| `supabase/functions/recalculate-upload-rewards/index.ts` | Add auto-duration-detection before reclassification |
+| `src/contexts/UploadContext.tsx` | Capture duration from file before database insert |
+| `src/pages/Upload.tsx` | Ensure duration is passed during video record creation |
 
-No frontend files need modification -- the existing realtime listeners will pick up the new messages and notifications automatically.
+## Execution Steps
+
+1. Deploy `update-video-durations` function
+2. Update `recalculate-upload-rewards` to call it first
+3. Run recalculation (dry-run first, then apply) to fix all 153 affected videos
+4. Fix upload flow to prevent future occurrences
+5. Verify reward history shows correct labels in real-time
 
