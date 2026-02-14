@@ -41,7 +41,7 @@ export const ChatMessageItem = ({
   // Donation message
   if (message.messageType === "donation") {
     return (
-      <div className="my-3">
+      <div className="my-3 px-1 sm:px-0">
       <ChatDonationCard
           content={message.content}
           deepLink={message.deepLink}

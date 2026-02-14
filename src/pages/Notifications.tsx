@@ -193,7 +193,7 @@ const Notifications = () => {
               <div
                 key={notif.id}
                 onClick={() => handleNotificationClick(notif)}
-                className={`flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
+                className={`flex items-start gap-3 p-3 sm:p-3 min-h-[56px] rounded-lg cursor-pointer transition-colors active:scale-[0.98] ${
                   notif.is_read
                     ? "hover:bg-muted/50"
                     : "bg-primary/5 hover:bg-primary/10"
