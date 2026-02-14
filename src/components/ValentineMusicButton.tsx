@@ -27,7 +27,7 @@ const getSavedPos = (isMobile: boolean) => {
 export const ValentineMusicButton = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [hasInteracted, setHasInteracted] = useState(false);
+  const audioUnlockedRef = useRef(false);
   const isMobile = useIsMobile();
   const constraintsRef = useRef<HTMLDivElement | null>(null);
 
@@ -39,32 +39,47 @@ export const ValentineMusicButton = () => {
 
   const tryPlay = useCallback(() => {
     const audio = audioRef.current;
-    if (!audio || isMutedStored()) return;
-    audio.play().then(() => setIsPlaying(true)).catch(() => {});
+    if (!audio || isMutedStored() || audioUnlockedRef.current) return;
+    audio.play().then(() => {
+      setIsPlaying(true);
+      audioUnlockedRef.current = true;
+    }).catch(() => {});
   }, []);
 
+  // Try to play on mount (works on desktop)
   useEffect(() => {
-    if (!isMutedStored()) tryPlay();
+    tryPlay();
   }, [tryPlay]);
 
+  // Keep retrying on every user interaction until audio unlocks
   useEffect(() => {
-    if (hasInteracted || isMutedStored()) return;
+    if (isMutedStored()) return;
+
     const handler = () => {
-      setHasInteracted(true);
-      tryPlay();
+      const audio = audioRef.current;
+      if (!audio || audioUnlockedRef.current) {
+        removeListeners();
+        return;
+      }
+      audio.play().then(() => {
+        setIsPlaying(true);
+        audioUnlockedRef.current = true;
+        removeListeners();
+      }).catch(() => {});
+    };
+
+    const removeListeners = () => {
       document.removeEventListener("click", handler);
       document.removeEventListener("touchstart", handler);
       document.removeEventListener("pointerdown", handler);
     };
-    document.addEventListener("click", handler, { once: true });
-    document.addEventListener("touchstart", handler, { once: true });
-    document.addEventListener("pointerdown", handler, { once: true });
-    return () => {
-      document.removeEventListener("click", handler);
-      document.removeEventListener("touchstart", handler);
-      document.removeEventListener("pointerdown", handler);
-    };
-  }, [hasInteracted, tryPlay]);
+
+    document.addEventListener("click", handler);
+    document.addEventListener("touchstart", handler);
+    document.addEventListener("pointerdown", handler);
+
+    return removeListeners;
+  }, []);
 
   const toggle = () => {
     const audio = audioRef.current;
@@ -76,6 +91,7 @@ export const ValentineMusicButton = () => {
     } else {
       audio.play().then(() => {
         setIsPlaying(true);
+        audioUnlockedRef.current = true;
         localStorage.setItem(STORAGE_KEY, "false");
       }).catch(() => {});
     }
