@@ -490,6 +490,14 @@ serve(async (req) => {
           message: `Bạn đã claim thành công ${claimAmount.toLocaleString()} CAMLY vào ví ${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`,
           link: notifLink,
           actor_id: TREASURER_ID,
+          action_type: 'share_celebration',
+          metadata: {
+            transaction_id: donationTxId,
+            receipt_public_id: receiptPublicId,
+            amount: claimAmount,
+            token_symbol: 'CAMLY',
+            theme: 'celebration',
+          },
         });
       
       if (notifError) console.error('Failed to insert notification:', notifError);

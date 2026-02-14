@@ -154,7 +154,7 @@ export const ChatDonationCard = ({
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className={`max-w-[320px] ${isMe ? "ml-auto" : "mr-auto"}`}
+        className={`max-w-[280px] sm:max-w-[320px] ${isMe ? "ml-auto" : "mr-auto"}`}
       >
         <div
           className="relative rounded-2xl overflow-hidden aspect-[4/5] chat-celebration-card"
@@ -180,7 +180,7 @@ export const ChatDonationCard = ({
                   className="flex flex-col items-center gap-0.5 flex-1 min-w-0 cursor-pointer hover:opacity-80 transition-opacity"
                   onClick={() => navigate(`/u/${cardData.sender_username}`)}
                 >
-                  <Avatar className="h-12 w-12 ring-2 ring-white/30">
+                  <Avatar className="h-10 w-10 sm:h-12 sm:w-12 ring-2 ring-white/30">
                     <AvatarImage src={cardData.sender_avatar || ""} />
                     <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-sm">
                       {cardData.sender_name[0]?.toUpperCase()}
@@ -199,7 +199,7 @@ export const ChatDonationCard = ({
                 </div>
 
                 <div className="flex flex-col items-center gap-0.5 flex-shrink-0 px-1">
-                  <div className="flex items-center gap-1 text-lg font-bold">
+                  <div className="flex items-center gap-1 text-base sm:text-lg font-bold">
                     {cardData.token_icon && <img src={cardData.token_icon} alt="" className="h-4 w-4" />}
                     <span className="text-amber-300 drop-shadow-lg">{cardData.amount.toLocaleString()}</span>
                   </div>
@@ -211,7 +211,7 @@ export const ChatDonationCard = ({
                   className="flex flex-col items-center gap-0.5 flex-1 min-w-0 cursor-pointer hover:opacity-80 transition-opacity"
                   onClick={() => navigate(`/u/${cardData.receiver_username}`)}
                 >
-                  <Avatar className="h-12 w-12 ring-2 ring-amber-400/30">
+                  <Avatar className="h-10 w-10 sm:h-12 sm:w-12 ring-2 ring-amber-400/30">
                     <AvatarImage src={cardData.receiver_avatar || ""} />
                     <AvatarFallback className="bg-gradient-to-br from-amber-500 to-orange-500 text-white text-sm">
                       {cardData.receiver_name[0]?.toUpperCase()}
