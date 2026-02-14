@@ -1,31 +1,44 @@
 
+# Optimize Claim CAMLY Rewards Layout (Web + Mobile)
 
-# Fix Music Autoplay After Page Reload (Mobile)
+## Current Issues (from screenshot analysis)
 
-## Problem
-After reloading the page on mobile, the music button does not automatically resume playing. The root causes are:
+1. **Redundant information**: The claimable amount (869,000 CAMLY) is displayed twice -- once in the main green card and once in the right-column summary card. This wastes space.
+2. **Information overload on mobile**: When stacked vertically, wallet info, claimable amount, pending claim warning, avatar verification warning, and processing button all compete for attention.
+3. **Claim button buried**: The most important action (Claim button) is positioned between warning alerts, making it hard to find.
+4. **Two-column layout on desktop shows duplicate data**: Left column has claimable amount + breakdowns, right column repeats the same claimable total.
 
-1. **Audio element not ready on mount**: `tryPlay()` fires immediately on mount, but the audio file may not have loaded yet (especially on mobile with slower connections). The `play()` call fails silently.
-2. **No `canplaythrough` listener**: There is no retry when the audio finishes loading -- if the initial `tryPlay()` fails because the audio isn't buffered, there's no second attempt before the user interacts.
-3. **Autoplay success not persisted**: When autoplay succeeds (via mount or first interaction), `localStorage` is never set to `"false"`. This means the system has no record that the user wants music playing. Setting it explicitly ensures consistent behavior across reloads.
+## Solution: Streamlined Single-Flow Layout
 
-## Solution
+### New Layout Order (both web and mobile)
 
-### File: `src/components/ValentineMusicButton.tsx`
+1. **Header row**: Wallet address (compact) + Claimable amount side-by-side on desktop, stacked on mobile
+2. **Claim button**: Immediately after the key numbers -- the primary action should be prominent and early
+3. **Warnings** (if any): Pending claim, avatar verification -- shown only when relevant, compact
+4. **Daily limit progress bar**: Simple progress indicator
+5. **Reward breakdown**: Approved rewards list, then pending rewards list -- collapsible on mobile
+6. **Info notes**: Process explanation at the bottom
 
-1. **Add `canplaythrough` event listener on the audio element** -- when the audio finishes buffering, call `tryPlay()` again. This catches the case where `tryPlay()` on mount failed because the audio wasn't loaded yet. On desktop this fires almost immediately; on mobile it fires once enough data is buffered.
+### File Changes
 
-2. **Persist "not muted" state on successful autoplay** -- in `tryPlay()` and in the interaction handler, after `audio.play()` succeeds, also call `localStorage.setItem(STORAGE_KEY, "false")`. This ensures that after reload, the system knows the user had music on.
+**`src/components/Rewards/ClaimRewardsModal.tsx`**:
+- Remove the two-column (`md:grid-cols-2`) layout entirely -- use a single-column flow for both web and mobile
+- Remove the duplicate "Tong quan phan thuong" (right column summary) since it repeats the same data
+- Move Claim button to appear right after the claimable amount card
+- Consolidate wallet info into a compact inline bar (address + connection status)
+- Stack warnings compactly below the button
+- Keep reward breakdowns (approved + pending) at the bottom with scroll area
+- Add daily claim limit progress bar (currently only in ClaimRewardsSection, not in modal)
 
-3. **Add a retry with delay for mobile** -- add a second `tryPlay()` attempt after a short delay (e.g., 1.5s) to catch cases where the audio element is ready but the browser's autoplay policy check was too early.
+**`src/components/Wallet/ClaimRewardsSection.tsx`**:
+- Reorder stat cards: "Co the Claim" first (most important), then "Cho duyet", "Da Claim", "Tong da nhan"
+- Move Claim button higher, right after the "Co the Claim" stat
+- Consolidate progress bars (threshold + daily limit) into a compact section
+- Keep avatar warning but make it more compact
 
-### Changes summary:
+### Technical Details
 
-| Change | Purpose |
-|--------|---------|
-| Add `onCanPlayThrough` handler on `<audio>` | Retry play when audio finishes loading |
-| `localStorage.setItem(STORAGE_KEY, "false")` on autoplay success | Persist "music on" state for reloads |
-| Add delayed retry `setTimeout(tryPlay, 1500)` | Catch edge cases on slow mobile loads |
-
-Single file change, no new dependencies.
-
+- No backend/edge function changes needed -- the claim system is working correctly (logs confirm successful claims)
+- Processing time (~5-10s) is normal BSC blockchain confirmation time -- no optimization possible there
+- The "Dang xu ly giao dich" spinner is expected behavior during blockchain confirmation
+- Layout changes are purely CSS/JSX restructuring within the two existing component files
