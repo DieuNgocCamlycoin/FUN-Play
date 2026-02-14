@@ -381,7 +381,7 @@ serve(async (req) => {
         .select('id')
         .or(`and(user1_id.eq.${TREASURER_ID},user2_id.eq.${user.id}),and(user1_id.eq.${user.id},user2_id.eq.${TREASURER_ID})`)
         .limit(1)
-        .single();
+        .maybeSingle();
 
       let chatId = existingChat?.id;
 
@@ -405,9 +405,9 @@ serve(async (req) => {
           .insert({
             chat_id: chatId,
             sender_id: TREASURER_ID,
-            message_type: 'system',
+            message_type: 'donation',
             content: `🎉 Bạn vừa claim thành công ${claimAmount.toLocaleString()} CAMLY!\n\n💰 Số lượng: ${claimAmount.toLocaleString()} CAMLY\n📦 Tx: ${receipt.hash.slice(0, 10)}...${receipt.hash.slice(-8)}\n\nXem chi tiết giao dịch trên BSCScan.`,
-            deep_link: bscscanUrl,
+            deep_link: `/receipt/claim-${claimRequest.id}`,
           });
         
         if (msgError) console.error('Failed to send chat message:', msgError);
