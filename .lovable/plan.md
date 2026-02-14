@@ -1,52 +1,49 @@
 
+# Fix Claim CAMLY Chat Messages and Notifications
 
-# Update Profile Honor Board to Match Global FUN Play Parameters
+## Problem Summary
 
-## What Changes
+When users successfully claim CAMLY coins, neither chat messages from Fun Pay Treasurer nor proper notifications appear. The root cause is a bug in the backend function, and the frontend needs updates to properly display claim-related messages.
 
-The Honor Board on each user's personal profile page currently shows **10 metrics** (Posts, Friends, Reactions, NFTs, Comments, Shares, Claimable, Claimed, Total Reward, Total Money) with a gold/amber theme. It will be updated to align with the **global FUN Play Honor Board** style and parameters, while keeping it in its original position (top-right corner of the cover photo).
+## Issues Found
 
-## Visual Changes
+### Issue 1: Chat message creation fails silently (Backend Bug)
+The `claim-camly` backend function uses `.single()` when searching for an existing chat with the Treasurer. This method throws an error when no chat exists (first-time claim), which gets caught silently. As a result, no chat is ever created and no message is sent.
 
-### Metrics Alignment
-The profile Honor Board will show **user-specific versions** of the same 5 global parameters, plus 2 personal financial stats:
+**Fix**: Change `.single()` to `.maybeSingle()` -- this returns `null` instead of throwing an error when no row is found, allowing the code to proceed to create a new chat.
 
-| # | Label | Source | Description |
-|---|-------|--------|-------------|
-| 1 | Posts | User's post count | Personal posts |
-| 2 | Photos | User's photo uploads | Personal photos |
-| 3 | Videos | User's video uploads | Personal videos |
-| 4 | Friends | Channel subscriber count | Followers |
-| 5 | Total Reward | total_camly_rewards | All-time CAMLY earned |
-| 6 | Claimable | approved_reward | CAMLY waiting to claim |
-| 7 | Total Money | Calculated from rewards | Estimated USD value |
+### Issue 2: System messages render as plain centered pills (Frontend)
+The claim chat message uses `message_type: "system"`, which renders as a tiny centered gray pill (designed for "User joined" style messages). Donation messages use `message_type: "donation"` and render as rich cards with buttons and links.
 
-### Style Update
-- Switch from **gold/amber** theme to the **holographic cyan/purple** theme matching the global Honor Board (gradient border from #00E7FF to #7A2BFF to #FF00E5, white glassmorphism background)
-- Use the same `StatPill` row style with icon + label + animated counter
-- Crown icons in header matching global board
+**Fix**: Change the claim message type to `"donation"` in the backend, or add a new claim-specific card rendering in `ChatMessageItem`. Since the donation card already supports `deep_link` (BSCScan URL) and rich display, using `message_type: "donation"` is the simplest approach -- consistent with the gift transfer flow.
 
-### Responsive Layout
-- **Desktop (lg+)**: Positioned at top-right of cover photo, width 280px, 1-column stat pills
-- **Mobile (<768px)**: Repositioned below the cover photo as a full-width card instead of absolute overlay (avoids overflow and tiny text on small screens), with a 2-column grid for stats to save vertical space
+### Issue 3: Notification filter doesn't show claim notifications
+The Notifications page has filter tabs: "All", "Comments", "Subscriptions", "Rewards". Claim notifications use `type: "claim_success"` which only appears under "All". Users filtering by "Rewards" won't see claim notifications.
 
-## Technical Details
+**Fix**: Add a "Claim" tab or include `claim_success` in the "Rewards" filter logic.
 
-### File: `src/components/Profile/ProfileHonorBoard.tsx`
-- Replace the 10 stat items with 7 aligned metrics
-- Update theme from amber/gold gradient to holographic cyan/purple gradient (matching `HonorBoardCard.tsx` style)
-- Add responsive breakpoint logic:
-  - On desktop: keep `absolute top-3 right-3` positioning on cover photo
-  - On mobile: render as a relative card below the cover, full-width with 2-column grid
-- Import and use `CounterAnimation` component for animated numbers (matching global board)
-- Add video and photo count queries to `fetchHonorStats`
+## Solution
 
-### File: `src/components/Profile/ProfileHeader.tsx`
-- On mobile, move the `ProfileHonorBoard` component outside the cover photo container (render it below instead of inside the absolute-positioned cover)
-- Use `useIsMobile()` hook to conditionally render placement
+### File 1: `supabase/functions/claim-camly/index.ts`
+- Change `.single()` to `.maybeSingle()` on the existing chat query (line 384)
+- Change `message_type: 'system'` to `message_type: 'donation'` for richer display
+- Add a claim receipt link using the claim request ID as deep_link (e.g., `/receipt/claim-{claimId}`)
 
-### Data Queries (in ProfileHonorBoard)
-- Add query for user's video count: `supabase.from("videos").select("*", { count: "exact", head: true }).eq("user_id", userId)`
-- Add query for user's photo count: `supabase.from("videos").select("*", { count: "exact", head: true }).eq("user_id", userId).eq("category", "photo")`
-- Keep existing queries for posts, comments, profile rewards, likes, and channel subscribers
+### File 2: `src/pages/Notifications.tsx`
+- Update the filter logic so "Rewards" tab also matches `claim_success` type notifications
+- This ensures claim notifications are visible in both "All" and "Rewards" filter tabs
 
+### File 3: `src/components/Chat/ChatMessageItem.tsx`
+- No changes needed -- donation message type already renders with `ChatDonationCard` which shows the BSCScan link button and rich card styling
+
+## Files Changed
+
+| File | Change |
+|------|--------|
+| `supabase/functions/claim-camly/index.ts` | Fix `.single()` to `.maybeSingle()`, change message_type to "donation", add receipt deep_link |
+| `src/pages/Notifications.tsx` | Include `claim_success` in "Rewards" filter tab |
+
+## Execution Order
+1. Fix the backend function (`.maybeSingle()` + message_type change)
+2. Update notification filter on frontend
+3. Deploy and test with a claim transaction
