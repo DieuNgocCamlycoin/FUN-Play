@@ -1,75 +1,82 @@
 
+# Fix: Claim Function Marks Too Many Rewards as Claimed (Critical Data Loss Bug)
 
-# Fix: Daily Claim Limit Enforcement + Friendly Messages + Claim Receipt
+## Problem
 
-## Problems Found
+When a user has more approved rewards than the daily/lifetime cap allows (500,000 CAMLY), the `claim-camly` edge function:
 
-### Problem 1: Daily Claim Limit Never Enforced
-The `claim-camly` edge function checks `daily_claim_records` for the daily 500,000 CAMLY cap (line 155-163), but **never writes to it** after a successful claim. This means the daily limit always reads as 0 and users can claim unlimited times per day.
+1. Correctly caps the claim amount to 500,000
+2. Correctly sends 500,000 CAMLY on-chain
+3. **BUG**: Marks ALL unclaimed rewards as claimed (not just 500,000 worth)
+4. **BUG**: Resets `approved_reward` to 0 (should be `totalAmount - claimAmount`)
 
-**Fix**: After a successful claim, upsert a record into `daily_claim_records` with the claimed amount.
+This caused 6 users to lose a combined ~3,039,000 CAMLY in rewards that were incorrectly marked as claimed.
 
-### Problem 2: Friendly Vietnamese Message When Hitting Daily Limit
-When a user tries to claim again after reaching the 500,000/day cap, the current error message is functional but not as friendly as requested. Update it to:
-"Chuc mung ban da claim thanh cong! Ban da dat gioi han rut trong ngay. Vui long quay lai ngay mai de rut tiep."
+## Root Cause
 
-### Problem 3: Gradual Deduction After 24 Hours
-The daily limit resets naturally because `daily_claim_records` uses a `date` column. When a new day starts (UTC), the query for today's date returns no record, so the full 500,000 limit is available again. The remaining approved balance stays intact and can be claimed the next day. This already works correctly once we fix Problem 1.
+Lines 326-348 in `supabase/functions/claim-camly/index.ts` mark ALL reward IDs from `unclaimedRewards` as claimed, regardless of whether the actual claim amount was capped. The previous fix changed from partial marking to full marking, which introduced this regression.
 
-### Problem 4: Claim Receipt Not Showing
-The `ClaimReceipt` component in `Receipt.tsx` uses the frontend Supabase client to query `claim_requests` directly. This relies on RLS policies. For public viewing (e.g., sharing on social media), the RLS policy requires `tx_hash IS NOT NULL AND status = 'success'` -- which should work for successful claims.
+## Fixes
 
-However, the real issue is that `ClaimReceipt` uses the **regular supabase client** which requires the viewer to either be the claim owner OR the claim must be public (successful + has tx_hash). For shared links where the viewer is not logged in, the anon key should match the public policy. But there may be a query issue with the join syntax `profiles:user_id(...)` not working with anon access.
+### 1. Fix `claim-camly` Edge Function (Partial Marking)
 
-**Fix**: Create a dedicated edge function `get-claim-receipt` (like the existing `get-donation-receipt`) that uses the service role key to fetch claim data, bypassing RLS issues entirely. This ensures the receipt is always accessible via public link.
+**File**: `supabase/functions/claim-camly/index.ts`
+
+Replace lines 326-348 with logic that only marks rewards up to `claimAmount`:
+
+- Sort rewards by amount (smallest first) to mark as many individual transactions as possible
+- Accumulate reward IDs until reaching the `claimAmount` cap
+- Only mark those specific IDs as `claimed`
+- Set `approved_reward = totalAmount - claimAmount` (not 0)
+
+### 2. Restore Lost Rewards (Database Fix)
+
+Run a data repair migration to unmark the excess rewards for the 6 affected users:
+
+For each affected user, calculate `excess = marked_amount - claimed_amount`, then unmark that many reward_transactions (set `claimed = false, claimed_at = NULL, claim_tx_hash = NULL`) and restore `approved_reward` in their profile.
+
+The repair will use `sync_reward_totals()` RPC after unmarking to ensure profile balances are perfectly reconciled.
+
+### 3. Profile Balance Sync
+
+After restoring lost rewards, call `sync_reward_totals()` to reconcile all profile balances with the actual reward_transactions data.
 
 ---
 
-## Technical Changes
+## Technical Details
 
-### 1. Edge Function: `supabase/functions/claim-camly/index.ts`
+### Edge Function Changes (`claim-camly/index.ts`)
 
-After the successful claim block (after line 348), add a daily_claim_records upsert:
+Replace lines 326-348:
 
+```text
+// OLD (buggy): marks ALL rewards, resets to 0
+const allRewardIds = unclaimedRewards.map(r => r.id);
+// ... marks all, sets approved_reward = 0
+
+// NEW (fixed): only mark rewards up to claimAmount
+const sorted = [...unclaimedRewards].sort((a, b) => Number(a.amount) - Number(b.amount));
+let remaining = claimAmount;
+const idsToMark = [];
+for (const r of sorted) {
+  if (remaining <= 0) break;
+  idsToMark.push(r.id);
+  remaining -= Number(r.amount);
+}
+// Mark only selected IDs as claimed
+// Set approved_reward = totalAmount - claimAmount
 ```
-// Record daily claim
-await supabaseAdmin
-  .from('daily_claim_records')
-  .upsert({
-    user_id: user.id,
-    date: today,
-    total_claimed: todayClaimed + claimAmount,
-    claim_count: (dailyClaim?.claim_count || 0) + 1
-  }, { onConflict: 'user_id,date' });
-```
 
-Also update the daily limit error message (line 168) to the friendly Vietnamese message:
-"Chuc mung, ban da claim thanh cong! Ban da dat gioi han rut 500.000 CAMLY trong ngay. Vui long quay lai ngay mai de rut tiep nhe!"
+### Data Repair (SQL Migration)
 
-### 2. New Edge Function: `supabase/functions/get-claim-receipt/index.ts`
-
-Create a simple GET endpoint that:
-- Accepts `claim_id` as query parameter
-- Uses service role key to fetch `claim_requests` joined with `profiles`
-- Returns the claim data with user profile info
-- No auth required (public receipt viewing)
-
-### 3. Frontend: `src/pages/Receipt.tsx`
-
-Update `ClaimReceipt` to call the `get-claim-receipt` edge function instead of querying Supabase directly (matching how `DonationReceipt` uses `get-donation-receipt`).
-
-### 4. Frontend: `src/components/Rewards/ClaimRewardsModal.tsx`
-
-Update the claim error handling to show the friendly daily limit message with proper Vietnamese text.
+For each of the 6 affected users, identify excess claimed rewards and unmark them. Then run `sync_reward_totals()` to reconcile.
 
 ---
 
 ## Summary of Changes
 
-| File | Change |
-|------|--------|
-| `supabase/functions/claim-camly/index.ts` | Add daily_claim_records upsert after success, update daily limit message |
-| `supabase/functions/get-claim-receipt/index.ts` | New edge function for public claim receipt access |
-| `src/pages/Receipt.tsx` | Use edge function instead of direct Supabase query for claim receipts |
-| `src/components/Rewards/ClaimRewardsModal.tsx` | Better Vietnamese error messages for daily limit |
-
+| File/Action | Change |
+|-------------|--------|
+| `supabase/functions/claim-camly/index.ts` | Only mark rewards up to claimAmount as claimed; set approved_reward to remainder |
+| Database migration | Restore incorrectly claimed rewards for 6 affected users |
+| Run `sync_reward_totals()` | Reconcile all profile balances |
