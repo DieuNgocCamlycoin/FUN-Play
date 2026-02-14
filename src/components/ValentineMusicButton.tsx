@@ -43,12 +43,15 @@ export const ValentineMusicButton = () => {
     audio.play().then(() => {
       setIsPlaying(true);
       audioUnlockedRef.current = true;
+      localStorage.setItem(STORAGE_KEY, "false");
     }).catch(() => {});
   }, []);
 
-  // Try to play on mount (works on desktop)
+  // Try to play on mount + delayed retry for mobile
   useEffect(() => {
     tryPlay();
+    const timer = setTimeout(tryPlay, 1500);
+    return () => clearTimeout(timer);
   }, [tryPlay]);
 
   // Keep retrying on every user interaction until audio unlocks
@@ -64,6 +67,7 @@ export const ValentineMusicButton = () => {
       audio.play().then(() => {
         setIsPlaying(true);
         audioUnlockedRef.current = true;
+        localStorage.setItem(STORAGE_KEY, "false");
         removeListeners();
       }).catch(() => {});
     };
@@ -109,6 +113,7 @@ export const ValentineMusicButton = () => {
         style={{ display: "none" }}
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
+        onCanPlayThrough={() => tryPlay()}
       />
       <div
         ref={constraintsRef}
