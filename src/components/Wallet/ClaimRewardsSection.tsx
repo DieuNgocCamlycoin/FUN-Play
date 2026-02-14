@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Coins, CheckCircle, Clock, Wallet, Trophy, Info, Hourglass } from "lucide-react";
+import { Coins, CheckCircle, Clock, Wallet, Trophy, Info, Hourglass, Camera } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { ClaimRewardsModal } from "@/components/Rewards/ClaimRewardsModal";
@@ -13,6 +13,7 @@ import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDebouncedCallback } from "@/hooks/useDebounce";
+import { useNavigate } from "react-router-dom";
 import {
   Tooltip,
   TooltipContent,
@@ -24,7 +25,9 @@ const CLAIM_THRESHOLD = 200000;
 
 export const ClaimRewardsSection = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { isConnected, address, connectWithRetry, isConnecting } = useWalletConnectionWithRetry();
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const isMountedRef = useRef(true);
@@ -45,7 +48,7 @@ export const ClaimRewardsSection = () => {
       // Fetch profile
       const { data: profile } = await supabase
         .from("profiles")
-        .select("total_camly_rewards, pending_rewards, approved_reward")
+        .select("total_camly_rewards, pending_rewards, approved_reward, avatar_url")
         .eq("id", user.id)
         .single();
 
@@ -70,6 +73,7 @@ export const ClaimRewardsSection = () => {
       const dailyClaimed = Number(dailyRecord?.total_claimed || 0);
 
       if (profile && isMountedRef.current) {
+        setAvatarUrl(profile.avatar_url);
         setStats({
           totalRewards: profile.total_camly_rewards || 0,
           pendingRewards: profile.pending_rewards || 0,
@@ -155,6 +159,13 @@ export const ClaimRewardsSection = () => {
   const canClaim = stats.approvedRewards >= CLAIM_THRESHOLD && isConnected && !dailyLimitReached;
 
   const handleClaimClick = () => {
+    if (!avatarUrl) {
+      toast({
+        title: "📸 Cập nhật hồ sơ để nhận thưởng",
+        description: "Vui lòng cập nhật ảnh đại diện và thông tin cá nhân trước khi claim CAMLY.",
+      });
+      return;
+    }
     if (dailyLimitReached) {
       toast({
         title: "🎉 Chúc mừng!",
@@ -307,6 +318,36 @@ export const ClaimRewardsSection = () => {
             </p>
           )}
         </div>
+
+        {/* Avatar Warning */}
+        {!loading && !avatarUrl && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="p-3 rounded-xl bg-gradient-to-r from-orange-500/15 to-amber-500/15 border border-orange-400/30"
+          >
+            <div className="flex items-start gap-3">
+              <Camera className="h-5 w-5 text-orange-500 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-orange-600 dark:text-orange-400">
+                  Cập nhật ảnh đại diện để nhận thưởng!
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Bạn cần cập nhật ảnh đại diện và thông tin cá nhân trước khi claim CAMLY. Đảm bảo ảnh không trùng lặp với người dùng khác.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate("/profile-settings")}
+                  className="mt-2 text-xs border-orange-400/50 text-orange-600 hover:bg-orange-500/10"
+                >
+                  <Camera className="h-3 w-3 mr-1" />
+                  Cập nhật hồ sơ
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-3">

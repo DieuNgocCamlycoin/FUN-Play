@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Coins, Sparkles, Gift, CheckCircle, Loader2, ExternalLink, Wallet, Smartphone, AlertCircle, HelpCircle, Clock, ShieldCheck, Info, TrendingUp } from "lucide-react";
+import { Coins, Sparkles, Gift, CheckCircle, Loader2, ExternalLink, Wallet, Smartphone, AlertCircle, HelpCircle, Clock, ShieldCheck, Info, TrendingUp, Camera } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -76,6 +77,7 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
   const [showWalletGuide, setShowWalletGuide] = useState(false);
   const [claimError, setClaimError] = useState<string | null>(null);
   const [hasPendingClaim, setHasPendingClaim] = useState(false);
+  const [profileCheck, setProfileCheck] = useState<{ hasAvatar: boolean; isVerified: boolean }>({ hasAvatar: true, isVerified: true });
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const claimInProgressRef = useRef(false);
 
@@ -100,10 +102,25 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
     setHasPendingClaim((data && data.length > 0) || false);
   }, [user?.id]);
 
+  // Fetch profile avatar check on modal open
+  const checkProfileAvatar = useCallback(async () => {
+    if (!user?.id) return;
+    const { data } = await supabase
+      .from('profiles')
+      .select('avatar_url, avatar_verified')
+      .eq('id', user.id)
+      .single();
+    setProfileCheck({
+      hasAvatar: !!data?.avatar_url,
+      isVerified: data?.avatar_verified ?? false,
+    });
+  }, [user?.id]);
+
   useEffect(() => {
     if (open && user) {
       fetchUnclaimedRewards();
       checkPendingClaims();
+      checkProfileAvatar();
     }
   }, [open, user]);
 
@@ -592,7 +609,44 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
                   </Alert>
                 )}
 
-                {/* 🎉 Thông báo ngưỡng claim */}
+                {/* 📸 Avatar required warning */}
+                {!profileCheck.hasAvatar && (
+                  <Alert className="border-orange-500/30 bg-orange-500/10">
+                    <Camera className="h-4 w-4 text-orange-500" />
+                    <AlertTitle className="text-orange-600 font-semibold">
+                      📸 Vui lòng cập nhật ảnh đại diện!
+                    </AlertTitle>
+                    <AlertDescription className="text-sm text-muted-foreground space-y-2">
+                      <p>Bạn cần cập nhật ảnh đại diện và thông tin cá nhân để nhận thưởng CAMLY. Sau khi cập nhật, bạn có thể claim thưởng.</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          onOpenChange(false);
+                          window.location.href = "/profile-settings";
+                        }}
+                        className="text-xs border-orange-400/50 text-orange-600 hover:bg-orange-500/10"
+                      >
+                        <Camera className="h-3 w-3 mr-1" />
+                        Cập nhật hồ sơ
+                      </Button>
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {/* ⚠️ Avatar verification pending */}
+                {profileCheck.hasAvatar && !profileCheck.isVerified && (
+                  <Alert className="border-blue-500/30 bg-blue-500/10">
+                    <Info className="h-4 w-4 text-blue-500" />
+                    <AlertTitle className="text-blue-600 font-semibold">
+                      🔍 Ảnh đại diện đang chờ xác minh
+                    </AlertTitle>
+                    <AlertDescription className="text-sm text-muted-foreground">
+                      Ảnh đại diện của bạn đang chờ xác minh. Vui lòng đảm bảo ảnh không trùng lặp với người dùng khác.
+                    </AlertDescription>
+                  </Alert>
+                )}
+
                 {!hasPendingClaim && totalClaimable >= MIN_CLAIM_THRESHOLD && (
                   <Alert className="border-green-500/30 bg-green-500/10">
                     <CheckCircle className="h-4 w-4 text-green-500" />
@@ -697,7 +751,7 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
                   <div className="space-y-3">
                     <Button
                       onClick={handleClaim}
-                      disabled={claiming || hasPendingClaim || totalClaimable < MIN_CLAIM_THRESHOLD}
+                      disabled={claiming || hasPendingClaim || totalClaimable < MIN_CLAIM_THRESHOLD || !profileCheck.hasAvatar}
                       className="w-full bg-gradient-to-r from-yellow-500 to-cyan-500 hover:from-yellow-600 hover:to-cyan-600 text-white font-bold py-5"
                     >
                       {hasPendingClaim ? (
