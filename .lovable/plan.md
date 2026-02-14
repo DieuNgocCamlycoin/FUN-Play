@@ -1,51 +1,75 @@
 
 
-# Fix Claim CAMLY Chat Messages and Notifications
+# Fix Claim Messaging and Notifications to Match Gift Transactions
 
-## Current Status
+## Current Gaps (Claim vs Gift)
 
-After investigating the database, I found that the code changes from the previous update are correct but the edge function needs to be redeployed. Evidence:
-- 0 donation_transactions with context_type "claim" (insert never executed)
-- 0 chat messages from the Treasurer (chat never created)
-- Existing notifications still have BSCScan links (old code)
+| Feature | Gift Transaction | Claim Transaction |
+|---------|-----------------|-------------------|
+| donation_transactions record | Created on frontend | Created in edge function (correct) |
+| Chat message with donation_transaction_id | Passed correctly | Passed correctly |
+| Notification metadata | Includes transaction_id, receipt_public_id, theme, amount, token_symbol | Missing entirely |
+| Notification link | Internal `/receipt/{id}` | Internal (correct) |
+| Notification type in filter | `gift_received` -- NOT in "Rewards" tab | `claim_success` -- in "Rewards" tab |
+| Treasurer avatar | null -- shows fallback "F" letter | Needs a proper avatar URL |
+| Mobile card width | Fixed 320px -- may overflow on small screens | Same issue |
+| Notification action_type | `share_celebration` for gift approval | Missing for claims |
 
-Additionally, the Treasurer profile needs a proper display name and avatar for the Celebration Card to render nicely.
+## Changes
 
-## Changes Required
+### 1. Backend: `supabase/functions/claim-camly/index.ts`
 
-### 1. Redeploy `claim-camly` edge function
-The code is already correct -- it just needs a fresh deployment to take effect. No code changes needed.
+**Add metadata to claim notification** (to match gift notification format):
 
-### 2. Update Treasurer profile data
-The Treasurer profile currently shows `display_name: "treasurer@funplay.system"` and `username: "user_f0f0f0f0"` with no avatar. This will cause the Celebration Card to display ugly fallback text. Update to:
-- `display_name`: "Fun Pay Treasurer"
-- `username`: "funpay_treasurer"
-- `avatar_url`: A suitable system avatar (e.g., the platform logo)
+Update the notification insert (around line 484) to include `metadata` with transaction details:
+- `metadata.transaction_id`: the donation_transactions ID
+- `metadata.receipt_public_id`: for deep linking
+- `metadata.amount` and `metadata.token_symbol`
 
-### 3. Verify ChatDonationCard handles claim context
-The `ChatDonationCard` component fetches sender/receiver data from `donation_transactions` joins. The card title says "CHUC MUNG TANG THUONG THANH CONG" (Gift Success). For claims, this should say something more appropriate like "CLAIM CAMLY THANH CONG". This requires a small frontend update to detect `context_type: "claim"` from the metadata.
+This makes claim notifications data-rich like gift notifications.
 
-## Technical Details
+### 2. Frontend: `src/pages/Notifications.tsx`
 
-### File: `supabase/functions/claim-camly/index.ts`
-- No code changes needed -- the current code is correct
-- Redeploy the function
+**Include `gift_received` in the "Rewards" filter tab**:
 
-### Database: Update Treasurer profile
-```sql
-UPDATE profiles 
-SET display_name = 'Fun Pay Treasurer', 
-    username = 'funpay_treasurer'
-WHERE id = 'f0f0f0f0-0000-0000-0000-000000000001';
+Currently line 134 only matches `reward` and `claim_success`. Gift notifications use type `gift_received` which only shows under "All". Update the filter to:
+
+```
+n.type === "reward" || n.type === "claim_success" || n.type === "gift_received"
 ```
 
-### File: `src/components/Chat/ChatDonationCard.tsx`
-- Add detection of `context_type` from metadata to customize the card title for claim vs gift transactions
-- When `context_type = "claim"`, show title "CLAIM CAMLY THANH CONG" instead of "CHUC MUNG TANG THUONG THANH CONG"
+### 3. Frontend: `src/components/Chat/ChatDonationCard.tsx`
+
+**Mobile responsive improvements**:
+- Change `max-w-[320px]` to `max-w-[280px] sm:max-w-[320px]` so the card fits better on small screens (iPhone SE = 320px viewport)
+- Reduce avatar sizes from `h-12 w-12` to `h-10 w-10 sm:h-12 sm:w-12` for mobile
+- Make the amount text slightly smaller on mobile: `text-base sm:text-lg`
+
+### 4. Database: Update Treasurer avatar
+
+Set a proper avatar for the Treasurer profile so the card doesn't show a plain "F" fallback. Use the platform logo from the public directory.
+
+```sql
+UPDATE profiles 
+SET avatar_url = '/images/logo.png'
+WHERE id = 'f0f0f0f0-0000-0000-0000-000000000001' 
+  AND avatar_url IS NULL;
+```
 
 ## Execution Order
-1. Update Treasurer profile in database
-2. Redeploy the edge function
-3. Update ChatDonationCard for claim context display
-4. Test with a claim transaction
+
+1. Update Treasurer avatar in database
+2. Update claim-camly edge function (add metadata to notification)
+3. Update Notifications.tsx (add gift_received to Rewards filter)
+4. Update ChatDonationCard.tsx (mobile responsive)
+5. Redeploy edge function
+
+## Files Changed
+
+| File | Change |
+|------|--------|
+| `supabase/functions/claim-camly/index.ts` | Add metadata to notification insert |
+| `src/pages/Notifications.tsx` | Include `gift_received` in Rewards filter |
+| `src/components/Chat/ChatDonationCard.tsx` | Mobile responsive sizing |
+| Database | Treasurer avatar_url update |
 
