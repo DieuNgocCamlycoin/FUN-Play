@@ -1,6 +1,3 @@
-import { useState } from "react";
-import { Camera, Edit2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { ProfileHonorBoard } from "./ProfileHonorBoard";
 
@@ -40,9 +37,12 @@ export const ProfileHeader = ({ profile, channel }: ProfileHeaderProps) => {
         <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-background/20 to-transparent" />
         <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--cosmic-purple))]/10 via-transparent to-[hsl(var(--cosmic-cyan))]/10" />
 
-        {/* Honor Board - Positioned on cover photo */}
-        <ProfileHonorBoard userId={profile.id} />
+        {/* Honor Board - Desktop only (on cover) */}
+        <ProfileHonorBoard userId={profile.id} placement="cover" />
       </div>
+
+      {/* Honor Board - Mobile only (below cover) */}
+      <ProfileHonorBoard userId={profile.id} placement="below" />
 
       {/* Avatar - Overlapping cover */}
       <div className="relative max-w-6xl mx-auto px-4 lg:px-6">
