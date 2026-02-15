@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { getUserDisplayInfo, ProfileData, ChannelData } from "@/lib/userUtils";
-import { getSystemWalletDisplayInfo } from "@/config/systemWallets";
+import { getSystemWalletDisplayInfo, SYSTEM_WALLETS } from "@/config/systemWallets";
 
 // ======================== TYPES ========================
 // UPDATED: Remove "tip", "reward", "transfer" → Use "gift", "donate", "claim"
@@ -364,14 +364,14 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
           id: c.id,
           source_table: "claim_requests",
           
-          // Sender: FUN PLAY Treasury (Admin wallet) - Dùng config
+          // Sender: FUN PLAY Treasury (Admin wallet) - Dùng config tập trung
           sender_user_id: null,
-          sender_display_name: "FUN PLAY TREASURY",
-          sender_username: "@funplaytreasury",
-          sender_avatar_url: "/images/fun-play-wallet-icon.png",
-          sender_channel_name: "FUN PLAY TREASURY",
-          wallet_from: "0x1DC2...998",
-          wallet_from_full: "0x1DC24BFd99c256B12a4A4cC7732c7e3B9aA75998",
+          sender_display_name: SYSTEM_WALLETS.TREASURY.displayName,
+          sender_username: SYSTEM_WALLETS.TREASURY.username,
+          sender_avatar_url: SYSTEM_WALLETS.TREASURY.avatarUrl,
+          sender_channel_name: SYSTEM_WALLETS.TREASURY.channelName,
+          wallet_from: formatAddress(SYSTEM_WALLETS.TREASURY.address),
+          wallet_from_full: SYSTEM_WALLETS.TREASURY.address,
           
           // Receiver: User
           receiver_user_id: c.user_id,
