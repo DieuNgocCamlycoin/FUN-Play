@@ -1,71 +1,60 @@
 
+# Fix FUN PLAY TREASURY Identity for Claim Donation Transactions
 
-# Update FUN PLAY TREASURY Identity and Channel Linking
+## Root Cause
 
-## Problem
-The TREASURY wallet config has the wrong address (`0x1DC2...5998`) and no link to the actual FUN PLAY TREASURY channel. The real TREASURY profile exists in the database with:
-- User ID: `cc9cd3a1-8541-4f6f-b10e-f5619e0de832`
-- Username: `user_cc9cd3a1`
-- Wallet: `0x9848fFc886Fb7d17C0060ff11c75997C9B2de4cC`
-- Avatar: stored in cloud storage
+The system has **two different Treasury user accounts**:
 
-Clicking on the TREASURY sender in transaction cards does nothing because `sender_user_id` is set to `null`.
+1. **`f0f0f0f0-0000-0000-0000-000000000001`** - Old system account ("Fun Pay Treasurer", email: `treasurer@funplay.system`). This is used as `sender_id` in `donation_transactions` with `context_type = 'claim'`. It has **no wallet_address** and its auto-created channel is named "treasurer@funplay.system's Channel".
+
+2. **`cc9cd3a1-8541-4f6f-b10e-f5619e0de832`** - The real FUN PLAY TREASURY profile with the correct wallet address, avatar, and display name. This is what `systemWallets.ts` references.
+
+The current system wallet detection only checks by `wallet_address`, but the old treasury account (`f0f0f0f0-...`) has no wallet address. So for claim donation_transactions, the system wallet override fails and the raw channel name ("treasurer@funplay.system's Channel") is displayed instead of "FUN PLAY TREASURY".
 
 ## Solution
 
-### 1. Add `userId` to SystemWalletInfo interface
-Add an optional `userId` field so system wallets can link to their channel/profile pages.
+### Step 1: Add the old Treasury user ID to `systemWallets.ts`
 
-### 2. Update TREASURY config in `systemWallets.ts`
+Add a constant for the old system sender ID so it can be recognized:
 
-| Field | Current | Updated |
-|-------|---------|---------|
-| address | `0x1DC24BFd...5998` | `0x9848fFc886Fb7d17C0060ff11c75997C9B2de4cC` |
-| username | `@funplaytreasury` | `@user_cc9cd3a1` |
-| avatarUrl | `/images/funplay-planet-logo.png` | Cloud avatar URL from the profile |
-| userId | (not present) | `cc9cd3a1-8541-4f6f-b10e-f5619e0de832` |
+```text
+// In systemWallets.ts - new constant
+export const SYSTEM_TREASURY_SENDER_ID = "f0f0f0f0-0000-0000-0000-000000000001";
+```
 
-Display name and channel name remain "FUN PLAY TREASURY".
+### Step 2: Update donation_transactions normalization in `useTransactionHistory.ts`
 
-### 3. Update `useTransactionHistory.ts` - Pass userId for claim transactions
-Change `sender_user_id: null` to `sender_user_id: SYSTEM_WALLETS.TREASURY.userId` so that clicking on the TREASURY avatar/name in the TransactionCard navigates to `/user/cc9cd3a1-...` (which resolves to the channel page).
+In the donation_transactions normalization section (around line 294), add a special check: when `context_type === 'claim'` and `sender_id` matches the old system sender ID, override with `SYSTEM_WALLETS.TREASURY` config instead of using the profile data.
+
+```text
+// In the donation_transactions forEach:
+// Special handling for claim transactions from old system account
+if (d.context_type === 'claim' && d.sender_id === SYSTEM_TREASURY_SENDER_ID) {
+  // Use TREASURY config instead of profile data
+  finalSenderInfo = {
+    displayName: SYSTEM_WALLETS.TREASURY.displayName,
+    username: SYSTEM_WALLETS.TREASURY.username,
+    avatarUrl: SYSTEM_WALLETS.TREASURY.avatarUrl,
+    channelName: SYSTEM_WALLETS.TREASURY.channelName,
+  };
+  // Override sender_user_id to link to real TREASURY channel
+  senderUserId = SYSTEM_WALLETS.TREASURY.userId || null;
+  senderWalletFrom = formatAddress(SYSTEM_WALLETS.TREASURY.address);
+  senderWalletFromFull = SYSTEM_WALLETS.TREASURY.address;
+}
+```
+
+This ensures:
+- Display name shows "FUN PLAY TREASURY" (not "treasurer@funplay.system")
+- Avatar shows the correct Fun Play logo
+- Wallet address shows `0x9848...0E8`
+- Clicking navigates to the real TREASURY channel page
+- The fix applies to both the public /transactions page and personal wallet history
+- Works on both web and mobile
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/config/systemWallets.ts` | Add `userId` field to interface; update TREASURY address, username, avatar, userId |
-| `src/hooks/useTransactionHistory.ts` | Use `SYSTEM_WALLETS.TREASURY.userId` for `sender_user_id` in claim transactions |
-
-## Technical Details
-
-```text
-// systemWallets.ts - Interface update
-export interface SystemWalletInfo {
-  address: string;
-  displayName: string;
-  username: string;
-  channelName: string;
-  avatarUrl: string;
-  userId?: string | null;  // Optional: links to user profile/channel
-}
-
-// systemWallets.ts - TREASURY config
-TREASURY: {
-  address: "0x9848fFc886Fb7d17C0060ff11c75997C9B2de4cC",
-  displayName: "FUN PLAY TREASURY",
-  username: "@user_cc9cd3a1",
-  channelName: "FUN PLAY TREASURY",
-  avatarUrl: "https://pub-348064b6f39043d6be2bfb92d648edb8.r2.dev/cc9cd3a1-.../play_fun.jpg",
-  userId: "cc9cd3a1-8541-4f6f-b10e-f5619e0de832",
-}
-
-// useTransactionHistory.ts - Line 368
-sender_user_id: SYSTEM_WALLETS.TREASURY.userId || null,
-```
-
-This ensures:
-- Correct wallet address displayed for all claim transactions
-- Correct avatar from the TREASURY profile
-- Clicking on TREASURY name/avatar navigates to the channel page
-- Works consistently on both web and mobile
+| `src/config/systemWallets.ts` | Add `SYSTEM_TREASURY_SENDER_ID` constant |
+| `src/hooks/useTransactionHistory.ts` | Import new constant; add claim-specific override in donation_transactions normalization |
