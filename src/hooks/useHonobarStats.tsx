@@ -58,7 +58,7 @@ export const useHonobarStats = () => {
       // Calculate total rewards (sum of all users' total_camly_rewards)
       const totalRewards = profilesData?.reduce((sum, profile) => sum + (profile.total_camly_rewards || 0), 0) || 0;
 
-      // Calculate CAMLY Pool (sum of approved_reward waiting to be claimed)
+      // Calculate FUN PLAY TREASURY Wallet Balance (sum of approved_reward waiting to be claimed)
       const camlyPool = profilesData?.reduce((sum, profile) => sum + (profile.approved_reward || 0), 0) || 0;
 
       if (isMountedRef.current) {
