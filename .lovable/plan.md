@@ -1,81 +1,66 @@
 
 
-# Suggestions: Encourage Real Profile Pictures Before Claiming CAMLY
+# Fix AI Selfie Verification for Wallet Claims
 
-## Current System
+## Status After Testing
 
-Your app already has a basic avatar gate -- users without any avatar cannot click the Claim button. However, users can upload any image (cartoons, logos, random photos) and still pass this check. You want to encourage **real personal photos**.
+The `verify-avatar` edge function is **deployed and working correctly**. I tested it with a logo image and it correctly returned `verified: false`. The AI analysis (Gemini 2.5 Flash) is functioning properly.
 
-## Suggested Approaches (Choose One or Combine)
-
-### Option A: Selfie Verification Gate (Recommended)
-
-Add a "Selfie Verification" step before claiming. When a user uploads an avatar, use **AI face detection** to check if the image contains a real human face.
-
-**How it works:**
-1. User uploads avatar on profile settings page
-2. Backend edge function uses Lovable AI (Gemini) to analyze the image: "Does this image contain a clear human face as a profile photo?"
-3. If YES: set `avatar_verified = true`, user can claim
-4. If NO: set `avatar_verified = false`, show a friendly message: "Please upload a real photo of yourself to claim rewards"
-
-**User experience:**
-- Claim button remains disabled until `avatar_verified = true`
-- Orange banner: "Upload a real photo of yourself to unlock claiming"
-- Link to profile settings with camera icon
-
-### Option B: Manual Admin Verification (Simpler)
-
-Keep the current system but make `avatar_verified` a manual admin approval:
-1. User uploads any avatar
-2. Admin reviews in the admin panel and approves/rejects
-3. Only verified avatars unlock claiming
-
-**Downside:** Requires manual admin work for every user.
-
-### Option C: Bonus Reward for Real Photos (Soft Encouragement)
-
-Instead of blocking, offer a **bonus reward** for verified photos:
-- Users with verified real photos get a 10-20% bonus on all rewards
-- Show a "Verified" badge on their profile/channel
-- Display a progress bar: "Upload a real photo to unlock +20% bonus rewards"
-
-**Downside:** Does not force compliance, some users will skip it.
-
-### Option D: Tiered Claim Limits (Hybrid)
-
-- **Without real photo**: Can claim up to 100,000 CAMLY/day
-- **With verified real photo**: Full 500,000 CAMLY/day limit
-- This gives users an incentive without completely blocking them
+However, I found **two issues** that need fixing:
 
 ---
 
-## Recommended: Option A (AI Selfie Verification)
+## Issue 1: ClaimRewardsSection Does Not Check `avatar_verified`
 
-### Technical Implementation
+The `ClaimRewardsSection` component (the main claim page) only checks if `avatarUrl` exists -- it does NOT check `avatar_verified`. This means:
+- Users with any image (cartoon, logo, etc.) can still open the claim modal from this page
+- The verification gate only works inside the `ClaimRewardsModal`, but users see a confusing flow
 
-**Step 1: Create edge function `verify-avatar`**
-- Accepts the user's avatar URL
-- Sends it to Lovable AI (Gemini 2.5 Flash) with prompt: "Is this a real photo of a human face suitable for a profile picture? Answer YES or NO."
-- Updates `profiles.avatar_verified` based on the result
+**Fix:** Update `ClaimRewardsSection` to:
+1. Fetch `avatar_verified` alongside `avatar_url` (already fetched but not used for gating)
+2. Add verification check to `handleClaimClick` -- block with a toast if not verified
+3. Update the avatar warning banner to also show when avatar exists but is not verified
+4. Add `avatar_verified` to the `canClaim` condition
 
-**Step 2: Update profile settings page**
-- After avatar upload, automatically call `verify-avatar`
-- Show verification status (pending/verified/rejected)
-- If rejected: "Please upload a clear photo of your face"
+## Issue 2: All 183 Existing Users Are Unverified
 
-**Step 3: Update ClaimRewardsModal**
-- Change the existing gate from `!profileCheck.hasAvatar` to `!profileCheck.hasAvatar || !profileCheck.isVerified`
-- The claim button is already disabled when `!profileCheck.hasAvatar` -- extend this to also check `isVerified`
-- Update the orange warning message to be clearer about needing a **real photo**
+Currently all 183 users with avatars have `avatar_verified = false` because the verification was just added. This means **no existing users can claim** until they re-upload their avatar.
 
-**Step 4: Update the claim button disabled condition**
-- Current: `!profileCheck.hasAvatar`
-- New: `!profileCheck.hasAvatar || !profileCheck.isVerified`
+**Fix:** This is expected behavior -- users need to go to Profile Settings and re-upload a real photo. No code change needed, but we should make the messaging clearer so users understand what to do.
 
-### Files to Change
+---
 
-1. **New**: `supabase/functions/verify-avatar/index.ts` -- AI-powered face detection
-2. **Edit**: Profile settings page -- trigger verification after avatar upload
-3. **Edit**: `src/components/Rewards/ClaimRewardsModal.tsx` -- strengthen the gate to require `isVerified`
-4. **Edit**: Admin panel -- add ability to manually override verification status
+## Technical Changes
 
+### File 1: `src/components/Wallet/ClaimRewardsSection.tsx`
+
+- Add `avatarVerified` state variable (already partially there via `avatarUrl`)
+- Fetch `avatar_verified` from profiles (already fetched but stored only as `avatar_url`)
+- Update `handleClaimClick` to check `avatarVerified`:
+  - If avatar exists but not verified: show toast directing to profile settings
+- Update the avatar warning section to show different messages:
+  - No avatar: "Upload a profile picture"
+  - Avatar but not verified: "Upload a real portrait photo to verify and claim"
+- Update `canClaim` logic to include `avatarVerified` check
+
+### File 2: `supabase/functions/verify-avatar/index.ts`
+
+No changes needed -- the function is working correctly.
+
+### File 3: `src/components/Rewards/ClaimRewardsModal.tsx`
+
+No changes needed -- the gating logic is already correct with both `hasAvatar` and `isVerified` checks.
+
+### File 4: `src/pages/ProfileSettings.tsx`
+
+No changes needed -- verification triggers automatically on avatar upload.
+
+---
+
+## Summary of Changes
+
+| File | Change |
+|------|--------|
+| `ClaimRewardsSection.tsx` | Add `avatar_verified` gating to claim button and warning banners |
+
+Only 1 file needs to be updated. The edge function and modal are already working correctly.
