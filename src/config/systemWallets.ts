@@ -28,7 +28,7 @@ export const SYSTEM_WALLETS = {
     displayName: "FUN PLAY TREASURY",
     username: "@funplaytreasury",
     channelName: "FUN PLAY TREASURY",
-    avatarUrl: "/images/fun-play-wallet-icon.png",
+    avatarUrl: "/images/funplay-planet-logo.png",
   } as SystemWalletInfo,
 
   // Ví tặng thưởng 2
