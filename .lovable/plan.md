@@ -1,48 +1,47 @@
 
 
-# Fix: Homepage Search Suggestions and Search Page
+# Fix: Wallet Connection Stability and Optimization
 
 ## Issues Found
 
-### Bug 1: Hook does not auto-open when results arrive
-The `useSearchSuggestions` hook requires the consumer to manually call `open()` on every keystroke. But if `close()` fires (e.g., blur timeout), new results arriving from the debounced query won't be visible because `isOpen` stays `false`. The fix: automatically set `isOpen = true` inside the effect when results are found.
+### Bug 1: Stale Closure in Retry Polling Loop (Critical)
+In `useWalletConnectionWithRetry.ts`, the `connectWithRetry` function polls `walletConnection.isConnected` inside a `while` loop. However, React state captured in a closure does not update between iterations -- the value is always whatever it was when the function started (usually `false`). This means the loop **always times out after 10 seconds**, even when the wallet connects successfully. The connection only works because the separate `useEffect` on line 57 eventually detects `walletConnection.isConnected` changed and updates the step.
 
-### Bug 2: Mobile suggestions never close on blur
-`MobileHeader` does not use `isOpen` at all -- it shows the dropdown purely based on `suggestedVideos.length > 0 || suggestedChannels.length > 0`. This means if the user taps outside the search box, the dropdown stays visible until they clear the search or navigate away.
+**Fix**: Use a `ref` to track the connected state, updated via the `useEffect` that already watches `walletConnection.isConnected`. The polling loop reads from the ref instead of the stale closure value.
 
-### Bug 3: Desktop blur timeout race condition
-In `Header.tsx`, `onBlur` calls `setTimeout(closeSuggestions, 200)`. If the user types again quickly, the 200ms timeout still fires and closes suggestions even though the user is actively typing. The fix: cancel pending close when the user types or focuses.
+### Bug 2: WalletButton FUN Wallet Navigation Missing
+In `WalletButton.tsx` line 251, `onSelectFunWallet` is `() => {}` -- a no-op. When users click "FUN Wallet" in the selection modal from the header button, nothing happens (the modal opens a new tab via `handleFunWallet` in `WalletSelectionModal`, but the WalletButton's own callback should navigate to `/fun-wallet`).
 
-### Bug 4: Search page video results missing `onPlay` handler
-On mobile, `VideoCard` in the search page does not pass an `onPlay` prop. Users have to rely on the card's default click behavior which may not work consistently.
+**Fix**: Import `useNavigate` and navigate to `/fun-wallet` when FUN Wallet is selected.
+
+### Bug 3: Cancel Wallet Change Shows Disconnected State
+In `useWalletConnection.ts` line 220, when canceling a wallet change and there is a previous wallet in the DB, `isConnected` is set to `false`. This shows the user as disconnected in the UI even though they have an active wallet saved in their profile. The `disconnect()` call is correct (it disconnects the wagmi session with the new wallet), but the UI state should reflect that the old wallet is still their registered wallet.
+
+**Fix**: When canceling and a previous wallet exists, keep the address displayed but show a "reconnect" state rather than fully disconnected. Practically, just don't clear `isConnected` if `previousAddressRef.current` exists -- set it to `true` and show the old address.
+
+### Optimization: Stabilize switchToBSC Reference
+`switchToBSC` depends on `toast`, and the `watchAccount` effect includes `switchToBSC` in its dependency array. This can cause unnecessary re-subscriptions. Wrap `toast` usage in a ref to stabilize the callback.
 
 ## Changes
 
-### File 1: `src/hooks/useSearchSuggestions.ts`
-- Auto-set `isOpen = true` when the debounced query returns results (videos or channels found)
-- Auto-set `isOpen = false` when query is cleared or too short (< 2 chars)
-- This removes the need for consumers to manually manage open/close state around typing
+### File 1: `src/hooks/useWalletConnectionWithRetry.ts`
+- Add a `isConnectedRef` that mirrors `walletConnection.isConnected`
+- Update the polling loop to read `isConnectedRef.current` instead of the stale closure value
+- This ensures the retry loop detects connection success immediately
 
-### File 2: `src/components/Layout/MobileHeader.tsx`
-- Use `isOpen` from the hook to control dropdown visibility (instead of just checking data length)
-- Call `open()` in the `onChange` handler
-- Add `onBlur` with a small timeout to call `close()`, so the dropdown hides when the user taps outside
-- This ensures the dropdown properly closes when the user navigates away from the input
+### File 2: `src/components/Web3/WalletButton.tsx`
+- Import `useNavigate` from react-router-dom
+- Update `onSelectFunWallet` callback to navigate to `/fun-wallet`
 
-### File 3: `src/components/Layout/Header.tsx`
-- Store the blur timeout in a ref so it can be cancelled
-- Cancel the pending close timeout in `onChange` and `onFocus`
-- This prevents the race condition where blur fires while the user is still typing
-
-### File 4: `src/pages/Search.tsx`
-- Add `onPlay` handler to `VideoCard` in the mobile search results grid for consistent navigation
+### File 3: `src/hooks/useWalletConnection.ts`
+- In `handleCancelWalletChange`: when `previousAddressRef.current` exists, set `isConnected` to `true` and show the old address, since the user still has a registered wallet
+- Stabilize `switchToBSC` by using a ref for `toast` to prevent unnecessary `watchAccount` re-subscriptions
 
 ## Summary
 
-| File | Action | Change |
-|------|--------|--------|
-| `src/hooks/useSearchSuggestions.ts` | EDIT | Auto-manage `isOpen` when results arrive/clear |
-| `src/components/Layout/MobileHeader.tsx` | EDIT | Use `isOpen` + add blur handling |
-| `src/components/Layout/Header.tsx` | EDIT | Fix blur timeout race condition with ref |
-| `src/pages/Search.tsx` | EDIT | Add `onPlay` to mobile VideoCard |
+| File | Change |
+|------|--------|
+| `src/hooks/useWalletConnectionWithRetry.ts` | Fix stale closure in retry polling with ref |
+| `src/components/Web3/WalletButton.tsx` | Add navigation to /fun-wallet on FUN Wallet select |
+| `src/hooks/useWalletConnection.ts` | Fix cancel wallet change state + stabilize switchToBSC |
 
