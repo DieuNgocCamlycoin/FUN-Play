@@ -1,60 +1,74 @@
 
-# Fix FUN PLAY TREASURY Identity for Claim Donation Transactions
+
+# Fix Long Videos Appearing in Shorts Tab
 
 ## Root Cause
 
-The system has **two different Treasury user accounts**:
+The filtering logic in `ProfileVideosTab.tsx` is **correct** -- shorts are defined as `duration <= 180s` and videos as `duration > 180s OR duration IS NULL`.
 
-1. **`f0f0f0f0-0000-0000-0000-000000000001`** - Old system account ("Fun Pay Treasurer", email: `treasurer@funplay.system`). This is used as `sender_id` in `donation_transactions` with `context_type = 'claim'`. It has **no wallet_address** and its auto-created channel is named "treasurer@funplay.system's Channel".
+However, the **database has incorrect duration values** for many videos. For example:
+- "8 CAU THAN CHU CUA CHA (1)" has `duration = 8` in the DB, but the actual video is 4:01 (241 seconds)
+- Many videos have stored durations of 3-10 seconds when they are actually much longer
 
-2. **`cc9cd3a1-8541-4f6f-b10e-f5619e0de832`** - The real FUN PLAY TREASURY profile with the correct wallet address, avatar, and display name. This is what `systemWallets.ts` references.
-
-The current system wallet detection only checks by `wallet_address`, but the old treasury account (`f0f0f0f0-...`) has no wallet address. So for claim donation_transactions, the system wallet override fails and the raw channel name ("treasurer@funplay.system's Channel") is displayed instead of "FUN PLAY TREASURY".
+The current auto-duration detection in `Watch.tsx` only corrects videos with `duration = NULL`. It does NOT fix videos that already have an incorrect (too-short) stored duration.
 
 ## Solution
 
-### Step 1: Add the old Treasury user ID to `systemWallets.ts`
+### 1. Expand auto-duration correction in Watch.tsx
 
-Add a constant for the old system sender ID so it can be recognized:
+Change the condition from `data.duration == null` to also detect mismatches. When the player loads metadata, compare the actual duration against the stored value. If they differ significantly (e.g., actual is more than 2x the stored value), update the DB.
 
-```text
-// In systemWallets.ts - new constant
-export const SYSTEM_TREASURY_SENDER_ID = "f0f0f0f0-0000-0000-0000-000000000001";
-```
+This will self-heal incorrect durations as users watch the videos.
 
-### Step 2: Update donation_transactions normalization in `useTransactionHistory.ts`
+### 2. Also add the same correction to YouTubeMobilePlayer
 
-In the donation_transactions normalization section (around line 294), add a special check: when `context_type === 'claim'` and `sender_id` matches the old system sender ID, override with `SYSTEM_WALLETS.TREASURY` config instead of using the profile data.
-
-```text
-// In the donation_transactions forEach:
-// Special handling for claim transactions from old system account
-if (d.context_type === 'claim' && d.sender_id === SYSTEM_TREASURY_SENDER_ID) {
-  // Use TREASURY config instead of profile data
-  finalSenderInfo = {
-    displayName: SYSTEM_WALLETS.TREASURY.displayName,
-    username: SYSTEM_WALLETS.TREASURY.username,
-    avatarUrl: SYSTEM_WALLETS.TREASURY.avatarUrl,
-    channelName: SYSTEM_WALLETS.TREASURY.channelName,
-  };
-  // Override sender_user_id to link to real TREASURY channel
-  senderUserId = SYSTEM_WALLETS.TREASURY.userId || null;
-  senderWalletFrom = formatAddress(SYSTEM_WALLETS.TREASURY.address);
-  senderWalletFromFull = SYSTEM_WALLETS.TREASURY.address;
-}
-```
-
-This ensures:
-- Display name shows "FUN PLAY TREASURY" (not "treasurer@funplay.system")
-- Avatar shows the correct Fun Play logo
-- Wallet address shows `0x9848...0E8`
-- Clicking navigates to the real TREASURY channel page
-- The fix applies to both the public /transactions page and personal wallet history
-- Works on both web and mobile
+Since the user is on mobile, ensure the mobile player also triggers duration corrections. Add a callback or use the existing `onTimeUpdate` to detect and fix mismatches.
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/config/systemWallets.ts` | Add `SYSTEM_TREASURY_SENDER_ID` constant |
-| `src/hooks/useTransactionHistory.ts` | Import new constant; add claim-specific override in donation_transactions normalization |
+| `src/pages/Watch.tsx` | Expand auto-duration detection from NULL-only to also fix significant mismatches (stored vs actual) |
+| `src/components/Video/YouTubeMobilePlayer.tsx` | Add duration mismatch auto-correction when metadata loads |
+
+## Technical Details
+
+```text
+// Watch.tsx - Expanded auto-detect (line ~257)
+// Before: only triggers when data.duration == null
+// After: also triggers when stored duration differs significantly from actual
+
+const storedDuration = data.duration;
+const videoEl = document.createElement("video");
+videoEl.preload = "metadata";
+videoEl.src = data.video_url;
+videoEl.onloadedmetadata = async () => {
+  const actual = videoEl.duration;
+  if (actual && actual > 0 && isFinite(actual)) {
+    const rounded = Math.round(actual);
+    // Update if NULL or if mismatch is significant (>30% difference)
+    const needsUpdate = storedDuration == null 
+      || Math.abs(rounded - storedDuration) / Math.max(rounded, 1) > 0.3;
+    if (needsUpdate) {
+      await supabase
+        .from("videos")
+        .update({ duration: rounded })
+        .eq("id", data.id);
+    }
+  }
+  videoEl.src = "";
+};
+```
+
+```text
+// YouTubeMobilePlayer.tsx - Add duration correction on loadedmetadata
+// When the video element fires loadedmetadata, compare with stored duration
+// and update DB if there's a significant mismatch
+```
+
+This approach ensures:
+- Videos with wrong durations get auto-corrected when anyone watches them
+- Works on both desktop and mobile players
+- Once corrected, the video will appear in the correct tab (Video vs Shorts)
+- No manual data migration needed -- corrections happen organically
+
