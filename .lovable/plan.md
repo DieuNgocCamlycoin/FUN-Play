@@ -1,30 +1,32 @@
 
 
-# Fix CAMLY Logo White Background
+# Fix CAMLY Logo - Remove White Background Properly
 
 ## Problem
-The `mix-blend-mode: multiply` approach does not work here because the card itself has a white background (`bg-white`). Multiplying white on white produces white, so the logo's baked-in white background remains fully visible.
+The current `mix-blend-mode: darken` approach with a gold gradient background is not fully removing the white background. It turns the white into a gold ring, creating an unnatural border effect around the coin.
 
 ## Solution
-Replace the blend-mode approach with a proper visual fix:
+Use a two-part approach for a clean result:
 
-1. **Add a gradient background circle** behind the logo that matches the gold theme, so the white pixels in the image blend naturally into a gold-toned circle instead of standing out.
-2. **Use `mix-blend-mode: darken`** instead of `multiply` — this will make white pixels take on the background color beneath them (the gold gradient), effectively hiding the white border while preserving the coin design.
-3. **Add `overflow-hidden` and `rounded-full`** on the wrapper div to cleanly clip everything into a circle.
+1. **Scale the image slightly larger** (`scale-110` or `scale-125`) within the `overflow-hidden` container so the white border edges get clipped outside the visible area, revealing only the coin design itself.
+
+2. **Keep the gold gradient background** as a fallback behind the image, but remove the `mix-blend-mode` since scaling + clipping handles the white border removal.
+
+3. **Fine-tune sizing** to ensure the coin fills the circular container cleanly on both web and mobile.
 
 ## File Changed
 
 | File | Change |
 |------|--------|
-| `src/components/Wallet/CAMLYPriceSection.tsx` | Wrap logo in a gradient background circle and switch blend mode |
+| `src/components/Wallet/CAMLYPriceSection.tsx` | Scale image to clip white borders, remove blend mode |
 
 ## Technical Details
 
-Update the motion.div wrapper and img (lines 65-82):
+Update lines 65-84 in `CAMLYPriceSection.tsx`:
 
 ```text
 <motion.div
-  className="relative rounded-full overflow-hidden"
+  className="relative rounded-full overflow-hidden h-14 w-14"
   animate={{
     boxShadow: [
       "0 0 20px rgba(255, 215, 0, 0.4)",
@@ -40,14 +42,16 @@ Update the motion.div wrapper and img (lines 65-82):
   <img
     src="/images/camly-coin-new.png"
     alt="CAMLY"
-    className="h-14 w-14 rounded-full object-cover"
-    style={{ mixBlendMode: 'darken' }}
+    className="h-full w-full object-cover scale-125"
   />
 </motion.div>
 ```
 
-- The gold gradient background fills the space behind the logo
-- `mix-blend-mode: darken` makes the white pixels take on the darker gold background color, effectively removing the white border
-- `overflow-hidden` and `rounded-full` on the wrapper ensure a clean circular clip
-- Works consistently on both web and mobile browsers
+Key changes:
+- Set explicit `h-14 w-14` on the wrapper div (not the img) to control the container size
+- Use `h-full w-full` on the image to fill the container
+- Add `scale-125` to zoom the image slightly so the white border area falls outside the `overflow-hidden` clipping boundary
+- Remove `mix-blend-mode` entirely since it's no longer needed
+- The `rounded-full overflow-hidden` on the wrapper clips everything into a clean circle
 
+This approach works reliably on all browsers, both web and mobile, without relying on CSS blend modes.
