@@ -1,52 +1,42 @@
 
 
-# Fix Claim Receipt: Correct Profile, Wallet & Treasury Display
+# Fix Donation Receipt: Correct FUN PLAY TREASURY Display
 
-## Problems Identified
+## Problem
 
-1. **Missing channel name**: The edge function only fetches `profiles` but not the user's `channels` table data, so the receipt shows raw username (e.g., `user_35cca77d`) instead of the channel name.
-2. **No FUN PLAY TREASURY sender info**: Claim receipts are withdrawals from the Treasury to the user, but the receipt only shows the user -- it should also show FUN PLAY TREASURY as the sender (similar to how donation receipts show sender and receiver).
-3. **Profile wallet_address not fetched**: The edge function selects `id, username, display_name, avatar_url` but omits `wallet_address`, so the receipt can't cross-reference the user's registered wallet.
+The donation receipt at `/receipt/547f415c4c4c91ff` shows the sender as "Fun Pay Treasurer / @funpay_treasurer" with a generic logo. This is because the `get-donation-receipt` edge function fetches sender info directly from the `profiles` table for user ID `f0f0f0f0-0000-0000-0000-000000000001`, which has outdated data.
+
+The correct display should show **FUN PLAY TREASURY** with its proper avatar, username (`@user_cc9cd3a1`), and branding -- matching the configuration in `src/config/systemWallets.ts`.
+
+## Root Cause
+
+- The `donation_transactions` table stores `sender_id = f0f0f0f0-0000-0000-0000-000000000001` for claim-originated transactions
+- The edge function blindly fetches from `profiles` table for this ID, returning stale "Fun Pay Treasurer" data
+- No override logic exists for system wallet senders
 
 ## Plan
 
-### Step 1: Update the Edge Function (`get-claim-receipt`)
+### Step 1: Update Edge Function (`get-donation-receipt/index.ts`)
 
-Modify `supabase/functions/get-claim-receipt/index.ts` to:
-- Also fetch the user's **channel data** from the `channels` table (name field)
-- Include `wallet_address` in the profile select
-- Return channel info alongside profile
+After fetching sender profile, check if `sender_id` matches the system treasury sender ID (`f0f0f0f0-0000-0000-0000-000000000001`) or if `context_type === "claim"`. If so, override the sender data with correct FUN PLAY TREASURY info:
 
+```text
+sender = {
+  id: "cc9cd3a1-8541-4f6f-b10e-f5619e0de832",
+  username: "user_cc9cd3a1",
+  display_name: "FUN PLAY TREASURY",
+  avatar_url: "https://pub-348064b6f39043d6be2bfb92d648edb8.r2.dev/cc9cd3a1-8541-4f6f-b10e-f5619e0de832/avatars/1770830879600-play_fun.jpg"
+}
 ```
-profiles select: "id, username, display_name, avatar_url, wallet_address"
-channels select: "name" where user_id = claim.user_id
-```
 
-### Step 2: Update the ClaimReceipt Component (`src/pages/Receipt.tsx`)
+Also fetch **channel names** for both sender and receiver to display channel name instead of raw username.
 
-Modify the `ClaimReceipt` function to:
-- Import `getSystemWalletInfo` from `src/config/systemWallets.ts` and use TREASURY config
-- Add a **sender section** showing FUN PLAY TREASURY with its avatar, name, and wallet address (similar to the donation receipt's sender/receiver layout)
-- Use the **channel name** (from the edge function response) as the primary display name instead of raw username
-- Show the user's correct avatar, channel name, and @username
+### Step 2: Update `DonationReceipt` component in `Receipt.tsx`
 
-### Step 3: Layout Changes
+For the receiver side, prioritize displaying the **channel name** over the raw username, matching the same pattern used in the claim receipt fix.
 
-The claim receipt will show:
-- **FUN PLAY TREASURY** (sender) with its configured avatar and name
-- Arrow indicator
-- **User** (receiver) with their channel name, avatar, and @username
-- Amount, wallet address, TX hash, and status (unchanged)
+### Files Changed
 
-## Technical Details
-
-### Edge Function Changes
-- Add a second query to `channels` table joining on `user_id`
-- Return `{ ...claim, profiles: profile, channel: channel }`
-
-### Frontend Changes
-- Import `SYSTEM_WALLETS` from `systemWallets.ts`
-- Use `SYSTEM_WALLETS.TREASURY` for sender display (avatar, name, wallet address)
-- Use channel name as primary display name via the `getUserDisplayInfo` pattern
-- Add sender-receiver visual layout matching the donation receipt style
+1. `supabase/functions/get-donation-receipt/index.ts` -- Add system treasury override + fetch channel names
+2. `src/pages/Receipt.tsx` -- Update `DonationReceipt` to use channel name for receiver display
 
