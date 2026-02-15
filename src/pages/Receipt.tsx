@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import funplayPlanetLogo from "@/assets/funplay-planet-logo.png";
 import { useParams, Link } from "react-router-dom";
 import { Gift, ExternalLink, Copy, ArrowRight, Play, FileText, Loader2, Wallet, CheckCircle, TrendingUp, Heart } from "lucide-react";
+import { SYSTEM_WALLETS } from "@/config/systemWallets";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -72,6 +73,11 @@ function ClaimReceipt({ claimId }: { claimId: string }) {
   }
 
   const profile = claim.profiles;
+  const channel = claim.channel;
+  const treasury = SYSTEM_WALLETS.TREASURY;
+
+  // Use channel name > display_name > username for display
+  const userDisplayName = channel?.name || profile?.display_name || profile?.username || "Unknown";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 p-4 flex items-center justify-center">
@@ -102,17 +108,31 @@ function ClaimReceipt({ claimId }: { claimId: string }) {
         </div>
 
         <CardContent className="p-6 space-y-5">
-          {/* User info */}
-          <div className="flex items-center gap-3">
-            <Avatar className="h-12 w-12 border-2 border-green-200">
-              <AvatarImage src={profile?.avatar_url || ""} />
-              <AvatarFallback>{profile?.username?.[0]?.toUpperCase() || "?"}</AvatarFallback>
-            </Avatar>
-            <div>
-              <p className="font-medium">{profile?.display_name || profile?.username}</p>
-              <p className="text-sm text-muted-foreground">@{profile?.username}</p>
+          {/* Sender (Treasury) → Receiver (User) */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Avatar className="h-12 w-12 border-2 border-green-200">
+                <AvatarImage src={treasury.avatarUrl} />
+                <AvatarFallback>FP</AvatarFallback>
+              </Avatar>
+              <div>
+                <p className="font-medium text-sm">{treasury.displayName}</p>
+                <p className="text-xs text-muted-foreground">{treasury.username}</p>
+              </div>
             </div>
-            <CheckCircle className="h-5 w-5 text-green-500 ml-auto" />
+
+            <ArrowRight className="h-6 w-6 text-green-500 shrink-0" />
+
+            <div className="flex items-center gap-3">
+              <div className="text-right">
+                <p className="font-medium text-sm">{userDisplayName}</p>
+                <p className="text-xs text-muted-foreground">@{profile?.username}</p>
+              </div>
+              <Avatar className="h-12 w-12 border-2 border-green-200">
+                <AvatarImage src={profile?.avatar_url || ""} />
+                <AvatarFallback>{profile?.username?.[0]?.toUpperCase() || "?"}</AvatarFallback>
+              </Avatar>
+            </div>
           </div>
 
           <Separator />
@@ -131,8 +151,12 @@ function ClaimReceipt({ claimId }: { claimId: string }) {
 
           <Separator />
 
-          {/* Wallet */}
+          {/* Details */}
           <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Ví gửi (Treasury)</span>
+              <span className="font-mono text-xs">{treasury.address.slice(0, 10)}...{treasury.address.slice(-6)}</span>
+            </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Ví nhận</span>
               <span className="font-mono text-xs">{claim.wallet_address?.slice(0, 10)}...{claim.wallet_address?.slice(-8)}</span>
