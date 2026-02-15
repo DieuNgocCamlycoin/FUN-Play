@@ -1,6 +1,6 @@
 import { Search, Video, Bell, Menu, User as UserIcon, LogOut, Settings, Radio, SquarePen, Plus, FileVideo, List, Music, Shield, Crown, MessageCircle, Users } from "lucide-react";
 import funplayLogo from "@/assets/funplay-logo.jpg";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
@@ -55,6 +55,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
   const navigate = useNavigate();
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const { videos: suggestedVideos, channels: suggestedChannels, isOpen: showSuggestions, query: searchQuery, setQuery: setSearchQuery, open: openSuggestions, close: closeSuggestions, clear: clearSearch } = useSearchSuggestions();
+  const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
 
@@ -116,10 +117,16 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
             value={searchQuery}
             onChange={(e) => {
               setSearchQuery(e.target.value);
+              if (blurTimeoutRef.current) { clearTimeout(blurTimeoutRef.current); blurTimeoutRef.current = null; }
               openSuggestions();
             }}
-            onFocus={openSuggestions}
-            onBlur={() => setTimeout(closeSuggestions, 200)}
+            onFocus={() => {
+              if (blurTimeoutRef.current) { clearTimeout(blurTimeoutRef.current); blurTimeoutRef.current = null; }
+              openSuggestions();
+            }}
+            onBlur={() => {
+              blurTimeoutRef.current = setTimeout(closeSuggestions, 200);
+            }}
             placeholder="Tìm kiếm"
             className="w-full pl-4 pr-12 h-10 bg-muted border-border focus:border-primary rounded-full"
           />

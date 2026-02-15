@@ -404,6 +404,7 @@ const Search = () => {
                       duration={video.duration}
                       isVerified={video.channels?.is_verified}
                       videoUrl={video.video_url || undefined}
+                      onPlay={() => navigate(`/watch/${video.id}`)}
                     />
                   ))}
                 </div>
