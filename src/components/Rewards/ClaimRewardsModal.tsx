@@ -713,7 +713,7 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
                   <div className="space-y-2">
                     <Button
                       onClick={handleClaim}
-                      disabled={claiming || hasPendingClaim || totalClaimable < MIN_CLAIM_THRESHOLD || !profileCheck.hasAvatar || !!claimAmountError || claimAmount < MIN_CLAIM_THRESHOLD}
+                      disabled={claiming || hasPendingClaim || totalClaimable < MIN_CLAIM_THRESHOLD || !profileCheck.hasAvatar || !profileCheck.isVerified || !!claimAmountError || claimAmount < MIN_CLAIM_THRESHOLD}
                       className="w-full bg-gradient-to-r from-yellow-500 to-cyan-500 hover:from-yellow-600 hover:to-cyan-600 text-white font-bold py-5"
                     >
                       {hasPendingClaim ? (
@@ -805,7 +805,7 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
                 {!profileCheck.hasAvatar && (
                   <div className="flex items-center gap-2 p-2.5 rounded-lg bg-orange-500/10 border border-orange-500/30 text-xs">
                     <Camera className="h-3.5 w-3.5 text-orange-500 flex-shrink-0" />
-                    <span className="text-muted-foreground flex-1">Cập nhật ảnh đại diện để claim</span>
+                    <span className="text-muted-foreground flex-1">Tải lên ảnh chân dung thật của bạn để claim</span>
                     <Button
                       variant="outline"
                       size="sm"
@@ -818,9 +818,17 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
                 )}
 
                 {profileCheck.hasAvatar && !profileCheck.isVerified && (
-                  <div className="flex items-center gap-2 p-2.5 rounded-lg bg-blue-500/10 border border-blue-500/30 text-xs">
-                    <Info className="h-3.5 w-3.5 text-blue-500 flex-shrink-0" />
-                    <span className="text-muted-foreground">Ảnh đại diện đang chờ xác minh</span>
+                  <div className="flex items-center gap-2 p-2.5 rounded-lg bg-orange-500/10 border border-orange-500/30 text-xs">
+                    <Camera className="h-3.5 w-3.5 text-orange-500 flex-shrink-0" />
+                    <span className="text-muted-foreground flex-1">Vui lòng sử dụng ảnh chân dung thật để xác minh và claim</span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => { onOpenChange(false); window.location.href = "/profile-settings"; }}
+                      className="text-[10px] h-6 px-2 border-orange-400/50 text-orange-600 hover:bg-orange-500/10"
+                    >
+                      Cập nhật ảnh
+                    </Button>
                   </div>
                 )}
 

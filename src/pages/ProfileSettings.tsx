@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Save, Play, Pause, Lock } from "lucide-react";
+import { ArrowLeft, Save, Play, Pause, Lock, ShieldCheck, ShieldAlert, Loader2 } from "lucide-react";
 import { MainLayout } from "@/components/Layout/MainLayout";
 import { DragDropImageUpload } from "@/components/Profile/DragDropImageUpload";
 import { ProfileCompletionIndicator } from "@/components/Profile/ProfileCompletionIndicator";
@@ -32,6 +32,8 @@ export default function ProfileSettings() {
   const [channelId, setChannelId] = useState<string | null>(null);
   const [isPlayingPreview, setIsPlayingPreview] = useState(false);
   const [isUploadingMusic, setIsUploadingMusic] = useState(false);
+  const [avatarVerified, setAvatarVerified] = useState<boolean | null>(null);
+  const [isVerifyingAvatar, setIsVerifyingAvatar] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const musicFileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -63,6 +65,7 @@ export default function ProfileSettings() {
         setAvatarUrl(data.avatar_url || "");
         setBio(data.bio || "");
         setMusicUrl(data.music_url || "");
+        setAvatarVerified(data.avatar_verified ?? null);
       }
 
       // Fetch channel info for banner
@@ -381,12 +384,70 @@ export default function ProfileSettings() {
 
               <DragDropImageUpload
                 currentImageUrl={avatarUrl}
-                onImageUploaded={(url) => setAvatarUrl(url)}
+                onImageUploaded={async (url) => {
+                  setAvatarUrl(url);
+                  setAvatarVerified(null);
+                  // Auto-verify avatar with AI
+                  if (url) {
+                    setIsVerifyingAvatar(true);
+                    try {
+                      const { data: sessionData } = await supabase.auth.getSession();
+                      const token = sessionData?.session?.access_token;
+                      if (token) {
+                        const res = await supabase.functions.invoke("verify-avatar", {
+                          body: { avatarUrl: url },
+                        });
+                        if (res.data) {
+                          setAvatarVerified(res.data.verified);
+                          toast({
+                            title: res.data.verified ? "✅ Xác minh thành công" : "⚠️ Chưa xác minh",
+                            description: res.data.message,
+                            variant: res.data.verified ? "default" : "destructive",
+                          });
+                        }
+                      }
+                    } catch (err: any) {
+                      console.error("Avatar verification error:", err);
+                    } finally {
+                      setIsVerifyingAvatar(false);
+                    }
+                  }
+                }}
                 label="Ảnh đại diện (Avatar)"
                 aspectRatio="aspect-square"
                 folderPath="avatars"
                 maxSizeMB={5}
               />
+
+              {/* Avatar verification status */}
+              {avatarUrl && (
+                <div className={`flex items-center gap-2 p-2.5 rounded-lg text-xs ${
+                  isVerifyingAvatar
+                    ? "bg-blue-500/10 border border-blue-500/30"
+                    : avatarVerified === true
+                    ? "bg-green-500/10 border border-green-500/30"
+                    : avatarVerified === false
+                    ? "bg-orange-500/10 border border-orange-500/30"
+                    : "bg-muted/30 border border-border"
+                }`}>
+                  {isVerifyingAvatar ? (
+                    <>
+                      <Loader2 className="h-4 w-4 text-blue-500 animate-spin flex-shrink-0" />
+                      <span className="text-muted-foreground">Đang xác minh ảnh bằng AI...</span>
+                    </>
+                  ) : avatarVerified === true ? (
+                    <>
+                      <ShieldCheck className="h-4 w-4 text-green-500 flex-shrink-0" />
+                      <span className="text-green-600">Ảnh chân dung đã được xác minh ✅</span>
+                    </>
+                  ) : avatarVerified === false ? (
+                    <>
+                      <ShieldAlert className="h-4 w-4 text-orange-500 flex-shrink-0" />
+                      <span className="text-orange-600">Vui lòng sử dụng ảnh chân dung thật của bạn để xác minh và claim CAMLY</span>
+                    </>
+                  ) : null}
+                </div>
+              )}
 
               <DragDropImageUpload
                 currentImageUrl={bannerUrl}
