@@ -13,6 +13,7 @@ import { useHapticFeedback } from "@/hooks/useHapticFeedback";
 import { useAutoReward } from "@/hooks/useAutoReward";
 import { useAuth } from "@/hooks/useAuth";
 import { parseChapters, getCurrentChapter, type Chapter } from "@/lib/parseChapters";
+import { supabase } from "@/integrations/supabase/client";
 
 interface YouTubeMobilePlayerProps {
   videoUrl: string;
@@ -436,7 +437,24 @@ export function YouTubeMobilePlayer({
           src={videoUrl}
           className="w-full h-full object-contain"
           onTimeUpdate={() => setCurrentTime(videoRef.current?.currentTime || 0)}
-          onLoadedMetadata={() => setDuration(videoRef.current?.duration || 0)}
+          onLoadedMetadata={() => {
+            const actualDur = videoRef.current?.duration || 0;
+            setDuration(actualDur);
+            // Auto-fix duration mismatch in DB
+            if (actualDur > 0 && isFinite(actualDur) && videoId) {
+              const rounded = Math.round(actualDur);
+              supabase.from("videos").select("duration").eq("id", videoId).maybeSingle().then(({ data }) => {
+                if (data) {
+                  const stored = data.duration;
+                  const needsUpdate = stored == null || Math.abs(rounded - stored) / Math.max(rounded, 1) > 0.3;
+                  if (needsUpdate) {
+                    console.log(`[Mobile Auto-Duration] Fixing ${videoId}: stored=${stored}s → actual=${rounded}s`);
+                    supabase.from("videos").update({ duration: rounded }).eq("id", videoId).then(() => {});
+                  }
+                }
+              });
+            }
+          }}
           onEnded={handleVideoEnded}
           onPlay={() => setIsPlaying(true)}
           onPause={() => setIsPlaying(false)}
