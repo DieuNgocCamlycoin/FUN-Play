@@ -194,18 +194,23 @@ serve(async (req) => {
     claimAmount = Math.min(claimAmount, lifetimeRemaining);
     console.log(`Claim amount (after all limits): ${claimAmount} CAMLY`);
 
-    // Auto-cleanup stuck pending claims (older than 5 minutes)
-    console.log("Auto-cleaning stuck pending claims...");
-    await supabaseAdmin
+    // Auto-cleanup stuck pending claims (older than 2 minutes) - BEFORE pending check to prevent deadlock
+    console.log("Auto-cleaning stuck pending claims (>2 min)...");
+    const { data: cleanedUp } = await supabaseAdmin
       .from('claim_requests')
       .update({ 
         status: 'failed', 
-        error_message: 'Auto-timeout after 5 minutes',
+        error_message: 'Auto-timeout after 2 minutes',
         processed_at: new Date().toISOString()
       })
       .eq('user_id', user.id)
       .eq('status', 'pending')
-      .lt('created_at', new Date(Date.now() - 5 * 60 * 1000).toISOString());
+      .lt('created_at', new Date(Date.now() - 2 * 60 * 1000).toISOString())
+      .select('id');
+    
+    if (cleanedUp && cleanedUp.length > 0) {
+      console.log(`Auto-cleaned ${cleanedUp.length} stuck pending claims for user ${user.id}:`, cleanedUp.map(c => c.id));
+    }
 
     // Check for pending claims (prevent double claiming)
     console.log("Checking for pending claims...");

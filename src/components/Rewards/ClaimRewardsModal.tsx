@@ -78,8 +78,11 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
   const [claimError, setClaimError] = useState<string | null>(null);
   const [hasPendingClaim, setHasPendingClaim] = useState(false);
   const [profileCheck, setProfileCheck] = useState<{ hasAvatar: boolean; isVerified: boolean }>({ hasAvatar: true, isVerified: true });
+  const [claimElapsed, setClaimElapsed] = useState(0);
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const claimInProgressRef = useRef(false);
+  const claimTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const claimTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     setIsMobile(isMobileBrowser());
@@ -95,11 +98,41 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
     if (!user?.id) return;
     const { data } = await supabase
       .from('claim_requests')
-      .select('id')
+      .select('id, created_at')
       .eq('user_id', user.id)
       .eq('status', 'pending')
       .limit(1);
-    setHasPendingClaim((data && data.length > 0) || false);
+    
+    if (data && data.length > 0) {
+      const pendingClaim = data[0];
+      const createdAt = new Date(pendingClaim.created_at).getTime();
+      const ageMinutes = (Date.now() - createdAt) / (1000 * 60);
+      
+      // Auto-cleanup pending claims older than 5 minutes
+      if (ageMinutes > 5) {
+        console.log(`Auto-cleaning stuck pending claim ${pendingClaim.id} (${ageMinutes.toFixed(1)} min old)`);
+        // Call edge function to trigger server-side cleanup, then re-check
+        try {
+          await supabase.functions.invoke("claim-camly", {
+            body: { walletAddress: "0x0000000000000000000000000000000000000000" },
+          });
+        } catch {
+          // Expected to fail with invalid address, but auto-cleanup runs first
+        }
+        // Re-check after cleanup attempt
+        const { data: recheck } = await supabase
+          .from('claim_requests')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('status', 'pending')
+          .limit(1);
+        setHasPendingClaim((recheck && recheck.length > 0) || false);
+        return;
+      }
+      setHasPendingClaim(true);
+    } else {
+      setHasPendingClaim(false);
+    }
   }, [user?.id]);
 
   // Fetch profile avatar check on modal open
@@ -278,6 +311,26 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
     claimInProgressRef.current = true;
     setClaiming(true);
     setClaimError(null);
+    setClaimElapsed(0);
+    
+    // Start elapsed timer
+    const startTime = Date.now();
+    claimTimerRef.current = setInterval(() => {
+      setClaimElapsed(Math.floor((Date.now() - startTime) / 1000));
+    }, 1000);
+    
+    // 90-second timeout
+    claimTimeoutRef.current = setTimeout(() => {
+      if (claimInProgressRef.current) {
+        console.log("Claim timed out after 90 seconds");
+        setClaiming(false);
+        claimInProgressRef.current = false;
+        if (claimTimerRef.current) clearInterval(claimTimerRef.current);
+        setClaimError("⏱️ Giao dịch quá thời gian (90s). Vui lòng kiểm tra lại và thử lại.");
+        setHasPendingClaim(false);
+        checkPendingClaims();
+      }
+    }, 90000);
     
     logWalletDebug('Starting claim', { 
       userId: user.id, 
@@ -363,6 +416,9 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
     } finally {
       setClaiming(false);
       claimInProgressRef.current = false;
+      setClaimElapsed(0);
+      if (claimTimerRef.current) clearInterval(claimTimerRef.current);
+      if (claimTimeoutRef.current) clearTimeout(claimTimeoutRef.current);
       // Refresh balance immediately after claim attempt
       fetchUnclaimedRewards();
     }
@@ -589,42 +645,95 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
                     )}
                   </div>
                 ) : isConnected ? (
-                  <Button
-                    onClick={handleClaim}
-                    disabled={claiming || hasPendingClaim || totalClaimable < MIN_CLAIM_THRESHOLD || !profileCheck.hasAvatar}
-                    className="w-full bg-gradient-to-r from-yellow-500 to-cyan-500 hover:from-yellow-600 hover:to-cyan-600 text-white font-bold py-5"
-                  >
-                    {hasPendingClaim ? (
-                      <>
-                        <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                        Đang xử lý giao dịch...
-                      </>
-                    ) : claiming ? (
-                      <>
-                        <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                        Đang gửi CAMLY...
-                      </>
-                    ) : totalClaimable < MIN_CLAIM_THRESHOLD ? (
-                      `Cần ${formatNumber(Math.max(MIN_CLAIM_THRESHOLD - totalClaimable, 0))} CAMLY nữa`
-                    ) : (
-                      <>
-                        <motion.div
-                          animate={{ scale: [1, 1.2, 1] }}
-                          transition={{ duration: 0.5, repeat: Infinity }}
-                        >
-                          <Coins className="h-5 w-5 mr-2" />
-                        </motion.div>
-                        Claim {formatNumber(totalClaimable)} CAMLY
-                      </>
+                  <div className="space-y-2">
+                    <Button
+                      onClick={handleClaim}
+                      disabled={claiming || hasPendingClaim || totalClaimable < MIN_CLAIM_THRESHOLD || !profileCheck.hasAvatar}
+                      className="w-full bg-gradient-to-r from-yellow-500 to-cyan-500 hover:from-yellow-600 hover:to-cyan-600 text-white font-bold py-5"
+                    >
+                      {hasPendingClaim ? (
+                        <>
+                          <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                          Đang xử lý giao dịch...
+                        </>
+                      ) : claiming ? (
+                        <>
+                          <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                          Đang gửi CAMLY... {claimElapsed}s
+                        </>
+                      ) : totalClaimable < MIN_CLAIM_THRESHOLD ? (
+                        `Cần ${formatNumber(Math.max(MIN_CLAIM_THRESHOLD - totalClaimable, 0))} CAMLY nữa`
+                      ) : (
+                        <>
+                          <motion.div
+                            animate={{ scale: [1, 1.2, 1] }}
+                            transition={{ duration: 0.5, repeat: Infinity }}
+                          >
+                            <Coins className="h-5 w-5 mr-2" />
+                          </motion.div>
+                          Claim {formatNumber(totalClaimable)} CAMLY
+                        </>
+                      )}
+                    </Button>
+                    
+                    {/* Force retry button after 30s of claiming */}
+                    {claiming && claimElapsed >= 30 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setClaiming(false);
+                          claimInProgressRef.current = false;
+                          setClaimElapsed(0);
+                          if (claimTimerRef.current) clearInterval(claimTimerRef.current);
+                          if (claimTimeoutRef.current) clearTimeout(claimTimeoutRef.current);
+                          setClaimError(null);
+                          checkPendingClaims();
+                          fetchUnclaimedRewards();
+                        }}
+                        className="w-full text-xs border-amber-500/50 text-amber-600 hover:bg-amber-500/10"
+                      >
+                        <AlertCircle className="h-3.5 w-3.5 mr-1" />
+                        Hủy & Thử lại (đã chờ {claimElapsed}s)
+                      </Button>
                     )}
-                  </Button>
+                  </div>
                 ) : null}
 
+                {/* Claim error display */}
+                {claimError && isConnected && (
+                  <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30 text-sm">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="text-destructive font-medium text-xs">Lỗi</p>
+                        <p className="text-muted-foreground text-xs">{claimError}</p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => { setClaimError(null); checkPendingClaims(); }}
+                        className="text-[10px] h-6 px-2"
+                      >
+                        Thử lại
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Compact warnings */}
-                {hasPendingClaim && (
+                {hasPendingClaim && !claiming && (
                   <div className="flex items-center gap-2 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs">
                     <Loader2 className="h-3.5 w-3.5 text-amber-500 animate-spin flex-shrink-0" />
-                    <span className="text-muted-foreground">Giao dịch đang xử lý trên blockchain. Vui lòng đợi...</span>
+                    <span className="text-muted-foreground flex-1">Giao dịch đang xử lý trên blockchain...</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => { setHasPendingClaim(false); checkPendingClaims(); fetchUnclaimedRewards(); }}
+                      className="text-[10px] h-6 px-2 text-amber-600"
+                    >
+                      Kiểm tra lại
+                    </Button>
                   </div>
                 )}
 
