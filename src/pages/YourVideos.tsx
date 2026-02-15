@@ -56,9 +56,9 @@ const YourVideos = () => {
         .order("created_at", { ascending: false });
 
       if (activeTab === "video") {
-        query = query.or("duration.gt.180,and(duration.is.null,category.neq.shorts)");
+        query = query.or("duration.gt.180,duration.is.null");
       } else if (activeTab === "shorts") {
-        query = query.or("duration.lte.180,and(duration.is.null,category.eq.shorts)");
+        query = query.not('duration', 'is', null).lte('duration', 180);
       }
 
       const { data, error } = await query;

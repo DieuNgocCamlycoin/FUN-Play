@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { formatDuration } from "@/lib/formatters";
 import funplayPlanetLogo from "@/assets/funplay-planet-logo.png";
 import { MainLayout } from "@/components/Layout/MainLayout";
 import { supabase } from "@/integrations/supabase/client";
@@ -47,6 +48,7 @@ interface RewardTransaction {
   approved_at: string | null;
   video_id: string | null;
   video_title?: string;
+  video_duration?: number | null;
 }
 
 interface ClaimRequest {
@@ -219,20 +221,21 @@ export default function RewardHistory() {
       // Fetch video titles for transactions with video_id
       const videoIds = [...new Set(data?.filter(t => t.video_id).map(t => t.video_id) || [])];
       
-      let videoMap = new Map<string, string>();
+      let videoMap = new Map<string, { title: string; duration: number | null }>();
       if (videoIds.length > 0) {
         const { data: videos } = await supabase
           .from("videos")
-          .select("id, title")
+          .select("id, title, duration")
           .in("id", videoIds);
-        videoMap = new Map(videos?.map(v => [v.id, v.title]) || []);
+        videoMap = new Map(videos?.map(v => [v.id, { title: v.title, duration: v.duration }]) || []);
       }
 
       const enrichedData = data?.map(t => ({
         ...t,
         approved: t.approved ?? false,
         approved_at: t.approved_at ?? null,
-        video_title: t.video_id ? videoMap.get(t.video_id) : undefined
+        video_title: t.video_id ? videoMap.get(t.video_id)?.title : undefined,
+        video_duration: t.video_id ? videoMap.get(t.video_id)?.duration : undefined,
       })) || [];
 
       setTransactions(enrichedData);
@@ -591,8 +594,22 @@ export default function RewardHistory() {
                             <div>
                               <p className="font-medium text-sm">{label}</p>
                               {tx.video_title && (
-                                <p className="text-xs text-muted-foreground truncate max-w-[200px]">
-                                  {tx.video_title}
+                                <div className="flex items-center gap-1.5">
+                                  <p className="text-xs text-muted-foreground truncate max-w-[180px]">
+                                    {tx.video_title}
+                                  </p>
+                                  {tx.video_duration != null && ['SHORT_VIDEO_UPLOAD', 'LONG_VIDEO_UPLOAD', 'UPLOAD', 'FIRST_UPLOAD'].includes(tx.reward_type) && (
+                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 shrink-0">
+                                      {formatDuration(tx.video_duration)}
+                                    </Badge>
+                                  )}
+                                </div>
+                              )}
+                              {['SHORT_VIDEO_UPLOAD', 'LONG_VIDEO_UPLOAD'].includes(tx.reward_type) && (
+                                <p className="text-[10px] text-muted-foreground/70 mt-0.5">
+                                  {tx.reward_type === 'SHORT_VIDEO_UPLOAD' 
+                                    ? 'Video ngắn (≤3 phút) = 20,000 CAMLY' 
+                                    : 'Video dài (>3 phút) = 70,000 CAMLY'}
                                 </p>
                               )}
                               <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -609,7 +626,9 @@ export default function RewardHistory() {
                               className={
                                 tx.claimed 
                                   ? "bg-green-500/20 text-green-500 text-xs" 
-                                  : "bg-cyan-500/20 text-cyan-500 text-xs"
+                                  : tx.approved
+                                    ? "bg-cyan-500/20 text-cyan-500 text-xs"
+                                    : "bg-amber-500/20 text-amber-500 text-xs"
                               }
                             >
                               {tx.claimed ? (
@@ -617,10 +636,15 @@ export default function RewardHistory() {
                                   <CheckCircle className="w-3 h-3 mr-1" />
                                   Đã claim
                                 </>
-                              ) : (
+                              ) : tx.approved ? (
                                 <>
                                   <Gift className="w-3 h-3 mr-1" />
                                   Có thể claim
+                                </>
+                              ) : (
+                                <>
+                                  <Clock className="w-3 h-3 mr-1" />
+                                  Chờ duyệt
                                 </>
                               )}
                             </Badge>

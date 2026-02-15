@@ -259,7 +259,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
             file_size: file.size,
             duration: metadata.duration > 0 ? Math.round(metadata.duration) : null,
             is_public: metadata.visibility === "public",
-            category: metadata.isShort ? "shorts" : "general",
+            category: (metadata.isShort && metadata.duration > 0 && metadata.duration <= 180) ? "shorts" : "general",
             approval_status: approvalStatus,
           })
           .select("id")
