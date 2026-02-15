@@ -146,7 +146,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
             {suggestedVideos.map((s) => (
               <button
                 key={s.id}
-                onClick={() => handleSuggestionClick(s.id)}
+                onMouseDown={(e) => { e.preventDefault(); handleSuggestionClick(s.id); }}
                 className="w-full px-4 py-3 text-left hover:bg-accent flex items-center gap-3 transition-colors"
               >
                 <Search className="h-4 w-4 text-muted-foreground" />
@@ -159,7 +159,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
             {suggestedChannels.map((ch) => (
               <button
                 key={ch.id}
-                onClick={() => handleChannelClick(ch.id)}
+                onMouseDown={(e) => { e.preventDefault(); handleChannelClick(ch.id); }}
                 className="w-full px-4 py-3 text-left hover:bg-accent flex items-center gap-3 transition-colors"
               >
                 {ch.avatar_url ? (

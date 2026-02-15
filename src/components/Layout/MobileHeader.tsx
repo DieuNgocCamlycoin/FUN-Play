@@ -297,7 +297,7 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
                 {suggestedVideos.map((s) => (
                   <button
                     key={s.id}
-                    onClick={() => handleSuggestionClick(s.id)}
+                    onMouseDown={(e) => { e.preventDefault(); handleSuggestionClick(s.id); }}
                     className="flex items-center gap-3 w-full px-4 min-h-[48px] hover:bg-muted/60 active:bg-muted transition-colors text-left"
                   >
                     <Search className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -310,7 +310,7 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
                 {suggestedChannels.map((ch) => (
                   <button
                     key={ch.id}
-                    onClick={() => handleChannelClick(ch.id)}
+                    onMouseDown={(e) => { e.preventDefault(); handleChannelClick(ch.id); }}
                     className="flex items-center gap-3 w-full px-4 min-h-[48px] hover:bg-muted/60 active:bg-muted transition-colors text-left"
                   >
                     {ch.avatar_url ? (
