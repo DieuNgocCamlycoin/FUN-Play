@@ -352,7 +352,7 @@ const RewardPoolTab = () => {
         <Card className="p-4">
           <div className="flex items-center gap-2 mb-2">
             <Coins className="w-4 h-4 text-yellow-500" />
-            <span className="text-xs text-muted-foreground">FUN PLAY TREASURY Wallet Balance</span>
+            <span className="text-xs text-muted-foreground">FUN PLAY TREASURY Balance</span>
           </div>
           <p className="text-lg font-bold text-yellow-500">{poolBalance}</p>
         </Card>
