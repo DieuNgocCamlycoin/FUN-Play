@@ -25,7 +25,7 @@ export const SYSTEM_WALLETS = {
   
   // Ví tặng thưởng 1 (Treasury)
   TREASURY: {
-    address: "0x9848fFc886Fb7d17C0060ff11c75997C9B2de4cC",
+    address: "0x1DC24BFd99c256B12a4A4cC7732c7e3B9aA75998",
     displayName: "FUN PLAY TREASURY",
     username: "@user_cc9cd3a1",
     channelName: "FUN PLAY TREASURY",
