@@ -50,11 +50,11 @@ export const ProfileVideosTab = ({ userId, channelId, type }: ProfileVideosTabPr
         query = query.eq("user_id", userId);
       }
 
-      // Filter by type (shorts are videos up to 180 seconds)
+      // Filter by type (shorts are videos up to 180 seconds, duration-only)
       if (type === "shorts") {
-        query = query.or("duration.lte.180,and(duration.is.null,category.eq.shorts)");
+        query = query.not('duration', 'is', null).lte('duration', 180);
       } else {
-        query = query.or("duration.gt.180,and(duration.is.null,category.neq.shorts)");
+        query = query.or("duration.gt.180,duration.is.null");
       }
 
       const { data, error } = await query;

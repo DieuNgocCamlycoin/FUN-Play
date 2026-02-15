@@ -402,7 +402,8 @@ export default function Shorts() {
         `)
         .eq('is_public', true)
         .eq('approval_status', 'approved')
-        .or('duration.lte.180,category.eq.shorts')
+        .not('duration', 'is', null)
+        .lte('duration', 180)
         .order('created_at', { ascending: false })
         .limit(50);
 

@@ -502,7 +502,7 @@ export function UploadVideoModal({ open, onOpenChange }: UploadVideoModalProps) 
         video_url: videoUrl,
         thumbnail_url: thumbnailUrl,
         is_public: true,
-        category: isShorts ? "shorts" : (isMeditation ? "meditation" : "general"),
+        category: (isShorts && videoDuration && videoDuration <= 180) ? "shorts" : (isMeditation ? "meditation" : "general"),
         sub_category: null,
         duration: videoDuration ? Math.round(videoDuration) : null,
         approval_status: "approved",
