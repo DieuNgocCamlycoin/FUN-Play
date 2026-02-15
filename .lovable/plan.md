@@ -1,49 +1,35 @@
 
 
-# Fix: Homepage Shows Skeleton Loaders Forever / Can't Log In
+# Fix: Channel Click Not Working in Search Suggestions
 
 ## Root Cause
 
-Your backend database is overwhelmed with **statement timeouts** -- dozens of "canceling statement due to statement timeout" errors in the logs. This means:
+When clicking/tapping a channel (or video) suggestion in the search dropdown, the following happens:
+1. User taps the suggestion button
+2. The input loses focus, triggering `onBlur`
+3. `onBlur` sets a 200ms timeout to close the dropdown
+4. On mobile, the touch-to-click delay can exceed 200ms, so the dropdown disappears before `onClick` fires
+5. The click lands on nothing -- navigation never happens
 
-1. **Auth token refresh fails** (504 timeout) -- you can't log in because the auth service can't reach the database
-2. **Video query fails** -- the homepage query times out, so skeleton loaders stay forever
-3. **No error recovery** -- when the video fetch fails, the code keeps `loadingVideos = true`, showing skeletons indefinitely
-
-Two code-level problems make this worse:
-- The homepage fetches **1,000 videos at once** (`.limit(1000)`) even though only 24 are shown initially -- this is wasteful and slow
-- There is **no missing composite index** for the common filter `(is_public, approval_status, created_at DESC)`, forcing full table scans on 1,000+ videos
+This affects both desktop (intermittently) and mobile (frequently).
 
 ## Solution
 
-### 1. Add composite database index (migration)
-Create a composite index on `videos(is_public, approval_status, created_at DESC)` so the homepage query is fast and avoids timeouts.
-
-### 2. Reduce video fetch from 1000 to 100 (`Index.tsx`)
-Since infinite scroll loads 24 at a time, fetching 1,000 upfront is unnecessary. Reduce to 100 for the initial load -- still plenty, but much lighter on the database.
-
-### 3. Add error recovery for video loading (`Index.tsx`)
-When `fetchVideos` fails (catches an error), set `loadingVideos = false` so the page shows "no videos" instead of infinite skeleton loaders. Also add a retry button.
-
-### 4. Upgrade database instance (recommendation)
-The volume of timeout errors suggests the database instance may be too small for the current traffic. Consider upgrading in Settings -> Cloud -> Advanced settings.
+Replace `onClick` with `onMouseDown` + `e.preventDefault()` on all suggestion buttons. `onMouseDown` fires **before** `onBlur`, and `preventDefault()` prevents the input from losing focus entirely. This guarantees the navigation fires reliably.
 
 ## Changes
 
-| Item | Detail |
+### File 1: `src/components/Layout/Header.tsx`
+- Change video suggestion buttons from `onClick` to `onMouseDown` with `e.preventDefault()`
+- Change channel suggestion buttons from `onClick` to `onMouseDown` with `e.preventDefault()`
+
+### File 2: `src/components/Layout/MobileHeader.tsx`
+- Same change: replace `onClick` with `onMouseDown` + `e.preventDefault()` on all suggestion buttons (both videos and channels)
+
+## Summary
+
+| File | Change |
 |------|--------|
-| **Database migration** | Add composite index `idx_videos_public_approved` on `(is_public, approval_status, created_at DESC)` |
-| **`src/pages/Index.tsx`** | Reduce `.limit(1000)` to `.limit(100)`; set `loadingVideos = false` in catch block; add retry UI when fetch fails |
+| `src/components/Layout/Header.tsx` | Use `onMouseDown` + `preventDefault` on suggestion buttons |
+| `src/components/Layout/MobileHeader.tsx` | Use `onMouseDown` + `preventDefault` on suggestion buttons |
 
-## Technical Details
-
-### Migration SQL
-```sql
-CREATE INDEX IF NOT EXISTS idx_videos_public_approved 
-ON public.videos (is_public, approval_status, created_at DESC);
-```
-
-### Index.tsx changes
-- Line with `.limit(1000)` changed to `.limit(100)`
-- In the `catch` block of `fetchVideos`, add `setLoadingVideos(false)` so skeletons don't persist on failure
-- Add a `fetchError` state to show a retry button when fetch fails

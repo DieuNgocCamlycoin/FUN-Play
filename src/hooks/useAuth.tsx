@@ -10,43 +10,23 @@ export const useAuth = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    let resolved = false;
-
-    const resolve = (s: Session | null) => {
-      if (resolved) return;
-      resolved = true;
-      setSession(s);
-      setUser(s?.user ?? null);
-      setLoading(false);
-    };
-
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        resolve(session);
+      (event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        setLoading(false);
       }
     );
 
     // Check for existing session
-    supabase.auth.getSession()
-      .then(({ data: { session } }) => resolve(session))
-      .catch((err) => {
-        console.error("[useAuth] getSession failed:", err);
-        resolve(null);
-      });
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
 
-    // Safety timeout – never stay on loading screen forever
-    const timeout = setTimeout(() => {
-      if (!resolved) {
-        console.warn("[useAuth] Auth timed out after 5s, rendering as logged out");
-        resolve(null);
-      }
-    }, 5000);
-
-    return () => {
-      subscription.unsubscribe();
-      clearTimeout(timeout);
-    };
+    return () => subscription.unsubscribe();
   }, []);
 
   const signOut = async () => {
