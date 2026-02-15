@@ -1,4 +1,4 @@
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -98,7 +98,28 @@ const PageLoader = () => (
 function AppContent() {
   useRewardRealtimeNotification();
   useMusicCompletionNotification();
-  
+
+  // Global handler for unhandled promise rejections (e.g. MetaMask inpage.js errors)
+  useEffect(() => {
+    const handleRejection = (event: PromiseRejectionEvent) => {
+      const reason = event.reason;
+      const msg = reason?.message || String(reason) || '';
+      // Suppress known MetaMask/wallet connection rejections to prevent blank screen
+      if (
+        msg.includes('MetaMask') ||
+        msg.includes('user rejected') ||
+        msg.includes('User denied') ||
+        msg.includes('wallet_') ||
+        msg.includes('eth_requestAccounts')
+      ) {
+        console.warn('[Global] Suppressed wallet rejection:', msg);
+        event.preventDefault();
+      }
+    };
+    window.addEventListener('unhandledrejection', handleRejection);
+    return () => window.removeEventListener('unhandledrejection', handleRejection);
+  }, []);
+
   return (
     <>
       <RecoveryModeGuard>
