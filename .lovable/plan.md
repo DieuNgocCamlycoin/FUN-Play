@@ -1,24 +1,48 @@
 
 
-# Replace CAMLY Token Logo in Price Chart
+# Remove White Background Around CAMLY Token Logo
 
-## What Will Change
+## Problem
+The CAMLY coin logo next to "CAMLY Token" on the price chart has a visible white/light background around it, making it look out of place against the card background.
 
-The current CAMLY coin logo (`/images/camly-coin.png`) next to the "CAMLY Token" text in the price chart section will be replaced with the new uploaded logo featuring the rainbow-glow CAMLY coin design.
+## Solution
 
-## Steps
+Since the uploaded image has a white background baked into the PNG file itself, we need to use CSS to visually remove it. There are two approaches combined for best results:
 
-1. **Copy the uploaded image** to `public/images/camly-coin-new.png` (using public folder since the current logo already uses a public path pattern)
+1. **Use `mix-blend-mode: multiply`** on the image -- this CSS property makes white pixels transparent, effectively removing the white background while preserving the coin design.
 
-2. **Update `src/components/Wallet/CAMLYPriceSection.tsx`**:
-   - Change the `img src` from `/images/camly-coin.png` to `/images/camly-coin-new.png`
-   - The existing animated glow effect (`boxShadow` animation) will be adjusted to complement the rainbow glow already present in the new logo
-   - Size remains `h-14 w-14` on desktop with `rounded-full` for clean circular display
+2. **Add a subtle gradient background behind the logo** to ensure smooth blending on any background.
 
-## Files Changed
+3. **Remove `rounded-full`** clipping if the coin design already has its own circular shape, or keep it if the image needs cropping.
+
+## File Changed
 
 | File | Change |
 |------|--------|
-| `public/images/camly-coin-new.png` | New uploaded logo file |
-| `src/components/Wallet/CAMLYPriceSection.tsx` | Update image `src` to use the new logo |
+| `src/components/Wallet/CAMLYPriceSection.tsx` | Add `mix-blend-mode: multiply` and adjust styling to remove visible white background |
+
+## Technical Details
+
+In `CAMLYPriceSection.tsx` (around line 76-80), update the `img` element:
+
+```text
+// Before:
+<img
+  src="/images/camly-coin-new.png"
+  alt="CAMLY"
+  className="h-14 w-14 rounded-full object-cover"
+/>
+
+// After:
+<img
+  src="/images/camly-coin-new.png"
+  alt="CAMLY"
+  className="h-14 w-14 rounded-full object-cover"
+  style={{ mixBlendMode: 'multiply' }}
+/>
+```
+
+The `mix-blend-mode: multiply` property will make white pixels effectively transparent, cleanly removing the white background around the coin logo. This works on both web and mobile browsers.
+
+If the blend mode alone isn't sufficient (e.g., if the background behind the logo isn't white), we'll also add a circular background wrapper to ensure a clean appearance.
 
