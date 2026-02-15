@@ -1,47 +1,56 @@
 
 
-# Fix Remaining Misclassified Videos in Shorts Tab
+# Fix Video/Shorts Classification on "Your Videos" Page (Mobile)
 
-## Problem
+## Problem Found
 
-There are still **13 videos with duration between 5-36 seconds** in the database. These are clearly incorrect durations from the upload bug (e.g., "CHA VU TRU LA TAT CA" at 6s, spiritual videos at 27-36s). They appear in the Shorts tab incorrectly.
+The issue is on the **"Video của bạn" (Your Videos)** page at `/your-videos-mobile`. This page has two bugs:
 
-Examples of misclassified videos:
-- "CHA VU TRU LA TAT CA" -- stored as 6s
-- "CHA VU TRU LI XI TET" -- stored as 12s  
-- "Mon an bo duong den tu duoc lieu" -- stored as 27s
-- "Tam la goc moi phap" -- stored as 36s
+1. **Videos tab shows ALL videos** -- it fetches every video without filtering by duration, so short videos (Shorts) appear mixed with long videos
+2. **Shorts tab is completely empty** -- it's hardcoded to show "Chua co Shorts nao" (No Shorts yet) with no data at all
+
+The correct classification logic already exists in `ProfileVideosTab.tsx` (used on channel/user profile pages), but was never applied to the "Your Videos" page.
 
 ## Solution
 
-### Database Update: Reset all durations 60 seconds or less to NULL
+Update `src/pages/YourVideosMobile.tsx` to properly separate Videos and Shorts using the same YouTube-matching logic:
+
+### 1. Videos Tab -- Filter to show only long videos
+
+Add duration filtering to the database query, splitting videos into two separate lists:
+- **Videos**: `duration > 180` OR `duration IS NULL` (long videos + undetected)
+- **Shorts**: `duration IS NOT NULL` AND `duration <= 180`
+
+### 2. Shorts Tab -- Show actual short videos
+
+Replace the empty placeholder with a real grid of short videos, using the same YouTube-style portrait layout (aspect-[9/16]) already used in `ProfileVideosTab.tsx`.
+
+### 3. Filter chips work for both tabs
+
+The existing public/private filter chips will continue working for both tabs.
+
+## Technical Details
+
+### File: `src/pages/YourVideosMobile.tsx`
+
+Changes:
+- Split the single `videos` state into two: `longVideos` and `shortVideos`
+- Update the fetch query to load all videos, then split client-side by duration (since this is the user's own videos, total count is small)
+- Videos tab: display `longVideos` (duration > 180 or NULL)
+- Shorts tab: display `shortVideos` (duration <= 180, not NULL) in a vertical portrait grid
+- Apply the same filter logic (all/public/private) to both tabs
+
+### Classification Logic (matches YouTube)
 
 ```text
-UPDATE videos 
-SET duration = NULL 
-WHERE duration IS NOT NULL 
-  AND duration <= 60;
+Shorts: duration IS NOT NULL AND duration <= 180 seconds
+Videos: duration > 180 seconds OR duration IS NULL
 ```
-
-This moves 13 misclassified videos from Shorts tab to Videos tab. The self-healing mechanism will detect the correct duration when they are played.
-
-### No Code Changes Needed
-
-The existing code in `ProfileVideosTab.tsx` already has the correct logic:
-- **Shorts**: `duration IS NOT NULL AND duration <= 180`
-- **Videos**: `duration > 180 OR duration IS NULL`
-- YouTube-style portrait grid layout is already deployed
-
-## Files Changed
-
-| File | Change |
-|------|--------|
-| SQL Data Update | Reset `duration` to NULL for 13 videos with duration 5-60s |
 
 ## Expected Result
 
-- 13 misclassified long videos removed from Shorts tab
-- Shorts tab shows only videos with durations 61-180s (legitimate short content like music clips)
-- Videos tab continues showing long videos and undetected (NULL) videos
-- Self-healing fixes durations automatically on playback
+- Videos tab shows only long videos and videos with unknown duration
+- Shorts tab shows short videos in a YouTube-style portrait grid (3 columns on mobile)
+- No more mixing of long and short videos
+- Filter chips (All/Public/Private) work for both tabs
 
