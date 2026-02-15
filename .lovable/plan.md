@@ -1,78 +1,82 @@
 
 
-# Fix and Optimize All Share Buttons Across FUN Play
+# Fix Shorts Display Bug and Add Duration Info to Reward History
 
-## Issues Found
+## Root Cause Analysis
 
-### 1. PostReactions.tsx -- Share uses `window.location.origin` (preview URL, not production)
-The share button in post reactions generates a URL like `https://53abc96f-...lovableproject.com/post/{id}` instead of the production URL. The `ShareModal` already correctly uses `https://official-funplay.lovable.app` as the base URL, but `PostReactions` does not.
-
-### 2. PostDetail.tsx -- Same problem: shares `window.location.href` directly
-The share button on the post detail page shares the current browser URL, which on preview/development would be a non-public URL.
-
-### 3. ProfileInfo.tsx -- Share uses `window.location.origin` and has no clipboard fallback
-- Generates profile URL from `window.location.origin` (wrong in preview)
-- The "copy" action calls `navigator.clipboard.writeText()` without a try/catch fallback (fails on some mobile browsers without HTTPS or focus)
-
-### 4. MobileUploadSuccess.tsx -- Share uses `window.location.origin`
-Same issue: generates video share URL from current origin instead of production URL.
-
-### 5. PostReactions.tsx -- No clipboard fallback
-Uses `navigator.clipboard.writeText()` directly without the robust fallback that `ShareModal` already has (textarea fallback for older mobile browsers).
-
-### 6. Inconsistent share experience
-- `ShareModal` has a full-featured share dialog with social platforms, QR code, copy fallback, and CAMLY rewards
-- Post share buttons and Profile share only use basic `navigator.share` or simple clipboard copy -- no social platform options, no rewards
-
-## Plan
-
-### Step 1: Create a shared utility for production URLs (`src/lib/shareUtils.ts`)
-
-Create a helper that always returns the production base URL, and a `copyToClipboard` function with fallback (extracted from `ShareModal`):
-
-```typescript
-export const PRODUCTION_URL = 'https://official-funplay.lovable.app';
-
-export function getShareUrl(path: string): string {
-  return `${PRODUCTION_URL}${path}`;
-}
-
-export async function copyToClipboard(text: string): Promise<boolean> {
-  // Same robust fallback logic currently in ShareModal
-}
+### The Shorts Bug
+The Shorts page query on line 405 of `Shorts.tsx` uses:
+```
+.or('duration.lte.180,category.eq.shorts')
 ```
 
-### Step 2: Fix PostReactions.tsx
+This means: show videos where duration <= 180s **OR** category = 'shorts'. The problem is that **8 videos** have `category = 'shorts'` but their actual duration is **longer than 180 seconds** (up to 328 seconds / 5.5 minutes). These were likely uploaded before the duration-based auto-classification was implemented, or users manually checked "Shorts" during upload regardless of actual video length.
 
-- Use `getShareUrl(`/post/${postId}`)` instead of `window.location.origin`
-- Use the shared `copyToClipboard` with fallback instead of raw `navigator.clipboard`
+Result: Users see these videos in the Shorts feed, but when they play them, the actual video is 3-5 minutes long -- not a Short.
 
-### Step 3: Fix PostDetail.tsx
+### The same bug exists in 3 other places:
+- `ProfileVideosTab.tsx` line 55
+- `YourVideos.tsx` line 61
 
-- Use `getShareUrl(`/post/${id}`)` instead of `window.location.href`
-- Use shared `copyToClipboard` with fallback
+These also include `category.eq.shorts` as a fallback, which leaks long videos into Shorts tabs.
 
-### Step 4: Fix ProfileInfo.tsx
+## Fix Plan
 
-- Use `getShareUrl(`/u/${profile.username}`)` instead of `window.location.origin`
-- Use shared `copyToClipboard` with try/catch fallback for the "copy" action
+### Step 1: Database Fix -- Correct misclassified videos
+Update the 8 videos that have `category = 'shorts'` but `duration > 180` to `category = 'general'`. This is the data fix.
 
-### Step 5: Fix MobileUploadSuccess.tsx
+Also update the 1 video with `category = 'shorts'` and `NULL` duration -- we cannot confirm it's a Short without duration data.
 
-- Use `getShareUrl(`/watch/${videoId}`)` instead of `window.location.origin`
+### Step 2: Fix Shorts.tsx query (line 405)
+Change from:
+```
+.or('duration.lte.180,category.eq.shorts')
+```
+To:
+```
+.lte('duration', 180)
+```
+Only use duration as the source of truth. Videos without duration should not appear in Shorts.
 
-### Step 6: Update ShareModal.tsx to use the shared utility
+### Step 3: Fix ProfileVideosTab.tsx (line 53-58)
+Same fix: use duration as the sole filter, remove `category.eq.shorts` fallback.
 
-- Replace the hardcoded `'https://official-funplay.lovable.app'` string and the inline `copyToClipboard` function with imports from `shareUtils.ts` -- single source of truth
+### Step 4: Fix YourVideos.tsx (line 59-62)
+Same fix for the YouTube Studio tabs.
+
+### Step 5: Fix Upload flows to enforce duration check
+In `UploadVideoModal.tsx` (line 505), even if user checks "Shorts", override to `category: 'general'` if duration > 180s. Same for `UploadWizard.tsx` and `UploadContext.tsx`.
+
+### Step 6: Add duration and reward rule info to RewardHistory.tsx
+
+Update the reward history page to show:
+- Video duration badge next to video title for upload rewards
+- Reward rule explanation line (e.g., "Video ngan <= 3 phut = 20,000 CAMLY")
+
+Changes:
+- Add `video_duration` to the `RewardTransaction` interface
+- Fetch `duration` alongside `title` from videos table (line 226)
+- Map video duration into transaction data
+- Display duration badge and reward rule in the transaction item (lines 591-601)
+- Import `formatDuration` from `src/lib/formatters.ts`
+
+### Step 7: Add pending status badge
+Currently reward history only shows "Da claim" or "Co the claim". Add a "Cho duyet" (pending approval) badge for transactions where `approved = false` and `claimed = false`.
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/lib/shareUtils.ts` | **New** -- production URL helper + clipboard fallback utility |
-| `src/components/Post/PostReactions.tsx` | Use production URL + clipboard fallback |
-| `src/pages/PostDetail.tsx` | Use production URL + clipboard fallback |
-| `src/components/Profile/ProfileInfo.tsx` | Use production URL + clipboard fallback |
-| `src/components/Upload/Mobile/MobileUploadSuccess.tsx` | Use production URL |
-| `src/components/Video/ShareModal.tsx` | Import shared utilities instead of inline duplicates |
+| Database migration | Fix 8+1 videos with wrong category, set to 'general' |
+| `src/pages/Shorts.tsx` | Use `duration <= 180` only, remove category fallback |
+| `src/components/Profile/ProfileVideosTab.tsx` | Same duration-only filter |
+| `src/pages/YourVideos.tsx` | Same duration-only filter |
+| `src/components/Video/UploadVideoModal.tsx` | Enforce duration check on category |
+| `src/components/Upload/UploadWizard.tsx` | Enforce duration check on category |
+| `src/contexts/UploadContext.tsx` | Enforce duration check on category |
+| `src/pages/RewardHistory.tsx` | Add duration badge, reward rule info, pending badge |
+
+## Reward Data Verification
+
+Checked all reward transactions against actual video durations: **zero mismatches found**. All SHORT_VIDEO_UPLOAD rewards correctly correspond to videos <= 180s and all LONG_VIDEO_UPLOAD rewards to videos > 180s. No financial corrections needed.
 
