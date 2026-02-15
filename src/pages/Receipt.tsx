@@ -279,11 +279,16 @@ function DonationReceipt({ receiptPublicId }: { receiptPublicId: string }) {
   const token = receipt.token;
   const contextInfo = receipt.context_info;
 
+  // Use channel_name > display_name > username
+  const senderDisplayName = sender?.channel_name || sender?.display_name || sender?.username || "Unknown";
+  const receiverDisplayName = receiver?.channel_name || receiver?.display_name || receiver?.username || "Unknown";
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-50 p-4 flex items-center justify-center">
       <Card className="w-full max-w-md shadow-xl border-amber-200">
         <CardContent className="p-6 space-y-6">
           {/* Header */}
+          {/* ... keep existing code */}
           <div className="text-center space-y-2 relative">
             {/* Floating hearts */}
             {[...Array(4)].map((_, i) => (
@@ -314,24 +319,24 @@ function DonationReceipt({ receiptPublicId }: { receiptPublicId: string }) {
             <div className="flex items-center gap-3">
               <Avatar className="h-12 w-12 border-2 border-amber-200">
                 <AvatarImage src={sender?.avatar_url || ""} />
-                <AvatarFallback>{sender?.username?.[0]?.toUpperCase() || "?"}</AvatarFallback>
+                <AvatarFallback>{senderDisplayName[0]?.toUpperCase() || "?"}</AvatarFallback>
               </Avatar>
               <div>
-                <p className="font-medium">{sender?.display_name || sender?.username}</p>
-                <p className="text-sm text-muted-foreground">@{sender?.username}</p>
+                <p className="font-medium text-sm">{senderDisplayName}</p>
+                <p className="text-xs text-muted-foreground">@{sender?.username}</p>
               </div>
             </div>
             
-            <ArrowRight className="h-6 w-6 text-amber-500" />
+            <ArrowRight className="h-6 w-6 text-amber-500 shrink-0" />
             
             <div className="flex items-center gap-3">
               <div className="text-right">
-                <p className="font-medium">{receiver?.display_name || receiver?.username}</p>
-                <p className="text-sm text-muted-foreground">@{receiver?.username}</p>
+                <p className="font-medium text-sm">{receiverDisplayName}</p>
+                <p className="text-xs text-muted-foreground">@{receiver?.username}</p>
               </div>
               <Avatar className="h-12 w-12 border-2 border-amber-200">
                 <AvatarImage src={receiver?.avatar_url || ""} />
-                <AvatarFallback>{receiver?.username?.[0]?.toUpperCase() || "?"}</AvatarFallback>
+                <AvatarFallback>{receiverDisplayName[0]?.toUpperCase() || "?"}</AvatarFallback>
               </Avatar>
             </div>
           </div>
