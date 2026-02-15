@@ -508,11 +508,7 @@ export function MobileUploadFlow({ open, onOpenChange }: MobileUploadFlowProps) 
                   result={gateResult}
                   onRetry={() => {
                     resetGate();
-                    // Go back to video-details to edit title/description
-                    setNavigationStack(prev => prev.filter(s => s !== "gate-checking" && s !== "gate-blocked"));
-                    if (!navigationStack.includes("video-details")) {
-                      navigateTo("video-details");
-                    }
+                    setNavigationStack(["type-selector", "video-confirm", "video-details"]);
                   }}
                   onClose={handleClose}
                 />

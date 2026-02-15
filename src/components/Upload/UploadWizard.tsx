@@ -2,15 +2,13 @@ import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Upload, FileVideo, Image, Eye, CheckCircle, Sparkles, X, ArrowLeft, ArrowRight } from "lucide-react";
+import { Upload, FileVideo, Image, Eye, CheckCircle, Sparkles, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
 import { UploadDropzone } from "./UploadDropzone";
 import { UploadMetadataForm, VideoMetadata } from "./UploadMetadataForm";
 import { ThumbnailEditor } from "./ThumbnailEditor";
 import { UploadPreview } from "./UploadPreview";
-import { UploadSuccess } from "./UploadSuccess";
 import { AvatarVerificationGate } from "./AvatarVerificationGate";
 import { ContentModerationFeedback } from "./ContentModerationFeedback";
 import { useAuth } from "@/hooks/useAuth";
@@ -19,6 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { extractVideoThumbnail } from "@/lib/videoThumbnail";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useUploadGate } from "@/hooks/useUploadGate";
+import { useUpload } from "@/contexts/UploadContext";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface UploadWizardProps {
@@ -26,7 +25,7 @@ interface UploadWizardProps {
   onOpenChange: (open: boolean) => void;
 }
 
-type Step = "upload" | "metadata" | "thumbnail" | "preview" | "gate-checking" | "gate-avatar" | "gate-blocked" | "uploading" | "success";
+type Step = "upload" | "metadata" | "thumbnail" | "preview" | "gate-checking" | "gate-avatar" | "gate-blocked";
 
 const STEPS = [
   { id: "upload", label: "Video", icon: Upload },
@@ -41,6 +40,7 @@ export function UploadWizard({ open, onOpenChange }: UploadWizardProps) {
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const { checkBeforeUpload, isChecking, gateResult, resetGate } = useUploadGate();
+  const { addUpload } = useUpload();
   
   const [currentStep, setCurrentStep] = useState<Step>("upload");
   const [videoFile, setVideoFile] = useState<File | null>(null);
@@ -55,72 +55,59 @@ export function UploadWizard({ open, onOpenChange }: UploadWizardProps) {
     scheduledAt: null,
   });
   const [isShort, setIsShort] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [uploadStage, setUploadStage] = useState("");
-  const [uploadedVideoId, setUploadedVideoId] = useState<string | null>(null);
-  const [uploadedVideoUrl, setUploadedVideoUrl] = useState<string | null>(null);
+  const [videoDuration, setVideoDuration] = useState(0);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
 
-  // Check if there's unsaved data
   const hasUnsavedData = videoFile !== null || metadata.title.trim() !== "";
 
-  // Check if can navigate to a step
   const canNavigateToStep = useCallback((targetStep: Step): boolean => {
     const stepOrder = ["upload", "metadata", "thumbnail", "preview"];
     const currentIndex = stepOrder.indexOf(currentStep);
     const targetIndex = stepOrder.indexOf(targetStep as string);
-    
-    // Can go back to any previous step if we have a video
     return targetIndex <= currentIndex && videoFile !== null;
   }, [currentStep, videoFile]);
 
-  // Handle step click for smart navigation
   const handleStepClick = useCallback((stepId: string) => {
     const targetStep = stepId as Step;
     if (canNavigateToStep(targetStep)) {
       setCurrentStep(targetStep);
-      // Haptic feedback
       if (navigator.vibrate) navigator.vibrate(50);
     }
   }, [canNavigateToStep]);
 
-  // Handle close button click
   const handleCloseClick = useCallback(() => {
-    if (hasUnsavedData && currentStep !== "success") {
+    if (hasUnsavedData) {
       setShowCloseConfirm(true);
     } else {
       handleClose();
       navigate("/");
     }
-  }, [hasUnsavedData, currentStep]);
+  }, [hasUnsavedData]);
 
-  // Confirm close and navigate home
   const handleConfirmClose = useCallback(() => {
     setShowCloseConfirm(false);
     handleClose();
     navigate("/");
   }, []);
 
-  // Detect if video is a Short (vertical/square + ≤3 min)
   const detectShort = useCallback((file: File) => {
     const video = document.createElement("video");
     video.preload = "metadata";
     video.onloadedmetadata = () => {
       const isVerticalOrSquare = video.videoHeight >= video.videoWidth;
-      const isShortDuration = video.duration <= 180; // 3 minutes
+      const isShortDuration = video.duration <= 180;
       setIsShort(isVerticalOrSquare && isShortDuration);
+      setVideoDuration(video.duration || 0);
       URL.revokeObjectURL(video.src);
     };
     video.src = URL.createObjectURL(file);
   }, []);
 
-  // Handle video file selection
   const handleVideoSelect = useCallback(async (file: File) => {
     setVideoFile(file);
     setVideoPreviewUrl(URL.createObjectURL(file));
     detectShort(file);
     
-    // Auto-generate thumbnail
     try {
       const autoThumb = await extractVideoThumbnail(file, 0.25);
       if (autoThumb) {
@@ -131,20 +118,18 @@ export function UploadWizard({ open, onOpenChange }: UploadWizardProps) {
       console.warn("Auto thumbnail failed:", err);
     }
     
-    // Auto-fill title from filename
     const nameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
     setMetadata(prev => ({ ...prev, title: nameWithoutExt }));
     
     setCurrentStep("metadata");
   }, [detectShort]);
 
-  // Handle thumbnail change
   const handleThumbnailChange = useCallback((blob: Blob, preview: string) => {
     setThumbnailBlob(blob);
     setThumbnailPreview(preview);
   }, []);
 
-  // Handle upload
+  // Handle upload - uses background queue (same as mobile)
   const handleUpload = async () => {
     if (!user || !videoFile) return;
     
@@ -163,15 +148,8 @@ export function UploadWizard({ open, onOpenChange }: UploadWizardProps) {
       }
     }
 
-    setCurrentStep("uploading");
-    setUploadProgress(0);
-    setUploadStage("Đang chuẩn bị...");
-
     try {
       // Step 1: Get or create channel
-      setUploadStage("Đang kiểm tra kênh...");
-      setUploadProgress(5);
-      
       let channelId = null;
       const { data: channels } = await supabase
         .from("channels")
@@ -201,181 +179,42 @@ export function UploadWizard({ open, onOpenChange }: UploadWizardProps) {
         channelId = newChannel.id;
       }
 
-      // Step 2: Upload video to R2
-      const fileSizeMB = (videoFile.size / (1024 * 1024)).toFixed(1);
-      setUploadStage(`Đang tải video lên... (${fileSizeMB} MB)`);
-      setUploadProgress(10);
+      // Step 2: Add to background upload queue (consistent with mobile)
+      addUpload(
+        videoFile,
+        {
+          title: metadata.title,
+          description: metadata.description,
+          visibility: metadata.visibility as "public" | "unlisted" | "private",
+          isShort,
+          duration: videoDuration,
+          channelId,
+          approvalStatus: gateCheck.approvalStatus,
+        },
+        thumbnailBlob,
+        thumbnailPreview
+      );
 
-      const sanitizedVideoName = videoFile.name.replace(/[^a-zA-Z0-9._-]/g, "_").substring(0, 100);
-      const videoFileName = `videos/${Date.now()}-${sanitizedVideoName}`;
+      // Step 3: Show toast and close wizard immediately
+      toast({
+        title: "Đang tải lên... 🚀",
+        description: gateCheck.approvalStatus === "pending_review"
+          ? "Video sẽ được Admin xem xét trước khi công khai."
+          : "Video đang được tải lên ở chế độ nền. Bạn có thể tiếp tục sử dụng app.",
+      });
 
-      let videoUrl: string;
-
-      if (videoFile.size > 100 * 1024 * 1024) {
-        // Multipart upload for large files
-        const { data: initData, error: initError } = await supabase.functions.invoke('r2-upload', {
-          body: {
-            action: 'initiateMultipart',
-            fileName: videoFileName,
-            contentType: videoFile.type,
-            fileSize: videoFile.size,
-          },
-        });
-
-        if (initError || !initData?.uploadId) {
-          throw new Error('Không thể khởi tạo upload.');
-        }
-
-        const { uploadId, publicUrl } = initData;
-        const CHUNK_SIZE = 100 * 1024 * 1024;
-        const totalParts = Math.ceil(videoFile.size / CHUNK_SIZE);
-        const uploadedParts: { partNumber: number; etag: string }[] = [];
-
-        for (let partNumber = 1; partNumber <= totalParts; partNumber++) {
-          const start = (partNumber - 1) * CHUNK_SIZE;
-          const end = Math.min(start + CHUNK_SIZE, videoFile.size);
-          const chunk = videoFile.slice(start, end);
-
-          const { data: partData } = await supabase.functions.invoke('r2-upload', {
-            body: {
-              action: 'getPartUrl',
-              fileName: videoFileName,
-              uploadId,
-              partNumber,
-            },
-          });
-
-          if (!partData?.presignedUrl) throw new Error(`Lỗi phần ${partNumber}`);
-
-          const partResponse = await new Promise<{ etag: string }>((resolve, reject) => {
-            const xhr = new XMLHttpRequest();
-            xhr.upload.onprogress = (e) => {
-              if (e.lengthComputable) {
-                const partProgress = (start + e.loaded) / videoFile.size;
-                setUploadProgress(10 + Math.round(partProgress * 70));
-                setUploadStage(`Đang tải phần ${partNumber}/${totalParts}...`);
-              }
-            };
-            xhr.onload = () => {
-              if (xhr.status >= 200 && xhr.status < 300) {
-                const etag = xhr.getResponseHeader('ETag') || `part-${partNumber}`;
-                resolve({ etag: etag.replace(/"/g, '') });
-              } else reject(new Error(`Part ${partNumber} failed`));
-            };
-            xhr.onerror = () => reject(new Error('Network error'));
-            xhr.open('PUT', partData.presignedUrl);
-            xhr.timeout = 10 * 60 * 1000;
-            xhr.send(chunk);
-          });
-
-          uploadedParts.push({ partNumber, etag: partResponse.etag });
-        }
-
-        await supabase.functions.invoke('r2-upload', {
-          body: {
-            action: 'completeMultipart',
-            fileName: videoFileName,
-            uploadId,
-            parts: uploadedParts,
-          },
-        });
-
-        videoUrl = publicUrl;
-      } else {
-        // Simple upload for small files
-        const { data: presignData } = await supabase.functions.invoke('r2-upload', {
-          body: {
-            action: 'getPresignedUrl',
-            fileName: videoFileName,
-            contentType: videoFile.type,
-            fileSize: videoFile.size,
-          },
-        });
-
-        if (!presignData?.presignedUrl) throw new Error('Không thể tạo link upload');
-
-        await new Promise<void>((resolve, reject) => {
-          const xhr = new XMLHttpRequest();
-          xhr.upload.onprogress = (e) => {
-            if (e.lengthComputable) {
-              setUploadProgress(10 + Math.round((e.loaded / e.total) * 70));
-            }
-          };
-          xhr.onload = () => xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error('Upload failed'));
-          xhr.onerror = () => reject(new Error('Lỗi mạng'));
-          xhr.open('PUT', presignData.presignedUrl);
-          xhr.timeout = 30 * 60 * 1000;
-          xhr.send(videoFile);
-        });
-
-        videoUrl = presignData.publicUrl;
-      }
-
-      setUploadProgress(80);
-
-      // Step 3: Upload thumbnail
-      let thumbnailUrl = null;
-      if (thumbnailBlob) {
-        setUploadStage("Đang tải thumbnail...");
-        const thumbnailFileName = `thumbnails/${Date.now()}-thumb.jpg`;
-        
-        const { data: thumbPresign } = await supabase.functions.invoke('r2-upload', {
-          body: {
-            action: 'getPresignedUrl',
-            fileName: thumbnailFileName,
-            contentType: 'image/jpeg',
-            fileSize: thumbnailBlob.size,
-          },
-        });
-
-        if (thumbPresign?.presignedUrl) {
-          const thumbResponse = await fetch(thumbPresign.presignedUrl, {
-            method: 'PUT',
-            body: thumbnailBlob,
-            headers: { 'Content-Type': 'image/jpeg' },
-          });
-          if (thumbResponse.ok) {
-            thumbnailUrl = thumbPresign.publicUrl;
-          }
-        }
-      }
-
-      setUploadProgress(90);
-      setUploadStage("Đang lưu thông tin...");
-
-      // Step 4: Create database record
-      const { data: videoData, error: videoError } = await supabase.from("videos").insert({
-        user_id: user.id,
-        channel_id: channelId,
-        title: metadata.title,
-        description: metadata.description,
-        video_url: videoUrl,
-        thumbnail_url: thumbnailUrl,
-        file_size: videoFile.size,
-        is_public: metadata.visibility === "public",
-        category: isShort ? "shorts" : "general",
-        approval_status: gateCheck.approvalStatus || "approved",
-      }).select('id').single();
-
-      if (videoError) throw videoError;
-
-      setUploadProgress(100);
-      setUploadedVideoId(videoData.id);
-      setUploadedVideoUrl(`/watch/${videoData.id}`);
-      setCurrentStep("success");
-
+      handleClose();
     } catch (error: any) {
-      console.error("Upload error:", error);
+      console.error("Upload init error:", error);
       toast({
         title: "Ồ, có lỗi xảy ra!",
-        description: error.message || "Vui lòng thử lại sau nhé 💕",
+        description: error.message || "Không thể bắt đầu upload. Vui lòng thử lại.",
         variant: "destructive",
       });
       setCurrentStep("preview");
     }
   };
 
-  // Reset wizard
   const handleClose = () => {
     setCurrentStep("upload");
     setVideoFile(null);
@@ -390,17 +229,9 @@ export function UploadWizard({ open, onOpenChange }: UploadWizardProps) {
       scheduledAt: null,
     });
     setIsShort(false);
-    setUploadProgress(0);
-    setUploadedVideoId(null);
+    setVideoDuration(0);
     setShowCloseConfirm(false);
     onOpenChange(false);
-  };
-
-  const handleViewVideo = () => {
-    if (uploadedVideoUrl) {
-      navigate(uploadedVideoUrl);
-      handleClose();
-    }
   };
 
   const getStepIndex = (step: Step) => {
@@ -412,8 +243,6 @@ export function UploadWizard({ open, onOpenChange }: UploadWizardProps) {
       "gate-checking": 3,
       "gate-avatar": 3,
       "gate-blocked": 3,
-      uploading: 3,
-      success: 4,
     };
     return map[step];
   };
@@ -430,24 +259,16 @@ export function UploadWizard({ open, onOpenChange }: UploadWizardProps) {
         )}
         style={{ backgroundColor: 'hsl(var(--background))' }}
       >
-        {/* Holographic border effect - z-index thấp để không che content */}
+        {/* Holographic border effect */}
         <div className="absolute inset-0 -z-10 rounded-lg bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] via-[hsl(var(--cosmic-magenta))] to-[hsl(var(--cosmic-gold))] opacity-10 pointer-events-none" />
         
-        {/* Header with gradient border */}
+        {/* Header */}
         <DialogHeader className="px-4 sm:px-6 pt-3 sm:pt-4 pb-3 border-b border-border/50 bg-gradient-to-r from-background via-background to-background relative z-10 flex-shrink-0">
-          {/* Aurora glow effect */}
           <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] via-[hsl(var(--cosmic-magenta))] to-[hsl(var(--cosmic-gold))] opacity-50" />
           
           <div className="flex items-center justify-between gap-2">
             <DialogTitle className="text-lg sm:text-xl font-bold flex items-center gap-2">
-              {currentStep === "success" ? (
-                <>
-                  <Sparkles className="w-5 h-5 text-[hsl(var(--cosmic-gold))]" />
-                  Hoàn thành!
-                </>
-              ) : (
-                "Đăng video mới"
-              )}
+              Đăng video mới
             </DialogTitle>
             <VisuallyHidden.Root>
               <DialogDescription>
@@ -456,7 +277,7 @@ export function UploadWizard({ open, onOpenChange }: UploadWizardProps) {
             </VisuallyHidden.Root>
             
             <div className="flex items-center gap-2">
-              {isShort && currentStep !== "upload" && currentStep !== "success" && (
+              {isShort && currentStep !== "upload" && (
                 <motion.span 
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
@@ -468,22 +289,20 @@ export function UploadWizard({ open, onOpenChange }: UploadWizardProps) {
               )}
               
               {/* Close button */}
-              {currentStep !== "uploading" && (
-                <motion.button
-                  whileHover={{ scale: 1.1, rotate: 90 }}
-                  whileTap={{ scale: 0.9 }}
-                  onClick={handleCloseClick}
-                  className="w-8 h-8 rounded-full flex items-center justify-center bg-muted/50 hover:bg-destructive/20 hover:text-destructive transition-all"
-                  title="Tắt & quay về trang chủ"
-                >
-                  <X className="w-4 h-4" />
-                </motion.button>
-              )}
+              <motion.button
+                whileHover={{ scale: 1.1, rotate: 90 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={handleCloseClick}
+                className="w-8 h-8 rounded-full flex items-center justify-center bg-muted/50 hover:bg-destructive/20 hover:text-destructive transition-all"
+                title="Tắt & quay về trang chủ"
+              >
+                <X className="w-4 h-4" />
+              </motion.button>
             </div>
           </div>
 
-          {/* Step Indicator - Enhanced with clickable navigation */}
-          {currentStep !== "uploading" && currentStep !== "success" && (
+          {/* Step Indicator */}
+          {!["gate-checking", "gate-avatar", "gate-blocked"].includes(currentStep) && (
             <div className="flex items-center justify-start sm:justify-center gap-1 sm:gap-2 mt-4 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory px-1">
               {STEPS.map((step, index) => {
                 const Icon = step.icon;
@@ -495,9 +314,7 @@ export function UploadWizard({ open, onOpenChange }: UploadWizardProps) {
                   <div key={step.id} className="flex items-center flex-shrink-0 snap-center">
                     <motion.div
                       initial={false}
-                      animate={{
-                        scale: isActive ? 1.05 : 1,
-                      }}
+                      animate={{ scale: isActive ? 1.05 : 1 }}
                       whileHover={isClickable ? { scale: 1.08 } : {}}
                       whileTap={isClickable ? { scale: 0.95 } : {}}
                       onClick={() => handleStepClick(step.id)}
@@ -531,10 +348,10 @@ export function UploadWizard({ open, onOpenChange }: UploadWizardProps) {
           )}
         </DialogHeader>
 
-        {/* Content area with smooth transitions */}
+        {/* Content */}
         <div className={cn(
           "flex-1 min-h-0 overflow-y-auto scroll-smooth px-4 sm:px-6 py-4 sm:py-6 relative z-10",
-          isMobile && "pb-20" // Extra padding for mobile bottom nav
+          isMobile && "pb-20"
         )}>
           <AnimatePresence mode="wait">
             <motion.div
@@ -580,60 +397,6 @@ export function UploadWizard({ open, onOpenChange }: UploadWizardProps) {
                 />
               )}
 
-              {currentStep === "uploading" && (
-                <div className="flex flex-col items-center justify-center py-8 sm:py-12 space-y-6">
-                  {/* Animated upload indicator */}
-                  <div className="relative w-24 h-24 sm:w-28 sm:h-28">
-                    {/* Outer glow ring */}
-                    <div className="absolute inset-0 rounded-full bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] via-[hsl(var(--cosmic-magenta))] to-[hsl(var(--cosmic-gold))] opacity-30 blur-xl animate-pulse" />
-                    
-                    {/* Background circle */}
-                    <div className="absolute inset-0 rounded-full border-4 border-muted" />
-                    
-                    {/* Progress arc */}
-                    <svg className="absolute inset-0 -rotate-90" viewBox="0 0 100 100">
-                      <circle
-                        cx="50"
-                        cy="50"
-                        r="46"
-                        fill="none"
-                        stroke="url(#progressGradient)"
-                        strokeWidth="8"
-                        strokeLinecap="round"
-                        strokeDasharray={`${uploadProgress * 2.89} 289`}
-                        className="transition-all duration-300"
-                      />
-                      <defs>
-                        <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                          <stop offset="0%" stopColor="hsl(var(--cosmic-cyan))" />
-                          <stop offset="50%" stopColor="hsl(var(--cosmic-magenta))" />
-                          <stop offset="100%" stopColor="hsl(var(--cosmic-gold))" />
-                        </linearGradient>
-                      </defs>
-                    </svg>
-                    
-                    {/* Center percentage */}
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] to-[hsl(var(--cosmic-magenta))] bg-clip-text text-transparent">
-                        {uploadProgress}%
-                      </span>
-                    </div>
-                  </div>
-                  
-                  {/* Progress bar with shimmer */}
-                  <div className="w-full max-w-md relative">
-                    <Progress value={uploadProgress} className="h-2" />
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
-                  </div>
-                  
-                  <p className="text-muted-foreground text-center text-sm sm:text-base">{uploadStage}</p>
-                  
-                  <p className="text-xs text-muted-foreground/60 text-center">
-                    ✨ Đang lan tỏa ánh sáng của bạn đến cộng đồng...
-                  </p>
-                </div>
-              )}
-
               {/* Gate: Checking */}
               {currentStep === "gate-checking" && (
                 <ContentModerationFeedback isChecking={true} result={null} />
@@ -652,18 +415,6 @@ export function UploadWizard({ open, onOpenChange }: UploadWizardProps) {
                   onRetry={() => {
                     resetGate();
                     setCurrentStep("metadata");
-                  }}
-                  onClose={handleClose}
-                />
-              )}
-
-              {currentStep === "success" && (
-                <UploadSuccess
-                  videoId={uploadedVideoId || ""}
-                  onViewVideo={handleViewVideo}
-                  onUploadAnother={() => {
-                    handleClose();
-                    setTimeout(() => onOpenChange(true), 100);
                   }}
                   onClose={handleClose}
                 />
