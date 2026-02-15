@@ -1,82 +1,75 @@
 
-
-# Fix Shorts Display Bug and Add Duration Info to Reward History
+# Fix CAMLY Claim Processing Delays and Stuck Claims
 
 ## Root Cause Analysis
 
-### The Shorts Bug
-The Shorts page query on line 405 of `Shorts.tsx` uses:
-```
-.or('duration.lte.180,category.eq.shorts')
-```
+I found **3 critical issues** causing the claim form to get stuck:
 
-This means: show videos where duration <= 180s **OR** category = 'shorts'. The problem is that **8 videos** have `category = 'shorts'` but their actual duration is **longer than 180 seconds** (up to 328 seconds / 5.5 minutes). These were likely uploaded before the duration-based auto-classification was implemented, or users manually checked "Shorts" during upload regardless of actual video length.
+### Issue 1: 11 Stuck Pending Claims (Including the User in Screenshot)
+There are **11 claim requests stuck in "pending" status** since Feb 11-13, including the user "Angel Ngoc Lam" (wallet `0xe5598...5170`) with 255,000 CAMLY stuck since Feb 12. These blockchain transactions failed or timed out, but the status was never updated to "failed."
 
-Result: Users see these videos in the Shorts feed, but when they play them, the actual video is 3-5 minutes long -- not a Short.
+When these users open the claim modal, it detects the pending claim and shows "Dang xu ly giao dich..." forever -- they can never claim again.
 
-### The same bug exists in 3 other places:
-- `ProfileVideosTab.tsx` line 55
-- `YourVideos.tsx` line 61
+### Issue 2: Auto-Cleanup Only Runs During New Claims
+The current auto-cleanup code (which marks pending claims older than 5 minutes as failed) only runs when a user makes a **new** claim attempt. But since the pending claim **blocks** new claims, the cleanup never executes -- creating a deadlock.
 
-These also include `category.eq.shorts` as a fallback, which leaks long videos into Shorts tabs.
+### Issue 3: MAX_CLAIM_PER_USER = 500,000 (Lifetime Cap)
+The `reward_config` table has `MAX_CLAIM_PER_USER = 500,000`, which is a **lifetime** limit. Once a user has claimed 500K CAMLY total across all time, they can never claim again. 20+ users have already hit this cap. This is separate from the daily limit.
 
 ## Fix Plan
 
-### Step 1: Database Fix -- Correct misclassified videos
-Update the 8 videos that have `category = 'shorts'` but `duration > 180` to `category = 'general'`. This is the data fix.
+### Step 1: Database Cleanup -- Unstick All 11 Pending Claims
+Mark all stuck pending claims (older than 10 minutes) as "failed" so affected users can retry immediately.
 
-Also update the 1 video with `category = 'shorts'` and `NULL` duration -- we cannot confirm it's a Short without duration data.
+### Step 2: Update Edge Function -- Auto-Cleanup Before Pending Check
+Move the auto-cleanup logic to run **before** the pending claim check, and reduce the timeout from 5 minutes to 2 minutes. This prevents future deadlocks.
 
-### Step 2: Fix Shorts.tsx query (line 405)
-Change from:
-```
-.or('duration.lte.180,category.eq.shorts')
-```
-To:
-```
-.lte('duration', 180)
-```
-Only use duration as the source of truth. Videos without duration should not appear in Shorts.
+### Step 3: Add Client-Side Timeout + Auto-Recovery
+Update the ClaimRewardsModal to:
+- Add a 90-second client-side timeout for the claim request
+- If the edge function hasn't responded in 90 seconds, mark the attempt as timed out and allow retry
+- Show a countdown timer so users know the system is working
+- Add a "Force Retry" button that appears after 60 seconds
 
-### Step 3: Fix ProfileVideosTab.tsx (line 53-58)
-Same fix: use duration as the sole filter, remove `category.eq.shorts` fallback.
+### Step 4: Improve Pending Claim Detection with Auto-Cleanup
+When the modal opens and detects a pending claim older than 5 minutes, automatically clean it up client-side by calling a cleanup mechanism, instead of just showing "Processing..." forever.
 
-### Step 4: Fix YourVideos.tsx (line 59-62)
-Same fix for the YouTube Studio tabs.
-
-### Step 5: Fix Upload flows to enforce duration check
-In `UploadVideoModal.tsx` (line 505), even if user checks "Shorts", override to `category: 'general'` if duration > 180s. Same for `UploadWizard.tsx` and `UploadContext.tsx`.
-
-### Step 6: Add duration and reward rule info to RewardHistory.tsx
-
-Update the reward history page to show:
-- Video duration badge next to video title for upload rewards
-- Reward rule explanation line (e.g., "Video ngan <= 3 phut = 20,000 CAMLY")
-
-Changes:
-- Add `video_duration` to the `RewardTransaction` interface
-- Fetch `duration` alongside `title` from videos table (line 226)
-- Map video duration into transaction data
-- Display duration badge and reward rule in the transaction item (lines 591-601)
-- Import `formatDuration` from `src/lib/formatters.ts`
-
-### Step 7: Add pending status badge
-Currently reward history only shows "Da claim" or "Co the claim". Add a "Cho duyet" (pending approval) badge for transactions where `approved = false` and `claimed = false`.
+### Step 5: Increase MAX_CLAIM_PER_USER
+Update `reward_config` to set `MAX_CLAIM_PER_USER` to a much higher value (e.g., 10,000,000) so users are not blocked by the lifetime cap. The daily limit of 500,000 already provides sufficient protection.
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| Database migration | Fix 8+1 videos with wrong category, set to 'general' |
-| `src/pages/Shorts.tsx` | Use `duration <= 180` only, remove category fallback |
-| `src/components/Profile/ProfileVideosTab.tsx` | Same duration-only filter |
-| `src/pages/YourVideos.tsx` | Same duration-only filter |
-| `src/components/Video/UploadVideoModal.tsx` | Enforce duration check on category |
-| `src/components/Upload/UploadWizard.tsx` | Enforce duration check on category |
-| `src/contexts/UploadContext.tsx` | Enforce duration check on category |
-| `src/pages/RewardHistory.tsx` | Add duration badge, reward rule info, pending badge |
+| Database migration | Clean up 11 stuck pending claims; increase MAX_CLAIM_PER_USER to 10,000,000 |
+| `supabase/functions/claim-camly/index.ts` | Move auto-cleanup before pending check; reduce timeout to 2 min |
+| `src/components/Rewards/ClaimRewardsModal.tsx` | Add client-side timeout (90s), auto-recovery for stuck pending claims, countdown timer, force retry button |
 
-## Reward Data Verification
+## Technical Details
 
-Checked all reward transactions against actual video durations: **zero mismatches found**. All SHORT_VIDEO_UPLOAD rewards correctly correspond to videos <= 180s and all LONG_VIDEO_UPLOAD rewards to videos > 180s. No financial corrections needed.
+### Edge Function Changes (`claim-camly/index.ts`)
+- Move the auto-cleanup block (lines 197-208) to run **before** the pending claim check (lines 210-225)
+- Reduce cleanup threshold from 5 minutes to 2 minutes
+- Add explicit logging when claims are auto-cleaned
 
+### Modal Changes (`ClaimRewardsModal.tsx`)
+- In `checkPendingClaims()`: If a pending claim is found that's older than 5 minutes, auto-mark it as failed via a new edge function call or direct update
+- Add a `claimTimeout` ref that starts when `handleClaim` is called, and after 90 seconds, resets the claiming state and shows a retry option
+- Show elapsed time during claim processing ("Dang xu ly... 15s")
+- Add a "Cancel & Retry" button that appears after 30 seconds of processing
+
+### Database Changes
+```text
+-- Clean up stuck pending claims
+UPDATE claim_requests 
+SET status = 'failed', 
+    error_message = 'Auto-cleanup: stuck pending claim', 
+    processed_at = NOW()
+WHERE status = 'pending' 
+  AND created_at < NOW() - INTERVAL '10 minutes';
+
+-- Increase lifetime claim limit
+UPDATE reward_config 
+SET config_value = '10000000' 
+WHERE config_key = 'MAX_CLAIM_PER_USER';
+```
