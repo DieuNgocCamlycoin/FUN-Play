@@ -111,6 +111,37 @@ export const ProfileVideosTab = ({ userId, channelId, type }: ProfileVideosTabPr
     );
   }
 
+  // Shorts: YouTube-style compact vertical grid
+  if (type === "shorts") {
+    return (
+      <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
+        {videos.map((video) => (
+          <div
+            key={video.id}
+            className="cursor-pointer group"
+            onClick={() => navigate(`/watch/${video.id}`)}
+          >
+            <div className="relative aspect-[9/16] rounded-lg overflow-hidden bg-muted">
+              {video.thumbnail_url ? (
+                <img
+                  src={video.thumbnail_url}
+                  alt={video.title}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <Zap className="w-6 h-6 text-muted-foreground/50" />
+                </div>
+              )}
+            </div>
+            <p className="text-xs mt-1 line-clamp-1 text-foreground">{video.title}</p>
+            <p className="text-xs text-muted-foreground">{formatViews(video.view_count)}</p>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
       {videos.map((video) => (
