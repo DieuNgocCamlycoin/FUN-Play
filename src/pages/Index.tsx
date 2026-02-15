@@ -59,6 +59,7 @@ const Index = () => {
   const [selectedCategory, setSelectedCategory] = useState("Tất cả");
   const [visibleCount, setVisibleCount] = useState(VIDEOS_PER_PAGE);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [fetchError, setFetchError] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const { user, loading } = useAuth();
@@ -118,6 +119,7 @@ const Index = () => {
   // Fetch videos function
   const fetchVideos = useCallback(async () => {
     setLoadingVideos(true);
+    setFetchError(false);
     try {
       const { data, error } = await supabase
         .from("videos")
@@ -140,10 +142,11 @@ const Index = () => {
         .eq("is_public", true)
         .eq("approval_status", "approved")
         .order("created_at", { ascending: false })
-        .limit(1000);
+        .limit(100);
 
       if (error) {
         console.error("Error fetching videos:", error);
+        setFetchError(true);
         toast({
           title: "Lỗi tải video",
           description: "Không thể tải danh sách video",
@@ -175,6 +178,7 @@ const Index = () => {
       }
     } catch (error) {
       console.error("Error:", error);
+      setFetchError(true);
     } finally {
       setLoadingVideos(false);
     }
@@ -372,6 +376,14 @@ const Index = () => {
                 {[...Array(6)].map((_, i) => (
                   <VideoCard key={`skeleton-${i}`} isLoading={true} />
                 ))}
+              </div>
+            ) : fetchError ? (
+              <div className="text-center py-16 glass-card rounded-2xl mx-auto max-w-2xl shadow-[0_0_60px_rgba(0,102,255,0.5)]">
+                <p className="text-xl font-bold mb-2 text-[#004eac]">Không thể tải video</p>
+                <p className="text-sm text-muted-foreground mt-2 mb-4">Kết nối bị gián đoạn. Vui lòng thử lại.</p>
+                <Button onClick={fetchVideos} className="bg-gradient-to-r from-cosmic-sapphire to-cosmic-cyan">
+                  Thử lại
+                </Button>
               </div>
             ) : videos.length === 0 ? (
               <div className="text-center py-16 glass-card rounded-2xl mx-auto max-w-2xl shadow-[0_0_60px_rgba(0,102,255,0.5)]">
