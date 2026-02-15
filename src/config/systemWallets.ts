@@ -25,9 +25,9 @@ export const SYSTEM_WALLETS = {
   // Ví tặng thưởng 1 (Treasury)
   TREASURY: {
     address: "0x1DC24BFd99c256B12a4A4cC7732c7e3B9aA75998",
-    displayName: "Ví tặng thưởng 1",
-    username: "@vitangthuong1",
-    channelName: "Ví tặng thưởng 1",
+    displayName: "FUN PLAY TREASURY",
+    username: "@funplaytreasury",
+    channelName: "FUN PLAY TREASURY",
     avatarUrl: "/images/fun-play-wallet-icon.png",
   } as SystemWalletInfo,
 
