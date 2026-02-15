@@ -1,8 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
-// Default fallback sound if no custom sound is configured
-const DEFAULT_CLAIM_SOUND = 'https://assets.mixkit.co/active_storage/sfx/2058/2058-preview.mp3';
+// Reliable fallback notification sounds
+const FALLBACK_SOUNDS = [
+  'https://cdn.pixabay.com/audio/2024/11/27/audio_c777f82a9d.mp3',
+  'https://cdn.pixabay.com/audio/2022/07/26/audio_124bfae5c2.mp3',
+];
 
 export const useClaimNotificationSound = () => {
   const [soundUrl, setSoundUrl] = useState<string | null>(null);
@@ -17,12 +20,7 @@ export const useClaimNotificationSound = () => {
           .eq('config_key', 'CLAIM_NOTIFICATION_SOUND')
           .single();
 
-        if (error) {
-          console.log('Could not fetch claim notification sound:', error);
-          return;
-        }
-
-        if (data?.config_text) {
+        if (!error && data?.config_text) {
           setSoundUrl(data.config_text);
         }
       } catch (error) {
@@ -36,20 +34,46 @@ export const useClaimNotificationSound = () => {
   }, []);
 
   const playClaimSound = useCallback((options?: { volume?: number; loop?: boolean }) => {
-    const url = soundUrl || DEFAULT_CLAIM_SOUND;
-    const audio = new Audio(url);
-    audio.volume = options?.volume ?? 0.6;
-    audio.loop = options?.loop ?? false;
-    
-    audio.play().catch(err => {
-      console.error("Error playing claim notification sound:", err);
-    });
+    const tryPlay = (url: string): Promise<HTMLAudioElement> => {
+      return new Promise((resolve, reject) => {
+        const audio = new Audio(url);
+        audio.volume = options?.volume ?? 0.6;
+        audio.loop = options?.loop ?? false;
+        audio.addEventListener('canplaythrough', () => {
+          audio.play().then(() => resolve(audio)).catch(reject);
+        }, { once: true });
+        audio.addEventListener('error', () => reject(new Error(`Failed to load: ${url}`)), { once: true });
+        audio.load();
+      });
+    };
 
-    return audio;
+    const urls = [
+      ...(soundUrl ? [soundUrl] : []),
+      ...FALLBACK_SOUNDS,
+    ];
+
+    const attemptPlay = async (): Promise<HTMLAudioElement | null> => {
+      for (const url of urls) {
+        try {
+          return await tryPlay(url);
+        } catch {
+          console.warn('Sound failed, trying next:', url);
+        }
+      }
+      console.error('All notification sounds failed');
+      return null;
+    };
+
+    // Return a dummy audio for sync API compatibility; actual play is async
+    const dummyAudio = new Audio();
+    attemptPlay().then(audio => {
+      if (audio) Object.assign(dummyAudio, { src: audio.src });
+    });
+    return dummyAudio;
   }, [soundUrl]);
 
   const getClaimSoundUrl = useCallback(() => {
-    return soundUrl || DEFAULT_CLAIM_SOUND;
+    return soundUrl || FALLBACK_SOUNDS[0];
   }, [soundUrl]);
 
   return { 

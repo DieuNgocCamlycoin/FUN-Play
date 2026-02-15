@@ -463,9 +463,10 @@ serve(async (req) => {
       let chatId = existingChat?.id;
 
       if (!chatId) {
+        const [sortedUser1, sortedUser2] = [TREASURER_ID, user.id].sort();
         const { data: newChat, error: chatCreateError } = await supabaseAdmin
           .from('user_chats')
-          .insert({ user1_id: TREASURER_ID, user2_id: user.id })
+          .insert({ user1_id: sortedUser1, user2_id: sortedUser2 })
           .select('id')
           .single();
         
