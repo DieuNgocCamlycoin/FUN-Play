@@ -34,11 +34,11 @@
             });
           }
           
-          // Clear localStorage except force_version
+          // Clear localStorage except force_version and Supabase auth keys
           var keysToRemove = [];
           for (var i = 0; i < localStorage.length; i++) {
             var key = localStorage.key(i);
-            if (key !== 'force_version') {
+            if (key !== 'force_version' && key.indexOf('sb-') !== 0) {
               keysToRemove.push(key);
             }
           }
