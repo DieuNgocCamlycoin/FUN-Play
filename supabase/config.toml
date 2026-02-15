@@ -104,3 +104,6 @@ verify_jwt = false
 
 [functions.get-claim-receipt]
 verify_jwt = false
+
+[functions.verify-avatar]
+verify_jwt = false
