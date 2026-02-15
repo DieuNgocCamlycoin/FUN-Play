@@ -63,7 +63,7 @@ export const CAMLYPriceSection = () => {
           {/* Logo & Price */}
           <div className="flex items-center gap-4">
             <motion.div
-              className="relative"
+              className="relative rounded-full overflow-hidden"
               animate={{
                 boxShadow: [
                   "0 0 20px rgba(255, 215, 0, 0.4)",
@@ -72,12 +72,15 @@ export const CAMLYPriceSection = () => {
                 ],
               }}
               transition={{ duration: 2, repeat: Infinity }}
+              style={{
+                background: 'linear-gradient(135deg, #FFD700, #FFA500)',
+              }}
             >
               <img
                 src="/images/camly-coin-new.png"
                 alt="CAMLY"
                 className="h-14 w-14 rounded-full object-cover"
-                style={{ mixBlendMode: 'multiply' }}
+                style={{ mixBlendMode: 'darken' }}
               />
             </motion.div>
             <div>
