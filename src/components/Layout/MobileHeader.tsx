@@ -1,6 +1,6 @@
 import { Search, Menu, X, Plus, Upload, Music, FileText, Shield, Crown, Settings, LogOut, Users } from "lucide-react";
 import funplayLogo from "@/assets/funplay-logo.jpg";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
@@ -31,7 +31,8 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
   const { profile } = useProfile();
   const navigate = useNavigate();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const { videos: suggestedVideos, channels: suggestedChannels, query: searchQuery, setQuery: setSearchQuery, clear: clearSearch } = useSearchSuggestions();
+  const { videos: suggestedVideos, channels: suggestedChannels, isOpen: suggestionsOpen, query: searchQuery, setQuery: setSearchQuery, open: openSuggestions, close: closeSuggestions, clear: clearSearch } = useSearchSuggestions();
+  const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [notificationCount, setNotificationCount] = useState(0);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
@@ -275,12 +276,23 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
                 autoFocus={isSearchOpen}
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  if (blurTimeoutRef.current) { clearTimeout(blurTimeoutRef.current); blurTimeoutRef.current = null; }
+                  openSuggestions();
+                }}
+                onFocus={() => {
+                  if (blurTimeoutRef.current) { clearTimeout(blurTimeoutRef.current); blurTimeoutRef.current = null; }
+                  openSuggestions();
+                }}
+                onBlur={() => {
+                  blurTimeoutRef.current = setTimeout(() => closeSuggestions(), 200);
+                }}
                 placeholder="Tìm kiếm"
                 className="w-full h-9 text-base bg-muted border-border focus:border-primary rounded-full px-4"
               />
             </form>
-            {(suggestedVideos.length > 0 || suggestedChannels.length > 0) && (
+            {suggestionsOpen && (suggestedVideos.length > 0 || suggestedChannels.length > 0) && (
               <div className="absolute top-11 left-0 right-0 bg-card border border-border rounded-xl shadow-lg z-50 overflow-hidden">
                 {suggestedVideos.map((s) => (
                   <button

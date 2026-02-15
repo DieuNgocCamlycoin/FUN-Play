@@ -46,6 +46,7 @@ export function useSearchSuggestions(debounceMs = 300): UseSearchSuggestionsResu
     if (query.trim().length < 2) {
       setVideos([]);
       setChannels([]);
+      setIsOpen(false);
       return;
     }
 
@@ -69,10 +70,12 @@ export function useSearchSuggestions(debounceMs = 300): UseSearchSuggestionsResu
             .limit(3),
         ]);
 
-        setVideos(videosRes.data || []);
+        const vids = videosRes.data || [];
+        setVideos(vids);
 
         // Fetch avatars for channels
         const channelData = channelsRes.data || [];
+        let chans: ChannelSuggestion[] = [];
         if (channelData.length > 0) {
           const userIds = channelData.map((c) => c.user_id);
           const { data: profiles } = await supabase
@@ -80,20 +83,25 @@ export function useSearchSuggestions(debounceMs = 300): UseSearchSuggestionsResu
             .select("id, avatar_url")
             .in("id", userIds);
           const avatarMap = new Map(profiles?.map((p) => [p.id, p.avatar_url]) || []);
-          setChannels(
-            channelData.map((c) => ({
-              id: c.id,
-              name: c.name,
-              subscriber_count: c.subscriber_count,
-              avatar_url: avatarMap.get(c.user_id) || null,
-            }))
-          );
+          chans = channelData.map((c) => ({
+            id: c.id,
+            name: c.name,
+            subscriber_count: c.subscriber_count,
+            avatar_url: avatarMap.get(c.user_id) || null,
+          }));
+        }
+        setChannels(chans);
+
+        // Auto-open when results found
+        if (vids.length > 0 || chans.length > 0) {
+          setIsOpen(true);
         } else {
-          setChannels([]);
+          setIsOpen(false);
         }
       } catch {
         setVideos([]);
         setChannels([]);
+        setIsOpen(false);
       }
     }, debounceMs);
 
