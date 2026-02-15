@@ -74,9 +74,9 @@ export const CAMLYPriceSection = () => {
               transition={{ duration: 2, repeat: Infinity }}
             >
               <img
-                src="/images/camly-coin.png"
+                src="/images/camly-coin-new.png"
                 alt="CAMLY"
-                className="h-14 w-14 rounded-full"
+                className="h-14 w-14 rounded-full object-cover"
               />
             </motion.div>
             <div>
