@@ -49,10 +49,18 @@ serve(async (req) => {
       );
     }
 
+    // Fetch profile with wallet_address
     const { data: profile } = await supabase
       .from("profiles")
-      .select("id, username, display_name, avatar_url")
+      .select("id, username, display_name, avatar_url, wallet_address")
       .eq("id", claim.user_id)
+      .maybeSingle();
+
+    // Fetch channel name
+    const { data: channel } = await supabase
+      .from("channels")
+      .select("name")
+      .eq("user_id", claim.user_id)
       .maybeSingle();
 
     return new Response(
@@ -61,6 +69,7 @@ serve(async (req) => {
         claim: {
           ...claim,
           profiles: profile,
+          channel: channel,
         },
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
