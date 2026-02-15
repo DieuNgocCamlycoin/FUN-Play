@@ -9,6 +9,9 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { extractVideoThumbnail } from "@/lib/videoThumbnail";
 import { useUpload } from "@/contexts/UploadContext";
+import { useUploadGate } from "@/hooks/useUploadGate";
+import { AvatarVerificationGate } from "../AvatarVerificationGate";
+import { ContentModerationFeedback } from "../ContentModerationFeedback";
 
 // Sub-components
 import { VideoGalleryPicker } from "./VideoGalleryPicker";
@@ -35,6 +38,9 @@ type MobileUploadStep =
   | "sub-visibility"
   | "sub-description"
   | "sub-thumbnail"
+  | "gate-checking"
+  | "gate-avatar"
+  | "gate-blocked"
   | "uploading"
   | "success";
 
@@ -56,6 +62,7 @@ export function MobileUploadFlow({ open, onOpenChange }: MobileUploadFlowProps) 
   const { user } = useAuth();
   const { toast } = useToast();
   const { addUpload } = useUpload();
+  const { checkBeforeUpload, isChecking, gateResult, resetGate } = useUploadGate();
 
   // Navigation stack for back button
   const [navigationStack, setNavigationStack] = useState<MobileUploadStep[]>(["type-selector"]);
@@ -219,11 +226,26 @@ export function MobileUploadFlow({ open, onOpenChange }: MobileUploadFlowProps) 
     setThumbnailPreview(preview);
   }, []);
 
-  // Handle upload - Now uses background upload system like YouTube
+  // Handle upload - Now uses gate check + background upload
   const handleUpload = async () => {
     if (!user || !videoFile) return;
 
     try {
+      // Step 0: Run upload gate (avatar + content moderation)
+      navigateTo("gate-checking");
+      const result = await checkBeforeUpload(metadata.title, metadata.description);
+
+      if (!result.allowed) {
+        if (result.reason === "avatar") {
+          navigateTo("gate-avatar");
+          return;
+        }
+        if (result.reason === "content_blocked") {
+          navigateTo("gate-blocked");
+          return;
+        }
+      }
+
       // Step 1: Get or create channel first (required for background upload)
       let channelId = null;
       const { data: channels } = await supabase
@@ -254,7 +276,7 @@ export function MobileUploadFlow({ open, onOpenChange }: MobileUploadFlowProps) 
         channelId = newChannel.id;
       }
 
-      // Step 2: Add to background upload queue
+      // Step 2: Add to background upload queue with pre-determined approval status
       addUpload(
         videoFile,
         {
@@ -264,6 +286,7 @@ export function MobileUploadFlow({ open, onOpenChange }: MobileUploadFlowProps) 
           isShort,
           duration: videoDuration,
           channelId,
+          approvalStatus: result.approvalStatus,
         },
         thumbnailBlob,
         thumbnailPreview
@@ -272,7 +295,9 @@ export function MobileUploadFlow({ open, onOpenChange }: MobileUploadFlowProps) 
       // Step 3: Show toast and close modal immediately (like YouTube)
       toast({
         title: "Đang tải lên... 🚀",
-        description: "Video đang được tải lên ở chế độ nền. Bạn có thể tiếp tục sử dụng app.",
+        description: result.approvalStatus === "pending_review"
+          ? "Video sẽ được Admin xem xét trước khi công khai."
+          : "Video đang được tải lên ở chế độ nền. Bạn có thể tiếp tục sử dụng app.",
       });
 
       handleClose();
@@ -309,6 +334,12 @@ export function MobileUploadFlow({ open, onOpenChange }: MobileUploadFlowProps) 
         return "Thêm nội dung mô tả";
       case "sub-thumbnail":
         return "Chọn thumbnail";
+      case "gate-checking":
+        return "Angel AI đang kiểm tra...";
+      case "gate-avatar":
+        return "Xác minh ảnh đại diện";
+      case "gate-blocked":
+        return "Nội dung chưa phù hợp";
       case "uploading":
         return "Đang tải lên...";
       case "success":
@@ -319,8 +350,8 @@ export function MobileUploadFlow({ open, onOpenChange }: MobileUploadFlowProps) 
   };
 
   // Determine if we should show close button or back button
-  const showBackButton = navigationStack.length > 1 && currentStep !== "uploading" && currentStep !== "success";
-  const showCloseButton = currentStep !== "uploading";
+  const showBackButton = navigationStack.length > 1 && currentStep !== "uploading" && currentStep !== "success" && currentStep !== "gate-checking";
+  const showCloseButton = currentStep !== "uploading" && currentStep !== "gate-checking";
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -457,6 +488,33 @@ export function MobileUploadFlow({ open, onOpenChange }: MobileUploadFlowProps) 
                   currentThumbnail={thumbnailPreview}
                   onThumbnailChange={handleThumbnailChange}
                   onBack={navigateBack}
+                />
+              )}
+
+              {/* Gate: Checking */}
+              {currentStep === "gate-checking" && (
+                <ContentModerationFeedback isChecking={true} result={null} />
+              )}
+
+              {/* Gate: Avatar not verified */}
+              {currentStep === "gate-avatar" && (
+                <AvatarVerificationGate onClose={handleClose} />
+              )}
+
+              {/* Gate: Content blocked */}
+              {currentStep === "gate-blocked" && (
+                <ContentModerationFeedback
+                  isChecking={false}
+                  result={gateResult}
+                  onRetry={() => {
+                    resetGate();
+                    // Go back to video-details to edit title/description
+                    setNavigationStack(prev => prev.filter(s => s !== "gate-checking" && s !== "gate-blocked"));
+                    if (!navigationStack.includes("video-details")) {
+                      navigateTo("video-details");
+                    }
+                  }}
+                  onClose={handleClose}
                 />
               )}
 
