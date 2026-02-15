@@ -1,110 +1,49 @@
 
+# Fix Upload Gate and PPLP Moderation Bugs
 
-# Feature: Avatar Verification Gate + Enhanced PPLP Content Moderation Before Upload
+## Issues Found
 
-## Overview
+### Bug 1: Mobile gate-blocked retry uses stale closure
+In `MobileUploadFlow.tsx` (line 509-515), the retry handler for content-blocked state uses `navigationStack` from a stale closure. The fix is to simplify the retry logic to just reset the stack back to `video-details`.
 
-Two smart checks will run **before** a video upload proceeds:
+### Bug 2: Web upload skips reward logic
+`UploadWizard.tsx` performs its own direct upload to R2 and DB insert (lines 166-375) instead of using the background `addUpload()` from `UploadContext`. This means:
+- Upload rewards (FIRST_UPLOAD, SHORT/LONG_VIDEO_UPLOAD) are never awarded for web uploads
+- The `upload_rewarded` flag is never set
+- No reward toast notifications appear
 
-1. **Avatar Verification Gate**: If the user has no verified real-person profile picture (`avatar_verified !== true`), block the upload and guide them to Profile Settings to upload a real photo.
+The fix is to refactor the web wizard to also use the background upload queue (like mobile does), or duplicate the reward logic. Using the background queue is cleaner and consistent.
 
-2. **Enhanced PPLP Content Moderation**: The existing `moderate-content` edge function already runs during upload (in `UploadContext.tsx`), but currently it only checks title+description **after** the video has been uploaded to R2. We will move the moderation check **before** the upload starts, saving bandwidth and time. Videos that fail moderation will be flagged as `pending_review` for admin approval.
+### Bug 3: Mobile retry navigation inconsistency
+The retry handler filters the navigation stack but may leave it in an unexpected state. Simplify to directly set the stack to `["type-selector", "video-gallery", "video-confirm", "video-details"]`.
 
-## Smart UX Optimizations
+## Changes
 
-- **One-time avatar check**: Once verified, the user never sees the gate again (stored in DB as `avatar_verified = true`).
-- **Inline guidance**: Instead of a generic error, show a friendly modal with a direct link to Profile Settings.
-- **Pre-upload moderation**: Check title and description BEFORE uploading the video file, so users get instant feedback without waiting for the upload to finish.
-- **Soft moderation**: Content with borderline scores (3-5) still gets uploaded but marked for admin review. Only clearly violating content (score < 3) is blocked outright with a friendly explanation.
-- **Loading state**: Show "Angel AI is reviewing..." with a subtle animation while moderation runs.
+### File 1: `src/components/Upload/Mobile/MobileUploadFlow.tsx`
+- Fix the gate-blocked retry handler (lines 509-515) to use a clean navigation reset instead of fragile stack filtering:
+  ```
+  onRetry={() => {
+    resetGate();
+    setNavigationStack(["type-selector", "video-confirm", "video-details"]);
+  }}
+  ```
 
-## Technical Changes
+### File 2: `src/components/Upload/UploadWizard.tsx`
+- Refactor `handleUpload()` to use the background `addUpload()` from `UploadContext` (like mobile does), instead of performing a direct upload. This ensures:
+  - Rewards are properly awarded
+  - Consistent behavior between web and mobile
+  - The wizard closes immediately after queuing (better UX)
+- Import and use `useUpload` from `UploadContext`
+- The gate-blocked retry already works correctly (resets to metadata step)
 
-### 1. Create a shared hook: `src/hooks/useUploadGate.ts` (NEW FILE)
+## Technical Details
 
-A reusable hook that both web and mobile upload flows will use:
+### UploadWizard.tsx handleUpload refactor
+After the gate check passes:
+1. Get/create channel (same as now)
+2. Call `addUpload(videoFile, metadata, thumbnailBlob, thumbnailPreview)` with `approvalStatus`
+3. Show toast and close wizard immediately
+4. Remove the direct R2 upload, thumbnail upload, and DB insert code (lines 170-375)
+5. Remove the "uploading" and "success" steps from the wizard (handled by background upload indicator)
 
-```typescript
-export function useUploadGate() {
-  // Checks:
-  // 1. Fetch profile.avatar_verified
-  // 2. If not verified, return { allowed: false, reason: 'avatar' }
-  // 3. Run moderate-content on title+description
-  // 4. If score < 3, return { allowed: false, reason: 'content_blocked', message: ... }
-  // 5. If score 3-5, return { allowed: true, approvalStatus: 'pending_review' }
-  // 6. If score > 5, return { allowed: true, approvalStatus: 'approved' }
-}
-```
-
-### 2. Update `src/components/Upload/Mobile/MobileUploadFlow.tsx`
-
-- In `handleUpload()`, before adding to background queue:
-  - Call `useUploadGate().checkBeforeUpload(metadata)`
-  - If avatar not verified: show a bottom sheet/modal explaining the requirement with a "Go to Settings" button
-  - If content blocked: show the reason from Angel AI
-  - If pending_review: proceed with upload but pass `approvalStatus: 'pending_review'` to the upload context
-- Add a new UI state for the gate check ("Angel AI is reviewing..." screen)
-
-### 3. Update `src/components/Upload/UploadWizard.tsx`
-
-- Same logic as mobile, applied in `handleUpload()` before the upload starts
-- Show an inline alert/dialog for avatar verification or content issues
-- The "preview" step already exists -- add the gate check when user clicks "Upload" from preview
-
-### 4. Update `src/contexts/UploadContext.tsx`
-
-- Accept `approvalStatus` parameter in `addUpload()` metadata so the pre-determined moderation result flows through
-- Remove the duplicate moderation call currently at line ~193 (since moderation now happens before upload)
-- Use the pre-determined `approvalStatus` when inserting the video record
-
-### 5. Create Avatar Verification Gate Component: `src/components/Upload/AvatarVerificationGate.tsx` (NEW FILE)
-
-A reusable UI component (dialog/bottom sheet) that:
-- Shows a friendly message: "Please verify your profile picture before uploading"
-- Displays current avatar (if any) with verification status
-- Has a "Go to Profile Settings" button
-- Works on both web (Dialog) and mobile (bottom sheet style)
-
-### 6. Create Content Moderation Feedback Component: `src/components/Upload/ContentModerationFeedback.tsx` (NEW FILE)
-
-A UI component that shows:
-- "Angel AI is checking your content..." loading state
-- Approved result with green checkmark
-- Pending review result with yellow warning
-- Blocked result with red alert and the reason
-
-## Flow Diagram
-
-```text
-User clicks "Upload" button
-        |
-        v
-  Check avatar_verified?
-        |
-   No --+--> Show "Please verify avatar" dialog
-        |      --> Link to Profile Settings
-        |
-   Yes -+--> Show "Angel AI is reviewing..." 
-        |
-        v
-  Call moderate-content(title, description)
-        |
-  score < 3 --> Block upload, show reason
-  score 3-5 --> Upload with approval_status = "pending_review"
-  score > 5 --> Upload with approval_status = "approved"
-        |
-        v
-  Proceed with R2 upload + DB insert
-```
-
-## Files Summary
-
-| File | Action |
-|------|--------|
-| `src/hooks/useUploadGate.ts` | NEW - shared gate logic |
-| `src/components/Upload/AvatarVerificationGate.tsx` | NEW - avatar gate UI |
-| `src/components/Upload/ContentModerationFeedback.tsx` | NEW - moderation feedback UI |
-| `src/components/Upload/Mobile/MobileUploadFlow.tsx` | EDIT - integrate gate before upload |
-| `src/components/Upload/UploadWizard.tsx` | EDIT - integrate gate before upload |
-| `src/contexts/UploadContext.tsx` | EDIT - accept pre-determined approvalStatus, remove duplicate moderation |
-
+This aligns the web flow with the mobile flow which already uses background uploads correctly.
