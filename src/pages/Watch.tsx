@@ -254,20 +254,26 @@ export default function Watch() {
 
       // View reward is now handled in EnhancedVideoPlayer based on watch time policy
 
-      // Auto-detect duration: if DB has NULL duration, update when player loads metadata
-      if (data.duration == null) {
+      // Auto-detect & fix duration: update if NULL or significantly mismatched
+      {
+        const storedDuration = data.duration;
         const videoEl = document.createElement("video");
         videoEl.preload = "metadata";
         videoEl.src = data.video_url;
         videoEl.onloadedmetadata = async () => {
-          const detectedDuration = videoEl.duration;
-          if (detectedDuration && detectedDuration > 0 && isFinite(detectedDuration)) {
-            const rounded = Math.round(detectedDuration);
-            console.log(`[Auto-Duration] Updating video ${data.id} duration to ${rounded}s`);
-            await supabase
-              .from("videos")
-              .update({ duration: rounded })
-              .eq("id", data.id);
+          const actual = videoEl.duration;
+          if (actual && actual > 0 && isFinite(actual)) {
+            const rounded = Math.round(actual);
+            // Update if NULL or if mismatch is significant (>30% difference)
+            const needsUpdate = storedDuration == null 
+              || Math.abs(rounded - storedDuration) / Math.max(rounded, 1) > 0.3;
+            if (needsUpdate) {
+              console.log(`[Auto-Duration] Fixing video ${data.id}: stored=${storedDuration}s → actual=${rounded}s`);
+              await supabase
+                .from("videos")
+                .update({ duration: rounded })
+                .eq("id", data.id);
+            }
           }
           videoEl.src = "";
         };
