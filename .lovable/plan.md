@@ -1,76 +1,58 @@
 
 
-# Fix Short/Long Video Sorting on Profile Page
+# Fix Video Classification: Reset All Suspicious Durations and Batch Re-detect
 
 ## Problem
 
-1. **Wrong durations still in database**: The previous fix only reset videos with `duration <= 10` to NULL. But many videos with durations of 11-15 seconds are also incorrect (e.g., "8 CAU THAN CHU CUA CHA" stored as 12s when it's actually 4+ minutes). These still show up in the Shorts tab incorrectly.
+Previous fixes only reset durations ≤15 seconds. But the database still has **201 videos** with durations between 16-60 seconds that are almost all incorrectly classified. Examples:
+- "8 CAU THAN CHU CUA CHA" stored as 19s, 23s, 34s, 39s (these are 4+ minute videos)
+- "Chu Lang Nghiem" stored as 16s (likely much longer)
+- Many other spiritual/meditation videos stored as 16-60s
 
-2. **Shorts tab layout doesn't match YouTube**: Currently both Videos and Shorts tabs use the same horizontal video card layout. On YouTube mobile, Shorts are displayed in a compact vertical grid (3 columns, portrait aspect ratio thumbnails).
+These all show up in the **Shorts** tab incorrectly.
 
-## Solution
+## Root Cause
 
-### 1. Database Migration: Reset suspicious durations (11-15s) to NULL
+The upload process captures an unreliable initial duration from the browser's video element before the full file is loaded, resulting in durations that are far too short.
 
-Expand the previous reset to also clear durations between 11 and 15 seconds. These are almost always incorrect metadata captures from upload. Real shorts are typically 20+ seconds.
+## Solution (2 Steps)
+
+### Step 1: Database Update - Reset all durations ≤ 60s to NULL
+
+Reset all videos with `duration` between 16 and 60 seconds to NULL. Videos in this range on this platform are almost always incorrectly detected -- real shorts tend to be clearly identified by the upload flow, and the vast majority of content is longer spiritual/meditation videos.
 
 ```text
 UPDATE videos 
 SET duration = NULL 
 WHERE duration IS NOT NULL 
-  AND duration > 10 
-  AND duration <= 15;
+  AND duration >= 16 
+  AND duration <= 60;
 ```
 
-This immediately moves these misclassified videos out of the Shorts tab and into the Videos tab (where NULL durations go). The self-healing mechanism will set the correct duration when they are played.
+This immediately moves ~201 misclassified videos out of the Shorts tab.
 
-### 2. Update Shorts tab layout in ProfileVideosTab
+### Step 2: Batch re-detect durations using existing backend function
 
-When `type === "shorts"`, render a YouTube-style vertical grid instead of the standard video card grid:
-- **Mobile**: 3 columns with portrait (9:16) aspect ratio thumbnails
-- **Desktop**: 4-6 columns
-- Compact card with just thumbnail, title, and view count (no channel name or avatar needed on own profile)
-- Clicking navigates to `/shorts` page or `/watch/{id}`
+The existing `update-video-durations` backend function can parse actual MP4 files to extract correct durations. It currently only processes videos with NULL duration. After Step 1 resets the suspicious ones to NULL, we can call this function (multiple times with limit parameter) to batch-fix all 187 + 201 = ~388 videos with NULL durations.
 
-### 3. Add Shorts-specific card rendering
+This will be called via the admin panel or directly, processing 50 videos at a time until all are fixed.
 
-Inside `ProfileVideosTab.tsx`, add a conditional render path for shorts that shows:
-- Portrait thumbnail (aspect-[9/16]) 
-- Title (1 line, truncated)
-- View count
-- No duration badge (shorts don't need it)
+### Step 3: Self-healing continues
+
+For any videos that the batch function can't fix (e.g., non-standard MP4 formats), the existing client-side self-healing code will detect the correct duration when the video is played.
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| SQL Migration | Reset `duration` to NULL for videos with duration 11-15s |
-| `src/components/Profile/ProfileVideosTab.tsx` | Add shorts-specific grid layout with portrait cards matching YouTube mobile style |
-
-## Technical Details
-
-```text
-// ProfileVideosTab.tsx - Shorts grid layout
-if (type === "shorts") {
-  return (
-    <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2">
-      {videos.map((video) => (
-        <div key={video.id} className="cursor-pointer" onClick={() => navigate(`/watch/${video.id}`)}>
-          <div className="relative aspect-[9/16] rounded-lg overflow-hidden bg-muted">
-            <img src={video.thumbnail_url} className="w-full h-full object-cover" />
-          </div>
-          <p className="text-xs mt-1 line-clamp-1">{video.title}</p>
-          <p className="text-xs text-muted-foreground">{formatViews(video.view_count)}</p>
-        </div>
-      ))}
-    </div>
-  );
-}
-```
+| SQL Data Update | Reset `duration` to NULL for videos with duration 16-60s |
+| No code changes needed | The `update-video-durations` function and UI are already correct |
 
 ## Expected Result
 
-- Videos with wrong 11-15s durations immediately disappear from Shorts tab
-- Shorts tab displays in a compact 3-column portrait grid like YouTube mobile
-- Videos tab shows only long videos and undetected (NULL duration) videos
-- Self-healing continues to permanently fix durations when videos are played
+- All 201 misclassified videos immediately leave the Shorts tab
+- Batch duration detection will correctly re-classify them within minutes
+- Shorts tab only shows genuinely short videos (real ≤ 180s)
+- Videos tab shows everything else correctly
+- The YouTube-style portrait grid layout (already deployed) continues working
+
