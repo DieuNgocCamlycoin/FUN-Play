@@ -350,7 +350,7 @@ export function MobileUploadFlow({ open, onOpenChange }: MobileUploadFlowProps) 
   };
 
   // Determine if we should show close button or back button
-  const showBackButton = navigationStack.length > 1 && currentStep !== "uploading" && currentStep !== "success" && currentStep !== "gate-checking";
+  const showBackButton = navigationStack.length > 1 && currentStep !== "uploading" && currentStep !== "success" && currentStep !== "gate-checking" && currentStep !== "gate-avatar" && currentStep !== "gate-blocked";
   const showCloseButton = currentStep !== "uploading" && currentStep !== "gate-checking";
 
   return (
