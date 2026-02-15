@@ -42,7 +42,8 @@ const YourVideosMobile = () => {
   const { user, loading: authLoading } = useAuth();
   const { profile } = useProfile();
   
-  const [videos, setVideos] = useState<Video[]>([]);
+  const [longVideos, setLongVideos] = useState<Video[]>([]);
+  const [shortVideos, setShortVideos] = useState<Video[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("videos");
@@ -66,7 +67,10 @@ const YourVideosMobile = () => {
         .order("created_at", { ascending: false });
 
       if (videoData) {
-        setVideos(videoData);
+        const long = videoData.filter(v => v.duration == null || v.duration > 180);
+        const short = videoData.filter(v => v.duration != null && v.duration <= 180);
+        setLongVideos(long);
+        setShortVideos(short);
       }
 
       // Fetch posts
@@ -86,7 +90,14 @@ const YourVideosMobile = () => {
     fetchContent();
   }, [user, authLoading, navigate]);
 
-  const filteredVideos = videos.filter((video) => {
+  const filteredLongVideos = longVideos.filter((video) => {
+    if (filter === "all") return true;
+    if (filter === "public") return video.is_public;
+    if (filter === "private") return !video.is_public;
+    return true;
+  });
+
+  const filteredShortVideos = shortVideos.filter((video) => {
     if (filter === "all") return true;
     if (filter === "public") return video.is_public;
     if (filter === "private") return !video.is_public;
@@ -213,9 +224,9 @@ const YourVideosMobile = () => {
                 </div>
               ))}
             </div>
-          ) : filteredVideos.length > 0 ? (
+          ) : filteredLongVideos.length > 0 ? (
             <div className="space-y-4 p-4">
-              {filteredVideos.map((video) => (
+              {filteredLongVideos.map((video) => (
                 <div key={video.id} className="flex gap-3">
                   <div
                     className="relative w-40 aspect-video rounded-lg overflow-hidden bg-muted flex-shrink-0 cursor-pointer"
@@ -293,13 +304,58 @@ const YourVideosMobile = () => {
 
         {/* Shorts Tab */}
         <TabsContent value="shorts" className="mt-0">
-          <div className="flex flex-col items-center justify-center py-16 px-4">
-            <Eye className="h-16 w-16 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Chưa có Shorts nào</h3>
-            <p className="text-sm text-muted-foreground text-center">
-              Shorts sẽ hiển thị ở đây
-            </p>
-          </div>
+          {loading ? (
+            <div className="grid grid-cols-3 gap-2 p-4">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={i} className="animate-pulse">
+                  <div className="aspect-[9/16] bg-muted rounded-lg" />
+                  <div className="h-3 bg-muted rounded w-3/4 mt-1" />
+                </div>
+              ))}
+            </div>
+          ) : filteredShortVideos.length > 0 ? (
+            <div className="grid grid-cols-3 gap-2 p-4">
+              {filteredShortVideos.map((video) => (
+                <div
+                  key={video.id}
+                  className="cursor-pointer group"
+                  onClick={() => navigate(`/watch/${video.id}`)}
+                >
+                  <div className="relative aspect-[9/16] rounded-lg overflow-hidden bg-muted">
+                    {video.thumbnail_url ? (
+                      <img
+                        src={video.thumbnail_url}
+                        alt={video.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Eye className="h-6 w-6 text-muted-foreground" />
+                      </div>
+                    )}
+                    {video.duration && (
+                      <span className="absolute bottom-1 right-1 text-xs bg-black/80 text-white px-1 py-0.5 rounded">
+                        {formatDuration(video.duration)}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs mt-1 line-clamp-1">{video.title}</p>
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    {video.is_public ? <Globe className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
+                    <span>{formatViews(video.view_count)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-16 px-4">
+              <Eye className="h-16 w-16 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Chưa có Shorts nào</h3>
+              <p className="text-sm text-muted-foreground text-center">
+                Shorts sẽ hiển thị ở đây
+              </p>
+            </div>
+          )}
         </TabsContent>
 
         {/* Live Tab */}
