@@ -1,48 +1,53 @@
 
 
-# Remove White Background Around CAMLY Token Logo
+# Fix CAMLY Logo White Background
 
 ## Problem
-The CAMLY coin logo next to "CAMLY Token" on the price chart has a visible white/light background around it, making it look out of place against the card background.
+The `mix-blend-mode: multiply` approach does not work here because the card itself has a white background (`bg-white`). Multiplying white on white produces white, so the logo's baked-in white background remains fully visible.
 
 ## Solution
+Replace the blend-mode approach with a proper visual fix:
 
-Since the uploaded image has a white background baked into the PNG file itself, we need to use CSS to visually remove it. There are two approaches combined for best results:
-
-1. **Use `mix-blend-mode: multiply`** on the image -- this CSS property makes white pixels transparent, effectively removing the white background while preserving the coin design.
-
-2. **Add a subtle gradient background behind the logo** to ensure smooth blending on any background.
-
-3. **Remove `rounded-full`** clipping if the coin design already has its own circular shape, or keep it if the image needs cropping.
+1. **Add a gradient background circle** behind the logo that matches the gold theme, so the white pixels in the image blend naturally into a gold-toned circle instead of standing out.
+2. **Use `mix-blend-mode: darken`** instead of `multiply` — this will make white pixels take on the background color beneath them (the gold gradient), effectively hiding the white border while preserving the coin design.
+3. **Add `overflow-hidden` and `rounded-full`** on the wrapper div to cleanly clip everything into a circle.
 
 ## File Changed
 
 | File | Change |
 |------|--------|
-| `src/components/Wallet/CAMLYPriceSection.tsx` | Add `mix-blend-mode: multiply` and adjust styling to remove visible white background |
+| `src/components/Wallet/CAMLYPriceSection.tsx` | Wrap logo in a gradient background circle and switch blend mode |
 
 ## Technical Details
 
-In `CAMLYPriceSection.tsx` (around line 76-80), update the `img` element:
+Update the motion.div wrapper and img (lines 65-82):
 
 ```text
-// Before:
-<img
-  src="/images/camly-coin-new.png"
-  alt="CAMLY"
-  className="h-14 w-14 rounded-full object-cover"
-/>
-
-// After:
-<img
-  src="/images/camly-coin-new.png"
-  alt="CAMLY"
-  className="h-14 w-14 rounded-full object-cover"
-  style={{ mixBlendMode: 'multiply' }}
-/>
+<motion.div
+  className="relative rounded-full overflow-hidden"
+  animate={{
+    boxShadow: [
+      "0 0 20px rgba(255, 215, 0, 0.4)",
+      "0 0 40px rgba(255, 215, 0, 0.6)",
+      "0 0 20px rgba(255, 215, 0, 0.4)",
+    ],
+  }}
+  transition={{ duration: 2, repeat: Infinity }}
+  style={{
+    background: 'linear-gradient(135deg, #FFD700, #FFA500)',
+  }}
+>
+  <img
+    src="/images/camly-coin-new.png"
+    alt="CAMLY"
+    className="h-14 w-14 rounded-full object-cover"
+    style={{ mixBlendMode: 'darken' }}
+  />
+</motion.div>
 ```
 
-The `mix-blend-mode: multiply` property will make white pixels effectively transparent, cleanly removing the white background around the coin logo. This works on both web and mobile browsers.
-
-If the blend mode alone isn't sufficient (e.g., if the background behind the logo isn't white), we'll also add a circular background wrapper to ensure a clean appearance.
+- The gold gradient background fills the space behind the logo
+- `mix-blend-mode: darken` makes the white pixels take on the darker gold background color, effectively removing the white border
+- `overflow-hidden` and `rounded-full` on the wrapper ensure a clean circular clip
+- Works consistently on both web and mobile browsers
 
