@@ -9,6 +9,7 @@ export interface SystemWalletInfo {
   username: string;
   channelName: string;
   avatarUrl: string;
+  userId?: string | null;
 }
 
 // Cấu hình các ví hệ thống FUN PLAY
@@ -24,11 +25,12 @@ export const SYSTEM_WALLETS = {
   
   // Ví tặng thưởng 1 (Treasury)
   TREASURY: {
-    address: "0x1DC24BFd99c256B12a4A4cC7732c7e3B9aA75998",
+    address: "0x9848fFc886Fb7d17C0060ff11c75997C9B2de4cC",
     displayName: "FUN PLAY TREASURY",
-    username: "@funplaytreasury",
+    username: "@user_cc9cd3a1",
     channelName: "FUN PLAY TREASURY",
-    avatarUrl: "/images/funplay-planet-logo.png",
+    avatarUrl: "https://pub-348064b6f39043d6be2bfb92d648edb8.r2.dev/cc9cd3a1-8541-4f6f-b10e-f5619e0de832/avatars/1770830879600-play_fun.jpg",
+    userId: "cc9cd3a1-8541-4f6f-b10e-f5619e0de832",
   } as SystemWalletInfo,
 
   // Ví tặng thưởng 2

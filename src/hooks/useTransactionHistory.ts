@@ -365,7 +365,7 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
           source_table: "claim_requests",
           
           // Sender: FUN PLAY Treasury (Admin wallet) - Dùng config tập trung
-          sender_user_id: null,
+          sender_user_id: SYSTEM_WALLETS.TREASURY.userId || null,
           sender_display_name: SYSTEM_WALLETS.TREASURY.displayName,
           sender_username: SYSTEM_WALLETS.TREASURY.username,
           sender_avatar_url: SYSTEM_WALLETS.TREASURY.avatarUrl,
