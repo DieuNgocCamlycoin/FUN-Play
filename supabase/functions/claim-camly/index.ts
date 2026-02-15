@@ -74,8 +74,9 @@ serve(async (req) => {
     console.log("User email:", user.email);
 
     const body = await req.json();
-    const { walletAddress } = body;
+    const { walletAddress, claimAmount: requestedAmount } = body;
     console.log("Wallet address from request:", walletAddress);
+    console.log("Requested claim amount:", requestedAmount);
 
     if (!walletAddress || !walletAddress.match(/^0x[a-fA-F0-9]{40}$/)) {
       return new Response(
@@ -192,6 +193,25 @@ serve(async (req) => {
     }
     
     claimAmount = Math.min(claimAmount, lifetimeRemaining);
+
+    // Apply user-requested custom amount if provided
+    if (requestedAmount && typeof requestedAmount === 'number' && requestedAmount > 0) {
+      if (requestedAmount < config.MIN_CLAIM_AMOUNT) {
+        return new Response(
+          JSON.stringify({ error: `Cần ít nhất ${config.MIN_CLAIM_AMOUNT.toLocaleString()} CAMLY để rút.` }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      if (requestedAmount > claimAmount) {
+        return new Response(
+          JSON.stringify({ error: `Số lượng yêu cầu (${requestedAmount.toLocaleString()}) vượt quá giới hạn cho phép (${claimAmount.toLocaleString()} CAMLY).` }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      claimAmount = requestedAmount;
+      console.log(`Using user-requested claim amount: ${claimAmount} CAMLY`);
+    }
+
     console.log(`Claim amount (after all limits): ${claimAmount} CAMLY`);
 
     // Auto-cleanup stuck pending claims (older than 2 minutes) - BEFORE pending check to prevent deadlock
