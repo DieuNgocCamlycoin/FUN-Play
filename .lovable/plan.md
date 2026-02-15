@@ -1,56 +1,33 @@
 
 
-# Update FUN PLAY TREASURY Wallet Identity for Claim Transactions
+# Update FUN PLAY TREASURY Logo
 
 ## Problem
-The TREASURY wallet identity is duplicated in two places:
-1. **`systemWallets.ts`** config has outdated names: "Vi tang thuong 1" (Vietnamese for "Reward Wallet 1")
-2. **`useTransactionHistory.ts`** hardcodes "FUN PLAY TREASURY" info (lines 367-374) instead of using the centralized config
-
-This means the config is not the single source of truth, and the TREASURY wallet displays inconsistently depending on where it's referenced.
+The TREASURY wallet's `avatarUrl` in `src/config/systemWallets.ts` is set to `/images/fun-play-wallet-icon.png` instead of the correct Fun Play planet logo (`/images/funplay-planet-logo.png`). This causes the wrong logo to appear for claim transactions across the app.
 
 ## Solution
+Update a single line in `src/config/systemWallets.ts` to change the TREASURY `avatarUrl` from `/images/fun-play-wallet-icon.png` to `/images/funplay-planet-logo.png`.
 
-### Step 1: Update `systemWallets.ts` - Set correct TREASURY identity
-Update the TREASURY entry to use "FUN PLAY TREASURY" as the official display name, matching what the user expects to see in all transaction views.
+Since the previous update already centralized all TREASURY references to use `SYSTEM_WALLETS.TREASURY`, this one change will automatically propagate to:
+- Transaction history page
+- Personal transaction history in the wallet page
+- All other sections that reference the TREASURY wallet
 
-| Field | Current | Updated |
-|-------|---------|---------|
-| displayName | "Vi tang thuong 1" | "FUN PLAY TREASURY" |
-| username | "@vitangthuong1" | "@funplaytreasury" |
-| channelName | "Vi tang thuong 1" | "FUN PLAY TREASURY" |
-| avatarUrl | `/images/fun-play-wallet-icon.png` | `/images/funplay-planet-logo.png` (or keep current) |
-
-### Step 2: Update `useTransactionHistory.ts` - Use config instead of hardcoded values
-Replace the hardcoded TREASURY info in the claim_requests normalization (lines 367-374) with a reference to `SYSTEM_WALLETS.TREASURY` from the config. This ensures any future changes to the TREASURY identity are automatically reflected everywhere.
-
-```text
-// Before (hardcoded):
-sender_display_name: "FUN PLAY TREASURY",
-sender_username: "@funplaytreasury",
-sender_avatar_url: "/images/fun-play-wallet-icon.png",
-sender_channel_name: "FUN PLAY TREASURY",
-wallet_from: "0x1DC2...998",
-wallet_from_full: "0x1DC24BFd99c256B12a4A4cC7732c7e3B9aA75998",
-
-// After (from config):
-sender_display_name: SYSTEM_WALLETS.TREASURY.displayName,
-sender_username: SYSTEM_WALLETS.TREASURY.username,
-sender_avatar_url: SYSTEM_WALLETS.TREASURY.avatarUrl,
-sender_channel_name: SYSTEM_WALLETS.TREASURY.channelName,
-wallet_from: formatAddress(SYSTEM_WALLETS.TREASURY.address),
-wallet_from_full: SYSTEM_WALLETS.TREASURY.address,
-```
-
-## Files Changed
+## File Changed
 
 | File | Change |
 |------|--------|
-| `src/config/systemWallets.ts` | Update TREASURY displayName, username, channelName to "FUN PLAY TREASURY" |
-| `src/hooks/useTransactionHistory.ts` | Import `SYSTEM_WALLETS` and replace hardcoded TREASURY values with config references |
+| `src/config/systemWallets.ts` | Change TREASURY `avatarUrl` to `/images/funplay-planet-logo.png` |
 
-## Impact
-- All claim transactions (rut thuong) will show "FUN PLAY TREASURY" with the correct logo
-- Transaction history page, personal wallet history, and all related sections will be consistent
-- Future name/logo changes only need updating in one place (`systemWallets.ts`)
+## Technical Detail
+
+```text
+// Line 31 - Before:
+avatarUrl: "/images/fun-play-wallet-icon.png",
+
+// After:
+avatarUrl: "/images/funplay-planet-logo.png",
+```
+
+No other files need changes since the centralized config is already referenced everywhere.
 
