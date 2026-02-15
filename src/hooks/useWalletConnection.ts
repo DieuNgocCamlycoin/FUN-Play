@@ -69,6 +69,8 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
   
   const { user } = useAuth();
   const { toast } = useToast();
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
 
   const isCorrectChain = chainId === BSC_CHAIN_ID;
 
@@ -217,7 +219,8 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
       if (previousAddressRef.current) {
         setAddress(previousAddressRef.current);
         setWalletType(previousWalletTypeRef.current);
-        setIsConnected(false); // Disconnected from new wallet
+        // Keep showing old wallet as connected since it's still in DB
+        setIsConnected(true);
       } else {
         setAddress('');
         setWalletType('unknown');
@@ -242,13 +245,13 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
     try {
       setIsLoading(true);
       await switchChain(wagmiConfig, { chainId: bsc.id });
-      toast({
+      toastRef.current({
         title: '✅ Đã chuyển sang BSC',
         description: 'Bạn đã kết nối với BNB Smart Chain',
       });
     } catch (error: unknown) {
       console.error('Failed to switch chain:', error);
-      toast({
+      toastRef.current({
         title: 'Lỗi chuyển mạng',
         description: 'Vui lòng chuyển sang BSC trong ví của bạn',
         variant: 'destructive',
@@ -256,7 +259,7 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
     } finally {
       setIsLoading(false);
     }
-  }, [toast]);
+  }, []);
 
   // Connect wallet using Reown AppKit
   const connectWallet = useCallback(async () => {

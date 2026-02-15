@@ -12,6 +12,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { MobileWalletGuide } from "./MobileWalletGuide";
 import { WalletSelectionModal } from "./WalletSelectionModal";
 import { useFunWalletSync, FUN_WALLET_URL } from "@/hooks/useFunWalletSync";
@@ -22,6 +23,7 @@ const BITGET_ICON = "https://img.cryptorank.io/exchanges/bitget1663580368976.png
 const BSC_ICON = "https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png";
 
 export const WalletButton = () => {
+  const navigate = useNavigate();
   const {
     isConnected,
     address,
@@ -248,7 +250,7 @@ export const WalletButton = () => {
       <WalletSelectionModal
         open={showWalletSelection}
         onOpenChange={setShowWalletSelection}
-        onSelectFunWallet={() => {}}
+        onSelectFunWallet={() => navigate("/fun-wallet")}
         onSelectOtherWallet={handleConnectOtherWallet}
         isConnecting={isConnecting}
       />

@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+
 import { useWalletConnection } from './useWalletConnection';
 import { toast } from '@/hooks/use-toast';
 import type { ConnectionStep } from '@/components/Web3/WalletConnectionProgress';
@@ -27,6 +28,7 @@ export const useWalletConnectionWithRetry = (config: Partial<RetryConfig> = {}) 
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const wasConnectedRef = useRef(false);
+  const isConnectedRef = useRef(walletConnection.isConnected);
 
   // Clear intervals on unmount
   useEffect(() => {
@@ -35,6 +37,11 @@ export const useWalletConnectionWithRetry = (config: Partial<RetryConfig> = {}) 
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
     };
   }, []);
+
+  // Keep isConnectedRef in sync
+  useEffect(() => {
+    isConnectedRef.current = walletConnection.isConnected;
+  }, [walletConnection.isConnected]);
 
   // Auto-reconnect when connection is lost
   useEffect(() => {
@@ -119,13 +126,11 @@ export const useWalletConnectionWithRetry = (config: Partial<RetryConfig> = {}) 
         const startTime = Date.now();
         const checkInterval = 300;
         
-        // Check current state immediately
-        let connected = walletConnection.isConnected;
+        let connected = isConnectedRef.current;
         
         while (!connected && Date.now() - startTime < connectionTimeout) {
           await new Promise(resolve => setTimeout(resolve, checkInterval));
-          // Re-check connection state
-          connected = walletConnection.isConnected;
+          connected = isConnectedRef.current;
           if (connected) break;
         }
         
