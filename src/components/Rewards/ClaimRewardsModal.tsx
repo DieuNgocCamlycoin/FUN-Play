@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Coins, Sparkles, Gift, CheckCircle, Loader2, ExternalLink, Wallet, Smartphone, AlertCircle, HelpCircle, Clock, ShieldCheck, Info, TrendingUp, Camera } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -79,6 +81,8 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
   const [hasPendingClaim, setHasPendingClaim] = useState(false);
   const [profileCheck, setProfileCheck] = useState<{ hasAvatar: boolean; isVerified: boolean }>({ hasAvatar: true, isVerified: true });
   const [claimElapsed, setClaimElapsed] = useState(0);
+  const [claimAmount, setClaimAmount] = useState<number>(0);
+  const [claimAmountError, setClaimAmountError] = useState<string | null>(null);
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const claimInProgressRef = useRef(false);
   const claimTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -254,6 +258,8 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
       );
       setTotalClaimable(claimableTotal);
       setTotalPending(pendingTotal);
+      // Initialize claim amount to max claimable if not yet set or exceeds new balance
+      setClaimAmount(prev => (prev === 0 || prev > claimableTotal) ? claimableTotal : prev);
     } catch (error) {
       console.error("Error fetching unclaimed rewards:", error);
     } finally {
@@ -340,7 +346,7 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
     
     try {
       const response = await supabase.functions.invoke("claim-camly", {
-        body: { walletAddress: address },
+        body: { walletAddress: address, claimAmount: claimAmount > 0 ? claimAmount : undefined },
       });
 
       logWalletDebug('Claim response', response);
@@ -586,6 +592,65 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
                   </motion.div>
                 </div>
 
+                {/* 💰 CUSTOM CLAIM AMOUNT INPUT */}
+                {isConnected && totalClaimable >= MIN_CLAIM_THRESHOLD && (
+                  <div className="space-y-2.5 p-3 rounded-xl bg-muted/30 border border-border">
+                    <Label className="text-xs font-medium text-muted-foreground">
+                      Số lượng muốn rút (CAMLY)
+                    </Label>
+                    <Input
+                      type="number"
+                      value={claimAmount || ''}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        setClaimAmount(val);
+                        if (val < MIN_CLAIM_THRESHOLD) {
+                          setClaimAmountError(`Tối thiểu ${formatNumber(MIN_CLAIM_THRESHOLD)} CAMLY`);
+                        } else if (val > totalClaimable) {
+                          setClaimAmountError(`Tối đa ${formatNumber(totalClaimable)} CAMLY`);
+                        } else {
+                          setClaimAmountError(null);
+                        }
+                      }}
+                      placeholder={formatNumber(totalClaimable)}
+                      className="h-12 text-lg font-bold text-center"
+                      min={MIN_CLAIM_THRESHOLD}
+                      max={totalClaimable}
+                    />
+                    {claimAmountError && (
+                      <p className="text-xs text-destructive">{claimAmountError}</p>
+                    )}
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {[200000, 300000, 500000].map((preset) => (
+                        <Button
+                          key={preset}
+                          variant="outline"
+                          size="sm"
+                          disabled={preset > totalClaimable}
+                          onClick={() => { setClaimAmount(preset); setClaimAmountError(null); }}
+                          className={cn(
+                            "text-xs h-8",
+                            claimAmount === preset && "bg-primary/10 border-primary/50 text-primary"
+                          )}
+                        >
+                          {preset >= 1000000 ? `${preset / 1000000}M` : `${preset / 1000}K`}
+                        </Button>
+                      ))}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => { setClaimAmount(totalClaimable); setClaimAmountError(null); }}
+                        className={cn(
+                          "text-xs h-8 font-bold",
+                          claimAmount === totalClaimable && "bg-primary/10 border-primary/50 text-primary"
+                        )}
+                      >
+                        Max
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
                 {/* 🚀 NÚT CLAIM / KẾT NỐI VÍ - Right after amounts */}
                 <AnimatePresence>
                   {(isConnecting || connectionStep === 'error' || connectionStep === 'connected') && (
@@ -648,7 +713,7 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
                   <div className="space-y-2">
                     <Button
                       onClick={handleClaim}
-                      disabled={claiming || hasPendingClaim || totalClaimable < MIN_CLAIM_THRESHOLD || !profileCheck.hasAvatar}
+                      disabled={claiming || hasPendingClaim || totalClaimable < MIN_CLAIM_THRESHOLD || !profileCheck.hasAvatar || !!claimAmountError || claimAmount < MIN_CLAIM_THRESHOLD}
                       className="w-full bg-gradient-to-r from-yellow-500 to-cyan-500 hover:from-yellow-600 hover:to-cyan-600 text-white font-bold py-5"
                     >
                       {hasPendingClaim ? (
@@ -671,7 +736,7 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
                           >
                             <Coins className="h-5 w-5 mr-2" />
                           </motion.div>
-                          Claim {formatNumber(totalClaimable)} CAMLY
+                          Claim {formatNumber(claimAmount || totalClaimable)} CAMLY
                         </>
                       )}
                     </Button>
