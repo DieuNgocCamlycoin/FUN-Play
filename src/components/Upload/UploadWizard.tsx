@@ -11,11 +11,14 @@ import { UploadMetadataForm, VideoMetadata } from "./UploadMetadataForm";
 import { ThumbnailEditor } from "./ThumbnailEditor";
 import { UploadPreview } from "./UploadPreview";
 import { UploadSuccess } from "./UploadSuccess";
+import { AvatarVerificationGate } from "./AvatarVerificationGate";
+import { ContentModerationFeedback } from "./ContentModerationFeedback";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { extractVideoThumbnail } from "@/lib/videoThumbnail";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useUploadGate } from "@/hooks/useUploadGate";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface UploadWizardProps {
@@ -23,7 +26,7 @@ interface UploadWizardProps {
   onOpenChange: (open: boolean) => void;
 }
 
-type Step = "upload" | "metadata" | "thumbnail" | "preview" | "uploading" | "success";
+type Step = "upload" | "metadata" | "thumbnail" | "preview" | "gate-checking" | "gate-avatar" | "gate-blocked" | "uploading" | "success";
 
 const STEPS = [
   { id: "upload", label: "Video", icon: Upload },
@@ -37,6 +40,7 @@ export function UploadWizard({ open, onOpenChange }: UploadWizardProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  const { checkBeforeUpload, isChecking, gateResult, resetGate } = useUploadGate();
   
   const [currentStep, setCurrentStep] = useState<Step>("upload");
   const [videoFile, setVideoFile] = useState<File | null>(null);
@@ -144,6 +148,21 @@ export function UploadWizard({ open, onOpenChange }: UploadWizardProps) {
   const handleUpload = async () => {
     if (!user || !videoFile) return;
     
+    // Step 0: Run upload gate (avatar + content moderation)
+    setCurrentStep("gate-checking");
+    const gateCheck = await checkBeforeUpload(metadata.title, metadata.description);
+
+    if (!gateCheck.allowed) {
+      if (gateCheck.reason === "avatar") {
+        setCurrentStep("gate-avatar");
+        return;
+      }
+      if (gateCheck.reason === "content_blocked") {
+        setCurrentStep("gate-blocked");
+        return;
+      }
+    }
+
     setCurrentStep("uploading");
     setUploadProgress(0);
     setUploadStage("Đang chuẩn bị...");
@@ -335,7 +354,7 @@ export function UploadWizard({ open, onOpenChange }: UploadWizardProps) {
         file_size: videoFile.size,
         is_public: metadata.visibility === "public",
         category: isShort ? "shorts" : "general",
-        approval_status: "approved",
+        approval_status: gateCheck.approvalStatus || "approved",
       }).select('id').single();
 
       if (videoError) throw videoError;
@@ -390,6 +409,9 @@ export function UploadWizard({ open, onOpenChange }: UploadWizardProps) {
       metadata: 1,
       thumbnail: 2,
       preview: 3,
+      "gate-checking": 3,
+      "gate-avatar": 3,
+      "gate-blocked": 3,
       uploading: 3,
       success: 4,
     };
@@ -610,6 +632,29 @@ export function UploadWizard({ open, onOpenChange }: UploadWizardProps) {
                     ✨ Đang lan tỏa ánh sáng của bạn đến cộng đồng...
                   </p>
                 </div>
+              )}
+
+              {/* Gate: Checking */}
+              {currentStep === "gate-checking" && (
+                <ContentModerationFeedback isChecking={true} result={null} />
+              )}
+
+              {/* Gate: Avatar */}
+              {currentStep === "gate-avatar" && (
+                <AvatarVerificationGate onClose={handleClose} />
+              )}
+
+              {/* Gate: Content blocked */}
+              {currentStep === "gate-blocked" && (
+                <ContentModerationFeedback
+                  isChecking={false}
+                  result={gateResult}
+                  onRetry={() => {
+                    resetGate();
+                    setCurrentStep("metadata");
+                  }}
+                  onClose={handleClose}
+                />
               )}
 
               {currentStep === "success" && (

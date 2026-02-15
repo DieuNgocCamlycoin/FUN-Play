@@ -13,6 +13,7 @@ export interface UploadItem {
     isShort: boolean;
     duration: number;
     channelId: string;
+    approvalStatus?: "approved" | "pending_review";
   };
   thumbnailBlob: Blob | null;
   thumbnailPreview: string | null;
@@ -232,19 +233,8 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error("Chưa đăng nhập");
 
-        // PPLP Content Moderation via Angel AI
-        updateUpload(id, { progress: 91, stage: "Angel AI đang kiểm duyệt..." });
-        let approvalStatus = "approved";
-        try {
-          const { data: moderationResult } = await supabase.functions.invoke('moderate-content', {
-            body: { content: `${metadata.title}\n${metadata.description}`, contentType: 'video_title' }
-          });
-          if (moderationResult && !moderationResult.approved) {
-            approvalStatus = "pending_review";
-          }
-        } catch (modErr) {
-          console.warn("[Moderation] Error (non-blocking):", modErr);
-        }
+        // Use pre-determined approval status from upload gate (moderation already ran before upload)
+        const approvalStatus = metadata.approvalStatus || "approved";
 
         // Step 4: Create database record
         const { data: videoData, error: videoError } = await supabase
