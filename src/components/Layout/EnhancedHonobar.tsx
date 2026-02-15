@@ -11,7 +11,7 @@ export const EnhancedHonobar = () => {
     { icon: Video, label: "Video", value: stats.totalVideos, type: "number" },
     { icon: Eye, label: "Lượt xem", value: stats.totalViews, type: "number" },
     { icon: MessageSquare, label: "Bình luận", value: stats.totalComments, type: "number" },
-    { icon: Coins, label: "CAMLY Pool", value: stats.camlyPool, decimals: 0, type: "camly" },
+    { icon: Coins, label: "FUN PLAY TREASURY Wallet Balance", value: stats.camlyPool, decimals: 0, type: "camly" },
   ];
 
   if (loading) {
