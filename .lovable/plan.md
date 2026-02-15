@@ -1,41 +1,27 @@
 
+# Fix: Ví Tặng Thưởng 1 Showing 0 CAMLY / 0 USDT
 
-# Fix: AI Selfie Verification - Image Fetching Error
+## Root Cause
 
-## Problem Found
+The wallet address configured for "Vi tang thuong 1" (TREASURY) in `src/config/systemWallets.ts` is **wrong**. It was changed to `0x9848fFc886Fb7d17C0060ff11c75997C9B2de4cC` (which is a user profile wallet), but the actual treasury wallet that sent all the reward transactions from Nov 25, 2025 to Jan 8, 2026 is `0x1DC24BFd99c256B12a4A4cC7732c7e3B9aA75998`.
 
-The `verify-avatar` edge function sends the avatar URL directly to Gemini AI, but Gemini cannot access the R2 storage URLs (gets 401 Unauthorized). This causes ALL avatar verifications to fail with "AI analysis failed".
+Database verification:
+- `0x9848...e4cC` (current config): **0 transactions** in wallet_transactions
+- `0x1DC2...5998` (correct address): **101 completed transactions** totaling ~19.7M CAMLY + 491 USDT in the Nov 25 - Jan 8 date range
 
-**Error from logs:**
-```
-AI gateway error: 400 "Received 401 status code when fetching image from URL: https://pub-...r2.dev/play_fun.jpg"
-```
+## Fix
 
-## Solution
+### File: `src/config/systemWallets.ts`
 
-Update the edge function to:
-1. Download the image from R2 server-side first
-2. Convert it to a base64 data URL
-3. Send the base64 data URL to Gemini instead of the raw R2 URL
-
-This way Gemini receives the image data directly and doesn't need to fetch it from R2.
-
-## Technical Changes
-
-### File: `supabase/functions/verify-avatar/index.ts`
-
-Add image download and base64 conversion before calling the AI:
+Change the TREASURY address back to the correct one:
 
 ```
-// Before calling AI:
-1. fetch(avatarUrl) to download the image bytes
-2. Convert to base64 using btoa()
-3. Determine MIME type from Content-Type header
-4. Send as data:image/jpeg;base64,... to the AI
+TREASURY: {
+  address: "0x1DC24BFd99c256B12a4A4cC7732c7e3B9aA75998",  // was 0x9848...
+  ...
+}
 ```
 
-Replace the `image_url: { url: avatarUrl }` with `image_url: { url: base64DataUrl }`.
+This single change will make all transaction data reappear in the Reward Pool admin tab because the `RewardPoolTab.tsx` queries `wallet_transactions` using `SYSTEM_WALLETS.TREASURY.address`. Once the address matches the actual on-chain data, the stats and transaction detail table will populate correctly.
 
-Also add error handling for cases where the image cannot be downloaded.
-
-No other files need changes -- the ClaimRewardsSection, ClaimRewardsModal, and ProfileSettings are all correctly wired up already.
+No other files need changes -- the RewardPoolTab query logic, date filters, and UI are all correct.
