@@ -1,78 +1,81 @@
 
-# Add Custom Claim Amount Input to CAMLY Reward System
+# Fix 3 Non-Blocking Bugs in CAMLY Claim System
 
-## Status Check: Claim System is Working
+## Current Status
+The automatic claim system is **working correctly**. All claims process successfully with on-chain confirmations. Zero stuck pending claims. The custom amount input feature is functional.
 
-The automatic claim system is fully operational:
-- All recent claims completed successfully (no stuck transactions)
-- The latest claim: 500,000 CAMLY sent to wallet `0xcBb9...4C2F` on Feb 15 with on-chain confirmation
-- Auto-cleanup runs before pending check (deadlock fix confirmed working)
-- MAX_CLAIM_PER_USER increased to 10,000,000 (confirmed in logs)
+However, 3 non-blocking errors occur after every successful claim, preventing celebration cards, chat messages, and notification sounds from working.
 
-There are two minor non-blocking errors in the donation/chat record creation (check constraint issues), but these do not affect the actual CAMLY transfer to user wallets.
+## Bug 1: Donation Transaction Fails (Celebration Card Missing)
 
-## New Feature: Custom Claim Amount Input
+**Cause**: The `donation_transactions` table has a check constraint that only allows `context_type` values of `'global'`, `'post'`, `'video'`, `'comment'`. The edge function tries to insert `'claim'`, which is rejected.
 
-Currently, users can only claim their **entire approved balance** (up to the daily limit). This change adds an input field so users can choose how much to withdraw.
-
-### Changes
-
-#### 1. ClaimRewardsModal.tsx -- Add Amount Input
-
-- Add a new `claimAmount` state with a numeric input field
-- Place the input between the balance display and the Claim button
-- Include quick-select buttons: "200K", "500K", "Max"
-- Validate: minimum 200,000, maximum is the lesser of approved balance or daily remaining limit
-- The Claim button text updates to show the selected amount
-- Pass `claimAmount` to the edge function
-
+**Fix**: Add `'claim'` to the allowed values via database migration:
 ```text
-Layout (mobile-first):
+ALTER TABLE donation_transactions 
+DROP CONSTRAINT donation_transactions_context_type_check;
 
-+---------------------------+
-| Wallet: 0xaBc...1234  [v] |
-+---------------------------+
-| [Claimable]  [Pending]    |
-| 862,000      125,000      |
-+---------------------------+
-| So luong muon rut (CAMLY) |
-| [_______________862,000_] |
-| [200K] [300K] [500K] [Max]|
-+---------------------------+
-| [=== CLAIM 500,000 CAMLY ==] |
-+---------------------------+
+ALTER TABLE donation_transactions 
+ADD CONSTRAINT donation_transactions_context_type_check 
+CHECK (context_type = ANY (ARRAY['global','post','video','comment','claim']));
 ```
 
-#### 2. Edge Function (claim-camly/index.ts) -- Accept Custom Amount
+## Bug 2: Chat Message From Treasurer Fails
 
-- Accept optional `claimAmount` in the request body
-- If provided, validate it against minimum threshold and daily/lifetime limits
-- If not provided, default to current behavior (claim all approved up to limits)
-- Adjust reward marking logic to respect the custom amount
+**Cause**: The `user_chats` table has a constraint `user1_id < user2_id`. The Treasurer UUID `f0f0f0f0-0000-...` is alphabetically greater than most user UUIDs, so inserting with `user1_id = TREASURER_ID` violates the constraint.
 
-### Files Changed
+**Fix**: Update the edge function to sort the two IDs before inserting:
+```text
+// In claim-camly/index.ts, line ~466-469
+const [sortedUser1, sortedUser2] = [TREASURER_ID, user.id].sort();
+const { data: newChat } = await supabaseAdmin
+  .from('user_chats')
+  .insert({ user1_id: sortedUser1, user2_id: sortedUser2 })
+```
+
+Also update the existing chat lookup query to handle both orderings (already handled by the `.or()` filter).
+
+## Bug 3: Notification Sound Not Playing
+
+**Cause**: The sound URL in the database points to a Supabase storage MP3 file, but the browser reports "no supported source found." The fallback mixkit.co URL also fails.
+
+**Fix**: Update the `useClaimNotificationSound.ts` hook to:
+- Add error handling that tries the DB URL first, then a reliable fallback
+- Use a known-working notification sound URL as the default fallback
+
+## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/components/Rewards/ClaimRewardsModal.tsx` | Add amount input field with validation, quick-select buttons, responsive layout |
-| `supabase/functions/claim-camly/index.ts` | Accept optional `claimAmount` parameter, validate and use it |
+| Database migration | Add `'claim'` to `donation_transactions_context_type_check` constraint |
+| `supabase/functions/claim-camly/index.ts` | Sort user IDs before inserting into `user_chats` |
+| `src/hooks/useClaimNotificationSound.ts` | Improve fallback sound URL and error handling |
 
-### Technical Details
+## Technical Details
 
-**ClaimRewardsModal.tsx changes:**
-- New state: `claimAmount` (number), initialized to `totalClaimable` when data loads
-- Input: number type with formatting, min=200000, max=min(totalClaimable, dailyRemaining)
-- Quick buttons: preset amounts (200K, 300K, 500K, Max) that set `claimAmount`
-- Pass `claimAmount` to edge function: `body: { walletAddress: address, claimAmount }`
-- Claim button shows: "Claim {claimAmount} CAMLY" instead of total
+### Edge Function (`claim-camly/index.ts`)
 
-**Edge function changes:**
-- Parse `claimAmount` from body (optional)
-- If provided and valid (>= MIN_CLAIM_AMOUNT, <= totalAmount, <= remainingLimit), use it
-- If not provided, use existing logic (min of totalAmount, remainingLimit, lifetimeRemaining)
-- All other logic (marking rewards, daily records) remains the same
+Lines ~466-469: Fix the chat creation to sort UUIDs:
+```text
+// Before:
+.insert({ user1_id: TREASURER_ID, user2_id: user.id })
 
-**Mobile optimization:**
-- Quick-select buttons wrap into 2x2 grid on small screens
-- Input uses large touch-friendly size (h-12)
-- Amount validation shows inline error messages
+// After:
+const [u1, u2] = [TREASURER_ID, user.id].sort();
+.insert({ user1_id: u1, user2_id: u2 })
+```
+
+### Notification Sound Hook (`useClaimNotificationSound.ts`)
+
+Replace the default fallback with a more reliable URL and add a retry mechanism:
+- Try DB-configured sound first
+- If it fails, try an alternative format/URL
+- Gracefully degrade if all audio fails (no crash)
+
+### Database Migration
+
+Single SQL statement to update the check constraint to include `'claim'` as a valid context type.
+
+### No UI/Mobile Changes Needed
+
+The claim modal, amount input, and mobile layout are all working correctly. These fixes are purely backend/edge function corrections that will make the celebration cards and chat notifications appear after claims.
