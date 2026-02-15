@@ -45,6 +45,39 @@ serve(async (req) => {
       });
     }
 
+    // Download image server-side and convert to base64 (Gemini can't access R2 URLs directly)
+    let base64DataUrl: string;
+    try {
+      const imgResponse = await fetch(avatarUrl);
+      if (!imgResponse.ok) {
+        console.error("Failed to download avatar image:", imgResponse.status);
+        return new Response(JSON.stringify({ error: "Cannot download avatar image", verified: false }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const imgBuffer = await imgResponse.arrayBuffer();
+      const bytes = new Uint8Array(imgBuffer);
+      const chunkSize = 8192;
+      let binary = "";
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+        for (let j = 0; j < chunk.length; j++) {
+          binary += String.fromCharCode(chunk[j]);
+        }
+      }
+      const base64 = btoa(binary);
+      const mimeType = imgResponse.headers.get("content-type") || "image/jpeg";
+      base64DataUrl = `data:${mimeType};base64,${base64}`;
+      console.log(`Downloaded avatar image: ${bytes.length} bytes, type: ${mimeType}`);
+    } catch (dlError) {
+      console.error("Error downloading avatar:", dlError);
+      return new Response(JSON.stringify({ error: "Failed to process avatar image", verified: false }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       console.error("LOVABLE_API_KEY not configured");
@@ -79,7 +112,7 @@ Rules:
               },
               {
                 type: "image_url",
-                image_url: { url: avatarUrl },
+                image_url: { url: base64DataUrl },
               },
             ],
           },
