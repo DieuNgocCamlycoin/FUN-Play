@@ -71,6 +71,9 @@ export function getSystemWalletInfo(address: string | null | undefined): SystemW
  * @param address - Wallet address to check
  * @returns true if is a system wallet
  */
+// Old system sender ID used in donation_transactions for claim context
+export const SYSTEM_TREASURY_SENDER_ID = "f0f0f0f0-0000-0000-0000-000000000001";
+
 export function isSystemWallet(address: string | null | undefined): boolean {
   return getSystemWalletInfo(address) !== null;
 }

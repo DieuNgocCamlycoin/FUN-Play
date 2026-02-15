@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { getUserDisplayInfo, ProfileData, ChannelData } from "@/lib/userUtils";
-import { getSystemWalletDisplayInfo, SYSTEM_WALLETS } from "@/config/systemWallets";
+import { getSystemWalletDisplayInfo, SYSTEM_WALLETS, SYSTEM_TREASURY_SENDER_ID } from "@/config/systemWallets";
 
 // ======================== TYPES ========================
 // UPDATED: Remove "tip", "reward", "transfer" → Use "gift", "donate", "claim"
@@ -305,8 +305,25 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
         const senderSystemWallet = getSystemWalletDisplayInfo(senderProfile?.wallet_address);
         const receiverSystemWallet = getSystemWalletDisplayInfo(receiverProfile?.wallet_address);
         
-        const finalSenderInfo = senderSystemWallet || senderInfo;
+        let finalSenderInfo = senderSystemWallet || senderInfo;
         const finalReceiverInfo = receiverSystemWallet || receiverInfo;
+        
+        // Special override: claim transactions from old system treasury account
+        let senderUserId: string | null = d.sender_id;
+        let senderWalletFrom = formatAddress(senderProfile?.wallet_address);
+        let senderWalletFromFull: string | null = senderProfile?.wallet_address || null;
+        
+        if (d.context_type === 'claim' && d.sender_id === SYSTEM_TREASURY_SENDER_ID) {
+          finalSenderInfo = {
+            displayName: SYSTEM_WALLETS.TREASURY.displayName,
+            username: SYSTEM_WALLETS.TREASURY.username,
+            avatarUrl: SYSTEM_WALLETS.TREASURY.avatarUrl,
+            channelName: SYSTEM_WALLETS.TREASURY.channelName,
+          };
+          senderUserId = SYSTEM_WALLETS.TREASURY.userId || null;
+          senderWalletFrom = formatAddress(SYSTEM_WALLETS.TREASURY.address);
+          senderWalletFromFull = SYSTEM_WALLETS.TREASURY.address;
+        }
         
         const token = tokensMap[d.token_id];
         
@@ -317,13 +334,13 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
           id: d.id,
           source_table: "donation_transactions",
           
-          sender_user_id: d.sender_id,
+          sender_user_id: senderUserId,
           sender_display_name: finalSenderInfo.displayName,
           sender_username: finalSenderInfo.username,
           sender_avatar_url: finalSenderInfo.avatarUrl,
           sender_channel_name: finalSenderInfo.channelName,
-          wallet_from: formatAddress(senderProfile?.wallet_address),
-          wallet_from_full: senderProfile?.wallet_address || null,
+          wallet_from: senderWalletFrom,
+          wallet_from_full: senderWalletFromFull,
           
           receiver_user_id: d.receiver_id,
           receiver_display_name: finalReceiverInfo.displayName,
