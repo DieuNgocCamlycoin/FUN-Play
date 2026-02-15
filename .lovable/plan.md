@@ -1,57 +1,56 @@
 
 
-# Fix CAMLY Logo - Remove White Background Properly
+# Update FUN PLAY TREASURY Wallet Identity for Claim Transactions
 
 ## Problem
-The current `mix-blend-mode: darken` approach with a gold gradient background is not fully removing the white background. It turns the white into a gold ring, creating an unnatural border effect around the coin.
+The TREASURY wallet identity is duplicated in two places:
+1. **`systemWallets.ts`** config has outdated names: "Vi tang thuong 1" (Vietnamese for "Reward Wallet 1")
+2. **`useTransactionHistory.ts`** hardcodes "FUN PLAY TREASURY" info (lines 367-374) instead of using the centralized config
+
+This means the config is not the single source of truth, and the TREASURY wallet displays inconsistently depending on where it's referenced.
 
 ## Solution
-Use a two-part approach for a clean result:
 
-1. **Scale the image slightly larger** (`scale-110` or `scale-125`) within the `overflow-hidden` container so the white border edges get clipped outside the visible area, revealing only the coin design itself.
+### Step 1: Update `systemWallets.ts` - Set correct TREASURY identity
+Update the TREASURY entry to use "FUN PLAY TREASURY" as the official display name, matching what the user expects to see in all transaction views.
 
-2. **Keep the gold gradient background** as a fallback behind the image, but remove the `mix-blend-mode` since scaling + clipping handles the white border removal.
+| Field | Current | Updated |
+|-------|---------|---------|
+| displayName | "Vi tang thuong 1" | "FUN PLAY TREASURY" |
+| username | "@vitangthuong1" | "@funplaytreasury" |
+| channelName | "Vi tang thuong 1" | "FUN PLAY TREASURY" |
+| avatarUrl | `/images/fun-play-wallet-icon.png` | `/images/funplay-planet-logo.png` (or keep current) |
 
-3. **Fine-tune sizing** to ensure the coin fills the circular container cleanly on both web and mobile.
+### Step 2: Update `useTransactionHistory.ts` - Use config instead of hardcoded values
+Replace the hardcoded TREASURY info in the claim_requests normalization (lines 367-374) with a reference to `SYSTEM_WALLETS.TREASURY` from the config. This ensures any future changes to the TREASURY identity are automatically reflected everywhere.
 
-## File Changed
+```text
+// Before (hardcoded):
+sender_display_name: "FUN PLAY TREASURY",
+sender_username: "@funplaytreasury",
+sender_avatar_url: "/images/fun-play-wallet-icon.png",
+sender_channel_name: "FUN PLAY TREASURY",
+wallet_from: "0x1DC2...998",
+wallet_from_full: "0x1DC24BFd99c256B12a4A4cC7732c7e3B9aA75998",
+
+// After (from config):
+sender_display_name: SYSTEM_WALLETS.TREASURY.displayName,
+sender_username: SYSTEM_WALLETS.TREASURY.username,
+sender_avatar_url: SYSTEM_WALLETS.TREASURY.avatarUrl,
+sender_channel_name: SYSTEM_WALLETS.TREASURY.channelName,
+wallet_from: formatAddress(SYSTEM_WALLETS.TREASURY.address),
+wallet_from_full: SYSTEM_WALLETS.TREASURY.address,
+```
+
+## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/components/Wallet/CAMLYPriceSection.tsx` | Scale image to clip white borders, remove blend mode |
+| `src/config/systemWallets.ts` | Update TREASURY displayName, username, channelName to "FUN PLAY TREASURY" |
+| `src/hooks/useTransactionHistory.ts` | Import `SYSTEM_WALLETS` and replace hardcoded TREASURY values with config references |
 
-## Technical Details
+## Impact
+- All claim transactions (rut thuong) will show "FUN PLAY TREASURY" with the correct logo
+- Transaction history page, personal wallet history, and all related sections will be consistent
+- Future name/logo changes only need updating in one place (`systemWallets.ts`)
 
-Update lines 65-84 in `CAMLYPriceSection.tsx`:
-
-```text
-<motion.div
-  className="relative rounded-full overflow-hidden h-14 w-14"
-  animate={{
-    boxShadow: [
-      "0 0 20px rgba(255, 215, 0, 0.4)",
-      "0 0 40px rgba(255, 215, 0, 0.6)",
-      "0 0 20px rgba(255, 215, 0, 0.4)",
-    ],
-  }}
-  transition={{ duration: 2, repeat: Infinity }}
-  style={{
-    background: 'linear-gradient(135deg, #FFD700, #FFA500)',
-  }}
->
-  <img
-    src="/images/camly-coin-new.png"
-    alt="CAMLY"
-    className="h-full w-full object-cover scale-125"
-  />
-</motion.div>
-```
-
-Key changes:
-- Set explicit `h-14 w-14` on the wrapper div (not the img) to control the container size
-- Use `h-full w-full` on the image to fill the container
-- Add `scale-125` to zoom the image slightly so the white border area falls outside the `overflow-hidden` clipping boundary
-- Remove `mix-blend-mode` entirely since it's no longer needed
-- The `rounded-full overflow-hidden` on the wrapper clips everything into a clean circle
-
-This approach works reliably on all browsers, both web and mobile, without relying on CSS blend modes.
