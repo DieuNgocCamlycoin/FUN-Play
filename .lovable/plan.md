@@ -1,55 +1,76 @@
 
 
-# Immediate Fix: Batch Correct Wrong Video Durations
+# Fix Short/Long Video Sorting on Profile Page
 
 ## Problem
 
-The self-healing auto-duration fix (deployed in the last update) only corrects durations when a video is **played**. Hundreds of videos still have incorrect short durations in the database (e.g., stored as 4-8 seconds when they are actually 3-5 minutes long). These videos incorrectly appear in the **Shorts** tab.
+1. **Wrong durations still in database**: The previous fix only reset videos with `duration <= 10` to NULL. But many videos with durations of 11-15 seconds are also incorrect (e.g., "8 CAU THAN CHU CUA CHA" stored as 12s when it's actually 4+ minutes). These still show up in the Shorts tab incorrectly.
 
-Example from the channel you're viewing:
-- "8 CAU THAN CHU CUA CHA (1)" -- stored: 34s (likely much longer)
-- "VUON XINH" -- stored: 8s (likely much longer)
-- "KHU VUON XINH DEP" -- stored: 4-8s (likely much longer)
+2. **Shorts tab layout doesn't match YouTube**: Currently both Videos and Shorts tabs use the same horizontal video card layout. On YouTube mobile, Shorts are displayed in a compact vertical grid (3 columns, portrait aspect ratio thumbnails).
 
 ## Solution
 
-### 1. Database Migration: Reset suspicious durations to NULL
+### 1. Database Migration: Reset suspicious durations (11-15s) to NULL
 
-Run a one-time SQL migration to set `duration = NULL` for all videos that have suspiciously short durations (10 seconds or less). These are almost certainly incorrect values.
-
-Videos with `NULL` duration already correctly appear in the **Videos** tab (not Shorts), because the filter is:
-- Shorts: `duration IS NOT NULL AND duration <= 180`
-- Videos: `duration > 180 OR duration IS NULL`
-
-So resetting to NULL immediately moves them out of Shorts.
-
-### 2. Self-healing continues working
-
-The existing auto-duration code (already deployed) will re-detect the correct duration when these videos are played, and update the database. Videos will then be permanently sorted into the correct tab.
-
-## Database Change
+Expand the previous reset to also clear durations between 11 and 15 seconds. These are almost always incorrect metadata captures from upload. Real shorts are typically 20+ seconds.
 
 ```text
 UPDATE videos 
 SET duration = NULL 
 WHERE duration IS NOT NULL 
-  AND duration <= 10;
+  AND duration > 10 
+  AND duration <= 15;
 ```
 
-This affects videos with stored durations of 3-10 seconds, which are almost certainly wrong metadata captures.
+This immediately moves these misclassified videos out of the Shorts tab and into the Videos tab (where NULL durations go). The self-healing mechanism will set the correct duration when they are played.
+
+### 2. Update Shorts tab layout in ProfileVideosTab
+
+When `type === "shorts"`, render a YouTube-style vertical grid instead of the standard video card grid:
+- **Mobile**: 3 columns with portrait (9:16) aspect ratio thumbnails
+- **Desktop**: 4-6 columns
+- Compact card with just thumbnail, title, and view count (no channel name or avatar needed on own profile)
+- Clicking navigates to `/shorts` page or `/watch/{id}`
+
+### 3. Add Shorts-specific card rendering
+
+Inside `ProfileVideosTab.tsx`, add a conditional render path for shorts that shows:
+- Portrait thumbnail (aspect-[9/16]) 
+- Title (1 line, truncated)
+- View count
+- No duration badge (shorts don't need it)
 
 ## Files Changed
 
-No code file changes needed -- the filtering logic and self-healing code are already correct. Only a database migration is required.
+| File | Change |
+|------|--------|
+| SQL Migration | Reset `duration` to NULL for videos with duration 11-15s |
+| `src/components/Profile/ProfileVideosTab.tsx` | Add shorts-specific grid layout with portrait cards matching YouTube mobile style |
 
-| Change | Details |
-|--------|---------|
-| SQL Migration | Reset `duration` to NULL for all videos with `duration <= 10` |
+## Technical Details
+
+```text
+// ProfileVideosTab.tsx - Shorts grid layout
+if (type === "shorts") {
+  return (
+    <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2">
+      {videos.map((video) => (
+        <div key={video.id} className="cursor-pointer" onClick={() => navigate(`/watch/${video.id}`)}>
+          <div className="relative aspect-[9/16] rounded-lg overflow-hidden bg-muted">
+            <img src={video.thumbnail_url} className="w-full h-full object-cover" />
+          </div>
+          <p className="text-xs mt-1 line-clamp-1">{video.title}</p>
+          <p className="text-xs text-muted-foreground">{formatViews(video.view_count)}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+```
 
 ## Expected Result
 
-- Videos with wrong short durations immediately disappear from Shorts tab
-- They appear in Videos tab until watched (when auto-fix sets the real duration)
-- Once watched, they permanently sort into the correct tab
-- Truly short videos (real 10s or less) will get re-detected correctly when played
-
+- Videos with wrong 11-15s durations immediately disappear from Shorts tab
+- Shorts tab displays in a compact 3-column portrait grid like YouTube mobile
+- Videos tab shows only long videos and undetected (NULL duration) videos
+- Self-healing continues to permanently fix durations when videos are played
