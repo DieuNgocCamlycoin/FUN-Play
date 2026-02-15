@@ -1,35 +1,46 @@
 
 
-# Fix: Channel Click Not Working in Search Suggestions
+# Fix: App Stuck on "Đang tải..." (Loading) Screen
 
 ## Root Cause
 
-When clicking/tapping a channel (or video) suggestion in the search dropdown, the following happens:
-1. User taps the suggestion button
-2. The input loses focus, triggering `onBlur`
-3. `onBlur` sets a 200ms timeout to close the dropdown
-4. On mobile, the touch-to-click delay can exceed 200ms, so the dropdown disappears before `onClick` fires
-5. The click lands on nothing -- navigation never happens
+The loading screen ("Đang tải...") in `Index.tsx` is controlled by the `loading` state from `useAuth()`. This state starts as `true` and only becomes `false` when one of two things happens:
 
-This affects both desktop (intermittently) and mobile (frequently).
+1. `supabase.auth.onAuthStateChange` fires a callback
+2. `supabase.auth.getSession()` resolves
 
-## Solution
+**On slow mobile connections or when the backend is unreachable**, neither callback fires within a reasonable time, leaving the user stuck on "Đang tải..." indefinitely. There is no timeout, no error handling on `getSession()`, and no fallback.
 
-Replace `onClick` with `onMouseDown` + `e.preventDefault()` on all suggestion buttons. `onMouseDown` fires **before** `onBlur`, and `preventDefault()` prevents the input from losing focus entirely. This guarantees the navigation fires reliably.
+Additionally, the cache-busting script in `index.html` clears **all localStorage** (including the saved auth session) on every version bump, forcing the Supabase client to make a network round-trip that may fail on poor connections.
 
 ## Changes
 
-### File 1: `src/components/Layout/Header.tsx`
-- Change video suggestion buttons from `onClick` to `onMouseDown` with `e.preventDefault()`
-- Change channel suggestion buttons from `onClick` to `onMouseDown` with `e.preventDefault()`
+### File: `src/hooks/useAuth.tsx`
+- Add a **safety timeout** (5 seconds): if neither `onAuthStateChange` nor `getSession` has resolved by then, force `loading = false` so the homepage renders (user simply appears logged out)
+- Add `.catch()` error handling on `getSession()` so a network failure does not leave the promise dangling silently
+- Use a flag to prevent the timeout from firing if auth already resolved
 
-### File 2: `src/components/Layout/MobileHeader.tsx`
-- Same change: replace `onClick` with `onMouseDown` + `e.preventDefault()` on all suggestion buttons (both videos and channels)
+### File: `index.html`
+- Fix the cache-busting script to **preserve the Supabase auth keys** (`sb-` prefixed keys in localStorage) when clearing cache on version change. Currently it wipes everything, destroying the user's session and forcing a network round-trip that may fail on mobile
 
-## Summary
+## Technical Details
+
+```text
+Current flow (broken on slow network):
+  App starts -> useAuth sets loading=true
+  -> getSession() hangs / onAuthStateChange never fires
+  -> loading stays true forever
+  -> User sees "Đang tải..." forever
+
+Fixed flow:
+  App starts -> useAuth sets loading=true
+  -> getSession() resolves OR onAuthStateChange fires -> loading=false (normal)
+  -> If neither fires in 5s -> timeout sets loading=false (fallback)
+  -> User sees homepage (logged out if session failed)
+```
 
 | File | Change |
 |------|--------|
-| `src/components/Layout/Header.tsx` | Use `onMouseDown` + `preventDefault` on suggestion buttons |
-| `src/components/Layout/MobileHeader.tsx` | Use `onMouseDown` + `preventDefault` on suggestion buttons |
+| `src/hooks/useAuth.tsx` | Add 5s timeout fallback + error handling on getSession |
+| `index.html` | Preserve Supabase auth keys during cache clear |
 
