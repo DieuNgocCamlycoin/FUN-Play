@@ -338,7 +338,19 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
     // 2. Deep links for mobile wallet apps
     // 3. QR codes when wallet not installed
     // 4. In-app browser connection
-    await connectWallet();
+    try {
+      await connectWallet();
+    } catch (error: unknown) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.warn('[Wallet] connectWithMobileSupport caught error:', errorMsg);
+      toast({
+        title: 'Lỗi kết nối ví',
+        description: errorMsg.includes('MetaMask') 
+          ? 'Không thể kết nối MetaMask. Vui lòng thử lại.' 
+          : 'Không thể kết nối ví. Vui lòng thử lại.',
+        variant: 'destructive',
+      });
+    }
   }, [connectWallet, toast]);
 
   // Disconnect wallet
