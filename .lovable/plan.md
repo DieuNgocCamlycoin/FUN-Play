@@ -1,36 +1,48 @@
 
 
-# Fix: Mobile Back Button on Gate States
+# Fix: Homepage Search Suggestions and Search Page
 
-## Bug
+## Issues Found
 
-On mobile, when the upload gate blocks the user (avatar not verified or content blocked), the navigation stack looks like:
-`["type-selector", "video-details", "gate-checking", "gate-avatar"]`
+### Bug 1: Hook does not auto-open when results arrive
+The `useSearchSuggestions` hook requires the consumer to manually call `open()` on every keystroke. But if `close()` fires (e.g., blur timeout), new results arriving from the debounced query won't be visible because `isOpen` stays `false`. The fix: automatically set `isOpen = true` inside the effect when results are found.
 
-The header back button is visible on `gate-avatar` and `gate-blocked`. Pressing it navigates to `gate-checking`, which is a loading spinner with no escape -- the user gets permanently stuck.
+### Bug 2: Mobile suggestions never close on blur
+`MobileHeader` does not use `isOpen` at all -- it shows the dropdown purely based on `suggestedVideos.length > 0 || suggestedChannels.length > 0`. This means if the user taps outside the search box, the dropdown stays visible until they clear the search or navigate away.
 
-## Fix
+### Bug 3: Desktop blur timeout race condition
+In `Header.tsx`, `onBlur` calls `setTimeout(closeSuggestions, 200)`. If the user types again quickly, the 200ms timeout still fires and closes suggestions even though the user is actively typing. The fix: cancel pending close when the user types or focuses.
 
-### File: `src/components/Upload/Mobile/MobileUploadFlow.tsx` (line 353)
+### Bug 4: Search page video results missing `onPlay` handler
+On mobile, `VideoCard` in the search page does not pass an `onPlay` prop. Users have to rely on the card's default click behavior which may not work consistently.
 
-Update the `showBackButton` condition to also exclude `gate-avatar` and `gate-blocked`:
+## Changes
 
-```
-// Before
-const showBackButton = navigationStack.length > 1 && currentStep !== "uploading" && currentStep !== "success" && currentStep !== "gate-checking";
+### File 1: `src/hooks/useSearchSuggestions.ts`
+- Auto-set `isOpen = true` when the debounced query returns results (videos or channels found)
+- Auto-set `isOpen = false` when query is cleared or too short (< 2 chars)
+- This removes the need for consumers to manually manage open/close state around typing
 
-// After
-const showBackButton = navigationStack.length > 1 
-  && currentStep !== "uploading" 
-  && currentStep !== "success" 
-  && currentStep !== "gate-checking"
-  && currentStep !== "gate-avatar"
-  && currentStep !== "gate-blocked";
-```
+### File 2: `src/components/Layout/MobileHeader.tsx`
+- Use `isOpen` from the hook to control dropdown visibility (instead of just checking data length)
+- Call `open()` in the `onChange` handler
+- Add `onBlur` with a small timeout to call `close()`, so the dropdown hides when the user taps outside
+- This ensures the dropdown properly closes when the user navigates away from the input
 
-These gate states already have their own dedicated navigation buttons:
-- `AvatarVerificationGate` has "Go to Settings" and "Close" buttons
-- `ContentModerationFeedback` has "Retry" and "Close" buttons
+### File 3: `src/components/Layout/Header.tsx`
+- Store the blur timeout in a ref so it can be cancelled
+- Cancel the pending close timeout in `onChange` and `onFocus`
+- This prevents the race condition where blur fires while the user is still typing
 
-No other bugs found -- the web wizard, hook logic, context, and edge function integrations are all working correctly.
+### File 4: `src/pages/Search.tsx`
+- Add `onPlay` handler to `VideoCard` in the mobile search results grid for consistent navigation
+
+## Summary
+
+| File | Action | Change |
+|------|--------|--------|
+| `src/hooks/useSearchSuggestions.ts` | EDIT | Auto-manage `isOpen` when results arrive/clear |
+| `src/components/Layout/MobileHeader.tsx` | EDIT | Use `isOpen` + add blur handling |
+| `src/components/Layout/Header.tsx` | EDIT | Fix blur timeout race condition with ref |
+| `src/pages/Search.tsx` | EDIT | Add `onPlay` to mobile VideoCard |
 
