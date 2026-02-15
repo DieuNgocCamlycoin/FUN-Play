@@ -28,6 +28,7 @@ export const ClaimRewardsSection = () => {
   const navigate = useNavigate();
   const { isConnected, address, connectWithRetry, isConnecting } = useWalletConnectionWithRetry();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarVerified, setAvatarVerified] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const isMountedRef = useRef(true);
@@ -48,7 +49,7 @@ export const ClaimRewardsSection = () => {
       // Fetch profile
       const { data: profile } = await supabase
         .from("profiles")
-        .select("total_camly_rewards, pending_rewards, approved_reward, avatar_url")
+        .select("total_camly_rewards, pending_rewards, approved_reward, avatar_url, avatar_verified")
         .eq("id", user.id)
         .single();
 
@@ -74,6 +75,7 @@ export const ClaimRewardsSection = () => {
 
       if (profile && isMountedRef.current) {
         setAvatarUrl(profile.avatar_url);
+        setAvatarVerified(!!profile.avatar_verified);
         setStats({
           totalRewards: profile.total_camly_rewards || 0,
           pendingRewards: profile.pending_rewards || 0,
@@ -156,14 +158,22 @@ export const ClaimRewardsSection = () => {
   const progressPercent = Math.min((stats.approvedRewards / CLAIM_THRESHOLD) * 100, 100);
   const dailyLimitReached = stats.dailyClaimed >= DAILY_CLAIM_LIMIT;
   const dailyProgressPercent = Math.min((stats.dailyClaimed / DAILY_CLAIM_LIMIT) * 100, 100);
-  const canClaim = stats.approvedRewards >= CLAIM_THRESHOLD && isConnected && !dailyLimitReached;
+  const canClaim = stats.approvedRewards >= CLAIM_THRESHOLD && isConnected && !dailyLimitReached && avatarVerified;
 
   const handleClaimClick = () => {
     if (!avatarUrl) {
       toast({
         title: "📸 Cập nhật hồ sơ để nhận thưởng",
-        description: "Vui lòng cập nhật ảnh đại diện và thông tin cá nhân trước khi claim CAMLY.",
+        description: "Vui lòng cập nhật ảnh đại diện trước khi claim CAMLY.",
       });
+      return;
+    }
+    if (!avatarVerified) {
+      toast({
+        title: "📸 Cần xác minh ảnh chân dung",
+        description: "Vui lòng vào Cài đặt hồ sơ và tải lên ảnh chân dung thật để xác minh trước khi claim.",
+      });
+      navigate("/profile-settings");
       return;
     }
     if (dailyLimitReached) {
@@ -387,6 +397,23 @@ export const ClaimRewardsSection = () => {
             >
               <Camera className="h-3 w-3 mr-1" />
               Cập nhật
+            </Button>
+          </div>
+        )}
+        {!loading && avatarUrl && !avatarVerified && (
+          <div className="flex items-center gap-2 p-3 rounded-xl bg-gradient-to-r from-orange-500/15 to-amber-500/15 border border-orange-400/30">
+            <Camera className="h-4 w-4 text-orange-500 flex-shrink-0" />
+            <p className="text-xs text-muted-foreground flex-1">
+              Ảnh đại diện chưa xác minh. Vui lòng tải lên ảnh chân dung thật để claim.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate("/profile-settings")}
+              className="text-xs h-7 px-2 border-orange-400/50 text-orange-600 hover:bg-orange-500/10"
+            >
+              <Camera className="h-3 w-3 mr-1" />
+              Xác minh
             </Button>
           </div>
         )}
