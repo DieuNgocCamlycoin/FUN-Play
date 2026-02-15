@@ -1,74 +1,55 @@
 
 
-# Fix Long Videos Appearing in Shorts Tab
+# Immediate Fix: Batch Correct Wrong Video Durations
 
-## Root Cause
+## Problem
 
-The filtering logic in `ProfileVideosTab.tsx` is **correct** -- shorts are defined as `duration <= 180s` and videos as `duration > 180s OR duration IS NULL`.
+The self-healing auto-duration fix (deployed in the last update) only corrects durations when a video is **played**. Hundreds of videos still have incorrect short durations in the database (e.g., stored as 4-8 seconds when they are actually 3-5 minutes long). These videos incorrectly appear in the **Shorts** tab.
 
-However, the **database has incorrect duration values** for many videos. For example:
-- "8 CAU THAN CHU CUA CHA (1)" has `duration = 8` in the DB, but the actual video is 4:01 (241 seconds)
-- Many videos have stored durations of 3-10 seconds when they are actually much longer
-
-The current auto-duration detection in `Watch.tsx` only corrects videos with `duration = NULL`. It does NOT fix videos that already have an incorrect (too-short) stored duration.
+Example from the channel you're viewing:
+- "8 CAU THAN CHU CUA CHA (1)" -- stored: 34s (likely much longer)
+- "VUON XINH" -- stored: 8s (likely much longer)
+- "KHU VUON XINH DEP" -- stored: 4-8s (likely much longer)
 
 ## Solution
 
-### 1. Expand auto-duration correction in Watch.tsx
+### 1. Database Migration: Reset suspicious durations to NULL
 
-Change the condition from `data.duration == null` to also detect mismatches. When the player loads metadata, compare the actual duration against the stored value. If they differ significantly (e.g., actual is more than 2x the stored value), update the DB.
+Run a one-time SQL migration to set `duration = NULL` for all videos that have suspiciously short durations (10 seconds or less). These are almost certainly incorrect values.
 
-This will self-heal incorrect durations as users watch the videos.
+Videos with `NULL` duration already correctly appear in the **Videos** tab (not Shorts), because the filter is:
+- Shorts: `duration IS NOT NULL AND duration <= 180`
+- Videos: `duration > 180 OR duration IS NULL`
 
-### 2. Also add the same correction to YouTubeMobilePlayer
+So resetting to NULL immediately moves them out of Shorts.
 
-Since the user is on mobile, ensure the mobile player also triggers duration corrections. Add a callback or use the existing `onTimeUpdate` to detect and fix mismatches.
+### 2. Self-healing continues working
+
+The existing auto-duration code (already deployed) will re-detect the correct duration when these videos are played, and update the database. Videos will then be permanently sorted into the correct tab.
+
+## Database Change
+
+```text
+UPDATE videos 
+SET duration = NULL 
+WHERE duration IS NOT NULL 
+  AND duration <= 10;
+```
+
+This affects videos with stored durations of 3-10 seconds, which are almost certainly wrong metadata captures.
 
 ## Files Changed
 
-| File | Change |
-|------|--------|
-| `src/pages/Watch.tsx` | Expand auto-duration detection from NULL-only to also fix significant mismatches (stored vs actual) |
-| `src/components/Video/YouTubeMobilePlayer.tsx` | Add duration mismatch auto-correction when metadata loads |
+No code file changes needed -- the filtering logic and self-healing code are already correct. Only a database migration is required.
 
-## Technical Details
+| Change | Details |
+|--------|---------|
+| SQL Migration | Reset `duration` to NULL for all videos with `duration <= 10` |
 
-```text
-// Watch.tsx - Expanded auto-detect (line ~257)
-// Before: only triggers when data.duration == null
-// After: also triggers when stored duration differs significantly from actual
+## Expected Result
 
-const storedDuration = data.duration;
-const videoEl = document.createElement("video");
-videoEl.preload = "metadata";
-videoEl.src = data.video_url;
-videoEl.onloadedmetadata = async () => {
-  const actual = videoEl.duration;
-  if (actual && actual > 0 && isFinite(actual)) {
-    const rounded = Math.round(actual);
-    // Update if NULL or if mismatch is significant (>30% difference)
-    const needsUpdate = storedDuration == null 
-      || Math.abs(rounded - storedDuration) / Math.max(rounded, 1) > 0.3;
-    if (needsUpdate) {
-      await supabase
-        .from("videos")
-        .update({ duration: rounded })
-        .eq("id", data.id);
-    }
-  }
-  videoEl.src = "";
-};
-```
-
-```text
-// YouTubeMobilePlayer.tsx - Add duration correction on loadedmetadata
-// When the video element fires loadedmetadata, compare with stored duration
-// and update DB if there's a significant mismatch
-```
-
-This approach ensures:
-- Videos with wrong durations get auto-corrected when anyone watches them
-- Works on both desktop and mobile players
-- Once corrected, the video will appear in the correct tab (Video vs Shorts)
-- No manual data migration needed -- corrections happen organically
+- Videos with wrong short durations immediately disappear from Shorts tab
+- They appear in Videos tab until watched (when auto-fix sets the real duration)
+- Once watched, they permanently sort into the correct tab
+- Truly short videos (real 10s or less) will get re-detected correctly when played
 
