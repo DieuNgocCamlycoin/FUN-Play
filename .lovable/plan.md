@@ -1,46 +1,49 @@
 
 
-# Fix: App Stuck on "Đang tải..." (Loading) Screen
+# Fix: Homepage Shows Skeleton Loaders Forever / Can't Log In
 
 ## Root Cause
 
-The loading screen ("Đang tải...") in `Index.tsx` is controlled by the `loading` state from `useAuth()`. This state starts as `true` and only becomes `false` when one of two things happens:
+Your backend database is overwhelmed with **statement timeouts** -- dozens of "canceling statement due to statement timeout" errors in the logs. This means:
 
-1. `supabase.auth.onAuthStateChange` fires a callback
-2. `supabase.auth.getSession()` resolves
+1. **Auth token refresh fails** (504 timeout) -- you can't log in because the auth service can't reach the database
+2. **Video query fails** -- the homepage query times out, so skeleton loaders stay forever
+3. **No error recovery** -- when the video fetch fails, the code keeps `loadingVideos = true`, showing skeletons indefinitely
 
-**On slow mobile connections or when the backend is unreachable**, neither callback fires within a reasonable time, leaving the user stuck on "Đang tải..." indefinitely. There is no timeout, no error handling on `getSession()`, and no fallback.
+Two code-level problems make this worse:
+- The homepage fetches **1,000 videos at once** (`.limit(1000)`) even though only 24 are shown initially -- this is wasteful and slow
+- There is **no missing composite index** for the common filter `(is_public, approval_status, created_at DESC)`, forcing full table scans on 1,000+ videos
 
-Additionally, the cache-busting script in `index.html` clears **all localStorage** (including the saved auth session) on every version bump, forcing the Supabase client to make a network round-trip that may fail on poor connections.
+## Solution
+
+### 1. Add composite database index (migration)
+Create a composite index on `videos(is_public, approval_status, created_at DESC)` so the homepage query is fast and avoids timeouts.
+
+### 2. Reduce video fetch from 1000 to 100 (`Index.tsx`)
+Since infinite scroll loads 24 at a time, fetching 1,000 upfront is unnecessary. Reduce to 100 for the initial load -- still plenty, but much lighter on the database.
+
+### 3. Add error recovery for video loading (`Index.tsx`)
+When `fetchVideos` fails (catches an error), set `loadingVideos = false` so the page shows "no videos" instead of infinite skeleton loaders. Also add a retry button.
+
+### 4. Upgrade database instance (recommendation)
+The volume of timeout errors suggests the database instance may be too small for the current traffic. Consider upgrading in Settings -> Cloud -> Advanced settings.
 
 ## Changes
 
-### File: `src/hooks/useAuth.tsx`
-- Add a **safety timeout** (5 seconds): if neither `onAuthStateChange` nor `getSession` has resolved by then, force `loading = false` so the homepage renders (user simply appears logged out)
-- Add `.catch()` error handling on `getSession()` so a network failure does not leave the promise dangling silently
-- Use a flag to prevent the timeout from firing if auth already resolved
-
-### File: `index.html`
-- Fix the cache-busting script to **preserve the Supabase auth keys** (`sb-` prefixed keys in localStorage) when clearing cache on version change. Currently it wipes everything, destroying the user's session and forcing a network round-trip that may fail on mobile
+| Item | Detail |
+|------|--------|
+| **Database migration** | Add composite index `idx_videos_public_approved` on `(is_public, approval_status, created_at DESC)` |
+| **`src/pages/Index.tsx`** | Reduce `.limit(1000)` to `.limit(100)`; set `loadingVideos = false` in catch block; add retry UI when fetch fails |
 
 ## Technical Details
 
-```text
-Current flow (broken on slow network):
-  App starts -> useAuth sets loading=true
-  -> getSession() hangs / onAuthStateChange never fires
-  -> loading stays true forever
-  -> User sees "Đang tải..." forever
-
-Fixed flow:
-  App starts -> useAuth sets loading=true
-  -> getSession() resolves OR onAuthStateChange fires -> loading=false (normal)
-  -> If neither fires in 5s -> timeout sets loading=false (fallback)
-  -> User sees homepage (logged out if session failed)
+### Migration SQL
+```sql
+CREATE INDEX IF NOT EXISTS idx_videos_public_approved 
+ON public.videos (is_public, approval_status, created_at DESC);
 ```
 
-| File | Change |
-|------|--------|
-| `src/hooks/useAuth.tsx` | Add 5s timeout fallback + error handling on getSession |
-| `index.html` | Preserve Supabase auth keys during cache clear |
-
+### Index.tsx changes
+- Line with `.limit(1000)` changed to `.limit(100)`
+- In the `catch` block of `fetchVideos`, add `setLoadingVideos(false)` so skeletons don't persist on failure
+- Add a `fetchError` state to show a retry button when fetch fails
