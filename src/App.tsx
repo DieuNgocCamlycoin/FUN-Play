@@ -219,13 +219,13 @@ const App = () => (
           <VideoPlaybackProvider>
             <MiniPlayerProvider>
               <UploadProvider>
-                <WalletProvider>
                 <BrowserRouter>
-                  <AppContent />
-                  <EnhancedMusicPlayer />
-                  <GlobalVideoPlayer />
+                  <WalletProvider>
+                    <AppContent />
+                    <EnhancedMusicPlayer />
+                    <GlobalVideoPlayer />
+                  </WalletProvider>
                 </BrowserRouter>
-                </WalletProvider>
               </UploadProvider>
             </MiniPlayerProvider>
           </VideoPlaybackProvider>
