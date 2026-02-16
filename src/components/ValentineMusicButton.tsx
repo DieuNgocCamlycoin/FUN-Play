@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence, useMotionValue } from "framer-motion";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Slider } from "@/components/ui/slider";
+import { useMusic } from "@/contexts/MusicContext";
 
 const STORAGE_KEY = "valentine-music-muted";
 const POS_KEY = "valentine-music-pos";
@@ -42,6 +43,7 @@ const getSavedVolume = (): number => {
 export const ValentineMusicButton = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const { isPageMusicActive } = useMusic();
   const [isTabVisible, setIsTabVisible] = useState(true);
   const [showUnmuteHint, setShowUnmuteHint] = useState(false);
   const [showVolumeSlider, setShowVolumeSlider] = useState(false);
@@ -266,6 +268,15 @@ export const ValentineMusicButton = () => {
     setVolume(value[0]);
     resetHideTimer();
   }, [resetHideTimer]);
+
+  // When page-level music is active, pause and hide
+  useEffect(() => {
+    if (isPageMusicActive && audioRef.current && !audioRef.current.paused) {
+      audioRef.current.pause();
+    }
+  }, [isPageMusicActive]);
+
+  if (isPageMusicActive) return null;
 
   const buttonSize = isMobile ? 48 : 44;
 
