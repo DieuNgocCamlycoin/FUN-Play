@@ -18,23 +18,17 @@ const ERC20_TRANSFER_ABI = [
 ];
 
 serve(async (req) => {
-  console.log("=== CLAIM-CAMLY FUNCTION STARTED ===");
-  console.log("Request method:", req.method);
-  console.log("Timestamp:", new Date().toISOString());
-
+  console.log("=== CLAIM-CAMLY START ===", new Date().toISOString());
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    console.log("Handling CORS preflight");
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     // Verify authentication
     const authHeader = req.headers.get('Authorization');
-    console.log("Auth header present:", !!authHeader);
     
     if (!authHeader) {
-      console.error("ERROR: No authorization header");
       return new Response(
         JSON.stringify({ error: 'Authorization required' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -46,8 +40,6 @@ serve(async (req) => {
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     
-    console.log("Supabase URL configured:", !!supabaseUrl);
-    console.log("Service role key configured:", !!supabaseServiceKey);
 
     const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } }
@@ -58,25 +50,21 @@ serve(async (req) => {
     // Get authenticated user
     const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
     
-    if (authError) {
-      console.error("Auth error:", authError.message);
-    }
     
     if (!user) {
-      console.error("ERROR: No user found from auth token");
+      console.error("No authenticated user");
       return new Response(
         JSON.stringify({ error: 'Invalid authentication' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log("Authenticated user ID:", user.id);
-    console.log("User email:", user.email);
+
+
 
     const body = await req.json();
     const { walletAddress, claimAmount: requestedAmount } = body;
-    console.log("Wallet address from request:", walletAddress);
-    console.log("Requested claim amount:", requestedAmount);
+    console.log("Claim request:", user.id, walletAddress, requestedAmount);
 
     if (!walletAddress || !walletAddress.match(/^0x[a-fA-F0-9]{40}$/)) {
       return new Response(
@@ -110,12 +98,10 @@ serve(async (req) => {
     }
 
     // Calculate total unclaimed amount
-    const totalAmount = unclaimedRewards.reduce((sum, r) => sum + Number(r.amount), 0);
-    console.log("Total unclaimed amount:", totalAmount, "CAMLY");
-    console.log("Number of unclaimed rewards:", unclaimedRewards.length);
+    console.log(`Unclaimed: ${totalAmount} CAMLY (${unclaimedRewards.length} rewards)`);
 
     if (totalAmount <= 0) {
-      console.error("ERROR: No rewards to claim (amount <= 0)");
+      
       return new Response(
         JSON.stringify({ error: 'No rewards to claim' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -123,7 +109,6 @@ serve(async (req) => {
     }
 
     // Get claim config from database
-    console.log("Fetching claim config...");
     const { data: configData } = await supabaseAdmin
       .from('reward_config')
       .select('config_key, config_value')
@@ -138,11 +123,10 @@ serve(async (req) => {
     configData?.forEach(c => {
       config[c.config_key] = Number(c.config_value);
     });
-    console.log("Claim config:", config);
+    
 
     // Check minimum claim amount
     if (totalAmount < config.MIN_CLAIM_AMOUNT) {
-      console.log(`Total ${totalAmount} is less than minimum ${config.MIN_CLAIM_AMOUNT}`);
       return new Response(
         JSON.stringify({ 
           error: `Cần ít nhất ${config.MIN_CLAIM_AMOUNT.toLocaleString()} CAMLY để rút. Bạn có ${totalAmount.toLocaleString()} CAMLY.` 
@@ -162,7 +146,6 @@ serve(async (req) => {
 
     const todayClaimed = Number(dailyClaim?.total_claimed) || 0;
     const remainingLimit = config.DAILY_CLAIM_LIMIT - todayClaimed;
-    console.log(`Today claimed: ${todayClaimed}, Remaining limit: ${remainingLimit}`);
 
     if (remainingLimit <= 0) {
       return new Response(
@@ -182,8 +165,7 @@ serve(async (req) => {
       .eq('status', 'success');
     
     const lifetimeClaimed = lifetimeClaims?.reduce((sum, c) => sum + Number(c.amount), 0) || 0;
-    const lifetimeRemaining = config.MAX_CLAIM_PER_USER - lifetimeClaimed;
-    console.log(`Lifetime claimed: ${lifetimeClaimed}, MAX_CLAIM_PER_USER: ${config.MAX_CLAIM_PER_USER}, Remaining: ${lifetimeRemaining}`);
+    
     
     if (lifetimeRemaining <= 0) {
       return new Response(
@@ -209,13 +191,11 @@ serve(async (req) => {
         );
       }
       claimAmount = requestedAmount;
-      console.log(`Using user-requested claim amount: ${claimAmount} CAMLY`);
     }
 
-    console.log(`Claim amount (after all limits): ${claimAmount} CAMLY`);
+    console.log(`Claim: ${claimAmount} CAMLY for ${user.id}`);
 
-    // Auto-cleanup stuck pending claims (older than 2 minutes) - BEFORE pending check to prevent deadlock
-    console.log("Auto-cleaning stuck pending claims (>2 min)...");
+    // Auto-cleanup stuck pending claims (>2 min)
     const { data: cleanedUp } = await supabaseAdmin
       .from('claim_requests')
       .update({ 
@@ -229,11 +209,10 @@ serve(async (req) => {
       .select('id');
     
     if (cleanedUp && cleanedUp.length > 0) {
-      console.log(`Auto-cleaned ${cleanedUp.length} stuck pending claims for user ${user.id}:`, cleanedUp.map(c => c.id));
+      console.log(`Cleaned ${cleanedUp.length} stuck claims`);
     }
 
-    // Check for pending claims (prevent double claiming)
-    console.log("Checking for pending claims...");
+    // Check for pending claims
     const { data: pendingClaims } = await supabaseAdmin
       .from('claim_requests')
       .select('id')
@@ -242,14 +221,13 @@ serve(async (req) => {
       .limit(1);
 
     if (pendingClaims && pendingClaims.length > 0) {
-      console.error("ERROR: User has pending claim:", pendingClaims[0].id);
       return new Response(
         JSON.stringify({ error: 'You have a pending claim. Please wait for it to complete.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log("No pending claims, proceeding to create claim request...");
+    
 
     // Create claim request record with clamped amount
     const { data: claimRequest, error: claimError } = await supabaseAdmin
@@ -332,11 +310,11 @@ serve(async (req) => {
     // Send CAMLY tokens
     console.log(`Sending ${claimAmount} CAMLY to ${walletAddress}`);
     const tx = await camlyContract.transfer(walletAddress, amountInWei);
-    console.log('Transaction sent:', tx.hash);
+    console.log('Tx sent:', tx.hash);
 
     // Wait for transaction confirmation
     const receipt = await tx.wait();
-    console.log('Transaction confirmed:', receipt.hash);
+    console.log('Tx confirmed:', receipt.hash);
 
     // Update claim request to success
     await supabaseAdmin
@@ -348,7 +326,7 @@ serve(async (req) => {
       })
       .eq('id', claimRequest.id);
 
-    // Only mark rewards up to claimAmount as claimed (accurate partial marking)
+    // Only mark rewards that fully fit within claimAmount (no over-marking)
     const sorted = [...unclaimedRewards].sort((a, b) => Number(a.amount) - Number(b.amount));
     let cumulative = 0;
     const idsToMark: string[] = [];
@@ -357,14 +335,10 @@ serve(async (req) => {
       if (cumulative + amt <= claimAmount) {
         idsToMark.push(r.id);
         cumulative += amt;
-      } else if (cumulative < claimAmount) {
-        // Include this last reward to cover the claim amount
-        idsToMark.push(r.id);
-        cumulative += amt;
-        break;
       }
+      // Stop early if we've matched the claim amount exactly
+      if (cumulative >= claimAmount) break;
     }
-    console.log(`Marking ${idsToMark.length} of ${unclaimedRewards.length} rewards as claimed (claimAmount: ${claimAmount}, total: ${totalAmount})`);
     
     // Batch update in chunks of 100
     for (let i = 0; i < idsToMark.length; i += 100) {
@@ -381,14 +355,12 @@ serve(async (req) => {
 
     // Set approved_reward to remainder (not 0)
     const remainderReward = totalAmount - claimAmount;
-    console.log(`Setting approved_reward to ${remainderReward} for user ${user.id} (was ${totalAmount}, claimed ${claimAmount})`);
     await supabaseAdmin
       .from('profiles')
       .update({ approved_reward: remainderReward })
       .eq('id', user.id);
 
-    // Record daily claim in daily_claim_records
-    console.log("Recording daily claim...");
+    // Record daily claim
     await supabaseAdmin
       .from('daily_claim_records')
       .upsert({
@@ -397,8 +369,7 @@ serve(async (req) => {
         total_claimed: todayClaimed + claimAmount,
         claim_count: (dailyClaim?.claim_count || 0) + 1
       }, { onConflict: 'user_id,date' });
-
-    console.log(`Successfully claimed ${claimAmount} CAMLY for user ${user.id}`);
+    console.log(`SUCCESS: ${claimAmount} CAMLY claimed, tx: ${receipt.hash}`);
 
     // === FIRE-AND-FORGET: Post-transaction steps (non-blocking) ===
     const TREASURER_ID = 'f0f0f0f0-0000-0000-0000-000000000001';

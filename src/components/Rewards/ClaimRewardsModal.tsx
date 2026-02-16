@@ -299,7 +299,7 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
         .select('total_claimed')
         .eq('user_id', user.id)
         .eq('date', today)
-        .single();
+        .maybeSingle();
 
       const todayClaimed = Number(dailyClaim?.total_claimed) || 0;
       if (todayClaimed >= 500000) {
