@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 
 import { useWalletConnection } from './useWalletConnection';
 import { toast } from '@/hooks/use-toast';
+import { isMobileBrowser } from '@/lib/web3Config';
 import type { ConnectionStep } from '@/components/Web3/WalletConnectionProgress';
 
 interface RetryConfig {
@@ -29,6 +30,7 @@ export const useWalletConnectionWithRetry = (config: Partial<RetryConfig> = {}) 
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const wasConnectedRef = useRef(false);
   const isConnectedRef = useRef(walletConnection.isConnected);
+  const disconnectedAtRef = useRef<number | null>(null);
 
   // Clear intervals on unmount
   useEffect(() => {
@@ -43,22 +45,44 @@ export const useWalletConnectionWithRetry = (config: Partial<RetryConfig> = {}) 
     isConnectedRef.current = walletConnection.isConnected;
   }, [walletConnection.isConnected]);
 
-  // Auto-reconnect when connection is lost
+  // Auto-reconnect with debounce (5s) to avoid storms on mobile app-switching
   useEffect(() => {
+    if (walletConnection.isConnected) {
+      // Connection restored - clear any pending reconnect
+      wasConnectedRef.current = true;
+      disconnectedAtRef.current = null;
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+      return;
+    }
+
     if (wasConnectedRef.current && !walletConnection.isConnected && mergedConfig.autoReconnect) {
-      console.log('[WalletRetry] Connection lost, attempting auto-reconnect...');
-      toast({
-        title: '⚠️ Mất kết nối ví',
-        description: 'Đang thử kết nối lại...',
-      });
+      // Mark disconnect time
+      if (!disconnectedAtRef.current) {
+        disconnectedAtRef.current = Date.now();
+      }
+
+      console.log('[WalletRetry] Connection lost, scheduling auto-reconnect in 5s...');
       
+      // Debounce: wait 5 seconds before attempting reconnect
+      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = setTimeout(() => {
-        connectWithRetry();
-      }, mergedConfig.retryDelayMs);
+        // Only reconnect if still disconnected after 5s
+        if (!isConnectedRef.current && disconnectedAtRef.current) {
+          console.log('[WalletRetry] Still disconnected after 5s, attempting reconnect...');
+          toast({
+            title: '⚠️ Mất kết nối ví',
+            description: 'Đang thử kết nối lại...',
+          });
+          connectWithRetry();
+        }
+      }, 5000);
     }
     
-    wasConnectedRef.current = walletConnection.isConnected;
-  }, [walletConnection.isConnected, mergedConfig.autoReconnect, mergedConfig.retryDelayMs]);
+    // Don't update wasConnectedRef here when disconnected - keep it true
+  }, [walletConnection.isConnected, mergedConfig.autoReconnect]);
 
   // Update step based on wallet state
   useEffect(() => {
@@ -68,7 +92,6 @@ export const useWalletConnectionWithRetry = (config: Partial<RetryConfig> = {}) 
       setConnectionError(undefined);
       setRetryCount(0);
       
-      // Reset to idle after showing success
       setTimeout(() => {
         setConnectionStep('idle');
         setConnectionProgress(0);
@@ -83,7 +106,7 @@ export const useWalletConnectionWithRetry = (config: Partial<RetryConfig> = {}) 
     
     progressIntervalRef.current = setInterval(() => {
       progress += Math.random() * 10;
-      if (progress > 90) progress = 90; // Cap at 90% until actual connection
+      if (progress > 90) progress = 90;
       setConnectionProgress(Math.min(progress, 90));
     }, 300);
   }, []);
@@ -97,7 +120,6 @@ export const useWalletConnectionWithRetry = (config: Partial<RetryConfig> = {}) 
 
   // Connect with retry logic
   const connectWithRetry = useCallback(async () => {
-    // If already connected, skip
     if (walletConnection.isConnected) {
       console.log('[WalletRetry] Already connected, skipping...');
       setConnectionStep('connected');
@@ -105,24 +127,23 @@ export const useWalletConnectionWithRetry = (config: Partial<RetryConfig> = {}) 
       return true;
     }
 
+    // Dynamic timeout: 30s mobile, 15s desktop
+    const connectionTimeout = isMobileBrowser() ? 30000 : 15000;
+
     const attemptConnect = async (attempt: number): Promise<boolean> => {
       try {
-        console.log(`[WalletRetry] Attempt ${attempt} starting...`);
+        console.log(`[WalletRetry] Attempt ${attempt} starting... (timeout: ${connectionTimeout}ms)`);
         setConnectionStep('initializing');
         setConnectionError(undefined);
         startProgressSimulation();
         
-        // Small delay for UX
         await new Promise(resolve => setTimeout(resolve, 300));
         setConnectionStep('opening-modal');
         
-        // Use mobile support for better UX on mobile
         await walletConnection.connectWithMobileSupport();
         
         setConnectionStep('waiting-approval');
         
-        // Wait for connection with timeout - AppKit is faster
-        const connectionTimeout = 10000; // 10 seconds
         const startTime = Date.now();
         const checkInterval = 300;
         
@@ -146,7 +167,6 @@ export const useWalletConnectionWithRetry = (config: Partial<RetryConfig> = {}) 
           return true;
         }
         
-        // Don't throw error if modal is still open - user might still be approving
         console.log('[WalletRetry] Timeout reached, checking modal state...');
         stopProgressSimulation();
         setConnectionStep('idle');
@@ -157,7 +177,6 @@ export const useWalletConnectionWithRetry = (config: Partial<RetryConfig> = {}) 
         stopProgressSimulation();
         console.error(`[WalletRetry] Attempt ${attempt} failed:`, error);
         
-        // Don't retry for user-initiated cancellations
         const errorMessage = error instanceof Error ? error.message : '';
         const errorMsg = errorMessage.toLowerCase();
         const isUserCancel = errorMsg.includes('user rejected') || 
