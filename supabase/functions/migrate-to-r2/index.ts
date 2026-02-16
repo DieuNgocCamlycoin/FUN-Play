@@ -355,14 +355,13 @@ Deno.serve(async (req) => {
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     
-    // Verify user is admin
-    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } }
-    });
+    // Use service role for admin operations
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
     
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    // Verify user via token
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
     if (userError || !user) {
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
@@ -370,7 +369,8 @@ Deno.serve(async (req) => {
       );
     }
     
-    const { data: isAdmin } = await supabaseClient.rpc('has_role', {
+    // Check admin role using service role client (bypasses RLS)
+    const { data: isAdmin } = await supabaseAdmin.rpc('has_role', {
       _user_id: user.id,
       _role: 'admin'
     });
@@ -381,9 +381,6 @@ Deno.serve(async (req) => {
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-    
-    // Use service role for admin operations
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
     
     const body = await req.json();
     const { action } = body;
