@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence, useMotionValue } from "framer-motion";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { Slider } from "@/components/ui/slider";
 
 const STORAGE_KEY = "valentine-music-muted";
 const POS_KEY = "valentine-music-pos";
 const SESSION_KEY = "valentine-music-session";
+const VOLUME_KEY = "valentine-music-volume";
 
 const getDefaultPos = (isMobile: boolean) => {
   if (isMobile) return { x: 16, y: window.innerHeight - 112 };
@@ -25,20 +27,68 @@ const getSavedPos = (isMobile: boolean) => {
   return getDefaultPos(isMobile);
 };
 
+const getSavedVolume = (): number => {
+  try {
+    const v = localStorage.getItem(VOLUME_KEY);
+    if (v !== null) return Math.min(100, Math.max(0, Number(v)));
+  } catch {}
+  return 50;
+};
+
 export const ValentineMusicButton = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showUnmuteHint, setShowUnmuteHint] = useState(false);
+  const [showVolumeSlider, setShowVolumeSlider] = useState(false);
+  const [volume, setVolume] = useState(getSavedVolume);
   const audioUnlockedRef = useRef(false);
   const userMutedRef = useRef(false);
   const isMobile = useIsMobile();
   const constraintsRef = useRef<HTMLDivElement | null>(null);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isLongPressRef = useRef(false);
 
   const initialPos = getSavedPos(isMobile);
   const motionX = useMotionValue(initialPos.x);
   const motionY = useMotionValue(initialPos.y);
 
-  // Session-based mute reset: clear mute pref on new session/reload
+  // Apply volume to audio element directly
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = volume / 100;
+    }
+    localStorage.setItem(VOLUME_KEY, String(volume));
+  }, [volume]);
+
+  // Auto-hide volume slider after 3s
+  const resetHideTimer = useCallback(() => {
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    hideTimerRef.current = setTimeout(() => setShowVolumeSlider(false), 3000);
+  }, []);
+
+  const toggleVolumeSlider = useCallback(() => {
+    setShowVolumeSlider((prev) => {
+      if (!prev) {
+        // Opening — start auto-hide timer
+        if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+        hideTimerRef.current = setTimeout(() => setShowVolumeSlider(false), 3000);
+      } else {
+        if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+      }
+      return !prev;
+    });
+  }, []);
+
+  // Cleanup timers
+  useEffect(() => {
+    return () => {
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+      if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+    };
+  }, []);
+
+  // Session-based mute reset
   useEffect(() => {
     if (!sessionStorage.getItem(SESSION_KEY)) {
       localStorage.removeItem(STORAGE_KEY);
@@ -51,7 +101,7 @@ export const ValentineMusicButton = () => {
     const audio = audioRef.current;
     if (!audio || userMutedRef.current || audioUnlockedRef.current) return;
 
-    // Tier 1: Try unmuted
+    audio.volume = volume / 100;
     audio.muted = false;
     audio.play()
       .then(() => {
@@ -61,28 +111,23 @@ export const ValentineMusicButton = () => {
         localStorage.setItem(STORAGE_KEY, "false");
       })
       .catch(() => {
-        // Tier 2: Try muted autoplay
         audio.muted = true;
         audio.play()
           .then(() => {
             setIsPlaying(true);
             setShowUnmuteHint(true);
-            // Don't set audioUnlockedRef — we still need user tap to unmute
           })
-          .catch(() => {
-            // Tier 3: wait for user interaction (handled by interaction listeners)
-          });
+          .catch(() => {});
       });
-  }, []);
+  }, [volume]);
 
-  // Try to play on mount + delayed retry
   useEffect(() => {
     tryPlay();
     const timer = setTimeout(tryPlay, 1500);
     return () => clearTimeout(timer);
   }, [tryPlay]);
 
-  // Interaction-based fallback: keep retrying on every user interaction until audio unlocks
+  // Interaction-based fallback
   useEffect(() => {
     if (userMutedRef.current) return;
 
@@ -93,6 +138,7 @@ export const ValentineMusicButton = () => {
         return;
       }
       audio.muted = false;
+      audio.volume = volume / 100;
       audio.play()
         .then(() => {
           setIsPlaying(true);
@@ -115,9 +161,9 @@ export const ValentineMusicButton = () => {
     document.addEventListener("pointerdown", handler);
 
     return removeListeners;
-  }, []);
+  }, [volume]);
 
-  // Visibility handler: resume when user returns to tab
+  // Visibility handler
   useEffect(() => {
     const handleVisibility = () => {
       if (document.visibilityState === "visible" && !userMutedRef.current) {
@@ -135,7 +181,6 @@ export const ValentineMusicButton = () => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    // If playing muted, unmute on tap
     if (audio.muted && !audio.paused) {
       audio.muted = false;
       setShowUnmuteHint(false);
@@ -153,6 +198,7 @@ export const ValentineMusicButton = () => {
       userMutedRef.current = true;
     } else {
       audio.muted = false;
+      audio.volume = volume / 100;
       audio.play()
         .then(() => {
           setIsPlaying(true);
@@ -164,6 +210,27 @@ export const ValentineMusicButton = () => {
         .catch(() => {});
     }
   };
+
+  // Long-press detection for volume slider
+  const handlePointerDown = useCallback(() => {
+    isLongPressRef.current = false;
+    longPressTimerRef.current = setTimeout(() => {
+      isLongPressRef.current = true;
+      toggleVolumeSlider();
+    }, 500);
+  }, [toggleVolumeSlider]);
+
+  const handlePointerUp = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }, []);
+
+  const handleVolumeChange = useCallback((value: number[]) => {
+    setVolume(value[0]);
+    resetHideTimer();
+  }, [resetHideTimer]);
 
   const buttonSize = isMobile ? 48 : 44;
 
@@ -183,6 +250,41 @@ export const ValentineMusicButton = () => {
         ref={constraintsRef}
         className="fixed inset-0 z-[49] pointer-events-none"
       />
+
+      {/* Volume Slider */}
+      <AnimatePresence>
+        {showVolumeSlider && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            transition={{ duration: 0.2 }}
+            className="fixed z-[51] flex items-center justify-center"
+            style={{
+              left: motionX.get() + buttonSize / 2 - 16,
+              top: motionY.get() - (isMobile ? 140 : 130),
+            }}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <div className="bg-black/70 backdrop-blur-md rounded-full px-3 py-4 flex flex-col items-center gap-2 shadow-lg border border-white/10">
+              <span className="text-white text-[10px] font-medium">{volume}%</span>
+              <div className="h-24">
+                <Slider
+                  orientation="vertical"
+                  value={[volume]}
+                  onValueChange={handleVolumeChange}
+                  max={100}
+                  min={0}
+                  step={1}
+                  className="h-full w-2 cursor-pointer [&_[data-orientation=vertical]]:w-2 [&_[role=slider]]:h-4 [&_[role=slider]]:w-4 [&_[role=slider]]:border-pink-400 [&_[role=slider]]:bg-white [&_span[data-orientation=vertical]>span]:bg-pink-400"
+                />
+              </div>
+              <span className="text-white/60 text-[10px]">🔊</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence>
         <motion.button
           drag
@@ -190,8 +292,14 @@ export const ValentineMusicButton = () => {
           dragElastic={0.1}
           dragMomentum={false}
           dragListener={true}
-          onTap={toggle}
+          onTap={() => {
+            if (!isLongPressRef.current) toggle();
+          }}
+          onPointerDown={handlePointerDown}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
           onDragEnd={() => {
+            handlePointerUp();
             localStorage.setItem(POS_KEY, JSON.stringify({
               x: motionX.get(),
               y: motionY.get(),
@@ -228,7 +336,6 @@ export const ValentineMusicButton = () => {
             }
             style={{ opacity: isPlaying ? 1 : 0.6 }}
           />
-          {/* Unmute hint badge */}
           {showUnmuteHint && (
             <motion.div
               className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-pink-500 flex items-center justify-center"
