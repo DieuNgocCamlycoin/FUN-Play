@@ -49,8 +49,7 @@ serve(async (req) => {
 
     // Get authenticated user
     const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
-    
-    
+
     if (!user) {
       console.error("No authenticated user");
       return new Response(
@@ -58,8 +57,6 @@ serve(async (req) => {
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-
 
 
     const body = await req.json();
@@ -124,7 +121,6 @@ serve(async (req) => {
     configData?.forEach(c => {
       config[c.config_key] = Number(c.config_value);
     });
-    
 
     // Check minimum claim amount
     if (totalAmount < config.MIN_CLAIM_AMOUNT) {
@@ -228,8 +224,6 @@ serve(async (req) => {
       );
     }
 
-    
-
     // Create claim request record with clamped amount
     const { data: claimRequest, error: claimError } = await supabaseAdmin
       .from('claim_requests')
@@ -279,16 +273,8 @@ serve(async (req) => {
       adminWallet
     );
 
-    // Get token decimals
-    let decimals = 18;
-    try {
-      decimals = await camlyContract.decimals();
-    } catch (e) {
-      console.log('Using default 18 decimals');
-    }
-
-    // Convert amount to token units (CAMLY has 18 decimals typically)
-    const amountInWei = ethers.parseUnits(claimAmount.toString(), decimals);
+    // CAMLY token always uses 18 decimals
+    const amountInWei = ethers.parseUnits(claimAmount.toString(), 18);
 
     // Check admin wallet balance
     const adminBalance = await camlyContract.balanceOf(adminWallet.address);
@@ -488,35 +474,37 @@ serve(async (req) => {
   } catch (error: unknown) {
     console.error('Claim error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Claim failed';
-    
-    // Update claim_request to failed so user can retry immediately
+
+    // Mark pending claim as failed so user can retry immediately
     try {
-      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-      const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
-      
-      // Find the most recent pending claim for this error context
-      const authHeader = req.headers.get('Authorization');
-      if (authHeader) {
-        const supabaseAuth = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
-          global: { headers: { Authorization: authHeader } }
-        });
-        const { data: { user } } = await supabaseAuth.auth.getUser();
-        if (user) {
-          await supabaseAdmin
-            .from('claim_requests')
-            .update({ 
-              status: 'failed', 
-              error_message: errorMessage,
-              processed_at: new Date().toISOString()
-            })
-            .eq('user_id', user.id)
-            .eq('status', 'pending');
-          console.log('Updated pending claim_request to failed for user:', user.id);
+      // Reuse existing clients/user from try block if available
+      const adminClient = typeof supabaseAdmin !== 'undefined' ? supabaseAdmin
+        : createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+
+      let userId: string | undefined;
+      if (typeof user !== 'undefined' && user?.id) {
+        userId = user.id;
+      } else {
+        const authHeader = req.headers.get('Authorization');
+        if (authHeader) {
+          const tempAuth = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, {
+            global: { headers: { Authorization: authHeader } }
+          });
+          const { data: { user: u } } = await tempAuth.auth.getUser();
+          userId = u?.id;
         }
       }
+
+      if (userId) {
+        await adminClient
+          .from('claim_requests')
+          .update({ status: 'failed', error_message: errorMessage, processed_at: new Date().toISOString() })
+          .eq('user_id', userId)
+          .eq('status', 'pending');
+        console.log('Updated pending claim to failed for:', userId);
+      }
     } catch (cleanupError) {
-      console.error('Failed to cleanup claim_request:', cleanupError);
+      console.error('Cleanup failed:', cleanupError);
     }
     
     return new Response(
