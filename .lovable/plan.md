@@ -1,42 +1,65 @@
 
 
-# Fix Critical CAMLY Claim System Crashes
+# Claim System - Final Optimizations
 
-## Root Cause Found
+## Current Status
+The critical bugs from previous rounds are all fixed:
+- `totalAmount` and `lifetimeRemaining` variables are defined
+- `.maybeSingle()` is used correctly everywhere
+- Reward over-marking logic is correct (strict `<=` check)
+- Post-transaction steps are fire-and-forget
 
-The `claim-camly` edge function has **two undefined variables** that crash the function every time it's called. This is why users click "Claim" but nothing happens -- the function throws a runtime error before reaching the blockchain transaction.
+## Remaining Issues Found
 
-### Bug 1: `totalAmount` is never defined (Line 101)
-The code references `totalAmount` but never calculates it from `unclaimedRewards`. This causes an immediate `ReferenceError` crash.
+### 1. Edge Function: Redundant Supabase Client Recreation in Catch Block (Lines 493-520)
+When the edge function hits an error, the catch block creates entirely new Supabase clients and re-authenticates the user just to mark the pending claim as failed. This is wasteful and can itself fail silently. The `user` and `supabaseAdmin` variables from the try block are already in scope for the catch block in JavaScript/Deno -- we just need to check if they were defined before the error occurred.
 
-**Fix:** Add `const totalAmount = unclaimedRewards.reduce((sum, r) => sum + Number(r.amount), 0);` before line 101.
+**Fix:** Use the existing `supabaseAdmin` and `user` variables if available, falling back to recreation only if needed.
 
-### Bug 2: `lifetimeRemaining` is never defined (Line 170)
-The code calculates `lifetimeClaimed` but then references `lifetimeRemaining` which doesn't exist.
+### 2. Edge Function: Empty Lines and Stale Comments (Lines 42-43, 52-53, 61-63, 127, 231)
+Multiple blank lines and orphaned comments add noise. Cleaning these up makes the code easier to maintain.
 
-**Fix:** Add `const lifetimeRemaining = config.MAX_CLAIM_PER_USER - lifetimeClaimed;` after line 167.
+### 3. ClaimRewardsModal: Claim Button Disabled Logic Too Complex (Line 715)
+The disabled condition has 6 checks chained together. If `claimAmount` is 0 (initial state before data loads), the button is disabled even when it shouldn't be. The `claimAmount` is initialized to 0 and only set after `fetchUnclaimedRewards` completes, but the button check `claimAmount < MIN_CLAIM_THRESHOLD` fires immediately.
+
+**Fix:** Allow claim when `claimAmount === 0` and `totalClaimable >= MIN_CLAIM_THRESHOLD` (meaning user hasn't customized the amount, so the full balance will be used).
+
+### 4. Edge Function: `decimals()` Call Adds Latency (Lines 283-288)
+The `camlyContract.decimals()` call adds an extra RPC call every time. CAMLY is always 18 decimals. Remove this unnecessary network call to save ~200ms.
 
 ---
 
 ## Implementation Plan
 
-### Step 1: Fix `claim-camly` Edge Function
-Add the two missing variable declarations:
-- `totalAmount` = sum of all unclaimed reward amounts (before line 101)
-- `lifetimeRemaining` = MAX_CLAIM_PER_USER minus lifetimeClaimed (after line 167)
+### Step 1: Optimize Edge Function Catch Block
+Simplify the error handler to reuse existing `supabaseAdmin` and `user` variables instead of recreating clients.
 
-### Step 2: Deploy and verify
-Deploy the fixed edge function and confirm it no longer crashes.
+### Step 2: Remove Unnecessary `decimals()` RPC Call
+Hard-code decimals as 18 (CAMLY standard) instead of querying the contract each time.
+
+### Step 3: Fix Claim Button Disabled Logic
+Update the disabled check so `claimAmount === 0` (unset) doesn't block the button when `totalClaimable >= MIN_CLAIM_THRESHOLD`.
+
+### Step 4: Clean Up Empty Lines
+Remove stale blank lines and orphaned comments in the edge function.
 
 ---
 
 ## Technical Details
 
 ### Files to Modify
-1. `supabase/functions/claim-camly/index.ts` -- Add 2 missing variable declarations
+1. **`supabase/functions/claim-camly/index.ts`**
+   - Remove `decimals()` call, hardcode 18
+   - Simplify catch block to reuse existing variables
+   - Clean up blank lines
+
+2. **`src/components/Rewards/ClaimRewardsModal.tsx`**
+   - Fix disabled logic on line 715 to handle `claimAmount === 0` case
 
 ### No Database Changes Required
 
-### Why This Was Missed Before
-Previous fixes focused on the reward-marking logic and `.single()` bug but didn't catch that the variable declarations for `totalAmount` and `lifetimeRemaining` were missing from the code. Without these, the function crashes on every invocation at line 101 before any business logic runs.
+### Performance Impact
+- Removing `decimals()` saves ~200ms per claim (one fewer BSC RPC call)
+- Simplified catch block reduces error recovery time
+- Button fix prevents users from being stuck on disabled state
 
