@@ -1,46 +1,42 @@
 
 
-# Fix Remaining CAMLY Claim System Bugs
+# Fix Critical CAMLY Claim System Crashes
 
-## Issues Found
+## Root Cause Found
 
-### 1. Reward Over-Marking Bug (CRITICAL - Data Loss)
-The previous fix in the edge function (lines 351-366) still has the over-marking problem. When claiming a partial amount, the last reward added can push the cumulative total far beyond the claim amount, permanently marking extra rewards as "claimed."
+The `claim-camly` edge function has **two undefined variables** that crash the function every time it's called. This is why users click "Claim" but nothing happens -- the function throws a runtime error before reaching the blockchain transaction.
 
-**Example:** User has rewards [2K, 5K, 20K, 70K, 500K] and claims 200K.
-- Marks: 2K + 5K + 20K + 70K = 97K (all fit)
-- Then 500K: cumulative (97K) < claimAmount (200K), so it adds 500K -> total marked = 597K
-- User only receives 200K but 597K worth of rewards are marked as claimed
-- When `sync_reward_totals()` runs, it recalculates `approved_reward` from unclaimed transactions, causing the profile balance to drop by 397K
+### Bug 1: `totalAmount` is never defined (Line 101)
+The code references `totalAmount` but never calculates it from `unclaimedRewards`. This causes an immediate `ReferenceError` crash.
 
-**Fix:** Only mark rewards that fully fit within the claim amount. Stop adding once the next reward would exceed the claim amount. The profile balance (`approved_reward = totalAmount - claimAmount`) is already correct, so leaving extra rewards unmarked keeps the data consistent.
+**Fix:** Add `const totalAmount = unclaimedRewards.reduce((sum, r) => sum + Number(r.amount), 0);` before line 101.
 
-### 2. `.single()` Bug in ClaimRewardsModal (Line 302)
-The daily claim limit pre-check in `ClaimRewardsModal.tsx` line 297-302 still uses `.single()` on `daily_claim_records`, which throws an error when no record exists (first claim of the day). This was fixed in the edge function but not in the modal.
+### Bug 2: `lifetimeRemaining` is never defined (Line 170)
+The code calculates `lifetimeClaimed` but then references `lifetimeRemaining` which doesn't exist.
 
-### 3. Redundant Excessive Logging in Edge Function
-The edge function has 40+ `console.log` statements that slow execution and clutter logs. Reducing to essential-only logging improves performance.
+**Fix:** Add `const lifetimeRemaining = config.MAX_CLAIM_PER_USER - lifetimeClaimed;` after line 167.
 
 ---
 
 ## Implementation Plan
 
-### Step 1: Fix Reward Over-Marking (Edge Function)
-Change the marking logic to only mark rewards that fully fit within the claim amount (strict `<=` without the overshoot `else if` branch). This means the sum of marked rewards may be less than `claimAmount`, but the profile balance is already correctly set via `approved_reward = totalAmount - claimAmount`.
+### Step 1: Fix `claim-camly` Edge Function
+Add the two missing variable declarations:
+- `totalAmount` = sum of all unclaimed reward amounts (before line 101)
+- `lifetimeRemaining` = MAX_CLAIM_PER_USER minus lifetimeClaimed (after line 167)
 
-### Step 2: Fix `.single()` in ClaimRewardsModal  
-Change line 302 from `.single()` to `.maybeSingle()`.
-
-### Step 3: Reduce Edge Function Logging
-Remove verbose debug logs, keep only key milestones (start, claim amount, tx hash, errors).
+### Step 2: Deploy and verify
+Deploy the fixed edge function and confirm it no longer crashes.
 
 ---
 
 ## Technical Details
 
 ### Files to Modify
-1. `supabase/functions/claim-camly/index.ts` - Fix reward marking logic, reduce logging
-2. `src/components/Rewards/ClaimRewardsModal.tsx` - Fix `.single()` to `.maybeSingle()`
+1. `supabase/functions/claim-camly/index.ts` -- Add 2 missing variable declarations
 
 ### No Database Changes Required
+
+### Why This Was Missed Before
+Previous fixes focused on the reward-marking logic and `.single()` bug but didn't catch that the variable declarations for `totalAmount` and `lifetimeRemaining` were missing from the code. Without these, the function crashes on every invocation at line 101 before any business logic runs.
 
