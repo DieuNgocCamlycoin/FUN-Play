@@ -18,6 +18,7 @@ import UserProfile from "./pages/UserProfile";
 import { wagmiConfig, initWeb3Modal } from '@/lib/web3Config';
 import { GlobalPaymentNotifications } from './components/Web3/GlobalPaymentNotifications';
 import { MusicPlayerProvider } from './contexts/MusicPlayerContext';
+import { MusicProvider } from './contexts/MusicContext';
 import { VideoPlaybackProvider } from './contexts/VideoPlaybackContext';
 import { MiniPlayerProvider } from './contexts/MiniPlayerContext';
 import { UploadProvider } from './contexts/UploadContext';
@@ -215,21 +216,23 @@ const App = () => (
   <WagmiProvider config={wagmiConfig}>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <MusicPlayerProvider>
-          <VideoPlaybackProvider>
-            <MiniPlayerProvider>
-              <UploadProvider>
-                <BrowserRouter>
-                  <WalletProvider>
-                    <AppContent />
-                    <EnhancedMusicPlayer />
-                    <GlobalVideoPlayer />
-                  </WalletProvider>
-                </BrowserRouter>
-              </UploadProvider>
-            </MiniPlayerProvider>
-          </VideoPlaybackProvider>
-        </MusicPlayerProvider>
+        <MusicProvider>
+          <MusicPlayerProvider>
+            <VideoPlaybackProvider>
+              <MiniPlayerProvider>
+                <UploadProvider>
+                  <BrowserRouter>
+                    <WalletProvider>
+                      <AppContent />
+                      <EnhancedMusicPlayer />
+                      <GlobalVideoPlayer />
+                    </WalletProvider>
+                  </BrowserRouter>
+                </UploadProvider>
+              </MiniPlayerProvider>
+            </VideoPlaybackProvider>
+          </MusicPlayerProvider>
+        </MusicProvider>
       </TooltipProvider>
     </QueryClientProvider>
   </WagmiProvider>

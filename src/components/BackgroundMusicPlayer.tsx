@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Volume2, VolumeX, Music, X } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
+import { useMusic } from "@/contexts/MusicContext";
 
 interface BackgroundMusicPlayerProps {
   musicUrl: string | null;
@@ -11,9 +12,18 @@ interface BackgroundMusicPlayerProps {
 
 export const BackgroundMusicPlayer = ({ musicUrl, autoPlay = true, onClose }: BackgroundMusicPlayerProps) => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [isPlaying, setIsPlaying] = useState(autoPlay);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(50);
   const [showControls, setShowControls] = useState(false);
+  const { setPageMusicActive } = useMusic();
+
+  // Signal that page-level music is active
+  useEffect(() => {
+    if (musicUrl) {
+      setPageMusicActive(true);
+    }
+    return () => setPageMusicActive(false);
+  }, [musicUrl, setPageMusicActive]);
 
   useEffect(() => {
     if (musicUrl && audioRef.current) {
