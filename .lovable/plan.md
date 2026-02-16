@@ -1,94 +1,54 @@
 
+# Replace Background Music and Add Volume Control
 
-# Wallet Connection - Context Provider (Eliminate Duplicate Instances)
+## What We'll Do
 
-## Problem
+1. **Replace the background music** with the new uploaded file (`Nhạc_hiệu_2.mp3`)
+2. **Add a volume slider** that appears when tapping/clicking the music button -- lets users adjust volume smoothly
+3. **Persist volume preference** in localStorage so volume is remembered between sessions
+4. **Optimize for mobile** with touch-friendly slider and compact layout
 
-After two rounds of optimization, the individual hook logic is stable and performant. However, **7 separate components** each independently call `useWalletConnection()` or `useWalletConnectionWithRetry()`:
+---
 
-| Component | Hook Used |
-|---|---|
-| WalletButton | useWalletConnectionWithRetry |
-| Wallet page | useWalletConnectionWithRetry |
-| ClaimRewardsSection | useWalletConnectionWithRetry |
-| ClaimRewardsModal | useWalletConnectionWithRetry |
-| MultiTokenWallet | useWalletConnection |
-| TokenSwap | useWalletConnection |
-| NFTMintModal | useWalletConnection |
-| SendToFunWalletModal | useWalletConnection |
+## Implementation Details
 
-Each instance creates its own `watchAccount` subscription, its own DB fetch for the user's saved wallet, and its own chain-switch logic. On a page like Wallet that renders WalletButton + ClaimRewardsSection + ClaimRewardsModal, there are **4 parallel subscriptions** doing the same thing.
+### Step 1: Copy New Audio File
+- Copy `user-uploads://Nhạc_hiệu_2.mp3` to `public/audio/valentine-bg.mp3` (replacing the existing file)
 
-## Solution
+### Step 2: Update `ValentineMusicButton.tsx`
 
-Create a single `WalletProvider` context that runs the wallet logic once at the app level. All components consume the shared state via `useWalletContext()` instead of creating their own instances.
+**Add volume control state:**
+- New state: `volume` (0-100), `showVolumeSlider` (boolean)
+- Persist volume in localStorage (`valentine-music-volume`)
+- Apply volume to audio element via `audioRef.current.volume = volume / 100`
 
-## Implementation Plan
+**Add volume slider UI:**
+- On long-press or double-tap: show a small vertical volume slider near the button
+- Slider uses the existing `@radix-ui/react-slider` component (already installed)
+- Auto-hide slider after 3 seconds of no interaction
+- Slider positioned above the button on mobile, beside it on desktop
 
-### Step 1: Create WalletContext Provider
+**Interaction model:**
+- Single tap: toggle play/pause (existing behavior, unchanged)
+- Long-press (500ms) or double-tap: show/hide volume slider
+- Drag: move button (existing behavior, unchanged)
 
-Create `src/contexts/WalletContext.tsx`:
-- Move all `useWalletConnectionWithRetry()` logic into a React Context Provider
-- The Provider calls `useWalletConnectionWithRetry()` once
-- Export a `useWalletContext()` hook that reads from Context
-- Throw a helpful error if used outside the Provider
+**Volume persistence:**
+- Save volume to `localStorage` on change
+- Load saved volume on mount (default: 50%)
 
-### Step 2: Add WalletProvider to App
+### Step 3: Optimize for Performance
+- Use `useRef` for the volume slider hide timer to avoid re-renders
+- Volume changes applied directly to `audioRef.current.volume` (no state-driven re-render needed for audio updates)
+- Slider only renders when `showVolumeSlider` is true (conditional mount)
 
-Wrap the app's component tree with `<WalletProvider>` inside the existing providers (after WagmiProvider/QueryClientProvider so wagmi hooks work).
-
-### Step 3: Update all 8 consumer components
-
-Replace all `useWalletConnection()` and `useWalletConnectionWithRetry()` calls with `useWalletContext()`:
-
-- `WalletButton.tsx` - change import and hook call
-- `Wallet.tsx` (page) - change import and hook call
-- `ClaimRewardsSection.tsx` - change import and hook call
-- `ClaimRewardsModal.tsx` - change import and hook call
-- `MultiTokenWallet.tsx` - change import and hook call
-- `TokenSwap.tsx` - change import and hook call
-- `NFTMintModal.tsx` - change import and hook call
-- `SendToFunWalletModal.tsx` - change import and hook call
-
-### Step 4: Keep original hooks as internal modules
-
-The original `useWalletConnection.ts` and `useWalletConnectionWithRetry.ts` stay as-is but are only imported by the WalletContext Provider. This preserves all the existing stability fixes.
+---
 
 ## Technical Details
 
-### New File: `src/contexts/WalletContext.tsx`
-
-```text
-WalletProvider
-  --> calls useWalletConnectionWithRetry() once
-  --> provides all wallet state + actions via React Context
-  --> single watchAccount subscription for entire app
-
-useWalletContext()
-  --> reads from Context
-  --> returns same interface as useWalletConnectionWithRetry
-  --> throws error if used outside Provider
-```
-
-### Performance Impact
-- Reduces watchAccount subscriptions from 4-7 per page to exactly 1
-- Eliminates 4-7 duplicate DB queries for saved wallet on each navigation
-- Removes 4-7 duplicate chain-switch attempts when on wrong chain
-- No change to user-facing behavior -- everything works identically
-
-### Files to Create
-- `src/contexts/WalletContext.tsx`
-
 ### Files to Modify
-- `src/App.tsx` (add WalletProvider)
-- `src/components/Web3/WalletButton.tsx`
-- `src/pages/Wallet.tsx`
-- `src/components/Wallet/ClaimRewardsSection.tsx`
-- `src/components/Rewards/ClaimRewardsModal.tsx`
-- `src/components/Web3/MultiTokenWallet.tsx`
-- `src/components/Web3/TokenSwap.tsx`
-- `src/components/NFT/NFTMintModal.tsx`
-- `src/components/Web3/SendToFunWalletModal.tsx`
+- **`public/audio/valentine-bg.mp3`** -- replaced with new audio file
+- **`src/components/ValentineMusicButton.tsx`** -- add volume slider, long-press detection, volume persistence
 
 ### No Database Changes Required
-
+### No New Dependencies Required (uses existing `@radix-ui/react-slider`)
