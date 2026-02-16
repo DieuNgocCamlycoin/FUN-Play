@@ -1,60 +1,46 @@
 
 
-# Wallet Connection System - Optimization & Mobile Fix
+# Wallet Connection - Final Stability & Performance Pass
 
 ## Issues Found
 
-### 1. `switchToBSC` in useEffect dependency causes infinite re-renders on mobile
-In `useWalletConnection.ts` (line 488), `switchToBSC` is listed as a dependency of the `watchAccount` effect. Because `switchToBSC` is a `useCallback` with no deps, it's stable -- but it triggers `setIsLoading(true)` which causes re-renders. On mobile, when the chain is wrong, this creates a rapid loop: detect wrong chain -> call `switchToBSC` -> re-render -> detect wrong chain again. This is why mobile connections "don't work" -- the app gets stuck in a switch-chain loop before the wallet can respond.
+### 1. Stale Closure in Auto-Reconnect Effect
+In `useWalletConnectionWithRetry.ts` (line 79), the auto-reconnect timer calls `connectWithRetry()`, but `connectWithRetry` is NOT in the effect's dependency array (line 85). This means the auto-reconnect always calls a stale version of the function captured during the first render. On mobile, when auto-reconnect fires after 5 seconds, it may use outdated wallet state.
 
-**Fix:** Use a `useRef` for `switchToBSC` to prevent it from being in the effect dependency array (matching the existing pattern with `toastRef`). Also add a guard flag (`isSwitchingChainRef`) to prevent calling `switchToBSC` multiple times simultaneously.
+**Fix:** Store `connectWithRetry` in a ref and call `connectWithRetryRef.current()` inside the timeout.
 
-### 2. `connectWithRetry` polling timeout too short for mobile (10s)
-In `useWalletConnectionWithRetry.ts` (line 125), the connection timeout is only 10 seconds. On mobile, WalletConnect requires the user to switch apps (browser -> wallet app -> approve -> switch back). This process frequently takes more than 10 seconds, causing false "timeout" results and the connection appearing to fail even though the user approved in their wallet.
+### 2. `mergedConfig` Recreated Every Render
+In `useWalletConnectionWithRetry.ts` (line 21), `{ ...DEFAULT_CONFIG, ...config }` creates a new object on every render. Since `mergedConfig` is in `connectWithRetry`'s dependency array (line 212), this means `connectWithRetry` is **recreated on every single render**, which cascades to `retry` being recreated too. On mobile with frequent re-renders, this adds unnecessary garbage collection pressure.
 
-**Fix:** Increase the timeout to 30 seconds for mobile users, keep 10 seconds for desktop.
+**Fix:** Memoize `mergedConfig` with `useMemo`.
 
-### 3. `useWalletConnectionWithRetry` auto-reconnect fires incorrectly
-In `useWalletConnectionWithRetry.ts` (line 47-61), the auto-reconnect effect watches `walletConnection.isConnected` and calls `connectWithRetry()` whenever connection drops. On mobile, brief disconnections during app-switching trigger unwanted reconnect attempts that open the modal again, confusing users.
+### 3. Progress Simulation Creates Excessive State Updates
+The progress interval (line 107) fires every 300ms and calls `setConnectionProgress()` each time. During a 30-second mobile timeout, that is ~100 state updates just for a visual progress bar. Each update triggers a React re-render of the entire component tree consuming this hook.
 
-**Fix:** Add a debounce -- only auto-reconnect if the connection has been lost for more than 5 seconds (not immediately).
+**Fix:** Increase interval to 500ms and cap the number of updates.
 
-### 4. `saveWalletToDb` and `clearWalletFromDb` in effect dependency array
-In `useWalletConnection.ts` (line 488), the `watchAccount` effect depends on `saveWalletToDb` and `clearWalletFromDb`, which depend on `user`. Every time `user` object reference changes (common with auth state), the entire effect re-runs, unsubscribing and re-subscribing the account watcher. This causes flickering and missed events on mobile.
+### 4. `walletConnection.isConnected` in `connectWithRetry` Dependency Array
+Line 212 includes `walletConnection.isConnected` as a dependency. Every time connection state toggles, `connectWithRetry` is recreated. But the function already uses `isConnectedRef` for its internal polling (line 150), making the dependency redundant. The early-return guard on line 123 can also use the ref.
 
-**Fix:** Use `useRef` for the `user` value so the callbacks are stable and don't cause the effect to re-run.
-
-### 5. Multiple `useWalletConnection` instances across components
-`WalletButton`, `Wallet` page, `ClaimRewardsModal`, `ClaimRewardsSection`, `NFTMintModal`, `TokenSwap`, and `MultiTokenWallet` all independently call `useWalletConnection` or `useWalletConnectionWithRetry`. Each instance sets up its own `watchAccount` listener and DB fetch. This creates 5-7 redundant `watchAccount` subscriptions and 5-7 separate DB queries on every page load.
-
-**Fix:** This is a larger architectural change (React Context) that we'll note but not implement in this round to keep changes focused and safe.
+**Fix:** Remove `walletConnection.isConnected` from the dependency array; use `isConnectedRef.current` for the guard check.
 
 ---
 
 ## Implementation Plan
 
-### Step 1: Stabilize `switchToBSC` with useRef + guard flag
-In `useWalletConnection.ts`:
-- Add `switchToBSCRef` (useRef) to hold the latest `switchToBSC` function
-- Add `isSwitchingChainRef` to prevent duplicate calls
-- Replace `switchToBSC()` calls inside the effect with `switchToBSCRef.current()`
-- Remove `switchToBSC` from the effect dependency array
+### Step 1: Memoize `mergedConfig`
+Replace line 21 with `useMemo(() => ({ ...DEFAULT_CONFIG, ...config }), [config])`. Since `config` defaults to `{}` and is typically not passed, add a stable default ref.
 
-### Step 2: Stabilize `saveWalletToDb` and `clearWalletFromDb` with useRef
-In `useWalletConnection.ts`:
-- Add `userRef` to track the current user without re-creating callbacks
-- Update `saveWalletToDb` and `clearWalletFromDb` to use `userRef.current`
-- This makes the `watchAccount` effect dependency array only contain stable refs
+### Step 2: Fix stale closure in auto-reconnect
+Add `connectWithRetryRef` and use it in the timeout callback on line 79.
 
-### Step 3: Increase mobile connection timeout
-In `useWalletConnectionWithRetry.ts`:
-- Import `isMobileBrowser` from web3Config
-- Change timeout from fixed 10s to: `const connectionTimeout = isMobileBrowser() ? 30000 : 15000;`
+### Step 3: Stabilize `connectWithRetry` dependency array
+- Remove `walletConnection.isConnected` from deps (line 212)
+- Use `isConnectedRef.current` for the early return guard (line 123)
+- Use `mergedConfig` ref or memoized value
 
-### Step 4: Debounce auto-reconnect
-In `useWalletConnectionWithRetry.ts`:
-- Change the auto-reconnect delay from `mergedConfig.retryDelayMs` (2s) to 5000ms
-- Only trigger if `wasConnectedRef` has been true for at least one render cycle
+### Step 4: Reduce progress simulation frequency
+Change interval from 300ms to 500ms and increase step size to compensate.
 
 ---
 
@@ -62,24 +48,18 @@ In `useWalletConnectionWithRetry.ts`:
 
 ### Files to Modify
 
-1. **`src/hooks/useWalletConnection.ts`**
-   - Add `userRef = useRef(user)` + keep it synced
-   - Add `switchToBSCRef = useRef(switchToBSC)` + keep it synced
-   - Add `isSwitchingChainRef = useRef(false)` guard
-   - Update `saveWalletToDb` and `clearWalletFromDb` to use `userRef.current`
-   - Update effect to use refs instead of direct function deps
-   - Clean up effect dependency array to `[]` (stable)
-
-2. **`src/hooks/useWalletConnectionWithRetry.ts`**
-   - Import `isMobileBrowser`
-   - Dynamic timeout: 30s mobile / 15s desktop
-   - Debounce auto-reconnect to 5s
+**`src/hooks/useWalletConnectionWithRetry.ts`**
+- Add `useMemo` for `mergedConfig`
+- Add `connectWithRetryRef` to prevent stale closure in auto-reconnect
+- Remove `walletConnection.isConnected` from `connectWithRetry` deps, use `isConnectedRef.current` instead
+- Change progress interval from 300ms to 500ms with larger step increments
+- Use stable ref for `mergedConfig` in `connectWithRetry`
 
 ### No Database Changes Required
+### No Other Files Affected
 
 ### Performance Impact
-- Eliminates 5-7 redundant `watchAccount` re-subscriptions per page navigation
-- Removes infinite re-render loop on mobile when chain is wrong
-- Reduces false timeout failures on mobile by 3x (30s vs 10s)
-- Prevents auto-reconnect storms during mobile app-switching
+- Eliminates `connectWithRetry` recreation on every render (was ~60 recreations/sec during animations)
+- Fixes auto-reconnect using stale function reference on mobile
+- Reduces progress bar state updates by 40% (from ~100 to ~60 during a 30s timeout)
 
