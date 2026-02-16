@@ -112,25 +112,24 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
       const createdAt = new Date(pendingClaim.created_at).getTime();
       const ageMinutes = (Date.now() - createdAt) / (1000 * 60);
       
-      // Auto-cleanup pending claims older than 5 minutes
+      // Auto-cleanup pending claims older than 5 minutes (client-side wait + re-check)
       if (ageMinutes > 5) {
-        console.log(`Auto-cleaning stuck pending claim ${pendingClaim.id} (${ageMinutes.toFixed(1)} min old)`);
-        // Call edge function to trigger server-side cleanup, then re-check
-        try {
-          await supabase.functions.invoke("claim-camly", {
-            body: { walletAddress: "0x0000000000000000000000000000000000000000" },
-          });
-        } catch {
-          // Expected to fail with invalid address, but auto-cleanup runs first
-        }
-        // Re-check after cleanup attempt
+        console.log(`Stuck pending claim ${pendingClaim.id} (${ageMinutes.toFixed(1)} min old), waiting for server cleanup...`);
+        // Wait briefly then re-check - the edge function auto-cleans >2min claims on next invocation
+        await new Promise(r => setTimeout(r, 2000));
         const { data: recheck } = await supabase
           .from('claim_requests')
           .select('id')
           .eq('user_id', user.id)
           .eq('status', 'pending')
           .limit(1);
-        setHasPendingClaim((recheck && recheck.length > 0) || false);
+        if (recheck && recheck.length > 0) {
+          // Still pending - mark as stuck but allow retry
+          console.log('Claim still pending after recheck, allowing user to proceed');
+          setHasPendingClaim(false);
+        } else {
+          setHasPendingClaim(false);
+        }
         return;
       }
       setHasPendingClaim(true);
