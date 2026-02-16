@@ -47,7 +47,7 @@ export const BackgroundMusicPlayer = ({ musicUrl, autoPlay = true, onClose }: Ba
     <div className="fixed bottom-4 right-4 z-50 max-w-sm">
       <div className="bg-card border border-border rounded-lg shadow-lg p-3">
         <div className="flex items-center gap-3">
-          <Music className="h-5 w-5 text-primary animate-pulse" />
+          <Music className={`h-5 w-5 text-primary ${isPlaying ? "animate-pulse" : ""}`} />
           <div className="flex-1">
             <p className="text-xs font-medium text-foreground mb-1">Nhạc nền</p>
             <div className="flex items-center gap-2">
@@ -99,6 +99,7 @@ export const BackgroundMusicPlayer = ({ musicUrl, autoPlay = true, onClose }: Ba
         ref={audioRef}
         src={musicUrl}
         loop
+        preload="metadata"
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
       />
