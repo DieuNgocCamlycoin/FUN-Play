@@ -1,65 +1,94 @@
 
 
-# Wallet Connection - Final Stability & Performance Pass
+# Wallet Connection - Context Provider (Eliminate Duplicate Instances)
 
-## Issues Found
+## Problem
 
-### 1. Stale Closure in Auto-Reconnect Effect
-In `useWalletConnectionWithRetry.ts` (line 79), the auto-reconnect timer calls `connectWithRetry()`, but `connectWithRetry` is NOT in the effect's dependency array (line 85). This means the auto-reconnect always calls a stale version of the function captured during the first render. On mobile, when auto-reconnect fires after 5 seconds, it may use outdated wallet state.
+After two rounds of optimization, the individual hook logic is stable and performant. However, **7 separate components** each independently call `useWalletConnection()` or `useWalletConnectionWithRetry()`:
 
-**Fix:** Store `connectWithRetry` in a ref and call `connectWithRetryRef.current()` inside the timeout.
+| Component | Hook Used |
+|---|---|
+| WalletButton | useWalletConnectionWithRetry |
+| Wallet page | useWalletConnectionWithRetry |
+| ClaimRewardsSection | useWalletConnectionWithRetry |
+| ClaimRewardsModal | useWalletConnectionWithRetry |
+| MultiTokenWallet | useWalletConnection |
+| TokenSwap | useWalletConnection |
+| NFTMintModal | useWalletConnection |
+| SendToFunWalletModal | useWalletConnection |
 
-### 2. `mergedConfig` Recreated Every Render
-In `useWalletConnectionWithRetry.ts` (line 21), `{ ...DEFAULT_CONFIG, ...config }` creates a new object on every render. Since `mergedConfig` is in `connectWithRetry`'s dependency array (line 212), this means `connectWithRetry` is **recreated on every single render**, which cascades to `retry` being recreated too. On mobile with frequent re-renders, this adds unnecessary garbage collection pressure.
+Each instance creates its own `watchAccount` subscription, its own DB fetch for the user's saved wallet, and its own chain-switch logic. On a page like Wallet that renders WalletButton + ClaimRewardsSection + ClaimRewardsModal, there are **4 parallel subscriptions** doing the same thing.
 
-**Fix:** Memoize `mergedConfig` with `useMemo`.
+## Solution
 
-### 3. Progress Simulation Creates Excessive State Updates
-The progress interval (line 107) fires every 300ms and calls `setConnectionProgress()` each time. During a 30-second mobile timeout, that is ~100 state updates just for a visual progress bar. Each update triggers a React re-render of the entire component tree consuming this hook.
-
-**Fix:** Increase interval to 500ms and cap the number of updates.
-
-### 4. `walletConnection.isConnected` in `connectWithRetry` Dependency Array
-Line 212 includes `walletConnection.isConnected` as a dependency. Every time connection state toggles, `connectWithRetry` is recreated. But the function already uses `isConnectedRef` for its internal polling (line 150), making the dependency redundant. The early-return guard on line 123 can also use the ref.
-
-**Fix:** Remove `walletConnection.isConnected` from the dependency array; use `isConnectedRef.current` for the guard check.
-
----
+Create a single `WalletProvider` context that runs the wallet logic once at the app level. All components consume the shared state via `useWalletContext()` instead of creating their own instances.
 
 ## Implementation Plan
 
-### Step 1: Memoize `mergedConfig`
-Replace line 21 with `useMemo(() => ({ ...DEFAULT_CONFIG, ...config }), [config])`. Since `config` defaults to `{}` and is typically not passed, add a stable default ref.
+### Step 1: Create WalletContext Provider
 
-### Step 2: Fix stale closure in auto-reconnect
-Add `connectWithRetryRef` and use it in the timeout callback on line 79.
+Create `src/contexts/WalletContext.tsx`:
+- Move all `useWalletConnectionWithRetry()` logic into a React Context Provider
+- The Provider calls `useWalletConnectionWithRetry()` once
+- Export a `useWalletContext()` hook that reads from Context
+- Throw a helpful error if used outside the Provider
 
-### Step 3: Stabilize `connectWithRetry` dependency array
-- Remove `walletConnection.isConnected` from deps (line 212)
-- Use `isConnectedRef.current` for the early return guard (line 123)
-- Use `mergedConfig` ref or memoized value
+### Step 2: Add WalletProvider to App
 
-### Step 4: Reduce progress simulation frequency
-Change interval from 300ms to 500ms and increase step size to compensate.
+Wrap the app's component tree with `<WalletProvider>` inside the existing providers (after WagmiProvider/QueryClientProvider so wagmi hooks work).
 
----
+### Step 3: Update all 8 consumer components
+
+Replace all `useWalletConnection()` and `useWalletConnectionWithRetry()` calls with `useWalletContext()`:
+
+- `WalletButton.tsx` - change import and hook call
+- `Wallet.tsx` (page) - change import and hook call
+- `ClaimRewardsSection.tsx` - change import and hook call
+- `ClaimRewardsModal.tsx` - change import and hook call
+- `MultiTokenWallet.tsx` - change import and hook call
+- `TokenSwap.tsx` - change import and hook call
+- `NFTMintModal.tsx` - change import and hook call
+- `SendToFunWalletModal.tsx` - change import and hook call
+
+### Step 4: Keep original hooks as internal modules
+
+The original `useWalletConnection.ts` and `useWalletConnectionWithRetry.ts` stay as-is but are only imported by the WalletContext Provider. This preserves all the existing stability fixes.
 
 ## Technical Details
 
-### Files to Modify
+### New File: `src/contexts/WalletContext.tsx`
 
-**`src/hooks/useWalletConnectionWithRetry.ts`**
-- Add `useMemo` for `mergedConfig`
-- Add `connectWithRetryRef` to prevent stale closure in auto-reconnect
-- Remove `walletConnection.isConnected` from `connectWithRetry` deps, use `isConnectedRef.current` instead
-- Change progress interval from 300ms to 500ms with larger step increments
-- Use stable ref for `mergedConfig` in `connectWithRetry`
+```text
+WalletProvider
+  --> calls useWalletConnectionWithRetry() once
+  --> provides all wallet state + actions via React Context
+  --> single watchAccount subscription for entire app
 
-### No Database Changes Required
-### No Other Files Affected
+useWalletContext()
+  --> reads from Context
+  --> returns same interface as useWalletConnectionWithRetry
+  --> throws error if used outside Provider
+```
 
 ### Performance Impact
-- Eliminates `connectWithRetry` recreation on every render (was ~60 recreations/sec during animations)
-- Fixes auto-reconnect using stale function reference on mobile
-- Reduces progress bar state updates by 40% (from ~100 to ~60 during a 30s timeout)
+- Reduces watchAccount subscriptions from 4-7 per page to exactly 1
+- Eliminates 4-7 duplicate DB queries for saved wallet on each navigation
+- Removes 4-7 duplicate chain-switch attempts when on wrong chain
+- No change to user-facing behavior -- everything works identically
+
+### Files to Create
+- `src/contexts/WalletContext.tsx`
+
+### Files to Modify
+- `src/App.tsx` (add WalletProvider)
+- `src/components/Web3/WalletButton.tsx`
+- `src/pages/Wallet.tsx`
+- `src/components/Wallet/ClaimRewardsSection.tsx`
+- `src/components/Rewards/ClaimRewardsModal.tsx`
+- `src/components/Web3/MultiTokenWallet.tsx`
+- `src/components/Web3/TokenSwap.tsx`
+- `src/components/NFT/NFTMintModal.tsx`
+- `src/components/Web3/SendToFunWalletModal.tsx`
+
+### No Database Changes Required
 
