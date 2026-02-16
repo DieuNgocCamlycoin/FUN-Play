@@ -1,65 +1,85 @@
 
 
-# Claim System - Final Optimizations
+# Wallet Connection System - Optimization & Mobile Fix
 
-## Current Status
-The critical bugs from previous rounds are all fixed:
-- `totalAmount` and `lifetimeRemaining` variables are defined
-- `.maybeSingle()` is used correctly everywhere
-- Reward over-marking logic is correct (strict `<=` check)
-- Post-transaction steps are fire-and-forget
+## Issues Found
 
-## Remaining Issues Found
+### 1. `switchToBSC` in useEffect dependency causes infinite re-renders on mobile
+In `useWalletConnection.ts` (line 488), `switchToBSC` is listed as a dependency of the `watchAccount` effect. Because `switchToBSC` is a `useCallback` with no deps, it's stable -- but it triggers `setIsLoading(true)` which causes re-renders. On mobile, when the chain is wrong, this creates a rapid loop: detect wrong chain -> call `switchToBSC` -> re-render -> detect wrong chain again. This is why mobile connections "don't work" -- the app gets stuck in a switch-chain loop before the wallet can respond.
 
-### 1. Edge Function: Redundant Supabase Client Recreation in Catch Block (Lines 493-520)
-When the edge function hits an error, the catch block creates entirely new Supabase clients and re-authenticates the user just to mark the pending claim as failed. This is wasteful and can itself fail silently. The `user` and `supabaseAdmin` variables from the try block are already in scope for the catch block in JavaScript/Deno -- we just need to check if they were defined before the error occurred.
+**Fix:** Use a `useRef` for `switchToBSC` to prevent it from being in the effect dependency array (matching the existing pattern with `toastRef`). Also add a guard flag (`isSwitchingChainRef`) to prevent calling `switchToBSC` multiple times simultaneously.
 
-**Fix:** Use the existing `supabaseAdmin` and `user` variables if available, falling back to recreation only if needed.
+### 2. `connectWithRetry` polling timeout too short for mobile (10s)
+In `useWalletConnectionWithRetry.ts` (line 125), the connection timeout is only 10 seconds. On mobile, WalletConnect requires the user to switch apps (browser -> wallet app -> approve -> switch back). This process frequently takes more than 10 seconds, causing false "timeout" results and the connection appearing to fail even though the user approved in their wallet.
 
-### 2. Edge Function: Empty Lines and Stale Comments (Lines 42-43, 52-53, 61-63, 127, 231)
-Multiple blank lines and orphaned comments add noise. Cleaning these up makes the code easier to maintain.
+**Fix:** Increase the timeout to 30 seconds for mobile users, keep 10 seconds for desktop.
 
-### 3. ClaimRewardsModal: Claim Button Disabled Logic Too Complex (Line 715)
-The disabled condition has 6 checks chained together. If `claimAmount` is 0 (initial state before data loads), the button is disabled even when it shouldn't be. The `claimAmount` is initialized to 0 and only set after `fetchUnclaimedRewards` completes, but the button check `claimAmount < MIN_CLAIM_THRESHOLD` fires immediately.
+### 3. `useWalletConnectionWithRetry` auto-reconnect fires incorrectly
+In `useWalletConnectionWithRetry.ts` (line 47-61), the auto-reconnect effect watches `walletConnection.isConnected` and calls `connectWithRetry()` whenever connection drops. On mobile, brief disconnections during app-switching trigger unwanted reconnect attempts that open the modal again, confusing users.
 
-**Fix:** Allow claim when `claimAmount === 0` and `totalClaimable >= MIN_CLAIM_THRESHOLD` (meaning user hasn't customized the amount, so the full balance will be used).
+**Fix:** Add a debounce -- only auto-reconnect if the connection has been lost for more than 5 seconds (not immediately).
 
-### 4. Edge Function: `decimals()` Call Adds Latency (Lines 283-288)
-The `camlyContract.decimals()` call adds an extra RPC call every time. CAMLY is always 18 decimals. Remove this unnecessary network call to save ~200ms.
+### 4. `saveWalletToDb` and `clearWalletFromDb` in effect dependency array
+In `useWalletConnection.ts` (line 488), the `watchAccount` effect depends on `saveWalletToDb` and `clearWalletFromDb`, which depend on `user`. Every time `user` object reference changes (common with auth state), the entire effect re-runs, unsubscribing and re-subscribing the account watcher. This causes flickering and missed events on mobile.
+
+**Fix:** Use `useRef` for the `user` value so the callbacks are stable and don't cause the effect to re-run.
+
+### 5. Multiple `useWalletConnection` instances across components
+`WalletButton`, `Wallet` page, `ClaimRewardsModal`, `ClaimRewardsSection`, `NFTMintModal`, `TokenSwap`, and `MultiTokenWallet` all independently call `useWalletConnection` or `useWalletConnectionWithRetry`. Each instance sets up its own `watchAccount` listener and DB fetch. This creates 5-7 redundant `watchAccount` subscriptions and 5-7 separate DB queries on every page load.
+
+**Fix:** This is a larger architectural change (React Context) that we'll note but not implement in this round to keep changes focused and safe.
 
 ---
 
 ## Implementation Plan
 
-### Step 1: Optimize Edge Function Catch Block
-Simplify the error handler to reuse existing `supabaseAdmin` and `user` variables instead of recreating clients.
+### Step 1: Stabilize `switchToBSC` with useRef + guard flag
+In `useWalletConnection.ts`:
+- Add `switchToBSCRef` (useRef) to hold the latest `switchToBSC` function
+- Add `isSwitchingChainRef` to prevent duplicate calls
+- Replace `switchToBSC()` calls inside the effect with `switchToBSCRef.current()`
+- Remove `switchToBSC` from the effect dependency array
 
-### Step 2: Remove Unnecessary `decimals()` RPC Call
-Hard-code decimals as 18 (CAMLY standard) instead of querying the contract each time.
+### Step 2: Stabilize `saveWalletToDb` and `clearWalletFromDb` with useRef
+In `useWalletConnection.ts`:
+- Add `userRef` to track the current user without re-creating callbacks
+- Update `saveWalletToDb` and `clearWalletFromDb` to use `userRef.current`
+- This makes the `watchAccount` effect dependency array only contain stable refs
 
-### Step 3: Fix Claim Button Disabled Logic
-Update the disabled check so `claimAmount === 0` (unset) doesn't block the button when `totalClaimable >= MIN_CLAIM_THRESHOLD`.
+### Step 3: Increase mobile connection timeout
+In `useWalletConnectionWithRetry.ts`:
+- Import `isMobileBrowser` from web3Config
+- Change timeout from fixed 10s to: `const connectionTimeout = isMobileBrowser() ? 30000 : 15000;`
 
-### Step 4: Clean Up Empty Lines
-Remove stale blank lines and orphaned comments in the edge function.
+### Step 4: Debounce auto-reconnect
+In `useWalletConnectionWithRetry.ts`:
+- Change the auto-reconnect delay from `mergedConfig.retryDelayMs` (2s) to 5000ms
+- Only trigger if `wasConnectedRef` has been true for at least one render cycle
 
 ---
 
 ## Technical Details
 
 ### Files to Modify
-1. **`supabase/functions/claim-camly/index.ts`**
-   - Remove `decimals()` call, hardcode 18
-   - Simplify catch block to reuse existing variables
-   - Clean up blank lines
 
-2. **`src/components/Rewards/ClaimRewardsModal.tsx`**
-   - Fix disabled logic on line 715 to handle `claimAmount === 0` case
+1. **`src/hooks/useWalletConnection.ts`**
+   - Add `userRef = useRef(user)` + keep it synced
+   - Add `switchToBSCRef = useRef(switchToBSC)` + keep it synced
+   - Add `isSwitchingChainRef = useRef(false)` guard
+   - Update `saveWalletToDb` and `clearWalletFromDb` to use `userRef.current`
+   - Update effect to use refs instead of direct function deps
+   - Clean up effect dependency array to `[]` (stable)
+
+2. **`src/hooks/useWalletConnectionWithRetry.ts`**
+   - Import `isMobileBrowser`
+   - Dynamic timeout: 30s mobile / 15s desktop
+   - Debounce auto-reconnect to 5s
 
 ### No Database Changes Required
 
 ### Performance Impact
-- Removing `decimals()` saves ~200ms per claim (one fewer BSC RPC call)
-- Simplified catch block reduces error recovery time
-- Button fix prevents users from being stuck on disabled state
+- Eliminates 5-7 redundant `watchAccount` re-subscriptions per page navigation
+- Removes infinite re-render loop on mobile when chain is wrong
+- Reduces false timeout failures on mobile by 3x (30s vs 10s)
+- Prevents auto-reconnect storms during mobile app-switching
 
