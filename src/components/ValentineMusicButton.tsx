@@ -8,6 +8,10 @@ const POS_KEY = "valentine-music-pos";
 const SESSION_KEY = "valentine-music-session";
 const VOLUME_KEY = "valentine-music-volume";
 
+const LONG_PRESS_MS = 500;
+const DRAG_THRESHOLD = 5;
+const SLIDER_HIDE_MS = 3000;
+
 const getDefaultPos = (isMobile: boolean) => {
   if (isMobile) return { x: 16, y: window.innerHeight - 112 };
   return { x: window.innerWidth - 60, y: window.innerHeight - 68 };
@@ -41,6 +45,9 @@ export const ValentineMusicButton = () => {
   const [showUnmuteHint, setShowUnmuteHint] = useState(false);
   const [showVolumeSlider, setShowVolumeSlider] = useState(false);
   const [volume, setVolume] = useState(getSavedVolume);
+  const [sliderPos, setSliderPos] = useState({ x: 0, y: 0 });
+
+  const volumeRef = useRef(volume);
   const audioUnlockedRef = useRef(false);
   const userMutedRef = useRef(false);
   const isMobile = useIsMobile();
@@ -48,37 +55,50 @@ export const ValentineMusicButton = () => {
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isLongPressRef = useRef(false);
+  const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
+  const isDraggingRef = useRef(false);
 
   const initialPos = getSavedPos(isMobile);
   const motionX = useMotionValue(initialPos.x);
   const motionY = useMotionValue(initialPos.y);
 
-  // Apply volume to audio element directly
+  // Keep volumeRef in sync
   useEffect(() => {
+    volumeRef.current = volume;
     if (audioRef.current) {
       audioRef.current.volume = volume / 100;
     }
     localStorage.setItem(VOLUME_KEY, String(volume));
   }, [volume]);
 
-  // Auto-hide volume slider after 3s
+  // Auto-hide volume slider
   const resetHideTimer = useCallback(() => {
     if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-    hideTimerRef.current = setTimeout(() => setShowVolumeSlider(false), 3000);
+    hideTimerRef.current = setTimeout(() => setShowVolumeSlider(false), SLIDER_HIDE_MS);
+  }, []);
+
+  const openVolumeSlider = useCallback(() => {
+    setSliderPos({ x: motionX.get(), y: motionY.get() });
+    setShowVolumeSlider(true);
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    hideTimerRef.current = setTimeout(() => setShowVolumeSlider(false), SLIDER_HIDE_MS);
+  }, [motionX, motionY]);
+
+  const closeVolumeSlider = useCallback(() => {
+    setShowVolumeSlider(false);
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
   }, []);
 
   const toggleVolumeSlider = useCallback(() => {
     setShowVolumeSlider((prev) => {
       if (!prev) {
-        // Opening — start auto-hide timer
-        if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-        hideTimerRef.current = setTimeout(() => setShowVolumeSlider(false), 3000);
-      } else {
-        if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+        openVolumeSlider();
+        return true; // will be set by openVolumeSlider, but keep consistent
       }
-      return !prev;
+      closeVolumeSlider();
+      return false;
     });
-  }, []);
+  }, [openVolumeSlider, closeVolumeSlider]);
 
   // Cleanup timers
   useEffect(() => {
@@ -101,7 +121,7 @@ export const ValentineMusicButton = () => {
     const audio = audioRef.current;
     if (!audio || userMutedRef.current || audioUnlockedRef.current) return;
 
-    audio.volume = volume / 100;
+    audio.volume = volumeRef.current / 100;
     audio.muted = false;
     audio.play()
       .then(() => {
@@ -119,7 +139,7 @@ export const ValentineMusicButton = () => {
           })
           .catch(() => {});
       });
-  }, [volume]);
+  }, []); // No volume dependency — uses volumeRef
 
   useEffect(() => {
     tryPlay();
@@ -127,7 +147,7 @@ export const ValentineMusicButton = () => {
     return () => clearTimeout(timer);
   }, [tryPlay]);
 
-  // Interaction-based fallback
+  // Interaction-based fallback — registers once
   useEffect(() => {
     if (userMutedRef.current) return;
 
@@ -138,7 +158,7 @@ export const ValentineMusicButton = () => {
         return;
       }
       audio.muted = false;
-      audio.volume = volume / 100;
+      audio.volume = volumeRef.current / 100;
       audio.play()
         .then(() => {
           setIsPlaying(true);
@@ -161,7 +181,7 @@ export const ValentineMusicButton = () => {
     document.addEventListener("pointerdown", handler);
 
     return removeListeners;
-  }, [volume]);
+  }, []); // No volume dependency — uses volumeRef
 
   // Visibility handler
   useEffect(() => {
@@ -198,7 +218,7 @@ export const ValentineMusicButton = () => {
       userMutedRef.current = true;
     } else {
       audio.muted = false;
-      audio.volume = volume / 100;
+      audio.volume = volumeRef.current / 100;
       audio.play()
         .then(() => {
           setIsPlaying(true);
@@ -211,16 +231,35 @@ export const ValentineMusicButton = () => {
     }
   };
 
-  // Long-press detection for volume slider
-  const handlePointerDown = useCallback(() => {
+  // Long-press with drag threshold
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
     isLongPressRef.current = false;
+    isDraggingRef.current = false;
+    pointerStartRef.current = { x: e.clientX, y: e.clientY };
+
     longPressTimerRef.current = setTimeout(() => {
-      isLongPressRef.current = true;
-      toggleVolumeSlider();
-    }, 500);
+      if (!isDraggingRef.current) {
+        isLongPressRef.current = true;
+        toggleVolumeSlider();
+      }
+    }, LONG_PRESS_MS);
   }, [toggleVolumeSlider]);
 
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (!pointerStartRef.current || isDraggingRef.current) return;
+    const dx = e.clientX - pointerStartRef.current.x;
+    const dy = e.clientY - pointerStartRef.current.y;
+    if (Math.sqrt(dx * dx + dy * dy) > DRAG_THRESHOLD) {
+      isDraggingRef.current = true;
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+        longPressTimerRef.current = null;
+      }
+    }
+  }, []);
+
   const handlePointerUp = useCallback(() => {
+    pointerStartRef.current = null;
     if (longPressTimerRef.current) {
       clearTimeout(longPressTimerRef.current);
       longPressTimerRef.current = null;
@@ -261,10 +300,13 @@ export const ValentineMusicButton = () => {
             transition={{ duration: 0.2 }}
             className="fixed z-[51] flex items-center justify-center"
             style={{
-              left: motionX.get() + buttonSize / 2 - 16,
-              top: motionY.get() - (isMobile ? 140 : 130),
+              left: sliderPos.x + buttonSize / 2 - 16,
+              top: sliderPos.y - (isMobile ? 140 : 130),
             }}
-            onPointerDown={(e) => e.stopPropagation()}
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+            }}
           >
             <div className="bg-black/70 backdrop-blur-md rounded-full px-3 py-4 flex flex-col items-center gap-2 shadow-lg border border-white/10">
               <span className="text-white text-[10px] font-medium">{volume}%</span>
@@ -276,7 +318,7 @@ export const ValentineMusicButton = () => {
                   max={100}
                   min={0}
                   step={1}
-                  className="h-full w-2 cursor-pointer [&_[data-orientation=vertical]]:w-2 [&_[role=slider]]:h-4 [&_[role=slider]]:w-4 [&_[role=slider]]:border-pink-400 [&_[role=slider]]:bg-white [&_span[data-orientation=vertical]>span]:bg-pink-400"
+                  className="h-full cursor-pointer [&_[role=slider]]:h-4 [&_[role=slider]]:w-4 [&_[role=slider]]:border-pink-400 [&_[role=slider]]:bg-white [&_span[data-orientation=vertical]>span]:bg-pink-400"
                 />
               </div>
               <span className="text-white/60 text-[10px]">🔊</span>
@@ -293,9 +335,10 @@ export const ValentineMusicButton = () => {
           dragMomentum={false}
           dragListener={true}
           onTap={() => {
-            if (!isLongPressRef.current) toggle();
+            if (!isLongPressRef.current && !isDraggingRef.current) toggle();
           }}
           onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerUp}
           onDragEnd={() => {
