@@ -48,7 +48,6 @@ export const BackgroundMusicPlayer = ({ musicUrl, autoPlay = true, onClose }: Ba
     } else {
       audioRef.current.play().catch(console.error);
     }
-    setIsPlaying(!isPlaying);
   };
 
   if (!musicUrl) return null;
