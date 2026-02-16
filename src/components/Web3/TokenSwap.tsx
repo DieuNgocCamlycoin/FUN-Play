@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowDownUp, Loader2, Wallet } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { SWAP_TOKENS, PANCAKESWAP_ROUTER, TokenConfig } from "@/config/tokens";
-import { useWalletConnection } from "@/hooks/useWalletConnection";
+import { useWalletContext } from "@/contexts/WalletContext";
 import { getWalletClient } from "@wagmi/core";
 import { wagmiConfig } from "@/lib/web3Config";
 
@@ -23,7 +23,7 @@ const ERC20_ABI = [
 ];
 
 export const TokenSwap = () => {
-  const { isConnected, address, connectWallet, isLoading: isConnecting } = useWalletConnection();
+  const { isConnected, address, connectWallet, isLoading: isConnecting } = useWalletContext();
   const [fromToken, setFromToken] = useState<TokenConfig>(SWAP_TOKENS[1]); // USDT
   const [toToken, setToToken] = useState<TokenConfig>(SWAP_TOKENS[2]); // CAMLY
   const [fromAmount, setFromAmount] = useState("");

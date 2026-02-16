@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { SUPPORTED_TOKENS } from "@/config/tokens";
-import { useWalletConnection } from "@/hooks/useWalletConnection";
+import { useWalletContext } from "@/contexts/WalletContext";
 import { getAccount, getPublicClient } from "@wagmi/core";
 import { wagmiConfig, BSC_CHAIN_ID } from "@/lib/web3Config";
 
@@ -34,7 +34,7 @@ export const MultiTokenWallet = ({ compact = false }: MultiTokenWalletProps) => 
     isInitialized,
     connectWallet,
     disconnectWallet,
-  } = useWalletConnection();
+  } = useWalletContext();
   
   const [balances, setBalances] = useState<TokenBalance[]>([]);
   const [selectedToken, setSelectedToken] = useState("BNB");

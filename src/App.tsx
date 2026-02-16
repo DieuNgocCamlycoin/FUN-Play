@@ -21,6 +21,7 @@ import { MusicPlayerProvider } from './contexts/MusicPlayerContext';
 import { VideoPlaybackProvider } from './contexts/VideoPlaybackContext';
 import { MiniPlayerProvider } from './contexts/MiniPlayerContext';
 import { UploadProvider } from './contexts/UploadContext';
+import { WalletProvider } from './contexts/WalletContext';
 import { EnhancedMusicPlayer } from './components/Video/EnhancedMusicPlayer';
 import { GlobalVideoPlayer } from './components/Video/GlobalVideoPlayer';
 import { GlobalMiniPlayer } from './components/Video/GlobalMiniPlayer';
@@ -218,11 +219,13 @@ const App = () => (
           <VideoPlaybackProvider>
             <MiniPlayerProvider>
               <UploadProvider>
+                <WalletProvider>
                 <BrowserRouter>
                   <AppContent />
                   <EnhancedMusicPlayer />
                   <GlobalVideoPlayer />
                 </BrowserRouter>
+                </WalletProvider>
               </UploadProvider>
             </MiniPlayerProvider>
           </VideoPlaybackProvider>

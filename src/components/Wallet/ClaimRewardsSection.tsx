@@ -6,7 +6,7 @@ import { Coins, CheckCircle, Clock, Wallet, Trophy, Info, Hourglass, Camera } fr
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { ClaimRewardsModal } from "@/components/Rewards/ClaimRewardsModal";
-import { useWalletConnectionWithRetry } from "@/hooks/useWalletConnectionWithRetry";
+import { useWalletContext } from "@/contexts/WalletContext";
 import { AdminQuickApprove } from "@/components/Wallet/AdminQuickApprove";
 import { toast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
@@ -26,7 +26,7 @@ const CLAIM_THRESHOLD = 200000;
 export const ClaimRewardsSection = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { isConnected, address, connectWithRetry, isConnecting } = useWalletConnectionWithRetry();
+  const { isConnected, address, connectWithRetry, isConnecting } = useWalletContext();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarVerified, setAvatarVerified] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);

@@ -17,7 +17,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { useWalletConnection } from "@/hooks/useWalletConnection";
+import { useWalletContext } from "@/contexts/WalletContext";
 
 interface NFTMintModalProps {
   open: boolean;
@@ -34,7 +34,7 @@ export const NFTMintModal = ({
   videoThumbnail,
   videoTitle 
 }: NFTMintModalProps) => {
-  const { isConnected, connectWallet, isLoading: isConnecting } = useWalletConnection();
+  const { isConnected, connectWallet, isLoading: isConnecting } = useWalletContext();
   const [activeTab, setActiveTab] = useState<"video" | "ai">("video");
   const [nftName, setNftName] = useState(videoTitle || "");
   const [nftDescription, setNftDescription] = useState("");

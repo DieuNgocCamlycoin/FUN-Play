@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useFunWalletSync } from '@/hooks/useFunWalletSync';
-import { useWalletConnection } from '@/hooks/useWalletConnection';
+import { useWalletContext } from '@/contexts/WalletContext';
 import { CAMLY_TOKEN_ADDRESS } from '@/config/tokens';
 import { sendDonation } from '@/lib/donation';
 import { toast } from 'sonner';
@@ -24,7 +24,7 @@ const ERC20_ABI = [
 
 export const SendToFunWalletModal = ({ isOpen, onClose }: SendToFunWalletModalProps) => {
   const { funWalletAddress, isLinked } = useFunWalletSync();
-  const { address, isConnected } = useWalletConnection();
+  const { address, isConnected } = useWalletContext();
   
   const [amount, setAmount] = useState('');
   const [camlyBalance, setCamlyBalance] = useState<string>('0');

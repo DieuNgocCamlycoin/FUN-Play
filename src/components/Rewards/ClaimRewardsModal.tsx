@@ -13,7 +13,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useWalletConnectionWithRetry } from "@/hooks/useWalletConnectionWithRetry";
+import { useWalletContext } from "@/contexts/WalletContext";
 import { useClaimNotificationSound } from "@/hooks/useClaimNotificationSound";
 import { WalletConnectionProgress } from "@/components/Web3/WalletConnectionProgress";
 import { MobileWalletGuide } from "@/components/Web3/MobileWalletGuide";
@@ -63,7 +63,7 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
     retry,
     cancel,
     isConnecting 
-  } = useWalletConnectionWithRetry();
+  } = useWalletContext();
   const { playClaimSound } = useClaimNotificationSound();
   
   const [loading, setLoading] = useState(true);

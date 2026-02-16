@@ -1,6 +1,6 @@
 import { Wallet, ChevronDown, ExternalLink, LogOut, AlertTriangle, Loader2, HelpCircle, Gamepad2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useWalletConnectionWithRetry } from "@/hooks/useWalletConnectionWithRetry";
+import { useWalletContext } from "@/contexts/WalletContext";
 import { logWalletDebug, getWeb3ConfigStatus, isMobileBrowser } from "@/lib/web3Config";
 import {
   DropdownMenu,
@@ -35,7 +35,7 @@ export const WalletButton = () => {
     disconnectWallet,
     switchToBSC,
     isConnecting,
-  } = useWalletConnectionWithRetry();
+  } = useWalletContext();
 
   const [showGuide, setShowGuide] = useState(false);
   const [showWalletSelection, setShowWalletSelection] = useState(false);

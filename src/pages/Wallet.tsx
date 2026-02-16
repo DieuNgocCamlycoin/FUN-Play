@@ -4,7 +4,7 @@ import { ArrowLeft, Wallet as WalletIcon, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { useWalletConnectionWithRetry } from "@/hooks/useWalletConnectionWithRetry";
+import { useWalletContext } from "@/contexts/WalletContext";
 import { MainLayout } from "@/components/Layout/MainLayout";
 import { CAMLYPriceSection } from "@/components/Wallet/CAMLYPriceSection";
 import { ClaimRewardsSection } from "@/components/Wallet/ClaimRewardsSection";
@@ -30,7 +30,7 @@ const WalletPage = () => {
     isProcessingWalletChange,
     handleConfirmWalletChange,
     handleCancelWalletChange,
-  } = useWalletConnectionWithRetry();
+  } = useWalletContext();
   const [showWalletModal, setShowWalletModal] = useState(false);
 
   const formatAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
