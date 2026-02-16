@@ -98,6 +98,7 @@ serve(async (req) => {
     }
 
     // Calculate total unclaimed amount
+    const totalAmount = unclaimedRewards.reduce((sum, r) => sum + Number(r.amount), 0);
     console.log(`Unclaimed: ${totalAmount} CAMLY (${unclaimedRewards.length} rewards)`);
 
     if (totalAmount <= 0) {
@@ -165,7 +166,7 @@ serve(async (req) => {
       .eq('status', 'success');
     
     const lifetimeClaimed = lifetimeClaims?.reduce((sum, c) => sum + Number(c.amount), 0) || 0;
-    
+    const lifetimeRemaining = config.MAX_CLAIM_PER_USER - lifetimeClaimed;
     
     if (lifetimeRemaining <= 0) {
       return new Response(
