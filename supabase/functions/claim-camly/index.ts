@@ -158,7 +158,7 @@ serve(async (req) => {
       .select('total_claimed, claim_count')
       .eq('user_id', user.id)
       .eq('date', today)
-      .single();
+      .maybeSingle();
 
     const todayClaimed = Number(dailyClaim?.total_claimed) || 0;
     const remainingLimit = config.DAILY_CLAIM_LIMIT - todayClaimed;
@@ -348,14 +348,21 @@ serve(async (req) => {
       })
       .eq('id', claimRequest.id);
 
-    // Only mark rewards up to claimAmount as claimed (partial marking)
+    // Only mark rewards up to claimAmount as claimed (accurate partial marking)
     const sorted = [...unclaimedRewards].sort((a, b) => Number(a.amount) - Number(b.amount));
-    let remaining = claimAmount;
+    let cumulative = 0;
     const idsToMark: string[] = [];
     for (const r of sorted) {
-      if (remaining <= 0) break;
-      idsToMark.push(r.id);
-      remaining -= Number(r.amount);
+      const amt = Number(r.amount);
+      if (cumulative + amt <= claimAmount) {
+        idsToMark.push(r.id);
+        cumulative += amt;
+      } else if (cumulative < claimAmount) {
+        // Include this last reward to cover the claim amount
+        idsToMark.push(r.id);
+        cumulative += amt;
+        break;
+      }
     }
     console.log(`Marking ${idsToMark.length} of ${unclaimedRewards.length} rewards as claimed (claimAmount: ${claimAmount}, total: ${totalAmount})`);
     
@@ -393,95 +400,73 @@ serve(async (req) => {
 
     console.log(`Successfully claimed ${claimAmount} CAMLY for user ${user.id}`);
 
-    // === CREATE DONATION TRANSACTION RECORD FOR RICH CARD ===
+    // === FIRE-AND-FORGET: Post-transaction steps (non-blocking) ===
     const TREASURER_ID = 'f0f0f0f0-0000-0000-0000-000000000001';
     const bscscanUrl = `https://bscscan.com/tx/${receipt.hash}`;
-    let donationTxId: string | null = null;
-    let receiptPublicId: string | null = null;
 
-    try {
-      console.log("Creating donation_transactions record for claim...");
-
-      // Look up CAMLY token ID
-      const { data: camlyToken } = await supabaseAdmin
-        .from('donate_tokens')
-        .select('id')
-        .eq('symbol', 'CAMLY')
-        .limit(1)
-        .maybeSingle();
-
-      const tokenId = camlyToken?.id;
-      if (!tokenId) {
-        console.error('CAMLY token not found in donate_tokens, skipping donation record');
-      } else {
-        const { data: donationTx, error: donationError } = await supabaseAdmin
-          .from('donation_transactions')
-          .insert({
-            sender_id: TREASURER_ID,
-            receiver_id: user.id,
-            token_id: tokenId,
-            amount: claimAmount,
-            chain: 'bsc',
-            tx_hash: receipt.hash,
-            explorer_url: bscscanUrl,
-            status: 'success',
-            context_type: 'claim',
-            message: `🎉 Claim thành công ${claimAmount.toLocaleString()} CAMLY!`,
-            metadata: {
-              theme: 'celebration',
-              background: '/images/celebration-bg/celebration-1.png',
-              claim_request_id: claimRequest.id,
-            },
-          })
-          .select('id, receipt_public_id')
-          .single();
-
-        if (donationError) {
-          console.error('Failed to create donation transaction:', donationError);
-        } else {
-          donationTxId = donationTx.id;
-          receiptPublicId = donationTx.receipt_public_id;
-          console.log('Donation transaction created:', donationTxId, 'receipt:', receiptPublicId);
-        }
-      }
-    } catch (dtError) {
-      console.error('Donation transaction error (non-fatal):', dtError);
-    }
-
-    // === SEND CHAT MESSAGE FROM FUN PAY TREASURER ===
-    try {
-      console.log("Sending chat message from Fun Pay Treasurer...");
-      
-      // Find or create chat between treasurer and user
-      const { data: existingChat } = await supabaseAdmin
-        .from('user_chats')
-        .select('id')
-        .or(`and(user1_id.eq.${TREASURER_ID},user2_id.eq.${user.id}),and(user1_id.eq.${user.id},user2_id.eq.${TREASURER_ID})`)
-        .limit(1)
-        .maybeSingle();
-
-      let chatId = existingChat?.id;
-
-      if (!chatId) {
-        const [sortedUser1, sortedUser2] = [TREASURER_ID, user.id].sort();
-        const { data: newChat, error: chatCreateError } = await supabaseAdmin
-          .from('user_chats')
-          .insert({ user1_id: sortedUser1, user2_id: sortedUser2 })
+    // Run donation record, chat message, and notification in background
+    (async () => {
+      try {
+        // 1. Create donation transaction record
+        const { data: camlyToken } = await supabaseAdmin
+          .from('donate_tokens')
           .select('id')
-          .single();
-        
-        if (chatCreateError) {
-          console.error('Failed to create chat:', chatCreateError);
-        } else {
-          chatId = newChat.id;
-        }
-      }
+          .eq('symbol', 'CAMLY')
+          .limit(1)
+          .maybeSingle();
 
-      if (chatId) {
-        const deepLink = receiptPublicId ? `/receipt/${receiptPublicId}` : `/receipt/claim-${claimRequest.id}`;
-        const { error: msgError } = await supabaseAdmin
-          .from('chat_messages')
-          .insert({
+        let donationTxId: string | null = null;
+        let receiptPublicId: string | null = null;
+
+        if (camlyToken?.id) {
+          const { data: donationTx } = await supabaseAdmin
+            .from('donation_transactions')
+            .insert({
+              sender_id: TREASURER_ID,
+              receiver_id: user.id,
+              token_id: camlyToken.id,
+              amount: claimAmount,
+              chain: 'bsc',
+              tx_hash: receipt.hash,
+              explorer_url: bscscanUrl,
+              status: 'success',
+              context_type: 'claim',
+              message: `🎉 Claim thành công ${claimAmount.toLocaleString()} CAMLY!`,
+              metadata: {
+                theme: 'celebration',
+                background: '/images/celebration-bg/celebration-1.png',
+                claim_request_id: claimRequest.id,
+              },
+            })
+            .select('id, receipt_public_id')
+            .single();
+
+          donationTxId = donationTx?.id || null;
+          receiptPublicId = donationTx?.receipt_public_id || null;
+        }
+
+        // 2. Send chat message
+        const { data: existingChat } = await supabaseAdmin
+          .from('user_chats')
+          .select('id')
+          .or(`and(user1_id.eq.${TREASURER_ID},user2_id.eq.${user.id}),and(user1_id.eq.${user.id},user2_id.eq.${TREASURER_ID})`)
+          .limit(1)
+          .maybeSingle();
+
+        let chatId = existingChat?.id;
+        if (!chatId) {
+          const [sortedUser1, sortedUser2] = [TREASURER_ID, user.id].sort();
+          const { data: newChat } = await supabaseAdmin
+            .from('user_chats')
+            .insert({ user1_id: sortedUser1, user2_id: sortedUser2 })
+            .select('id')
+            .single();
+          chatId = newChat?.id;
+        }
+
+        if (chatId) {
+          const deepLink = receiptPublicId ? `/receipt/${receiptPublicId}` : `/receipt/claim-${claimRequest.id}`;
+          await supabaseAdmin.from('chat_messages').insert({
             chat_id: chatId,
             sender_id: TREASURER_ID,
             message_type: 'donation',
@@ -489,27 +474,12 @@ serve(async (req) => {
             deep_link: deepLink,
             donation_transaction_id: donationTxId,
           });
-        
-        if (msgError) console.error('Failed to send chat message:', msgError);
-        else console.log('Chat message sent successfully with donation_transaction_id:', donationTxId);
+          await supabaseAdmin.from('user_chats').update({ updated_at: new Date().toISOString() }).eq('id', chatId);
+        }
 
-        // Update chat timestamp
-        await supabaseAdmin
-          .from('user_chats')
-          .update({ updated_at: new Date().toISOString() })
-          .eq('id', chatId);
-      }
-    } catch (chatError) {
-      console.error('Chat message error (non-fatal):', chatError);
-    }
-
-    // === INSERT NOTIFICATION ===
-    try {
-      console.log("Inserting claim success notification...");
-      const notifLink = receiptPublicId ? `/receipt/${receiptPublicId}` : bscscanUrl;
-      const { error: notifError } = await supabaseAdmin
-        .from('notifications')
-        .insert({
+        // 3. Insert notification
+        const notifLink = receiptPublicId ? `/receipt/${receiptPublicId}` : bscscanUrl;
+        await supabaseAdmin.from('notifications').insert({
           user_id: user.id,
           type: 'claim_success',
           title: '🎉 Claim CAMLY thành công!',
@@ -525,12 +495,10 @@ serve(async (req) => {
             theme: 'celebration',
           },
         });
-      
-      if (notifError) console.error('Failed to insert notification:', notifError);
-      else console.log('Notification inserted successfully');
-    } catch (notifError) {
-      console.error('Notification error (non-fatal):', notifError);
-    }
+      } catch (bgError) {
+        console.error('Background post-claim tasks error (non-fatal):', bgError);
+      }
+    })();
 
     return new Response(
       JSON.stringify({
