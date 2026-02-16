@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 
 import { useWalletConnection } from './useWalletConnection';
 import { toast } from '@/hooks/use-toast';
@@ -17,8 +17,13 @@ const DEFAULT_CONFIG: RetryConfig = {
   autoReconnect: true,
 };
 
-export const useWalletConnectionWithRetry = (config: Partial<RetryConfig> = {}) => {
-  const mergedConfig = { ...DEFAULT_CONFIG, ...config };
+const EMPTY_CONFIG: Partial<RetryConfig> = {};
+
+export const useWalletConnectionWithRetry = (config: Partial<RetryConfig> = EMPTY_CONFIG) => {
+  const mergedConfig = useMemo(() => ({ ...DEFAULT_CONFIG, ...config }), [config]);
+  const mergedConfigRef = useRef(mergedConfig);
+  mergedConfigRef.current = mergedConfig;
+
   const walletConnection = useWalletConnection();
   
   const [connectionStep, setConnectionStep] = useState<ConnectionStep>('idle');
@@ -31,6 +36,16 @@ export const useWalletConnectionWithRetry = (config: Partial<RetryConfig> = {}) 
   const wasConnectedRef = useRef(false);
   const isConnectedRef = useRef(walletConnection.isConnected);
   const disconnectedAtRef = useRef<number | null>(null);
+  const connectWithMobileSupportRef = useRef(walletConnection.connectWithMobileSupport);
+
+  // Keep refs in sync
+  useEffect(() => {
+    isConnectedRef.current = walletConnection.isConnected;
+  }, [walletConnection.isConnected]);
+
+  useEffect(() => {
+    connectWithMobileSupportRef.current = walletConnection.connectWithMobileSupport;
+  }, [walletConnection.connectWithMobileSupport]);
 
   // Clear intervals on unmount
   useEffect(() => {
@@ -40,75 +55,16 @@ export const useWalletConnectionWithRetry = (config: Partial<RetryConfig> = {}) 
     };
   }, []);
 
-  // Keep isConnectedRef in sync
-  useEffect(() => {
-    isConnectedRef.current = walletConnection.isConnected;
-  }, [walletConnection.isConnected]);
-
-  // Auto-reconnect with debounce (5s) to avoid storms on mobile app-switching
-  useEffect(() => {
-    if (walletConnection.isConnected) {
-      // Connection restored - clear any pending reconnect
-      wasConnectedRef.current = true;
-      disconnectedAtRef.current = null;
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-        reconnectTimeoutRef.current = null;
-      }
-      return;
-    }
-
-    if (wasConnectedRef.current && !walletConnection.isConnected && mergedConfig.autoReconnect) {
-      // Mark disconnect time
-      if (!disconnectedAtRef.current) {
-        disconnectedAtRef.current = Date.now();
-      }
-
-      console.log('[WalletRetry] Connection lost, scheduling auto-reconnect in 5s...');
-      
-      // Debounce: wait 5 seconds before attempting reconnect
-      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
-      reconnectTimeoutRef.current = setTimeout(() => {
-        // Only reconnect if still disconnected after 5s
-        if (!isConnectedRef.current && disconnectedAtRef.current) {
-          console.log('[WalletRetry] Still disconnected after 5s, attempting reconnect...');
-          toast({
-            title: '⚠️ Mất kết nối ví',
-            description: 'Đang thử kết nối lại...',
-          });
-          connectWithRetry();
-        }
-      }, 5000);
-    }
-    
-    // Don't update wasConnectedRef here when disconnected - keep it true
-  }, [walletConnection.isConnected, mergedConfig.autoReconnect]);
-
-  // Update step based on wallet state
-  useEffect(() => {
-    if (walletConnection.isConnected && connectionStep !== 'idle') {
-      setConnectionStep('connected');
-      setConnectionProgress(100);
-      setConnectionError(undefined);
-      setRetryCount(0);
-      
-      setTimeout(() => {
-        setConnectionStep('idle');
-        setConnectionProgress(0);
-      }, 2000);
-    }
-  }, [walletConnection.isConnected, connectionStep]);
-
   // Simulate progress during connection
   const startProgressSimulation = useCallback(() => {
     setConnectionProgress(0);
     let progress = 0;
     
     progressIntervalRef.current = setInterval(() => {
-      progress += Math.random() * 10;
+      progress += Math.random() * 15;
       if (progress > 90) progress = 90;
       setConnectionProgress(Math.min(progress, 90));
-    }, 300);
+    }, 500);
   }, []);
 
   const stopProgressSimulation = useCallback(() => {
@@ -120,14 +76,13 @@ export const useWalletConnectionWithRetry = (config: Partial<RetryConfig> = {}) 
 
   // Connect with retry logic
   const connectWithRetry = useCallback(async () => {
-    if (walletConnection.isConnected) {
+    if (isConnectedRef.current) {
       console.log('[WalletRetry] Already connected, skipping...');
       setConnectionStep('connected');
       setConnectionProgress(100);
       return true;
     }
 
-    // Dynamic timeout: 30s mobile, 15s desktop
     const connectionTimeout = isMobileBrowser() ? 30000 : 15000;
 
     const attemptConnect = async (attempt: number): Promise<boolean> => {
@@ -140,7 +95,7 @@ export const useWalletConnectionWithRetry = (config: Partial<RetryConfig> = {}) 
         await new Promise(resolve => setTimeout(resolve, 300));
         setConnectionStep('opening-modal');
         
-        await walletConnection.connectWithMobileSupport();
+        await connectWithMobileSupportRef.current();
         
         setConnectionStep('waiting-approval');
         
@@ -190,14 +145,15 @@ export const useWalletConnectionWithRetry = (config: Partial<RetryConfig> = {}) 
           return false;
         }
         
-        if (attempt < mergedConfig.maxRetries) {
+        const cfg = mergedConfigRef.current;
+        if (attempt < cfg.maxRetries) {
           setRetryCount(attempt);
           toast({
-            title: `⚠️ Thử lại (${attempt}/${mergedConfig.maxRetries})`,
+            title: `⚠️ Thử lại (${attempt}/${cfg.maxRetries})`,
             description: 'Kết nối thất bại, đang thử lại...',
           });
           
-          await new Promise(resolve => setTimeout(resolve, mergedConfig.retryDelayMs));
+          await new Promise(resolve => setTimeout(resolve, cfg.retryDelayMs));
           return attemptConnect(attempt + 1);
         }
         
@@ -209,7 +165,61 @@ export const useWalletConnectionWithRetry = (config: Partial<RetryConfig> = {}) 
     };
     
     return attemptConnect(1);
-  }, [walletConnection.isConnected, walletConnection.connectWithMobileSupport, mergedConfig, startProgressSimulation, stopProgressSimulation]);
+  }, [startProgressSimulation, stopProgressSimulation]);
+
+  // Keep connectWithRetry ref in sync for auto-reconnect
+  const connectWithRetryRef = useRef(connectWithRetry);
+  useEffect(() => {
+    connectWithRetryRef.current = connectWithRetry;
+  }, [connectWithRetry]);
+
+  // Auto-reconnect with debounce (5s)
+  useEffect(() => {
+    if (walletConnection.isConnected) {
+      wasConnectedRef.current = true;
+      disconnectedAtRef.current = null;
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+      return;
+    }
+
+    if (wasConnectedRef.current && !walletConnection.isConnected && mergedConfigRef.current.autoReconnect) {
+      if (!disconnectedAtRef.current) {
+        disconnectedAtRef.current = Date.now();
+      }
+
+      console.log('[WalletRetry] Connection lost, scheduling auto-reconnect in 5s...');
+      
+      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = setTimeout(() => {
+        if (!isConnectedRef.current && disconnectedAtRef.current) {
+          console.log('[WalletRetry] Still disconnected after 5s, attempting reconnect...');
+          toast({
+            title: '⚠️ Mất kết nối ví',
+            description: 'Đang thử kết nối lại...',
+          });
+          connectWithRetryRef.current();
+        }
+      }, 5000);
+    }
+  }, [walletConnection.isConnected]);
+
+  // Update step based on wallet state
+  useEffect(() => {
+    if (walletConnection.isConnected && connectionStep !== 'idle') {
+      setConnectionStep('connected');
+      setConnectionProgress(100);
+      setConnectionError(undefined);
+      setRetryCount(0);
+      
+      setTimeout(() => {
+        setConnectionStep('idle');
+        setConnectionProgress(0);
+      }, 2000);
+    }
+  }, [walletConnection.isConnected, connectionStep]);
 
   // Manual retry
   const retry = useCallback(() => {
