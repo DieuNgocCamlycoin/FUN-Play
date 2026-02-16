@@ -369,13 +369,16 @@ Deno.serve(async (req) => {
       );
     }
     
-    // Check admin role using service role client (bypasses RLS)
+    // Check admin or owner role using service role client (bypasses RLS)
     const { data: isAdmin } = await supabaseAdmin.rpc('has_role', {
       _user_id: user.id,
       _role: 'admin'
     });
+    const { data: isOwner } = await supabaseAdmin.rpc('is_owner', {
+      _user_id: user.id
+    });
     
-    if (!isAdmin) {
+    if (!isAdmin && !isOwner) {
       return new Response(
         JSON.stringify({ error: 'Admin access required' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
