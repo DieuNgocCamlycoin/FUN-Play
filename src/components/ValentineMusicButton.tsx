@@ -169,13 +169,9 @@ export const ValentineMusicButton = () => {
     };
 
     const removeListeners = () => {
-      document.removeEventListener("click", handler);
-      document.removeEventListener("touchstart", handler);
       document.removeEventListener("pointerdown", handler);
     };
 
-    document.addEventListener("click", handler);
-    document.addEventListener("touchstart", handler);
     document.addEventListener("pointerdown", handler);
 
     return removeListeners;
@@ -280,7 +276,6 @@ export const ValentineMusicButton = () => {
         src="/audio/valentine-bg.mp3"
         loop
         preload="metadata"
-        style={{ display: "none" }}
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
       />
@@ -331,7 +326,6 @@ export const ValentineMusicButton = () => {
         dragConstraints={constraintsRef}
         dragElastic={0.1}
         dragMomentum={false}
-        dragListener={true}
         onTap={() => {
           if (!isLongPressRef.current && !isDraggingRef.current) toggle();
         }}
