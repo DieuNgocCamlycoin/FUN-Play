@@ -42,6 +42,7 @@ const getSavedVolume = (): number => {
 export const ValentineMusicButton = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isTabVisible, setIsTabVisible] = useState(true);
   const [showUnmuteHint, setShowUnmuteHint] = useState(false);
   const [showVolumeSlider, setShowVolumeSlider] = useState(false);
   const [volume, setVolume] = useState(getSavedVolume);
@@ -90,15 +91,12 @@ export const ValentineMusicButton = () => {
   }, []);
 
   const toggleVolumeSlider = useCallback(() => {
-    setShowVolumeSlider((prev) => {
-      if (!prev) {
-        openVolumeSlider();
-        return true; // will be set by openVolumeSlider, but keep consistent
-      }
+    if (showVolumeSlider) {
       closeVolumeSlider();
-      return false;
-    });
-  }, [openVolumeSlider, closeVolumeSlider]);
+    } else {
+      openVolumeSlider();
+    }
+  }, [showVolumeSlider, openVolumeSlider, closeVolumeSlider]);
 
   // Cleanup timers
   useEffect(() => {
@@ -186,7 +184,9 @@ export const ValentineMusicButton = () => {
   // Visibility handler
   useEffect(() => {
     const handleVisibility = () => {
-      if (document.visibilityState === "visible" && !userMutedRef.current) {
+      const visible = document.visibilityState === "visible";
+      setIsTabVisible(visible);
+      if (visible && !userMutedRef.current) {
         const audio = audioRef.current;
         if (audio && audio.paused) {
           tryPlay();
@@ -279,11 +279,10 @@ export const ValentineMusicButton = () => {
         ref={audioRef}
         src="/audio/valentine-bg.mp3"
         loop
-        preload="auto"
+        preload="metadata"
         style={{ display: "none" }}
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
-        onCanPlayThrough={() => tryPlay()}
       />
       <div
         ref={constraintsRef}
@@ -327,69 +326,67 @@ export const ValentineMusicButton = () => {
         )}
       </AnimatePresence>
 
-      <AnimatePresence>
-        <motion.button
-          drag
-          dragConstraints={constraintsRef}
-          dragElastic={0.1}
-          dragMomentum={false}
-          dragListener={true}
-          onTap={() => {
-            if (!isLongPressRef.current && !isDraggingRef.current) toggle();
-          }}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerUp}
-          onDragEnd={() => {
-            handlePointerUp();
-            localStorage.setItem(POS_KEY, JSON.stringify({
-              x: motionX.get(),
-              y: motionY.get(),
-            }));
-          }}
-          style={{
-            x: motionX,
-            y: motionY,
-            position: "fixed",
-            top: 0,
-            left: 0,
-            width: buttonSize,
-            height: buttonSize,
-            boxShadow: isPlaying
-              ? "0 0 18px 4px rgba(236,72,153,0.5), 0 0 40px 8px rgba(168,85,247,0.3)"
-              : "0 0 8px 2px rgba(236,72,153,0.2)",
-          }}
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: "spring", stiffness: 260, damping: 20, delay: 1 }}
-          className="z-50 rounded-full p-1 cursor-grab active:cursor-grabbing focus:outline-none"
-          aria-label={isPlaying ? "Tắt nhạc nền" : "Bật nhạc nền"}
-          title={isPlaying ? "Tắt nhạc nền" : "Bật nhạc nền"}
-        >
-          <motion.img
-            src="/images/icon-music-valentine.png"
-            alt="Music toggle"
-            className="w-full h-full rounded-full object-cover pointer-events-none"
-            animate={isPlaying ? { rotate: 360 } : { rotate: 0 }}
-            transition={
-              isPlaying
-                ? { repeat: Infinity, duration: 4, ease: "linear" }
-                : { duration: 0.3 }
-            }
-            style={{ opacity: isPlaying ? 1 : 0.6 }}
-          />
-          {showUnmuteHint && (
-            <motion.div
-              className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-pink-500 flex items-center justify-center"
-              animate={{ scale: [1, 1.2, 1] }}
-              transition={{ repeat: Infinity, duration: 1.5 }}
-            >
-              <span className="text-white text-[10px] font-bold">🔊</span>
-            </motion.div>
-          )}
-        </motion.button>
-      </AnimatePresence>
+      <motion.button
+        drag
+        dragConstraints={constraintsRef}
+        dragElastic={0.1}
+        dragMomentum={false}
+        dragListener={true}
+        onTap={() => {
+          if (!isLongPressRef.current && !isDraggingRef.current) toggle();
+        }}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        onDragEnd={() => {
+          handlePointerUp();
+          localStorage.setItem(POS_KEY, JSON.stringify({
+            x: motionX.get(),
+            y: motionY.get(),
+          }));
+        }}
+        style={{
+          x: motionX,
+          y: motionY,
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: buttonSize,
+          height: buttonSize,
+          boxShadow: isPlaying
+            ? "0 0 18px 4px rgba(236,72,153,0.5), 0 0 40px 8px rgba(168,85,247,0.3)"
+            : "0 0 8px 2px rgba(236,72,153,0.2)",
+        }}
+        initial={{ scale: 0, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: "spring", stiffness: 260, damping: 20, delay: 1 }}
+        className="z-50 rounded-full p-1 cursor-grab active:cursor-grabbing focus:outline-none"
+        aria-label={isPlaying ? "Tắt nhạc nền" : "Bật nhạc nền"}
+        title={isPlaying ? "Tắt nhạc nền" : "Bật nhạc nền"}
+      >
+        <motion.img
+          src="/images/icon-music-valentine.png"
+          alt="Music toggle"
+          className="w-full h-full rounded-full object-cover pointer-events-none"
+          animate={isPlaying && isTabVisible ? { rotate: 360 } : { rotate: 0 }}
+          transition={
+            isPlaying && isTabVisible
+              ? { repeat: Infinity, duration: 4, ease: "linear" }
+              : { duration: 0.3 }
+          }
+          style={{ opacity: isPlaying ? 1 : 0.6 }}
+        />
+        {showUnmuteHint && (
+          <motion.div
+            className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-pink-500 flex items-center justify-center"
+            animate={{ scale: [1, 1.2, 1] }}
+            transition={{ repeat: Infinity, duration: 1.5 }}
+          >
+            <span className="text-white text-[10px] font-bold">🔊</span>
+          </motion.div>
+        )}
+      </motion.button>
     </>
   );
 };
