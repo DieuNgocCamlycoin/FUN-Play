@@ -712,7 +712,7 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
                   <div className="space-y-2">
                     <Button
                       onClick={handleClaim}
-                      disabled={claiming || hasPendingClaim || totalClaimable < MIN_CLAIM_THRESHOLD || !profileCheck.hasAvatar || !profileCheck.isVerified || !!claimAmountError || claimAmount < MIN_CLAIM_THRESHOLD}
+                      disabled={claiming || hasPendingClaim || totalClaimable < MIN_CLAIM_THRESHOLD || !profileCheck.hasAvatar || !profileCheck.isVerified || !!claimAmountError || (claimAmount > 0 && claimAmount < MIN_CLAIM_THRESHOLD)}
                       className="w-full bg-gradient-to-r from-yellow-500 to-cyan-500 hover:from-yellow-600 hover:to-cyan-600 text-white font-bold py-5"
                     >
                       {hasPendingClaim ? (
