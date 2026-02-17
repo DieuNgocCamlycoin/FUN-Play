@@ -732,3 +732,26 @@ body > [data-w3m-modal] {
 }
 
 .animate-coin-float-down { animation: coin-float-down 5s ease-in-out infinite; }
+
+/* Tet floating elements - CSS only, GPU-accelerated */
+@keyframes tet-float {
+  0%, 100% { transform: translateY(-6px) rotate(-5deg); opacity: 0.2; }
+  50% { transform: translateY(6px) rotate(5deg); opacity: 0.5; }
+}
+
+.animate-tet-float { animation: tet-float 2.5s ease-in-out infinite; }
+.animate-tet-float-1 { animation: tet-float 2.8s ease-in-out infinite 0.2s; }
+.animate-tet-float-2 { animation: tet-float 3.1s ease-in-out infinite 0.4s; }
+.animate-tet-float-3 { animation: tet-float 3.4s ease-in-out infinite 0.6s; }
+.animate-tet-float-4 { animation: tet-float 2.6s ease-in-out infinite 0.8s; }
+.animate-tet-float-5 { animation: tet-float 2.9s ease-in-out infinite 1.0s; }
+
+@keyframes tet-scale-float {
+  0%, 100% { transform: translateY(-3px) scale(1); }
+  50% { transform: translateY(3px) scale(1.15); }
+}
+
+.animate-tet-scale-float { animation: tet-scale-float 2s ease-in-out infinite; }
+.animate-tet-scale-float-1 { animation: tet-scale-float 2.4s ease-in-out infinite 0.3s; }
+.animate-tet-scale-float-2 { animation: tet-scale-float 2.8s ease-in-out infinite 0.6s; }
+.animate-tet-scale-float-3 { animation: tet-scale-float 3.2s ease-in-out infinite 0.9s; }
