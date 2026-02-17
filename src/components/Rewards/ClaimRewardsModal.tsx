@@ -95,7 +95,7 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
     });
   }, []);
 
-  // Check for pending claims on modal open
+  // Check for pending claims on modal open (server auto-cleans >2min stuck claims)
   const checkPendingClaims = useCallback(async () => {
     if (!user?.id) return;
     const { data } = await supabase
@@ -106,31 +106,10 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
       .limit(1);
     
     if (data && data.length > 0) {
-      const pendingClaim = data[0];
-      const createdAt = new Date(pendingClaim.created_at).getTime();
+      const createdAt = new Date(data[0].created_at).getTime();
       const ageMinutes = (Date.now() - createdAt) / (1000 * 60);
-      
-      // Auto-cleanup pending claims older than 5 minutes (client-side wait + re-check)
-      if (ageMinutes > 5) {
-        console.log(`Stuck pending claim ${pendingClaim.id} (${ageMinutes.toFixed(1)} min old), waiting for server cleanup...`);
-        // Wait briefly then re-check - the edge function auto-cleans >2min claims on next invocation
-        await new Promise(r => setTimeout(r, 2000));
-        const { data: recheck } = await supabase
-          .from('claim_requests')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('status', 'pending')
-          .limit(1);
-        if (recheck && recheck.length > 0) {
-          // Still pending - mark as stuck but allow retry
-          console.log('Claim still pending after recheck, allowing user to proceed');
-          setHasPendingClaim(false);
-        } else {
-          setHasPendingClaim(false);
-        }
-        return;
-      }
-      setHasPendingClaim(true);
+      // Claims >5min old are stuck; server will clean on next call, allow retry
+      setHasPendingClaim(ageMinutes <= 5);
     } else {
       setHasPendingClaim(false);
     }
@@ -360,36 +339,26 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
         throw new Error(data?.error || "Claim failed");
       }
 
-      if (data.success) {
-        setClaimSuccess(true);
-        setTxHash(data.txHash);
+      setClaimSuccess(true);
+      setTxHash(data.txHash);
 
-        // Dispatch event để cập nhật UI khắp nơi
-        window.dispatchEvent(new CustomEvent("reward-claimed", { 
-          detail: { 
-            txHash: data.txHash, 
-            amount: data.amount 
-          } 
-        }));
+      window.dispatchEvent(new CustomEvent("reward-claimed", { 
+        detail: { txHash: data.txHash, amount: data.amount } 
+      }));
 
-        // 🔔 PHÁT NHẠC CHUÔNG CỐ ĐỊNH KHI CLAIM THÀNH CÔNG
-        playClaimSound({ volume: 0.7 });
+      playClaimSound({ volume: 0.7 });
 
-        // Trigger confetti celebration
-        confetti({
-          particleCount: 150,
-          spread: 100,
-          origin: { y: 0.6 },
-          colors: ["#FFD700", "#40E0D0", "#FF69B4", "#00CED1"],
-        });
+      confetti({
+        particleCount: 150,
+        spread: 100,
+        origin: { y: 0.6 },
+        colors: ["#FFD700", "#40E0D0", "#FF69B4", "#00CED1"],
+      });
 
-        toast({
-          title: "🎉 Rich Rich Rich!",
-          description: `${data.amount.toLocaleString()} CAMLY đã được gửi đến ví của bạn!`,
-        });
-      } else {
-        throw new Error(data.error || "Claim failed");
-      }
+      toast({
+        title: "🎉 Rich Rich Rich!",
+        description: `${data.amount.toLocaleString()} CAMLY đã được gửi đến ví của bạn!`,
+      });
     } catch (error: any) {
       logWalletDebug('Claim error', error);
       const rawMsg = error.message || "";

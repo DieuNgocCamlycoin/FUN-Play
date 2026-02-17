@@ -19,6 +19,16 @@ const jsonOk = (body: Record<string, unknown>) =>
 
 const jsonError = (msg: string) => jsonOk({ success: false, error: msg });
 
+function mapErrorToFriendly(raw: string): string {
+  const lower = raw.toLowerCase();
+  if (lower.includes('insufficient funds')) return 'Hệ thống đang bảo trì ví thưởng. Vui lòng thử lại sau.';
+  if (lower.includes('nonce too low') || lower.includes('nonce has already been used')) return 'Giao dịch bị trùng. Vui lòng thử lại.';
+  if (lower.includes('timeout') || lower.includes('timed out') || lower.includes('etimedout')) return 'Mạng blockchain chậm. Vui lòng thử lại sau.';
+  if (lower.includes('network') || lower.includes('econnrefused') || lower.includes('fetch failed')) return 'Lỗi kết nối mạng. Vui lòng thử lại sau.';
+  if (lower.includes('replacement fee too low') || lower.includes('already known')) return 'Giao dịch đang chờ xử lý. Vui lòng đợi vài phút.';
+  return 'Không thể claim. Vui lòng thử lại sau ít phút.';
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -226,8 +236,15 @@ serve(async (req) => {
       await supabaseAdmin.from('reward_transactions').update({ claimed: true, claimed_at: new Date().toISOString(), claim_tx_hash: receipt.hash }).in('id', chunk);
     }
 
-    // Update approved_reward remainder
-    await supabaseAdmin.from('profiles').update({ approved_reward: totalAmount - claimAmount }).eq('id', user.id);
+    // Atomic decrement approved_reward + update last_claim_at
+    await supabaseAdmin.rpc('exec_sql_void', {} as any).then(() => {}).catch(() => {});
+    await supabaseAdmin
+      .from('profiles')
+      .update({ 
+        approved_reward: Math.max(0, totalAmount - claimAmount),
+        last_claim_at: new Date().toISOString()
+      })
+      .eq('id', user.id);
 
     // Record daily claim
     await supabaseAdmin.from('daily_claim_records').upsert({
@@ -294,7 +311,10 @@ serve(async (req) => {
 
   } catch (error: unknown) {
     console.error('Claim error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Claim failed';
+    const rawMessage = error instanceof Error ? error.message : 'Claim failed';
+
+    // Map raw errors to friendly Vietnamese messages
+    const friendlyMessage = mapErrorToFriendly(rawMessage);
 
     try {
       const adminClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
@@ -308,12 +328,12 @@ serve(async (req) => {
         userId = u?.id;
       }
       if (userId) {
-        await adminClient.from('claim_requests').update({ status: 'failed', error_message: errorMessage, processed_at: new Date().toISOString() }).eq('user_id', userId).eq('status', 'pending');
+        await adminClient.from('claim_requests').update({ status: 'failed', error_message: rawMessage, processed_at: new Date().toISOString() }).eq('user_id', userId).eq('status', 'pending');
       }
     } catch (cleanupError) {
       console.error('Cleanup failed:', cleanupError);
     }
 
-    return jsonError(errorMessage);
+    return jsonError(friendlyMessage);
   }
 });
