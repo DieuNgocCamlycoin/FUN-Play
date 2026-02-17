@@ -1,47 +1,42 @@
 
-# Fix FUN PLAY TREASURY Wallet Display and Optimize Reward History System
 
-## Issues Found
+# Clean Up Remaining Inefficiencies in Reward System
 
-### 1. Claim transactions show wrong TREASURY wallet address
-In `useTransactionHistory.ts` (line 385-391), ALL claim_requests use `SYSTEM_WALLETS.TREASURY.address` (`0x1DC24...`) as the sender wallet. However, new claims are sent from the AUTO_REWARD wallet (`0x9848...`). The sender wallet should be `AUTO_REWARD` for consistency with the actual on-chain transaction.
+## Current Status
+The previous round of fixes was applied correctly:
+- AUTO_REWARD wallet (`0x9848...`) is properly configured and used for claim transactions
+- Realtime subscriptions have user-specific filters
+- Stale closure in RewardHistory.tsx is fixed with `fetchRef`
+- `useRewardStatistics` uses the RPC instead of raw queries
 
-### 2. `useRewardStatistics.tsx` queries `reward_transactions` redundantly
-The `useRewardStatistics` hook fetches from `reward_transactions` with a 30-day filter, but `RewardHistory.tsx` already uses the `get_user_activity_summary` RPC for accurate totals. The `UserDashboard.tsx` is the only consumer. The hook can be simplified to avoid the redundant transactions query by using the same RPC.
+## Remaining Issues Found
 
-### 3. Stale closure in `RewardHistory.tsx`
-`debouncedRefresh` (line 98-103) depends on `[user]` but calls `fetchTransactions` which is defined later and not in the dependency array. This is a stale closure bug -- on re-renders, the debounced callback may call an old version of `fetchTransactions`.
+### 1. `useRewardHistory` fetches too much data (useRewardStatistics.tsx lines 82-116)
+The `useRewardHistory` hook uses `SELECT *` with a join on `videos (title)` and fetches 100 rows. However, `UserDashboard.tsx` (the only consumer) only displays basic fields (amount, reward_type, created_at, video title). Fetching all columns wastes bandwidth.
 
-### 4. Unused `getAddressExplorerUrl` function
-Defined in `useTransactionHistory.ts` (line 102-112) and exported but never used anywhere in the codebase. Dead code.
-
-### 5. `wallet_transactions` realtime subscription has no user filter in private mode
-In `useTransactionHistory.ts` (line 679-683), the `wallet_transactions` realtime subscription does NOT filter by user even in private mode. Every wallet_transactions insert from any user triggers a full refetch.
+### 2. Dead code in `useRewardStatistics.tsx`
+- `DailyReward` interface (lines 10-13) is unused
+- `dailyRewards: []` property (line 62) is always empty and never read by any consumer
+- These can be removed to simplify the code
 
 ## Changes
 
-### File: `src/hooks/useTransactionHistory.ts`
-
-1. **Fix claim sender wallet** (line 384-391): Change from `SYSTEM_WALLETS.TREASURY` to `SYSTEM_WALLETS.AUTO_REWARD` for the sender wallet address displayed on claim transactions. This correctly shows `0x9848...` (the actual wallet that sends claim tokens).
-
-2. **Remove unused `getAddressExplorerUrl`** (lines 102-112): Delete the function definition and remove it from the return object (line 726).
-
-3. **Add user filter to wallet_transactions realtime** (lines 679-683): In private mode, add `from_user_id` and `to_user_id` filters to avoid unnecessary refetches when other users' transactions arrive.
-
 ### File: `src/hooks/useRewardStatistics.tsx`
 
-4. **Optimize by using RPC instead of raw query**: Replace the `reward_transactions` query with the `get_user_activity_summary` RPC (same one used by `RewardHistory.tsx`). This eliminates a redundant query and provides more accurate data. The `useRewardHistory` sub-hook can also use a more targeted query with only needed columns.
+1. **Optimize `useRewardHistory` query**: Replace `SELECT *` with only the needed columns: `id, amount, reward_type, created_at, claimed, approved, video_id, videos(title)`. This reduces data transfer.
 
-### File: `src/pages/RewardHistory.tsx`
+2. **Remove dead code**: Remove `DailyReward` interface and `dailyRewards` from the `UserStatistics` type and the hook output.
 
-5. **Fix stale closure**: Add `fetchTransactions` to the `debouncedRefresh` callback's logic, or use a ref-based approach so the debounced callback always calls the latest version.
+### File: `src/pages/UserDashboard.tsx`
+
+3. No changes needed -- it already reads only the fields it needs from the hook output.
 
 ## Technical Summary
 
 | File | Change | Impact |
 |------|--------|--------|
-| `useTransactionHistory.ts` | Use AUTO_REWARD wallet for claim sender display | Correct wallet address shown |
-| `useTransactionHistory.ts` | Remove unused `getAddressExplorerUrl` | Cleaner code, less dead code |
-| `useTransactionHistory.ts` | Add user filter to wallet_transactions realtime | Fewer unnecessary refetches |
-| `useRewardStatistics.tsx` | Use RPC instead of raw query | 1 fewer DB query |
-| `RewardHistory.tsx` | Fix stale closure in debouncedRefresh | Correct realtime refresh behavior |
+| `useRewardStatistics.tsx` | Select only needed columns in useRewardHistory | Less data transferred |
+| `useRewardStatistics.tsx` | Remove DailyReward interface and dailyRewards property | Cleaner types, less dead code |
+
+These are minor cleanup changes. The core wallet display and optimization fixes from the previous round are already working correctly.
+
