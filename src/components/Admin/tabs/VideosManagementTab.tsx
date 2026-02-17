@@ -14,7 +14,7 @@ import {
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { 
   Video, Clock, CheckCircle, XCircle, Eye, Search, Download, 
-  HardDrive, Upload, Users, ExternalLink, Play, User, Check, X, Image, CloudUpload
+  HardDrive, Upload, Users, ExternalLink, Play, User, Check, X, Image, CloudUpload, Trash2
 } from "lucide-react";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
@@ -24,6 +24,7 @@ import { getCategoryLabel, getCategoryIcon } from "@/lib/videoCategories";
 import { toast } from "sonner";
 import VideoMigrationPanel from "../VideoMigrationPanel";
 import ThumbnailRegenerationPanel from "../ThumbnailRegenerationPanel";
+import BannedVideoCleanupPanel from "../BannedVideoCleanupPanel";
 
 interface VideoForApproval {
   id: string;
@@ -55,6 +56,9 @@ export function VideosManagementTab() {
         <TabsTrigger value="migration" className="gap-1 text-xs">
           <CloudUpload className="w-3 h-3" /> Migration
         </TabsTrigger>
+        <TabsTrigger value="cleanup" className="gap-1 text-xs">
+          <Trash2 className="w-3 h-3" /> Cleanup
+        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="approval">
@@ -71,6 +75,10 @@ export function VideosManagementTab() {
 
       <TabsContent value="migration">
         <VideoMigrationPanel />
+      </TabsContent>
+
+      <TabsContent value="cleanup">
+        <BannedVideoCleanupPanel />
       </TabsContent>
     </Tabs>
   );

@@ -108,3 +108,6 @@ verify_jwt = false
 
 [functions.backfill-suspicious-scores]
 verify_jwt = false
+
+[functions.cleanup-banned-videos]
+verify_jwt = false
