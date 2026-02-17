@@ -125,7 +125,6 @@ export const ValentineMusicButton = () => {
     audio.muted = false;
     audio.play()
       .then(() => {
-        setIsPlaying(true);
         setShowUnmuteHint(false);
         audioUnlockedRef.current = true;
         localStorage.setItem(STORAGE_KEY, "false");
@@ -134,7 +133,6 @@ export const ValentineMusicButton = () => {
         audio.muted = true;
         audio.play()
           .then(() => {
-            setIsPlaying(true);
             setShowUnmuteHint(true);
           })
           .catch(() => {});
@@ -161,7 +159,6 @@ export const ValentineMusicButton = () => {
       audio.volume = volumeRef.current / 100;
       audio.play()
         .then(() => {
-          setIsPlaying(true);
           setShowUnmuteHint(false);
           audioUnlockedRef.current = true;
           localStorage.setItem(STORAGE_KEY, "false");
@@ -210,7 +207,6 @@ export const ValentineMusicButton = () => {
 
     if (isPlaying) {
       audio.pause();
-      setIsPlaying(false);
       setShowUnmuteHint(false);
       localStorage.setItem(STORAGE_KEY, "true");
       userMutedRef.current = true;
@@ -219,7 +215,6 @@ export const ValentineMusicButton = () => {
       audio.volume = volumeRef.current / 100;
       audio.play()
         .then(() => {
-          setIsPlaying(true);
           setShowUnmuteHint(false);
           audioUnlockedRef.current = true;
           localStorage.setItem(STORAGE_KEY, "false");
