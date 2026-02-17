@@ -10,7 +10,6 @@ import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-
 import { useWalletContext } from "@/contexts/WalletContext";
 import { useClaimNotificationSound } from "@/hooks/useClaimNotificationSound";
 import { WalletConnectionProgress } from "@/components/Web3/WalletConnectionProgress";
