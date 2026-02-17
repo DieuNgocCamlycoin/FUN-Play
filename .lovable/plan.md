@@ -1,83 +1,96 @@
 
-# Critical Fix: Redeploy Anti-Farming Gates + Block Single-IP Farming
+# Fix Remaining Anti-Farming Bypass: check-upload-reward + Deploy Confirmation
 
-## Critical Finding
+## Current Status
 
-The 24-hour upload gate code exists in the codebase but **is not active on the deployed edge function**. Today alone:
-- **15 accounts** bypassed the gate and earned FIRST_UPLOAD rewards within minutes of creation
-- **7.5M CAMLY leaked** in a single day
-- Farming pattern: create account -> verify avatar -> upload 1 video -> collect 550K CAMLY (50K signup + 500K first upload)
-- New farmers use **unique IPs per account** (cluster_size=1), so the IP cluster check does not catch them
+The `award-camly` gates ARE working (0 FIRST_UPLOAD rewards granted after the latest deployment at 10:22 UTC). However, all 19 FIRST_UPLOAD exploits today happened before deployment, costing 9.5M CAMLY. The deployed gates are now active and blocking.
 
-## Root Cause
+## Remaining Vulnerability
 
-The `award-camly` edge function was not properly redeployed after the gate code was added. The code is correct in the repository but the running version does not include the upload gates.
+The `check-upload-reward` edge function is a **completely separate reward path** that bypasses ALL anti-farming gates. It:
+- Awards SHORT_VIDEO_UPLOAD and LONG_VIDEO_UPLOAD rewards
+- Has NO account age check (24h gate)
+- Has NO IP cluster check
+- Has NO suspicious score penalty
+- Can be called independently via `supabase.functions.invoke('check-upload-reward')`
+- Is called from `useAutoReward.ts` (line 174)
 
-## Solution: 2-Part Fix
+If a farmer's FIRST_UPLOAD is blocked by Gate C, they can still earn 20K-70K per video through `check-upload-reward` once the video gets 3 views (the only gate it has).
 
-### Part 1: Force Redeploy `award-camly`
-- Deploy the edge function immediately to activate the existing 24-hour gate and IP cluster block
-- This alone stops the most obvious exploitation pattern
+## Plan
 
-### Part 2: Block Single-IP Farming (New Defense Layer)
-The current gates only catch multi-account IPs (5+ accounts). Single-IP farmers (1 account per device) bypass everything. Add a new server-side check:
+### 1. Add anti-farming gates to `check-upload-reward/index.ts`
 
-**Rapid First-Upload Pattern Detection** in `award-camly`:
-- For `FIRST_UPLOAD` rewards specifically, check if the video has at least **1 view from a different user** before granting the 500K bonus
-- This prevents the "signup -> upload garbage -> claim 500K" pattern because the video must have real engagement
-- If no external views yet, return a message: "Your first upload bonus will be credited after your video receives its first view"
-- The existing `check-upload-reward` function can be called later to credit the reward
+After the user verification (line 79), before the video lookup, add the same gates as `award-camly`:
 
-This is resource-efficient because:
-- Only 1 extra query (count views excluding uploader) for FIRST_UPLOAD type only
-- No new tables or subscriptions needed
-- Uses existing `watch_history` or `videos.view_count` data
+```text
+// Gate A: Account must be 24 hours old
+const profileGate = query profiles for created_at, signup_ip_hash where id = user.id
+if (account age < 24 hours) return { success: false, reason: "Account must be 24h old" }
 
-### Files to Change
+// Gate B: Block if 5+ accounts share same signup IP
+if (signup_ip_hash exists) {
+  count profiles with same signup_ip_hash
+  if (count >= 5) return { success: false, reason: "IP cluster blocked" }
+}
+
+// Gate C: Ban check
+if (profile.banned) return { success: false, reason: "Account suspended" }
+```
+
+### 2. Force redeploy all 3 security edge functions
+
+Deploy `award-camly`, `check-upload-reward`, and `track-ip` to ensure the latest code is live.
+
+### 3. No client-side changes needed
+
+The client already handles `success: false` responses gracefully from both functions. Both web and mobile use the same edge functions, so the fix applies to both platforms automatically.
+
+## Files to Change
 
 | File | Change |
 |------|--------|
-| `supabase/functions/award-camly/index.ts` | Add view-gate for FIRST_UPLOAD: require >= 1 view from another user before granting 500K bonus |
-| Deploy `award-camly` | Force redeploy to activate all existing gates (24h age, IP cluster) |
-| Deploy `track-ip` | Ensure latest version with lowered auto-ban threshold is active |
-| Deploy `backfill-suspicious-scores` | Ensure latest scoring logic is active |
+| `supabase/functions/check-upload-reward/index.ts` | Add ban check + 24h account age gate + IP cluster gate (lines 79-88) |
+| Deploy `check-upload-reward` | Force deploy to activate gates |
+| Deploy `award-camly` | Confirm latest version is live |
+| Deploy `track-ip` | Confirm latest version is live |
 
-### Technical Details for `award-camly` Change
+## Technical Details
 
-Inside the existing upload gates section (after Gate B, before the reward type validation), add Gate C:
+In `check-upload-reward/index.ts`, after line 79 (user verification), add:
 
-```text
-// Gate C: FIRST_UPLOAD requires at least 1 view from a different user
-if (type === 'FIRST_UPLOAD' && videoId) {
-  const { count: externalViews } = await adminSupabaseEarly
-    .from('watch_history')
-    .select('id', { count: 'exact', head: true })
-    .eq('video_id', videoId)
-    .neq('user_id', userId);
+```typescript
+// === ANTI-FARMING GATES ===
+const { data: profileGate } = await adminSupabase
+  .from('profiles')
+  .select('created_at, signup_ip_hash, banned')
+  .eq('id', user.id)
+  .single();
 
-  if ((externalViews || 0) < 1) {
-    // Return soft block - reward will be available later
-    return Response with:
-      success: false
-      reason: "Bonus upload đầu tiên sẽ được cộng sau khi video nhận được lượt xem đầu tiên."
+// Ban check
+if (profileGate?.banned) {
+  return Response({ success: false, error: 'Account suspended' });
+}
+
+// Gate A: 24-hour account age
+const ageHours = (Date.now() - new Date(profileGate.created_at).getTime()) / 3600000;
+if (ageHours < 24) {
+  return Response({ success: false, reason: 'Account must be 24h old for upload rewards' });
+}
+
+// Gate B: IP cluster block (5+ accounts)
+if (profileGate.signup_ip_hash) {
+  const sameIpCount = count profiles with same signup_ip_hash;
+  if (sameIpCount >= 5) {
+    return Response({ success: false, reason: 'Upload rewards blocked - suspicious IP' });
   }
 }
 ```
 
-The existing `check-upload-reward` edge function can handle crediting the reward later when views arrive, or the user can trigger it by calling `award-camly` again after their video gets a view.
-
 ## Impact
 
-| Metric | Before | After |
-|--------|--------|-------|
-| Time to exploit FIRST_UPLOAD | ~5 minutes | Must wait for real viewer engagement |
-| Single-IP farming | Undetected, 550K/account | Blocked until video has real views |
-| Multi-IP cluster farming | Blocked (24h + IP gate, once deployed) | Same, now actually deployed |
-| Daily leak rate | 7.5M CAMLY/day | Near zero for farming accounts |
-
-## Existing Pre-Farming Accounts
-
-62 accounts with `suspicious_score=0` hold 23.1M CAMLY pending. Many are legitimate users, but some are single-IP farmers. After the view-gate is deployed:
-- New farming is blocked
-- Existing pending rewards still require admin approval to withdraw (the approval system is the final safety net)
-- Admin can review and ban obvious farming accounts via the IP Abuse Detection tab
+- Closes the last unprotected reward path for upload rewards
+- Zero new database tables or subscriptions
+- 1 extra query per `check-upload-reward` call (profile check, using indexed column)
+- Works on both web and mobile (shared backend)
+- The 19 accounts that exploited before deployment still have their pending rewards, but these require admin approval to withdraw -- the admin can ban them via the IP Abuse Detection tab
