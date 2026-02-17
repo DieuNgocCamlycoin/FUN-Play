@@ -78,6 +78,49 @@ serve(async (req) => {
       );
     }
 
+    // === ANTI-FARMING GATES ===
+    const { data: profileGate } = await adminSupabase
+      .from('profiles')
+      .select('created_at, signup_ip_hash, banned')
+      .eq('id', user.id)
+      .single();
+
+    // Gate C: Ban check
+    if (profileGate?.banned) {
+      console.log(`User ${user.id} is banned - blocking upload reward`);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Account suspended' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Gate A: 24-hour account age
+    const accountAgeHours = (Date.now() - new Date(profileGate?.created_at || 0).getTime()) / 3600000;
+    if (accountAgeHours < 24) {
+      console.log(`User ${user.id} account too new (${accountAgeHours.toFixed(1)}h) - blocking upload reward`);
+      return new Response(
+        JSON.stringify({ success: false, reason: 'Account must be 24 hours old for upload rewards', accountAgeHours: Math.floor(accountAgeHours) }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Gate B: IP cluster block (5+ accounts from same signup IP)
+    if (profileGate?.signup_ip_hash) {
+      const { count: sameIpCount } = await adminSupabase
+        .from('profiles')
+        .select('id', { count: 'exact', head: true })
+        .eq('signup_ip_hash', profileGate.signup_ip_hash);
+
+      if ((sameIpCount || 0) >= 5) {
+        console.log(`User ${user.id} from IP cluster (${sameIpCount} accounts) - blocking upload reward`);
+        return new Response(
+          JSON.stringify({ success: false, reason: 'Upload rewards blocked - suspicious IP cluster' }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+    // === END ANTI-FARMING GATES ===
+
     const { videoId } = await req.json();
     if (!videoId) {
       return new Response(
