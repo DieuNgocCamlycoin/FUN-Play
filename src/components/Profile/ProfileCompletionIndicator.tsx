@@ -6,14 +6,16 @@ interface ProfileCompletionProps {
   banner: boolean;
   bio: boolean;
   wallet: boolean;
+  username?: boolean;
 }
 
-export const ProfileCompletionIndicator = ({ avatar, banner, bio, wallet }: ProfileCompletionProps) => {
+export const ProfileCompletionIndicator = ({ avatar, banner, bio, wallet, username = false }: ProfileCompletionProps) => {
   const completionItems = [
     { name: "Avatar", completed: avatar },
     { name: "Banner", completed: banner },
     { name: "Bio", completed: bio },
     { name: "Wallet", completed: wallet },
+    { name: "Username", completed: username },
   ];
 
   const completionPercentage = (completionItems.filter(item => item.completed).length / completionItems.length) * 100;
