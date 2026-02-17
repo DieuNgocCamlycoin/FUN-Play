@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -31,10 +31,9 @@ interface IPUser {
 interface IPGroup {
   ip_hash: string;
   users: IPUser[];
-  total_accounts: number;
+  account_count: number;
   total_pending: number;
   distinct_wallets: number;
-  action_types: string[];
 }
 
 interface IPAbuseDetectionTabProps {
@@ -49,83 +48,17 @@ const IPAbuseDetectionTab = ({ onBan, loading }: IPAbuseDetectionTabProps) => {
   const fetchIPGroups = async () => {
     setFetching(true);
     try {
-      // Fetch all IP tracking records
-      const { data: ipRecords, error: ipError } = await supabase
-        .from("ip_tracking")
-        .select("ip_hash, user_id, action_type, wallet_address");
+      const { data, error } = await supabase.rpc("get_ip_abuse_clusters", { min_accounts: 2 });
 
-      if (ipError) throw ipError;
+      if (error) throw error;
 
-      if (!ipRecords || ipRecords.length === 0) {
-        setIpGroups([]);
-        setFetching(false);
-        return;
-      }
-
-      // Group by ip_hash
-      const grouped: Record<string, { userIds: Set<string>; wallets: Set<string>; actions: Set<string> }> = {};
-      
-      ipRecords.forEach((r) => {
-        if (!grouped[r.ip_hash]) {
-          grouped[r.ip_hash] = { userIds: new Set(), wallets: new Set(), actions: new Set() };
-        }
-        if (r.user_id) grouped[r.ip_hash].userIds.add(r.user_id);
-        if (r.wallet_address) grouped[r.ip_hash].wallets.add(r.wallet_address.toLowerCase());
-        if (r.action_type) grouped[r.ip_hash].actions.add(r.action_type);
-      });
-
-      // Filter: only IPs with more than 1 user
-      const suspiciousIPs = Object.entries(grouped).filter(
-        ([_, g]) => g.userIds.size > 1
-      );
-
-      if (suspiciousIPs.length === 0) {
-        setIpGroups([]);
-        setFetching(false);
-        return;
-      }
-
-      // Collect all user IDs to fetch profiles
-      const allUserIds = new Set<string>();
-      suspiciousIPs.forEach(([_, g]) => g.userIds.forEach((id) => allUserIds.add(id)));
-
-      const { data: profiles, error: profileError } = await supabase
-        .from("profiles")
-        .select("id, username, display_name, avatar_url, wallet_address, pending_rewards, banned")
-        .in("id", Array.from(allUserIds));
-
-      if (profileError) throw profileError;
-
-      const profileMap: Record<string, IPUser> = {};
-      profiles?.forEach((p) => {
-        profileMap[p.id] = {
-          id: p.id,
-          username: p.username,
-          display_name: p.display_name,
-          avatar_url: p.avatar_url,
-          wallet_address: p.wallet_address,
-          pending_rewards: p.pending_rewards || 0,
-          banned: p.banned || false,
-        };
-      });
-
-      // Build IP groups
-      const groups: IPGroup[] = suspiciousIPs
-        .map(([ipHash, g]) => {
-          const users = Array.from(g.userIds)
-            .map((uid) => profileMap[uid])
-            .filter(Boolean);
-
-          return {
-            ip_hash: ipHash,
-            users,
-            total_accounts: users.length,
-            total_pending: users.reduce((sum, u) => sum + (u.pending_rewards || 0), 0),
-            distinct_wallets: g.wallets.size,
-            action_types: Array.from(g.actions),
-          };
-        })
-        .sort((a, b) => b.total_accounts - a.total_accounts);
+      const groups: IPGroup[] = (data || []).map((row: any) => ({
+        ip_hash: row.ip_hash,
+        account_count: Number(row.account_count),
+        total_pending: Number(row.total_pending),
+        distinct_wallets: Number(row.distinct_wallets),
+        users: (row.users as IPUser[]) || [],
+      }));
 
       setIpGroups(groups);
     } catch (error) {
@@ -149,9 +82,8 @@ const IPAbuseDetectionTab = ({ onBan, loading }: IPAbuseDetectionTabProps) => {
     fetchIPGroups();
   };
 
-  // Stats
   const totalSuspiciousIPs = ipGroups.length;
-  const totalAccountsInvolved = ipGroups.reduce((sum, g) => sum + g.total_accounts, 0);
+  const totalAccountsInvolved = ipGroups.reduce((sum, g) => sum + g.account_count, 0);
   const totalRiskCAMLY = ipGroups.reduce((sum, g) => sum + g.total_pending, 0);
 
   if (fetching) {
@@ -215,14 +147,14 @@ const IPAbuseDetectionTab = ({ onBan, loading }: IPAbuseDetectionTabProps) => {
           return (
             <Card key={group.ip_hash} className="border-blue-500/30">
               <CardHeader className="pb-2">
-              <CardTitle className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-sm">
+                <CardTitle className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-sm">
                   <span className="flex items-center gap-2 flex-wrap">
                     <Globe className="w-4 h-4 text-blue-500 shrink-0" />
                     <span className="font-mono text-xs">
                       IP: {group.ip_hash.slice(0, 8)}...{group.ip_hash.slice(-6)}
                     </span>
                     <Badge variant="secondary" className="text-xs">
-                      {group.total_accounts} accounts
+                      {group.account_count} accounts
                     </Badge>
                     {group.distinct_wallets > 0 && (
                       <Badge variant="outline" className="text-xs text-purple-500">
@@ -297,7 +229,6 @@ const IPAbuseDetectionTab = ({ onBan, loading }: IPAbuseDetectionTabProps) => {
                   ))}
                 </div>
                 <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-                  <span>Actions: {group.action_types.join(", ")}</span>
                   <span>Tổng pending: {group.total_pending.toLocaleString()} CAMLY</span>
                 </div>
               </CardContent>
