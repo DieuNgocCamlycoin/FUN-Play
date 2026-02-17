@@ -92,8 +92,8 @@ Deno.serve(async (req) => {
         const profileCount = signupIpFrequency[ipHash] || 0;
         const maxCount = Math.max(trackingCount, profileCount);
 
-        if (maxCount > 5) {
-          score += 3;
+        if (maxCount >= 5) {
+          score += 5;
         } else if (maxCount > 2) {
           score += 1;
         }
