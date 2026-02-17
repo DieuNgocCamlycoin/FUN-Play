@@ -40,48 +40,29 @@ export const useAdminManage = () => {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      // Fetch all profiles
-      const { data: profiles, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .order("created_at", { ascending: false });
-
+      const { data, error } = await supabase.rpc("get_users_directory_stats" as any);
       if (error) throw error;
 
-      // Fetch video counts per user
-      const { data: videoCounts } = await supabase
-        .from("videos")
-        .select("user_id");
-
-      // Fetch comment counts per user
-      const { data: commentCounts } = await supabase
-        .from("comments")
-        .select("user_id");
-
-      // Create counts map
-      const videoCountMap: Record<string, number> = {};
-      const commentCountMap: Record<string, number> = {};
-
-      videoCounts?.forEach((v) => {
-        videoCountMap[v.user_id] = (videoCountMap[v.user_id] || 0) + 1;
-      });
-
-      commentCounts?.forEach((c) => {
-        commentCountMap[c.user_id] = (commentCountMap[c.user_id] || 0) + 1;
-      });
-
-      const enrichedUsers = profiles?.map((p) => ({
-        ...p,
+      const enrichedUsers = ((data as any[]) || []).map((p: any) => ({
+        id: p.user_id,
+        username: p.username,
+        display_name: p.display_name,
+        avatar_url: p.avatar_url,
+        wallet_address: p.wallet_address,
+        total_camly_rewards: p.total_camly_rewards || 0,
         pending_rewards: p.pending_rewards || 0,
         approved_reward: p.approved_reward || 0,
         banned: p.banned || false,
-        violation_level: p.violation_level || 0,
+        banned_at: null,
+        ban_reason: null,
+        violation_level: 0,
         avatar_verified: p.avatar_verified || false,
-        videos_count: videoCountMap[p.id] || 0,
-        comments_count: commentCountMap[p.id] || 0,
+        created_at: p.created_at,
+        videos_count: p.videos_count || 0,
+        comments_count: p.comments_count || 0,
       })) as AdminUser[];
 
-      setUsers(enrichedUsers || []);
+      setUsers(enrichedUsers);
     } catch (error) {
       console.error("Error fetching users:", error);
     } finally {
