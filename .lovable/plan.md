@@ -1,47 +1,28 @@
 
 
-# Music Playback -- Final Bug Fix
+# ValentineMusicButton -- Remove Redundant State Updates
 
-## Issue Found
+## Issue
 
-In `BackgroundMusicPlayer.tsx`, the `togglePlay` function on line 51 manually sets `setIsPlaying(!isPlaying)` immediately when the user taps play/pause. However, the `<audio>` element also has `onPlay` and `onPause` event handlers (lines 113-114) that set the same state. This causes:
+The `toggle()` function in `ValentineMusicButton.tsx` manually sets `setIsPlaying(false)` on pause (line 213) and `setIsPlaying(true)` on play (line 222). But the `<audio>` element already has `onPlay` and `onPause` handlers (lines 290-291) that update the same state. This is the same double-update pattern we just fixed in `BackgroundMusicPlayer`.
 
-1. **Double state update** -- two `setIsPlaying` calls fire for every toggle action
-2. **Incorrect UI on mobile** -- if `play()` fails (blocked by browser autoplay policy), the UI optimistically shows "playing" even though no audio is audible
+Similarly, the `tryPlay()` callback (line 128) and the interaction-based fallback handler (line 164) also manually call `setIsPlaying(true)` -- these are redundant since `onPlay` will fire automatically.
 
 ## Fix
 
-Remove the manual `setIsPlaying(!isPlaying)` from `togglePlay()` and rely solely on the native `onPlay`/`onPause` audio events, which only fire when playback actually starts or stops.
+Remove all manual `setIsPlaying()` calls and let the native audio events be the single source of truth.
 
 ## Technical Details
 
-### File: `src/components/BackgroundMusicPlayer.tsx`
+### File: `src/components/ValentineMusicButton.tsx`
 
-Change `togglePlay` from:
-```typescript
-const togglePlay = () => {
-  if (!audioRef.current) return;
-  if (isPlaying) {
-    audioRef.current.pause();
-  } else {
-    audioRef.current.play().catch(console.error);
-  }
-  setIsPlaying(!isPlaying); // <-- remove this line
-};
-```
+- **`toggle()` function (lines 198-230)**: Remove `setIsPlaying(false)` on line 213 and `setIsPlaying(true)` on line 222
+- **`tryPlay()` callback (lines 120-142)**: Remove `setIsPlaying(true)` on lines 128 and 137
+- **Interaction fallback handler (lines 150-180)**: Remove `setIsPlaying(true)` on line 164
 
-To:
-```typescript
-const togglePlay = () => {
-  if (!audioRef.current) return;
-  if (isPlaying) {
-    audioRef.current.pause();
-  } else {
-    audioRef.current.play().catch(console.error);
-  }
-};
-```
+The `onPlay` and `onPause` handlers on the audio element (lines 290-291) will handle all state updates reliably, only firing when playback actually starts or stops.
 
 ### No other files need changes
 ### No database changes required
 ### No new dependencies required
+
