@@ -173,7 +173,7 @@ serve(async (req) => {
     const provider = new ethers.JsonRpcProvider(BSC_RPC_URL);
     const adminWallet = new ethers.Wallet(adminPrivateKey, provider);
     const camlyContract = new ethers.Contract(CAMLY_TOKEN_ADDRESS, ERC20_TRANSFER_ABI, adminWallet);
-    const amountInWei = ethers.parseUnits(claimAmount.toString(), 18);
+    const amountInWei = ethers.parseUnits(claimAmount.toString(), 3);
 
     // Check balance
     const adminBalance = await camlyContract.balanceOf(adminWallet.address);
