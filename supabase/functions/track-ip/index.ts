@@ -95,9 +95,25 @@ Deno.serve(async (req) => {
 
     // Update signup_ip_hash in profiles for signup actions
     if (action_type === 'signup') {
+      // Check for rapid signups from same IP (anti-farming)
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const { count: recentSignups } = await supabaseAdmin
+        .from('ip_tracking')
+        .select('id', { count: 'exact', head: true })
+        .eq('ip_hash', ipHash)
+        .eq('action_type', 'signup')
+        .gte('created_at', oneHourAgo);
+
+      const updateData: Record<string, any> = { signup_ip_hash: ipHash };
+      
+      if ((recentSignups || 0) >= 3) {
+        updateData.suspicious_score = 5;
+        console.log(`[track-ip] Flagged user ${user.id} with suspicious_score=5 (${recentSignups} signups from same IP in 1hr)`);
+      }
+
       const { error: updateError } = await supabaseAdmin
         .from('profiles')
-        .update({ signup_ip_hash: ipHash })
+        .update(updateData)
         .eq('id', user.id);
 
       if (updateError) {

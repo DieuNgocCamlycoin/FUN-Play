@@ -119,8 +119,6 @@ export const isClaimable = (amount: number): boolean => {
 
 // Award CAMLY via secure server-side edge function
 export const awardCAMLY = async (
-  userId: string,
-  amount: number,
   type: "VIEW" | "LIKE" | "COMMENT" | "SHARE" | "UPLOAD" | "SHORT_VIDEO_UPLOAD" | "LONG_VIDEO_UPLOAD",
   videoId?: string
 ): Promise<{ 
