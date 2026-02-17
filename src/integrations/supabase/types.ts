@@ -2488,6 +2488,7 @@ export type Database = {
         Args: { p_admin_id: string }
         Returns: number
       }
+      get_admin_dashboard_stats: { Args: never; Returns: Json }
       get_honobar_stats: { Args: never; Returns: Json }
       get_ip_abuse_clusters: {
         Args: { min_accounts?: number }
