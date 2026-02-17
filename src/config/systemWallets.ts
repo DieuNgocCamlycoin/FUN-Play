@@ -41,6 +41,16 @@ export const SYSTEM_WALLETS = {
     channelName: "Ví tặng thưởng 2",
     avatarUrl: "/images/fun-play-wallet-icon.png",
   } as SystemWalletInfo,
+
+  // Ví trả thưởng tự động (new auto-reward wallet, same branding as TREASURY)
+  AUTO_REWARD: {
+    address: "0x9848fFc886Fb7d17C0060ff11c75997C9B2de4cC",
+    displayName: "FUN PLAY TREASURY",
+    username: "@user_cc9cd3a1",
+    channelName: "FUN PLAY TREASURY",
+    avatarUrl: "https://pub-348064b6f39043d6be2bfb92d648edb8.r2.dev/cc9cd3a1-8541-4f6f-b10e-f5619e0de832/avatars/1770830879600-play_fun.jpg",
+    userId: "cc9cd3a1-8541-4f6f-b10e-f5619e0de832",
+  } as SystemWalletInfo,
 } as const;
 
 /**
@@ -61,6 +71,9 @@ export function getSystemWalletInfo(address: string | null | undefined): SystemW
   }
   if (normalizedAddress === SYSTEM_WALLETS.PERSONAL.address.toLowerCase()) {
     return SYSTEM_WALLETS.PERSONAL;
+  }
+  if (normalizedAddress === SYSTEM_WALLETS.AUTO_REWARD.address.toLowerCase()) {
+    return SYSTEM_WALLETS.AUTO_REWARD;
   }
   
   return null;
