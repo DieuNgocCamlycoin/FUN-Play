@@ -99,18 +99,6 @@ const getExplorerUrl = (chain: string | null, txHash: string | null): string | n
   }
 };
 
-const getAddressExplorerUrl = (chain: string | null, address: string | null): string | null => {
-  if (!address) return null;
-  switch (chain?.toLowerCase()) {
-    case "bsc":
-      return `https://bscscan.com/address/${address}`;
-    case "eth":
-      return `https://etherscan.io/address/${address}`;
-    default:
-      return `https://bscscan.com/address/${address}`;
-  }
-};
-
 // ======================== MAIN HOOK ========================
 export function useTransactionHistory(options: UseTransactionHistoryOptions = {}) {
   const { publicMode = false, limit = 50, filters = {} } = options;
@@ -381,14 +369,14 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
           id: c.id,
           source_table: "claim_requests",
           
-          // Sender: FUN PLAY Treasury (Admin wallet) - Dùng config tập trung
-          sender_user_id: SYSTEM_WALLETS.TREASURY.userId || null,
-          sender_display_name: SYSTEM_WALLETS.TREASURY.displayName,
-          sender_username: SYSTEM_WALLETS.TREASURY.username,
-          sender_avatar_url: SYSTEM_WALLETS.TREASURY.avatarUrl,
-          sender_channel_name: SYSTEM_WALLETS.TREASURY.channelName,
-          wallet_from: formatAddress(SYSTEM_WALLETS.TREASURY.address),
-          wallet_from_full: SYSTEM_WALLETS.TREASURY.address,
+    // Sender: FUN PLAY Treasury (Auto-reward wallet) - Dùng config tập trung
+          sender_user_id: SYSTEM_WALLETS.AUTO_REWARD.userId || null,
+          sender_display_name: SYSTEM_WALLETS.AUTO_REWARD.displayName,
+          sender_username: SYSTEM_WALLETS.AUTO_REWARD.username,
+          sender_avatar_url: SYSTEM_WALLETS.AUTO_REWARD.avatarUrl,
+          sender_channel_name: SYSTEM_WALLETS.AUTO_REWARD.channelName,
+          wallet_from: formatAddress(SYSTEM_WALLETS.AUTO_REWARD.address),
+          wallet_from_full: SYSTEM_WALLETS.AUTO_REWARD.address,
           
           // Receiver: User
           receiver_user_id: c.user_id,
@@ -680,6 +668,13 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
           event: 'INSERT',
           schema: 'public',
           table: 'wallet_transactions',
+          filter: `from_user_id=eq.${user.id}`,
+        }, debouncedRefresh)
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'wallet_transactions',
+          filter: `to_user_id=eq.${user.id}`,
         }, debouncedRefresh);
     } else {
       // Public mode: listen to all changes
@@ -723,6 +718,5 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
     refresh,
     formatAddress,
     getExplorerUrl,
-    getAddressExplorerUrl,
   };
 }
