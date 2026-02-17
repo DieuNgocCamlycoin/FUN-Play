@@ -1,93 +1,151 @@
 
-# Fake Account Detection and System Optimization
+# Fake Account Analysis and Anti-Abuse Optimization
 
-## Abuse Analysis Results
+## Current Situation
 
-The investigation revealed **massive multi-account farming**:
+### Abuse Evidence
+| IP Hash (first 12 chars) | Accounts | Pending CAMLY | No Avatar | No Wallet |
+|---|---|---|---|---|
+| 5f84aa2687c5 | 116 | 60,652,000 | 43 | 45 |
+| 25029938dc41 | 50 | 26,500,000 | 0 | 10 |
+| 73a082f252f5 | 31 | 12,373,000 | 1 | 5 |
+| c81dc3922bbe | 27 | 4,468,000 | 26 | 17 |
+| 9e9696491ebc | 20 | 14,500,000 | 0 | 2 |
+| 307f6a19c3d2 | 19 | 10,061,000 | 0 | 0 |
+| ...more | ~80+ | ~59M+ | many | many |
 
-- **Top offending IP**: 118 accounts created from a single IP address, 109 of which have exactly 550,000 pending CAMLY each
-- **Total suspicious IPs** (5+ accounts): accounts hold **168.4M pending CAMLY** out of 187.5M total platform pending (90% of all pending rewards are from abusers)
-- **47 users** share an empty wallet address with 11.4M pending CAMLY
-- All fake accounts follow the same pattern: auto-generated `user_XXXXXXXX` usernames, 550,000 pending rewards, created in rapid succession
+- **681 accounts** with auto-generated `user_XXXXXXXX` usernames hold **187.5M pending CAMLY**
+- **0 out of 684 users** have a suspicious_score set (all are 0)
+- **0 accounts banned** from these farming IPs
+
+### Root Cause: `detect-abuse` is Dead Code
+The `detect-abuse` edge function exists and works correctly, but **nothing ever calls it**:
+- No frontend code invokes it
+- No other edge function calls it
+- The `award-camly` function checks `suspicious_score` but it's always 0 because nobody populates it
+- `AUTO_APPROVE_ENABLED` is set to 0 (OFF), so all rewards go to pending anyway -- but the abuse scoring system should still work for admin visibility
 
 ## Plan
 
-### 1. Performance Fix -- useAdminManage.ts (Critical)
+### 1. Integrate `detect-abuse` into the reward flow (award-camly edge function)
 
-The hook fetches ALL rows from `videos` and `comments` tables just to count per-user totals. With growing data, this hits the Supabase 1,000-row limit and wastes bandwidth.
+Call the abuse detection logic **inline** within `award-camly` instead of as a separate HTTP call (saves network overhead). Add a lightweight suspicious score check directly in the `award-camly` function that updates the user's `suspicious_score` on each reward grant.
 
-**Fix**: Replace the three separate queries (profiles, all videos, all comments) with a single call to the existing `get_users_directory_stats()` database function, which already computes all counts efficiently server-side.
+This means: every time a user earns a reward, their abuse score gets recalculated. No separate function call needed.
 
-```text
-Before: 3 queries (profiles + all videos + all comments) with client-side counting
-After:  1 query via RPC get_users_directory_stats() with server-side aggregation
-```
+### 2. Delete the standalone `detect-abuse` edge function
 
-### 2. Unused Import Cleanup -- IPAbuseDetectionTab.tsx
+Since the logic will be integrated directly into `award-camly`, the standalone function becomes unnecessary dead code. Remove:
+- `supabase/functions/detect-abuse/index.ts`
+- Its config entry in `supabase/config.toml` (auto-managed)
 
-The `RefreshCw` icon import is used, but `Loader2` is imported from lucide-react even though it is used in the loading state -- this is fine. No unused imports found here. Skip.
+### 3. Add IP-based signup rate limiting in `track-ip`
 
-### 3. Unused Import Cleanup -- AllUsersTab.tsx
+Enhance the existing `track-ip` edge function to check for rapid signups from the same IP and automatically set a high `suspicious_score` on the profile during signup. This catches farming bots at registration time.
 
-- `Download` is imported from lucide-react but never used in JSX (only `FileSpreadsheet` is used for the export button)
+### 4. Clean up unused code in frontend
 
-### 4. Unused Import Cleanup -- QuickDeleteTab.tsx
-
-- `Shield` icon is used in the empty state -- all imports are valid. No changes needed.
+Remove the unused `userId` parameter from `awardCAMLY()` in `enhancedRewards.ts` -- the edge function gets the user from the auth token, so this parameter is never sent.
 
 ## Technical Details
 
-### File: `src/hooks/useAdminManage.ts`
+### File: `supabase/functions/award-camly/index.ts`
 
-**Replace `fetchUsers` function** (lines 40-90) to use the existing `get_users_directory_stats` RPC instead of 3 separate queries:
+Add an inline abuse score calculation after the user is authenticated (around the trust score gating section, lines 481-513). Instead of checking a stale `suspicious_score`, compute it fresh:
 
 ```typescript
-const fetchUsers = async () => {
-  setLoading(true);
-  try {
-    const { data, error } = await supabase.rpc("get_users_directory_stats" as any);
-    if (error) throw error;
+// Inline abuse detection (replaces external detect-abuse call)
+let suspiciousScore = 0;
 
-    const enrichedUsers = ((data as any[]) || []).map((p: any) => ({
-      id: p.user_id,
-      username: p.username,
-      display_name: p.display_name,
-      avatar_url: p.avatar_url,
-      wallet_address: p.wallet_address,
-      total_camly_rewards: p.total_camly_rewards || 0,
-      pending_rewards: p.pending_rewards || 0,
-      approved_reward: p.approved_reward || 0,
-      banned: p.banned || false,
-      banned_at: null,
-      ban_reason: null,
-      violation_level: 0,
-      avatar_verified: p.avatar_verified || false,
-      created_at: p.created_at,
-      videos_count: p.videos_count || 0,
-      comments_count: p.comments_count || 0,
-    })) as AdminUser[];
+// Check signup IP for multi-account farming
+const { data: profileForAbuse } = await adminSupabase
+  .from("profiles")
+  .select("signup_ip_hash, avatar_url, avatar_verified, display_name, created_at")
+  .eq("id", userId)
+  .single();
 
-    setUsers(enrichedUsers);
-  } catch (error) {
-    console.error("Error fetching users:", error);
-  } finally {
-    setLoading(false);
+if (profileForAbuse?.signup_ip_hash) {
+  const { count: sameIpCount } = await adminSupabase
+    .from("ip_tracking")
+    .select("user_id", { count: "exact", head: true })
+    .eq("ip_hash", profileForAbuse.signup_ip_hash)
+    .eq("action_type", "signup");
+  
+  if ((sameIpCount || 0) > 5) suspiciousScore += 3;
+  else if ((sameIpCount || 0) > 2) suspiciousScore += 1;
+}
+
+if (!profileForAbuse?.avatar_url) suspiciousScore += 1;
+if (!profileForAbuse?.avatar_verified) suspiciousScore += 1;
+if (!profileForAbuse?.display_name || profileForAbuse.display_name.length < 3) suspiciousScore += 1;
+
+// Update suspicious_score in profile
+await adminSupabase
+  .from("profiles")
+  .update({ suspicious_score: suspiciousScore })
+  .eq("id", userId);
+```
+
+This replaces the current block at lines 501-508 that reads the stale score.
+
+### File: `supabase/functions/track-ip/index.ts`
+
+Add a signup rate-limit check: if the same IP hash has 3+ signups in the last hour, set the new user's `suspicious_score` to 5 (above the auto-approve threshold of 3):
+
+```typescript
+// After inserting into ip_tracking for signup actions
+if (action_type === 'signup') {
+  // Check for rapid signups from same IP
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const { count: recentSignups } = await supabaseAdmin
+    .from('ip_tracking')
+    .select('id', { count: 'exact', head: true })
+    .eq('ip_hash', ipHash)
+    .eq('action_type', 'signup')
+    .gte('created_at', oneHourAgo);
+
+  if ((recentSignups || 0) >= 3) {
+    await supabaseAdmin
+      .from('profiles')
+      .update({ suspicious_score: 5 })
+      .eq('id', user.id);
+    console.log(`[track-ip] Flagged user ${user.id} with suspicious_score=5 (${recentSignups} signups from same IP in 1hr)`);
   }
-};
+  
+  // existing signup_ip_hash update...
+}
 ```
 
-This eliminates 2 unnecessary queries and removes the 1,000-row limit issue on videos/comments counting.
+### File: `supabase/functions/detect-abuse/index.ts`
 
-### File: `src/components/Admin/tabs/AllUsersTab.tsx`
+**DELETE** this entire file. Its logic is now integrated into `award-camly` and `track-ip`.
 
-**Line 7** -- Remove unused `Download` import:
+### File: `src/lib/enhancedRewards.ts`
+
+Remove unused `userId` parameter from `awardCAMLY()`:
+
 ```typescript
-// Change from:
-import { Users, Search, Download, FileSpreadsheet } from "lucide-react";
+// Change from (line 121-125):
+export const awardCAMLY = async (
+  userId: string,
+  amount: number,
+  type: "VIEW" | "LIKE" | ...,
+  videoId?: string
+)
+
 // To:
-import { Users, Search, FileSpreadsheet } from "lucide-react";
+export const awardCAMLY = async (
+  amount: number,
+  type: "VIEW" | "LIKE" | ...,
+  videoId?: string
+)
 ```
+
+Then update all callers to remove the `userId` argument.
+
+### Callers to update
+
+Search and update all files that call `awardCAMLY(userId, ...)` to `awardCAMLY(...)` (removing the first argument).
 
 ### No database changes needed
-### No edge function changes needed
 ### No new dependencies needed
