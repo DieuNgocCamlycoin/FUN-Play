@@ -1,110 +1,118 @@
 
 
-# Fix Honor Board, Top Ranking & Top Sponsors -- Exclude Banned Users
+# Fix Admin Dashboard Statistics -- Data Accuracy and Performance
 
 ## Problem
 
-345 out of 687 total users are banned, but all three systems currently include them:
+The `useAdminStatistics` hook (used by the Overview tab) has **critical data truncation** and **performance issues**:
 
-- **Top Ranking**: Banned users with high rewards (e.g. 2.3M CAMLY) appear in the leaderboard
-- **Top Sponsors**: Banned users can appear as top donors
-- **Honobar Stats**: Shows 687 total users instead of 342 active users; totalRewards and camlyPool include banned users' balances
-- **1000-row limit risk**: `useHonobarStats` fetches all profile rows and all video rows for client-side aggregation -- with 687+ profiles and growing, this will silently truncate data
+1. **Reward total is wrong**: Fetches `reward_transactions.amount` rows client-side, but there are **14,088 rows** -- Supabase only returns max 1,000. The displayed "Total CAMLY distributed" is massively underreported.
+2. **Views total is wrong**: Fetches all video rows to sum `view_count` client-side -- with **976 videos** it's close to the 1,000 limit and will break soon.
+3. **Daily stats truncated**: Fetches all `reward_transactions`, `view_logs`, and `comments` from last 30 days -- each can exceed 1,000 rows, causing inaccurate charts.
+4. **Top Earners include banned users**: No `.eq("banned", false)` filter on the earners query.
+5. **Top Creators include banned users**: Fetches all videos with joined profiles, no banned filter.
+6. **10+ parallel network requests**: Wasteful when a single RPC can return everything.
 
-## Changes
+## Solution
 
-### 1. `src/hooks/useTopRanking.ts`
+Create a new `get_admin_dashboard_stats()` RPC function that computes everything server-side in one call, then simplify `useAdminStatistics` to a single RPC call.
 
-Add `.eq("banned", false)` filter to the query:
+### 1. Database Migration: `get_admin_dashboard_stats()` RPC
 
-```
-.from("profiles")
-.select(...)
-.eq("banned", false)        // <-- ADD THIS
-.order("total_camly_rewards", { ascending: false })
-.limit(limit)
-```
+A single SQL function that returns:
+- Platform stats (totalUsers, totalVideos, totalViews, totalComments, totalRewards, activeUsersToday) -- all accurate, no row limits
+- Top 10 creators (excluding banned users)
+- Top 10 earners (excluding banned users)
+- Daily stats for last 30 days (aggregated server-side)
 
-One-line fix. No other changes needed -- the hook is clean and efficient.
-
-### 2. `src/hooks/useTopSponsors.ts`
-
-Add `.eq("banned", false)` when fetching profiles for top donors, and filter out any donors whose profile comes back as banned:
-
-```
-.from("profiles")
-.select("id, username, display_name, avatar_url, banned")
-.eq("banned", false)         // <-- ADD THIS
-.in("id", userIds)
-```
-
-Then filter out any userId not found in profileMap (meaning they're banned). This is a small change -- the hook fetches at most 5 profiles so no 1000-row issue.
-
-### 3. `src/hooks/useHonobarStats.tsx`
-
-This has the biggest issues -- client-side aggregation that hits the 1000-row limit. Replace with server-side aggregation:
-
-- **totalUsers**: Add `.eq("banned", false)` to the count query
-- **totalRewards & camlyPool**: Replace the row-fetching approach (`select("total_camly_rewards, approved_reward")` then `.reduce()`) with two `head: true` count queries that use Supabase's built-in aggregation, OR use a simple RPC. Since we need SUM not COUNT, the cleanest approach is a small RPC function.
-- **totalViews**: Same issue -- fetching all video rows to sum `view_count`. Replace with an RPC or use a single aggregate query.
-
-**New database function** `get_honobar_stats`:
 ```sql
-CREATE OR REPLACE FUNCTION get_honobar_stats()
+CREATE OR REPLACE FUNCTION get_admin_dashboard_stats()
 RETURNS jsonb
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path TO 'public'
 AS $$
   SELECT jsonb_build_object(
-    'totalUsers', (SELECT COUNT(*) FROM profiles WHERE COALESCE(banned,false)=false),
-    'totalVideos', (SELECT COUNT(*) FROM videos WHERE approval_status='approved'),
-    'totalViews', (SELECT COALESCE(SUM(view_count),0) FROM videos WHERE approval_status='approved'),
-    'totalComments', (SELECT COUNT(*) FROM comments),
-    'totalRewards', (SELECT COALESCE(SUM(total_camly_rewards),0) FROM profiles WHERE COALESCE(banned,false)=false),
-    'totalSubscriptions', (SELECT COUNT(*) FROM subscriptions),
-    'camlyPool', (SELECT COALESCE(SUM(approved_reward),0) FROM profiles WHERE COALESCE(banned,false)=false),
-    'totalPosts', (SELECT COUNT(*) FROM posts),
-    'totalPhotos', (SELECT COUNT(*) FROM videos WHERE category='photo')
+    'platformStats', jsonb_build_object(
+      'totalUsers', (SELECT COUNT(*) FROM profiles),
+      'totalVideos', (SELECT COUNT(*) FROM videos),
+      'totalViews', (SELECT COALESCE(SUM(view_count),0) FROM videos),
+      'totalComments', (SELECT COUNT(*) FROM comments),
+      'totalRewardsDistributed', (SELECT COALESCE(SUM(amount),0) FROM reward_transactions WHERE status='success'),
+      'activeUsersToday', (SELECT COUNT(DISTINCT user_id) FROM daily_reward_limits WHERE date=CURRENT_DATE)
+    ),
+    'topEarners', (
+      SELECT COALESCE(jsonb_agg(row_to_json(e)), '[]'::jsonb)
+      FROM (
+        SELECT id as "userId", display_name as "displayName", avatar_url as "avatarUrl",
+               COALESCE(total_camly_rewards,0) as "totalEarned"
+        FROM profiles WHERE COALESCE(banned,false)=false
+        ORDER BY total_camly_rewards DESC NULLS LAST LIMIT 10
+      ) e
+    ),
+    'topCreators', (
+      SELECT COALESCE(jsonb_agg(row_to_json(c)), '[]'::jsonb)
+      FROM (
+        SELECT v.user_id as "userId", p.display_name as "displayName", p.avatar_url as "avatarUrl",
+               COUNT(*) as "videoCount", COALESCE(SUM(v.view_count),0) as "totalViews",
+               COALESCE(p.total_camly_rewards,0) as "totalRewards"
+        FROM videos v JOIN profiles p ON p.id=v.user_id
+        WHERE COALESCE(p.banned,false)=false
+        GROUP BY v.user_id, p.display_name, p.avatar_url, p.total_camly_rewards
+        ORDER BY SUM(v.view_count) DESC NULLS LAST LIMIT 10
+      ) c
+    ),
+    'dailyStats', (
+      SELECT COALESCE(jsonb_agg(row_to_json(d) ORDER BY d.date), '[]'::jsonb)
+      FROM (
+        SELECT
+          gs::date as date,
+          COALESCE(act.cnt, 0) as "activeUsers",
+          COALESCE(rew.total, 0) as "rewardsDistributed"
+        FROM generate_series(CURRENT_DATE - 29, CURRENT_DATE, '1 day') gs
+        LEFT JOIN (
+          SELECT date, COUNT(DISTINCT user_id) as cnt FROM daily_reward_limits
+          WHERE date >= CURRENT_DATE - 29 GROUP BY date
+        ) act ON act.date = gs::date
+        LEFT JOIN (
+          SELECT created_at::date as dt, SUM(amount) as total FROM reward_transactions
+          WHERE status='success' AND created_at >= CURRENT_DATE - 29 GROUP BY dt
+        ) rew ON rew.dt = gs::date
+      ) d
+    )
   );
 $$;
 ```
 
-Then simplify `useHonobarStats` to a single RPC call instead of 8 parallel queries:
+This replaces **10+ client queries** with **1 RPC call** and eliminates all 1,000-row truncation risks.
+
+### 2. Refactor `src/hooks/useAdminStatistics.tsx`
+
+Replace the entire 230-line hook with a clean ~40-line version:
 
 ```typescript
-const { data } = await supabase.rpc("get_honobar_stats");
-if (data) setStats(data as HonobarStats);
+const { data } = await supabase.rpc("get_admin_dashboard_stats");
+// data contains platformStats, topEarners, topCreators, dailyStats
 ```
 
-This eliminates the 1000-row limit problem entirely and reduces 8 network requests to 1.
+- Remove all 10+ individual Supabase queries
+- Remove all client-side aggregation (Map, reduce, Set)
+- Remove unused interfaces if simplified
 
-### 4. No changes needed
+### 3. No changes needed to:
+- `OverviewTab.tsx` -- it consumes `useAdminStatistics` output, interface stays compatible
+- `useAdminManage.ts` -- admin user management is separate and correct
+- `useAdminRealtime.ts` -- realtime badge counts are separate and correct
+- `UnifiedAdminDashboard.tsx` -- layout orchestration is clean
 
-- `ProfileHonorBoard.tsx` -- per-user component, correct as-is
-- `usePublicUsersDirectory.ts` -- already filters `WHERE COALESCE(p.banned,false)=false`
-- `useUsersDirectoryStats.ts` -- admin-only, should show all users including banned
+## Impact
 
-## Impact Summary
-
-| System | Before | After |
+| Metric | Before | After |
 |--------|--------|-------|
-| Top Ranking | Shows banned users | Only active users |
-| Top Sponsors | Shows banned donors | Only active donors |
-| Honobar totalUsers | 687 (includes 345 banned) | ~342 active only |
-| Honobar totalRewards | Inflated by banned users | Accurate for active users |
-| Honobar network requests | 8 parallel queries | 1 single RPC call |
-| 1000-row limit risk | Yes (profiles + videos) | Eliminated |
-
-## Technical Details
-
-### Database Migration
-
-One new function: `get_honobar_stats()` -- a read-only SQL function that returns all 9 stats as a single JSON object with banned users excluded.
-
-### File Changes
-
-1. **New migration**: Create `get_honobar_stats` RPC function
-2. **`src/hooks/useHonobarStats.tsx`**: Replace 8 parallel queries with single `supabase.rpc("get_honobar_stats")` call
-3. **`src/hooks/useTopRanking.ts`**: Add `.eq("banned", false)` (1 line)
-4. **`src/hooks/useTopSponsors.ts`**: Add `.eq("banned", false)` to profile fetch + filter out missing profiles (2-3 lines)
+| Network requests | 10+ parallel queries | 1 RPC call |
+| Total CAMLY accuracy | Truncated at 1,000 rows (14,088 exist) | Exact server-side SUM |
+| Total Views accuracy | Near-limit (976 videos) | Exact server-side SUM |
+| Daily chart accuracy | Truncated per table | Exact server-side aggregation |
+| Top Earners | Includes 359 banned users | Only active users |
+| Top Creators | Includes banned users' videos | Only active users |
+| Code lines | ~230 lines | ~40 lines |
 
