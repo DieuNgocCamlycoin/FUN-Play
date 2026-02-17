@@ -32,7 +32,6 @@ function formatBytes(bytes: number): string {
 }
 
 export default function BannedVideoCleanupPanel() {
-  const [loading, setLoading] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [dryRunData, setDryRunData] = useState<DryRunResult | null>(null);
