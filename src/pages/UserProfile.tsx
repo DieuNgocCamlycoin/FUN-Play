@@ -27,6 +27,11 @@ interface UserProfileData {
   approved_reward: number | null;
   background_music_url: string | null;
   music_enabled: boolean | null;
+  facebook_url: string | null;
+  youtube_url: string | null;
+  twitter_url: string | null;
+  tiktok_url: string | null;
+  telegram_url: string | null;
 }
 
 interface ChannelData {

@@ -134,11 +134,11 @@ export default function ProfileSettings() {
         setBio(data.bio || "");
         setMusicUrl(data.music_url || "");
         setAvatarVerified(data.avatar_verified ?? null);
-        setFacebookUrl((data as any).facebook_url || "");
-        setYoutubeUrl((data as any).youtube_url || "");
-        setTwitterUrl((data as any).twitter_url || "");
-        setTiktokUrl((data as any).tiktok_url || "");
-        setTelegramUrl((data as any).telegram_url || "");
+        setFacebookUrl(data.facebook_url || "");
+        setYoutubeUrl(data.youtube_url || "");
+        setTwitterUrl(data.twitter_url || "");
+        setTiktokUrl(data.tiktok_url || "");
+        setTelegramUrl(data.telegram_url || "");
       }
 
       // Fetch channel info for banner
