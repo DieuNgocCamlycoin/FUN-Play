@@ -31,52 +31,19 @@ export const useHonobarStats = () => {
 
   const fetchStats = useCallback(async () => {
     try {
-      // Fetch all stats in parallel
-      const [
-        { count: usersCount },
-        { count: videosCount },
-        { data: viewsData },
-        { count: commentsCount },
-        { data: profilesData },
-        { count: subscriptionsCount },
-        { count: postsCount },
-        { count: photosCount },
-      ] = await Promise.all([
-        supabase.from("profiles").select("*", { count: "exact", head: true }),
-        supabase.from("videos").select("*", { count: "exact", head: true }).eq("approval_status", "approved"),
-        supabase.from("videos").select("view_count").eq("approval_status", "approved"),
-        supabase.from("comments").select("*", { count: "exact", head: true }),
-        supabase.from("profiles").select("total_camly_rewards, approved_reward"),
-        supabase.from("subscriptions").select("*", { count: "exact", head: true }),
-        supabase.from("posts").select("*", { count: "exact", head: true }),
-        supabase.from("videos").select("*", { count: "exact", head: true }).eq("category", "photo"),
-      ]);
+      const { data, error } = await supabase.rpc("get_honobar_stats");
 
-      // Calculate total views
-      const totalViews = viewsData?.reduce((sum, video) => sum + (video.view_count || 0), 0) || 0;
+      if (error) {
+        console.error("Error fetching Honobar stats:", error);
+        return;
+      }
 
-      // Calculate total rewards (sum of all users' total_camly_rewards)
-      const totalRewards = profilesData?.reduce((sum, profile) => sum + (profile.total_camly_rewards || 0), 0) || 0;
-
-      // Calculate FUN PLAY TREASURY Balance (sum of approved_reward waiting to be claimed)
-      const camlyPool = profilesData?.reduce((sum, profile) => sum + (profile.approved_reward || 0), 0) || 0;
-
-      if (isMountedRef.current) {
-        setStats({
-          totalUsers: usersCount || 0,
-          totalVideos: videosCount || 0,
-          totalViews,
-          totalComments: commentsCount || 0,
-          totalRewards,
-          totalSubscriptions: subscriptionsCount || 0,
-          camlyPool,
-          totalPosts: postsCount || 0,
-          totalPhotos: photosCount || 0,
-        });
-        setLoading(false);
+      if (isMountedRef.current && data) {
+        setStats(data as unknown as HonobarStats);
       }
     } catch (error) {
       console.error("Error fetching Honobar stats:", error);
+    } finally {
       if (isMountedRef.current) {
         setLoading(false);
       }

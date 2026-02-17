@@ -67,6 +67,7 @@ export const useTopSponsors = (limit: number = 5) => {
       const { data: profiles, error: profileError } = await supabase
         .from("profiles")
         .select("id, username, display_name, avatar_url")
+        .eq("banned", false)
         .in("id", userIds);
 
       if (profileError) {
@@ -80,16 +81,18 @@ export const useTopSponsors = (limit: number = 5) => {
 
       const profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
 
-      const sponsorList: TopSponsor[] = sortedDonors.map(([userId, total]) => {
-        const profile = profileMap.get(userId);
-        return {
-          userId,
-          username: profile?.username || "Anonymous",
-          displayName: profile?.display_name || profile?.username || "Anonymous",
-          avatarUrl: profile?.avatar_url || null,
-          totalDonated: total,
-        };
-      });
+      const sponsorList: TopSponsor[] = sortedDonors
+        .filter(([userId]) => profileMap.has(userId))
+        .map(([userId, total]) => {
+          const profile = profileMap.get(userId)!;
+          return {
+            userId,
+            username: profile.username || "Anonymous",
+            displayName: profile.display_name || profile.username || "Anonymous",
+            avatarUrl: profile.avatar_url || null,
+            totalDonated: total,
+          };
+        });
 
       if (isMountedRef.current) {
         setSponsors(sponsorList);
