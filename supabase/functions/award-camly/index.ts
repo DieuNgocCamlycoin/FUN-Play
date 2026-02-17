@@ -222,6 +222,44 @@ serve(async (req) => {
 
     const { type, videoId, contentHash, commentLength, sessionId } = await req.json();
 
+    // === UPLOAD REWARD GATES (anti-farming) ===
+    const uploadRewardTypes = ['SHORT_VIDEO_UPLOAD', 'LONG_VIDEO_UPLOAD', 'UPLOAD', 'FIRST_UPLOAD'];
+    if (uploadRewardTypes.includes(type)) {
+      const { data: profileGate } = await adminSupabaseEarly
+        .from('profiles')
+        .select('created_at, signup_ip_hash')
+        .eq('id', userId)
+        .single();
+
+      if (profileGate) {
+        // Gate A: Account must be 24 hours old for upload rewards
+        const ageHours = (Date.now() - new Date(profileGate.created_at).getTime()) / 3600000;
+        if (ageHours < 24) {
+          console.log(`[award-camly] Blocked upload reward for new account ${userId} (age: ${ageHours.toFixed(1)}h)`);
+          return new Response(
+            JSON.stringify({ success: false, reason: 'Tài khoản phải đủ 24 giờ tuổi để nhận thưởng upload video.', milestone: null, newTotal: 0, amount: 0, type }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // Gate B: Block if 5+ accounts share the same signup IP
+        if (profileGate.signup_ip_hash) {
+          const { count: sameIpAccounts } = await adminSupabaseEarly
+            .from('profiles')
+            .select('id', { count: 'exact', head: true })
+            .eq('signup_ip_hash', profileGate.signup_ip_hash);
+
+          if ((sameIpAccounts || 0) >= 5) {
+            console.log(`[award-camly] Blocked upload reward for IP cluster user ${userId} (${sameIpAccounts} accounts on same IP)`);
+            return new Response(
+              JSON.stringify({ success: false, reason: 'Thưởng upload bị chặn do hoạt động đáng ngờ từ địa chỉ IP.', milestone: null, newTotal: 0, amount: 0, type }),
+              { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+        }
+      }
+    }
+
     // 4. Validate reward type
     const validTypes = [
       'VIEW', 'LIKE', 'COMMENT', 'SHARE',

@@ -27,7 +27,7 @@ export function useUploadGate() {
         // Step 1: Check avatar_verified
         const { data: profile } = await supabase
           .from("profiles")
-          .select("avatar_verified")
+          .select("avatar_verified, suspicious_score")
           .eq("id", user.id)
           .maybeSingle();
 
@@ -36,6 +36,16 @@ export function useUploadGate() {
             allowed: false,
             reason: "avatar",
             message: "Vui lòng xác minh ảnh đại diện thật trước khi tải video lên.",
+          };
+          setGateResult(result);
+          return result;
+        }
+
+        // Step 1b: Suspicious score check - warn that upload requires admin review
+        if ((profile?.suspicious_score ?? 0) >= 3) {
+          const result: UploadGateResult = {
+            allowed: true,
+            approvalStatus: "pending_review",
           };
           setGateResult(result);
           return result;

@@ -118,8 +118,8 @@ Deno.serve(async (req) => {
         console.log(`[track-ip] Flagged user ${user.id} with suspicious_score=5 (${recentSignups} signups from same IP in 1hr)`);
       }
 
-      // Auto-ban if 3+ banned accounts from same IP (farming cluster)
-      if ((bannedFromSameIp || 0) >= 3) {
+      // Auto-ban if 2+ banned accounts from same IP (farming cluster)
+      if ((bannedFromSameIp || 0) >= 2) {
         updateData.banned = true;
         updateData.banned_at = new Date().toISOString();
         updateData.ban_reason = `Auto-banned: IP associated with ${bannedFromSameIp} banned accounts`;
@@ -138,6 +138,26 @@ Deno.serve(async (req) => {
         console.error('[track-ip] Profile update error:', updateError.message);
       } else {
         console.log(`[track-ip] Updated signup_ip_hash for user ${user.id}${updateData.banned ? ' (AUTO-BANNED)' : ''}`);
+      }
+
+      // IP cluster flagging: if 5+ unbanned accounts share this IP, flag all as suspicious_score=5
+      const { data: clusterProfiles } = await supabaseAdmin
+        .from('profiles')
+        .select('id, pending_rewards')
+        .eq('signup_ip_hash', ipHash)
+        .eq('banned', false);
+
+      if (clusterProfiles && clusterProfiles.length >= 5) {
+        const highRewardCount = clusterProfiles.filter(p => (p.pending_rewards || 0) > 100000).length;
+        if (highRewardCount >= 3) {
+          // Flag all accounts in this cluster
+          const clusterIds = clusterProfiles.map(p => p.id);
+          await supabaseAdmin
+            .from('profiles')
+            .update({ suspicious_score: 5 })
+            .in('id', clusterIds);
+          console.log(`[track-ip] Flagged ${clusterIds.length} accounts from IP cluster as suspicious_score=5 (${highRewardCount} with high pending)`);
+        }
       }
     }
 
