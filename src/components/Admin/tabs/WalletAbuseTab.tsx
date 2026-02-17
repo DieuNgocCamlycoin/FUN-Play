@@ -25,11 +25,12 @@ interface WalletAbuseTabProps {
   users: AdminUser[];
   walletGroups: WalletGroup[];
   onBan: (userId: string, reason: string) => Promise<boolean>;
+  onUnban: (userId: string) => Promise<boolean>;
   isFakeName: (name: string | null) => boolean;
   loading: boolean;
 }
 
-const WalletAbuseTab = ({ users, walletGroups, onBan, isFakeName, loading }: WalletAbuseTabProps) => {
+const WalletAbuseTab = ({ users, walletGroups, onBan, onUnban, isFakeName, loading }: WalletAbuseTabProps) => {
   const [recalculating, setRecalculating] = useState(false);
   // Missing profile users (no avatar + no name + has pending)
   const missingProfileUsers = useMemo(() => {
@@ -146,7 +147,7 @@ const WalletAbuseTab = ({ users, walletGroups, onBan, isFakeName, loading }: Wal
 
         {/* IP Tracking */}
         <TabsContent value="ip-tracking">
-          <IPAbuseDetectionTab onBan={onBan} loading={loading} />
+          <IPAbuseDetectionTab onBan={onBan} onUnban={onUnban} loading={loading} />
         </TabsContent>
 
         {/* Shared Wallet */}
