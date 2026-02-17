@@ -1,67 +1,110 @@
 
 
-# Fix Banned Video Cleanup System -- Critical Bug Fix
+# Fix Honor Board, Top Ranking & Top Sponsors -- Exclude Banned Users
 
 ## Problem
 
-The cleanup function crashes every time with:
-```
-TypeError: object is not iterable (cannot read property Symbol(Symbol.iterator))
-  at new Set
-  at y.in (postgrest-js@2.95.3)
-```
+345 out of 687 total users are banned, but all three systems currently include them:
 
-The dry-run scan works (shows 344 banned users, 626 videos, ~6.34 GB), but actual deletion always fails. This means **no videos have been cleaned up yet**.
-
-## Root Cause
-
-The postgrest-js v2.95.3 `.in()` method internally calls `new Set(values)` and fails in certain edge function runtime conditions. The code uses `.in('video_id', [video.id])` for single-value lookups (wasteful) and `.in('user_id', bannedUserIds)` with 344 UUIDs (fragile).
+- **Top Ranking**: Banned users with high rewards (e.g. 2.3M CAMLY) appear in the leaderboard
+- **Top Sponsors**: Banned users can appear as top donors
+- **Honobar Stats**: Shows 687 total users instead of 342 active users; totalRewards and camlyPool include banned users' balances
+- **1000-row limit risk**: `useHonobarStats` fetches all profile rows and all video rows for client-side aggregation -- with 687+ profiles and growing, this will silently truncate data
 
 ## Changes
 
-### 1. Edge Function: `supabase/functions/cleanup-banned-videos/index.ts`
+### 1. `src/hooks/useTopRanking.ts`
 
-**Bug fixes:**
-- Replace all `.in('video_id', [video.id])` with `.eq('video_id', video.id)` -- simpler, avoids `.in()` entirely for single-value deletions
-- Replace `.in('user_id', bannedUserIds)` with `.filter('user_id', 'in', '(uuid1,uuid2,...)')` string syntax to bypass the postgrest-js `new Set()` bug
-- Same fix for the `remaining` count query and dryRun total count query
+Add `.eq("banned", false)` filter to the query:
 
-**Code cleanup:**
-- Remove unused `R2_PUBLIC_URL` variable (line 91)
-- Remove unused `publicUrl` parameter from `extractR2Key` function -- it only uses the URL pathname
-- Replace `reward_transactions` delete `.eq('video_id', video.id)` (already correct, keep as-is)
-
-**Optimization:**
-- Fix dryRun `estimatedSizeBytes` to use a proper aggregate query instead of summing only the first 50 videos
-
-### 2. Frontend: `src/components/Admin/BannedVideoCleanupPanel.tsx`
-
-**Code cleanup:**
-- Remove unused `loading` state variable (line 35)
-
-### 3. No changes needed to:
-- `VideosManagementTab.tsx` -- integration is clean
-- `supabase/config.toml` -- already configured correctly
-
-## Technical Detail
-
-The `.eq()` approach for single-value filters:
-```text
-BEFORE (broken):  .in('video_id', [video.id])   -- triggers new Set([id]) in postgrest-js
-AFTER (fixed):    .eq('video_id', video.id)      -- simple equality, no Set needed
+```
+.from("profiles")
+.select(...)
+.eq("banned", false)        // <-- ADD THIS
+.order("total_camly_rewards", { ascending: false })
+.limit(limit)
 ```
 
-The `.filter()` string syntax for large arrays:
-```text
-BEFORE (broken):  .in('user_id', bannedUserIds)  -- 344 UUIDs passed to new Set()
-AFTER (fixed):    .filter('user_id', 'in', '("uuid1","uuid2",...)')  -- raw PostgREST filter string
+One-line fix. No other changes needed -- the hook is clean and efficient.
+
+### 2. `src/hooks/useTopSponsors.ts`
+
+Add `.eq("banned", false)` when fetching profiles for top donors, and filter out any donors whose profile comes back as banned:
+
+```
+.from("profiles")
+.select("id, username, display_name, avatar_url, banned")
+.eq("banned", false)         // <-- ADD THIS
+.in("id", userIds)
 ```
 
-## Result
+Then filter out any userId not found in profileMap (meaning they're banned). This is a small change -- the hook fetches at most 5 profiles so no 1000-row issue.
 
-After this fix:
-- The cleanup function will successfully delete 626 videos (~6.34 GB) from R2 storage
-- All related database records (comments, likes, watch history, etc.) will be cleaned up
-- The admin UI will show accurate progress and storage savings
-- No unused code remains
+### 3. `src/hooks/useHonobarStats.tsx`
+
+This has the biggest issues -- client-side aggregation that hits the 1000-row limit. Replace with server-side aggregation:
+
+- **totalUsers**: Add `.eq("banned", false)` to the count query
+- **totalRewards & camlyPool**: Replace the row-fetching approach (`select("total_camly_rewards, approved_reward")` then `.reduce()`) with two `head: true` count queries that use Supabase's built-in aggregation, OR use a simple RPC. Since we need SUM not COUNT, the cleanest approach is a small RPC function.
+- **totalViews**: Same issue -- fetching all video rows to sum `view_count`. Replace with an RPC or use a single aggregate query.
+
+**New database function** `get_honobar_stats`:
+```sql
+CREATE OR REPLACE FUNCTION get_honobar_stats()
+RETURNS jsonb
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+  SELECT jsonb_build_object(
+    'totalUsers', (SELECT COUNT(*) FROM profiles WHERE COALESCE(banned,false)=false),
+    'totalVideos', (SELECT COUNT(*) FROM videos WHERE approval_status='approved'),
+    'totalViews', (SELECT COALESCE(SUM(view_count),0) FROM videos WHERE approval_status='approved'),
+    'totalComments', (SELECT COUNT(*) FROM comments),
+    'totalRewards', (SELECT COALESCE(SUM(total_camly_rewards),0) FROM profiles WHERE COALESCE(banned,false)=false),
+    'totalSubscriptions', (SELECT COUNT(*) FROM subscriptions),
+    'camlyPool', (SELECT COALESCE(SUM(approved_reward),0) FROM profiles WHERE COALESCE(banned,false)=false),
+    'totalPosts', (SELECT COUNT(*) FROM posts),
+    'totalPhotos', (SELECT COUNT(*) FROM videos WHERE category='photo')
+  );
+$$;
+```
+
+Then simplify `useHonobarStats` to a single RPC call instead of 8 parallel queries:
+
+```typescript
+const { data } = await supabase.rpc("get_honobar_stats");
+if (data) setStats(data as HonobarStats);
+```
+
+This eliminates the 1000-row limit problem entirely and reduces 8 network requests to 1.
+
+### 4. No changes needed
+
+- `ProfileHonorBoard.tsx` -- per-user component, correct as-is
+- `usePublicUsersDirectory.ts` -- already filters `WHERE COALESCE(p.banned,false)=false`
+- `useUsersDirectoryStats.ts` -- admin-only, should show all users including banned
+
+## Impact Summary
+
+| System | Before | After |
+|--------|--------|-------|
+| Top Ranking | Shows banned users | Only active users |
+| Top Sponsors | Shows banned donors | Only active donors |
+| Honobar totalUsers | 687 (includes 345 banned) | ~342 active only |
+| Honobar totalRewards | Inflated by banned users | Accurate for active users |
+| Honobar network requests | 8 parallel queries | 1 single RPC call |
+| 1000-row limit risk | Yes (profiles + videos) | Eliminated |
+
+## Technical Details
+
+### Database Migration
+
+One new function: `get_honobar_stats()` -- a read-only SQL function that returns all 9 stats as a single JSON object with banned users excluded.
+
+### File Changes
+
+1. **New migration**: Create `get_honobar_stats` RPC function
+2. **`src/hooks/useHonobarStats.tsx`**: Replace 8 parallel queries with single `supabase.rpc("get_honobar_stats")` call
+3. **`src/hooks/useTopRanking.ts`**: Add `.eq("banned", false)` (1 line)
+4. **`src/hooks/useTopSponsors.ts`**: Add `.eq("banned", false)` to profile fetch + filter out missing profiles (2-3 lines)
 
