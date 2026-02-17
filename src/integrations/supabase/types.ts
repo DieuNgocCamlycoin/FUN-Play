@@ -2570,6 +2570,10 @@ export type Database = {
         Args: { p_owner_id: string; p_target_user_id: string }
         Returns: boolean
       }
+      restore_user_rewards: {
+        Args: { p_admin_id: string; p_user_id: string }
+        Returns: Json
+      }
       sync_reward_totals: {
         Args: never
         Returns: {

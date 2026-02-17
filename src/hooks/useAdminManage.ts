@@ -179,6 +179,36 @@ export const useAdminManage = () => {
     }
   };
 
+  const unbanUserWithRestore = async (userId: string, restoreRewards: boolean) => {
+    if (!user) return false;
+    setActionLoading(true);
+    try {
+      const { error } = await supabase.rpc("unban_user", {
+        p_admin_id: user.id,
+        p_user_id: userId,
+      });
+      if (error) throw error;
+
+      if (restoreRewards) {
+        const { data, error: restoreError } = await supabase.rpc("restore_user_rewards" as any, {
+          p_user_id: userId,
+          p_admin_id: user.id,
+        });
+        if (restoreError) {
+          console.error("Error restoring rewards:", restoreError);
+        }
+      }
+
+      await fetchUsers();
+      return true;
+    } catch (error) {
+      console.error("Error unbanning user with restore:", error);
+      return false;
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const approveReward = async (userId: string, note?: string) => {
     if (!user) return false;
     setActionLoading(true);
@@ -267,6 +297,7 @@ export const useAdminManage = () => {
     isFakeName,
     banUser,
     unbanUser,
+    unbanUserWithRestore,
     approveReward,
     rejectReward,
     unapproveReward,

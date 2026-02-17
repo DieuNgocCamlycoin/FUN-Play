@@ -3,9 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Globe, Users, Wallet, Ban, RefreshCw, Loader2, UserCheck } from "lucide-react";
+import { Globe, Users, Wallet, Ban, RefreshCw, Loader2, UserCheck, RotateCcw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,10 +40,70 @@ interface IPGroup {
 interface IPAbuseDetectionTabProps {
   onBan: (userId: string, reason: string) => Promise<boolean>;
   onUnban: (userId: string) => Promise<boolean>;
+  onUnbanWithRestore: (userId: string, restoreRewards: boolean) => Promise<boolean>;
   loading: boolean;
 }
 
-const IPAbuseDetectionTab = ({ onBan, onUnban, loading }: IPAbuseDetectionTabProps) => {
+// Unban dialog with restore checkbox
+const UnbanDialogInner = ({ user, onUnbanWithRestore, loading, onSuccess }: {
+  user: IPUser;
+  onUnbanWithRestore: (userId: string, restoreRewards: boolean) => Promise<boolean>;
+  loading: boolean;
+  onSuccess: () => void;
+}) => {
+  const [restoreRewards, setRestoreRewards] = useState(false);
+
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button size="sm" variant="outline" className="h-7 px-2 text-xs text-green-500 border-green-500/30" disabled={loading}>
+          <UserCheck className="w-3 h-3 mr-1" />
+          Unban
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Bỏ ban user này?</AlertDialogTitle>
+          <AlertDialogDescription asChild>
+            <div className="space-y-3">
+              <p>User: <strong>{user.display_name || user.username}</strong> sẽ được bỏ ban và có thể sử dụng hệ thống bình thường.</p>
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/50 border">
+                <Checkbox
+                  id={`restore-${user.id}`}
+                  checked={restoreRewards}
+                  onCheckedChange={(checked) => setRestoreRewards(checked === true)}
+                />
+                <div className="grid gap-1">
+                  <label htmlFor={`restore-${user.id}`} className="text-sm font-medium cursor-pointer flex items-center gap-1">
+                    <RotateCcw className="w-3 h-3" />
+                    Khôi phục thưởng
+                  </label>
+                  <p className="text-xs text-muted-foreground">
+                    Tính lại pending & approved từ lịch sử giao dịch (reward_transactions)
+                  </p>
+                </div>
+              </div>
+            </div>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Hủy</AlertDialogCancel>
+          <AlertDialogAction onClick={async () => {
+            const success = await onUnbanWithRestore(user.id, restoreRewards);
+            if (success) {
+              toast.success(`Đã bỏ ban ${user.display_name || user.username}${restoreRewards ? ' + khôi phục thưởng' : ''}`);
+              onSuccess();
+            }
+          }}>
+            Xác nhận Unban
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+};
+
+const IPAbuseDetectionTab = ({ onBan, onUnban, onUnbanWithRestore, loading }: IPAbuseDetectionTabProps) => {
   const [ipGroups, setIpGroups] = useState<IPGroup[]>([]);
   const [fetching, setFetching] = useState(true);
 
@@ -227,34 +288,12 @@ const IPAbuseDetectionTab = ({ onBan, onUnban, loading }: IPAbuseDetectionTabPro
                         {(user.pending_rewards || 0).toLocaleString()}
                       </Badge>
                       {user.banned && (
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button size="sm" variant="outline" className="h-7 px-2 text-xs text-green-500 border-green-500/30" disabled={loading}>
-                              <UserCheck className="w-3 h-3 mr-1" />
-                              Unban
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Bỏ ban user này?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                User: {user.display_name || user.username} sẽ được bỏ ban và có thể sử dụng hệ thống bình thường.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Hủy</AlertDialogCancel>
-                              <AlertDialogAction onClick={async () => {
-                                const success = await onUnban(user.id);
-                                if (success) {
-                                  toast.success(`Đã bỏ ban ${user.display_name || user.username}`);
-                                  fetchIPGroups();
-                                }
-                              }}>
-                                Xác nhận Unban
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                        <UnbanDialogInner
+                          user={user}
+                          onUnbanWithRestore={onUnbanWithRestore}
+                          loading={loading}
+                          onSuccess={() => fetchIPGroups()}
+                        />
                       )}
                     </div>
                   ))}
