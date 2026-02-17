@@ -29,8 +29,8 @@ const TikTokIcon = ({ className }: { className?: string }) => (
 const platforms = [
   { key: "facebook", icon: Facebook, color: "#1877F2", label: "Facebook" },
   { key: "youtube", icon: Youtube, color: "#FF0000", label: "YouTube" },
-  { key: "twitter", icon: XIcon, color: "#000000", label: "X / Twitter" },
-  { key: "tiktok", icon: TikTokIcon, color: "#000000", label: "TikTok" },
+  { key: "twitter", icon: XIcon, color: "#1DA1F2", label: "X / Twitter" },
+  { key: "tiktok", icon: TikTokIcon, color: "#69C9D0", label: "TikTok" },
   { key: "telegram", icon: Send, color: "#0088cc", label: "Telegram" },
 ] as const;
 
