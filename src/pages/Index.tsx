@@ -15,6 +15,7 @@ import { ContinueWatching } from "@/components/Video/ContinueWatching";
 import { BackgroundMusicPlayer } from "@/components/BackgroundMusicPlayer";
 import { PullToRefreshIndicator } from "@/components/Layout/PullToRefreshIndicator";
 import { HonobarDetailModal } from "@/components/Layout/HonobarDetailModal";
+import { ProfileNudgeBanner } from "@/components/Profile/ProfileNudgeBanner";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -59,6 +60,7 @@ const Index = () => {
   const [selectedCategory, setSelectedCategory] = useState("Tất cả");
   const [visibleCount, setVisibleCount] = useState(VIDEOS_PER_PAGE);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [userProfile, setUserProfile] = useState<{ username: string; avatar_url: string | null; avatar_verified: boolean | null } | null>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const { user, loading } = useAuth();
@@ -196,6 +198,20 @@ const Index = () => {
     threshold: 80,
     enabled: isMobile,
   });
+
+  // Fetch user profile for nudge banner
+  useEffect(() => {
+    if (!user) return;
+    const fetchUserProfile = async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("username, avatar_url, avatar_verified")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (data) setUserProfile(data);
+    };
+    fetchUserProfile();
+  }, [user]);
 
   // Initial fetch and subscriptions
   useEffect(() => {
@@ -346,6 +362,15 @@ const Index = () => {
             <MobileTopRankingCard />
             <MobileTopSponsorsCard />
           </div>
+
+          {/* Profile Nudge Banner */}
+          {user && userProfile && (
+            <ProfileNudgeBanner
+              username={userProfile.username}
+              avatarUrl={userProfile.avatar_url}
+              avatarVerified={userProfile.avatar_verified}
+            />
+          )}
 
           {!user && (
             <div className="glass-card mx-4 mt-4 rounded-xl border border-cosmic-magenta/50 p-4 shadow-[0_0_50px_rgba(217,0,255,0.5)]">

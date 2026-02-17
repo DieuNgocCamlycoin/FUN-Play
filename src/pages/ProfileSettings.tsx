@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -9,11 +9,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Save, Play, Pause, Lock, ShieldCheck, ShieldAlert, Loader2 } from "lucide-react";
+import { ArrowLeft, Save, Play, Pause, Lock, ShieldCheck, ShieldAlert, Loader2, CheckCircle2, XCircle, AtSign } from "lucide-react";
 import { MainLayout } from "@/components/Layout/MainLayout";
 import { DragDropImageUpload } from "@/components/Profile/DragDropImageUpload";
 import { ProfileCompletionIndicator } from "@/components/Profile/ProfileCompletionIndicator";
 import { ChangePasswordForm } from "@/components/Profile/ChangePasswordForm";
+import { isNameAppropriate, validateUsernameFormat } from "@/lib/nameFilter";
 
 export default function ProfileSettings() {
   const { user, loading } = useAuth();
@@ -22,6 +23,10 @@ export default function ProfileSettings() {
   const { uploadToR2 } = useR2Upload({ folder: 'music' });
   
   const [displayName, setDisplayName] = useState("");
+  const [username, setUsername] = useState("");
+  const [usernameInput, setUsernameInput] = useState("");
+  const [usernameStatus, setUsernameStatus] = useState<"idle" | "checking" | "available" | "taken" | "invalid">("idle");
+  const [usernameError, setUsernameError] = useState("");
   const [walletAddress, setWalletAddress] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [bannerUrl, setBannerUrl] = useState("");
@@ -36,6 +41,62 @@ export default function ProfileSettings() {
   const [isVerifyingAvatar, setIsVerifyingAvatar] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const musicFileInputRef = useRef<HTMLInputElement | null>(null);
+  const usernameDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Username availability check (debounced)
+  const checkUsernameAvailability = useCallback(async (value: string) => {
+    const formatCheck = validateUsernameFormat(value);
+    if (!formatCheck.ok) {
+      setUsernameStatus("invalid");
+      setUsernameError(formatCheck.reason || "");
+      return;
+    }
+
+    setUsernameStatus("checking");
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("username", value)
+        .neq("id", user!.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (data) {
+        setUsernameStatus("taken");
+        setUsernameError("Username này đã được sử dụng");
+      } else {
+        setUsernameStatus("available");
+        setUsernameError("");
+      }
+    } catch {
+      setUsernameStatus("idle");
+    }
+  }, [user]);
+
+  const handleUsernameChange = (value: string) => {
+    const cleaned = value.toLowerCase().replace(/[^a-z0-9_]/g, "");
+    setUsernameInput(cleaned);
+
+    if (usernameDebounceRef.current) clearTimeout(usernameDebounceRef.current);
+
+    if (!cleaned) {
+      setUsernameStatus("idle");
+      setUsernameError("");
+      return;
+    }
+
+    const formatCheck = validateUsernameFormat(cleaned);
+    if (!formatCheck.ok) {
+      setUsernameStatus("invalid");
+      setUsernameError(formatCheck.reason || "");
+      return;
+    }
+
+    setUsernameStatus("checking");
+    usernameDebounceRef.current = setTimeout(() => {
+      checkUsernameAvailability(cleaned);
+    }, 500);
+  };
 
 
   useEffect(() => {
@@ -61,6 +122,8 @@ export default function ProfileSettings() {
 
       if (data) {
         setDisplayName(data.display_name || "");
+        setUsername(data.username || "");
+        setUsernameInput(data.username?.startsWith("user_") ? "" : data.username || "");
         setWalletAddress(data.wallet_address || "");
         setAvatarUrl(data.avatar_url || "");
         setBio(data.bio || "");
@@ -228,6 +291,47 @@ export default function ProfileSettings() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate display name
+    const nameCheck = isNameAppropriate(displayName);
+    if (!nameCheck.ok) {
+      toast({
+        title: "Tên không phù hợp",
+        description: nameCheck.reason,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate username if user entered one
+    if (usernameInput) {
+      const formatCheck = validateUsernameFormat(usernameInput);
+      if (!formatCheck.ok) {
+        toast({
+          title: "Username không hợp lệ",
+          description: formatCheck.reason,
+          variant: "destructive",
+        });
+        return;
+      }
+      if (usernameStatus === "taken") {
+        toast({
+          title: "Username đã tồn tại",
+          description: "Vui lòng chọn username khác",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (usernameStatus === "checking") {
+        toast({
+          title: "Đang kiểm tra",
+          description: "Vui lòng chờ kiểm tra username",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     setSaving(true);
 
     // Stop preview if playing
@@ -271,15 +375,22 @@ export default function ProfileSettings() {
       }
 
       // Now update the profile
+      const updateData: Record<string, any> = {
+        display_name: displayName,
+        wallet_address: walletAddress,
+        avatar_url: avatarUrl,
+        bio: bio,
+        music_url: finalMusicUrl,
+      };
+
+      // Update username if user provided a custom one
+      if (usernameInput && usernameStatus === "available") {
+        updateData.username = usernameInput;
+      }
+
       const { error } = await supabase
         .from("profiles")
-        .update({
-          display_name: displayName,
-          wallet_address: walletAddress,
-          avatar_url: avatarUrl,
-          bio: bio,
-          music_url: finalMusicUrl,
-        })
+        .update(updateData)
         .eq("id", user!.id);
 
       if (error) throw error;
@@ -346,6 +457,7 @@ export default function ProfileSettings() {
               banner={!!bannerUrl}
               bio={!!bio}
               wallet={!!walletAddress}
+              username={!username?.startsWith("user_")}
             />
           </div>
 
@@ -364,6 +476,53 @@ export default function ProfileSettings() {
                 />
                 <p className="text-xs text-muted-foreground mt-1">
                   Đây là tên sẽ hiển thị trên kênh và bình luận của bạn
+                </p>
+              </div>
+
+              {/* Username field */}
+              <div>
+                <Label htmlFor="username" className="flex items-center gap-1.5">
+                  <AtSign className="h-3.5 w-3.5" />
+                  Username
+                </Label>
+                <div className="relative mt-1">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">@</span>
+                  <Input
+                    id="username"
+                    type="text"
+                    placeholder="ten_cua_ban"
+                    value={usernameInput}
+                    onChange={(e) => handleUsernameChange(e.target.value)}
+                    className="pl-7"
+                    maxLength={30}
+                  />
+                  {usernameInput && (
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2">
+                      {usernameStatus === "checking" && (
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                      )}
+                      {usernameStatus === "available" && (
+                        <CheckCircle2 className="h-4 w-4 text-green-500" />
+                      )}
+                      {(usernameStatus === "taken" || usernameStatus === "invalid") && (
+                        <XCircle className="h-4 w-4 text-destructive" />
+                      )}
+                    </span>
+                  )}
+                </div>
+                {usernameError && (
+                  <p className="text-xs text-destructive mt-1">{usernameError}</p>
+                )}
+                {usernameStatus === "available" && (
+                  <p className="text-xs text-green-600 mt-1">Username khả dụng! ✅</p>
+                )}
+                {!usernameInput && username?.startsWith("user_") && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    Bạn đang dùng username hệ thống ({username}). Hãy chọn username đẹp hơn!
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground mt-1">
+                  3-30 ký tự, chỉ chữ thường, số và dấu gạch dưới. Dùng cho URL hồ sơ: play.fun.rich/@username
                 </p>
               </div>
 
