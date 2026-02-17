@@ -48,8 +48,6 @@ verify_jwt = false
 [functions.check-upload-reward]
 verify_jwt = false
 
-[functions.detect-abuse]
-verify_jwt = false
 
 [functions.generate-video-thumbnails]
 verify_jwt = false

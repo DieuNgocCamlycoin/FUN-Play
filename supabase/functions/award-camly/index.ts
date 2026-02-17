@@ -478,7 +478,7 @@ serve(async (req) => {
       );
     }
 
-    // 11. Trust score gating - check AUTO_APPROVE_ENABLED config first
+    // 11. Trust score gating with INLINE abuse detection
     let canAutoApprove = false;
     
     try {
@@ -492,19 +492,40 @@ serve(async (req) => {
       const isAutoApproveEnabled = autoApproveConfig?.config_value === 1;
       
       if (!isAutoApproveEnabled) {
-        // Auto-approve is OFF globally -- all rewards require admin approval
         canAutoApprove = false;
         console.log(`AUTO_APPROVE_ENABLED=false, reward for user ${userId} requires admin approval`);
       } else {
-        // Auto-approve is ON -- use trust score gating
+        // Compute suspicious_score fresh (inline abuse detection)
         const autoApproveThreshold = validation.AUTO_APPROVE_THRESHOLD || 3;
-        const { data: profileData } = await adminSupabase
+        let suspiciousScore = 0;
+
+        const { data: profileForAbuse } = await adminSupabase
           .from("profiles")
-          .select("suspicious_score")
+          .select("signup_ip_hash, avatar_url, avatar_verified, display_name, created_at")
           .eq("id", userId)
           .single();
-        
-        const suspiciousScore = profileData?.suspicious_score || 0;
+
+        if (profileForAbuse?.signup_ip_hash) {
+          const { count: sameIpCount } = await adminSupabase
+            .from("ip_tracking")
+            .select("user_id", { count: "exact", head: true })
+            .eq("ip_hash", profileForAbuse.signup_ip_hash)
+            .eq("action_type", "signup");
+          
+          if ((sameIpCount || 0) > 5) suspiciousScore += 3;
+          else if ((sameIpCount || 0) > 2) suspiciousScore += 1;
+        }
+
+        if (!profileForAbuse?.avatar_url) suspiciousScore += 1;
+        if (!profileForAbuse?.avatar_verified) suspiciousScore += 1;
+        if (!profileForAbuse?.display_name || profileForAbuse.display_name.length < 3) suspiciousScore += 1;
+
+        // Persist updated score for admin visibility
+        await adminSupabase
+          .from("profiles")
+          .update({ suspicious_score: suspiciousScore })
+          .eq("id", userId);
+
         canAutoApprove = suspiciousScore < autoApproveThreshold;
         
         if (!canAutoApprove) {
@@ -512,7 +533,6 @@ serve(async (req) => {
         }
       }
     } catch (err) {
-      // If we can't check, default to requiring approval
       console.warn("Could not check auto-approve config, defaulting to pending:", err);
       canAutoApprove = false;
     }
