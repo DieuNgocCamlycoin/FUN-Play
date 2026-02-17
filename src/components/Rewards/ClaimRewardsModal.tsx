@@ -348,11 +348,17 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
 
       logWalletDebug('Claim response', response);
 
+      // Network/auth errors from supabase client
       if (response.error) {
         throw new Error(response.error.message || "Claim failed");
       }
 
       const data = response.data;
+
+      // Edge function now returns 200 for all user-facing errors with { success: false, error: "..." }
+      if (!data?.success) {
+        throw new Error(data?.error || "Claim failed");
+      }
 
       if (data.success) {
         setClaimSuccess(true);
