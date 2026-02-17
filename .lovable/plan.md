@@ -1,50 +1,49 @@
 
 
-# Fix Claim Error Display - Return 200 for User-Facing Errors
-
-## Confirmed Status
-
-- Admin wallet: **79,367,000 CAMLY** available (plenty of funds)
-- BNB gas: **0.0199 BNB** (sufficient)
-- Wallet address: `0x9848fFc886Fb7d17C0060ff11c75997C9B2de4cC`
+# Fix CAMLY Claim System - Wrong Token Decimals
 
 ## Root Cause
 
-The Supabase JS client discards response body for non-2xx HTTP status codes. All friendly error messages (Vietnamese) in the edge function are lost and replaced with "Edge Function returned a non-2xx status code".
+The CAMLY token contract uses **3 decimals** (confirmed by on-chain `decimals()` call), but the `claim-camly` edge function hardcodes **18 decimals** on line 176:
 
-## Changes
+```
+ethers.parseUnits(claimAmount.toString(), 18)  // WRONG
+```
 
-### File 1: `supabase/functions/claim-camly/index.ts`
+When a user claims 500,000 CAMLY:
+- With 18 decimals: 500,000 x 10^18 = 5 x 10^23 (astronomically large)
+- With 3 decimals: 500,000 x 10^3 = 500,000,000 (correct)
 
-Change all user-facing error responses from HTTP 400/500/503 to HTTP 200 with `{ success: false, error: "..." }`:
+The wallet has 79,367,000 CAMLY (raw: ~79,367,000,000). The balance check always fails because 5 x 10^23 > 79,367,000,000.
 
-- Line 68-71: "Invalid wallet address" (400 -> 200)
-- Line 84-87: "Failed to fetch rewards" (500 -> 200)
-- Line 91-94: "No unclaimed rewards" (400 -> 200)
-- Line 103-106: "No rewards to claim" (400 -> 200)
-- Line 127-132: "Minimum claim amount" (400 -> 200)
-- Line 148-151: "Daily limit reached" (400 -> 200)
-- Line 168-171: "Lifetime limit reached" (400 -> 200)
-- Line 179-182: "Min amount for custom" (400 -> 200)
-- Line 184-188: "Exceeds limit for custom" (400 -> 200)
-- Line 221-224: "Pending claim exists" (400 -> 200)
-- Line 241-243: "Failed to create claim" (500 -> 200)
-- Line 256-258: "System not configured" (500 -> 200)
-- Line 291-294: "Reward pool unavailable" (503 -> 200)
-- Line 510-512: General catch block (500 -> 200)
+This explains why EVERY claim request in the database has `error_message: "Insufficient CAMLY balance in reward pool"` despite the wallet having 79M+ CAMLY.
 
-Keep 401 for auth errors (lines 32-35, 55-58) since those should genuinely block.
+## Fix
 
-### File 2: `src/components/Rewards/ClaimRewardsModal.tsx`
+### File: `supabase/functions/claim-camly/index.ts`
 
-Update `handleClaim` (around lines 344-427):
+**Line 176**: Change decimals from 18 to 3:
 
-- After `supabase.functions.invoke()`, check `response.data?.success === false` FIRST
-- If `success === false`, use `response.data.error` as the error message
-- Keep `response.error` check as fallback for network/auth errors
-- The existing friendly message mapping (lines 392-411) will now work correctly since it receives the actual error string
+```typescript
+// Before (WRONG):
+const amountInWei = ethers.parseUnits(claimAmount.toString(), 18);
 
-## No Database Changes
+// After (CORRECT):
+const amountInWei = ethers.parseUnits(claimAmount.toString(), 3);
+```
 
-## Impact
-Users will see clear Vietnamese error messages instead of "Edge Function returned a non-2xx status code".
+That is the only code change needed. The edge function error handling (returning 200 with friendly messages) is already correctly deployed from the previous fix.
+
+## No other changes needed
+
+- The frontend `ClaimRewardsModal.tsx` already handles `success: false` responses correctly
+- The edge function already returns 200 for all user-facing errors
+- No database changes required
+- Both web and mobile use the same edge function, so both are fixed
+
+## Verification
+
+After deploying, claims should succeed because:
+- 500,000 CAMLY with 3 decimals = 500,000,000 raw units
+- Wallet balance = 79,367,000,000 raw units
+- 79,367,000,000 > 500,000,000 (balance check passes)
