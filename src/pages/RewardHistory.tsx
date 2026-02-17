@@ -95,12 +95,14 @@ export default function RewardHistory() {
   const [isLive, setIsLive] = useState(false);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
+  const fetchRef = useRef<() => void>(() => {});
+
   const debouncedRefresh = useCallback(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      fetchTransactions();
+      fetchRef.current();
     }, 500);
-  }, [user]);
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -245,6 +247,7 @@ export default function RewardHistory() {
       setLoading(false);
     }
   };
+  fetchRef.current = fetchTransactions;
 
   const filterTransactions = () => {
     let filtered = [...transactions];
