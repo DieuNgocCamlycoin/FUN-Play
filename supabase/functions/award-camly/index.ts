@@ -202,6 +202,24 @@ serve(async (req) => {
     }
 
     const userId = user.id;
+
+    // === BAN CHECK (early exit before any reward logic) ===
+    const serviceRoleKeyEarly = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    const adminSupabaseEarly = createClient(supabaseUrl, serviceRoleKeyEarly);
+    const { data: profileCheck } = await adminSupabaseEarly
+      .from('profiles')
+      .select('banned')
+      .eq('id', userId)
+      .single();
+    
+    if (profileCheck?.banned === true) {
+      console.log(`[award-camly] Blocked banned user ${userId}`);
+      return new Response(
+        JSON.stringify({ success: false, reason: 'Account suspended', milestone: null, newTotal: 0, amount: 0, type: 'BLOCKED' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { type, videoId, contentHash, commentLength, sessionId } = await req.json();
 
     // 4. Validate reward type

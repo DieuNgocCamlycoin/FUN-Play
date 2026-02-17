@@ -104,11 +104,29 @@ Deno.serve(async (req) => {
         .eq('action_type', 'signup')
         .gte('created_at', oneHourAgo);
 
+      // Check how many BANNED accounts share this IP hash
+      const { count: bannedFromSameIp } = await supabaseAdmin
+        .from('profiles')
+        .select('id', { count: 'exact', head: true })
+        .eq('signup_ip_hash', ipHash)
+        .eq('banned', true);
+
       const updateData: Record<string, any> = { signup_ip_hash: ipHash };
       
       if ((recentSignups || 0) >= 3) {
         updateData.suspicious_score = 5;
         console.log(`[track-ip] Flagged user ${user.id} with suspicious_score=5 (${recentSignups} signups from same IP in 1hr)`);
+      }
+
+      // Auto-ban if 3+ banned accounts from same IP (farming cluster)
+      if ((bannedFromSameIp || 0) >= 3) {
+        updateData.banned = true;
+        updateData.banned_at = new Date().toISOString();
+        updateData.ban_reason = `Auto-banned: IP associated with ${bannedFromSameIp} banned accounts`;
+        updateData.violation_level = 3;
+        updateData.pending_rewards = 0;
+        updateData.approved_reward = 0;
+        console.log(`[track-ip] AUTO-BANNED user ${user.id} (${bannedFromSameIp} banned accounts from same IP)`);
       }
 
       const { error: updateError } = await supabaseAdmin
@@ -119,7 +137,7 @@ Deno.serve(async (req) => {
       if (updateError) {
         console.error('[track-ip] Profile update error:', updateError.message);
       } else {
-        console.log(`[track-ip] Updated signup_ip_hash for user ${user.id}`);
+        console.log(`[track-ip] Updated signup_ip_hash for user ${user.id}${updateData.banned ? ' (AUTO-BANNED)' : ''}`);
       }
     }
 
