@@ -1517,6 +1517,7 @@ export type Database = {
           bio: string | null
           created_at: string
           display_name: string | null
+          facebook_url: string | null
           first_upload_rewarded: boolean | null
           id: string
           last_claim_at: string | null
@@ -1527,14 +1528,18 @@ export type Database = {
           signup_ip_hash: string | null
           signup_rewarded: boolean | null
           suspicious_score: number | null
+          telegram_url: string | null
+          tiktok_url: string | null
           total_camly_rewards: number
           total_fun_minted: number | null
+          twitter_url: string | null
           updated_at: string
           username: string
           violation_level: number | null
           wallet_address: string | null
           wallet_connect_rewarded: boolean | null
           wallet_type: string | null
+          youtube_url: string | null
         }
         Insert: {
           approved_reward?: number | null
@@ -1547,6 +1552,7 @@ export type Database = {
           bio?: string | null
           created_at?: string
           display_name?: string | null
+          facebook_url?: string | null
           first_upload_rewarded?: boolean | null
           id: string
           last_claim_at?: string | null
@@ -1557,14 +1563,18 @@ export type Database = {
           signup_ip_hash?: string | null
           signup_rewarded?: boolean | null
           suspicious_score?: number | null
+          telegram_url?: string | null
+          tiktok_url?: string | null
           total_camly_rewards?: number
           total_fun_minted?: number | null
+          twitter_url?: string | null
           updated_at?: string
           username: string
           violation_level?: number | null
           wallet_address?: string | null
           wallet_connect_rewarded?: boolean | null
           wallet_type?: string | null
+          youtube_url?: string | null
         }
         Update: {
           approved_reward?: number | null
@@ -1577,6 +1587,7 @@ export type Database = {
           bio?: string | null
           created_at?: string
           display_name?: string | null
+          facebook_url?: string | null
           first_upload_rewarded?: boolean | null
           id?: string
           last_claim_at?: string | null
@@ -1587,14 +1598,18 @@ export type Database = {
           signup_ip_hash?: string | null
           signup_rewarded?: boolean | null
           suspicious_score?: number | null
+          telegram_url?: string | null
+          tiktok_url?: string | null
           total_camly_rewards?: number
           total_fun_minted?: number | null
+          twitter_url?: string | null
           updated_at?: string
           username?: string
           violation_level?: number | null
           wallet_address?: string | null
           wallet_connect_rewarded?: boolean | null
           wallet_type?: string | null
+          youtube_url?: string | null
         }
         Relationships: []
       }

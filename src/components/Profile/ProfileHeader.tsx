@@ -1,5 +1,7 @@
 import { motion } from "framer-motion";
 import { ProfileHonorBoard } from "./ProfileHonorBoard";
+import { SocialMediaOrbit } from "./SocialMediaOrbit";
+import { CredibilityDiamond } from "./CredibilityDiamond";
 
 interface ProfileHeaderProps {
   profile: {
@@ -7,6 +9,12 @@ interface ProfileHeaderProps {
     avatar_url: string | null;
     display_name: string | null;
     username: string;
+    total_camly_rewards: number;
+    facebook_url?: string | null;
+    youtube_url?: string | null;
+    twitter_url?: string | null;
+    tiktok_url?: string | null;
+    telegram_url?: string | null;
   };
   channel: {
     id: string;
@@ -66,7 +74,7 @@ export const ProfileHeader = ({ profile, channel }: ProfileHeaderProps) => {
               }}
             />
 
-            {/* Avatar */}
+            {/* Avatar with Diamond + Social Icons */}
             <div className="relative w-32 h-32 md:w-40 md:h-40 lg:w-48 lg:h-48 rounded-full border-4 border-background overflow-hidden bg-background">
               {profile.avatar_url ? (
                 <img
@@ -82,6 +90,18 @@ export const ProfileHeader = ({ profile, channel }: ProfileHeaderProps) => {
                 </div>
               )}
             </div>
+
+            {/* Credibility Diamond at top */}
+            <CredibilityDiamond totalCamly={profile.total_camly_rewards} />
+
+            {/* Social Media Icons around bottom */}
+            <SocialMediaOrbit
+              facebookUrl={profile.facebook_url}
+              youtubeUrl={profile.youtube_url}
+              twitterUrl={profile.twitter_url}
+              tiktokUrl={profile.tiktok_url}
+              telegramUrl={profile.telegram_url}
+            />
           </div>
         </motion.div>
       </div>

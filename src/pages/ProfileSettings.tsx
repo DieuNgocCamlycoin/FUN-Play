@@ -39,6 +39,11 @@ export default function ProfileSettings() {
   const [isUploadingMusic, setIsUploadingMusic] = useState(false);
   const [avatarVerified, setAvatarVerified] = useState<boolean | null>(null);
   const [isVerifyingAvatar, setIsVerifyingAvatar] = useState(false);
+  const [facebookUrl, setFacebookUrl] = useState("");
+  const [youtubeUrl, setYoutubeUrl] = useState("");
+  const [twitterUrl, setTwitterUrl] = useState("");
+  const [tiktokUrl, setTiktokUrl] = useState("");
+  const [telegramUrl, setTelegramUrl] = useState("");
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const musicFileInputRef = useRef<HTMLInputElement | null>(null);
   const usernameDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -129,6 +134,11 @@ export default function ProfileSettings() {
         setBio(data.bio || "");
         setMusicUrl(data.music_url || "");
         setAvatarVerified(data.avatar_verified ?? null);
+        setFacebookUrl((data as any).facebook_url || "");
+        setYoutubeUrl((data as any).youtube_url || "");
+        setTwitterUrl((data as any).twitter_url || "");
+        setTiktokUrl((data as any).tiktok_url || "");
+        setTelegramUrl((data as any).telegram_url || "");
       }
 
       // Fetch channel info for banner
@@ -381,7 +391,12 @@ export default function ProfileSettings() {
         avatar_url: avatarUrl,
         bio: bio,
         music_url: finalMusicUrl,
-      };
+        facebook_url: facebookUrl || null,
+        youtube_url: youtubeUrl || null,
+        twitter_url: twitterUrl || null,
+        tiktok_url: tiktokUrl || null,
+        telegram_url: telegramUrl || null,
+      } as any;
 
       // Update username if user provided a custom one
       if (usernameInput && usernameStatus === "available") {
@@ -629,6 +644,36 @@ export default function ProfileSettings() {
                 <p className="text-xs text-muted-foreground mt-1">
                   Viết mô tả ngắn cho kênh của bạn
                 </p>
+              </div>
+
+              {/* Social Media Links */}
+              <div className="border-t border-border pt-6 mt-6">
+                <h3 className="text-lg font-semibold text-foreground mb-4">
+                  Liên kết mạng xã hội
+                </h3>
+                <div className="space-y-3">
+                  <div>
+                    <Label htmlFor="facebookUrl">Facebook</Label>
+                    <Input id="facebookUrl" type="url" placeholder="https://facebook.com/username" value={facebookUrl} onChange={(e) => setFacebookUrl(e.target.value)} className="mt-1" />
+                  </div>
+                  <div>
+                    <Label htmlFor="youtubeUrl">YouTube</Label>
+                    <Input id="youtubeUrl" type="url" placeholder="https://youtube.com/@channel" value={youtubeUrl} onChange={(e) => setYoutubeUrl(e.target.value)} className="mt-1" />
+                  </div>
+                  <div>
+                    <Label htmlFor="twitterUrl">X / Twitter</Label>
+                    <Input id="twitterUrl" type="url" placeholder="https://x.com/username" value={twitterUrl} onChange={(e) => setTwitterUrl(e.target.value)} className="mt-1" />
+                  </div>
+                  <div>
+                    <Label htmlFor="tiktokUrl">TikTok</Label>
+                    <Input id="tiktokUrl" type="url" placeholder="https://tiktok.com/@username" value={tiktokUrl} onChange={(e) => setTiktokUrl(e.target.value)} className="mt-1" />
+                  </div>
+                  <div>
+                    <Label htmlFor="telegramUrl">Telegram</Label>
+                    <Input id="telegramUrl" type="url" placeholder="https://t.me/username" value={telegramUrl} onChange={(e) => setTelegramUrl(e.target.value)} className="mt-1" />
+                  </div>
+                  <p className="text-xs text-muted-foreground">Các link sẽ hiển thị quanh avatar trên trang cá nhân của bạn</p>
+                </div>
               </div>
 
               <div className="border-t border-border pt-6 mt-6">
