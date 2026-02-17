@@ -1,7 +1,6 @@
 import { motion } from "framer-motion";
 import { ProfileHonorBoard } from "./ProfileHonorBoard";
 import { SocialMediaOrbit } from "./SocialMediaOrbit";
-import { CredibilityDiamond } from "./CredibilityDiamond";
 
 interface ProfileHeaderProps {
   profile: {
@@ -9,7 +8,6 @@ interface ProfileHeaderProps {
     avatar_url: string | null;
     display_name: string | null;
     username: string;
-    total_camly_rewards: number;
     facebook_url?: string | null;
     youtube_url?: string | null;
     twitter_url?: string | null;
@@ -90,9 +88,6 @@ export const ProfileHeader = ({ profile, channel }: ProfileHeaderProps) => {
                 </div>
               )}
             </div>
-
-            {/* Credibility Diamond at top */}
-            <CredibilityDiamond totalCamly={profile.total_camly_rewards} />
 
             {/* Social Media Icons around bottom */}
             <SocialMediaOrbit
