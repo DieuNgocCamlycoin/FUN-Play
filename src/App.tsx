@@ -34,6 +34,7 @@ import { BannedScreen } from './components/BannedScreen';
 import { useAuth } from './hooks/useAuth';
 import { Skeleton } from "./components/ui/skeleton";
 import { ValentineMusicButton } from './components/ValentineMusicButton';
+import { ProfileOnboardingModal } from './components/Onboarding/ProfileOnboardingModal';
 
 // Lazy loaded pages - Less frequently used
 const ProfileSettings = lazy(() => import("./pages/ProfileSettings"));
@@ -210,6 +211,7 @@ function AppContent() {
           </Routes>
         </Suspense>
       </RecoveryModeGuard>
+      <ProfileOnboardingModal />
       <GlobalMiniPlayer />
       <ValentineMusicButton />
       <BackgroundUploadIndicator />

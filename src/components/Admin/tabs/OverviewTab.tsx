@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { useAdminStatistics } from "@/hooks/useAdminStatistics";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -10,13 +11,57 @@ import {
 } from "recharts";
 import { 
   Users, Video, Eye, MessageSquare, Coins, Activity, 
-  Crown, Award, TrendingUp, Download 
+  Crown, Award, TrendingUp, Download, Bell, Loader2 
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export function OverviewTab() {
   const { platformStats, topCreators, topEarners, dailyStats, loading } = useAdminStatistics();
+  const { user } = useAuth();
+  const [systemUsernameCount, setSystemUsernameCount] = useState<number | null>(null);
+  const [notifying, setNotifying] = useState(false);
+
+  useEffect(() => {
+    const fetchCount = async () => {
+      const { count } = await supabase
+        .from("profiles")
+        .select("id", { count: "exact", head: true })
+        .like("username", "user_%")
+        .eq("banned", false);
+      setSystemUsernameCount(count ?? 0);
+    };
+    fetchCount();
+  }, []);
+
+  const handleBulkNotify = async () => {
+    if (!user) return;
+    setNotifying(true);
+    try {
+      const { data, error } = await supabase.rpc("bulk_notify_system_usernames", {
+        p_admin_id: user.id,
+      });
+      if (error) throw error;
+      toast.success(`Đã gửi thông báo cho ${data} người dùng!`);
+    } catch (err: any) {
+      toast.error("Lỗi: " + (err.message || "Không thể gửi thông báo"));
+    } finally {
+      setNotifying(false);
+    }
+  };
 
   const exportRewardStatsToCSV = () => {
     if (!dailyStats || dailyStats.length === 0) {
@@ -101,7 +146,7 @@ export function OverviewTab() {
 
   return (
     <div className="space-y-6">
-      {/* Export Buttons */}
+      {/* Export & Admin Action Buttons */}
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" size="sm" onClick={exportRewardStatsToCSV}>
           <Download className="w-4 h-4 mr-2" />
@@ -111,6 +156,34 @@ export function OverviewTab() {
           <Download className="w-4 h-4 mr-2" />
           Xuất Top Users
         </Button>
+
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="outline" size="sm" className="border-primary/50 text-primary hover:bg-primary/10">
+              <Bell className="w-4 h-4 mr-2" />
+              Nhắc cập nhật hồ sơ
+              {systemUsernameCount !== null && (
+                <Badge variant="secondary" className="ml-2">{systemUsernameCount}</Badge>
+              )}
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Gửi thông báo hàng loạt?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Sẽ gửi thông báo cho {systemUsernameCount ?? "..."} người dùng đang dùng username hệ thống (user_*),
+                nhắc họ cập nhật username và ảnh đại diện.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Hủy</AlertDialogCancel>
+              <AlertDialogAction onClick={handleBulkNotify} disabled={notifying}>
+                {notifying ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Bell className="w-4 h-4 mr-2" />}
+                Gửi thông báo
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
 
       {/* Platform Stats Cards */}
