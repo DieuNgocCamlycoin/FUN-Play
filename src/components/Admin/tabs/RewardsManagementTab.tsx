@@ -78,7 +78,6 @@ export function RewardsManagementTab() {
           users={users} 
           walletGroups={walletGroups} 
           onBan={banUser} 
-          onUnban={unbanUser}
           onUnbanWithRestore={unbanUserWithRestore}
           isFakeName={isFakeName} 
           loading={actionLoading} 
