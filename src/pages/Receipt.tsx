@@ -11,7 +11,7 @@ import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 
-const TET_EMOJIS = ["🌸", "🏮", "🧧", "🎆", "🌺", "🎊"];
+const TET_EMOJIS = ["🌸", "🏮", "🧧", "🌺", "💮", "🌷"];
 
 const TET_FLOAT_CLASSES = [
   "animate-tet-float",
@@ -56,9 +56,9 @@ function TetBanner() {
     <div className="text-center py-3 bg-gradient-to-r from-red-100 via-yellow-50 to-red-100 dark:from-red-950/30 dark:to-yellow-950/30 rounded-xl border border-red-300/60 relative overflow-hidden">
       <div className="flex items-center justify-center gap-3 text-2xl mb-1">
         <span>🧧</span>
-        <span>🏮</span>
-        <span>🎆</span>
-        <span>🏮</span>
+        <span>🌸</span>
+        <span>🌺</span>
+        <span>🌸</span>
         <span>🧧</span>
       </div>
       <p className="text-sm font-bold text-red-700 dark:text-red-400">Chúc Mừng Năm Mới 2026</p>
@@ -332,7 +332,7 @@ function DonationReceipt({ receiptPublicId }: { receiptPublicId: string }) {
           {/* Header */}
           <div className="text-center space-y-2 relative">
             {/* Floating Tet elements */}
-            {["🌸", "🏮", "🧧", "🎆"].map((emoji, i) => (
+            {["🌸", "🌺", "🧧", "💮"].map((emoji, i) => (
               <span
                 key={i}
                 className={`absolute text-red-300/40 animate-tet-scale-float${i > 0 ? `-${i}` : ''}`}
