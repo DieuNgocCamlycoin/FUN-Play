@@ -20,6 +20,7 @@ export const useTopRanking = (limit: number = 5) => {
       const { data, error } = await supabase
         .from("profiles")
         .select("id, username, display_name, avatar_url, total_camly_rewards")
+        .eq("banned", false)
         .order("total_camly_rewards", { ascending: false })
         .limit(limit);
 
