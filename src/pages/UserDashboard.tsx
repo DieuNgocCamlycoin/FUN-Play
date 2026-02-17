@@ -87,10 +87,7 @@ const UserDashboard = () => {
     color: REWARD_TYPE_COLORS[item.type] || "#888",
   })) || [];
 
-  const chartData = statistics?.dailyRewards.map((item) => ({
-    date: format(new Date(item.date), "dd/MM"),
-    amount: item.amount,
-  })) || [];
+  const chartData: { date: string; amount: number }[] = [];
 
   return (
     <MainLayout>

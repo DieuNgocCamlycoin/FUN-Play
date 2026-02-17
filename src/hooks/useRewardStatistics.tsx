@@ -7,15 +7,9 @@ interface RewardBreakdown {
   count: number;
 }
 
-interface DailyReward {
-  date: string;
-  amount: number;
-}
-
 interface UserStatistics {
   totalEarned: number;
   breakdown: RewardBreakdown[];
-  dailyRewards: DailyReward[];
   todayLimits: {
     viewRewardsEarned: number;
     commentRewardsEarned: number;
@@ -59,7 +53,6 @@ export const useRewardStatistics = (userId: string | undefined) => {
         setStatistics({
           totalEarned: Number(s.total_camly) || 0,
           breakdown,
-          dailyRewards: [], // Not needed - RewardHistory uses its own RPC
           todayLimits: {
             viewRewardsEarned: Number(limitsRes.data?.view_rewards_earned) || 0,
             commentRewardsEarned: Number(limitsRes.data?.comment_rewards_earned) || 0,
@@ -94,7 +87,7 @@ export const useRewardHistory = (userId: string | undefined) => {
         const { data } = await supabase
           .from("reward_transactions")
           .select(`
-            *,
+            id, amount, reward_type, created_at, claimed, approved, video_id,
             videos (title)
           `)
           .eq("user_id", userId)
