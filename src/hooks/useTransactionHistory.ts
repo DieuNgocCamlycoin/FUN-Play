@@ -549,7 +549,7 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
     } finally {
       setLoading(false);
     }
-  }, [publicMode, user?.id, limit, offset, transactions]);
+  }, [publicMode, user?.id, limit, offset]);
 
   // ========== Apply Filters ==========
   useEffect(() => {
@@ -640,34 +640,58 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
       }, 500);
     };
 
-    const channel = supabase
-      .channel('realtime-tx-history')
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'wallet_transactions',
-      }, debouncedRefresh)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'donation_transactions',
-      }, debouncedRefresh)
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'donation_transactions',
-      }, debouncedRefresh)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'claim_requests',
-      }, debouncedRefresh)
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'claim_requests',
-      }, debouncedRefresh)
-      .subscribe();
+    // Build channel with user-specific filters in private mode to reduce unnecessary refetches
+    const channelBuilder = supabase.channel(`realtime-tx-history-${user?.id || 'public'}`);
+
+    if (!publicMode && user?.id) {
+      // Private mode: filter by user to avoid unnecessary refreshes from other users' transactions
+      channelBuilder
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'donation_transactions',
+          filter: `sender_id=eq.${user.id}`,
+        }, debouncedRefresh)
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'donation_transactions',
+          filter: `receiver_id=eq.${user.id}`,
+        }, debouncedRefresh)
+        .on('postgres_changes', {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'donation_transactions',
+          filter: `receiver_id=eq.${user.id}`,
+        }, debouncedRefresh)
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'claim_requests',
+          filter: `user_id=eq.${user.id}`,
+        }, debouncedRefresh)
+        .on('postgres_changes', {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'claim_requests',
+          filter: `user_id=eq.${user.id}`,
+        }, debouncedRefresh)
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'wallet_transactions',
+        }, debouncedRefresh);
+    } else {
+      // Public mode: listen to all changes
+      channelBuilder
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'wallet_transactions' }, debouncedRefresh)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'donation_transactions' }, debouncedRefresh)
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'donation_transactions' }, debouncedRefresh)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'claim_requests' }, debouncedRefresh)
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'claim_requests' }, debouncedRefresh);
+    }
+
+    const channel = channelBuilder.subscribe();
 
     return () => {
       if (debounceTimer) clearTimeout(debounceTimer);

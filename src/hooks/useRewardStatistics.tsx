@@ -35,72 +35,55 @@ export const useRewardStatistics = (userId: string | undefined) => {
 
     const fetchStatistics = async () => {
       try {
-        // Get total from profile
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("total_camly_rewards")
-          .eq("id", userId)
-          .single();
+        // Single optimized query: fetch profile + transactions + today limits in parallel
+        const today = new Date().toISOString().split('T')[0];
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-        // Get breakdown by type
-        const { data: transactions } = await supabase
-          .from("reward_transactions")
-          .select("reward_type, amount")
-          .eq("user_id", userId);
+        const [profileRes, transactionsRes, limitsRes] = await Promise.all([
+          supabase
+            .from("profiles")
+            .select("total_camly_rewards")
+            .eq("id", userId)
+            .single(),
+          supabase
+            .from("reward_transactions")
+            .select("reward_type, amount, created_at")
+            .eq("user_id", userId)
+            .gte("created_at", thirtyDaysAgo.toISOString())
+            .order("created_at", { ascending: true }),
+          supabase
+            .from("daily_reward_limits")
+            .select("view_rewards_earned, comment_rewards_earned, uploads_count")
+            .eq("user_id", userId)
+            .eq("date", today)
+            .maybeSingle(),
+        ]);
 
-        // Calculate breakdown
+        // Calculate breakdown and daily rewards from the single transactions query
         const breakdownMap = new Map<string, { total: number; count: number }>();
-        transactions?.forEach((tx) => {
+        const dailyMap = new Map<string, number>();
+
+        transactionsRes.data?.forEach((tx) => {
+          // Breakdown
           const existing = breakdownMap.get(tx.reward_type) || { total: 0, count: 0 };
           breakdownMap.set(tx.reward_type, {
             total: existing.total + Number(tx.amount),
             count: existing.count + 1,
           });
-        });
-
-        const breakdown: RewardBreakdown[] = Array.from(breakdownMap.entries()).map(
-          ([type, data]) => ({ type, ...data })
-        );
-
-        // Get daily rewards for last 30 days
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-        const { data: recentTransactions } = await supabase
-          .from("reward_transactions")
-          .select("amount, created_at")
-          .eq("user_id", userId)
-          .gte("created_at", thirtyDaysAgo.toISOString())
-          .order("created_at", { ascending: true });
-
-        // Group by date
-        const dailyMap = new Map<string, number>();
-        recentTransactions?.forEach((tx) => {
+          // Daily
           const date = new Date(tx.created_at).toISOString().split('T')[0];
           dailyMap.set(date, (dailyMap.get(date) || 0) + Number(tx.amount));
         });
 
-        const dailyRewards: DailyReward[] = Array.from(dailyMap.entries()).map(
-          ([date, amount]) => ({ date, amount })
-        );
-
-        // Get today's limits
-        const today = new Date().toISOString().split('T')[0];
-        const { data: limits } = await supabase
-          .from("daily_reward_limits")
-          .select("*")
-          .eq("user_id", userId)
-          .eq("date", today)
-          .single();
-
         setStatistics({
-          totalEarned: Number(profile?.total_camly_rewards) || 0,
-          breakdown,
-          dailyRewards,
+          totalEarned: Number(profileRes.data?.total_camly_rewards) || 0,
+          breakdown: Array.from(breakdownMap.entries()).map(([type, data]) => ({ type, ...data })),
+          dailyRewards: Array.from(dailyMap.entries()).map(([date, amount]) => ({ date, amount })),
           todayLimits: {
-            viewRewardsEarned: Number(limits?.view_rewards_earned) || 0,
-            commentRewardsEarned: Number(limits?.comment_rewards_earned) || 0,
-            uploadCount: Number(limits?.uploads_count) || 0,
+            viewRewardsEarned: Number(limitsRes.data?.view_rewards_earned) || 0,
+            commentRewardsEarned: Number(limitsRes.data?.comment_rewards_earned) || 0,
+            uploadCount: Number(limitsRes.data?.uploads_count) || 0,
           },
         });
       } catch (error) {
