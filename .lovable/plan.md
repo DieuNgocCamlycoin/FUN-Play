@@ -1,47 +1,47 @@
 
-# Fix FUN PLAY TREASURY Wallet Address and Optimize Reward History System
+# Fix FUN PLAY TREASURY Wallet Display and Optimize Reward History System
 
-## Problem Found
-The FUN PLAY TREASURY account has TWO wallet addresses used in different contexts:
-- **New auto-reward wallet**: `0x9848fFc886Fb7d17C0060ff11c75997C9B2de4cC` (current profile wallet, used for new claims)
-- **Old treasury wallet**: `0x1DC24BFd99c256B12a4A4cC7732c7e3B9aA75998` (historical transactions from 25/11/2025 to 08/01/2026)
+## Issues Found
 
-The `systemWallets.ts` config only recognizes the OLD address for TREASURY, so transactions from the NEW auto-reward wallet (`0x9848...`) are NOT branded as "FUN PLAY TREASURY" in the transaction history. This causes incorrect display.
+### 1. Claim transactions show wrong TREASURY wallet address
+In `useTransactionHistory.ts` (line 385-391), ALL claim_requests use `SYSTEM_WALLETS.TREASURY.address` (`0x1DC24...`) as the sender wallet. However, new claims are sent from the AUTO_REWARD wallet (`0x9848...`). The sender wallet should be `AUTO_REWARD` for consistency with the actual on-chain transaction.
+
+### 2. `useRewardStatistics.tsx` queries `reward_transactions` redundantly
+The `useRewardStatistics` hook fetches from `reward_transactions` with a 30-day filter, but `RewardHistory.tsx` already uses the `get_user_activity_summary` RPC for accurate totals. The `UserDashboard.tsx` is the only consumer. The hook can be simplified to avoid the redundant transactions query by using the same RPC.
+
+### 3. Stale closure in `RewardHistory.tsx`
+`debouncedRefresh` (line 98-103) depends on `[user]` but calls `fetchTransactions` which is defined later and not in the dependency array. This is a stale closure bug -- on re-renders, the debounced callback may call an old version of `fetchTransactions`.
+
+### 4. Unused `getAddressExplorerUrl` function
+Defined in `useTransactionHistory.ts` (line 102-112) and exported but never used anywhere in the codebase. Dead code.
+
+### 5. `wallet_transactions` realtime subscription has no user filter in private mode
+In `useTransactionHistory.ts` (line 679-683), the `wallet_transactions` realtime subscription does NOT filter by user even in private mode. Every wallet_transactions insert from any user triggers a full refetch.
 
 ## Changes
 
-### 1. Update `src/config/systemWallets.ts` - Add the new auto-reward wallet
-- Add a new system wallet entry `AUTO_REWARD` for address `0x9848fFc886Fb7d17C0060ff11c75997C9B2de4cC` with display name "FUN PLAY TREASURY" (same branding as TREASURY)
-- Update `getSystemWalletInfo()` to check all 4 wallets (REWARD, TREASURY, PERSONAL, AUTO_REWARD)
-- This ensures claim transactions from either wallet display correctly as "FUN PLAY TREASURY"
+### File: `src/hooks/useTransactionHistory.ts`
 
-### 2. Optimize `src/hooks/useRewardStatistics.tsx` - Eliminate redundant queries
-- The `useRewardStatistics` hook makes 3 separate database queries (profile, all transactions for breakdown, recent transactions for daily chart)
-- Replace with a single query approach: use `total_camly_rewards` from profile and aggregate transactions in one query
-- Remove the redundant daily rewards query since `RewardHistory.tsx` already uses the `get_user_activity_summary` RPC for accurate totals
+1. **Fix claim sender wallet** (line 384-391): Change from `SYSTEM_WALLETS.TREASURY` to `SYSTEM_WALLETS.AUTO_REWARD` for the sender wallet address displayed on claim transactions. This correctly shows `0x9848...` (the actual wallet that sends claim tokens).
 
-### 3. Optimize `src/pages/RewardHistory.tsx` - Minor cleanup
-- The page is well-structured but has a minor issue: `debouncedRefresh` callback depends on `[user]` but calls `fetchTransactions` which is defined inside the component - this works but can be cleaner
-- Remove unused `useRef` import cleanup if any
-- Ensure consistent display of TREASURY branding in the claim history section
+2. **Remove unused `getAddressExplorerUrl`** (lines 102-112): Delete the function definition and remove it from the return object (line 726).
 
-### 4. Optimize `src/hooks/useTransactionHistory.ts` - Reduce unnecessary queries
-- The realtime subscription listens to ALL inserts/updates on `wallet_transactions`, `donation_transactions`, `claim_requests` without filtering by user in private mode - this causes unnecessary refreshes
-- Add user-specific filters to realtime subscriptions in private mode to reduce unnecessary refetches
-- Remove redundant `transactions` from `useCallback` dependency array of `fetchTransactions` to prevent stale closure issues
+3. **Add user filter to wallet_transactions realtime** (lines 679-683): In private mode, add `from_user_id` and `to_user_id` filters to avoid unnecessary refetches when other users' transactions arrive.
 
-### 5. Update Edge Functions consistency
-- `supabase/functions/get-claim-receipt/index.ts`: Does not include TREASURY sender info in the response - the receipt page needs to know the sender is TREASURY
-- `supabase/functions/get-donation-receipt/index.ts`: Already has correct `0x9848...` address - no change needed
+### File: `src/hooks/useRewardStatistics.tsx`
+
+4. **Optimize by using RPC instead of raw query**: Replace the `reward_transactions` query with the `get_user_activity_summary` RPC (same one used by `RewardHistory.tsx`). This eliminates a redundant query and provides more accurate data. The `useRewardHistory` sub-hook can also use a more targeted query with only needed columns.
+
+### File: `src/pages/RewardHistory.tsx`
+
+5. **Fix stale closure**: Add `fetchTransactions` to the `debouncedRefresh` callback's logic, or use a ref-based approach so the debounced callback always calls the latest version.
 
 ## Technical Summary
 
 | File | Change | Impact |
 |------|--------|--------|
-| `systemWallets.ts` | Add AUTO_REWARD wallet `0x9848...` | Fix TREASURY branding for new claims |
-| `useRewardStatistics.tsx` | Reduce from 3 queries to 1 | Less database load |
-| `useTransactionHistory.ts` | Add user filter to realtime subs, fix dependency array | Fewer unnecessary refetches |
-| `RewardHistory.tsx` | Minor cleanup | Cleaner code |
-| `get-claim-receipt/index.ts` | Add TREASURY sender info to response | Complete receipt data |
-
-All changes work on both web and mobile since they are data/logic layer changes, not UI layout changes.
+| `useTransactionHistory.ts` | Use AUTO_REWARD wallet for claim sender display | Correct wallet address shown |
+| `useTransactionHistory.ts` | Remove unused `getAddressExplorerUrl` | Cleaner code, less dead code |
+| `useTransactionHistory.ts` | Add user filter to wallet_transactions realtime | Fewer unnecessary refetches |
+| `useRewardStatistics.tsx` | Use RPC instead of raw query | 1 fewer DB query |
+| `RewardHistory.tsx` | Fix stale closure in debouncedRefresh | Correct realtime refresh behavior |
