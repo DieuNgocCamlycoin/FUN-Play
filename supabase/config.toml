@@ -105,3 +105,6 @@ verify_jwt = false
 
 [functions.verify-avatar]
 verify_jwt = false
+
+[functions.backfill-suspicious-scores]
+verify_jwt = false
