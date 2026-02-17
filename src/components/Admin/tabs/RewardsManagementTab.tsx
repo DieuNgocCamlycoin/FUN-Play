@@ -22,6 +22,7 @@ export function RewardsManagementTab() {
     getSuspicionScore,
     isFakeName,
     banUser,
+    unbanUser,
     approveReward,
     rejectReward,
     unapproveReward,
@@ -76,6 +77,7 @@ export function RewardsManagementTab() {
           users={users} 
           walletGroups={walletGroups} 
           onBan={banUser} 
+          onUnban={unbanUser}
           isFakeName={isFakeName} 
           loading={actionLoading} 
         />

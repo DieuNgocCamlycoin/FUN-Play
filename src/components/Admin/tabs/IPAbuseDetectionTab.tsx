@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Globe, Users, Wallet, Ban, RefreshCw, Loader2 } from "lucide-react";
+import { Globe, Users, Wallet, Ban, RefreshCw, Loader2, UserCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
@@ -38,10 +38,11 @@ interface IPGroup {
 
 interface IPAbuseDetectionTabProps {
   onBan: (userId: string, reason: string) => Promise<boolean>;
+  onUnban: (userId: string) => Promise<boolean>;
   loading: boolean;
 }
 
-const IPAbuseDetectionTab = ({ onBan, loading }: IPAbuseDetectionTabProps) => {
+const IPAbuseDetectionTab = ({ onBan, onUnban, loading }: IPAbuseDetectionTabProps) => {
   const [ipGroups, setIpGroups] = useState<IPGroup[]>([]);
   const [fetching, setFetching] = useState(true);
 
@@ -225,6 +226,36 @@ const IPAbuseDetectionTab = ({ onBan, loading }: IPAbuseDetectionTabProps) => {
                       <Badge variant="outline" className="text-amber-500 text-xs">
                         {(user.pending_rewards || 0).toLocaleString()}
                       </Badge>
+                      {user.banned && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button size="sm" variant="outline" className="h-7 px-2 text-xs text-green-500 border-green-500/30" disabled={loading}>
+                              <UserCheck className="w-3 h-3 mr-1" />
+                              Unban
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Bỏ ban user này?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                User: {user.display_name || user.username} sẽ được bỏ ban và có thể sử dụng hệ thống bình thường.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Hủy</AlertDialogCancel>
+                              <AlertDialogAction onClick={async () => {
+                                const success = await onUnban(user.id);
+                                if (success) {
+                                  toast.success(`Đã bỏ ban ${user.display_name || user.username}`);
+                                  fetchIPGroups();
+                                }
+                              }}>
+                                Xác nhận Unban
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
                     </div>
                   ))}
                 </div>
