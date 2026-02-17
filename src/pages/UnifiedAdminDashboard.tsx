@@ -27,7 +27,7 @@ export default function UnifiedAdminDashboard() {
   const [checkingRole, setCheckingRole] = useState(true);
   const [searchParams, setSearchParams] = useSearchParams();
   
-  const { stats, users, walletGroups, banUser, unbanUser, isFakeName, actionLoading } = useAdminManage();
+  const { stats, users, walletGroups, banUser, unbanUser, unbanUserWithRestore, isFakeName, actionLoading } = useAdminManage();
   const { stats: realtimeStats, isConnected } = useAdminRealtime();
 
   // Get current section from URL or default to "overview"
@@ -122,6 +122,7 @@ export default function UnifiedAdminDashboard() {
             walletGroups={walletGroups}
             onBan={banUser}
             onUnban={unbanUser}
+            onUnbanWithRestore={unbanUserWithRestore}
             isFakeName={isFakeName}
             loading={actionLoading}
           />
