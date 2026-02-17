@@ -17,7 +17,7 @@ import { WalletConnectionProgress } from "@/components/Web3/WalletConnectionProg
 import { MobileWalletGuide } from "@/components/Web3/MobileWalletGuide";
 import { toast } from "@/hooks/use-toast";
 import confetti from "canvas-confetti";
-import { isMobileBrowser, isInWalletBrowser, getWalletDeepLink, logWalletDebug, REWARD_WALLET_ADDRESS } from "@/lib/web3Config";
+import { isMobileBrowser, isInWalletBrowser, getWalletDeepLink, logWalletDebug } from "@/lib/web3Config";
 import { cn } from "@/lib/utils";
 
 const MIN_CLAIM_THRESHOLD = 200000; // 200,000 CAMLY minimum to claim
@@ -50,7 +50,7 @@ const REWARD_TYPE_LABELS: Record<string, string> = {
 
 export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps) => {
   const { user } = useAuth();
-  const isMobileLayout = useIsMobile();
+  const _ = useIsMobile(); // keep hook call for consistency
   const { 
     isConnected, 
     address, 
@@ -372,17 +372,12 @@ export const ClaimRewardsModal = ({ open, onOpenChange }: ClaimRewardsModalProps
         return;
       }
 
-      let errorMessage: string;
+      // Server already returns friendly Vietnamese messages via mapErrorToFriendly
+      let errorMessage = rawMsg || "Không thể claim rewards. Vui lòng thử lại.";
       
-      if (rawMsg.toLowerCase().includes("insufficient funds") || rawMsg.toLowerCase().includes("insufficient_funds")) {
-        errorMessage = "⚠️ Hệ thống đang bảo trì ví thưởng. Vui lòng thử lại sau ít phút.";
-      } else if (rawMsg.toLowerCase().includes("reward pool temporarily unavailable")) {
-        errorMessage = "💰 Bể thưởng tạm thời hết. Vui lòng chờ admin nạp thêm.";
-      } else if (rawMsg.toLowerCase().includes("pending claim")) {
-        errorMessage = "⏳ Bạn có yêu cầu claim đang xử lý. Vui lòng đợi hoàn tất.";
+      // Only special case: detect pending claim to update UI state
+      if (rawMsg.includes("đang xử lý") || rawMsg.includes("pending")) {
         setHasPendingClaim(true);
-      } else {
-        errorMessage = rawMsg || "Không thể claim rewards. Vui lòng thử lại.";
       }
       
       setClaimError(errorMessage);
