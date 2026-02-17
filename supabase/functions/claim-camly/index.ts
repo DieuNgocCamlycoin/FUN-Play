@@ -236,12 +236,17 @@ serve(async (req) => {
       await supabaseAdmin.from('reward_transactions').update({ claimed: true, claimed_at: new Date().toISOString(), claim_tx_hash: receipt.hash }).in('id', chunk);
     }
 
-    // Atomic decrement approved_reward + update last_claim_at
-    await supabaseAdmin.rpc('exec_sql_void', {} as any).then(() => {}).catch(() => {});
+    // Update approved_reward (atomic-safe: re-read current value to avoid stale data)
+    const { data: freshProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('approved_reward')
+      .eq('id', user.id)
+      .single();
+    const currentApproved = Number(freshProfile?.approved_reward) || 0;
     await supabaseAdmin
       .from('profiles')
       .update({ 
-        approved_reward: Math.max(0, totalAmount - claimAmount),
+        approved_reward: Math.max(0, currentApproved - claimAmount),
         last_claim_at: new Date().toISOString()
       })
       .eq('id', user.id);
