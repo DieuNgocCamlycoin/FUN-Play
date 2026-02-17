@@ -34,25 +34,27 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const authHeader = req.headers.get('Authorization');
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+  let userId: string | undefined;
+
   try {
-    const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response(JSON.stringify({ error: 'Authorization required' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-
     const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } }
     });
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
     const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
     if (!user) {
       return new Response(JSON.stringify({ error: 'Invalid authentication' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
+    userId = user.id;
 
     const body = await req.json();
     const { walletAddress, claimAmount: requestedAmount } = body;
@@ -321,22 +323,12 @@ serve(async (req) => {
     // Map raw errors to friendly Vietnamese messages
     const friendlyMessage = mapErrorToFriendly(rawMessage);
 
-    try {
-      const adminClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
-      let userId: string | undefined;
-      const authHeader = req.headers.get('Authorization');
-      if (authHeader) {
-        const tempAuth = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, {
-          global: { headers: { Authorization: authHeader } }
-        });
-        const { data: { user: u } } = await tempAuth.auth.getUser();
-        userId = u?.id;
+    if (userId) {
+      try {
+        await supabaseAdmin.from('claim_requests').update({ status: 'failed', error_message: rawMessage, processed_at: new Date().toISOString() }).eq('user_id', userId).eq('status', 'pending');
+      } catch (cleanupError) {
+        console.error('Cleanup failed:', cleanupError);
       }
-      if (userId) {
-        await adminClient.from('claim_requests').update({ status: 'failed', error_message: rawMessage, processed_at: new Date().toISOString() }).eq('user_id', userId).eq('status', 'pending');
-      }
-    } catch (cleanupError) {
-      console.error('Cleanup failed:', cleanupError);
     }
 
     return jsonError(friendlyMessage);
