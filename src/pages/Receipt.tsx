@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
 import funplayPlanetLogo from "@/assets/funplay-planet-logo.png";
 import { useParams, Link } from "react-router-dom";
-import { Gift, ExternalLink, Copy, ArrowRight, Play, FileText, Loader2, Wallet, CheckCircle, TrendingUp } from "lucide-react";
+import { Gift, ExternalLink, Copy, ArrowRight, Play, FileText, Loader2, TrendingUp } from "lucide-react";
 import { SYSTEM_WALLETS } from "@/config/systemWallets";
-import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,23 +10,29 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
-import { supabase } from "@/integrations/supabase/client";
 
 const TET_EMOJIS = ["🌸", "🏮", "🧧", "🎆", "🌺", "🎊"];
+
+const TET_FLOAT_CLASSES = [
+  "animate-tet-float",
+  "animate-tet-float-1",
+  "animate-tet-float-2",
+  "animate-tet-float-3",
+  "animate-tet-float-4",
+  "animate-tet-float-5",
+];
 
 function TetFloatingElements({ count = 6 }: { count?: number }) {
   return (
     <>
       {[...Array(count)].map((_, i) => (
-        <motion.div
+        <div
           key={i}
-          className="absolute text-white/30 text-lg"
+          className={`absolute text-white/30 text-lg ${TET_FLOAT_CLASSES[i % TET_FLOAT_CLASSES.length]}`}
           style={{ left: `${8 + i * 14}%`, top: `${15 + (i % 3) * 20}%` }}
-          animate={{ y: [-6, 6, -6], rotate: [-5, 5, -5], opacity: [0.2, 0.5, 0.2] }}
-          transition={{ repeat: Infinity, duration: 2.5 + i * 0.3, delay: i * 0.2 }}
         >
           {TET_EMOJIS[i % TET_EMOJIS.length]}
-        </motion.div>
+        </div>
       ))}
     </>
   );
@@ -111,7 +116,7 @@ function ClaimReceipt({ claimId }: { claimId: string }) {
   if (error || !claim) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-red-50 to-yellow-50 dark:from-red-950/30 dark:to-yellow-950/30 p-4">
-        <Wallet className="h-16 w-16 text-muted-foreground mb-4" />
+        <Gift className="h-16 w-16 text-muted-foreground mb-4" />
         <h1 className="text-2xl font-bold mb-2">Không tìm thấy biên nhận</h1>
         <p className="text-muted-foreground mb-4">{error}</p>
         <Link to="/">
@@ -327,16 +332,14 @@ function DonationReceipt({ receiptPublicId }: { receiptPublicId: string }) {
           {/* Header */}
           <div className="text-center space-y-2 relative">
             {/* Floating Tet elements */}
-            {[...Array(4)].map((_, i) => (
-              <motion.span
+            {["🌸", "🏮", "🧧", "🎆"].map((emoji, i) => (
+              <span
                 key={i}
-                className="absolute text-red-300/40"
+                className={`absolute text-red-300/40 animate-tet-scale-float${i > 0 ? `-${i}` : ''}`}
                 style={{ left: `${5 + i * 25}%`, top: `${-5 + (i % 2) * 10}%` }}
-                animate={{ y: [-3, 3, -3], scale: [1, 1.15, 1] }}
-                transition={{ repeat: Infinity, duration: 2 + i * 0.4, delay: i * 0.3 }}
               >
-                {["🌸", "🏮", "🧧", "🎆"][i]}
-              </motion.span>
+                {emoji}
+              </span>
             ))}
             <div className="flex justify-center">
               <img src={funplayPlanetLogo} alt="FUN Play" className="h-12 w-12 rounded-full object-cover" />
@@ -391,7 +394,7 @@ function DonationReceipt({ receiptPublicId }: { receiptPublicId: string }) {
                 <img src={token.icon_url} alt={token.symbol} className="h-8 w-8" />
               )}
               <span className="text-3xl font-bold text-red-600">
-                {receipt.amount} {token?.symbol}
+                {new Intl.NumberFormat("vi-VN").format(receipt.amount)} {token?.symbol}
               </span>
             </div>
             {receipt.amount_usd && (
