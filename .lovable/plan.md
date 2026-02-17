@@ -1,77 +1,79 @@
 
-# Fix: IP Abuse Detection Missing 116-Account Cluster
 
-## Root Cause
+# Ban Enforcement System - Complete Fix
 
-The IP Tracking tab in Admin Dashboard fetches `ip_tracking` records client-side, but the table has **19,402 rows**. The database automatically caps query results at **1,000 rows** without warning. This means only ~5% of IP data is analyzed, completely missing the largest farming clusters (116 accounts from one IP, 50 from another, etc.).
+## Current Gaps Found
 
-## Solution: Move IP Grouping to Server-Side
+After auditing the entire ban system, here are the critical enforcement gaps:
 
-Replace the broken client-side approach with a database RPC function that aggregates IP clusters directly in the database -- no row limit issues, much faster, and uses far less bandwidth.
+### Gap 1: Banned users can still log in and browse freely
+`useAuth.tsx` never checks the `banned` flag from `profiles`. A banned user can log in, watch videos, comment, and use the platform normally.
 
-## Changes
+### Gap 2: Banned users can still earn CAMLY rewards
+The `award-camly` edge function (647 lines) has zero checks for `banned` status. A banned user can continue accumulating rewards through views, likes, comments, shares, and uploads.
 
-### 1. New Database RPC Function: `get_ip_abuse_clusters`
+### Gap 3: No IP-level signup blocking
+When an IP cluster is banned, users can immediately create new accounts from the same IP and start farming again.
 
-Aggregates IP abuse data entirely server-side by combining both `ip_tracking` and `profiles.signup_ip_hash` sources:
+### Gap 4: No feedback to banned users
+Banned users see no message explaining why they lost access -- they just see a normal app with zeroed rewards.
 
-- Groups accounts by IP hash
-- Counts distinct users, wallets, and action types per IP
-- Filters to only show IPs with 2+ accounts
-- Returns pre-computed summaries (no client-side grouping needed)
-- Joins profile data (username, display_name, avatar, wallet, pending_rewards, banned status) directly
+---
 
-This replaces ~80 lines of client-side JavaScript grouping logic with a single efficient SQL query.
+## Proposed Changes
 
-### 2. Rewrite `IPAbuseDetectionTab.tsx`
+### 1. Add ban check to `useAuth.tsx`
+After session is established, query `profiles.banned` for the logged-in user. Expose `isBanned` and `banReason` in the hook's return value. This is a lightweight single-row query that runs once on login.
 
-Replace the entire `fetchIPGroups` function (which fetches all 19,402 rows) with a single RPC call to `get_ip_abuse_clusters`. The component will:
+### 2. Create `BannedScreen` component
+A simple full-screen overlay shown when `isBanned === true`. Displays:
+- "Account suspended" message
+- The ban reason from `profiles.ban_reason`
+- A "Log out" button
+- No access to any other features
 
-- Call the RPC function instead of fetching raw `ip_tracking` rows
-- Receive pre-grouped data with user details already joined
-- Remove all client-side grouping/filtering logic
-- Keep the existing UI (stats cards, IP group cards, ban buttons) unchanged
+This replaces the entire app content for banned users -- no navigation, no video player, no reward buttons.
 
-### 3. Delete Dead Code
-
-The entire client-side grouping logic (lines 49-136 of `IPAbuseDetectionTab.tsx`) including the `Set`-based grouping, the separate profiles fetch, and the `profileMap` construction will be removed and replaced with the single RPC call.
-
-## Technical Details
-
-### RPC Function SQL
-
+### 3. Add ban check to `award-camly` edge function
+Add a single query at the top of the reward flow (after auth, before any reward logic):
 ```text
-get_ip_abuse_clusters(min_accounts INTEGER DEFAULT 2)
-RETURNS TABLE(ip_hash TEXT, account_count BIGINT, total_pending NUMERIC, 
-              distinct_wallets BIGINT, users JSONB)
-
-Logic:
-1. UNION ip_tracking.ip_hash with profiles.signup_ip_hash to get all IP-user pairs
-2. GROUP BY ip_hash, count distinct users
-3. HAVING count >= min_accounts  
-4. For each group, build a JSONB array of user profiles with:
-   id, username, display_name, avatar_url, wallet_address, pending_rewards, banned
-5. ORDER BY account_count DESC
+SELECT banned FROM profiles WHERE id = userId
+IF banned = true -> return { success: false, reason: "Account suspended" }
 ```
+This is 1 extra DB query but blocks all reward farming from banned accounts server-side. It runs before any of the expensive anti-fraud checks, daily limit queries, etc.
 
-### Component Changes
-
+### 4. Add IP-based signup blocking to `track-ip` edge function
+When `action_type = 'signup'`, check how many banned accounts share the same IP hash:
 ```text
-IPAbuseDetectionTab.tsx:
-- Remove: IPUser interface (unused after RPC returns JSONB)  
-- Remove: IPGroup interface (replaced by RPC return type)
-- Remove: fetchIPGroups with client-side grouping (~90 lines)
-- Add: Simple RPC call to get_ip_abuse_clusters
-- Keep: All UI rendering, ban buttons, stats cards
+Count profiles WHERE signup_ip_hash = current_hash AND banned = true
+IF count >= 3 -> auto-ban the new account immediately
 ```
+This prevents farming clusters from regenerating after being banned.
 
-### Performance Impact
+---
 
-- Before: Fetches 1,000/19,402 rows + separate profiles query = incomplete data + 2 round trips
-- After: Single RPC call returning ~20 pre-aggregated rows = complete data + 1 round trip
+## Files to Change
 
-### No other files change
+| File | Change |
+|------|--------|
+| `src/hooks/useAuth.tsx` | Add `isBanned`, `banReason` state; query `profiles` on session change |
+| `src/components/BannedScreen.tsx` | New component - full-screen ban notification |
+| `src/App.tsx` or root layout | Wrap app content with ban check using `useAuth().isBanned` |
+| `supabase/functions/award-camly/index.ts` | Add banned check after auth (line ~204) |
+| `supabase/functions/track-ip/index.ts` | Add auto-ban for signups from IPs with 3+ banned accounts |
 
-- `WalletAbuseTab.tsx` -- no changes needed, it just renders `IPAbuseDetectionTab`
+## What does NOT change
+- `ban_user_permanently` RPC -- already works correctly (zeroes rewards, blacklists wallet, creates reward_ban)
+- `unban_user` RPC -- already works correctly
+- `IPAbuseDetectionTab.tsx` -- already fixed with server-side RPC
+- `BannedUsersTab.tsx` -- no changes needed
 - `useAdminManage.ts` -- no changes needed
-- No new dependencies
+
+## Performance Impact
+- `useAuth`: +1 lightweight query per session (cached, runs once)
+- `award-camly`: +1 single-row query per reward attempt (early exit saves all subsequent queries for banned users)
+- `track-ip`: +1 count query on signup only (not on login/wallet_connect)
+
+## Summary
+These 5 changes close all enforcement gaps: banned users see a suspension screen, cannot earn rewards, and cannot create new accounts from the same IP. The changes are minimal (no new tables, no new RPCs) and add negligible overhead to existing flows.
+
