@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Globe, Users, Wallet, Ban, RefreshCw, Loader2, UserCheck, RotateCcw } from "lucide-react";
+import { Globe, Users, Wallet, Ban, RefreshCw, Loader2, UserCheck, RotateCcw, Radio } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -106,8 +106,10 @@ const UnbanDialogInner = ({ user, onUnbanWithRestore, loading, onSuccess }: {
 const IPAbuseDetectionTab = ({ onBan, onUnban, onUnbanWithRestore, loading }: IPAbuseDetectionTabProps) => {
   const [ipGroups, setIpGroups] = useState<IPGroup[]>([]);
   const [fetching, setFetching] = useState(true);
+  const [isLive, setIsLive] = useState(false);
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
-  const fetchIPGroups = async () => {
+  const fetchIPGroups = useCallback(async () => {
     setFetching(true);
     try {
       const { data, error } = await supabase.rpc("get_ip_abuse_clusters", { min_accounts: 2 });
@@ -129,11 +131,35 @@ const IPAbuseDetectionTab = ({ onBan, onUnban, onUnbanWithRestore, loading }: IP
     } finally {
       setFetching(false);
     }
-  };
+  }, []);
+
+  const debouncedRefetch = useCallback(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      fetchIPGroups();
+    }, 1500);
+  }, [fetchIPGroups]);
 
   useEffect(() => {
     fetchIPGroups();
-  }, []);
+
+    const channel = supabase
+      .channel('ip-abuse-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
+        debouncedRefetch();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ip_tracking' }, () => {
+        debouncedRefetch();
+      })
+      .subscribe((status) => {
+        setIsLive(status === 'SUBSCRIBED');
+      });
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      supabase.removeChannel(channel);
+    };
+  }, [fetchIPGroups, debouncedRefetch]);
 
   const handleBanAll = async (users: IPUser[], reason: string) => {
     const unbannedUsers = users.filter((u) => !u.banned);
@@ -195,7 +221,14 @@ const IPAbuseDetectionTab = ({ onBan, onUnban, onUnbanWithRestore, loading }: IP
       </div>
 
       {/* Refresh */}
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between">
+        {isLive && (
+          <Badge variant="outline" className="text-xs border-green-500/50 text-green-500 gap-1">
+            <Radio className="w-3 h-3 animate-pulse" />
+            Live
+          </Badge>
+        )}
+        <div className="flex-1" />
         <Button variant="outline" size="sm" onClick={fetchIPGroups} disabled={fetching}>
           <RefreshCw className={`w-4 h-4 mr-1 ${fetching ? "animate-spin" : ""}`} />
           Làm mới
