@@ -1,34 +1,45 @@
 
 
-# Final Cleanup: Remove Dead Chart UI and Optimize Claim Query
+# Real-time Abuse Detection System
 
-## Current Status
-All core fixes from previous rounds are working correctly:
-- AUTO_REWARD wallet (`0x9848...`) is properly configured and displays as "FUN PLAY TREASURY"
-- Realtime subscriptions have user-specific filters in private mode
-- `useRewardStatistics` uses the RPC for accurate totals
-- Stale closure in RewardHistory.tsx is fixed with `fetchRef`
-- Dead code (`DailyReward`, `getAddressExplorerUrl`) has been removed
+## Overview
+Currently, the abuse detection system only loads data once on mount and requires manual refresh. This plan adds Supabase realtime subscriptions so the admin panel updates automatically when profiles change (new signups, bans, reward changes, wallet connections).
 
-## Remaining Issues
+## Changes
 
-### 1. Dead chart UI in UserDashboard.tsx
-The "Timeline" tab (lines 266-297) renders a `LineChart` with permanently empty data (`chartData = []`). This was left over after removing `dailyRewards` from the statistics hook. The tab renders an empty chart area, wasting resources and confusing users.
+### 1. `src/hooks/useAdminManage.ts` - Add realtime subscription
+- Subscribe to `postgres_changes` on the `profiles` table for INSERT/UPDATE/DELETE events
+- Use debounced refetch (1 second) to avoid excessive queries when bulk actions trigger multiple profile updates
+- Auto-refresh `users` list when any profile changes (ban, unban, rewards, new signup)
+- Clean up subscription on unmount
 
-**Fix**: Remove the entire "Timeline" `TabsContent` block along with the now-unnecessary `chartData` variable. Also remove the "Timeline" tab trigger. If the chart imports (`LineChart`, `CartesianGrid`, `XAxis`, `YAxis`, `Tooltip`, `Line`, `ResponsiveContainer`) are only used by this chart, remove those imports too.
+### 2. `src/components/Admin/tabs/IPAbuseDetectionTab.tsx` - Add realtime subscription
+- Subscribe to `postgres_changes` on both `profiles` and `ip_tracking` tables
+- When a new signup is tracked or a user is banned/unbanned, the IP clusters automatically refresh
+- Use debounced refetch (1.5 seconds) to batch rapid changes
+- Add a visual "Live" indicator badge to show the realtime connection status
+- Clean up subscription on unmount
 
-### 2. Unoptimized claim history query in RewardHistory.tsx
-`fetchClaimHistory` (line 160) uses `SELECT *` on `claim_requests` but the UI only uses 8 specific fields. Selecting all columns wastes bandwidth.
+### 3. `src/hooks/useAdminRealtime.ts` - Already has realtime
+- No changes needed -- this hook already subscribes to `profiles`, `reward_transactions`, and `claim_requests`
 
-**Fix**: Replace `.select("*")` with `.select("id, amount, wallet_address, status, tx_hash, created_at, processed_at, error_message")`.
+## Technical Details
 
-## Technical Summary
+### Debounce Strategy
+- `useAdminManage`: 1s debounce on profile changes (this query is heavy -- `get_users_directory_stats` joins many tables)
+- `IPAbuseDetectionTab`: 1.5s debounce on profile/ip_tracking changes (the `get_ip_abuse_clusters` RPC is also heavy)
+- This prevents hammering the database during bulk ban operations (e.g., "Ban all 10 users in IP group")
 
-| File | Change | Impact |
-|------|--------|--------|
-| `UserDashboard.tsx` | Remove dead Timeline tab and empty chart | Less rendering, cleaner UI |
-| `UserDashboard.tsx` | Remove unused chart-related imports | Smaller bundle |
-| `RewardHistory.tsx` | Select only needed columns in claim query | Less data transferred |
+### Realtime Channel Configuration
+- `useAdminManage`: channel `admin-manage-realtime` listening to `profiles` table (all events)
+- `IPAbuseDetectionTab`: channel `ip-abuse-realtime` listening to `profiles` + `ip_tracking` tables
 
-These are the final cleanup items. After this, the reward history system will be fully optimized with no dead code or unnecessary resource usage.
+### What Triggers Auto-Refresh
+| Event | useAdminManage | IPAbuseDetectionTab |
+|-------|---------------|---------------------|
+| New user signup | Yes | Yes |
+| User banned/unbanned | Yes | Yes |
+| Rewards updated | Yes | No |
+| New IP tracking entry | No | Yes |
+| Wallet connected | Yes | Yes |
 
