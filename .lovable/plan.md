@@ -1,31 +1,50 @@
 
 
-# Xoa Diamond Badge va Kiem tra He thong Social Media + Username
+# Fix Claim Error Display - Return 200 for User-Facing Errors
 
-## Thay doi
+## Confirmed Status
 
-### 1. Xoa CredibilityDiamond khoi avatar
+- Admin wallet: **79,367,000 CAMLY** available (plenty of funds)
+- BNB gas: **0.0199 BNB** (sufficient)
+- Wallet address: `0x9848fFc886Fb7d17C0060ff11c75997C9B2de4cC`
 
-**File: `src/components/Profile/ProfileHeader.tsx`**
-- Xoa dong import `CredibilityDiamond`
-- Xoa dong `<CredibilityDiamond totalCamly={profile.total_camly_rewards} />`
-- Xoa `total_camly_rewards` khoi interface `ProfileHeaderProps` (neu khong con dung)
+## Root Cause
 
-**File: `src/components/Profile/CredibilityDiamond.tsx`**
-- Xoa toan bo file nay vi khong con duoc su dung
+The Supabase JS client discards response body for non-2xx HTTP status codes. All friendly error messages (Vietnamese) in the edge function are lost and replaced with "Edge Function returned a non-2xx status code".
 
-### 2. Don dep ProfileHeader interface
-- Bo `total_camly_rewards` khoi props profile trong `ProfileHeaderProps` vi chi duoc dung cho diamond
-- Giu nguyen SocialMediaOrbit va cac social fields
+## Changes
 
-### Khong thay doi
-- `SocialMediaOrbit.tsx` -- da sua mau dung (#1DA1F2, #69C9D0), hoat dong tot
-- `UserProfile.tsx` -- interface da co du 5 social fields
-- `ProfileSettings.tsx` -- da bo `as any`, hoat dong tot
-- Database -- cac cot social da ton tai
+### File 1: `supabase/functions/claim-camly/index.ts`
 
-## Tom tat
-- Xoa 1 file: `CredibilityDiamond.tsx`
-- Sua 1 file: `ProfileHeader.tsx` (bo import + usage)
-- Khong anh huong den social media icons hay bat ky tinh nang nao khac
+Change all user-facing error responses from HTTP 400/500/503 to HTTP 200 with `{ success: false, error: "..." }`:
 
+- Line 68-71: "Invalid wallet address" (400 -> 200)
+- Line 84-87: "Failed to fetch rewards" (500 -> 200)
+- Line 91-94: "No unclaimed rewards" (400 -> 200)
+- Line 103-106: "No rewards to claim" (400 -> 200)
+- Line 127-132: "Minimum claim amount" (400 -> 200)
+- Line 148-151: "Daily limit reached" (400 -> 200)
+- Line 168-171: "Lifetime limit reached" (400 -> 200)
+- Line 179-182: "Min amount for custom" (400 -> 200)
+- Line 184-188: "Exceeds limit for custom" (400 -> 200)
+- Line 221-224: "Pending claim exists" (400 -> 200)
+- Line 241-243: "Failed to create claim" (500 -> 200)
+- Line 256-258: "System not configured" (500 -> 200)
+- Line 291-294: "Reward pool unavailable" (503 -> 200)
+- Line 510-512: General catch block (500 -> 200)
+
+Keep 401 for auth errors (lines 32-35, 55-58) since those should genuinely block.
+
+### File 2: `src/components/Rewards/ClaimRewardsModal.tsx`
+
+Update `handleClaim` (around lines 344-427):
+
+- After `supabase.functions.invoke()`, check `response.data?.success === false` FIRST
+- If `success === false`, use `response.data.error` as the error message
+- Keep `response.error` check as fallback for network/auth errors
+- The existing friendly message mapping (lines 392-411) will now work correctly since it receives the actual error string
+
+## No Database Changes
+
+## Impact
+Users will see clear Vietnamese error messages instead of "Edge Function returned a non-2xx status code".
