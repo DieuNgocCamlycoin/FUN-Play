@@ -77,7 +77,7 @@ serve(async (req) => {
     const { data: configData } = await supabaseAdmin
       .from('reward_config')
       .select('config_key, config_value')
-      .in('config_key', ['MIN_CLAIM_AMOUNT', 'DAILY_CLAIM_LIMIT', 'MAX_CLAIM_PER_USER']);
+      .in('config_key', ['MIN_CLAIM_AMOUNT', 'DAILY_CLAIM_LIMIT', 'MAX_CLAIM_PER_USER', 'LOW_POOL_THRESHOLD']);
 
     const config: Record<string, number> = { MIN_CLAIM_AMOUNT: 200000, DAILY_CLAIM_LIMIT: 500000, MAX_CLAIM_PER_USER: 500000 };
     configData?.forEach(c => { config[c.config_key] = Number(c.config_value); });
@@ -188,6 +188,25 @@ serve(async (req) => {
 
     // Update claim request to success
     await supabaseAdmin.from('claim_requests').update({ status: 'success', tx_hash: receipt.hash, processed_at: new Date().toISOString() }).eq('id', claimRequest.id);
+
+    // Low-balance alert for admins
+    const remainingBalance = adminBalance - amountInWei;
+    const lowThreshold = config['LOW_POOL_THRESHOLD'] || 5000000;
+    const lowThresholdWei = ethers.parseUnits(lowThreshold.toString(), 3);
+    if (remainingBalance < lowThresholdWei) {
+      const { data: admins } = await supabaseAdmin.from('user_roles').select('user_id').eq('role', 'admin');
+      if (admins?.length) {
+        const remaining = Number(ethers.formatUnits(remainingBalance, 3));
+        await supabaseAdmin.from('notifications').insert(
+          admins.map(a => ({
+            user_id: a.user_id, type: 'system',
+            title: '⚠️ Cảnh báo: Bể thưởng CAMLY sắp hết!',
+            message: `Số dư bể thưởng còn ${remaining.toLocaleString()} CAMLY, dưới ngưỡng ${lowThreshold.toLocaleString()}. Vui lòng nạp thêm.`,
+            link: '/admin'
+          }))
+        );
+      }
+    }
 
     // Mark rewards as claimed (strict matching)
     const sorted = [...unclaimedRewards].sort((a, b) => Number(a.amount) - Number(b.amount));
