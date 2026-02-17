@@ -148,7 +148,7 @@ const WalletAbuseTab = ({ users, walletGroups, onBan, onUnban, onUnbanWithRestor
 
         {/* IP Tracking */}
         <TabsContent value="ip-tracking">
-          <IPAbuseDetectionTab onBan={onBan} onUnban={onUnban} onUnbanWithRestore={onUnbanWithRestore} loading={loading} />
+          <IPAbuseDetectionTab onBan={onBan} onUnbanWithRestore={onUnbanWithRestore} loading={loading} />
         </TabsContent>
 
         {/* Shared Wallet */}

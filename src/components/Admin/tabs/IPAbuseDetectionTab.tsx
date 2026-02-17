@@ -39,7 +39,6 @@ interface IPGroup {
 
 interface IPAbuseDetectionTabProps {
   onBan: (userId: string, reason: string) => Promise<boolean>;
-  onUnban: (userId: string) => Promise<boolean>;
   onUnbanWithRestore: (userId: string, restoreRewards: boolean) => Promise<boolean>;
   loading: boolean;
 }
@@ -103,7 +102,7 @@ const UnbanDialogInner = ({ user, onUnbanWithRestore, loading, onSuccess }: {
   );
 };
 
-const IPAbuseDetectionTab = ({ onBan, onUnban, onUnbanWithRestore, loading }: IPAbuseDetectionTabProps) => {
+const IPAbuseDetectionTab = ({ onBan, onUnbanWithRestore, loading }: IPAbuseDetectionTabProps) => {
   const [ipGroups, setIpGroups] = useState<IPGroup[]>([]);
   const [fetching, setFetching] = useState(true);
   const [isLive, setIsLive] = useState(false);

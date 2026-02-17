@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface RealtimeStats {
@@ -49,58 +49,31 @@ export function useAdminRealtime() {
     }
   }, []);
 
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const debouncedRefetch = useCallback(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      fetchInitialStats();
+    }, 1000);
+  }, [fetchInitialStats]);
+
   useEffect(() => {
     fetchInitialStats();
 
-    // Subscribe to real-time changes
     const channel = supabase
       .channel("admin-realtime-dashboard")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "reward_transactions",
-        },
-        () => {
-          // Refetch stats when reward transactions change
-          fetchInitialStats();
-        }
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "claim_requests",
-        },
-        () => {
-          // Refetch stats when claims change
-          fetchInitialStats();
-        }
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "profiles",
-        },
-        (payload) => {
-          // Update pending count if pending_rewards changed
-          if (payload.eventType === "UPDATE") {
-            fetchInitialStats();
-          }
-        }
-      )
+      .on("postgres_changes", { event: "*", schema: "public", table: "reward_transactions" }, debouncedRefetch)
+      .on("postgres_changes", { event: "*", schema: "public", table: "claim_requests" }, debouncedRefetch)
+      .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, debouncedRefetch)
       .subscribe((status) => {
         setIsConnected(status === "SUBSCRIBED");
       });
 
     return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
       supabase.removeChannel(channel);
     };
-  }, [fetchInitialStats]);
+  }, [fetchInitialStats, debouncedRefetch]);
 
   return {
     stats,
