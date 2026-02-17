@@ -2469,6 +2469,10 @@ export type Database = {
         Returns: boolean
       }
       bulk_approve_all_rewards: { Args: { p_admin_id: string }; Returns: Json }
+      bulk_notify_system_usernames: {
+        Args: { p_admin_id: string }
+        Returns: number
+      }
       get_ip_abuse_clusters: {
         Args: { min_accounts?: number }
         Returns: {
