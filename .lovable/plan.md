@@ -1,60 +1,68 @@
 
-# Add Telegram to Social Media Profile Avatars
 
-## What Changes
+# Sửa lỗi và tối ưu hệ thống Social Media, Diamond Badge, Username
 
-The previously approved plan for social media mini-avatars around the profile avatar will now include **5 platforms** instead of 4:
+## Vấn đề phát hiện
 
-1. Facebook
-2. YouTube
-3. X / Twitter
-4. TikTok
-5. **Telegram** (new addition)
+### 1. UserProfile thiếu dữ liệu mạng xã hội (BUG)
+File `src/pages/UserProfile.tsx` định nghĩa `UserProfileData` interface thiếu các trường `facebook_url`, `youtube_url`, `twitter_url`, `tiktok_url`, `telegram_url`. Mặc dù truy vấn `.select("*")` trả về đầy đủ dữ liệu, TypeScript interface lọc bỏ chúng khi truyền vào `ProfileHeader`. Kết quả: **icon mạng xã hội không hiển thị trên trang cá nhân người khác**.
 
-## Database Migration
+**Sửa**: Thêm 5 trường social vào `UserProfileData` interface.
 
-Add 5 new nullable text columns to the `profiles` table:
-- `facebook_url`
-- `youtube_url`
-- `twitter_url`
-- `tiktok_url`
-- `telegram_url`
+### 2. ProfileSettings dùng type casting `as any` (CODE SMELL)
+Dòng 137-141 trong `ProfileSettings.tsx` dùng `(data as any).facebook_url`. Nguyên nhân là `types.ts` chưa được regenerate sau migration. Cách xử lý: sau khi types tự động cập nhật, xoá `as any` và dùng trực tiếp `data.facebook_url`.
 
-## Social Media Icon Layout
+**Sửa**: Bỏ `as any` nếu types đã cập nhật, hoặc giữ tạm nếu chưa.
 
-```text
-           [Diamond]
-        /    Avatar    \
-       /                \
-  [FB] [YT] [X] [TT] [TG]
-    (bottom arc of avatar)
-```
+### 3. Icon X/Twitter và TikTok không hiển thị trong dark mode (UI BUG)
+Cả hai dùng `color: "#000000"` (nền đen, icon đen = vô hình). 
 
-- 5 small icons (20-24px) positioned along the bottom arc of the avatar
-- Each icon uses the platform's brand color (Telegram = #0088cc)
-- Tooltip on hover shows the link; clicking opens the social profile
-- Only visible when the user has filled in the URL
+**Sửa**: Đổi X/Twitter sang `#1DA1F2` (hoặc `#FFFFFF` trên nền đen), TikTok sang `#69C9D0` (màu brand chính thức).
 
-## Files to Change
+### 4. SEO-friendly URLs chưa được triển khai
+Phần slug cho video (`/c/:username/video/:slug`) từ kế hoạch trước chưa có code. Đây là tính năng lớn, cần thêm:
+- Cột `slug` trong bảng `videos`
+- Utility `slugUtils.ts` để tạo slug từ tiếng Việt
+- Route mới và component `VideoBySlug`
 
-1. **Database migration** -- add 5 columns to `profiles`
-2. **`src/components/Profile/ProfileHeader.tsx`** -- add `SocialMediaOrbit` with 5 icons + diamond badge
-3. **`src/pages/ProfileSettings.tsx`** -- add 5 social media URL input fields in settings
-4. **`src/pages/UserProfile.tsx`** -- pass social URL data to ProfileHeader
-5. **`src/components/Profile/ProfileInfo.tsx`** -- pass social URL data through
+**Khuyến nghị**: Tách thành một bước triển khai riêng để đảm bảo ổn định.
 
-## Diamond Credibility Badge (unchanged from previous plan)
+---
 
-- Silver: 0-99 CAMLY
-- Blue: 100-999 CAMLY
-- Purple: 1000-4999 CAMLY
-- Gold: 5000+ CAMLY (Light Angel)
+## Thay đổi cụ thể
 
-Sparkling animation at top of avatar.
+### File 1: `src/pages/UserProfile.tsx`
+- Thêm vào `UserProfileData` interface:
+  - `facebook_url: string | null`
+  - `youtube_url: string | null`
+  - `twitter_url: string | null`
+  - `tiktok_url: string | null`
+  - `telegram_url: string | null`
 
-## Technical Notes
+### File 2: `src/components/Profile/SocialMediaOrbit.tsx`
+- Đổi màu X/Twitter: `"#000000"` -> `"#1DA1F2"`
+- Đổi màu TikTok: `"#000000"` -> `"#69C9D0"`
+- Cả hai đảm bảo hiển thị rõ trên cả light mode và dark mode
 
-- Telegram icon uses the `Send` icon from lucide-react (already used in ShareModal)
-- All social links are optional -- icons only render when URL is provided
-- Basic URL validation before saving
-- No edge functions needed; purely client-side + DB columns
+### File 3: `src/pages/ProfileSettings.tsx`
+- Bỏ `as any` casting trên dòng 137-141 (nếu types đã cập nhật)
+- Nếu types chưa cập nhật, giữ nguyên và đánh dấu TODO
+
+### Không cần thay đổi
+- `ProfileHeader.tsx` - cấu trúc đúng, nhận props đầy đủ
+- `CredibilityDiamond.tsx` - logic tier và animation hoạt động tốt
+- `ProfileInfo.tsx` - không cần truyền social data (ProfileHeader nhận trực tiếp)
+- Database - các cột đã tồn tại
+
+---
+
+## Phần chưa triển khai (SEO URLs)
+
+Tính năng slug-based URLs cho video sẽ được triển khai trong bước tiếp theo:
+1. Migration thêm cột `slug` vào `videos`
+2. Tạo `src/lib/slugUtils.ts`
+3. Tạo `src/pages/VideoBySlug.tsx`
+4. Thêm route `/c/:username/video/:slug` vào `App.tsx`
+
+Tính năng này không ảnh hưởng đến các sửa lỗi hiện tại và có thể triển khai độc lập.
+
