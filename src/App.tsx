@@ -30,6 +30,8 @@ import { BackgroundUploadIndicator } from './components/Upload/BackgroundUploadI
 import { useRewardRealtimeNotification } from './hooks/useRewardRealtimeNotification';
 import { useMusicCompletionNotification } from './hooks/useMusicCompletionNotification';
 import { RecoveryModeGuard } from './components/Auth/RecoveryModeGuard';
+import { BannedScreen } from './components/BannedScreen';
+import { useAuth } from './hooks/useAuth';
 import { Skeleton } from "./components/ui/skeleton";
 import { ValentineMusicButton } from './components/ValentineMusicButton';
 
@@ -98,6 +100,7 @@ const PageLoader = () => (
 );
 
 function AppContent() {
+  const { isBanned, banReason, signOut } = useAuth();
   useRewardRealtimeNotification();
   useMusicCompletionNotification();
 
@@ -121,6 +124,10 @@ function AppContent() {
     window.addEventListener('unhandledrejection', handleRejection);
     return () => window.removeEventListener('unhandledrejection', handleRejection);
   }, []);
+
+  if (isBanned) {
+    return <BannedScreen banReason={banReason} onSignOut={signOut} />;
+  }
 
   return (
     <>
