@@ -1,71 +1,77 @@
 
+# Fix: IP Abuse Detection Missing 116-Account Cluster
 
-# Backfill Suspicious Scores for Existing Users
+## Root Cause
 
-## Current Status (All Clean)
+The IP Tracking tab in Admin Dashboard fetches `ip_tracking` records client-side, but the table has **19,402 rows**. The database automatically caps query results at **1,000 rows** without warning. This means only ~5% of IP data is analyzed, completely missing the largest farming clusters (116 accounts from one IP, 50 from another, etc.).
 
-Previous cleanups are fully complete:
-- `src/lib/enhancedRewards.ts` -- deleted, zero references remain
-- `detect-abuse` edge function -- deleted, zero references remain
-- `award-camly` -- inline abuse scoring active for new rewards
-- `track-ip` -- signup rate limiting active for new signups
-- `useAdminManage.ts` -- optimized with single RPC call
-- No unused imports, no dead code found anywhere
+## Solution: Move IP Grouping to Server-Side
 
-## Remaining Gap
+Replace the broken client-side approach with a database RPC function that aggregates IP clusters directly in the database -- no row limit issues, much faster, and uses far less bandwidth.
 
-All 684 users have `suspicious_score = 0` because the new inline detection only runs on **future** reward grants. The 681 farming accounts (116 from one IP alone, holding 187.5M pending CAMLY) were created before the fix and have never been scored.
+## Changes
 
-Only 440 out of 684 users have a `signup_ip_hash` recorded (the rest signed up before IP tracking was added).
+### 1. New Database RPC Function: `get_ip_abuse_clusters`
 
-## Plan
+Aggregates IP abuse data entirely server-side by combining both `ip_tracking` and `profiles.signup_ip_hash` sources:
 
-### 1. Create a one-time backfill edge function
+- Groups accounts by IP hash
+- Counts distinct users, wallets, and action types per IP
+- Filters to only show IPs with 2+ accounts
+- Returns pre-computed summaries (no client-side grouping needed)
+- Joins profile data (username, display_name, avatar, wallet, pending_rewards, banned status) directly
 
-Create `supabase/functions/backfill-suspicious-scores/index.ts` that:
-- Fetches all profiles with `suspicious_score = 0`
-- For each user with a `signup_ip_hash`, counts how many signups share that IP
-- Checks avatar, avatar_verified, and display_name
-- Computes and updates the `suspicious_score` using the same logic as `award-camly`
-- Returns a summary of how many users were updated and their score distribution
+This replaces ~80 lines of client-side JavaScript grouping logic with a single efficient SQL query.
 
-This is admin-only (requires admin auth token) and meant to be called once.
+### 2. Rewrite `IPAbuseDetectionTab.tsx`
 
-### 2. Add a "Recalculate Scores" button in the Admin Abuse Detection tab
+Replace the entire `fetchIPGroups` function (which fetches all 19,402 rows) with a single RPC call to `get_ip_abuse_clusters`. The component will:
 
-Add a button in `WalletAbuseTab` (or the IP Abuse Detection section) that calls the backfill function. This gives the admin a one-click way to refresh all suspicious scores without developer intervention.
+- Call the RPC function instead of fetching raw `ip_tracking` rows
+- Receive pre-grouped data with user details already joined
+- Remove all client-side grouping/filtering logic
+- Keep the existing UI (stats cards, IP group cards, ban buttons) unchanged
 
-### 3. No other changes needed
+### 3. Delete Dead Code
 
-- No database schema changes
-- No changes to existing edge functions
-- No frontend dead code to clean
+The entire client-side grouping logic (lines 49-136 of `IPAbuseDetectionTab.tsx`) including the `Set`-based grouping, the separate profiles fetch, and the `profileMap` construction will be removed and replaced with the single RPC call.
 
 ## Technical Details
 
-### New File: `supabase/functions/backfill-suspicious-scores/index.ts`
+### RPC Function SQL
 
 ```text
-Purpose: One-time (or on-demand) recalculation of suspicious_score for all users
-Auth: Admin-only (verified via has_role RPC)
+get_ip_abuse_clusters(min_accounts INTEGER DEFAULT 2)
+RETURNS TABLE(ip_hash TEXT, account_count BIGINT, total_pending NUMERIC, 
+              distinct_wallets BIGINT, users JSONB)
+
 Logic:
-  1. Fetch all profiles (id, signup_ip_hash, avatar_url, avatar_verified, display_name)
-  2. For users with signup_ip_hash, batch-count signups per IP from ip_tracking
-  3. Compute score: IP farming (>5 accounts = +3, >2 = +1), no avatar (+1), 
-     not verified (+1), short/missing display_name (+1)
-  4. Batch update profiles with new suspicious_score
-  5. Return summary: { updated: number, distribution: { score: count } }
+1. UNION ip_tracking.ip_hash with profiles.signup_ip_hash to get all IP-user pairs
+2. GROUP BY ip_hash, count distinct users
+3. HAVING count >= min_accounts  
+4. For each group, build a JSONB array of user profiles with:
+   id, username, display_name, avatar_url, wallet_address, pending_rewards, banned
+5. ORDER BY account_count DESC
 ```
 
-### Config: `supabase/config.toml`
+### Component Changes
 
-Add entry:
-```toml
-[functions.backfill-suspicious-scores]
-verify_jwt = false
+```text
+IPAbuseDetectionTab.tsx:
+- Remove: IPUser interface (unused after RPC returns JSONB)  
+- Remove: IPGroup interface (replaced by RPC return type)
+- Remove: fetchIPGroups with client-side grouping (~90 lines)
+- Add: Simple RPC call to get_ip_abuse_clusters
+- Keep: All UI rendering, ban buttons, stats cards
 ```
 
-### Modified File: `src/components/Admin/tabs/WalletAbuseTab.tsx`
+### Performance Impact
 
-Add a "Recalculate Suspicious Scores" button that calls the edge function and shows the result summary (number of users updated, score distribution). This button will be placed in the header area of the tab alongside existing controls.
+- Before: Fetches 1,000/19,402 rows + separate profiles query = incomplete data + 2 round trips
+- After: Single RPC call returning ~20 pre-aggregated rows = complete data + 1 round trip
 
+### No other files change
+
+- `WalletAbuseTab.tsx` -- no changes needed, it just renders `IPAbuseDetectionTab`
+- `useAdminManage.ts` -- no changes needed
+- No new dependencies
