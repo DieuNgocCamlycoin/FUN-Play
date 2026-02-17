@@ -1,33 +1,60 @@
 
 
-# Add Unban Button to IP Abuse Detection Tab
+# Add "Restore Rewards" Option to Unban Dialog
 
-## Problem
-The IP Abuse Detection tab only has "Ban" functionality. When you accidentally ban a real person from this view, there is no way to unban them without navigating to a completely different section (User Management > Banned Users tab). This is inconvenient and error-prone.
+## What This Solves
+When you unban an accidentally banned user, their rewards were permanently zeroed by `ban_user_permanently`. Currently there is no way to restore them. This adds an optional checkbox to recalculate and restore their rewards from transaction history.
 
-## Solution
-Add an individual "Unban" button next to each banned user in the IP cluster view, with a confirmation dialog. This requires passing the `onUnban` function through the component chain.
+## How It Works
+
+The existing `sync_reward_totals()` database function already recalculates `pending_rewards` and `approved_reward` from the `reward_transactions` table. We will create a targeted version that works for a single user, then wire it into the unban dialog.
 
 ## Changes
 
-### 1. `src/components/Admin/tabs/IPAbuseDetectionTab.tsx`
-- Add `onUnban` to the props interface
-- Import `UserCheck` icon
-- For each banned user row, add an "Unban" button with an AlertDialog confirmation
-- After successful unban, refresh IP groups data
+### 1. New Database Function: `restore_user_rewards`
+A new RPC that recalculates a single user's reward balances from `reward_transactions`:
 
-### 2. `src/components/Admin/tabs/WalletAbuseTab.tsx`
-- Add `onUnban` to the props interface
-- Pass `onUnban` through to `IPAbuseDetectionTab`
+```text
+restore_user_rewards(p_user_id, p_admin_id)
+  -> Recalculates pending_rewards and approved_reward from reward_transactions
+  -> Returns the restored amounts
+  -> Logs the restoration in reward_approvals
+  -> Admin-only access check
+```
 
-### 3. Parent component that renders `WalletAbuseTab`
-- Pass the existing `unbanUser` function from `useAdminManage` as the `onUnban` prop
+### 2. `src/hooks/useAdminManage.ts`
+- Add `unbanUserWithRestore(userId: string, restoreRewards: boolean)` function
+- If `restoreRewards` is true, call `restore_user_rewards` RPC after unbanning
+- Expose this new function
+
+### 3. `src/components/Admin/tabs/IPAbuseDetectionTab.tsx`
+- Add a checkbox state inside the unban AlertDialog: "Khoi phuc thuong (Restore previous rewards)"
+- When checked, the unban action calls `unbanUserWithRestore(userId, true)` instead of plain `unbanUser(userId)`
+- Show a brief explanation: rewards will be recalculated from transaction history
+- Update `onUnban` prop type to accept the restore flag: `(userId: string, restoreRewards?: boolean) => Promise<boolean>`
+
+### 4. `src/components/Admin/tabs/WalletAbuseTab.tsx`
+- Update prop passthrough to match new signature
+
+### 5. Parent components (`UnifiedAdminDashboard.tsx`, `RewardsManagementTab.tsx`)
+- Wire the new `unbanUserWithRestore` function through
 
 ## Technical Details
 
-The `unban_user` RPC already exists and works correctly -- it clears the banned flag, removes reward bans, and deletes the wallet from the blacklist. The `useAdminManage` hook already exposes `unbanUser`. The only missing piece is wiring the unban action into the IP Abuse Detection UI.
+**Database function logic:**
+```sql
+-- Sum unclaimed, unapproved transactions -> pending_rewards
+-- Sum unclaimed, approved transactions -> approved_reward
+-- Update profiles with recalculated values
+-- Log in reward_approvals as 'restored'
+```
 
-**User row changes**: Each banned user in an IP cluster will show a small "Unban" button (using `UserCheck` icon) instead of just the "Da ban" badge. Clicking it opens a confirmation dialog showing the user's name before proceeding.
+This reuses the same logic as `sync_reward_totals()` but scoped to one user, making it lightweight and safe.
 
-**No database changes needed** -- all RPCs are already in place.
+**UI:** The checkbox defaults to unchecked (safe default). When checked, the dialog description updates to explain that rewards will be recalculated from history.
+
+## No Other Files Change
+- Edge functions remain unchanged
+- BannedScreen remains unchanged
+- Other admin tabs remain unchanged
 
