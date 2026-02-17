@@ -258,6 +258,23 @@ serve(async (req) => {
           }
         }
       }
+
+      // Gate C: FIRST_UPLOAD requires at least 1 view from a different user
+      if (type === 'FIRST_UPLOAD' && videoId) {
+        const { count: externalViews } = await adminSupabaseEarly
+          .from('watch_history')
+          .select('id', { count: 'exact', head: true })
+          .eq('video_id', videoId)
+          .neq('user_id', userId);
+
+        if ((externalViews || 0) < 1) {
+          console.log(`[award-camly] Blocked FIRST_UPLOAD for user ${userId} - video ${videoId} has no external views yet`);
+          return new Response(
+            JSON.stringify({ success: false, reason: 'Bonus upload đầu tiên sẽ được cộng sau khi video nhận được lượt xem đầu tiên từ người dùng khác.', milestone: null, newTotal: 0, amount: 0, type }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
     }
 
     // 4. Validate reward type
