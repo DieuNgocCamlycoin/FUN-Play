@@ -1,55 +1,78 @@
 
 
-# Cập Nhật Biên Nhận: Chủ Đề Tết Nguyên Đán 2026
+# Toi Uu Hoa Bien Nhan Tet 2026 — Giam Tai Nguyen & Don Dep Code
 
-## Tổng Quan
+## Phat Hien Van De
 
-Thay thế chủ đề Valentine hiện tại trên cả hai loại biên nhận (Claim Receipt và Donation Receipt) bằng chủ đề Tết Nguyên Đán, có hiệu lực từ ngày 17/02/2026. Thiết kế mới sẽ thu hút người dùng chụp ảnh và chia sẻ trên mạng xã hội.
+Sau khi kiem tra trang bien nhan tai `/receipt/d8b9f8e2be945a64`, trang hien thi dung nhung co mot so van de:
 
-## Thay Đổi Chi Tiết
+### 1. Hieu ung Animation ton tai nguyen (Nghiem trong)
+- `TetFloatingElements` dung 6 `motion.div` voi `repeat: Infinity` -- chay lien tuc, tieu ton CPU, dac biet tren mobile
+- `DonationReceipt` co them 4 `motion.span` cung `repeat: Infinity`
+- Tong cong: **10 animation chay vo han** tren moi bien nhan
+- Session replay xac nhan: DOM updates xay ra "multiple times per millisecond" -- rat nang
 
-### File: `src/pages/Receipt.tsx`
+### 2. Import thua
+- `CheckCircle` (lucide-react) -- khong duoc su dung
+- `supabase` (client) -- import nhung khong dung trong Receipt
+- `Wallet` -- chi dung trong ClaimReceipt error state, co the thay bang Gift de dong nhat
 
-#### 1. ClaimReceipt (dòng 82-215) -- Biên nhận rút thưởng CAMLY
+### 3. So CAMLY khong format trong DonationReceipt
+- ClaimReceipt dung `Intl.NumberFormat("vi-VN")` -- hien thi "500.000"
+- DonationReceipt chi hien thi raw "500000" -- khong nhat quan
 
-**Header (dòng 86-108):**
-- Thay gradient xanh lá sang gradient đỏ-vàng Tết: `from-red-600 via-red-500 to-yellow-500`
-- Thay hiệu ứng trái tim trôi bằng hoa mai/đào trôi (unicode hoa)
-- Thêm lời chúc Tết sau dòng "Rút thưởng CAMLY thành công":
-  - "Chúc Mừng Năm Mới 2026 -- Năm Bính Ngọ"
-  - "Phúc Lộc An Khang -- Vạn Sự Như Ý"
-- Thay ribbon Valentine `💕 Happy Valentine's Day 💕` bằng ribbon Tết: `🧧 Chúc Mừng Năm Mới 🧧`
+## Giai Phap
 
-**Viền thẻ (dòng 84):**
-- Thay `border-pink-300` sang `border-red-300` và `ring-pink` sang `ring-red`
+### Buoc 1: Thay Framer Motion animation bang CSS animation
+Thay vi 10 `motion.div/span` chay JS loop, dung CSS `@keyframes` + `animation` -- trình duyệt xu ly hieu qua hon (GPU-accelerated, khong can JS thread).
 
-**Footer (dòng 194-198):**
-- Thay nền hồng Valentine sang nền đỏ-vàng Tết
-- Nội dung: "🧧 Phúc Lộc Thọ -- FUN Play 🧧" và "Tết Nguyên Đán 2026"
+Thay `TetFloatingElements` component tu:
+```tsx
+// CU: 6 motion.div voi JS-driven infinite animation
+<motion.div animate={{ y: [-6, 6, -6], rotate: [-5, 5, -5] }} transition={{ repeat: Infinity }} />
+```
 
-**Hình ảnh Tết:**
-- Thêm hình nền trang trí mai vàng (emoji hoa) và pháo hoa xung quanh header
-- Thêm banner nhỏ với hình lì xì, đèn lồng bằng emoji/CSS art để người dùng chụp đẹp
+Thanh:
+```tsx
+// MOI: CSS animation, khong can framer-motion
+<div className="absolute text-white/30 text-lg animate-float-gentle" style={{ ... }}>
+```
 
-#### 2. DonationReceipt (dòng 218-471) -- Biên nhận tặng quà
+Them CSS keyframes vao tailwind config hoac inline style.
 
-**Header (dòng 292-313):**
-- Thay hiệu ứng trái tim hồng bằng hoa mai/đào
-- Thay ribbon `💖 Happy Valentine's Day 💖` bằng `🧧 Chúc Mừng Năm Mới 🧧`
+### Buoc 2: Xoa import thua
+- Xoa `CheckCircle`, `supabase` khoi import
+- Giam bundle size
 
-**Footer (dòng 450-454):**
-- Thay Valentine footer sang Tết footer giống ClaimReceipt
+### Buoc 3: Format so CAMLY nhat quan
+Them `Intl.NumberFormat("vi-VN")` cho DonationReceipt amount:
+```tsx
+// CU
+{receipt.amount} {token?.symbol}
 
-## Thiết Kế Trực Quan
+// MOI
+{new Intl.NumberFormat("vi-VN").format(receipt.amount)} {token?.symbol}
+```
 
-- Tông màu chính: đỏ (#DC2626), vàng (#EAB308), cam (#EA580C)
-- Emoji trang trí: 🧧 (lì xì), 🏮 (đèn lồng), 🌸 (hoa đào), 🎆 (pháo hoa), 🎊 (confetti)
-- Hiệu ứng animation: hoa mai rơi nhẹ thay thế trái tim trôi
-- Banner Tết nổi bật ở giữa để người dùng screenshot chia sẻ
+### Buoc 4: Xoa framer-motion import neu khong con dung
+Sau khi chuyen sang CSS animation, kiem tra xem `motion` con duoc dung khong. Neu khong, xoa import de giam bundle.
 
-## Phạm Vi Ảnh Hưởng
+## File Thay Doi
 
-- 1 file duy nhất: `src/pages/Receipt.tsx`
-- Không thay đổi backend, không thay đổi Edge Function
-- Áp dụng tự động cho cả web và mobile (dùng chung giao diện)
+| File | Thay Doi |
+|------|----------|
+| `src/pages/Receipt.tsx` | Thay motion animation bang CSS, xoa import thua, format so CAMLY |
+| `src/index.css` (hoac tailwind config) | Them CSS keyframes cho float animation |
+
+## Tac Dong
+
+| Metric | Truoc | Sau |
+|--------|-------|-----|
+| JS animations dong thoi | 10 infinite loops | 0 (CSS thay the) |
+| CPU usage tren mobile | Cao (DOM updates lien tuc) | Thap (GPU-accelerated CSS) |
+| Unused imports | 3 | 0 |
+| Bundle impact | motion dung trong Receipt | Co the xoa neu khong dung o noi khac |
+| So format DonationReceipt | "500000" (raw) | "500.000" (formatted) |
+
+Khong thay doi backend, khong thay doi Edge Function. Ap dung tu dong cho ca web va mobile.
 
