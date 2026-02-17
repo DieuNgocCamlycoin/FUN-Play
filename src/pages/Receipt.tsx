@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import funplayPlanetLogo from "@/assets/funplay-planet-logo.png";
 import { useParams, Link } from "react-router-dom";
-import { Gift, ExternalLink, Copy, ArrowRight, Play, FileText, Loader2, Wallet, CheckCircle, TrendingUp, Heart } from "lucide-react";
+import { Gift, ExternalLink, Copy, ArrowRight, Play, FileText, Loader2, Wallet, CheckCircle, TrendingUp } from "lucide-react";
 import { SYSTEM_WALLETS } from "@/config/systemWallets";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,55 @@ import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
+
+const TET_EMOJIS = ["🌸", "🏮", "🧧", "🎆", "🌺", "🎊"];
+
+function TetFloatingElements({ count = 6 }: { count?: number }) {
+  return (
+    <>
+      {[...Array(count)].map((_, i) => (
+        <motion.div
+          key={i}
+          className="absolute text-white/30 text-lg"
+          style={{ left: `${8 + i * 14}%`, top: `${15 + (i % 3) * 20}%` }}
+          animate={{ y: [-6, 6, -6], rotate: [-5, 5, -5], opacity: [0.2, 0.5, 0.2] }}
+          transition={{ repeat: Infinity, duration: 2.5 + i * 0.3, delay: i * 0.2 }}
+        >
+          {TET_EMOJIS[i % TET_EMOJIS.length]}
+        </motion.div>
+      ))}
+    </>
+  );
+}
+
+function TetFooter() {
+  return (
+    <div className="text-center py-3 bg-gradient-to-r from-red-50 to-yellow-50 dark:from-red-950/20 dark:to-yellow-950/20 rounded-lg border border-red-200/50">
+      <div className="flex items-center justify-center gap-2 mb-1">
+        <span>🏮</span>
+        <p className="text-xs text-red-600 font-bold">🧧 Phúc Lộc Thọ — FUN Play 🧧</p>
+        <span>🏮</span>
+      </div>
+      <p className="text-[10px] text-red-500">Tết Nguyên Đán 2026 — Năm Bính Ngọ</p>
+    </div>
+  );
+}
+
+function TetBanner() {
+  return (
+    <div className="text-center py-3 bg-gradient-to-r from-red-100 via-yellow-50 to-red-100 dark:from-red-950/30 dark:to-yellow-950/30 rounded-xl border border-red-300/60 relative overflow-hidden">
+      <div className="flex items-center justify-center gap-3 text-2xl mb-1">
+        <span>🧧</span>
+        <span>🏮</span>
+        <span>🎆</span>
+        <span>🏮</span>
+        <span>🧧</span>
+      </div>
+      <p className="text-sm font-bold text-red-700 dark:text-red-400">Chúc Mừng Năm Mới 2026</p>
+      <p className="text-xs text-red-600/80 dark:text-red-400/80">Phúc Lộc An Khang — Vạn Sự Như Ý</p>
+    </div>
+  );
+}
 
 function ClaimReceipt({ claimId }: { claimId: string }) {
   const [claim, setClaim] = useState<any>(null);
@@ -53,15 +102,15 @@ function ClaimReceipt({ claimId }: { claimId: string }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30">
-        <Loader2 className="h-8 w-8 animate-spin text-green-500" />
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-yellow-50 dark:from-red-950/30 dark:to-yellow-950/30">
+        <Loader2 className="h-8 w-8 animate-spin text-red-500" />
       </div>
     );
   }
 
   if (error || !claim) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 p-4">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-red-50 to-yellow-50 dark:from-red-950/30 dark:to-yellow-950/30 p-4">
         <Wallet className="h-16 w-16 text-muted-foreground mb-4" />
         <h1 className="text-2xl font-bold mb-2">Không tìm thấy biên nhận</h1>
         <p className="text-muted-foreground mb-4">{error}</p>
@@ -75,43 +124,35 @@ function ClaimReceipt({ claimId }: { claimId: string }) {
   const profile = claim.profiles;
   const channel = claim.channel;
   const treasury = SYSTEM_WALLETS.TREASURY;
-
-  // Use channel name > display_name > username for display
   const userDisplayName = channel?.name || profile?.display_name || profile?.username || "Unknown";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 p-4 flex items-center justify-center">
-      <Card className="w-full max-w-md shadow-xl border-pink-300 dark:border-pink-800 overflow-hidden ring-2 ring-pink-200/50 dark:ring-pink-800/30">
-        {/* Premium gradient header */}
-        <div className="bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 p-6 text-white text-center relative overflow-hidden">
-          {/* Floating hearts */}
-          {[...Array(6)].map((_, i) => (
-            <motion.div
-              key={i}
-              className="absolute text-white/20"
-              style={{ left: `${10 + i * 15}%`, top: `${20 + (i % 3) * 25}%` }}
-              animate={{ y: [-5, 5, -5], opacity: [0.2, 0.4, 0.2] }}
-              transition={{ repeat: Infinity, duration: 2 + i * 0.3, delay: i * 0.2 }}
-            >
-              <Heart className="h-4 w-4" fill="currentColor" />
-            </motion.div>
-          ))}
+    <div className="min-h-screen bg-gradient-to-br from-red-50 to-yellow-50 dark:from-red-950/30 dark:to-yellow-950/30 p-4 flex items-center justify-center">
+      <Card className="w-full max-w-md shadow-xl border-red-300 dark:border-red-800 overflow-hidden ring-2 ring-red-200/50 dark:ring-red-800/30">
+        {/* Tet gradient header */}
+        <div className="bg-gradient-to-r from-red-600 via-red-500 to-yellow-500 p-6 text-white text-center relative overflow-hidden">
+          <TetFloatingElements />
           <div className="flex justify-center mb-3">
             <img src={funplayPlanetLogo} alt="FUN Play" className="h-14 w-14 rounded-full object-cover border-2 border-white/50" />
           </div>
           <h1 className="text-lg font-bold tracking-wide">FUN PLAY - BIÊN NHẬN CLAIM</h1>
-          <p className="text-xs text-white/70 mt-1">Rút thưởng CAMLY thành công</p>
-          {/* Valentine ribbon */}
-          <div className="mt-2 inline-flex items-center gap-1 bg-pink-500/30 backdrop-blur-sm rounded-full px-3 py-1 text-xs">
-            <span>💕</span> Happy Valentine's Day <span>💕</span>
+          <p className="text-xs text-white/80 mt-1">Rút thưởng CAMLY thành công</p>
+          <p className="text-xs text-yellow-200 mt-1 font-medium">Chúc Mừng Năm Mới 2026 — Năm Bính Ngọ</p>
+          <p className="text-[11px] text-yellow-100/80">Phúc Lộc An Khang — Vạn Sự Như Ý</p>
+          {/* Tet ribbon */}
+          <div className="mt-2 inline-flex items-center gap-1 bg-yellow-500/30 backdrop-blur-sm rounded-full px-3 py-1 text-xs">
+            <span>🧧</span> Chúc Mừng Năm Mới <span>🧧</span>
           </div>
         </div>
 
         <CardContent className="p-6 space-y-5">
+          {/* Tet Banner for screenshot sharing */}
+          <TetBanner />
+
           {/* Sender (Treasury) → Receiver (User) */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Avatar className="h-12 w-12 border-2 border-green-200">
+              <Avatar className="h-12 w-12 border-2 border-red-200">
                 <AvatarImage src={treasury.avatarUrl} />
                 <AvatarFallback>FP</AvatarFallback>
               </Avatar>
@@ -121,14 +162,14 @@ function ClaimReceipt({ claimId }: { claimId: string }) {
               </div>
             </div>
 
-            <ArrowRight className="h-6 w-6 text-green-500 shrink-0" />
+            <ArrowRight className="h-6 w-6 text-red-500 shrink-0" />
 
             <div className="flex items-center gap-3">
               <div className="text-right">
                 <p className="font-medium text-sm">{userDisplayName}</p>
                 <p className="text-xs text-muted-foreground">@{profile?.username}</p>
               </div>
-              <Avatar className="h-12 w-12 border-2 border-green-200">
+              <Avatar className="h-12 w-12 border-2 border-red-200">
                 <AvatarImage src={profile?.avatar_url || ""} />
                 <AvatarFallback>{profile?.username?.[0]?.toUpperCase() || "?"}</AvatarFallback>
               </Avatar>
@@ -141,8 +182,8 @@ function ClaimReceipt({ claimId }: { claimId: string }) {
           <div className="text-center py-4">
             <p className="text-sm text-muted-foreground mb-1">Số CAMLY đã rút</p>
             <div className="flex items-center justify-center gap-2">
-              <TrendingUp className="h-7 w-7 text-green-500" />
-              <span className="text-4xl font-bold bg-gradient-to-r from-green-500 to-emerald-500 bg-clip-text text-transparent">
+              <TrendingUp className="h-7 w-7 text-red-500" />
+              <span className="text-4xl font-bold bg-gradient-to-r from-red-500 to-yellow-500 bg-clip-text text-transparent">
                 {new Intl.NumberFormat("vi-VN").format(claim.amount)}
               </span>
             </div>
@@ -191,11 +232,8 @@ function ClaimReceipt({ claimId }: { claimId: string }) {
             )}
           </div>
 
-          {/* Valentine Footer */}
-          <div className="text-center py-3 bg-gradient-to-r from-pink-50 to-rose-50 dark:from-pink-950/20 dark:to-rose-950/20 rounded-lg border border-pink-200/50">
-            <p className="text-xs text-pink-500 font-medium">💖 With Love from FUN Play 💖</p>
-            <p className="text-[10px] text-pink-400">Happy Valentine's Day 2026</p>
-          </div>
+          {/* Tet Footer */}
+          <TetFooter />
 
           {/* Actions */}
           <div className="flex gap-2 pt-2">
@@ -204,7 +242,7 @@ function ClaimReceipt({ claimId }: { claimId: string }) {
               Sao chép link
             </Button>
             <Link to="/" className="flex-1">
-              <Button className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white">
+              <Button className="w-full bg-gradient-to-r from-red-500 to-yellow-500 text-white">
                 Về FUN Play
               </Button>
             </Link>
@@ -255,15 +293,15 @@ function DonationReceipt({ receiptPublicId }: { receiptPublicId: string }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 to-orange-50">
-        <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-yellow-50">
+        <Loader2 className="h-8 w-8 animate-spin text-red-500" />
       </div>
     );
   }
 
   if (error || !receipt) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-amber-50 to-orange-50 p-4">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-red-50 to-yellow-50 p-4">
         <Gift className="h-16 w-16 text-muted-foreground mb-4" />
         <h1 className="text-2xl font-bold mb-2">Không tìm thấy biên nhận</h1>
         <p className="text-muted-foreground mb-4">{error}</p>
@@ -279,27 +317,25 @@ function DonationReceipt({ receiptPublicId }: { receiptPublicId: string }) {
   const token = receipt.token;
   const contextInfo = receipt.context_info;
 
-  // Use channel_name > display_name > username
   const senderDisplayName = sender?.channel_name || sender?.display_name || sender?.username || "Unknown";
   const receiverDisplayName = receiver?.channel_name || receiver?.display_name || receiver?.username || "Unknown";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-50 p-4 flex items-center justify-center">
-      <Card className="w-full max-w-md shadow-xl border-amber-200">
+    <div className="min-h-screen bg-gradient-to-br from-red-50 to-yellow-50 p-4 flex items-center justify-center">
+      <Card className="w-full max-w-md shadow-xl border-red-200">
         <CardContent className="p-6 space-y-6">
           {/* Header */}
-          {/* ... keep existing code */}
           <div className="text-center space-y-2 relative">
-            {/* Floating hearts */}
+            {/* Floating Tet elements */}
             {[...Array(4)].map((_, i) => (
               <motion.span
                 key={i}
-                className="absolute text-pink-300/40"
+                className="absolute text-red-300/40"
                 style={{ left: `${5 + i * 25}%`, top: `${-5 + (i % 2) * 10}%` }}
                 animate={{ y: [-3, 3, -3], scale: [1, 1.15, 1] }}
                 transition={{ repeat: Infinity, duration: 2 + i * 0.4, delay: i * 0.3 }}
               >
-                💕
+                {["🌸", "🏮", "🧧", "🎆"][i]}
               </motion.span>
             ))}
             <div className="flex justify-center">
@@ -307,17 +343,22 @@ function DonationReceipt({ receiptPublicId }: { receiptPublicId: string }) {
             </div>
             <h1 className="text-xl font-bold">FUN PLAY - Biên Nhận Tặng</h1>
             <p className="text-sm text-muted-foreground">#{receipt.receipt_public_id}</p>
-            <div className="inline-flex items-center gap-1 bg-pink-500/10 rounded-full px-3 py-1 text-xs text-pink-500 font-medium">
-              💖 Happy Valentine's Day 💖
+            <div className="inline-flex items-center gap-1 bg-red-500/10 rounded-full px-3 py-1 text-xs text-red-600 font-medium">
+              🧧 Chúc Mừng Năm Mới 🧧
             </div>
           </div>
+
+          <Separator />
+
+          {/* Tet Banner */}
+          <TetBanner />
 
           <Separator />
 
           {/* Sender → Receiver */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Avatar className="h-12 w-12 border-2 border-amber-200">
+              <Avatar className="h-12 w-12 border-2 border-red-200">
                 <AvatarImage src={sender?.avatar_url || ""} />
                 <AvatarFallback>{senderDisplayName[0]?.toUpperCase() || "?"}</AvatarFallback>
               </Avatar>
@@ -327,14 +368,14 @@ function DonationReceipt({ receiptPublicId }: { receiptPublicId: string }) {
               </div>
             </div>
             
-            <ArrowRight className="h-6 w-6 text-amber-500 shrink-0" />
+            <ArrowRight className="h-6 w-6 text-red-500 shrink-0" />
             
             <div className="flex items-center gap-3">
               <div className="text-right">
                 <p className="font-medium text-sm">{receiverDisplayName}</p>
                 <p className="text-xs text-muted-foreground">@{receiver?.username}</p>
               </div>
-              <Avatar className="h-12 w-12 border-2 border-amber-200">
+              <Avatar className="h-12 w-12 border-2 border-red-200">
                 <AvatarImage src={receiver?.avatar_url || ""} />
                 <AvatarFallback>{receiverDisplayName[0]?.toUpperCase() || "?"}</AvatarFallback>
               </Avatar>
@@ -349,7 +390,7 @@ function DonationReceipt({ receiptPublicId }: { receiptPublicId: string }) {
               {token?.icon_url && (
                 <img src={token.icon_url} alt={token.symbol} className="h-8 w-8" />
               )}
-              <span className="text-3xl font-bold text-amber-600">
+              <span className="text-3xl font-bold text-red-600">
                 {receipt.amount} {token?.symbol}
               </span>
             </div>
@@ -362,7 +403,7 @@ function DonationReceipt({ receiptPublicId }: { receiptPublicId: string }) {
           {receipt.message && (
             <>
               <Separator />
-              <div className="bg-amber-50 rounded-lg p-4">
+              <div className="bg-red-50 rounded-lg p-4">
                 <p className="text-sm text-muted-foreground mb-1">Lời nhắn:</p>
                 <p className="italic">"{receipt.message}"</p>
               </div>
@@ -447,11 +488,8 @@ function DonationReceipt({ receiptPublicId }: { receiptPublicId: string }) {
             </div>
           </div>
 
-          {/* Valentine Footer */}
-          <div className="text-center py-3 bg-gradient-to-r from-pink-50 to-rose-50 dark:from-pink-950/20 dark:to-rose-950/20 rounded-lg border border-pink-200/50">
-            <p className="text-xs text-pink-500 font-medium">💖 With Love from FUN Play 💖</p>
-            <p className="text-[10px] text-pink-400">Happy Valentine's Day 2026</p>
-          </div>
+          {/* Tet Footer */}
+          <TetFooter />
 
           {/* Actions */}
           <div className="flex gap-2 pt-2">
@@ -460,7 +498,7 @@ function DonationReceipt({ receiptPublicId }: { receiptPublicId: string }) {
               Sao chép link
             </Button>
             <Link to="/" className="flex-1">
-              <Button className="w-full bg-gradient-to-r from-amber-500 to-orange-500">
+              <Button className="w-full bg-gradient-to-r from-red-500 to-yellow-500 text-white">
                 Về FUN Play
               </Button>
             </Link>
@@ -484,7 +522,6 @@ export default function Receipt() {
     );
   }
 
-  // Detect claim receipt vs donation receipt
   if (receiptPublicId.startsWith("claim-")) {
     const claimId = receiptPublicId.replace("claim-", "");
     return <ClaimReceipt claimId={claimId} />;
