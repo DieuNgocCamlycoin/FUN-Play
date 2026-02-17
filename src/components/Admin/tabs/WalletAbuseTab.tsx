@@ -25,13 +25,12 @@ interface WalletAbuseTabProps {
   users: AdminUser[];
   walletGroups: WalletGroup[];
   onBan: (userId: string, reason: string) => Promise<boolean>;
-  onUnban: (userId: string) => Promise<boolean>;
   onUnbanWithRestore: (userId: string, restoreRewards: boolean) => Promise<boolean>;
   isFakeName: (name: string | null) => boolean;
   loading: boolean;
 }
 
-const WalletAbuseTab = ({ users, walletGroups, onBan, onUnban, onUnbanWithRestore, isFakeName, loading }: WalletAbuseTabProps) => {
+const WalletAbuseTab = ({ users, walletGroups, onBan, onUnbanWithRestore, isFakeName, loading }: WalletAbuseTabProps) => {
   const [recalculating, setRecalculating] = useState(false);
   // Missing profile users (no avatar + no name + has pending)
   const missingProfileUsers = useMemo(() => {
