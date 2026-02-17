@@ -568,7 +568,7 @@ serve(async (req) => {
             .eq("ip_hash", profileForAbuse.signup_ip_hash)
             .eq("action_type", "signup");
           
-          if ((sameIpCount || 0) > 5) suspiciousScore += 3;
+          if ((sameIpCount || 0) >= 5) suspiciousScore += 3;
           else if ((sameIpCount || 0) > 2) suspiciousScore += 1;
         }
 
