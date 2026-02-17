@@ -159,7 +159,7 @@ export default function RewardHistory() {
     try {
       const { data, error } = await supabase
         .from("claim_requests")
-        .select("*")
+        .select("id, amount, wallet_address, status, tx_hash, created_at, processed_at, error_message")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(100);

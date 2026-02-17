@@ -7,8 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-import { Coins, Eye, MessageSquare, Upload, TrendingUp, Calendar, ExternalLink, Shield } from "lucide-react";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
+import { Coins, Eye, MessageSquare, Upload, TrendingUp, ExternalLink, Shield } from "lucide-react";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import { PendingRewardsWidget } from "@/components/Dashboard/PendingRewardsWidget";
@@ -86,8 +86,6 @@ const UserDashboard = () => {
     value: item.total,
     color: REWARD_TYPE_COLORS[item.type] || "#888",
   })) || [];
-
-  const chartData: { date: string; amount: number }[] = [];
 
   return (
     <MainLayout>
@@ -204,9 +202,8 @@ const UserDashboard = () => {
 
         {/* Charts */}
         <Tabs defaultValue="breakdown" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList>
             <TabsTrigger value="breakdown">Phân tích theo loại</TabsTrigger>
-            <TabsTrigger value="timeline">Biểu đồ theo thời gian</TabsTrigger>
           </TabsList>
 
           <TabsContent value="breakdown">
@@ -263,38 +260,6 @@ const UserDashboard = () => {
             </Card>
           </TabsContent>
 
-          <TabsContent value="timeline">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="w-5 h-5" />
-                  Phần thưởng 30 ngày gần đây
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="date" />
-                      <YAxis />
-                      <Tooltip 
-                        formatter={(value: number) => value.toLocaleString() + ' CAMLY'}
-                        labelFormatter={(label) => `Ngày: ${label}`}
-                      />
-                      <Line 
-                        type="monotone" 
-                        dataKey="amount" 
-                        stroke="#FFD700" 
-                        strokeWidth={3}
-                        dot={{ fill: '#FFD700', strokeWidth: 2 }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
         </Tabs>
 
         {/* Claim History */}
