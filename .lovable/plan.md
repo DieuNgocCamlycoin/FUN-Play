@@ -1,75 +1,100 @@
 
+# Claim System Final Polish
 
-# Optimize CAMLY Claim System
+## Current Status: Healthy
+- 91 successful claims, 37.5M CAMLY distributed
+- Error mapping, atomic updates, fire-and-forget tasks all working
+- No recent errors in logs
 
-## Status: System is Working
+## Remaining Issues
 
-91 successful claims, 37.5M CAMLY distributed. The decimal fix is active. The issues below are optimizations and cleanup.
+### 1. Clean 21 old failed records from pre-fix era (Feb 11-13)
+These are auto-timeouts, stuck claim cleanups, and "Admin wallet not configured" errors from before the system was properly set up. They clutter admin views.
 
-## Issues Found
+### 2. Redundant error mapping in frontend
+The edge function now returns friendly Vietnamese messages (via `mapErrorToFriendly`), but `ClaimRewardsModal.tsx` lines 377-386 still re-map the same errors client-side. This is dead code since the edge function already handles it. The frontend catch block should just display whatever message comes back from the server.
 
-### 1. Raw Error Messages Exposed to Users
-The edge function catch block (line 295-317) passes raw ethers error strings like `"insufficient funds for intrinsic transaction cost (transaction=0xf8a9..."` directly to users. These should be converted to friendly Vietnamese messages.
+### 3. Edge function catch block creates redundant Supabase clients  
+The catch block (lines 324-337) creates 2 new Supabase clients (`adminClient` and `tempAuth`) to clean up failed claims. This wastes resources. Instead, move the `supabaseAdmin` and user ID extraction above the try block so they can be reused in catch.
 
-### 2. Duplicate Error Handling in ClaimRewardsModal
-Lines 359-361 throw an error for `!data?.success`, then lines 390-392 check the exact same condition again (unreachable code).
-
-### 3. Unnecessary Blocking in checkPendingClaims  
-The function has a 2-second `await setTimeout` that blocks the UI thread when checking for stuck pending claims. This should be removed -- the server-side auto-cleanup already handles stuck claims.
-
-### 4. Race Condition in approved_reward Update
-Line 230 sets `approved_reward = totalAmount - claimAmount` using a value fetched earlier. If rewards were added between fetch and update, they would be lost. Should use atomic decrement instead.
-
-### 5. Old Failed Claims Cleanup
-10+ failed claims from Feb 14 with raw "insufficient funds for gas" errors should be cleaned up like the decimal-mismatch records.
-
-### 6. Profile last_claim_at Never Updated
-The `last_claim_at` field on profiles is never set after a successful claim.
+### 4. Unused imports in ClaimRewardsModal
+- `REWARD_WALLET_ADDRESS` imported but never used
+- `isMobileLayout` from `useIsMobile()` assigned but never used (the component uses its own `isMobile` state from `isMobileBrowser()`)
 
 ## Changes
 
 ### File: `supabase/functions/claim-camly/index.ts`
-- Replace the catch block's raw error forwarding with friendly message mapping (gas errors, network errors, timeout errors)
-- Fix `approved_reward` update to use atomic decrement: `approved_reward = GREATEST(0, approved_reward - claimAmount)` via RPC or raw update
-- Update `last_claim_at` on successful claim
-- Move the low-balance alert and post-transaction tasks into a single fire-and-forget block
+- Move `supabaseAdmin` creation and user authentication above the main try block so the catch block can reuse them instead of creating new clients
+- This reduces latency in error paths and removes ~10 lines of redundant code
 
 ### File: `src/components/Rewards/ClaimRewardsModal.tsx`
-- Remove duplicate `!data?.success` check (lines 390-392 are unreachable)
-- Simplify `checkPendingClaims`: remove the 2-second sleep and unnecessary re-check logic
-- Remove unused `claimTimeoutRef` and `claimTimerRef` cleanup duplication
+- Remove redundant error re-mapping in catch block (lines 377-386). Simply use the error message as-is since the server already returns friendly messages
+- Remove unused `REWARD_WALLET_ADDRESS` import
+- Remove unused `isMobileLayout` variable
 
-### Database: Clean old gas-error failed claims
+### Database: Clean 21 old failed records
 ```sql
 UPDATE claim_requests 
-SET status = 'cleaned', error_message = 'Auto-cleaned: gas fee error (resolved)'
-WHERE status = 'failed' 
-  AND error_message LIKE '%insufficient funds for%';
+SET status = 'cleaned', error_message = 'Auto-cleaned: pre-fix era errors (resolved)'
+WHERE status = 'failed';
 ```
 
 ## Technical Details
 
-### Edge Function Error Mapping
+### Edge function restructure (simplified)
+
+Before:
 ```text
-"insufficient funds" -> "He thong dang bao tri vi thuong. Vui long thu lai sau."
-"nonce too low"      -> "Giao dich bi trung. Vui long thu lai."
-"timeout"            -> "Mang blockchain cham. Vui long thu lai sau."
-default              -> "Khong the claim. Vui long thu lai sau it phut."
+serve(async (req) => {
+  try {
+    const supabaseAdmin = createClient(...)  // inside try
+    const user = ...                          // inside try
+    ... claim logic ...
+  } catch {
+    const adminClient = createClient(...)     // NEW client in catch (wasteful)
+    const tempAuth = createClient(...)        // ANOTHER new client (wasteful)
+  }
+})
 ```
 
-### Atomic approved_reward Fix
-Instead of:
-```
-UPDATE profiles SET approved_reward = totalAmount - claimAmount WHERE id = user.id
-```
-Use:
-```
-UPDATE profiles SET 
-  approved_reward = GREATEST(0, COALESCE(approved_reward, 0) - claimAmount),
-  last_claim_at = now()
-WHERE id = user.id
+After:
+```text
+serve(async (req) => {
+  let supabaseAdmin, userId;                  // declared outside
+  try {
+    supabaseAdmin = createClient(...)         // created once
+    userId = user.id                          // captured once
+    ... claim logic ...
+  } catch {
+    if (supabaseAdmin && userId) {            // reuse existing clients
+      await supabaseAdmin.from(...)...
+    }
+  }
+})
 ```
 
-### ClaimRewardsModal Simplification
-Remove the redundant error check block and the blocking sleep in pending claim detection. The simplified `checkPendingClaims` will just query and set state without artificial delays.
+### Frontend catch simplification
 
+Before (redundant mapping):
+```typescript
+if (rawMsg.includes("insufficient funds")) {
+  errorMessage = "Hệ thống đang bảo trì...";  // server already says this
+} else if (rawMsg.includes("reward pool")) {
+  errorMessage = "Bể thưởng tạm thời hết...";  // server already says this
+} else {
+  errorMessage = rawMsg;
+}
+```
+
+After (trust server messages):
+```typescript
+let errorMessage = rawMsg || "Không thể claim. Vui lòng thử lại.";
+if (rawMsg.includes("pending claim") || rawMsg.includes("đang xử lý")) {
+  setHasPendingClaim(true);  // only special case: update UI state
+}
+```
+
+## Files to Change
+1. `supabase/functions/claim-camly/index.ts` -- restructure client creation for catch reuse
+2. `src/components/Rewards/ClaimRewardsModal.tsx` -- remove redundant error mapping and unused imports
+3. Database cleanup of 21 old failed records
