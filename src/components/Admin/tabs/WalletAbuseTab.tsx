@@ -4,10 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Wallet, UserX, AlertCircle, Ban, ExternalLink, Globe } from "lucide-react";
+import { Wallet, UserX, AlertCircle, Ban, ExternalLink, Globe, RefreshCw } from "lucide-react";
 import { AdminUser, WalletGroup } from "@/hooks/useAdminManage";
 import { toast } from "sonner";
 import IPAbuseDetectionTab from "./IPAbuseDetectionTab";
+import { supabase } from "@/integrations/supabase/client";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,6 +30,7 @@ interface WalletAbuseTabProps {
 }
 
 const WalletAbuseTab = ({ users, walletGroups, onBan, isFakeName, loading }: WalletAbuseTabProps) => {
+  const [recalculating, setRecalculating] = useState(false);
   // Missing profile users (no avatar + no name + has pending)
   const missingProfileUsers = useMemo(() => {
     return users.filter(
@@ -57,8 +59,44 @@ const WalletAbuseTab = ({ users, walletGroups, onBan, isFakeName, loading }: Wal
     toast.success(`Đã ban ${usersToban.length} users`);
   };
 
+  const handleRecalculateScores = async () => {
+    setRecalculating(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("Chưa đăng nhập");
+        return;
+      }
+      const { data, error } = await supabase.functions.invoke("backfill-suspicious-scores", {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (error) throw error;
+      toast.success(
+        `Đã cập nhật ${data.updated} users. High risk: ${data.high_risk}, Medium: ${data.medium_risk}, Clean: ${data.clean}`
+      );
+    } catch (err: any) {
+      toast.error(err.message || "Lỗi khi recalculate scores");
+    } finally {
+      setRecalculating(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
+      {/* Recalculate Button */}
+      <div className="flex justify-end">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleRecalculateScores}
+          disabled={recalculating}
+          className="gap-2"
+        >
+          <RefreshCw className={`w-4 h-4 ${recalculating ? "animate-spin" : ""}`} />
+          {recalculating ? "Đang tính..." : "Recalculate Suspicious Scores"}
+        </Button>
+      </div>
+
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="bg-gradient-to-br from-purple-500/10 to-purple-500/5 border-purple-500/30">
