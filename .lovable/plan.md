@@ -1,108 +1,97 @@
 
-# Smart Username and Display Name System
+# Three Features: Test Username Flow, Admin Bulk Notify, First-Login Onboarding
 
-## Current Problems
-- 682 out of 684 users have system-generated usernames like `user_43a82db3` -- unusable for profile URLs
-- No way for users to choose a custom `@username` in settings
-- No validation or filtering of inappropriate display names
-- Profile completion indicator doesn't track username customization
-- Channel URLs use ugly system IDs instead of friendly usernames
+## 1. Test Username Customization Flow
 
-## Solution Overview
-
-A 3-part approach: (1) Let users choose custom usernames, (2) Filter inappropriate names, (3) Gently nudge users to complete their profile.
+The username customization is already fully implemented. I will manually test it by navigating to `/settings` in the browser, entering a custom username, verifying real-time availability, saving, and confirming the profile updates. This is a verification step, not a code change.
 
 ---
 
-## Part 1: Custom Username Field in Settings
+## 2. Admin Tool: Bulk Notify Users with System Usernames
 
-**File: `src/pages/ProfileSettings.tsx`**
-- Add a new "Username" (`@username`) input field below display name
-- Real-time availability check (debounced query to profiles table)
-- Validation rules:
-  - 3-30 characters, lowercase letters, numbers, underscores only
-  - No offensive words (checked against blocklist)
-  - Must be unique (DB already has UNIQUE constraint)
-  - Cannot start with `user_` (reserved for system-generated)
-- Show green checkmark when available, red X when taken
+### What it does
+Adds a button in the Admin Dashboard (User Stats or Overview section) that sends an in-app notification to all users still using `user_*` system usernames, encouraging them to update their profile.
 
-**File: `src/components/Profile/ProfileCompletionIndicator.tsx`**
-- Add "Username" as a 5th completion item
-- A custom username (not starting with `user_`) counts as completed
+### Changes
 
----
+**New database function: `bulk_notify_system_usernames`**
+- Accepts `p_admin_id` (admin check via `has_role`)
+- Selects all profiles where `username LIKE 'user_%'`
+- Inserts a notification for each user into the existing `notifications` table:
+  - `type`: `'system'`
+  - `title`: `'Cap nhat ho so cua ban!'`
+  - `message`: `'Ban dang dung username he thong. Hay chon username dep va cap nhat anh dai dien de nhan thuong CAMLY!'`
+  - `link`: `'/settings'`
+- Returns the count of notified users
 
-## Part 2: Display Name Content Filter
-
-**New file: `src/lib/nameFilter.ts`**
-- A lightweight Vietnamese + English blocklist of offensive/inappropriate words
-- Function `isNameAppropriate(name: string): { ok: boolean; reason?: string }`
-- Check on save in ProfileSettings -- block saving if inappropriate
-- Also used in the signup trigger (server-side)
-
-**File: `src/pages/ProfileSettings.tsx`**
-- Validate display name on save using the filter
-- Show warning toast if name is flagged
-
-**Database: Update `handle_new_user()` function**
-- Strip inappropriate words from auto-generated display names at signup time
+**`src/components/Admin/tabs/OverviewTab.tsx` (or UserStatsTab)**
+- Add a "Nhac tat ca user cap nhat ho so" button
+- Calls the new RPC, shows a toast with the count of users notified
+- Includes a confirmation dialog to prevent accidental mass notifications
+- Shows the current count of users with system usernames
 
 ---
 
-## Part 3: Profile Nudge Banner
+## 3. First-Login Onboarding Modal
 
-**New file: `src/components/Profile/ProfileNudgeBanner.tsx`**
-- A dismissable banner shown on the home page / profile for users who:
-  - Still have a system-generated username (`user_*`)
-  - Have no avatar
-  - Have an unverified avatar
-- Friendly message: "Hoan thien ho so de nhan thuong CAMLY!" with a link to settings
-- Dismissable for 24 hours (stored in localStorage)
+### What it does
+A modal that appears once for new users (or users with incomplete profiles) guiding them to:
+1. Choose a custom `@username`
+2. Upload a real avatar photo
+The modal is non-blocking (can be dismissed) but strongly encourages completion.
 
-**File: `src/pages/Index.tsx` or main layout**
-- Render the nudge banner for logged-in users with incomplete profiles
+### Changes
+
+**New file: `src/components/Onboarding/ProfileOnboardingModal.tsx`**
+- A Dialog modal with 2 steps:
+  - Step 1: Choose custom username (reuses the same validation from `nameFilter.ts`)
+  - Step 2: Upload avatar (reuses `DragDropImageUpload` component)
+- "Skip" button available on each step (saves progress so far)
+- "Done" button saves username + avatar to profiles table
+- Tracks completion via `localStorage` key `onboarding_completed` so it only shows once
+- Only shows when:
+  - User is logged in
+  - `username` starts with `user_` OR `avatar_url` is null
+  - `onboarding_completed` is not set in localStorage
+
+**`src/App.tsx`**
+- Import and render `ProfileOnboardingModal` inside `AppContent`, after `BannedScreen` check
+- Passes current user profile data (fetched via a lightweight query)
+
+### Why non-blocking?
+Making the modal blocking (preventing app access) would frustrate users who want to browse first. Instead, the modal is prominent but dismissible, and the nudge banner on the home page provides ongoing reminders.
 
 ---
 
 ## Technical Details
 
-### Username Validation (client-side)
+### Database Function (bulk notify)
 ```text
-Rules:
-- Regex: /^[a-z0-9_]{3,30}$/
-- Cannot start with "user_" (reserved)
-- Checked against blocklist
-- Real-time uniqueness check via:
-  SELECT id FROM profiles WHERE username = $1 AND id != current_user_id
+bulk_notify_system_usernames(p_admin_id uuid)
+  -> Admin role check
+  -> INSERT INTO notifications (user_id, type, title, message, link)
+     SELECT id, 'system', '...', '...', '/settings'
+     FROM profiles WHERE username LIKE 'user_%'
+  -> RETURN count of inserted rows
 ```
 
-### Name Filter Blocklist (`src/lib/nameFilter.ts`)
-- ~50 Vietnamese and English offensive terms
-- Normalized comparison (remove diacritics, lowercase)
-- Returns specific reason for admin transparency
-- Lightweight -- no external API calls needed
-
-### ProfileSettings Save Flow (updated)
+### Onboarding Modal State Machine
 ```text
-1. Validate display_name against nameFilter
-2. Validate username format + availability
-3. Update profiles.username + profiles.display_name
-4. Update channels.name to match display_name
-5. Show success toast
+1. App loads -> check auth + profile
+2. If user has system username OR no avatar:
+   a. Check localStorage for 'onboarding_completed'
+   b. If not completed -> show modal
+3. User completes steps or dismisses -> set localStorage flag
+4. Modal won't show again for that browser
 ```
 
-### Database Changes
-- None needed -- `profiles.username` already exists with UNIQUE constraint
-- The `handle_new_user()` function stays as-is (system usernames are fine as defaults)
+### Files Summary
+- **New**: `src/components/Onboarding/ProfileOnboardingModal.tsx`
+- **Modified**: `src/App.tsx` (add onboarding modal)
+- **Modified**: `src/components/Admin/tabs/OverviewTab.tsx` or `UserStatsTab.tsx` (add bulk notify button)
+- **New DB function**: `bulk_notify_system_usernames`
 
-### Files Changed
-1. `src/pages/ProfileSettings.tsx` -- Add username field with validation
-2. `src/components/Profile/ProfileCompletionIndicator.tsx` -- Add username completion item
-3. `src/lib/nameFilter.ts` -- New: offensive name blocklist and checker
-4. `src/components/Profile/ProfileNudgeBanner.tsx` -- New: nudge banner component
-5. `src/pages/Index.tsx` -- Render nudge banner
-
-### Files NOT Changed
-- No edge functions needed (all validation is client-side + DB constraints)
-- No database migrations needed
-- No changes to user routing -- existing `/c/:username` routes already work with custom usernames
+### No Breaking Changes
+- Existing username validation and nudge banner remain unchanged
+- Notifications table already supports the required columns
+- Modal is client-side only with localStorage persistence
