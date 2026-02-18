@@ -28,7 +28,7 @@ export default function UnifiedAdminDashboard() {
   const [checkingRole, setCheckingRole] = useState(true);
   const [searchParams, setSearchParams] = useSearchParams();
   
-  const { stats, users, walletGroups, banUser, unbanUser, unbanUserWithRestore, isFakeName, actionLoading } = useAdminManage();
+  const { stats, users, walletGroups, banUser, unbanUserWithRestore, isFakeName, actionLoading } = useAdminManage();
   const realtimeStats = useAdminRealtime();
 
   // Get current section from URL or default to "overview"
