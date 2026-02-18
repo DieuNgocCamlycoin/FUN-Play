@@ -52,7 +52,6 @@ export function MobileVideoPlayer({
   const { awardViewReward } = useAutoReward();
   const { user } = useAuth();
   const [viewRewarded, setViewRewarded] = useState(false);
-  const watchTimeRef = useRef(0);
   const lastTimeRef = useRef(0);
   const accumulatedWatchTimeRef = useRef(0);
 
@@ -262,7 +261,6 @@ export function MobileVideoPlayer({
   // Reset reward state when video changes
   useEffect(() => {
     setViewRewarded(false);
-    watchTimeRef.current = 0;
     lastTimeRef.current = 0;
     accumulatedWatchTimeRef.current = 0;
   }, [videoId]);
