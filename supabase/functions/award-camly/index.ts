@@ -220,6 +220,22 @@ serve(async (req) => {
       );
     }
 
+    // === RATE LIMIT: Max 10 reward transactions per minute per user ===
+    const oneMinuteAgo = new Date(Date.now() - 60 * 1000).toISOString();
+    const { count: recentTxCount } = await adminSupabaseEarly
+      .from('reward_transactions')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .gte('created_at', oneMinuteAgo);
+
+    if ((recentTxCount || 0) >= 10) {
+      console.log(`[award-camly] Rate limit exceeded for user ${userId}: ${recentTxCount} tx/min`);
+      return new Response(
+        JSON.stringify({ success: false, reason: 'Rate limit: tối đa 10 giao dịch/phút. Vui lòng chờ.', milestone: null, newTotal: 0, amount: 0, type: 'RATE_LIMITED' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { type, videoId, contentHash, commentLength, sessionId } = await req.json();
 
     // === UPLOAD REWARD GATES (anti-farming) ===

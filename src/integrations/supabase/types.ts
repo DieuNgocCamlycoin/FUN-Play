@@ -326,7 +326,21 @@ export type Database = {
             foreignKeyName: "bounty_submissions_approved_by_fkey"
             columns: ["approved_by"]
             isOneToOne: false
+            referencedRelation: "mv_top_ranking"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bounty_submissions_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bounty_submissions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "mv_top_ranking"
             referencedColumns: ["id"]
           },
           {
@@ -2464,7 +2478,16 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      mv_top_ranking: {
+        Row: {
+          avatar_url: string | null
+          display_name: string | null
+          id: string | null
+          total_camly_rewards: number | null
+          username: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       add_admin_role: {
@@ -2583,6 +2606,7 @@ export type Database = {
         Returns: boolean
       }
       is_owner: { Args: { _user_id: string }; Returns: boolean }
+      refresh_mv_top_ranking: { Args: never; Returns: undefined }
       reject_user_reward: {
         Args: { p_admin_id: string; p_note?: string; p_user_id: string }
         Returns: number

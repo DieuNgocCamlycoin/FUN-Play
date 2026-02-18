@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useDebouncedCallback } from "./useDebounce";
 
 export interface HonobarStats {
   totalUsers: number;
@@ -50,28 +49,18 @@ export const useHonobarStats = () => {
     }
   }, []);
 
-  // Debounced fetch for realtime updates (500ms)
-  const debouncedFetch = useDebouncedCallback(fetchStats, 500);
-
   useEffect(() => {
     isMountedRef.current = true;
     fetchStats();
 
-    // CONSOLIDATED: Single channel for all table subscriptions
-    const channel = supabase
-      .channel("honobar-stats-unified")
-      .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, debouncedFetch)
-      .on("postgres_changes", { event: "*", schema: "public", table: "videos" }, debouncedFetch)
-      .on("postgres_changes", { event: "*", schema: "public", table: "comments" }, debouncedFetch)
-      .on("postgres_changes", { event: "*", schema: "public", table: "subscriptions" }, debouncedFetch)
-      .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, debouncedFetch)
-      .subscribe();
+    // Polling every 2 minutes instead of Realtime
+    const interval = setInterval(fetchStats, 120_000);
 
     return () => {
       isMountedRef.current = false;
-      supabase.removeChannel(channel);
+      clearInterval(interval);
     };
-  }, [fetchStats, debouncedFetch]);
+  }, [fetchStats]);
 
   return { stats, loading };
 };

@@ -59,6 +59,19 @@ serve(async (req) => {
     const body = await req.json();
     const { walletAddress, claimAmount: requestedAmount } = body;
 
+    // === RATE LIMIT: Max 2 claim requests per minute per user ===
+    const oneMinuteAgo = new Date(Date.now() - 60 * 1000).toISOString();
+    const { count: recentClaimCount } = await supabaseAdmin
+      .from('claim_requests')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .gte('created_at', oneMinuteAgo);
+
+    if ((recentClaimCount || 0) >= 2) {
+      console.log(`[claim-camly] Rate limit exceeded for user ${user.id}: ${recentClaimCount} claims/min`);
+      return jsonError('Rate limit: tối đa 2 yêu cầu claim/phút. Vui lòng chờ.');
+    }
+
     if (!walletAddress || !walletAddress.match(/^0x[a-fA-F0-9]{40}$/)) {
       return jsonError('Địa chỉ ví không hợp lệ. Vui lòng kiểm tra lại.');
     }

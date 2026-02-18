@@ -37,7 +37,6 @@ export function usePublicUsersDirectory() {
   const [data, setData] = useState<PublicUserStat[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -52,30 +51,16 @@ export function usePublicUsersDirectory() {
     setLoading(false);
   }, []);
 
-  const debouncedRefetch = useCallback(() => {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    timeoutRef.current = setTimeout(() => {
-      fetchData();
-    }, 2000);
-  }, [fetchData]);
-
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
 
-  useEffect(() => {
-    const channel = supabase
-      .channel('users-directory-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'likes' }, debouncedRefetch)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, debouncedRefetch)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'reward_transactions' }, debouncedRefetch)
-      .subscribe();
+    // Polling every 2 minutes instead of Realtime
+    const interval = setInterval(fetchData, 120_000);
 
     return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      supabase.removeChannel(channel);
+      clearInterval(interval);
     };
-  }, [debouncedRefetch]);
+  }, [fetchData]);
 
   return { data, loading, error, refetch: fetchData };
 }
