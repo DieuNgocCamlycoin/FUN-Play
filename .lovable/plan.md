@@ -1,58 +1,34 @@
 
 
-# Fix Reward System Issues and Clean Up
+# Reward System Review: Clean Up Dead Code
 
-## Issues Found
+## Review Results
 
-### 1. CRITICAL: sendBeacon Cannot Send Auth Headers (useRewardBatch.ts)
+All core systems have been verified and are working correctly:
+- **Batch updates**: `useRewardBatch.ts` queues VIEW/LIKE/SHARE actions, flushes every 5 min / 10 items / page unload with proper auth headers via `fetch` + `keepalive`
+- **Anti-skipping**: All 3 video players (Desktop, Mobile, YouTubeMobile) track `accumulatedWatchTimeRef` using delta <= 2s logic, and send `actualWatchTime` to the server for validation
+- **Hard limits**: Both `award-camly` and `batch-award-camly` enforce daily count limits early (fast-path rejection) before loading full config
+- **Auto-classification**: `award-camly` reclassifies upload types based on actual video duration from DB (> 180s = LONG, else SHORT)
+- **Escrow**: FIRST_UPLOAD rewards are held for 48 hours before release
 
-`navigator.sendBeacon()` does not support custom HTTP headers. The current `handleBeforeUnload` sends the batch payload via `sendBeacon` but the `batch-award-camly` Edge Function requires an `Authorization` header. All rewards queued at page close are silently lost (401 error).
+## One Issue Found: Dead `watchTimeRef` Variable
 
-**Fix**: Use `fetch` with `keepalive: true` instead of `sendBeacon`. This allows custom headers while still being reliable during page unload.
+In all 3 video player components, `watchTimeRef` is declared and reset to 0 on video change, but it is **never read** for any logic. It was the old tracking mechanism that has been fully replaced by `accumulatedWatchTimeRef`.
 
-```text
-// Before (broken):
-navigator.sendBeacon(url, new Blob([body], { type: 'application/json' }));
+### Files to clean up:
 
-// After (working):
-fetch(url, {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${accessToken}`,
-    'apikey': anonKey,
-  },
-  body: JSON.stringify({ actions: globalQueue }),
-  keepalive: true,
-});
-```
+**1. `src/components/Video/EnhancedVideoPlayer.tsx`**
+- Remove `const watchTimeRef = useRef(0);` (line 112)
+- Remove `watchTimeRef.current = 0;` (line 162)
 
-**File**: `src/hooks/useRewardBatch.ts` (lines 120-131)
+**2. `src/components/Video/MobileVideoPlayer.tsx`**
+- Remove `const watchTimeRef = useRef(0);` (line 55)
+- Remove `watchTimeRef.current = 0;` (line 265)
 
----
+**3. `src/components/Video/YouTubeMobilePlayer.tsx`**
+- Remove `const watchTimeRef = useRef(0);` (line 74)
+- Remove `watchTimeRef.current = 0;` (line 351)
 
-### 2. Redundant Admin Client in award-camly (Clean Up)
+## Summary
 
-The Edge Function creates two identical admin Supabase clients:
-- `adminSupabaseEarly` at line 208 (used for ban check, rate limit, hard limits)
-- `adminSupabase` at line 385 (used for reward logic)
-
-Both use the same `SUPABASE_SERVICE_ROLE_KEY`. This wastes memory and adds confusion.
-
-**Fix**: Remove `adminSupabase` (line 384-385) and rename `adminSupabaseEarly` to `adminSupabase` so one client is reused throughout the function.
-
-**File**: `supabase/functions/award-camly/index.ts` (lines 207-208, 384-385)
-
----
-
-## Summary of Changes
-
-| File | Change |
-|------|--------|
-| `src/hooks/useRewardBatch.ts` | Fix sendBeacon to use fetch with keepalive + auth headers |
-| `supabase/functions/award-camly/index.ts` | Remove duplicate admin client, reuse single instance |
-
-Both changes apply to web and mobile equally since the hooks and Edge Functions are shared.
-
-No other issues found -- batch processing, anti-fast-forward, hard limits, video auto-classification, and escrow release are all working correctly as verified by logs and code review.
-
+The reward system is in good shape. The only change needed is removing 6 lines of unused dead code across 3 files. No functional or logic changes required.
