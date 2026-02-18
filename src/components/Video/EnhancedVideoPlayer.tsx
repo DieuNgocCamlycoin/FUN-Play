@@ -109,7 +109,6 @@ export function EnhancedVideoPlayer({
     try { return localStorage.getItem('funplay_ambient_mode') === 'true'; } catch { return false; }
   });
   const [hoveredChapterIdx, setHoveredChapterIdx] = useState<number | null>(null);
-  const watchTimeRef = useRef(0);
   const lastTimeUpdateRef = useRef(0);
   const accumulatedWatchTimeRef = useRef(0);
 
@@ -159,7 +158,6 @@ export function EnhancedVideoPlayer({
   // Reset reward state when video changes
   useEffect(() => {
     setViewRewarded(false);
-    watchTimeRef.current = 0;
     accumulatedWatchTimeRef.current = 0;
     lastTimeUpdateRef.current = 0;
   }, [videoId]);
