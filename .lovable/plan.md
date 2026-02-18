@@ -1,44 +1,118 @@
 
 
-# Fix Escrow Reward Release System
+# Optimize Reward System: Batch Updates, Anti-Skip, Hard Limits, Auto-Classification
 
-## Problem Found
-The hourly cron job `release-escrow-rewards-hourly` is correctly scheduled and active, but it will **never release any rewards** because all 122 existing FIRST_UPLOAD records have `escrow_release_at = NULL`. The cron job's SQL filters on `escrow_release_at IS NOT NULL AND escrow_release_at <= now()`, so it skips every record.
+## Current State Analysis
 
-The edge function code (line 679) correctly generates `escrow_release_at`, but these records were created before the escrow feature was deployed, so they were never populated.
+The system already has several protections in place:
+- **Daily count limits** are enforced server-side in `award-camly` (e.g., 10 views/day, 20 likes/day)
+- **Video auto-classification** by duration already works (lines 352-378 in `award-camly`)
+- **48-hour escrow** for FIRST_UPLOAD is active
+- **View deduplication** exists (60-second window)
 
-## What Works
-- Cron job is active and scheduled correctly (every hour at minute 0)
-- `release_escrow_rewards()` function logic is correct
-- `revoke_escrow_reward()` function is correct
-- Edge function `award-camly` has correct escrow logic for future FIRST_UPLOAD rewards
-- No dead/unused code found
+However, there are gaps that need fixing:
 
-## Fix Plan
+---
 
-### Step 1: Backfill existing FIRST_UPLOAD records
-Run a SQL update to set `escrow_release_at = created_at + 48 hours` for all existing FIRST_UPLOAD transactions that have NULL `escrow_release_at`:
+## 1. Batch Update Mechanism (Like/Share/Watch)
 
-```sql
-UPDATE reward_transactions
-SET escrow_release_at = created_at + INTERVAL '48 hours'
-WHERE reward_type = 'FIRST_UPLOAD'
-  AND escrow_release_at IS NULL
-  AND status = 'success';
+**Problem**: Every Like, Share, and View triggers an immediate Edge Function call, creating unnecessary load on the backend.
+
+**Solution**: Implement a client-side reward queue that accumulates actions and flushes them in batches.
+
+### Changes:
+- **New file**: `src/hooks/useRewardBatch.ts` - A hook that queues reward actions locally (in-memory array) and flushes them:
+  - Every 5 minutes (configurable interval)
+  - When the queue reaches 10 items
+  - On page unload (`beforeunload` event)
+  - On explicit flush call
+- **New Edge Function**: `supabase/functions/batch-award-camly/index.ts` - Accepts an array of reward actions and processes them in a single request, reusing the same validation logic from `award-camly`
+- **Update**: `src/hooks/useAutoReward.ts` - `awardViewReward`, `awardLikeReward`, `awardShareReward` will push to the batch queue instead of calling the Edge Function immediately
+- **Keep immediate**: Upload, Signup, Wallet Connect, Comment rewards remain immediate (they need instant feedback)
+
+### Batch Payload Format:
+```text
+{
+  actions: [
+    { type: "VIEW", videoId: "...", timestamp: 1234567890 },
+    { type: "LIKE", videoId: "...", timestamp: 1234567891 },
+    { type: "SHARE", videoId: "...", timestamp: 1234567892 }
+  ]
+}
 ```
 
-This will allow the cron job to process the 122 existing records. Most of them are older than 48 hours, so they will be released on the next cron run.
+---
 
-### Step 2: Redeploy the award-camly Edge Function
-Redeploy the edge function to ensure the currently running version includes the `escrow_release_at` logic (line 679). No code changes needed -- just a redeployment.
+## 2. Video Fast-Forwarding Prevention
 
-### No Code Changes Required
-- No frontend changes
-- No edge function code changes
-- No dead code to remove
-- Only a data backfill (Step 1) and edge function redeployment (Step 2)
+**Problem**: Current logic checks `video.currentTime >= duration * 0.3` which can be cheated by seeking/fast-forwarding to the 30% mark without actually watching.
 
-### Technical Details
-- The `release_escrow_rewards()` function will process backfilled records where `escrow_release_at <= now()` and the video is not hidden
-- Records with hidden videos will remain in escrow (correct behavior)
-- The atomic profile update moves rewards from `pending_rewards` to `approved_reward`
+**Solution**: Track **actual accumulated watch time** (not just playback position) by measuring real elapsed time between `timeupdate` events.
+
+### Changes:
+- **Update**: `src/components/Video/EnhancedVideoPlayer.tsx` (Desktop)
+  - Track actual watch time: on each `timeupdate`, only count the delta if it's <= 2 seconds (prevents seek jumps from counting)
+  - Reward condition changes from `currentTime >= duration * 0.3` to `accumulatedWatchTime >= duration * 0.3`
+- **Update**: `src/components/Video/MobileVideoPlayer.tsx` (Mobile)
+  - Same accumulated watch time logic
+- **Update**: `src/components/Video/YouTubeMobilePlayer.tsx` (YouTube-style mobile)
+  - Same accumulated watch time logic
+- **Send watch time to server**: Include `actualWatchTime` in the VIEW reward request so the Edge Function can do a server-side sanity check
+- **Update**: `supabase/functions/award-camly/index.ts` (or `batch-award-camly`)
+  - Accept optional `actualWatchTime` parameter
+  - If provided, validate that `actualWatchTime >= videoDuration * 0.3` before granting the reward
+
+---
+
+## 3. Hard Limit (Early Rejection)
+
+**Problem**: The server already checks daily limits, but it does multiple DB queries before rejecting -- loading config, checking bans, etc.
+
+**Solution**: Add a fast-path rejection using a lightweight count check at the very beginning of the Edge Function, before any heavy processing.
+
+### Changes:
+- **Update**: `supabase/functions/award-camly/index.ts`
+  - Move the daily limit check to immediately after ban check (before loading full reward config)
+  - Use a single optimized query: `SELECT view_count, like_count, share_count, comment_count FROM daily_reward_limits WHERE user_id = $1 AND date = today`
+  - If any count exceeds the hardcoded maximum, reject immediately with HTTP 200 + `{success: false}`
+  - This avoids loading reward_config, checking abuse scores, etc. for users who have already hit limits
+- **Client-side cache**: `useRewardBatch.ts` will also cache daily counts locally to avoid sending requests that will be rejected
+
+---
+
+## 4. Video Duration Auto-Classification
+
+**Status**: Already implemented and working correctly.
+
+The Edge Function (lines 352-378) already:
+- Reads `videos.duration` from the database
+- Reclassifies `SHORT_VIDEO_UPLOAD` to `LONG_VIDEO_UPLOAD` if duration > 180 seconds (3 minutes)
+- Handles NULL duration by defaulting to SHORT
+- Escrow for FIRST_UPLOAD is active (48-hour hold via cron job)
+
+**No changes needed** -- this feature is complete.
+
+---
+
+## Technical Summary of File Changes
+
+| File | Change |
+|------|--------|
+| `src/hooks/useRewardBatch.ts` | NEW - Batch queue with auto-flush |
+| `src/hooks/useAutoReward.ts` | Update - Route VIEW/LIKE/SHARE through batch |
+| `supabase/functions/batch-award-camly/index.ts` | NEW - Batch processing endpoint |
+| `supabase/functions/award-camly/index.ts` | Update - Early limit rejection + actualWatchTime validation |
+| `src/components/Video/EnhancedVideoPlayer.tsx` | Update - Track accumulated watch time |
+| `src/components/Video/MobileVideoPlayer.tsx` | Update - Track accumulated watch time |
+| `src/components/Video/YouTubeMobilePlayer.tsx` | Update - Track accumulated watch time |
+| `supabase/config.toml` | No change (auto-managed) |
+
+---
+
+## Impact
+
+- **Database writes reduced** by ~70-80% for high-frequency actions (VIEW/LIKE/SHARE)
+- **Fast-forward abuse blocked** by tracking real watch time instead of playback position
+- **Faster rejections** for users who hit daily limits (fewer DB queries before rejection)
+- **No breaking changes** to existing reward amounts, escrow, or admin workflows
+
