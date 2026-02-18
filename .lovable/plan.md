@@ -1,38 +1,26 @@
 
-# Kiem Tra & Don Dep Code Admin Dashboard
+
+# Don Dep Code Con Lai - Admin Dashboard
 
 ## Ket Qua Kiem Tra
 
-Tat ca cac tinh nang chinh deu hoat dong dung:
+Tat ca tinh nang deu hoat dong dung. Chi con **1 van de nho** can don dep:
 
-- **Pagination 20/trang**: AllUsersTab, BannedUsersTab, QuickDeleteTab, UserStatsTab - OK
-- **Debounce 500ms**: Tat ca search boxes trong 6 tabs - OK
-- **Anomaly Detection**: getAnomalyFlags highlight users bat thuong - OK
-- **Manual Refresh**: OverviewTab, UsersManagementTab, Dashboard header - OK
-- **IP Abuse Realtime + High-Risk filter**: OK
-- **Rate Limiting (10 lan/phut)**: check_admin_rate_limit RPC - OK
-- **Cache 5 phut**: useAdminManage - OK
-- **Khong con polling interval**: OK
+## Thay Doi Duy Nhat
 
-## Code Can Don Dep
+### `src/pages/UnifiedAdminDashboard.tsx` (dong 31)
+- Xoa `unbanUser` khoi destructuring `useAdminManage()` vi khong duoc su dung trong component nay
+- `unbanUser` van duoc giu trong hook va duoc su dung o `UsersManagementTab.tsx` (goi useAdminManage rieng)
+- Dong hien tai: `const { stats, users, walletGroups, banUser, unbanUser, unbanUserWithRestore, isFakeName, actionLoading } = useAdminManage();`
+- Doi thanh: `const { stats, users, walletGroups, banUser, unbanUserWithRestore, isFakeName, actionLoading } = useAdminManage();`
 
-| # | File | Van de | Sua |
-|---|------|--------|-----|
-| 1 | `RewardsManagementTab.tsx` | `useState` imported nhung khong dung | Xoa import `useState` |
-| 2 | `RewardsManagementTab.tsx` | `loading`, `unbanUser` destructured tu useAdminManage nhung khong dung | Xoa khoi destructuring |
-| 3 | `RewardsManagementTab.tsx` | Icon `Search` imported nhung khong dung truc tiep | Xoa import `Search` |
-| 4 | `useAdminRealtime.ts` | `isConnected` duoc export nhung khong ai dung | Xoa state `isConnected` va export |
+### Tat ca tinh nang da xac nhan OK:
+- Pagination 20/trang: AllUsersTab, BannedUsersTab, QuickDeleteTab, UserStatsTab
+- Debounce 500ms: 6 search boxes
+- Cache 5 phut: useAdminManage
+- Manual Refresh: OverviewTab, UsersManagementTab, Dashboard header
+- Rate Limiting 10 lan/phut: check_admin_rate_limit RPC
+- IP Abuse Realtime + High-Risk filter
+- Anomaly Detection: getAnomalyFlags
+- Khong con polling interval nao
 
-Tat ca chi la don dep import/variable khong dung, khong anh huong chuc nang. Giup giam kich thuoc bundle va giu code sach.
-
-## Chi Tiet Ky Thuat
-
-### File 1: `src/components/Admin/tabs/RewardsManagementTab.tsx`
-- Xoa `import { useState } from "react"`
-- Xoa `loading`, `unbanUser` khoi destructuring useAdminManage
-- Xoa `Search` khoi lucide-react import
-
-### File 2: `src/hooks/useAdminRealtime.ts`
-- Xoa `const [isConnected, setIsConnected] = useState(false)`
-- Xoa `setIsConnected(true)` trong fetchInitialStats
-- Xoa `isConnected` khoi return object
