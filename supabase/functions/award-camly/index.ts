@@ -293,6 +293,32 @@ serve(async (req) => {
       }
     }
 
+    // === SIGNUP REWARD GATE: Profile must be completed ===
+    if (type === 'SIGNUP') {
+      const { data: signupProfile } = await adminSupabaseEarly
+        .from('profiles')
+        .select('display_name, avatar_url, username')
+        .eq('id', userId)
+        .single();
+
+      const hasDefaultName = !signupProfile?.display_name || 
+        signupProfile.display_name.trim().length < 2 ||
+        /^user[_\s]?\d*$/i.test(signupProfile.display_name.trim());
+      const hasNoAvatar = !signupProfile?.avatar_url;
+
+      if (hasDefaultName || hasNoAvatar) {
+        console.log(`[award-camly] SIGNUP reward blocked for ${userId}: profile incomplete (name=${signupProfile?.display_name}, avatar=${!!signupProfile?.avatar_url})`);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            reason: 'Vui lòng cập nhật Tên hiển thị và Ảnh đại diện để nhận thưởng đăng ký.',
+            milestone: null, newTotal: 0, amount: 0, type 
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     // 4. Validate reward type
     const validTypes = [
       'VIEW', 'LIKE', 'COMMENT', 'SHARE',

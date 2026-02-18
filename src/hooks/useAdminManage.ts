@@ -8,6 +8,22 @@ export const getAnomalyFlags = (user: AdminUser) => ({
   isSuspicious: (user.pending_rewards || 0) > 500000 && (user.videos_count || 0) === 0,
 });
 
+export type ProfileStatus = "complete" | "incomplete" | "stale";
+
+export const getProfileStatus = (user: AdminUser): ProfileStatus => {
+  const hasCustomUsername = !user.username?.startsWith("user_");
+  const hasAvatar = !!user.avatar_url;
+  const hasDisplayName = !!user.display_name && user.display_name.trim().length >= 2;
+
+  if (hasCustomUsername && hasAvatar && hasDisplayName) return "complete";
+
+  // Check if incomplete AND registered > 24h ago
+  const ageHours = (Date.now() - new Date(user.created_at).getTime()) / 3600000;
+  if (ageHours > 24) return "stale";
+
+  return "incomplete";
+};
+
 export interface AdminUser {
   id: string;
   username: string;
