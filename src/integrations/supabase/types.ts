@@ -2554,6 +2554,7 @@ export type Database = {
       get_public_users_directory: {
         Args: never
         Returns: {
+          available_camly: number
           avatar_url: string
           avatar_verified: boolean
           bounty_rewards: number
@@ -2562,27 +2563,26 @@ export type Database = {
           comments_count: number
           created_at: string
           display_name: string
-          donations_received_count: number
-          donations_received_total: number
-          donations_sent_count: number
-          donations_sent_total: number
+          id: string
           like_rewards: number
           likes_count: number
           manual_rewards: number
-          mint_requests_count: number
-          minted_fun_total: number
+          mint_count: number
+          minted_total: number
           posts_count: number
+          recv_count: number
+          recv_total: number
+          sent_count: number
+          sent_total: number
           share_rewards: number
           shares_count: number
           signup_rewards: number
-          total_camly_rewards: number
-          unclaimed_camly: number
+          total_camly: number
+          total_views: number
           upload_rewards: number
-          user_id: string
           username: string
           videos_count: number
           view_rewards: number
-          views_count: number
         }[]
       }
       get_transaction_stats: {

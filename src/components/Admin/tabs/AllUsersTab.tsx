@@ -5,9 +5,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { Users, Search, FileSpreadsheet, AlertTriangle } from "lucide-react";
-import { AdminUser } from "@/hooks/useAdminManage";
-import { getAnomalyFlags } from "@/hooks/useAdminManage";
+import { Users, Search, FileSpreadsheet, AlertTriangle, Clock } from "lucide-react";
+import { AdminUser, getAnomalyFlags, getProfileStatus, ProfileStatus } from "@/hooks/useAdminManage";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -23,6 +22,7 @@ const AllUsersTab = ({ users }: AllUsersTabProps) => {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [showAnomalyOnly, setShowAnomalyOnly] = useState(false);
+  const [showStaleOnly, setShowStaleOnly] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchTerm), 500);
@@ -30,7 +30,7 @@ const AllUsersTab = ({ users }: AllUsersTabProps) => {
   }, [searchTerm]);
 
   // Reset page on search/filter change
-  useEffect(() => { setCurrentPage(1); }, [debouncedSearch, showAnomalyOnly]);
+  useEffect(() => { setCurrentPage(1); }, [debouncedSearch, showAnomalyOnly, showStaleOnly]);
 
   const filteredUsers = useMemo(() => {
     let result = users;
@@ -50,8 +50,11 @@ const AllUsersTab = ({ users }: AllUsersTabProps) => {
         return flags.isHighPending || flags.isNoActivity || flags.isSuspicious;
       });
     }
+    if (showStaleOnly) {
+      result = result.filter((u) => getProfileStatus(u) === "stale");
+    }
     return result;
-  }, [users, debouncedSearch, showAnomalyOnly]);
+  }, [users, debouncedSearch, showAnomalyOnly, showStaleOnly]);
 
   const { paged, totalPages } = paginate(filteredUsers, currentPage);
 
@@ -75,6 +78,18 @@ const AllUsersTab = ({ users }: AllUsersTabProps) => {
     return <Badge variant="outline">Normal</Badge>;
   };
 
+  const getProfileStatusBadge = (user: AdminUser) => {
+    const status = getProfileStatus(user);
+    switch (status) {
+      case "complete":
+        return <Badge className="bg-green-500 text-xs">Đầy đủ</Badge>;
+      case "stale":
+        return <Badge variant="destructive" className="text-xs"><Clock className="w-3 h-3 mr-1" />Quá hạn</Badge>;
+      case "incomplete":
+        return <Badge variant="outline" className="text-amber-500 border-amber-500 text-xs">Thiếu</Badge>;
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Stats & Actions */}
@@ -95,6 +110,13 @@ const AllUsersTab = ({ users }: AllUsersTabProps) => {
             <span className="text-xs text-muted-foreground flex items-center gap-1">
               <AlertTriangle className="w-3 h-3 text-amber-500" />
               Bất thường
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch checked={showStaleOnly} onCheckedChange={setShowStaleOnly} />
+            <span className="text-xs text-muted-foreground flex items-center gap-1">
+              <Clock className="w-3 h-3 text-red-500" />
+              Quá hạn
             </span>
           </div>
           <Button variant="outline" onClick={exportCSV} className="gap-2">
@@ -135,6 +157,7 @@ const AllUsersTab = ({ users }: AllUsersTabProps) => {
                   <TableHead className="text-center">Videos</TableHead>
                   <TableHead className="text-center">BL</TableHead>
                   <TableHead>Trạng thái</TableHead>
+                  <TableHead>Hồ sơ</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -180,6 +203,7 @@ const AllUsersTab = ({ users }: AllUsersTabProps) => {
                       <TableCell className="text-center">{user.videos_count || 0}</TableCell>
                       <TableCell className="text-center">{user.comments_count || 0}</TableCell>
                       <TableCell>{getStatusBadge(user)}</TableCell>
+                      <TableCell>{getProfileStatusBadge(user)}</TableCell>
                     </TableRow>
                   );
                 })}
