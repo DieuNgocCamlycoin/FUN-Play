@@ -64,7 +64,7 @@ export function DragDropImageUpload({
 
     // Resize avatar images to 200x200 to save storage
     let fileToUpload = file;
-    if (folderPath === "profiles") {
+    if (folderPath === "profiles" || folderPath === "avatars") {
       try {
         fileToUpload = await resizeImage(file, 200, 200, 0.8);
       } catch (err) {

@@ -199,7 +199,7 @@ const UsersDirectory = () => {
                 {filtered.map((u, i) => (
                   <Collapsible key={u.user_id} asChild open={expandedId === u.user_id} onOpenChange={() => setExpandedId(expandedId === u.user_id ? null : u.user_id)}>
                     <>
-                      <TableRow className="cursor-pointer hover:bg-muted/50" onClick={() => setExpandedId(expandedId === u.user_id ? null : u.user_id)}>
+                      <TableRow key={`row-${u.user_id}`} className="cursor-pointer hover:bg-muted/50" onClick={() => setExpandedId(expandedId === u.user_id ? null : u.user_id)}>
                         <TableCell className="font-medium text-muted-foreground">{i + 1}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-3">
@@ -230,7 +230,7 @@ const UsersDirectory = () => {
                         </TableCell>
                       </TableRow>
                       {expandedId === u.user_id && (
-                        <TableRow>
+                        <TableRow key={`expanded-${u.user_id}`}>
                           <TableCell colSpan={10} className="p-0">
                             <ExpandedRow u={u} />
                           </TableCell>
