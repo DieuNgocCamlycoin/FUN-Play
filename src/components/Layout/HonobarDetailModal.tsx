@@ -275,7 +275,7 @@ const ModalContent = ({ stats, loading, ranking, rankingLoading, sponsors, spons
           animate={{ scale: [1, 1.2, 1], opacity: [1, 0.7, 1] }}
           transition={{ duration: 1.5, repeat: Infinity }}
         />
-        <span>Cập nhật realtime</span>
+        <span>Tự động cập nhật</span>
       </div>
     </div>
   );
