@@ -1,20 +1,18 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Users, Search, FileSpreadsheet } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Users, Search, FileSpreadsheet, AlertTriangle } from "lucide-react";
 import { AdminUser } from "@/hooks/useAdminManage";
+import { getAnomalyFlags } from "@/hooks/useAdminManage";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
+import { AdminPagination, PAGE_SIZE, paginate } from "@/components/Admin/AdminPagination";
 
 interface AllUsersTabProps {
   users: AdminUser[];
@@ -22,45 +20,38 @@ interface AllUsersTabProps {
 
 const AllUsersTab = ({ users }: AllUsersTabProps) => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [showAnomalyOnly, setShowAnomalyOnly] = useState(false);
+
+  // Reset page on search/filter change
+  useEffect(() => { setCurrentPage(1); }, [searchTerm, showAnomalyOnly]);
 
   const filteredUsers = useMemo(() => {
-    if (!searchTerm.trim()) return users;
-    const term = searchTerm.toLowerCase();
-    return users.filter(
-      (u) =>
-        u.display_name?.toLowerCase().includes(term) ||
-        u.username?.toLowerCase().includes(term) ||
-        u.id.includes(term) ||
-        u.wallet_address?.toLowerCase().includes(term)
-    );
-  }, [users, searchTerm]);
+    let result = users;
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      result = result.filter(
+        (u) =>
+          u.display_name?.toLowerCase().includes(term) ||
+          u.username?.toLowerCase().includes(term) ||
+          u.id.includes(term) ||
+          u.wallet_address?.toLowerCase().includes(term)
+      );
+    }
+    if (showAnomalyOnly) {
+      result = result.filter((u) => {
+        const flags = getAnomalyFlags(u);
+        return flags.isHighPending || flags.isNoActivity || flags.isSuspicious;
+      });
+    }
+    return result;
+  }, [users, searchTerm, showAnomalyOnly]);
+
+  const { paged, totalPages } = paginate(filteredUsers, currentPage);
 
   const exportCSV = () => {
-    const headers = [
-      "ID",
-      "Tên đăng nhập",
-      "Tên hiển thị",
-      "Tổng CAMLY",
-      "Chờ duyệt",
-      "Đã duyệt",
-      "Video",
-      "Bình luận",
-      "Ví",
-      "Bị cấm",
-    ];
-    const rows = filteredUsers.map((u) => [
-      u.id,
-      u.username,
-      u.display_name || "",
-      u.total_camly_rewards,
-      u.pending_rewards || 0,
-      u.approved_reward || 0,
-      u.videos_count || 0,
-      u.comments_count || 0,
-      u.wallet_address || "",
-      u.banned ? "Yes" : "No",
-    ]);
-
+    const headers = ["ID","Tên đăng nhập","Tên hiển thị","Tổng CAMLY","Chờ duyệt","Đã duyệt","Video","Bình luận","Ví","Bị cấm"];
+    const rows = filteredUsers.map((u) => [u.id,u.username,u.display_name || "",u.total_camly_rewards,u.pending_rewards || 0,u.approved_reward || 0,u.videos_count || 0,u.comments_count || 0,u.wallet_address || "",u.banned ? "Yes" : "No"]);
     const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -92,10 +83,19 @@ const AllUsersTab = ({ users }: AllUsersTabProps) => {
           </CardContent>
         </Card>
 
-        <Button variant="outline" onClick={exportCSV} className="gap-2">
-          <FileSpreadsheet className="w-4 h-4" />
-          Export CSV
-        </Button>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Switch checked={showAnomalyOnly} onCheckedChange={setShowAnomalyOnly} />
+            <span className="text-xs text-muted-foreground flex items-center gap-1">
+              <AlertTriangle className="w-3 h-3 text-amber-500" />
+              Bất thường
+            </span>
+          </div>
+          <Button variant="outline" onClick={exportCSV} className="gap-2">
+            <FileSpreadsheet className="w-4 h-4" />
+            Export CSV
+          </Button>
+        </div>
       </div>
 
       {/* Search */}
@@ -132,61 +132,62 @@ const AllUsersTab = ({ users }: AllUsersTabProps) => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredUsers.slice(0, 100).map((user) => (
-                  <TableRow key={user.id} className={user.banned ? "opacity-50" : ""}>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Avatar className="w-8 h-8">
-                          <AvatarImage src={user.avatar_url || undefined} />
-                          <AvatarFallback>
-                            {(user.display_name || user.username)?.[0]}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="min-w-0">
-                          <div className="font-medium truncate max-w-[120px]">
-                            {user.display_name || user.username}
-                          </div>
-                          <div className="text-xs text-muted-foreground truncate max-w-[120px]">
-                            @{user.username}
+                {paged.map((user) => {
+                  const flags = getAnomalyFlags(user);
+                  const isAnomaly = flags.isHighPending || flags.isNoActivity || flags.isSuspicious;
+                  return (
+                    <TableRow
+                      key={user.id}
+                      className={
+                        user.banned ? "opacity-50" :
+                        isAnomaly ? "bg-amber-500/10 border-l-4 border-amber-500" : ""
+                      }
+                    >
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {isAnomaly && <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />}
+                          <Avatar className="w-8 h-8">
+                            <AvatarImage src={user.avatar_url || undefined} />
+                            <AvatarFallback>{(user.display_name || user.username)?.[0]}</AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0">
+                            <div className="font-medium truncate max-w-[120px]">{user.display_name || user.username}</div>
+                            <div className="text-xs text-muted-foreground truncate max-w-[120px]">@{user.username}</div>
                           </div>
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right font-bold">
-                      {(user.total_camly_rewards || 0).toLocaleString()}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {(user.pending_rewards || 0) > 0 ? (
-                        <Badge variant="outline" className="text-amber-500">
-                          {(user.pending_rewards || 0).toLocaleString()}
-                        </Badge>
-                      ) : (
-                        <span className="text-muted-foreground">0</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {(user.approved_reward || 0) > 0 ? (
-                        <Badge className="bg-green-500">
-                          {(user.approved_reward || 0).toLocaleString()}
-                        </Badge>
-                      ) : (
-                        <span className="text-muted-foreground">0</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-center">{user.videos_count || 0}</TableCell>
-                    <TableCell className="text-center">{user.comments_count || 0}</TableCell>
-                    <TableCell>{getStatusBadge(user)}</TableCell>
-                  </TableRow>
-                ))}
+                      </TableCell>
+                      <TableCell className="text-right font-bold">{(user.total_camly_rewards || 0).toLocaleString()}</TableCell>
+                      <TableCell className="text-right">
+                        {(user.pending_rewards || 0) > 0 ? (
+                          <Badge variant="outline" className="text-amber-500">{(user.pending_rewards || 0).toLocaleString()}</Badge>
+                        ) : (
+                          <span className="text-muted-foreground">0</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {(user.approved_reward || 0) > 0 ? (
+                          <Badge className="bg-green-500">{(user.approved_reward || 0).toLocaleString()}</Badge>
+                        ) : (
+                          <span className="text-muted-foreground">0</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center">{user.videos_count || 0}</TableCell>
+                      <TableCell className="text-center">{user.comments_count || 0}</TableCell>
+                      <TableCell>{getStatusBadge(user)}</TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
 
-          {filteredUsers.length > 100 && (
-            <div className="text-center py-4 text-muted-foreground text-sm">
-              Đang hiển thị 100/{filteredUsers.length} users. Sử dụng tìm kiếm để lọc.
-            </div>
-          )}
+          <AdminPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            totalItems={filteredUsers.length}
+            pageSize={PAGE_SIZE}
+          />
         </CardContent>
       </Card>
     </div>

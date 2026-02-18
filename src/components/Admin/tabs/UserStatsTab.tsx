@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useUsersDirectoryStats, UserDirectoryStat } from "@/hooks/useUsersDirectoryStats";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Search, Download, ChevronDown, ChevronUp, RefreshCw, ExternalLink, FileSpreadsheet, FileText, Loader2, Coins } from "lucide-react";
+import { Search, Download, ChevronDown, ChevronUp, RefreshCw, ExternalLink, FileSpreadsheet, FileText, Loader2, Coins, AlertTriangle } from "lucide-react";
+import { AdminPagination, PAGE_SIZE, paginate } from "@/components/Admin/AdminPagination";
+import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -26,7 +28,10 @@ export function UserStatsTab() {
   const [sortKey, setSortKey] = useState<SortKey>("total_camly_rewards");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
   const isMobile = useIsMobile();
+
+  useEffect(() => { setCurrentPage(1); }, [search, sortKey, sortDir]);
   const navigate = useNavigate();
 
   const filtered = useMemo(() => {
@@ -165,7 +170,7 @@ export function UserStatsTab() {
           <Button variant="outline" size="icon" onClick={refetch}><RefreshCw className="w-4 h-4" /></Button>
         </div>
         <p className="text-xs text-muted-foreground">{filtered.length} users</p>
-        {filtered.map(user => (
+        {paginate(filtered, currentPage).paged.map(user => (
           <Collapsible key={user.user_id} open={expandedId === user.user_id} onOpenChange={() => setExpandedId(expandedId === user.user_id ? null : user.user_id)}>
             <Card className="p-3">
               <CollapsibleTrigger className="w-full">
@@ -194,6 +199,7 @@ export function UserStatsTab() {
             </Card>
           </Collapsible>
         ))}
+        <AdminPagination currentPage={currentPage} totalPages={paginate(filtered, currentPage).totalPages} onPageChange={setCurrentPage} totalItems={filtered.length} pageSize={PAGE_SIZE} />
       </div>
     );
   }
@@ -234,12 +240,21 @@ export function UserStatsTab() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {filtered.map(user => (
+          {paginate(filtered, currentPage).paged.map(user => {
+            const isAnomaly = (user.pending_rewards || 0) > 500000 || ((user.videos_count || 0) === 0 && user.total_camly_rewards > 2000000);
+            return (
             <Collapsible key={user.user_id} asChild open={expandedId === user.user_id} onOpenChange={() => setExpandedId(expandedId === user.user_id ? null : user.user_id)}>
               <>
-                <TableRow className="cursor-pointer hover:bg-muted/50" onClick={() => setExpandedId(expandedId === user.user_id ? null : user.user_id)}>
+                <TableRow
+                  className={cn(
+                    "cursor-pointer hover:bg-muted/50",
+                    isAnomaly && "bg-amber-500/10 border-l-4 border-amber-500"
+                  )}
+                  onClick={() => setExpandedId(expandedId === user.user_id ? null : user.user_id)}
+                >
                   <TableCell>
                     <div className="flex items-center gap-3">
+                      {isAnomaly && <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />}
                       <Avatar className="h-8 w-8">
                         <AvatarImage src={user.avatar_url || ""} />
                         <AvatarFallback className="text-xs">{user.display_name?.[0] || "?"}</AvatarFallback>
@@ -270,9 +285,11 @@ export function UserStatsTab() {
                 )}
               </>
             </Collapsible>
-          ))}
+            );
+          })}
         </TableBody>
       </Table>
+      <AdminPagination currentPage={currentPage} totalPages={paginate(filtered, currentPage).totalPages} onPageChange={setCurrentPage} totalItems={filtered.length} pageSize={PAGE_SIZE} />
     </div>
   );
 }

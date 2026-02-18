@@ -14,7 +14,14 @@ export const useTopRanking = (limit: number = 5) => {
   const [loading, setLoading] = useState(true);
   const isMountedRef = useRef(true);
 
-  const fetchRanking = useCallback(async () => {
+  const cacheRef = useRef<{ data: LeaderboardUser[]; timestamp: number }>({ data: [], timestamp: 0 });
+
+  const fetchRanking = useCallback(async (force = false) => {
+    const now = Date.now();
+    if (!force && cacheRef.current.data.length > 0 && now - cacheRef.current.timestamp < 120_000) {
+      if (isMountedRef.current) { setUsers(cacheRef.current.data); setLoading(false); }
+      return;
+    }
     try {
       // Query from Materialized View (pre-computed, refreshed every 10 min)
       const { data, error } = await (supabase
@@ -29,7 +36,9 @@ export const useTopRanking = (limit: number = 5) => {
       }
 
       if (isMountedRef.current) {
-        setUsers((data as LeaderboardUser[]) || []);
+        const result = (data as LeaderboardUser[]) || [];
+        cacheRef.current = { data: result, timestamp: Date.now() };
+        setUsers(result);
       }
     } catch (error) {
       console.error("Error:", error);
@@ -53,5 +62,7 @@ export const useTopRanking = (limit: number = 5) => {
     };
   }, [fetchRanking]);
 
-  return { users, loading, refetch: fetchRanking };
+  const forceRefetch = useCallback(() => fetchRanking(true), [fetchRanking]);
+
+  return { users, loading, refetch: forceRefetch };
 };

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -9,16 +9,10 @@ import { AdminUser } from "@/hooks/useAdminManage";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { AdminPagination, PAGE_SIZE, paginate } from "@/components/Admin/AdminPagination";
 
 interface BannedUsersTabProps {
   users: AdminUser[];
@@ -28,10 +22,11 @@ interface BannedUsersTabProps {
 
 const BannedUsersTab = ({ users, onUnban, loading }: BannedUsersTabProps) => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
 
-  const bannedUsers = useMemo(() => {
-    return users.filter((u) => u.banned);
-  }, [users]);
+  useEffect(() => { setCurrentPage(1); }, [searchTerm]);
+
+  const bannedUsers = useMemo(() => users.filter((u) => u.banned), [users]);
 
   const filteredUsers = useMemo(() => {
     if (!searchTerm.trim()) return bannedUsers;
@@ -44,13 +39,12 @@ const BannedUsersTab = ({ users, onUnban, loading }: BannedUsersTabProps) => {
     );
   }, [bannedUsers, searchTerm]);
 
+  const { paged, totalPages } = paginate(filteredUsers, currentPage);
+
   const handleUnban = async (user: AdminUser) => {
     const success = await onUnban(user.id);
-    if (success) {
-      toast.success(`Đã mở khóa ${user.display_name || user.username}`);
-    } else {
-      toast.error("Lỗi khi mở khóa user");
-    }
+    if (success) toast.success(`Đã mở khóa ${user.display_name || user.username}`);
+    else toast.error("Lỗi khi mở khóa user");
   };
 
   return (
@@ -69,12 +63,7 @@ const BannedUsersTab = ({ users, onUnban, loading }: BannedUsersTabProps) => {
       {/* Search */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder="Tìm theo tên hoặc lý do ban..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10"
-        />
+        <Input placeholder="Tìm theo tên hoặc lý do ban..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
       </div>
 
       {/* List */}
@@ -87,23 +76,15 @@ const BannedUsersTab = ({ users, onUnban, loading }: BannedUsersTabProps) => {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {filteredUsers.map((user) => (
-              <div
-                key={user.id}
-                className="flex items-center gap-4 p-4 rounded-lg bg-red-500/10 border border-red-500/30"
-              >
+            {paged.map((user) => (
+              <div key={user.id} className="flex items-center gap-4 p-4 rounded-lg bg-red-500/10 border border-red-500/30">
                 <Avatar className="w-12 h-12 opacity-60">
                   <AvatarImage src={user.avatar_url || undefined} />
                   <AvatarFallback>{(user.display_name || user.username)?.[0]}</AvatarFallback>
                 </Avatar>
-
                 <div className="flex-1 min-w-0">
-                  <div className="font-medium truncate line-through opacity-70">
-                    {user.display_name || user.username}
-                  </div>
-                  <div className="text-xs text-red-400 mt-1">
-                    {user.ban_reason || "Lạm dụng hệ thống"}
-                  </div>
+                  <div className="font-medium truncate line-through opacity-70">{user.display_name || user.username}</div>
+                  <div className="text-xs text-red-400 mt-1">{user.ban_reason || "Lạm dụng hệ thống"}</div>
                   {user.banned_at && (
                     <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
                       <Calendar className="w-3 h-3" />
@@ -111,48 +92,42 @@ const BannedUsersTab = ({ users, onUnban, loading }: BannedUsersTabProps) => {
                     </div>
                   )}
                 </div>
-
                 <Badge variant="destructive">Level {user.violation_level || 3}</Badge>
-
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button size="sm" variant="outline" className="gap-1" disabled={loading}>
-                      <UserCheck className="w-4 h-4" />
-                      Unban
+                      <UserCheck className="w-4 h-4" />Unban
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
                       <AlertDialogTitle>Mở khóa user này?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        User: {user.display_name || user.username}
-                        <br />
-                        Lý do ban: {user.ban_reason || "Lạm dụng hệ thống"}
-                        <br />
-                        <br />
-                        Hành động này sẽ:
-                        <br />• Bỏ trạng thái banned
-                        <br />• Xóa khỏi reward_bans
-                        <br />• Xóa ví khỏi blacklist
+                        User: {user.display_name || user.username}<br />
+                        Lý do ban: {user.ban_reason || "Lạm dụng hệ thống"}<br /><br />
+                        Hành động này sẽ:<br />• Bỏ trạng thái banned<br />• Xóa khỏi reward_bans<br />• Xóa ví khỏi blacklist
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Hủy</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => handleUnban(user)}>
-                        Xác nhận Unban
-                      </AlertDialogAction>
+                      <AlertDialogAction onClick={() => handleUnban(user)}>Xác nhận Unban</AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
               </div>
             ))}
-
             {filteredUsers.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground">
-                Không có user bị ban
-              </div>
+              <div className="text-center py-8 text-muted-foreground">Không có user bị ban</div>
             )}
           </div>
+
+          <AdminPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            totalItems={filteredUsers.length}
+            pageSize={PAGE_SIZE}
+          />
         </CardContent>
       </Card>
     </div>
