@@ -13,7 +13,7 @@ export function useAdminRealtime() {
     recentClaimsCount: 0,
     activeUsersToday: 0,
   });
-  const [isConnected, setIsConnected] = useState(false);
+  
 
   const fetchInitialStats = useCallback(async () => {
     try {
@@ -41,7 +41,6 @@ export function useAdminRealtime() {
         recentClaimsCount: claimsCount || 0,
         activeUsersToday: activeCount || 0,
       });
-      setIsConnected(true);
     } catch (error) {
       console.error("Error fetching initial stats:", error);
     }
@@ -53,7 +52,6 @@ export function useAdminRealtime() {
 
   return {
     stats,
-    isConnected,
     refetch: fetchInitialStats,
   };
 }
