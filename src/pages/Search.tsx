@@ -130,6 +130,7 @@ const Search = () => {
       .select("id, title, thumbnail_url, video_url, view_count, duration, created_at, user_id, channels(id, name, is_verified)")
       .eq("is_public", true)
       .eq("approval_status", "approved")
+      .or('is_hidden.is.null,is_hidden.eq.false')
       .or(`title.ilike.%${q}%,description.ilike.%${q}%`);
 
     if (sortBy === "date") query = query.order("created_at", { ascending: false });

@@ -10,6 +10,7 @@ import { useHapticFeedback } from "@/hooks/useHapticFeedback";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { motion } from "framer-motion";
 import { EnhancedDonateModal } from "@/components/Donate/EnhancedDonateModal";
+import { ReportSpamButton } from "@/components/Video/ReportSpamButton";
 import { formatViewsShort } from "@/lib/formatters";
 import {
   DropdownMenu,
@@ -295,6 +296,12 @@ export function VideoActionsBar({
             )}
             <span className="text-sm font-medium">Tải xuống</span>
           </Button>
+
+          {/* Report spam */}
+          <ReportSpamButton
+            videoId={videoId}
+            className="rounded-full bg-muted/80 h-10 px-4 gap-1.5 shrink-0 hover:bg-destructive/10 mr-2"
+          />
         </div>
 
         {/* Save to playlist drawer */}

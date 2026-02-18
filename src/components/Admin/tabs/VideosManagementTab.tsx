@@ -14,7 +14,8 @@ import {
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { 
   Video, Clock, CheckCircle, XCircle, Eye, Search, Download, 
-  HardDrive, Upload, Users, ExternalLink, Play, User, Check, X, Image, CloudUpload, Trash2
+  HardDrive, Upload, Users, ExternalLink, Play, User, Check, X, Image, CloudUpload, Trash2,
+  AlertTriangle, EyeOff, Loader2, ScanSearch
 } from "lucide-react";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
@@ -59,6 +60,9 @@ export function VideosManagementTab() {
         <TabsTrigger value="cleanup" className="gap-1 text-xs">
           <Trash2 className="w-3 h-3" /> Cleanup
         </TabsTrigger>
+        <TabsTrigger value="spam" className="gap-1 text-xs">
+          <AlertTriangle className="w-3 h-3" /> Spam Filter
+        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="approval">
@@ -79,6 +83,10 @@ export function VideosManagementTab() {
 
       <TabsContent value="cleanup">
         <BannedVideoCleanupPanel />
+      </TabsContent>
+
+      <TabsContent value="spam">
+        <SpamFilterContent />
       </TabsContent>
     </Tabs>
   );
@@ -531,6 +539,195 @@ function VideoStatsContent() {
             Sau
           </Button>
         </div>
+      )}
+    </div>
+  );
+}
+
+// Spam Filter Content
+function SpamFilterContent() {
+  const [videos, setVideos] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<"short" | "reported" | "repetitive">("reported");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [scanning, setScanning] = useState(false);
+
+  useEffect(() => { fetchSpamVideos(); }, [filter]);
+
+  const fetchSpamVideos = async () => {
+    setLoading(true);
+    try {
+      let query = supabase
+        .from("videos")
+        .select("id, title, duration, report_count, is_hidden, thumbnail_url, thumbnail_scanned, thumbnail_scan_result, created_at, user_id, channels(name)")
+        .order("created_at", { ascending: false });
+
+      if (filter === "short") {
+        query = query.not("duration", "is", null).lt("duration", 90);
+      } else if (filter === "reported") {
+        query = query.gt("report_count", 0).order("report_count", { ascending: false });
+      }
+
+      const { data } = await query.limit(100);
+      
+      if (filter === "repetitive" && data) {
+        // Group by title, show titles appearing 3+ times
+        const titleCounts = new Map<string, any[]>();
+        data.forEach(v => {
+          const key = v.title.toLowerCase().trim();
+          const arr = titleCounts.get(key) || [];
+          arr.push(v);
+          titleCounts.set(key, arr);
+        });
+        const repetitive = Array.from(titleCounts.values())
+          .filter(arr => arr.length >= 3)
+          .flat();
+        setVideos(repetitive);
+      } else {
+        setVideos(data || []);
+      }
+    } catch (err) {
+      console.error("Error fetching spam videos:", err);
+    }
+    setLoading(false);
+  };
+
+  const handleBulkHide = async () => {
+    if (selected.size === 0) return;
+    const ids = Array.from(selected);
+    const { error } = await supabase
+      .from("videos")
+      .update({ is_hidden: true })
+      .in("id", ids);
+    if (!error) {
+      toast.success(`Đã ẩn ${ids.length} video`);
+      setSelected(new Set());
+      fetchSpamVideos();
+    } else {
+      toast.error("Lỗi khi ẩn video");
+    }
+  };
+
+  const handleScanThumbnails = async () => {
+    setScanning(true);
+    try {
+      const res = await supabase.functions.invoke("scan-thumbnail");
+      if (res.error) throw res.error;
+      toast.success(`Đã quét ${res.data?.scanned || 0} thumbnails`);
+      fetchSpamVideos();
+    } catch (err: any) {
+      toast.error(err.message || "Lỗi quét thumbnail");
+    }
+    setScanning(false);
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selected.size === videos.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(videos.map(v => v.id)));
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Filter buttons & actions */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Button variant={filter === "reported" ? "default" : "outline"} size="sm" onClick={() => setFilter("reported")} className="gap-1">
+          <AlertTriangle className="w-3 h-3" /> Bị báo cáo
+        </Button>
+        <Button variant={filter === "short" ? "default" : "outline"} size="sm" onClick={() => setFilter("short")} className="gap-1">
+          <Clock className="w-3 h-3" /> Ngắn (&lt;90s)
+        </Button>
+        <Button variant={filter === "repetitive" ? "default" : "outline"} size="sm" onClick={() => setFilter("repetitive")} className="gap-1">
+          <Video className="w-3 h-3" /> Trùng lặp
+        </Button>
+        <div className="ml-auto flex gap-2">
+          <Button variant="outline" size="sm" onClick={handleScanThumbnails} disabled={scanning} className="gap-1">
+            {scanning ? <Loader2 className="w-3 h-3 animate-spin" /> : <ScanSearch className="w-3 h-3" />}
+            Scan Thumbnails
+          </Button>
+          {selected.size > 0 && (
+            <Button variant="destructive" size="sm" onClick={handleBulkHide} className="gap-1">
+              <EyeOff className="w-3 h-3" /> Ẩn {selected.size} video
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-16" />)}</div>
+      ) : videos.length === 0 ? (
+        <Card><CardContent className="p-8 text-center text-muted-foreground">Không tìm thấy video spam nào 🎉</CardContent></Card>
+      ) : (
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-10">
+                    <input type="checkbox" checked={selected.size === videos.length && videos.length > 0} onChange={toggleSelectAll} className="rounded" />
+                  </TableHead>
+                  <TableHead>Video</TableHead>
+                  <TableHead>Thời lượng</TableHead>
+                  <TableHead>Báo cáo</TableHead>
+                  <TableHead>Trạng thái</TableHead>
+                  <TableHead>Thumbnail AI</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {videos.map(video => (
+                  <TableRow key={video.id} className={video.is_hidden ? "opacity-50" : ""}>
+                    <TableCell>
+                      <input type="checkbox" checked={selected.has(video.id)} onChange={() => toggleSelect(video.id)} className="rounded" />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="w-16 h-10 rounded bg-muted overflow-hidden shrink-0">
+                          {video.thumbnail_url ? (
+                            <img src={video.thumbnail_url} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center"><Video className="w-4 h-4 text-muted-foreground" /></div>
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-medium truncate max-w-[200px]">{video.title}</p>
+                          <p className="text-xs text-muted-foreground">{video.channels?.name || "N/A"}</p>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-mono text-sm">{video.duration ? `${video.duration}s` : "N/A"}</TableCell>
+                    <TableCell>
+                      {(video.report_count || 0) > 0 ? (
+                        <Badge variant="destructive">{video.report_count} báo cáo</Badge>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">0</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {video.is_hidden ? (
+                        <Badge variant="outline" className="text-destructive border-destructive">Đã ẩn</Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-green-600 border-green-600">Hiện</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-xs max-w-[150px] truncate">
+                      {video.thumbnail_scanned ? (video.thumbnail_scan_result || "OK") : "Chưa quét"}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

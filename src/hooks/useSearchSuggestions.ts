@@ -59,6 +59,7 @@ export function useSearchSuggestions(debounceMs = 300): UseSearchSuggestionsResu
             .select("id, title")
             .eq("is_public", true)
             .eq("approval_status", "approved")
+            .or('is_hidden.is.null,is_hidden.eq.false')
             .ilike("title", `%${q}%`)
             .order("view_count", { ascending: false })
             .limit(5),

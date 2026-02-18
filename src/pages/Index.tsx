@@ -141,6 +141,7 @@ const Index = () => {
         `)
         .eq("is_public", true)
         .eq("approval_status", "approved")
+        .or('is_hidden.is.null,is_hidden.eq.false')
         .order("created_at", { ascending: false })
         .limit(1000);
 

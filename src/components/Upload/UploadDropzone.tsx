@@ -204,7 +204,13 @@ export function UploadDropzone({ onFileSelect, isShort }: UploadDropzoneProps) {
               className="hidden"
               onChange={(e) => {
                 const file = e.target.files?.[0];
-                if (file) onFileSelect(file);
+                if (file) {
+                  if (isBlockedFilename(file.name)) {
+                    setError(getBlockedFilenameError());
+                    return;
+                  }
+                  onFileSelect(file);
+                }
               }}
             />
           </label>
