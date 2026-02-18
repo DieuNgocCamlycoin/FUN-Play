@@ -1927,6 +1927,7 @@ export type Database = {
           claimed: boolean
           claimed_at: string | null
           created_at: string
+          escrow_release_at: string | null
           id: string
           reward_type: string
           status: string
@@ -1943,6 +1944,7 @@ export type Database = {
           claimed?: boolean
           claimed_at?: string | null
           created_at?: string
+          escrow_release_at?: string | null
           id?: string
           reward_type: string
           status?: string
@@ -1959,6 +1961,7 @@ export type Database = {
           claimed?: boolean
           claimed_at?: string | null
           created_at?: string
+          escrow_release_at?: string | null
           id?: string
           reward_type?: string
           status?: string
@@ -2163,6 +2166,38 @@ export type Database = {
           },
         ]
       }
+      video_reports: {
+        Row: {
+          created_at: string
+          id: string
+          reason: string
+          reporter_id: string
+          video_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          reason?: string
+          reporter_id: string
+          video_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          reason?: string
+          reporter_id?: string
+          video_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_reports_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       video_watch_progress: {
         Row: {
           created_at: string
@@ -2216,9 +2251,13 @@ export type Database = {
           duration: number | null
           file_size: number | null
           id: string
+          is_hidden: boolean | null
           is_public: boolean | null
           like_count: number | null
+          report_count: number | null
           sub_category: string | null
+          thumbnail_scan_result: string | null
+          thumbnail_scanned: boolean | null
           thumbnail_url: string | null
           title: string
           updated_at: string
@@ -2238,9 +2277,13 @@ export type Database = {
           duration?: number | null
           file_size?: number | null
           id?: string
+          is_hidden?: boolean | null
           is_public?: boolean | null
           like_count?: number | null
+          report_count?: number | null
           sub_category?: string | null
+          thumbnail_scan_result?: string | null
+          thumbnail_scanned?: boolean | null
           thumbnail_url?: string | null
           title: string
           updated_at?: string
@@ -2260,9 +2303,13 @@ export type Database = {
           duration?: number | null
           file_size?: number | null
           id?: string
+          is_hidden?: boolean | null
           is_public?: boolean | null
           like_count?: number | null
+          report_count?: number | null
           sub_category?: string | null
+          thumbnail_scan_result?: string | null
+          thumbnail_scanned?: boolean | null
           thumbnail_url?: string | null
           title?: string
           updated_at?: string
@@ -2639,6 +2686,14 @@ export type Database = {
         Args: { p_admin_id: string; p_note?: string; p_user_id: string }
         Returns: number
       }
+      release_escrow_rewards: {
+        Args: never
+        Returns: {
+          amount: number
+          user_id: string
+          video_id: string
+        }[]
+      }
       remove_admin_role: {
         Args: { p_owner_id: string; p_target_user_id: string }
         Returns: boolean
@@ -2647,6 +2702,7 @@ export type Database = {
         Args: { p_admin_id: string; p_user_id: string }
         Returns: Json
       }
+      revoke_escrow_reward: { Args: { p_video_id: string }; Returns: undefined }
       sync_reward_totals: {
         Args: never
         Returns: {

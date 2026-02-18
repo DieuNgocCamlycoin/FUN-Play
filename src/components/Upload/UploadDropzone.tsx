@@ -4,6 +4,7 @@ import { Upload, Video, Smartphone, Sparkles, Zap, Film } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
+import { isBlockedFilename, getBlockedFilenameError } from "@/lib/videoUploadValidation";
 
 interface UploadDropzoneProps {
   onFileSelect: (file: File) => void;
@@ -49,7 +50,12 @@ export function UploadDropzone({ onFileSelect, isShort }: UploadDropzoneProps) {
     }
 
     if (acceptedFiles.length > 0) {
-      onFileSelect(acceptedFiles[0]);
+      const file = acceptedFiles[0];
+      if (isBlockedFilename(file.name)) {
+        setError(getBlockedFilenameError());
+        return;
+      }
+      onFileSelect(file);
     }
   }, [onFileSelect]);
 

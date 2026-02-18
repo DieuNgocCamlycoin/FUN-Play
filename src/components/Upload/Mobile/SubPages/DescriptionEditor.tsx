@@ -3,6 +3,8 @@ import { motion } from "framer-motion";
 import { Hash, Clock, Check } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { useHapticFeedback } from "@/hooks/useHapticFeedback";
+import { MIN_DESCRIPTION_LENGTH } from "@/lib/videoUploadValidation";
+import { cn } from "@/lib/utils";
 
 interface DescriptionEditorProps {
   value: string;
@@ -117,9 +119,17 @@ Bạn có thể thêm:
         />
       </div>
 
-      {/* Character Count */}
-      <div className="px-4 pb-2">
-        <p className="text-xs text-muted-foreground text-right">
+      {/* Character Count with minimum requirement */}
+      <div className="px-4 pb-2 flex justify-between">
+        <p className={cn(
+          "text-xs",
+          localValue.trim().length < MIN_DESCRIPTION_LENGTH ? "text-destructive" : "text-green-600"
+        )}>
+          {localValue.trim().length < MIN_DESCRIPTION_LENGTH
+            ? `Tối thiểu ${MIN_DESCRIPTION_LENGTH} ký tự (còn ${MIN_DESCRIPTION_LENGTH - localValue.trim().length})`
+            : `✓ Đủ yêu cầu`}
+        </p>
+        <p className="text-xs text-muted-foreground">
           {localValue.length}/5000
         </p>
       </div>

@@ -157,7 +157,7 @@ export function UploadMetadataForm({ metadata, onChange, onNext, onBack }: Uploa
           onClick={() => handleLabelClick(descriptionRef)}
           className="text-base font-semibold flex items-center gap-2 hover:text-[hsl(var(--cosmic-cyan))] transition-colors group w-full text-left"
         >
-          Mô tả
+          Mô tả <span className="text-destructive">*</span>
           <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-[hsl(var(--cosmic-cyan))]" />
         </button>
         <Textarea
@@ -165,7 +165,7 @@ export function UploadMetadataForm({ metadata, onChange, onNext, onBack }: Uploa
           id="description"
           value={metadata.description}
           onChange={(e) => onChange({ ...metadata, description: e.target.value.slice(0, 5000) })}
-          placeholder={`Mô tả nội dung video, thêm link, hashtag, timestamp...
+          placeholder={`Mô tả nội dung video (tối thiểu 50 ký tự), thêm link, hashtag, timestamp...
 
 Ví dụ:
 0:00 Giới thiệu
@@ -175,9 +175,19 @@ Ví dụ:
           className="min-h-[140px] sm:min-h-[160px] resize-none text-base focus:ring-2 focus:ring-[hsl(var(--cosmic-cyan)/0.5)] focus:border-[hsl(var(--cosmic-cyan))]"
           maxLength={5000}
         />
-        <p className="text-xs text-muted-foreground text-right">
-          {metadata.description.length}/5000
-        </p>
+        <div className="flex justify-between">
+          <p className={cn(
+            "text-xs",
+            metadata.description.trim().length < 50 ? "text-destructive" : "text-muted-foreground"
+          )}>
+            {metadata.description.trim().length < 50 
+              ? `Tối thiểu 50 ký tự (còn thiếu ${50 - metadata.description.trim().length})` 
+              : "✓ Đủ yêu cầu"}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {metadata.description.length}/5000
+          </p>
+        </div>
       </div>
 
       {/* Tags - Clickable label */}

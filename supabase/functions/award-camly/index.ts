@@ -673,6 +673,13 @@ serve(async (req) => {
 
     // 14. Create reward transaction record
     const txHash = `REWARD_${effectiveType}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // For FIRST_UPLOAD: always set as pending escrow (48h hold)
+    const isFirstUploadEscrow = effectiveType === 'FIRST_UPLOAD';
+    const escrowReleaseAt = isFirstUploadEscrow ? new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString() : null;
+    const txApproved = isFirstUploadEscrow ? false : canAutoApprove;
+    const txApprovedAt = (isFirstUploadEscrow ? null : (canAutoApprove ? new Date().toISOString() : null));
+
     await adminSupabase.from("reward_transactions").insert({
       user_id: userId,
       video_id: videoId || null,
@@ -680,9 +687,14 @@ serve(async (req) => {
       reward_type: effectiveType,
       status: "success",
       tx_hash: txHash,
-      approved: canAutoApprove,
-      approved_at: canAutoApprove ? new Date().toISOString() : null,
+      approved: txApproved,
+      approved_at: txApprovedAt,
+      escrow_release_at: escrowReleaseAt,
     });
+
+    if (isFirstUploadEscrow) {
+      console.log(`[award-camly] FIRST_UPLOAD for user ${userId} placed in 48h escrow (video: ${videoId})`);
+    }
 
     // 15. Record reward action for LIKE/SHARE to prevent duplicates
     if (["LIKE", "SHARE", "VIEW", "COMMENT"].includes(type) && videoId) {

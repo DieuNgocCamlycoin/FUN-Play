@@ -19,6 +19,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useUploadGate } from "@/hooks/useUploadGate";
 import { useUpload } from "@/contexts/UploadContext";
 import { motion, AnimatePresence } from "framer-motion";
+import { isBlockedFilename, getBlockedFilenameError } from "@/lib/videoUploadValidation";
 
 interface UploadWizardProps {
   open: boolean;
@@ -104,6 +105,16 @@ export function UploadWizard({ open, onOpenChange }: UploadWizardProps) {
   }, []);
 
   const handleVideoSelect = useCallback(async (file: File) => {
+    // Block sample video filenames
+    if (isBlockedFilename(file.name)) {
+      toast({
+        title: "Video không hợp lệ",
+        description: getBlockedFilenameError(),
+        variant: "destructive",
+      });
+      return;
+    }
+
     setVideoFile(file);
     setVideoPreviewUrl(URL.createObjectURL(file));
     detectShort(file);
@@ -122,7 +133,7 @@ export function UploadWizard({ open, onOpenChange }: UploadWizardProps) {
     setMetadata(prev => ({ ...prev, title: nameWithoutExt }));
     
     setCurrentStep("metadata");
-  }, [detectShort]);
+  }, [detectShort, toast]);
 
   const handleThumbnailChange = useCallback((blob: Blob, preview: string) => {
     setThumbnailBlob(blob);
@@ -390,6 +401,7 @@ export function UploadWizard({ open, onOpenChange }: UploadWizardProps) {
                   thumbnailPreview={thumbnailPreview}
                   metadata={metadata}
                   isShort={isShort}
+                  videoDuration={videoDuration}
                   onPublish={handleUpload}
                   onBack={() => setCurrentStep("thumbnail")}
                   onEditMetadata={() => setCurrentStep("metadata")}
