@@ -3,10 +3,8 @@ import { useSearchParams, Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ShieldX, Wifi, RefreshCw } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { ShieldX } from "lucide-react";
 
 import { UnifiedAdminLayout, AdminSection } from "@/components/Admin/UnifiedAdminLayout";
 import { OverviewTab } from "@/components/Admin/tabs/OverviewTab";
@@ -19,7 +17,6 @@ import { FunMoneyApprovalTab } from "@/components/Admin/tabs/FunMoneyApprovalTab
 import WalletAbuseTab from "@/components/Admin/tabs/WalletAbuseTab";
 import { UserStatsTab } from "@/components/Admin/tabs/UserStatsTab";
 import { useAdminManage } from "@/hooks/useAdminManage";
-import { useAdminRealtime } from "@/hooks/useAdminRealtime";
 
 export default function UnifiedAdminDashboard() {
   const { user, loading: authLoading } = useAuth();
@@ -29,7 +26,6 @@ export default function UnifiedAdminDashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
   
   const { stats, users, walletGroups, banUser, unbanUserWithRestore, isFakeName, actionLoading } = useAdminManage();
-  const realtimeStats = useAdminRealtime();
 
   // Get current section from URL or default to "overview"
   const currentSection = (searchParams.get("section") as AdminSection) || "overview";
@@ -102,11 +98,6 @@ export default function UnifiedAdminDashboard() {
     );
   }
 
-  // Use realtime pending count if available, otherwise fall back to static stats
-  const pendingCount = realtimeStats.stats.pendingRewardsCount > 0 
-    ? realtimeStats.stats.pendingRewardsCount 
-    : stats.pendingCount;
-
   // Render content based on current section
   const renderContent = () => {
     switch (currentSection) {
@@ -146,7 +137,7 @@ export default function UnifiedAdminDashboard() {
     <UnifiedAdminLayout
       currentSection={currentSection}
       onSectionChange={handleSectionChange}
-      pendingCount={pendingCount}
+      pendingCount={stats.pendingCount}
       isOwner={isOwner}
     >
       {/* Section Header */}
@@ -175,26 +166,6 @@ export default function UnifiedAdminDashboard() {
               {currentSection === "abuse-detection" && "Phát hiện IP dùng chung để tạo nhiều tài khoản/ví nhận thưởng"}
               {currentSection === "user-stats" && "Danh sách users với đầy đủ thống kê hoạt động, CAMLY, FUN Money, Donations"}
             </p>
-          </div>
-          
-          {/* Status & Refresh */}
-          <div className="flex items-center gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => realtimeStats.refetch()}
-              className="gap-1"
-            >
-              <RefreshCw className="w-3 h-3" />
-              Refresh
-            </Button>
-            <Badge 
-              variant="default"
-              className="gap-1 bg-green-500/20 text-green-500 border-green-500/30"
-            >
-              <Wifi className="w-3 h-3" />
-              Online
-            </Badge>
           </div>
         </div>
       </div>
