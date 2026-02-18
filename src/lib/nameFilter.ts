@@ -54,6 +54,58 @@ export function isNameAppropriate(name: string): { ok: boolean; reason?: string 
 }
 
 /**
+ * Validate display name quality.
+ * Blocks: all-numeric, repeated chars (3+), keyboard spam, default-like names.
+ */
+export function validateDisplayName(name: string): { ok: boolean; reason?: string } {
+  if (!name || name.trim().length === 0) {
+    return { ok: false, reason: "Tên hiển thị không được để trống" };
+  }
+
+  const trimmed = name.trim();
+
+  if (trimmed.length < 2) {
+    return { ok: false, reason: "Tên hiển thị phải có ít nhất 2 ký tự" };
+  }
+
+  if (trimmed.length > 50) {
+    return { ok: false, reason: "Tên hiển thị không được vượt quá 50 ký tự" };
+  }
+
+  // Block all-numeric names
+  if (/^\d+$/.test(trimmed)) {
+    return { ok: false, reason: "Tên hiển thị không được chỉ chứa số" };
+  }
+
+  // Block 3+ consecutive identical characters (e.g., "aaaaaa", "xxxxx")
+  if (/(.)\1{2,}/i.test(trimmed)) {
+    return { ok: false, reason: "Tên hiển thị không được chứa ký tự lặp lại liên tiếp" };
+  }
+
+  // Block keyboard spam patterns
+  const keyboardSpam = ["qwerty", "asdfgh", "zxcvbn", "qazwsx", "abcdef", "123456"];
+  const lower = trimmed.toLowerCase();
+  for (const spam of keyboardSpam) {
+    if (lower.includes(spam)) {
+      return { ok: false, reason: "Tên hiển thị không hợp lệ" };
+    }
+  }
+
+  // Block default-like names (user + numbers only)
+  if (/^user[_\s]?\d*$/i.test(trimmed)) {
+    return { ok: false, reason: "Vui lòng đặt tên hiển thị riêng, không sử dụng tên mặc định" };
+  }
+
+  // Check offensive content
+  const nameCheck = isNameAppropriate(trimmed);
+  if (!nameCheck.ok) {
+    return nameCheck;
+  }
+
+  return { ok: true };
+}
+
+/**
  * Validate username format.
  * Rules: 3-30 chars, lowercase letters, numbers, underscores only.
  * Cannot start with "user_" (reserved for system-generated).
@@ -77,6 +129,16 @@ export function validateUsernameFormat(username: string): { ok: boolean; reason?
 
   if (username.startsWith("user_")) {
     return { ok: false, reason: "Username không được bắt đầu bằng 'user_' (dành cho hệ thống)" };
+  }
+
+  // Block all-numeric usernames
+  if (/^\d+$/.test(username)) {
+    return { ok: false, reason: "Username không được chỉ chứa số" };
+  }
+
+  // Block 3+ consecutive identical characters
+  if (/(.)\1{2,}/.test(username)) {
+    return { ok: false, reason: "Username không được chứa ký tự lặp lại liên tiếp" };
   }
 
   const nameCheck = isNameAppropriate(username);

@@ -14,7 +14,7 @@ import { MainLayout } from "@/components/Layout/MainLayout";
 import { DragDropImageUpload } from "@/components/Profile/DragDropImageUpload";
 import { ProfileCompletionIndicator } from "@/components/Profile/ProfileCompletionIndicator";
 import { ChangePasswordForm } from "@/components/Profile/ChangePasswordForm";
-import { isNameAppropriate, validateUsernameFormat } from "@/lib/nameFilter";
+import { isNameAppropriate, validateUsernameFormat, validateDisplayName } from "@/lib/nameFilter";
 
 export default function ProfileSettings() {
   const { user, loading } = useAuth();
@@ -302,11 +302,11 @@ export default function ProfileSettings() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate display name
-    const nameCheck = isNameAppropriate(displayName);
+    // Validate display name (includes spam + offensive check)
+    const nameCheck = validateDisplayName(displayName);
     if (!nameCheck.ok) {
       toast({
-        title: "Tên không phù hợp",
+        title: "Tên không hợp lệ",
         description: nameCheck.reason,
         variant: "destructive",
       });
