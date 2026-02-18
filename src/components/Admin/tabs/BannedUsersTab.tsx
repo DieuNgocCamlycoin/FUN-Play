@@ -22,22 +22,28 @@ interface BannedUsersTabProps {
 
 const BannedUsersTab = ({ users, onUnban, loading }: BannedUsersTabProps) => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
-  useEffect(() => { setCurrentPage(1); }, [searchTerm]);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm), 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  useEffect(() => { setCurrentPage(1); }, [debouncedSearch]);
 
   const bannedUsers = useMemo(() => users.filter((u) => u.banned), [users]);
 
   const filteredUsers = useMemo(() => {
-    if (!searchTerm.trim()) return bannedUsers;
-    const term = searchTerm.toLowerCase();
+    if (!debouncedSearch.trim()) return bannedUsers;
+    const term = debouncedSearch.toLowerCase();
     return bannedUsers.filter(
       (u) =>
         u.display_name?.toLowerCase().includes(term) ||
         u.username?.toLowerCase().includes(term) ||
         u.ban_reason?.toLowerCase().includes(term)
     );
-  }, [bannedUsers, searchTerm]);
+  }, [bannedUsers, debouncedSearch]);
 
   const { paged, totalPages } = paginate(filteredUsers, currentPage);
 

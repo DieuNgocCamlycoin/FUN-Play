@@ -59,7 +59,14 @@ export function FunMoneyApprovalTab() {
   const [selectedRequest, setSelectedRequest] = useState<MintRequest | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [isMinting, setIsMinting] = useState(false);
+
+  // Debounce search 500ms
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const { 
     loading, 
@@ -93,8 +100,8 @@ export function FunMoneyApprovalTab() {
 
   // Filter requests by search
   const filteredRequests = requests.filter(r => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
+    if (!debouncedSearch) return true;
+    const query = debouncedSearch.toLowerCase();
     return (
       r.platform_id.toLowerCase().includes(query) ||
       r.action_type.toLowerCase().includes(query) ||

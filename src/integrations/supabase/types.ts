@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_rate_limits: {
+        Row: {
+          action: string
+          admin_id: string
+          id: string
+          request_count: number | null
+          window_start: string
+        }
+        Insert: {
+          action: string
+          admin_id: string
+          id?: string
+          request_count?: number | null
+          window_start?: string
+        }
+        Update: {
+          action?: string
+          admin_id?: string
+          id?: string
+          request_count?: number | null
+          window_start?: string
+        }
+        Relationships: []
+      }
       ai_generated_music: {
         Row: {
           audio_url: string | null
@@ -2510,6 +2534,10 @@ export type Database = {
       bulk_notify_system_usernames: {
         Args: { p_admin_id: string }
         Returns: number
+      }
+      check_admin_rate_limit: {
+        Args: { p_action: string; p_admin_id: string; p_max_requests?: number }
+        Returns: Json
       }
       get_admin_dashboard_stats: { Args: never; Returns: Json }
       get_honobar_stats: { Args: never; Returns: Json }

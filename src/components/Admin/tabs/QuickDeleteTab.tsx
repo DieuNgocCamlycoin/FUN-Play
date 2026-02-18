@@ -22,14 +22,20 @@ interface QuickDeleteTabProps {
 
 const QuickDeleteTab = ({ users, onBan, getSuspicionScore, loading }: QuickDeleteTabProps) => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [searchPage, setSearchPage] = useState(1);
   const [suspiciousPage, setSuspiciousPage] = useState(1);
 
-  useEffect(() => { setSearchPage(1); }, [searchTerm]);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm), 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  useEffect(() => { setSearchPage(1); }, [debouncedSearch]);
 
   const searchResults = useMemo(() => {
-    if (!searchTerm.trim()) return [];
-    const term = searchTerm.toLowerCase();
+    if (!debouncedSearch.trim()) return [];
+    const term = debouncedSearch.toLowerCase();
     return users.filter(
       (u) =>
         u.id.toLowerCase().includes(term) ||
@@ -37,7 +43,7 @@ const QuickDeleteTab = ({ users, onBan, getSuspicionScore, loading }: QuickDelet
         u.username?.toLowerCase().includes(term) ||
         u.wallet_address?.toLowerCase().includes(term)
     );
-  }, [users, searchTerm]);
+  }, [users, debouncedSearch]);
 
   const suspiciousUsers = useMemo(() => {
     return users

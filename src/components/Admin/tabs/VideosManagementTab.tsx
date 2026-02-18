@@ -350,7 +350,7 @@ function VideoStatsContent() {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchQuery);
       setCurrentPage(1);
-    }, 300);
+    }, 500);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
