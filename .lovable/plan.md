@@ -1,26 +1,29 @@
 
+# Don Dep Header Admin Dashboard
 
-# Don Dep Code Con Lai - Admin Dashboard
+## Van De
+Tren trang Overview, hien tai co **2 nut Refresh** va **1 badge "Online"** gay nham lan:
 
-## Ket Qua Kiem Tra
+1. **Nut Refresh o header** (goc tren phai, ben canh "Online"): Chi refresh so lieu nho tu `useAdminRealtime` (pending count, active users). Xuat hien tren **tat ca** cac tab, ke ca khi khong can.
+2. **Nut Refresh trong OverviewTab**: Refresh du lieu chi tiet (tong users, videos, charts, top creators/earners). Day moi la nut chinh.
+3. **Badge "Online"**: Truoc day la chi bao ket noi Realtime WebSocket. Sau khi go bo Realtime, badge nay luon hien "Online" va **khong co tac dung gi**.
 
-Tat ca tinh nang deu hoat dong dung. Chi con **1 van de nho** can don dep:
+## Giai Phap
+Xoa nut Refresh va badge "Online" khoi header chinh (`UnifiedAdminDashboard.tsx`), chi giu lai Refresh rieng cua tung tab (OverviewTab, UsersManagementTab...).
 
-## Thay Doi Duy Nhat
+## Chi Tiet Ky Thuat
 
-### `src/pages/UnifiedAdminDashboard.tsx` (dong 31)
-- Xoa `unbanUser` khoi destructuring `useAdminManage()` vi khong duoc su dung trong component nay
-- `unbanUser` van duoc giu trong hook va duoc su dung o `UsersManagementTab.tsx` (goi useAdminManage rieng)
-- Dong hien tai: `const { stats, users, walletGroups, banUser, unbanUser, unbanUserWithRestore, isFakeName, actionLoading } = useAdminManage();`
-- Doi thanh: `const { stats, users, walletGroups, banUser, unbanUserWithRestore, isFakeName, actionLoading } = useAdminManage();`
+### File: `src/pages/UnifiedAdminDashboard.tsx`
+- **Xoa** khoi dong 180-198: Toan bo block "Status & Refresh" (nut Refresh header + badge Online)
+- **Xoa** import `Wifi` va `RefreshCw` (khong con dung)
+- **Xoa** import `Badge` (khong con dung)
+- **Xoa** import `Button` (kiem tra xem co dung o cho khac khong - neu khong thi xoa)
+- **Xoa** `realtimeStats` va `useAdminRealtime` hook call (dong 32) vi khong con dung o component nay
+- **Xoa** import `useAdminRealtime` (dong 24)
+- **Xoa** bien `pendingCount` (dong 107-109) vi no phu thuoc vao `realtimeStats`
+- Cap nhat prop `pendingCount` cua `UnifiedAdminLayout` de dung `stats.pendingCount` truc tiep tu `useAdminManage`
 
-### Tat ca tinh nang da xac nhan OK:
-- Pagination 20/trang: AllUsersTab, BannedUsersTab, QuickDeleteTab, UserStatsTab
-- Debounce 500ms: 6 search boxes
-- Cache 5 phut: useAdminManage
-- Manual Refresh: OverviewTab, UsersManagementTab, Dashboard header
-- Rate Limiting 10 lan/phut: check_admin_rate_limit RPC
-- IP Abuse Realtime + High-Risk filter
-- Anomaly Detection: getAnomalyFlags
-- Khong con polling interval nao
-
+### Ket Qua
+- Giao dien sach hon, khong con 2 nut Refresh gay nham lan
+- Xoa badge "Online" vo nghia
+- Giam code khong can thiet, tiet kiem tai nguyen
