@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Search, Ban, Loader2, AlertTriangle, UserX, Fingerprint } from "lucide-react";
+import { Search, Ban, Loader2, AlertTriangle, UserX, Fingerprint, Globe, RefreshCw } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
 
@@ -25,14 +25,23 @@ interface DetectiveResult {
   banned: boolean;
 }
 
+interface UnmatchedWallet {
+  wallet_address: string;
+  total_amount: number;
+  tx_count: number;
+}
+
 export function WalletDetectiveTab() {
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const [walletInput, setWalletInput] = useState("");
   const [results, setResults] = useState<DetectiveResult[]>([]);
+  const [unmatchedWallets, setUnmatchedWallets] = useState<UnmatchedWallet[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchedWallet, setSearchedWallet] = useState("");
   const [banning, setBanning] = useState(false);
+  const [isOnchainData, setIsOnchainData] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   const isUnverified = (r: DetectiveResult) =>
     !r.avatar_url || r.username.startsWith("user_");
@@ -51,8 +60,11 @@ export function WalletDetectiveTab() {
     if (!walletInput.trim() || !user) return;
     setLoading(true);
     setResults([]);
+    setUnmatchedWallets([]);
+    setIsOnchainData(false);
     setSearchedWallet(walletInput.trim());
 
+    // Step 1: Try local DB
     const { data, error } = await supabase.rpc("trace_wallet_detective", {
       p_wallet_address: walletInput.trim(),
       p_admin_id: user.id,
@@ -60,13 +72,72 @@ export function WalletDetectiveTab() {
 
     if (error) {
       toast.error("Lỗi truy vết: " + error.message);
-    } else {
-      setResults((data as DetectiveResult[]) || []);
-      if (!data || data.length === 0) {
-        toast.info("Không tìm thấy user nào liên quan đến ví này.");
-      }
+      setLoading(false);
+      return;
     }
+
+    if (data && data.length > 0) {
+      setResults((data as DetectiveResult[]) || []);
+      setLoading(false);
+      return;
+    }
+
+    // Step 2: Fallback to on-chain Moralis lookup
+    toast.info("Không tìm thấy trong DB, đang tra cứu on-chain...");
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData?.session?.access_token;
+    if (!token) {
+      toast.error("Phiên đăng nhập hết hạn.");
+      setLoading(false);
+      return;
+    }
+
+    const { data: onchainData, error: onchainError } = await supabase.functions.invoke(
+      "wallet-detective-onchain",
+      {
+        body: { wallet_address: walletInput.trim() },
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+
+    if (onchainError) {
+      toast.error("Lỗi tra cứu on-chain: " + onchainError.message);
+    } else if (onchainData?.success) {
+      setIsOnchainData(true);
+      setResults(onchainData.matched_users || []);
+      setUnmatchedWallets(onchainData.unmatched_wallets || []);
+      const total = (onchainData.matched_users?.length || 0) + (onchainData.unmatched_wallets?.length || 0);
+      if (total === 0) {
+        toast.info("Không tìm thấy giao dịch CAMLY nào đến ví này.");
+      } else {
+        toast.success(`Tìm thấy ${onchainData.total_transfers} giao dịch on-chain.`);
+      }
+    } else {
+      toast.error(onchainData?.error || "Lỗi không xác định.");
+    }
+
     setLoading(false);
+  };
+
+  const handleSyncToDb = async () => {
+    if (!searchedWallet) return;
+    setSyncing(true);
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData?.session?.access_token;
+
+    const { data, error } = await supabase.functions.invoke("backfill-moralis", {
+      body: { wallets: [searchedWallet] },
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    });
+
+    if (error) {
+      toast.error("Lỗi sync: " + error.message);
+    } else {
+      toast.success(`Sync hoàn tất: ${data?.totalNewTransactions || 0} giao dịch mới.`);
+    }
+    setSyncing(false);
   };
 
   const handleBanAll = async () => {
@@ -93,7 +164,6 @@ export function WalletDetectiveTab() {
       if (!error) success++;
     }
     toast.success(`Đã ban ${success}/${unbanned.length} users.`);
-    // Refresh
     handleTrace();
     setBanning(false);
   };
@@ -111,7 +181,6 @@ export function WalletDetectiveTab() {
   const truncateWallet = (w: string) =>
     w ? `${w.slice(0, 6)}...${w.slice(-4)}` : "N/A";
 
-  // Mobile card view
   const MobileResultCard = ({ r }: { r: DetectiveResult }) => (
     <Card className={`${getRowClass(r)} mb-3`}>
       <CardContent className="p-4 space-y-2">
@@ -187,19 +256,40 @@ export function WalletDetectiveTab() {
       {/* Results */}
       {results.length > 0 && (
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg">
-              Kết quả: {results.length} user(s) liên quan
-            </CardTitle>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={handleBanAll}
-              disabled={banning || results.every((r) => r.banned)}
-            >
-              {banning ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Ban className="w-4 h-4 mr-2" />}
-              Ban All Related Users
-            </Button>
+          <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-lg">
+                Kết quả: {results.length} user(s) liên quan
+              </CardTitle>
+              {isOnchainData && (
+                <Badge className="bg-blue-500/20 text-blue-600 border-blue-500/30">
+                  <Globe className="w-3 h-3 mr-1" />
+                  On-chain data
+                </Badge>
+              )}
+            </div>
+            <div className="flex gap-2">
+              {isOnchainData && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSyncToDb}
+                  disabled={syncing}
+                >
+                  {syncing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+                  Sync to DB
+                </Button>
+              )}
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleBanAll}
+                disabled={banning || results.every((r) => r.banned)}
+              >
+                {banning ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Ban className="w-4 h-4 mr-2" />}
+                Ban All Related Users
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             {/* Legend */}
@@ -212,6 +302,12 @@ export function WalletDetectiveTab() {
                 <div className="w-3 h-3 rounded bg-yellow-500/30" />
                 <span>Unverified account</span>
               </div>
+              {isOnchainData && (
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 rounded bg-blue-500/30" />
+                  <span>Data from Moralis on-chain</span>
+                </div>
+              )}
             </div>
 
             {isMobile ? (
@@ -270,6 +366,55 @@ export function WalletDetectiveTab() {
                           )}
                         </div>
                       </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Unmatched Wallets */}
+      {unmatchedWallets.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-yellow-500" />
+              Ví chưa đăng ký ({unmatchedWallets.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs text-muted-foreground mb-3">
+              Các địa chỉ ví đã gửi CAMLY nhưng chưa liên kết với tài khoản nào trong hệ thống.
+            </p>
+            {isMobile ? (
+              <div className="space-y-2">
+                {unmatchedWallets.map((w) => (
+                  <div key={w.wallet_address} className="p-3 rounded-lg border bg-muted/30">
+                    <p className="font-mono text-xs break-all">{w.wallet_address}</p>
+                    <div className="flex gap-4 mt-1 text-xs text-muted-foreground">
+                      <span>Tổng: <strong className="text-foreground">{w.total_amount.toLocaleString()}</strong></span>
+                      <span>{w.tx_count} tx</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Wallet Address</TableHead>
+                    <TableHead className="text-right">Tổng Gửi</TableHead>
+                    <TableHead className="text-right">Số TX</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {unmatchedWallets.map((w) => (
+                    <TableRow key={w.wallet_address}>
+                      <TableCell className="font-mono text-xs">{w.wallet_address}</TableCell>
+                      <TableCell className="text-right font-semibold">{w.total_amount.toLocaleString()}</TableCell>
+                      <TableCell className="text-right">{w.tx_count}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
