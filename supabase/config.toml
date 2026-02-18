@@ -114,3 +114,6 @@ verify_jwt = false
 
 [functions.wallet-detective-onchain]
 verify_jwt = false
+
+[functions.scan-thumbnail]
+verify_jwt = false

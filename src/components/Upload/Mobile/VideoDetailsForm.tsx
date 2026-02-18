@@ -9,6 +9,7 @@ import {
   Image,
   Upload,
   Sparkles,
+  AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { isDescriptionValid, getDescriptionWarning } from "@/lib/videoUploadValidation";
 
 interface VideoDetailsFormProps {
   metadata: {
@@ -25,6 +27,7 @@ interface VideoDetailsFormProps {
     visibility: "public" | "unlisted" | "private";
   };
   thumbnailPreview: string | null;
+  videoDuration?: number;
   onEditVisibility: () => void;
   onEditDescription: () => void;
   onEditThumbnail: () => void;
@@ -41,6 +44,7 @@ const VISIBILITY_LABELS = {
 export function VideoDetailsForm({
   metadata,
   thumbnailPreview,
+  videoDuration = 0,
   onEditVisibility,
   onEditDescription,
   onEditThumbnail,
@@ -69,10 +73,12 @@ export function VideoDetailsForm({
   const visibilityInfo = VISIBILITY_LABELS[metadata.visibility];
   const VisibilityIcon = visibilityInfo.icon;
 
+  const descriptionOk = isDescriptionValid(metadata.description);
+  const durationOk = videoDuration >= 60;
+  const canUpload = metadata.title.trim().length > 0 && descriptionOk && durationOk;
+
   const handleUpload = () => {
-    if (!metadata.title.trim()) {
-      return;
-    }
+    if (!canUpload) return;
     setIsUploading(true);
     mediumTap();
     onUpload();
@@ -185,37 +191,46 @@ export function VideoDetailsForm({
 
       {/* Upload Button */}
       <div className="p-4 border-t border-border bg-background sticky bottom-0 pb-safe">
+        {/* Validation warnings */}
+        {(!durationOk || !descriptionOk) && (
+          <div className="mb-3 space-y-1.5">
+            {!durationOk && (
+              <div className="flex items-center gap-2 p-2 rounded-lg bg-destructive/10 text-destructive text-xs">
+                <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+                Video phải dài ít nhất 60 giây ⏱️
+              </div>
+            )}
+            {!descriptionOk && (
+              <div className="flex items-center gap-2 p-2 rounded-lg bg-destructive/10 text-destructive text-xs cursor-pointer" onClick={onEditDescription}>
+                <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+                {getDescriptionWarning(metadata.description.trim().length)}
+              </div>
+            )}
+          </div>
+        )}
+
         <motion.button
           whileTap={{ scale: 0.98 }}
           onClick={handleUpload}
-          disabled={!metadata.title.trim() || isUploading}
+          disabled={!canUpload || isUploading}
           className={cn(
             "w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 min-h-[56px] relative overflow-hidden transition-opacity touch-manipulation",
-            metadata.title.trim() && !isUploading
+            canUpload && !isUploading
               ? "bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] to-[hsl(var(--cosmic-magenta))] shadow-lg shadow-[hsl(var(--cosmic-cyan)/0.3)] active:opacity-90"
               : "bg-muted text-muted-foreground cursor-not-allowed"
           )}
         >
-          {metadata.title.trim() && !isUploading && (
+          {canUpload && !isUploading && (
             <motion.div
-              animate={{
-                opacity: [0.5, 1, 0.5],
-              }}
-              transition={{
-                duration: 2,
-                repeat: Infinity,
-                ease: "easeInOut",
-              }}
+              animate={{ opacity: [0.5, 1, 0.5] }}
+              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
               className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
             />
           )}
           <span className="relative z-10 flex items-center gap-2 text-lg">
             {isUploading ? (
               <>
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                >
+                <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
                   <Sparkles className="w-5 h-5" />
                 </motion.div>
                 Đang tải lên...

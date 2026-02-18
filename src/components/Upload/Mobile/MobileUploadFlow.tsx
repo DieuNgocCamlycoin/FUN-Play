@@ -12,6 +12,7 @@ import { useUpload } from "@/contexts/UploadContext";
 import { useUploadGate } from "@/hooks/useUploadGate";
 import { AvatarVerificationGate } from "../AvatarVerificationGate";
 import { ContentModerationFeedback } from "../ContentModerationFeedback";
+import { isBlockedFilename, getBlockedFilenameError } from "@/lib/videoUploadValidation";
 
 // Sub-components
 import { VideoGalleryPicker } from "./VideoGalleryPicker";
@@ -188,6 +189,16 @@ export function MobileUploadFlow({ open, onOpenChange }: MobileUploadFlowProps) 
   // Handle video selection with proper memory management
   const handleVideoSelect = useCallback(
     async (file: File) => {
+      // Block sample video filenames
+      if (isBlockedFilename(file.name)) {
+        toast({
+          title: "Video không hợp lệ",
+          description: getBlockedFilenameError(),
+          variant: "destructive",
+        });
+        return;
+      }
+
       setVideoFile(file);
       const previewUrl = URL.createObjectURL(file);
       objectUrlsRef.current.push(previewUrl);
@@ -216,7 +227,7 @@ export function MobileUploadFlow({ open, onOpenChange }: MobileUploadFlowProps) 
 
       navigateTo("video-confirm");
     },
-    [detectShort, navigateTo]
+    [detectShort, navigateTo, toast]
   );
 
   // Handle thumbnail change with memory tracking
@@ -453,6 +464,7 @@ export function MobileUploadFlow({ open, onOpenChange }: MobileUploadFlowProps) 
                 <VideoDetailsForm
                   metadata={metadata}
                   thumbnailPreview={thumbnailPreview}
+                  videoDuration={videoDuration}
                   onEditVisibility={() => navigateTo("sub-visibility")}
                   onEditDescription={() => navigateTo("sub-description")}
                   onEditThumbnail={() => navigateTo("sub-thumbnail")}

@@ -1,17 +1,19 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Upload, Globe, Lock, Eye, Clock, Play, Sparkles, Heart, Pencil, ArrowRight } from "lucide-react";
+import { ArrowLeft, Upload, Globe, Lock, Eye, Clock, Play, Sparkles, Heart, Pencil, ArrowRight, AlertTriangle } from "lucide-react";
 import { VideoMetadata } from "./UploadMetadataForm";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { MIN_VIDEO_DURATION, MIN_DESCRIPTION_LENGTH, isDurationValid, isDescriptionValid, getDurationWarning, getDescriptionWarning } from "@/lib/videoUploadValidation";
 
 interface UploadPreviewProps {
   videoPreviewUrl: string | null;
   thumbnailPreview: string | null;
   metadata: VideoMetadata;
   isShort: boolean;
+  videoDuration?: number;
   onPublish: () => void;
   onBack: () => void;
   onEditMetadata?: () => void;
@@ -37,11 +39,15 @@ export function UploadPreview({
   thumbnailPreview,
   metadata,
   isShort,
+  videoDuration = 0,
   onPublish,
   onBack,
   onEditMetadata,
   onEditThumbnail,
 }: UploadPreviewProps) {
+  const durationOk = isDurationValid(videoDuration);
+  const descriptionOk = isDescriptionValid(metadata.description);
+  const canPublish = durationOk && descriptionOk;
   const VisibilityIcon = VISIBILITY_ICONS[metadata.visibility];
 
   // Handle click with haptic feedback
@@ -276,6 +282,29 @@ export function UploadPreview({
         </p>
       </motion.div>
 
+      {/* Validation Warnings */}
+      {(!durationOk || !descriptionOk) && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-2"
+        >
+          {!durationOk && (
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive text-sm">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+              {getDurationWarning(videoDuration)}
+            </div>
+          )}
+          {!descriptionOk && (
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive text-sm cursor-pointer" onClick={() => onEditMetadata?.()}>
+              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+              {getDescriptionWarning(metadata.description.trim().length)}
+              <span className="text-xs underline ml-auto">Sửa mô tả</span>
+            </div>
+          )}
+        </motion.div>
+      )}
+
       {/* Navigation with pulse-halo effect */}
       <div className="flex flex-col sm:flex-row justify-between gap-3 pt-4 border-t border-border/50">
         <Button variant="ghost" onClick={onBack} className="gap-2 min-h-[48px] touch-manipulation">
@@ -283,15 +312,23 @@ export function UploadPreview({
           Quay lại chỉnh sửa
         </Button>
         <Button 
-          onClick={onPublish} 
-          className="gap-2 min-h-[52px] px-8 bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] via-[hsl(var(--cosmic-magenta))] to-[hsl(var(--cosmic-gold))] hover:from-[hsl(var(--cosmic-cyan)/0.9)] hover:via-[hsl(var(--cosmic-magenta)/0.9)] hover:to-[hsl(var(--cosmic-gold)/0.9)] text-white shadow-lg shadow-[hsl(var(--cosmic-magenta)/0.3)] font-bold relative overflow-hidden touch-manipulation"
+          onClick={onPublish}
+          disabled={!canPublish}
+          className={cn(
+            "gap-2 min-h-[52px] px-8 font-bold relative overflow-hidden touch-manipulation",
+            canPublish
+              ? "bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] via-[hsl(var(--cosmic-magenta))] to-[hsl(var(--cosmic-gold))] hover:from-[hsl(var(--cosmic-cyan)/0.9)] hover:via-[hsl(var(--cosmic-magenta)/0.9)] hover:to-[hsl(var(--cosmic-gold)/0.9)] text-white shadow-lg shadow-[hsl(var(--cosmic-magenta)/0.3)]"
+              : "bg-muted text-muted-foreground cursor-not-allowed"
+          )}
         >
-          <motion.span
-            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
-            initial={{ x: "-100%" }}
-            whileHover={{ x: "100%" }}
-            transition={{ duration: 0.5 }}
-          />
+          {canPublish && (
+            <motion.span
+              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+              initial={{ x: "-100%" }}
+              whileHover={{ x: "100%" }}
+              transition={{ duration: 0.5 }}
+            />
+          )}
           <span className="relative z-10 flex items-center gap-2">
             <Upload className="w-5 h-5" />
             Đăng video
