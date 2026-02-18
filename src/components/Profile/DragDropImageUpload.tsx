@@ -3,6 +3,7 @@ import { Upload, X, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useR2Upload } from "@/hooks/useR2Upload";
+import { resizeImage } from "@/lib/imageUtils";
 
 interface DragDropImageUploadProps {
   currentImageUrl?: string;
@@ -61,8 +62,18 @@ export function DragDropImageUpload({
       return;
     }
 
+    // Resize avatar images to 200x200 to save storage
+    let fileToUpload = file;
+    if (folderPath === "profiles") {
+      try {
+        fileToUpload = await resizeImage(file, 200, 200, 0.8);
+      } catch (err) {
+        console.warn("Image resize failed, uploading original:", err);
+      }
+    }
+
     // Upload to R2
-    const result = await uploadToR2(file);
+    const result = await uploadToR2(fileToUpload);
     
     if (result) {
       setPreviewUrl(result.publicUrl);

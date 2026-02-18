@@ -211,7 +211,7 @@ export function ProfileOnboardingModal() {
               onImageUploaded={(url) => setAvatarUrl(url)}
               label="Ảnh đại diện"
               aspectRatio="aspect-square"
-              maxSizeMB={5}
+              maxSizeMB={1}
             />
 
             <div className="flex gap-2 justify-end">
