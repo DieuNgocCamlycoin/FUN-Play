@@ -1,143 +1,90 @@
 
+# Video Quality Control System - Issues Found and Fixes
 
-# Video Quality Control System to Combat Spam & Reward Abuse
+## Status Check Summary
 
-## Overview
-Implement 6 measures to prevent spam video uploads and abuse of the 500,000 CAMLY first-upload reward. All changes apply to both web and mobile upload flows.
+### WORKING CORRECTLY:
+1. Upload validation (duration >= 60s, description >= 50 chars) - properly enforced in both UploadWizard (web) and MobileUploadFlow (mobile)
+2. Filename blocking (mixkit, pexels, etc.) - implemented in UploadWizard, MobileUploadFlow, and UploadDropzone
+3. Escrow mechanism in award-camly - FIRST_UPLOAD rewards correctly set to pending with 48h escrow_release_at
+4. ReportSpamButton component - properly created with reason selector and duplicate prevention
+5. scan-thumbnail Edge Function - deployed and working with AI analysis
+6. Database schema (video_reports table, is_hidden, report_count, thumbnail_scanned columns) - all migrated
 
----
-
-## 1. Upload Constraints: Duration & Description Validation
-
-**What changes:**
-- Minimum video duration: 60 seconds. Videos shorter than 60s will be blocked with a friendly error message.
-- Minimum description length: 50 characters. The "Post"/"Upload" button will be disabled until both conditions are met.
-- Block filenames containing "mixkit" or known sample video site names (e.g., "pexels", "pixabay", "coverr", "videezy", "videvo").
-
-**Files changed:**
-- `src/components/Upload/UploadWizard.tsx` -- Add duration check before enabling the "Publish" button; pass `videoDuration` to UploadPreview; block sample filenames on video select
-- `src/components/Upload/UploadPreview.tsx` -- Disable "Publish" button if duration < 60s or description < 50 chars; show warning messages
-- `src/components/Upload/UploadMetadataForm.tsx` -- Show character count requirement on description field; update validation logic
-- `src/components/Upload/Mobile/MobileUploadFlow.tsx` -- Same duration and filename checks on video select
-- `src/components/Upload/Mobile/VideoDetailsForm.tsx` -- Disable "Upload" button if duration < 60s or description < 50 chars; show requirements
-- `src/components/Upload/Mobile/SubPages/DescriptionEditor.tsx` -- Show minimum character requirement
-- `src/components/Upload/UploadDropzone.tsx` -- Block sample filenames with error message
-
-**Validation helper (new file):**
-- `src/lib/videoUploadValidation.ts` -- Shared functions: `isBlockedFilename(name)`, `MIN_VIDEO_DURATION`, `MIN_DESCRIPTION_LENGTH`
+### ISSUES FOUND (3 Critical, 1 Minor):
 
 ---
 
-## 2. Escrow Mechanism for First Upload Reward
+## Issue 1 - CRITICAL: ReportSpamButton Not Integrated Into Watch Page
+The `ReportSpamButton` component exists but is **never imported or rendered** anywhere. Users cannot report spam videos because the button is not on the watch page.
 
-**What changes:**
-- When a user uploads their first video, the 500,000 CAMLY goes to `pending_rewards` (escrow) instead of being auto-approved.
-- After 48 hours, if the video has not been reported/hidden, a database function releases the funds to `approved_reward`.
-- If the video is reported and hidden within 48 hours, the pending reward is revoked.
+**Fix:** Add the ReportSpamButton to `VideoActionsBar.tsx` (mobile watch view action bar) and to the desktop Watch page.
 
-**Implementation:**
-- Add `escrow_release_at` column to `reward_transactions` table (timestamp, nullable)
-- Modify `award-camly` Edge Function: For FIRST_UPLOAD rewards, always set `approved = false` (pending) and set `escrow_release_at = now() + 48h`
-- Create a new database function `release_escrow_rewards()` that finds FIRST_UPLOAD transactions where `escrow_release_at <= now()` AND the associated video is NOT hidden, then marks them as approved and moves amount from `pending_rewards` to `approved_reward`
-- This function can be called periodically via admin action or a simple cron-like approach
+### File: `src/components/Video/Mobile/VideoActionsBar.tsx`
+- Import `ReportSpamButton`
+- Add it as a button in the actions row (after the Download button)
 
-**Database migration:**
-- Add `escrow_release_at` column to `reward_transactions`
-- Create `release_escrow_rewards()` SQL function
-- Create `revoke_escrow_reward(video_id)` SQL function (called when video gets hidden)
-
-**Files changed:**
-- `supabase/functions/award-camly/index.ts` -- FIRST_UPLOAD always pending with escrow timestamp
-- Database migration (new SQL)
+### File: `src/pages/Watch.tsx`
+- Import `ReportSpamButton`
+- Add it near the video action buttons on the desktop watch page
 
 ---
 
-## 3. Community Report Feature ("Report Spam")
+## Issue 2 - CRITICAL: `is_hidden` Filter Not Applied to Any Video Feed
+The `is_hidden` column exists in the database but **no video query filters it out**. Hidden/reported videos still appear in all feeds (Home, Shorts, Search, Subscriptions, Watch related, etc.).
 
-**What changes:**
-- New `video_reports` table to track reports per video per user
-- "Report Spam" button on every video's watch page
-- When a video accumulates 5 reports from 5 different users, automatically set `is_hidden = true` on the video and notify admin
+**Fix:** Add `.or('is_hidden.is.null,is_hidden.eq.false')` to all public-facing video queries:
 
-**Database migration:**
-- Create `video_reports` table: `id`, `video_id`, `reporter_id`, `reason`, `created_at`
-- Add `is_hidden` column (boolean, default false) to `videos` table
-- Add `report_count` column (integer, default 0) to `videos` table
-- Create trigger: on INSERT to `video_reports`, increment `report_count`; if count >= 5, set `is_hidden = true`
-- RLS: Users can insert reports (one per video per user), admins can read all
+### Files to update:
+- `src/pages/Index.tsx` - Home feed query
+- `src/pages/Shorts.tsx` - Shorts feed query
+- `src/pages/Search.tsx` - Search results query
+- `src/pages/Watch.tsx` - Related videos query
+- `src/pages/Subscriptions.tsx` - Subscription feed query
+- `src/pages/LikedVideos.tsx` - Liked videos query
+- `src/pages/Meditate.tsx` - Meditation videos query
+- `src/pages/BrowseMusic.tsx` - Music browsing queries
+- `src/pages/MusicDetail.tsx` - Related music query
+- `src/hooks/useSearchSuggestions.ts` - Search autocomplete
 
-**Frontend:**
-- `src/components/Video/ReportSpamButton.tsx` -- New component with flag icon, confirmation dialog, and reason selector
-- Integrate into watch page (video action bar area)
-- Update all video feed queries to add `.eq("is_hidden", false)` or `.is("is_hidden", null)` filter
-
-**Files changed:**
-- Database migration (new)
-- `src/components/Video/ReportSpamButton.tsx` (new)
-- Video watch page component -- Add report button
-- Feed queries (Home, Search, Shorts, ProfileVideosTab, etc.) -- Add `is_hidden` filter
+Each query that has `.eq("is_public", true)` also needs `.or('is_hidden.is.null,is_hidden.eq.false')`.
 
 ---
 
-## 4. Admin Filtering System for Short/Repetitive Videos
+## Issue 3 - CRITICAL: Admin Spam Filter Tab Not Added
+The plan specified adding a "Spam Filter" tab to `VideosManagementTab` for filtering short videos (<90s), repetitive titles, and reported videos. This was **not implemented**.
 
-**What changes:**
-- New tab "Spam Filter" in VideosManagementTab
-- Filter options: "Short videos (< 90s)", "Repetitive titles" (titles appearing 3+ times), "Reported videos"
-- Bulk delete/reject capability
-- Show report count column
+**Fix:** Add a new "Spam Filter" tab to `VideosManagementTab.tsx` with:
+- Filter for short videos (duration < 90s)
+- Filter for reported videos (report_count > 0)
+- Filter for repetitive titles (titles appearing 3+ times)
+- Bulk hide/delete capability
+- "Scan Thumbnails" button to trigger the `scan-thumbnail` Edge Function
 
-**Files changed:**
-- `src/components/Admin/tabs/VideosManagementTab.tsx` -- Add new "Spam Filter" tab with filters and bulk actions
-
----
-
-## 5. AI Thumbnail Scan for High-View Videos (100+ views)
-
-**What changes:**
-- New Edge Function `scan-thumbnail` that uses AI to analyze thumbnails of videos with 100+ views
-- Checks for black screens, solid colors, junk/placeholder images
-- Only scans videos that haven't been scanned yet (tracked via `thumbnail_scanned` column)
-- Admin can trigger scan from the Videos Management panel
-
-**Database migration:**
-- Add `thumbnail_scanned` boolean column to `videos` (default false)
-- Add `thumbnail_scan_result` text column to `videos` (nullable)
-
-**Files changed:**
-- `supabase/functions/scan-thumbnail/index.ts` (new) -- Uses Lovable AI (gemini-2.5-flash) to analyze thumbnail images
-- `supabase/config.toml` -- Add function config
-- `src/components/Admin/tabs/VideosManagementTab.tsx` -- Add "Scan Thumbnails" button in admin panel
+### File: `src/components/Admin/tabs/VideosManagementTab.tsx`
+- Add new TabsTrigger "Spam Filter" with AlertTriangle icon
+- Add new TabsContent with `SpamFilterContent` component
+- Implement filters, bulk actions, and AI scan button
 
 ---
 
-## 6. Sample Video Filename Blocking
+## Issue 4 - Minor: Camera capture input in UploadDropzone skips filename validation
+In `UploadDropzone.tsx` line 206-208, the camera capture `<input>` calls `onFileSelect(file)` directly without checking `isBlockedFilename()`. This is a minor gap since camera captures won't have blocked filenames, but for consistency it should be validated.
 
-**What changes:**
-- Block uploads where the filename contains "mixkit", "pexels", "pixabay", "coverr", "videezy", "videvo", "sample-video", "test-video"
-- Applied at the earliest point (file selection) in both web and mobile flows
-- Show clear error message: "Video mẫu từ các trang tải video miễn phí không được chấp nhận"
+**Fix:** Add the same filename check before calling `onFileSelect` in the camera capture onChange handler.
 
-**Files changed:**
-- `src/lib/videoUploadValidation.ts` (new, shared with item 1)
-- `src/components/Upload/UploadWizard.tsx` -- Check filename on handleVideoSelect
-- `src/components/Upload/Mobile/MobileUploadFlow.tsx` -- Same check
-- `src/components/Upload/UploadDropzone.tsx` -- Same check on drop
+---
+
+## No Unnecessary Code Found
+All existing code related to the quality control system is in active use. No dead code to remove.
 
 ---
 
 ## Technical Summary
 
-| Change | Type | Cloud Cost | New Files |
-|--------|------|-----------|-----------|
-| Duration & description validation | Frontend | None | 1 (validation util) |
-| Filename blocking | Frontend | None | Shared with above |
-| Escrow mechanism | DB + Edge Function | None | 1 migration |
-| Community reports | DB + Frontend | None | 1 component, 1 migration |
-| Admin spam filters | Frontend | None | 0 (modify existing) |
-| AI thumbnail scan | Edge Function | Minimal (only 100+ view videos) | 1 Edge Function |
-
-**Database columns added to `videos`:** `is_hidden`, `report_count`, `thumbnail_scanned`, `thumbnail_scan_result`
-**New table:** `video_reports`
-**New DB functions:** `release_escrow_rewards()`, `revoke_escrow_reward(video_id)`
-
+| Fix | Files Changed | Priority |
+|-----|--------------|----------|
+| Add ReportSpamButton to watch pages | VideoActionsBar.tsx, Watch.tsx | Critical |
+| Add is_hidden filter to all feeds | 10 files (Index, Shorts, Search, etc.) | Critical |
+| Add Admin Spam Filter tab | VideosManagementTab.tsx | Critical |
+| Camera capture filename check | UploadDropzone.tsx | Minor |
