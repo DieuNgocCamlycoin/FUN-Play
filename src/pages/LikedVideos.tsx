@@ -67,7 +67,8 @@ const LikedVideos = () => {
         `)
         .in("id", videoIds)
         .eq("is_public", true)
-        .eq("approval_status", "approved");
+        .eq("approval_status", "approved")
+        .or('is_hidden.is.null,is_hidden.eq.false');
 
       if (videosError) throw videosError;
 

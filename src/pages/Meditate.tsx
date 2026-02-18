@@ -36,7 +36,7 @@ const Meditate = () => {
     setIsLoading(true);
     const { data, error } = await supabase.from("videos")
       .select("id, title, thumbnail_url, video_url, duration, view_count, channel_id, user_id")
-      .eq("category", "meditation").eq("is_public", true).eq("approval_status", "approved")
+      .eq("category", "meditation").eq("is_public", true).eq("approval_status", "approved").or('is_hidden.is.null,is_hidden.eq.false')
       .order("created_at", { ascending: false });
     if (error) console.error("Error fetching meditation videos:", error);
     else setVideos(data || []);

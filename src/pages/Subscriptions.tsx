@@ -83,6 +83,7 @@ const Subscriptions = () => {
           .in('channel_id', channelIds)
           .eq('is_public', true)
           .eq('approval_status', 'approved')
+          .or('is_hidden.is.null,is_hidden.eq.false')
           .order('created_at', { ascending: false });
 
         const videosByChannel = new Map<string, any[]>();

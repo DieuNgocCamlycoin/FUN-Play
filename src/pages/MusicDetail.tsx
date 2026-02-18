@@ -131,6 +131,7 @@ export default function MusicDetail() {
         `)
         .eq("is_public", true)
         .eq("category", "music")
+        .or('is_hidden.is.null,is_hidden.eq.false')
         .neq("id", id)
         .order("view_count", { ascending: false })
         .limit(10);

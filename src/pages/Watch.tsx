@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { ThumbsUp, ThumbsDown, Share2, MoreHorizontal, Gift, Bookmark, Flag, EyeOff, RectangleHorizontal } from "lucide-react";
+import { ThumbsUp, ThumbsDown, Share2, MoreHorizontal, Gift, Bookmark, EyeOff, RectangleHorizontal } from "lucide-react";
+import { ReportSpamButton } from "@/components/Video/ReportSpamButton";
 import { DonateModal } from "@/components/Donate/DonateModal";
 import { ShareModal } from "@/components/Video/ShareModal";
 import { MiniProfileCard } from "@/components/Video/MiniProfileCard";
@@ -306,6 +307,7 @@ export default function Watch() {
         `)
         .eq("is_public", true)
         .eq("approval_status", "approved")
+        .or('is_hidden.is.null,is_hidden.eq.false')
         .neq("id", id)
         .order("created_at", { ascending: false })
         .limit(20);
@@ -832,6 +834,10 @@ export default function Watch() {
                   >
                     <RectangleHorizontal className="h-4 w-4" />
                   </Button>
+                  <ReportSpamButton
+                    videoId={video.id}
+                    className="rounded-full bg-muted/50 hover:bg-destructive/10 border border-border gap-2"
+                  />
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
@@ -843,10 +849,6 @@ export default function Watch() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-52">
-                      <DropdownMenuItem onClick={() => toast({ title: "Đã báo cáo", description: "Cảm ơn bạn đã phản hồi" })}>
-                        <Flag className="mr-2 h-4 w-4" />
-                        Báo cáo
-                      </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => toast({ title: "Đã ẩn", description: "Video này sẽ không được đề xuất nữa" })}>
                         <EyeOff className="mr-2 h-4 w-4" />
                         Không quan tâm

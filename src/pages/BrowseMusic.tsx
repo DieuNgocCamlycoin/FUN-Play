@@ -115,7 +115,8 @@ export default function BrowseMusic() {
           )
         `)
         .eq("is_public", true)
-        .eq("category", "music");
+        .eq("category", "music")
+        .or('is_hidden.is.null,is_hidden.eq.false');
 
       // Search filter
       if (searchQuery) {
@@ -167,7 +168,8 @@ export default function BrowseMusic() {
           )
         `)
         .eq("is_public", true)
-        .eq("category", "music");
+        .eq("category", "music")
+        .or('is_hidden.is.null,is_hidden.eq.false');
 
       if (error) throw error;
 
