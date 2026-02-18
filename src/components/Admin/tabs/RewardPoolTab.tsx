@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +15,6 @@ import {
   TrendingUp,
   AlertTriangle,
   HandCoins,
-  Radio,
   Award,
   DollarSign
 } from "lucide-react";
@@ -98,8 +97,6 @@ const RewardPoolTab = () => {
   const [manualStats, setManualStats] = useState<ManualStats>({ wallet1Camly: 0, wallet1Usdt: 0, wallet2Camly: 0, wallet2Usdt: 0, totalCamly: 0, totalUsdt: 0 });
   const [manualTxs, setManualTxs] = useState<ManualTx[]>([]);
   const [selectedWallet, setSelectedWallet] = useState<"w1" | "w2" | null>(null);
-  const [isLive, setIsLive] = useState(true);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchData = useCallback(async (showLoading = false) => {
     if (showLoading) setLoading(true);
@@ -109,12 +106,6 @@ const RewardPoolTab = () => {
 
   useEffect(() => { fetchData(true); }, []);
 
-  useEffect(() => {
-    if (isLive) {
-      intervalRef.current = setInterval(() => fetchData(false), 2000);
-    }
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [isLive, fetchData]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -303,18 +294,7 @@ const RewardPoolTab = () => {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h2 className="text-lg font-semibold">CAMLY Rewards</h2>
-          <button
-            onClick={() => setIsLive(!isLive)}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
-              isLive ? "bg-green-500/20 text-green-500 border border-green-500/30" : "bg-muted text-muted-foreground border border-muted"
-            }`}
-          >
-            <Radio className={`w-3 h-3 ${isLive ? "animate-pulse" : ""}`} />
-            {isLive ? "Live" : "Paused"}
-          </button>
-        </div>
+        <h2 className="text-lg font-semibold">CAMLY Rewards</h2>
         <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing}>
           <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
           Làm mới
