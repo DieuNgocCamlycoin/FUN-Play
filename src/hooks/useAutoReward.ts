@@ -1,5 +1,6 @@
 import { useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useRewardBatch } from './useRewardBatch';
 
 interface RewardResult {
   success: boolean;
@@ -12,6 +13,7 @@ interface RewardResult {
 
 export const useAutoReward = () => {
   const processingRef = useRef<Set<string>>(new Set());
+  const { enqueue, flush: flushBatch } = useRewardBatch();
 
   // Award CAMLY through edge function
   const awardCAMLY = useCallback(async (
@@ -192,15 +194,19 @@ export const useAutoReward = () => {
     }
   }, []);
 
-  // Award view reward
-  const awardViewReward = useCallback(async (videoId: string): Promise<RewardResult> => {
+  // Award view reward - now uses batch queue
+  const awardViewReward = useCallback(async (videoId: string, options?: { actualWatchTime?: number }): Promise<RewardResult> => {
     try {
-      return await awardCAMLY('VIEW', videoId);
+      const queued = await enqueue('VIEW', videoId, { actualWatchTime: options?.actualWatchTime });
+      if (queued) {
+        return { success: true, reason: 'Queued for batch processing' };
+      }
+      return { success: false, reason: 'Daily limit reached' };
     } catch (err) {
       console.error('View reward error:', err);
       return { success: false, reason: 'Error' };
     }
-  }, [awardCAMLY]);
+  }, [enqueue]);
 
   // Award comment reward (with content hash for spam prevention)
   const awardCommentReward = useCallback(async (videoId: string, commentContent: string): Promise<boolean> => {
@@ -231,27 +237,25 @@ export const useAutoReward = () => {
     }
   }, [awardCAMLY]);
 
-  // Award like reward
+  // Award like reward - now uses batch queue
   const awardLikeReward = useCallback(async (videoId: string): Promise<boolean> => {
     try {
-      const result = await awardCAMLY('LIKE', videoId);
-      return result.success;
+      return await enqueue('LIKE', videoId);
     } catch (err) {
       console.error('Like reward error:', err);
       return false;
     }
-  }, [awardCAMLY]);
+  }, [enqueue]);
 
-  // Award share reward
+  // Award share reward - now uses batch queue
   const awardShareReward = useCallback(async (videoId: string): Promise<boolean> => {
     try {
-      const result = await awardCAMLY('SHARE', videoId);
-      return result.success;
+      return await enqueue('SHARE', videoId);
     } catch (err) {
       console.error('Share reward error:', err);
       return false;
     }
-  }, [awardCAMLY]);
+  }, [enqueue]);
 
   // Award wallet connect reward (one-time, 50K CAMLY)
   const awardWalletConnectReward = useCallback(async (userId: string): Promise<boolean> => {
@@ -296,6 +300,7 @@ export const useAutoReward = () => {
     awardCommentReward,
     awardLikeReward,
     awardShareReward,
-    awardWalletConnectReward
+    awardWalletConnectReward,
+    flushBatch
   };
 };

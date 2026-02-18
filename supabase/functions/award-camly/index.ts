@@ -236,7 +236,55 @@ serve(async (req) => {
       );
     }
 
-    const { type, videoId, contentHash, commentLength, sessionId } = await req.json();
+    const { type, videoId, contentHash, commentLength, sessionId, actualWatchTime } = await req.json();
+
+    // === HARD LIMIT: Fast-path daily count check (before loading config) ===
+    const HARD_DAILY_LIMITS: Record<string, number> = { VIEW: 10, LIKE: 20, SHARE: 10, COMMENT: 10 };
+    if (['VIEW', 'LIKE', 'SHARE', 'COMMENT'].includes(type)) {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const { data: quickLimits } = await adminSupabaseEarly
+        .from('daily_reward_limits')
+        .select('view_count, like_count, share_count, comment_count')
+        .eq('user_id', userId)
+        .eq('date', todayStr)
+        .single();
+
+      if (quickLimits) {
+        const countMap: Record<string, number> = {
+          VIEW: quickLimits.view_count || 0,
+          LIKE: quickLimits.like_count || 0,
+          SHARE: quickLimits.share_count || 0,
+          COMMENT: quickLimits.comment_count || 0,
+        };
+        if (countMap[type] >= HARD_DAILY_LIMITS[type]) {
+          console.log(`[award-camly] Hard limit: ${type} count ${countMap[type]} >= ${HARD_DAILY_LIMITS[type]} for user ${userId}`);
+          return new Response(
+            JSON.stringify({ success: false, reason: `Đã đạt giới hạn ${type.toLowerCase()} hàng ngày`, milestone: null, newTotal: 0, amount: 0, type }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+    }
+
+    // === SERVER-SIDE WATCH TIME VALIDATION for VIEW ===
+    if (type === 'VIEW' && videoId && actualWatchTime != null) {
+      const { data: videoForWatch } = await adminSupabaseEarly
+        .from('videos')
+        .select('duration')
+        .eq('id', videoId)
+        .single();
+
+      if (videoForWatch?.duration && videoForWatch.duration > 0) {
+        const requiredTime = videoForWatch.duration * 0.3;
+        if (actualWatchTime < requiredTime) {
+          console.log(`[award-camly] Watch time too low: ${actualWatchTime}s < ${requiredTime}s for video ${videoId}`);
+          return new Response(
+            JSON.stringify({ success: false, reason: 'Thời gian xem chưa đủ 30% video', milestone: null, newTotal: 0, amount: 0, type }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+    }
 
     // === UPLOAD REWARD GATES (anti-farming) ===
     const uploadRewardTypes = ['SHORT_VIDEO_UPLOAD', 'LONG_VIDEO_UPLOAD', 'UPLOAD', 'FIRST_UPLOAD'];

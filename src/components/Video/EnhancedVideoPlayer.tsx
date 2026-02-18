@@ -110,6 +110,8 @@ export function EnhancedVideoPlayer({
   });
   const [hoveredChapterIdx, setHoveredChapterIdx] = useState<number | null>(null);
   const watchTimeRef = useRef(0);
+  const lastTimeUpdateRef = useRef(0);
+  const accumulatedWatchTimeRef = useRef(0);
 
   // Parse chapters from description
   const chapters = useMemo(() => parseChapters(description), [description]);
@@ -127,7 +129,7 @@ export function EnhancedVideoPlayer({
   const { awardViewReward } = useAutoReward();
   const { user } = useAuth();
 
-  // Track continuous watch time and award view reward
+  // Track continuous watch time and award view reward using accumulated real watch time
   useEffect(() => {
     const checkViewReward = async () => {
       const video = videoRef.current;
@@ -135,10 +137,10 @@ export function EnhancedVideoPlayer({
       const dur = video.duration;
       if (!dur || dur <= 0) return;
 
-      // 30% watch threshold for ALL videos
-      if (video.currentTime >= dur * 0.3) {
+      // Use accumulated watch time instead of currentTime to prevent fast-forward abuse
+      if (accumulatedWatchTimeRef.current >= dur * 0.3) {
         setViewRewarded(true);
-        const result = await awardViewReward(videoId);
+        const result = await awardViewReward(videoId, { actualWatchTime: accumulatedWatchTimeRef.current });
         if (result.success) {
           console.log('[Desktop Reward] View reward awarded:', result.amount);
         }
@@ -158,6 +160,8 @@ export function EnhancedVideoPlayer({
   useEffect(() => {
     setViewRewarded(false);
     watchTimeRef.current = 0;
+    accumulatedWatchTimeRef.current = 0;
+    lastTimeUpdateRef.current = 0;
   }, [videoId]);
 
   // Save settings to localStorage
@@ -315,9 +319,18 @@ export function EnhancedVideoPlayer({
   const handleTimeUpdate = () => {
     const video = videoRef.current;
     if (video) {
-      setCurrentTime(video.currentTime);
+      const now = video.currentTime;
+      // Track accumulated real watch time: only count delta if <= 2s (prevents seek jumps)
+      if (lastTimeUpdateRef.current > 0) {
+        const delta = now - lastTimeUpdateRef.current;
+        if (delta > 0 && delta <= 2) {
+          accumulatedWatchTimeRef.current += delta;
+        }
+      }
+      lastTimeUpdateRef.current = now;
+      setCurrentTime(now);
       setShowEndScreen(false);
-      onTimeUpdate?.(video.currentTime, video.duration);
+      onTimeUpdate?.(now, video.duration);
     }
   };
 
