@@ -16,6 +16,7 @@ import AdminManagementTab from "@/components/Admin/tabs/AdminManagementTab";
 import { FunMoneyApprovalTab } from "@/components/Admin/tabs/FunMoneyApprovalTab";
 import WalletAbuseTab from "@/components/Admin/tabs/WalletAbuseTab";
 import { UserStatsTab } from "@/components/Admin/tabs/UserStatsTab";
+import { WalletDetectiveTab } from "@/components/Admin/tabs/WalletDetectiveTab";
 import { useAdminManage } from "@/hooks/useAdminManage";
 
 export default function UnifiedAdminDashboard() {
@@ -128,6 +129,8 @@ export default function UnifiedAdminDashboard() {
         return <AdminManagementTab />;
       case "user-stats":
         return <UserStatsTab />;
+      case "wallet-detective":
+        return <WalletDetectiveTab />;
       default:
         return <OverviewTab />;
     }
@@ -154,6 +157,7 @@ export default function UnifiedAdminDashboard() {
               {currentSection === "admin-team" && "Quản Lý Admin Team"}
               {currentSection === "abuse-detection" && "Phát Hiện Lạm Dụng IP"}
               {currentSection === "user-stats" && "Thống Kê Users"}
+              {currentSection === "wallet-detective" && "Wallet Detective"}
             </h1>
             <p className="text-muted-foreground mt-1">
               {currentSection === "overview" && "Thống kê toàn nền tảng FUN Play"}
@@ -165,6 +169,7 @@ export default function UnifiedAdminDashboard() {
               {currentSection === "admin-team" && "Thêm/xóa quyền admin cho thành viên"}
               {currentSection === "abuse-detection" && "Phát hiện IP dùng chung để tạo nhiều tài khoản/ví nhận thưởng"}
               {currentSection === "user-stats" && "Danh sách users với đầy đủ thống kê hoạt động, CAMLY, FUN Money, Donations"}
+              {currentSection === "wallet-detective" && "Truy vết ví: tìm tất cả users liên quan qua giao dịch on-chain"}
             </p>
           </div>
         </div>

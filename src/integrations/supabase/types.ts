@@ -2659,6 +2659,21 @@ export type Database = {
           user_id: string
         }[]
       }
+      trace_wallet_detective: {
+        Args: { p_admin_id: string; p_wallet_address: string }
+        Returns: {
+          avatar_url: string
+          avatar_verified: boolean
+          banned: boolean
+          created_at: string
+          display_name: string
+          total_amount: number
+          tx_count: number
+          user_id: string
+          username: string
+          wallet_address: string
+        }[]
+      }
       unapprove_user_reward: {
         Args: { p_admin_id: string; p_note?: string; p_user_id: string }
         Returns: number
