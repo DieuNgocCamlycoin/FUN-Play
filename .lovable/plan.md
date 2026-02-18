@@ -1,42 +1,44 @@
 
-# Add Scheduled Cron Job for Escrow Reward Release
 
-## What This Does
-Set up a scheduled task that automatically runs `release_escrow_rewards()` every hour. This ensures that FIRST_UPLOAD rewards held in 48-hour escrow are released without requiring manual admin intervention.
+# Fix Escrow Reward Release System
 
-## Test Results Summary
-Before proceeding, here are the test results from the quality control system:
-- Report Spam button: PASSED -- Successfully submitted a report, saved to database, video report_count incremented to 1
-- Admin Spam Filter: PASSED -- Reported video appears in "Bi bao cao" tab with correct metadata
-- Upload validation: Already verified working (duration >= 60s, description >= 50 chars, filename blocking)
+## Problem Found
+The hourly cron job `release-escrow-rewards-hourly` is correctly scheduled and active, but it will **never release any rewards** because all 122 existing FIRST_UPLOAD records have `escrow_release_at = NULL`. The cron job's SQL filters on `escrow_release_at IS NOT NULL AND escrow_release_at <= now()`, so it skips every record.
 
-## Implementation
+The edge function code (line 679) correctly generates `escrow_release_at`, but these records were created before the escrow feature was deployed, so they were never populated.
 
-### Step 1: Enable Required Database Extensions
-Run SQL to enable `pg_cron` and `pg_net` extensions (if not already enabled):
-```sql
-CREATE EXTENSION IF NOT EXISTS pg_cron;
-CREATE EXTENSION IF NOT EXISTS pg_net SCHEMA extensions;
-```
+## What Works
+- Cron job is active and scheduled correctly (every hour at minute 0)
+- `release_escrow_rewards()` function logic is correct
+- `revoke_escrow_reward()` function is correct
+- Edge function `award-camly` has correct escrow logic for future FIRST_UPLOAD rewards
+- No dead/unused code found
 
-### Step 2: Create Cron Job
-Schedule `release_escrow_rewards()` to run every hour via `pg_cron`. This calls the existing database function directly (no Edge Function needed since the logic is already in SQL):
+## Fix Plan
+
+### Step 1: Backfill existing FIRST_UPLOAD records
+Run a SQL update to set `escrow_release_at = created_at + 48 hours` for all existing FIRST_UPLOAD transactions that have NULL `escrow_release_at`:
 
 ```sql
-SELECT cron.schedule(
-  'release-escrow-rewards-hourly',
-  '0 * * * *',
-  $$SELECT * FROM public.release_escrow_rewards()$$
-);
+UPDATE reward_transactions
+SET escrow_release_at = created_at + INTERVAL '48 hours'
+WHERE reward_type = 'FIRST_UPLOAD'
+  AND escrow_release_at IS NULL
+  AND status = 'success';
 ```
 
-This runs at minute 0 of every hour. The function:
-- Finds FIRST_UPLOAD reward transactions where `escrow_release_at <= now()`
-- Verifies the associated video is NOT hidden
-- Moves the reward from `pending_rewards` to `approved_reward`
+This will allow the cron job to process the 122 existing records. Most of them are older than 48 hours, so they will be released on the next cron run.
 
-### Why Direct SQL Instead of Edge Function
-The `release_escrow_rewards()` function already exists as a database function with full logic. Calling it directly via `pg_cron` is simpler, faster, and avoids the overhead of an HTTP call to an Edge Function.
+### Step 2: Redeploy the award-camly Edge Function
+Redeploy the edge function to ensure the currently running version includes the `escrow_release_at` logic (line 679). No code changes needed -- just a redeployment.
 
 ### No Code Changes Required
-This only requires running two SQL statements via the database insert tool. No frontend or Edge Function changes needed.
+- No frontend changes
+- No edge function code changes
+- No dead code to remove
+- Only a data backfill (Step 1) and edge function redeployment (Step 2)
+
+### Technical Details
+- The `release_escrow_rewards()` function will process backfilled records where `escrow_release_at <= now()` and the video is not hidden
+- Records with hidden videos will remain in escrow (correct behavior)
+- The atomic profile update moves rewards from `pending_rewards` to `approved_reward`
