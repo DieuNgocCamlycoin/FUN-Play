@@ -56,6 +56,25 @@ serve(async (req) => {
     }
     userId = user.id;
 
+    // === SERVER-SIDE SECURITY CHECKS ===
+    const { data: profile, error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .select('banned, avatar_verified, wallet_address')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError || !profile) {
+      return jsonError('Không tìm thấy hồ sơ người dùng.');
+    }
+
+    if (profile.banned) {
+      return jsonError('Tài khoản đã bị khóa. Không thể rút thưởng.');
+    }
+
+    if (!profile.avatar_verified) {
+      return jsonError('Cần xác minh ảnh chân dung trước khi claim. Vui lòng vào Cài đặt hồ sơ.');
+    }
+
     const body = await req.json();
     const { walletAddress, claimAmount: requestedAmount } = body;
 
@@ -74,6 +93,33 @@ serve(async (req) => {
 
     if (!walletAddress || !walletAddress.match(/^0x[a-fA-F0-9]{40}$/)) {
       return jsonError('Địa chỉ ví không hợp lệ. Vui lòng kiểm tra lại.');
+    }
+
+    // Verify wallet matches profile
+    if (profile.wallet_address?.toLowerCase() !== walletAddress.toLowerCase()) {
+      return jsonError('Địa chỉ ví không khớp với hồ sơ. Vui lòng sử dụng ví đã đăng ký.');
+    }
+
+    // Check blacklisted wallet
+    const { data: blacklisted } = await supabaseAdmin
+      .from('blacklisted_wallets')
+      .select('id')
+      .eq('wallet_address', walletAddress.toLowerCase())
+      .limit(1)
+      .maybeSingle();
+
+    if (blacklisted) {
+      return jsonError('Ví này đã bị khóa. Không thể rút thưởng.');
+    }
+
+    // Check duplicate wallet (multiple accounts same wallet)
+    const { count: walletUserCount } = await supabaseAdmin
+      .from('profiles')
+      .select('id', { count: 'exact', head: true })
+      .ilike('wallet_address', walletAddress);
+
+    if ((walletUserCount || 0) > 1) {
+      return jsonError('Ví này được sử dụng bởi nhiều tài khoản. Vui lòng liên hệ admin.');
     }
 
     // Fetch approved unclaimed rewards
