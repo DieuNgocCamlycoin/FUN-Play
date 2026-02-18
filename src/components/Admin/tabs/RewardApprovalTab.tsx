@@ -172,10 +172,12 @@ const RewardApprovalTab = ({ users, onApprove, onReject, onBulkApproveAll, loadi
                 key={user.id}
                 className="flex items-center gap-3 p-3 sm:p-4 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
               >
-                <Avatar className="w-10 h-10 sm:w-12 sm:h-12 shrink-0">
-                  <AvatarImage src={user.avatar_url || undefined} />
-                  <AvatarFallback>{(user.display_name || user.username)?.[0]}</AvatarFallback>
-                </Avatar>
+                <a href={`https://official-funplay.lovable.app/${user.username}`} target="_blank" rel="noopener noreferrer">
+                  <Avatar className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 cursor-pointer hover:ring-2 hover:ring-primary transition-all">
+                    <AvatarImage src={user.avatar_url || undefined} />
+                    <AvatarFallback>{(user.display_name || user.username)?.[0]}</AvatarFallback>
+                  </Avatar>
+                </a>
 
                 <div className="flex-1 min-w-0">
                   <div className="font-medium truncate text-sm sm:text-base">{user.display_name || user.username}</div>

@@ -2578,6 +2578,10 @@ export type Database = {
         Returns: boolean
       }
       bulk_approve_all_rewards: { Args: { p_admin_id: string }; Returns: Json }
+      bulk_delete_videos_and_ban_users: {
+        Args: { p_admin_id: string; p_video_ids: string[] }
+        Returns: Json
+      }
       bulk_notify_system_usernames: {
         Args: { p_admin_id: string }
         Returns: number
