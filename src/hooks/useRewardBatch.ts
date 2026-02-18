@@ -116,16 +116,23 @@ export const useRewardBatch = () => {
       }, FLUSH_INTERVAL_MS);
     }
 
-    // Flush on page unload
+    // Flush on page unload using fetch with keepalive (supports auth headers)
     const handleBeforeUnload = () => {
       if (globalQueue.length > 0) {
-        // Use sendBeacon for reliability
         const session = JSON.parse(localStorage.getItem('sb-fzgjmvxtgrlwrluxdwjq-auth-token') || '{}');
         const accessToken = session?.access_token;
         if (accessToken) {
           const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/batch-award-camly`;
-          const body = JSON.stringify({ actions: globalQueue });
-          navigator.sendBeacon(url, new Blob([body], { type: 'application/json' }));
+          fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${accessToken}`,
+              'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            },
+            body: JSON.stringify({ actions: globalQueue }),
+            keepalive: true,
+          });
           globalQueue = [];
         }
       }
