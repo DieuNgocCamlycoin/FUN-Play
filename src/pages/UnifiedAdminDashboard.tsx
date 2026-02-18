@@ -3,8 +3,9 @@ import { useSearchParams, Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ShieldX, Wifi, WifiOff } from "lucide-react";
+import { ShieldX, Wifi, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 import { UnifiedAdminLayout, AdminSection } from "@/components/Admin/UnifiedAdminLayout";
@@ -28,7 +29,7 @@ export default function UnifiedAdminDashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
   
   const { stats, users, walletGroups, banUser, unbanUser, unbanUserWithRestore, isFakeName, actionLoading } = useAdminManage();
-  const { stats: realtimeStats, isConnected } = useAdminRealtime();
+  const realtimeStats = useAdminRealtime();
 
   // Get current section from URL or default to "overview"
   const currentSection = (searchParams.get("section") as AdminSection) || "overview";
@@ -102,8 +103,8 @@ export default function UnifiedAdminDashboard() {
   }
 
   // Use realtime pending count if available, otherwise fall back to static stats
-  const pendingCount = realtimeStats.pendingRewardsCount > 0 
-    ? realtimeStats.pendingRewardsCount 
+  const pendingCount = realtimeStats.stats.pendingRewardsCount > 0 
+    ? realtimeStats.stats.pendingRewardsCount 
     : stats.pendingCount;
 
   // Render content based on current section
@@ -176,23 +177,25 @@ export default function UnifiedAdminDashboard() {
             </p>
           </div>
           
-          {/* Realtime Connection Status */}
-          <Badge 
-            variant={isConnected ? "default" : "secondary"}
-            className={`gap-1 ${isConnected ? "bg-green-500/20 text-green-500 border-green-500/30" : ""}`}
-          >
-            {isConnected ? (
-              <>
-                <Wifi className="w-3 h-3" />
-                Realtime
-              </>
-            ) : (
-              <>
-                <WifiOff className="w-3 h-3" />
-                Offline
-              </>
-            )}
-          </Badge>
+          {/* Status & Refresh */}
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => realtimeStats.refetch()}
+              className="gap-1"
+            >
+              <RefreshCw className="w-3 h-3" />
+              Refresh
+            </Button>
+            <Badge 
+              variant="default"
+              className="gap-1 bg-green-500/20 text-green-500 border-green-500/30"
+            >
+              <Wifi className="w-3 h-3" />
+              Online
+            </Badge>
+          </div>
         </div>
       </div>
 

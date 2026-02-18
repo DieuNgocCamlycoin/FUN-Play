@@ -20,16 +20,22 @@ interface AllUsersTabProps {
 
 const AllUsersTab = ({ users }: AllUsersTabProps) => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [showAnomalyOnly, setShowAnomalyOnly] = useState(false);
 
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm), 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   // Reset page on search/filter change
-  useEffect(() => { setCurrentPage(1); }, [searchTerm, showAnomalyOnly]);
+  useEffect(() => { setCurrentPage(1); }, [debouncedSearch, showAnomalyOnly]);
 
   const filteredUsers = useMemo(() => {
     let result = users;
-    if (searchTerm.trim()) {
-      const term = searchTerm.toLowerCase();
+    if (debouncedSearch.trim()) {
+      const term = debouncedSearch.toLowerCase();
       result = result.filter(
         (u) =>
           u.display_name?.toLowerCase().includes(term) ||
@@ -45,7 +51,7 @@ const AllUsersTab = ({ users }: AllUsersTabProps) => {
       });
     }
     return result;
-  }, [users, searchTerm, showAnomalyOnly]);
+  }, [users, debouncedSearch, showAnomalyOnly]);
 
   const { paged, totalPages } = paginate(filteredUsers, currentPage);
 

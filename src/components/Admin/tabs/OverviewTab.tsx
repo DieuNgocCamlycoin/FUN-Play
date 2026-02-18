@@ -11,12 +11,13 @@ import {
 } from "recharts";
 import { 
   Users, Video, Eye, MessageSquare, Coins, Activity, 
-  Crown, Award, TrendingUp, Download, Bell, Loader2 
+  Crown, Award, TrendingUp, Download, Bell, Loader2, RefreshCw 
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { checkAdminRateLimit } from "@/lib/adminRateLimit";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,8 +31,9 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export function OverviewTab() {
-  const { platformStats, topCreators, topEarners, dailyStats, loading } = useAdminStatistics();
+  const { platformStats, topCreators, topEarners, dailyStats, loading, refetch } = useAdminStatistics();
   const { user } = useAuth();
+  const [refreshing, setRefreshing] = useState(false);
   const [systemUsernameCount, setSystemUsernameCount] = useState<number | null>(null);
   const [notifying, setNotifying] = useState(false);
 
@@ -147,7 +149,11 @@ export function OverviewTab() {
   return (
     <div className="space-y-6">
       {/* Export & Admin Action Buttons */}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2 items-center">
+        <Button variant="outline" size="sm" onClick={async () => { if (user && !(await checkAdminRateLimit(user.id, "refresh_overview"))) return; setRefreshing(true); await refetch(); setRefreshing(false); }} disabled={refreshing}>
+          <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
+          Refresh
+        </Button>
         <Button variant="outline" size="sm" onClick={exportRewardStatsToCSV}>
           <Download className="w-4 h-4 mr-2" />
           Xuất Thống Kê Reward

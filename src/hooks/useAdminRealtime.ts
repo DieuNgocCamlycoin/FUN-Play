@@ -49,13 +49,6 @@ export function useAdminRealtime() {
 
   useEffect(() => {
     fetchInitialStats();
-
-    // Polling every 2 minutes instead of Realtime
-    const interval = setInterval(fetchInitialStats, 120_000);
-
-    return () => {
-      clearInterval(interval);
-    };
   }, [fetchInitialStats]);
 
   return {

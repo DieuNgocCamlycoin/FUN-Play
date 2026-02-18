@@ -46,7 +46,7 @@ export const useAdminManage = () => {
 
   const fetchUsers = async (force = false) => {
     const now = Date.now();
-    if (!force && cacheRef.current.data.length > 0 && now - cacheRef.current.timestamp < 120_000) {
+    if (!force && cacheRef.current.data.length > 0 && now - cacheRef.current.timestamp < 300_000) {
       setUsers(cacheRef.current.data);
       setLoading(false);
       return;
@@ -86,13 +86,6 @@ export const useAdminManage = () => {
 
   useEffect(() => {
     fetchUsers();
-
-    // Polling every 2 minutes instead of Realtime
-    const interval = setInterval(fetchUsers, 120_000);
-
-    return () => {
-      clearInterval(interval);
-    };
   }, []);
 
   // Computed statistics

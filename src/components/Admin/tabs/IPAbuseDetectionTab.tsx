@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Globe, Users, Wallet, Ban, RefreshCw, Loader2, UserCheck, RotateCcw, Radio } from "lucide-react";
+import { Globe, Users, Wallet, Ban, RefreshCw, Loader2, UserCheck, RotateCcw, Radio, ShieldAlert } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -106,6 +106,7 @@ const IPAbuseDetectionTab = ({ onBan, onUnbanWithRestore, loading }: IPAbuseDete
   const [ipGroups, setIpGroups] = useState<IPGroup[]>([]);
   const [fetching, setFetching] = useState(true);
   const [isLive, setIsLive] = useState(false);
+  const [highRiskOnly, setHighRiskOnly] = useState(true);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchIPGroups = useCallback(async () => {
@@ -169,9 +170,14 @@ const IPAbuseDetectionTab = ({ onBan, onUnbanWithRestore, loading }: IPAbuseDete
     fetchIPGroups();
   };
 
-  const totalSuspiciousIPs = ipGroups.length;
-  const totalAccountsInvolved = ipGroups.reduce((sum, g) => sum + g.account_count, 0);
-  const totalRiskCAMLY = ipGroups.reduce((sum, g) => sum + g.total_pending, 0);
+  const displayGroups = useMemo(() => {
+    if (!highRiskOnly) return ipGroups;
+    return ipGroups.filter(g => g.account_count >= 3 || g.total_pending > 100000);
+  }, [ipGroups, highRiskOnly]);
+
+  const totalSuspiciousIPs = displayGroups.length;
+  const totalAccountsInvolved = displayGroups.reduce((sum, g) => sum + g.account_count, 0);
+  const totalRiskCAMLY = displayGroups.reduce((sum, g) => sum + g.total_pending, 0);
 
   if (fetching) {
     return (
@@ -204,7 +210,7 @@ const IPAbuseDetectionTab = ({ onBan, onUnbanWithRestore, loading }: IPAbuseDete
           <CardContent className="p-4 text-center">
             <Wallet className="w-7 h-7 mx-auto text-purple-500 mb-1" />
             <div className="text-2xl font-bold">
-              {ipGroups.reduce((sum, g) => sum + g.distinct_wallets, 0)}
+              {displayGroups.reduce((sum, g) => sum + g.distinct_wallets, 0)}
             </div>
             <div className="text-xs text-muted-foreground">Ví liên quan</div>
           </CardContent>
@@ -219,15 +225,25 @@ const IPAbuseDetectionTab = ({ onBan, onUnbanWithRestore, loading }: IPAbuseDete
         </Card>
       </div>
 
-      {/* Refresh */}
-      <div className="flex items-center justify-between">
-        {isLive && (
-          <Badge variant="outline" className="text-xs border-green-500/50 text-green-500 gap-1">
-            <Radio className="w-3 h-3 animate-pulse" />
-            Live
-          </Badge>
-        )}
-        <div className="flex-1" />
+      {/* Controls */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-3">
+          {isLive && (
+            <Badge variant="outline" className="text-xs border-green-500/50 text-green-500 gap-1">
+              <Radio className="w-3 h-3 animate-pulse" />
+              Live
+            </Badge>
+          )}
+          <Button
+            variant={highRiskOnly ? "default" : "outline"}
+            size="sm"
+            onClick={() => setHighRiskOnly(!highRiskOnly)}
+            className="gap-1"
+          >
+            <ShieldAlert className="w-4 h-4" />
+            {highRiskOnly ? "Chỉ rủi ro cao" : "Tất cả"}
+          </Button>
+        </div>
         <Button variant="outline" size="sm" onClick={fetchIPGroups} disabled={fetching}>
           <RefreshCw className={`w-4 h-4 mr-1 ${fetching ? "animate-spin" : ""}`} />
           Làm mới
@@ -236,7 +252,7 @@ const IPAbuseDetectionTab = ({ onBan, onUnbanWithRestore, loading }: IPAbuseDete
 
       {/* IP Groups */}
       <div className="space-y-4">
-        {ipGroups.map((group) => {
+        {displayGroups.map((group) => {
           const unbannedCount = group.users.filter((u) => !u.banned).length;
           return (
             <Card key={group.ip_hash} className="border-blue-500/30">
@@ -338,7 +354,7 @@ const IPAbuseDetectionTab = ({ onBan, onUnbanWithRestore, loading }: IPAbuseDete
           );
         })}
 
-        {ipGroups.length === 0 && (
+        {displayGroups.length === 0 && (
           <div className="text-center py-8 text-muted-foreground">
             <Globe className="w-12 h-12 mx-auto mb-3 opacity-30" />
             <p>Chưa có dữ liệu IP tracking</p>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface PlatformStats {
@@ -39,37 +39,38 @@ export const useAdminStatistics = () => {
   const [dailyStats, setDailyStats] = useState<DailyStats[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchAdminStats = async () => {
-      try {
-        const { data, error } = await supabase.rpc("get_admin_dashboard_stats");
+  const fetchAdminStats = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.rpc("get_admin_dashboard_stats");
 
-        if (error) {
-          console.error("Error fetching admin stats:", error);
-          return;
-        }
-
-        if (data) {
-          const result = data as unknown as {
-            platformStats: PlatformStats;
-            topEarners: TopEarner[];
-            topCreators: TopCreator[];
-            dailyStats: DailyStats[];
-          };
-          setPlatformStats(result.platformStats);
-          setTopEarners(result.topEarners || []);
-          setTopCreators(result.topCreators || []);
-          setDailyStats(result.dailyStats || []);
-        }
-      } catch (error) {
-        console.error("Error fetching admin statistics:", error);
-      } finally {
-        setLoading(false);
+      if (error) {
+        console.error("Error fetching admin stats:", error);
+        return;
       }
-    };
 
-    fetchAdminStats();
+      if (data) {
+        const result = data as unknown as {
+          platformStats: PlatformStats;
+          topEarners: TopEarner[];
+          topCreators: TopCreator[];
+          dailyStats: DailyStats[];
+        };
+        setPlatformStats(result.platformStats);
+        setTopEarners(result.topEarners || []);
+        setTopCreators(result.topCreators || []);
+        setDailyStats(result.dailyStats || []);
+      }
+    } catch (error) {
+      console.error("Error fetching admin statistics:", error);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  return { platformStats, topCreators, topEarners, dailyStats, loading };
+  useEffect(() => {
+    fetchAdminStats();
+  }, [fetchAdminStats]);
+
+  return { platformStats, topCreators, topEarners, dailyStats, loading, refetch: fetchAdminStats };
 };

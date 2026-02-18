@@ -25,19 +25,25 @@ type SortDir = "asc" | "desc";
 export function UserStatsTab() {
   const { data, loading, error, refetch } = useUsersDirectoryStats();
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("total_camly_rewards");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const isMobile = useIsMobile();
 
-  useEffect(() => { setCurrentPage(1); }, [search, sortKey, sortDir]);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 500);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => { setCurrentPage(1); }, [debouncedSearch, sortKey, sortDir]);
   const navigate = useNavigate();
 
   const filtered = useMemo(() => {
     let list = data;
-    if (search.trim()) {
-      const q = search.toLowerCase();
+    if (debouncedSearch.trim()) {
+      const q = debouncedSearch.toLowerCase();
       list = list.filter(u =>
         u.display_name?.toLowerCase().includes(q) ||
         u.username?.toLowerCase().includes(q) ||
@@ -51,7 +57,7 @@ export function UserStatsTab() {
       return sortDir === "asc" ? (av as number) - (bv as number) : (bv as number) - (av as number);
     });
     return list;
-  }, [data, search, sortKey, sortDir]);
+  }, [data, debouncedSearch, sortKey, sortDir]);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc");
