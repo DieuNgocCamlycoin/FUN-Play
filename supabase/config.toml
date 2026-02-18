@@ -117,3 +117,6 @@ verify_jwt = false
 
 [functions.scan-thumbnail]
 verify_jwt = false
+
+[functions.batch-award-camly]
+verify_jwt = false

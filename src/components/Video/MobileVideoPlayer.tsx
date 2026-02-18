@@ -54,6 +54,7 @@ export function MobileVideoPlayer({
   const [viewRewarded, setViewRewarded] = useState(false);
   const watchTimeRef = useRef(0);
   const lastTimeRef = useRef(0);
+  const accumulatedWatchTimeRef = useRef(0);
 
   // Touch gesture handling
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
@@ -231,7 +232,7 @@ export function MobileVideoPlayer({
     video.play().then(() => setIsPlaying(true)).catch(() => {});
   }, [videoUrl]);
 
-  // View reward tracking - Award CAMLY for watching videos
+  // View reward tracking - uses accumulated watch time to prevent fast-forward abuse
   useEffect(() => {
     const checkViewReward = async () => {
       const video = videoRef.current;
@@ -239,11 +240,10 @@ export function MobileVideoPlayer({
       const dur = video.duration;
       if (!dur || dur <= 0) return;
 
-      // 30% watch threshold for ALL videos
-      if (video.currentTime >= dur * 0.3) {
+      if (accumulatedWatchTimeRef.current >= dur * 0.3) {
         setViewRewarded(true);
-        console.log('[Mobile Reward] 30% reached, awarding view reward');
-        const result = await awardViewReward(videoId);
+        console.log('[Mobile Reward] 30% accumulated, awarding view reward');
+        const result = await awardViewReward(videoId, { actualWatchTime: accumulatedWatchTimeRef.current });
         if (result.success) {
           console.log('[Mobile Reward] View reward awarded:', result.amount);
         }
@@ -264,6 +264,7 @@ export function MobileVideoPlayer({
     setViewRewarded(false);
     watchTimeRef.current = 0;
     lastTimeRef.current = 0;
+    accumulatedWatchTimeRef.current = 0;
   }, [videoId]);
 
   // Mini player view
@@ -314,7 +315,18 @@ export function MobileVideoPlayer({
         ref={videoRef}
         src={videoUrl}
         className="w-full h-full object-contain"
-        onTimeUpdate={() => setCurrentTime(videoRef.current?.currentTime || 0)}
+        onTimeUpdate={() => {
+          const t = videoRef.current?.currentTime || 0;
+          // Track accumulated real watch time
+          if (lastTimeRef.current > 0) {
+            const delta = t - lastTimeRef.current;
+            if (delta > 0 && delta <= 2) {
+              accumulatedWatchTimeRef.current += delta;
+            }
+          }
+          lastTimeRef.current = t;
+          setCurrentTime(t);
+        }}
         onLoadedMetadata={() => setDuration(videoRef.current?.duration || 0)}
         onEnded={() => {
           setIsPlaying(false);
