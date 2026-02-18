@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAdminManage } from "@/hooks/useAdminManage";
 import { Gift, CheckCircle, Download, Blocks, Coins, AlertTriangle, Search, Award } from "lucide-react";
@@ -15,14 +14,12 @@ import BountyApprovalTab from "./BountyApprovalTab";
 export function RewardsManagementTab() {
   const {
     users,
-    loading,
     actionLoading,
     stats,
     walletGroups,
     getSuspicionScore,
     isFakeName,
     banUser,
-    unbanUser,
     unbanUserWithRestore,
     approveReward,
     rejectReward,
