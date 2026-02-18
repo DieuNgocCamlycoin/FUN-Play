@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface RealtimeStats {
@@ -17,13 +17,11 @@ export function useAdminRealtime() {
 
   const fetchInitialStats = useCallback(async () => {
     try {
-      // Fetch pending rewards count
       const { count: pendingCount } = await supabase
         .from("profiles")
         .select("*", { count: "exact", head: true })
         .gt("pending_rewards", 0);
 
-      // Fetch recent claims (last 24h)
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
       
@@ -32,7 +30,6 @@ export function useAdminRealtime() {
         .select("*", { count: "exact", head: true })
         .gte("created_at", yesterday.toISOString());
 
-      // Fetch active users today
       const today = new Date().toISOString().split("T")[0];
       const { count: activeCount } = await supabase
         .from("daily_reward_limits")
@@ -44,36 +41,22 @@ export function useAdminRealtime() {
         recentClaimsCount: claimsCount || 0,
         activeUsersToday: activeCount || 0,
       });
+      setIsConnected(true);
     } catch (error) {
       console.error("Error fetching initial stats:", error);
     }
   }, []);
 
-  const debounceRef = useRef<NodeJS.Timeout | null>(null);
-  const debouncedRefetch = useCallback(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      fetchInitialStats();
-    }, 1000);
-  }, [fetchInitialStats]);
-
   useEffect(() => {
     fetchInitialStats();
 
-    const channel = supabase
-      .channel("admin-realtime-dashboard")
-      .on("postgres_changes", { event: "*", schema: "public", table: "reward_transactions" }, debouncedRefetch)
-      .on("postgres_changes", { event: "*", schema: "public", table: "claim_requests" }, debouncedRefetch)
-      .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, debouncedRefetch)
-      .subscribe((status) => {
-        setIsConnected(status === "SUBSCRIBED");
-      });
+    // Polling every 2 minutes instead of Realtime
+    const interval = setInterval(fetchInitialStats, 120_000);
 
     return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      supabase.removeChannel(channel);
+      clearInterval(interval);
     };
-  }, [fetchInitialStats, debouncedRefetch]);
+  }, [fetchInitialStats]);
 
   return {
     stats,

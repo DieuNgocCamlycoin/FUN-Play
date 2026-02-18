@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 
@@ -70,30 +70,16 @@ export const useAdminManage = () => {
     }
   };
 
-  const debounceRef = useRef<NodeJS.Timeout | null>(null);
-
-  const debouncedRefetch = useCallback(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      fetchUsers();
-    }, 1000);
-  }, []);
-
   useEffect(() => {
     fetchUsers();
 
-    const channel = supabase
-      .channel('admin-manage-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
-        debouncedRefetch();
-      })
-      .subscribe();
+    // Polling every 2 minutes instead of Realtime
+    const interval = setInterval(fetchUsers, 120_000);
 
     return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      supabase.removeChannel(channel);
+      clearInterval(interval);
     };
-  }, [debouncedRefetch]);
+  }, []);
 
   // Computed statistics
   const stats = useMemo(() => {

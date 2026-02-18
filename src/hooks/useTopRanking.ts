@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useDebouncedCallback } from "./useDebounce";
 
 export interface LeaderboardUser {
   id: string;
@@ -17,12 +16,12 @@ export const useTopRanking = (limit: number = 5) => {
 
   const fetchRanking = useCallback(async () => {
     try {
-      const { data, error } = await supabase
-        .from("profiles")
+      // Query from Materialized View (pre-computed, refreshed every 10 min)
+      const { data, error } = await (supabase
+        .from("mv_top_ranking" as any)
         .select("id, username, display_name, avatar_url, total_camly_rewards")
-        .eq("banned", false)
         .order("total_camly_rewards", { ascending: false })
-        .limit(limit);
+        .limit(limit) as any);
 
       if (error) {
         console.error("Error fetching top ranking:", error);
@@ -30,7 +29,7 @@ export const useTopRanking = (limit: number = 5) => {
       }
 
       if (isMountedRef.current) {
-        setUsers(data || []);
+        setUsers((data as LeaderboardUser[]) || []);
       }
     } catch (error) {
       console.error("Error:", error);
@@ -41,34 +40,18 @@ export const useTopRanking = (limit: number = 5) => {
     }
   }, [limit]);
 
-  // Debounced fetch for realtime updates (500ms)
-  const debouncedFetch = useDebouncedCallback(fetchRanking, 500);
-
   useEffect(() => {
     isMountedRef.current = true;
     fetchRanking();
 
-    // Realtime subscription - only UPDATE events on profiles
-    const channel = supabase
-      .channel("top-ranking-updates")
-      .on(
-        "postgres_changes",
-        { 
-          event: "UPDATE", 
-          schema: "public", 
-          table: "profiles" 
-        },
-        () => {
-          debouncedFetch();
-        }
-      )
-      .subscribe();
+    // Polling every 2 minutes instead of Realtime
+    const interval = setInterval(fetchRanking, 120_000);
 
     return () => {
       isMountedRef.current = false;
-      supabase.removeChannel(channel);
+      clearInterval(interval);
     };
-  }, [fetchRanking, debouncedFetch]);
+  }, [fetchRanking]);
 
   return { users, loading, refetch: fetchRanking };
 };

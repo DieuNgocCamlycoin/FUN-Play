@@ -53,9 +53,9 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { action_type, wallet_address } = body;
 
-    if (!action_type || !['signup', 'login', 'wallet_connect'].includes(action_type)) {
+    if (!action_type || !['signup', 'login', 'wallet_connect', 'claim'].includes(action_type)) {
       return new Response(
-        JSON.stringify({ error: 'Invalid action_type. Must be signup, login, or wallet_connect' }),
+        JSON.stringify({ error: 'Invalid action_type. Must be signup, login, wallet_connect, or claim' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

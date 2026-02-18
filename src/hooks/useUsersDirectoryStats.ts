@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface UserDirectoryStat {
@@ -39,7 +39,6 @@ export function useUsersDirectoryStats() {
   const [data, setData] = useState<UserDirectoryStat[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchStats = useCallback(async () => {
     setLoading(true);
@@ -58,25 +57,16 @@ export function useUsersDirectoryStats() {
     }
   }, []);
 
-  const debouncedRefetch = useCallback(() => {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    timeoutRef.current = setTimeout(() => { void fetchStats(); }, 2000);
-  }, [fetchStats]);
-
-  useEffect(() => { void fetchStats(); }, [fetchStats]);
-
   useEffect(() => {
-    const channel = supabase
-      .channel('admin-users-stats-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'likes' }, debouncedRefetch)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, debouncedRefetch)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'reward_transactions' }, debouncedRefetch)
-      .subscribe();
+    fetchStats();
+
+    // Polling every 2 minutes instead of Realtime
+    const interval = setInterval(fetchStats, 120_000);
+
     return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      supabase.removeChannel(channel);
+      clearInterval(interval);
     };
-  }, [debouncedRefetch]);
+  }, [fetchStats]);
 
   return { data, loading, error, refetch: fetchStats };
 }
