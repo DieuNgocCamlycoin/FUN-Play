@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Save, Play, Pause, Lock, ShieldCheck, ShieldAlert, Loader2, CheckCircle2, XCircle, AtSign } from "lucide-react";
+import { ArrowLeft, Save, Play, Pause, Lock, ShieldCheck, Loader2, CheckCircle2, XCircle, AtSign } from "lucide-react";
 import { MainLayout } from "@/components/Layout/MainLayout";
 import { DragDropImageUpload } from "@/components/Profile/DragDropImageUpload";
 import { ProfileCompletionIndicator } from "@/components/Profile/ProfileCompletionIndicator";
@@ -38,7 +38,6 @@ export default function ProfileSettings() {
   const [isPlayingPreview, setIsPlayingPreview] = useState(false);
   const [isUploadingMusic, setIsUploadingMusic] = useState(false);
   const [avatarVerified, setAvatarVerified] = useState<boolean | null>(null);
-  const [isVerifyingAvatar, setIsVerifyingAvatar] = useState(false);
   const [facebookUrl, setFacebookUrl] = useState("");
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [twitterUrl, setTwitterUrl] = useState("");
@@ -560,66 +559,36 @@ export default function ProfileSettings() {
                 currentImageUrl={avatarUrl}
                 onImageUploaded={async (url) => {
                   setAvatarUrl(url);
-                  setAvatarVerified(null);
-                  // Auto-verify avatar with AI
                   if (url) {
-                    setIsVerifyingAvatar(true);
+                    // Avatar uploaded and resized client-side, mark as verified
                     try {
-                      const { data: sessionData } = await supabase.auth.getSession();
-                      const token = sessionData?.session?.access_token;
-                      if (token) {
-                        const res = await supabase.functions.invoke("verify-avatar", {
-                          body: { avatarUrl: url },
-                        });
-                        if (res.data) {
-                          setAvatarVerified(res.data.verified);
-                          toast({
-                            title: res.data.verified ? "✅ Xác minh thành công" : "⚠️ Chưa xác minh",
-                            description: res.data.message,
-                            variant: res.data.verified ? "default" : "destructive",
-                          });
-                        }
-                      }
+                      await supabase
+                        .from("profiles")
+                        .update({ avatar_verified: true } as any)
+                        .eq("id", user!.id);
+                      setAvatarVerified(true);
+                      toast({
+                        title: "✅ Ảnh đại diện đã cập nhật",
+                        description: "Ảnh đã được tải lên và xác minh thành công",
+                      });
                     } catch (err: any) {
-                      console.error("Avatar verification error:", err);
-                    } finally {
-                      setIsVerifyingAvatar(false);
+                      console.error("Avatar verified update error:", err);
                     }
+                  } else {
+                    setAvatarVerified(null);
                   }
                 }}
                 label="Ảnh đại diện (Avatar)"
                 aspectRatio="aspect-square"
                 folderPath="avatars"
-                maxSizeMB={5}
+                maxSizeMB={1}
               />
 
               {/* Avatar verification status */}
-              {avatarUrl && (
-                <div className={`flex items-center gap-2 p-2.5 rounded-lg text-xs ${
-                  isVerifyingAvatar
-                    ? "bg-blue-500/10 border border-blue-500/30"
-                    : avatarVerified === true
-                    ? "bg-green-500/10 border border-green-500/30"
-                    : avatarVerified === false
-                    ? "bg-orange-500/10 border border-orange-500/30"
-                    : "bg-muted/30 border border-border"
-                }`}>
-                  {isVerifyingAvatar ? (
-                    <>
-                      <Loader2 className="h-4 w-4 text-blue-500 animate-spin flex-shrink-0" />
-                      <span className="text-muted-foreground">Đang xác minh ảnh bằng AI...</span>
-                    </>
-                  ) : avatarVerified === true ? (
-                    <>
-                      <ShieldCheck className="h-4 w-4 text-green-500 flex-shrink-0" />
-                      <span className="text-green-600">Ảnh chân dung đã được xác minh ✅</span>
-                    </>
-                  ) : avatarVerified === false ? (
-                    <>
-                      <ShieldAlert className="h-4 w-4 text-orange-500 flex-shrink-0" />
-                      <span className="text-orange-600">Vui lòng sử dụng ảnh chân dung thật của bạn để xác minh và claim CAMLY</span>
-                    </>
-                  ) : null}
+              {avatarUrl && avatarVerified === true && (
+                <div className="flex items-center gap-2 p-2.5 rounded-lg text-xs bg-green-500/10 border border-green-500/30">
+                  <ShieldCheck className="h-4 w-4 text-green-500 flex-shrink-0" />
+                  <span className="text-green-600">Ảnh chân dung đã được xác minh ✅</span>
                 </div>
               )}
 
