@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Trophy, ChevronRight, Coins } from "lucide-react";
+import { Trophy, ChevronRight, Coins, RefreshCw } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -51,7 +52,15 @@ const MiniRankPill = ({ rank, user }: MiniRankPillProps) => {
 
 export const MobileTopRankingCard = () => {
   const navigate = useNavigate();
-  const { users, loading } = useTopRanking(3);
+  const { users, loading, refetch } = useTopRanking(3);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setRefreshing(true);
+    await refetch();
+    setRefreshing(false);
+  };
 
   return (
     <motion.div
@@ -83,6 +92,12 @@ export const MobileTopRankingCard = () => {
             </span>
           </div>
           <div className="flex items-center gap-1">
+            <button
+              onClick={handleRefresh}
+              className="p-1 rounded-full hover:bg-muted/50 transition-colors"
+            >
+              <RefreshCw className={cn("h-3.5 w-3.5 text-muted-foreground", refreshing && "animate-spin")} />
+            </button>
             <Coins className="h-3 w-3 text-[#FFD700]" />
             <span className="text-xs text-muted-foreground">CAMLY</span>
             <ChevronRight className="h-4 w-4 text-muted-foreground" />
