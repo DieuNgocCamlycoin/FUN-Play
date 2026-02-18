@@ -11,11 +11,17 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from "recharts";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { 
   Video, Clock, CheckCircle, XCircle, Eye, Search, Download, 
   HardDrive, Upload, Users, ExternalLink, Play, User, Check, X, Image, CloudUpload, Trash2,
-  AlertTriangle, EyeOff, Loader2, ScanSearch
+  AlertTriangle, EyeOff, Loader2, ScanSearch, Shield
 } from "lucide-react";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
@@ -443,7 +449,7 @@ function VideoStatsContent() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="date" tickFormatter={(date) => format(new Date(date), "dd/MM")} fontSize={12} />
                 <YAxis fontSize={12} />
-                <Tooltip labelFormatter={(date) => format(new Date(date), "dd/MM/yyyy", { locale: vi })} />
+                <RechartsTooltip labelFormatter={(date) => format(new Date(date), "dd/MM/yyyy", { locale: vi })} />
                 <Bar dataKey="uploadCount" fill="#7A2BFF" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -551,6 +557,9 @@ function SpamFilterContent() {
   const [filter, setFilter] = useState<"short" | "reported" | "repetitive">("reported");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [scanning, setScanning] = useState(false);
+  const [deleteBanOpen, setDeleteBanOpen] = useState(false);
+  const [deleteBanLoading, setDeleteBanLoading] = useState(false);
+  const [userVideoCounts, setUserVideoCounts] = useState<Map<string, { short: number; total: number }>>(new Map());
 
   useEffect(() => { fetchSpamVideos(); }, [filter]);
 
@@ -570,8 +579,8 @@ function SpamFilterContent() {
 
       const { data } = await query.limit(100);
       
+      let finalVideos = data || [];
       if (filter === "repetitive" && data) {
-        // Group by title, show titles appearing 3+ times
         const titleCounts = new Map<string, any[]>();
         data.forEach(v => {
           const key = v.title.toLowerCase().trim();
@@ -579,13 +588,37 @@ function SpamFilterContent() {
           arr.push(v);
           titleCounts.set(key, arr);
         });
-        const repetitive = Array.from(titleCounts.values())
+        finalVideos = Array.from(titleCounts.values())
           .filter(arr => arr.length >= 3)
           .flat();
-        setVideos(repetitive);
-      } else {
-        setVideos(data || []);
       }
+
+      // Fetch owner profiles
+      const userIds = [...new Set(finalVideos.map(v => v.user_id))];
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, username, display_name, avatar_url")
+          .in("id", userIds);
+        const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+        finalVideos = finalVideos.map(v => ({ ...v, profile: profileMap.get(v.user_id) || null }));
+
+        // Fetch video counts per user for tooltip
+        const { data: counts } = await supabase
+          .from("videos")
+          .select("user_id, duration")
+          .in("user_id", userIds);
+        const countMap = new Map<string, { short: number; total: number }>();
+        counts?.forEach(v => {
+          const c = countMap.get(v.user_id) || { short: 0, total: 0 };
+          c.total++;
+          if (v.duration && v.duration < 90) c.short++;
+          countMap.set(v.user_id, c);
+        });
+        setUserVideoCounts(countMap);
+      }
+
+      setVideos(finalVideos);
     } catch (err) {
       console.error("Error fetching spam videos:", err);
     }
@@ -597,7 +630,7 @@ function SpamFilterContent() {
     const ids = Array.from(selected);
     const { error } = await supabase
       .from("videos")
-      .update({ is_hidden: true })
+      .update({ is_hidden: true, approval_status: 'rejected' })
       .in("id", ids);
     if (!error) {
       toast.success(`Đã ẩn ${ids.length} video`);
@@ -605,6 +638,44 @@ function SpamFilterContent() {
       fetchSpamVideos();
     } else {
       toast.error("Lỗi khi ẩn video");
+    }
+  };
+
+  const handleBulkDeleteBan = async () => {
+    setDeleteBanLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { data, error } = await supabase.rpc("bulk_delete_videos_and_ban_users", {
+        p_admin_id: user.id,
+        p_video_ids: Array.from(selected),
+      });
+      if (error) throw error;
+      const result = data as any;
+      toast.success(`Đã xóa ${result.deleted_videos} video và ban ${result.banned_users} users`);
+      setSelected(new Set());
+      setDeleteBanOpen(false);
+      fetchSpamVideos();
+    } catch (err: any) {
+      toast.error(err.message || "Lỗi khi xóa & ban");
+    }
+    setDeleteBanLoading(false);
+  };
+
+  const handleQuickBan = async (userId: string, username: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+      const { error } = await supabase.rpc("ban_user_permanently", {
+        p_admin_id: user.id,
+        p_user_id: userId,
+      });
+      if (error) throw error;
+      toast.success(`Đã ban user ${username}`);
+      fetchSpamVideos();
+    } catch (err: any) {
+      toast.error(err.message || "Lỗi khi ban user");
     }
   };
 
@@ -637,98 +708,181 @@ function SpamFilterContent() {
     }
   };
 
-  return (
-    <div className="space-y-4">
-      {/* Filter buttons & actions */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Button variant={filter === "reported" ? "default" : "outline"} size="sm" onClick={() => setFilter("reported")} className="gap-1">
-          <AlertTriangle className="w-3 h-3" /> Bị báo cáo
-        </Button>
-        <Button variant={filter === "short" ? "default" : "outline"} size="sm" onClick={() => setFilter("short")} className="gap-1">
-          <Clock className="w-3 h-3" /> Ngắn (&lt;90s)
-        </Button>
-        <Button variant={filter === "repetitive" ? "default" : "outline"} size="sm" onClick={() => setFilter("repetitive")} className="gap-1">
-          <Video className="w-3 h-3" /> Trùng lặp
-        </Button>
-        <div className="ml-auto flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleScanThumbnails} disabled={scanning} className="gap-1">
-            {scanning ? <Loader2 className="w-3 h-3 animate-spin" /> : <ScanSearch className="w-3 h-3" />}
-            Scan Thumbnails
-          </Button>
-          {selected.size > 0 && (
-            <Button variant="destructive" size="sm" onClick={handleBulkHide} className="gap-1">
-              <EyeOff className="w-3 h-3" /> Ẩn {selected.size} video
-            </Button>
-          )}
-        </div>
-      </div>
+  const selectedUserIds = new Set(videos.filter(v => selected.has(v.id)).map(v => v.user_id));
 
-      {loading ? (
-        <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-16" />)}</div>
-      ) : videos.length === 0 ? (
-        <Card><CardContent className="p-8 text-center text-muted-foreground">Không tìm thấy video spam nào 🎉</CardContent></Card>
-      ) : (
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-10">
-                    <input type="checkbox" checked={selected.size === videos.length && videos.length > 0} onChange={toggleSelectAll} className="rounded" />
-                  </TableHead>
-                  <TableHead>Video</TableHead>
-                  <TableHead>Thời lượng</TableHead>
-                  <TableHead>Báo cáo</TableHead>
-                  <TableHead>Trạng thái</TableHead>
-                  <TableHead>Thumbnail AI</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {videos.map(video => (
-                  <TableRow key={video.id} className={video.is_hidden ? "opacity-50" : ""}>
-                    <TableCell>
-                      <input type="checkbox" checked={selected.has(video.id)} onChange={() => toggleSelect(video.id)} className="rounded" />
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <div className="w-16 h-10 rounded bg-muted overflow-hidden shrink-0">
-                          {video.thumbnail_url ? (
-                            <img src={video.thumbnail_url} alt="" className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center"><Video className="w-4 h-4 text-muted-foreground" /></div>
-                          )}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-medium truncate max-w-[200px]">{video.title}</p>
-                          <p className="text-xs text-muted-foreground">{video.channels?.name || "N/A"}</p>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-mono text-sm">{video.duration ? `${video.duration}s` : "N/A"}</TableCell>
-                    <TableCell>
-                      {(video.report_count || 0) > 0 ? (
-                        <Badge variant="destructive">{video.report_count} báo cáo</Badge>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">0</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {video.is_hidden ? (
-                        <Badge variant="outline" className="text-destructive border-destructive">Đã ẩn</Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-green-600 border-green-600">Hiện</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-xs max-w-[150px] truncate">
-                      {video.thumbnail_scanned ? (video.thumbnail_scan_result || "OK") : "Chưa quét"}
-                    </TableCell>
+  return (
+    <TooltipProvider>
+      <div className="space-y-4">
+        {/* Filter buttons & actions */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant={filter === "reported" ? "default" : "outline"} size="sm" onClick={() => setFilter("reported")} className="gap-1">
+            <AlertTriangle className="w-3 h-3" /> Bị báo cáo
+          </Button>
+          <Button variant={filter === "short" ? "default" : "outline"} size="sm" onClick={() => setFilter("short")} className="gap-1">
+            <Clock className="w-3 h-3" /> Ngắn (&lt;90s)
+          </Button>
+          <Button variant={filter === "repetitive" ? "default" : "outline"} size="sm" onClick={() => setFilter("repetitive")} className="gap-1">
+            <Video className="w-3 h-3" /> Trùng lặp
+          </Button>
+          <div className="ml-auto flex gap-2">
+            <Button variant="outline" size="sm" onClick={handleScanThumbnails} disabled={scanning} className="gap-1">
+              {scanning ? <Loader2 className="w-3 h-3 animate-spin" /> : <ScanSearch className="w-3 h-3" />}
+              Scan Thumbnails
+            </Button>
+            {selected.size > 0 && (
+              <>
+                <Button variant="destructive" size="sm" onClick={handleBulkHide} className="gap-1">
+                  <EyeOff className="w-3 h-3" /> Ẩn {selected.size} video
+                </Button>
+                <Button 
+                  size="sm" 
+                  onClick={() => setDeleteBanOpen(true)} 
+                  className="gap-1 bg-red-700 hover:bg-red-800 text-white"
+                >
+                  <Shield className="w-3 h-3" /> Xóa & Ban ({selected.size} video, {selectedUserIds.size} users)
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-16" />)}</div>
+        ) : videos.length === 0 ? (
+          <Card><CardContent className="p-8 text-center text-muted-foreground">Không tìm thấy video spam nào 🎉</CardContent></Card>
+        ) : (
+          <Card>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-10">
+                      <Checkbox checked={selected.size === videos.length && videos.length > 0} onCheckedChange={toggleSelectAll} />
+                    </TableHead>
+                    <TableHead>Video</TableHead>
+                    <TableHead>Owner</TableHead>
+                    <TableHead>Thời lượng</TableHead>
+                    <TableHead>Báo cáo</TableHead>
+                    <TableHead>Trạng thái</TableHead>
+                    <TableHead>Thumbnail AI</TableHead>
+                    <TableHead className="w-10"></TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
-    </div>
+                </TableHeader>
+                <TableBody>
+                  {videos.map(video => {
+                    const profile = video.profile;
+                    const counts = userVideoCounts.get(video.user_id);
+                    return (
+                      <TableRow key={video.id} className={video.is_hidden ? "opacity-50" : ""}>
+                        <TableCell>
+                          <Checkbox checked={selected.has(video.id)} onCheckedChange={() => toggleSelect(video.id)} />
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div className="w-16 h-10 rounded bg-muted overflow-hidden shrink-0">
+                              {video.thumbnail_url ? (
+                                <img src={video.thumbnail_url} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center"><Video className="w-4 h-4 text-muted-foreground" /></div>
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-medium truncate max-w-[200px]">{video.title}</p>
+                              <p className="text-xs text-muted-foreground">{video.channels?.name || "N/A"}</p>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {profile ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="flex items-center gap-2 cursor-default">
+                                  <Avatar className="w-6 h-6">
+                                    <AvatarImage src={profile.avatar_url || undefined} />
+                                    <AvatarFallback className="text-xs">{(profile.display_name || profile.username)?.[0]}</AvatarFallback>
+                                  </Avatar>
+                                  <span className="text-sm truncate max-w-[100px]">{profile.display_name || profile.username}</span>
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="text-xs">
+                                <p>📹 Short (&lt;90s): <strong>{counts?.short || 0}</strong></p>
+                                <p>🎬 Tổng video: <strong>{counts?.total || 0}</strong></p>
+                              </TooltipContent>
+                            </Tooltip>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">N/A</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="font-mono text-sm">{video.duration ? `${video.duration}s` : "N/A"}</TableCell>
+                        <TableCell>
+                          {(video.report_count || 0) > 0 ? (
+                            <Badge variant="destructive">{video.report_count} báo cáo</Badge>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">0</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {video.is_hidden ? (
+                            <Badge variant="outline" className="text-destructive border-destructive">Đã ẩn</Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-green-600 border-green-600">Hiện</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-xs max-w-[150px] truncate">
+                          {video.thumbnail_scanned ? (video.thumbnail_scan_result || "OK") : "Chưa quét"}
+                        </TableCell>
+                        <TableCell>
+                          {profile && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => handleQuickBan(video.user_id, profile.display_name || profile.username)}
+                              title="Quick Ban"
+                            >
+                              <Shield className="w-3.5 h-3.5" />
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Delete & Ban Confirmation Dialog */}
+        <AlertDialog open={deleteBanOpen} onOpenChange={setDeleteBanOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>⚠️ Xóa Video & Ban Users</AlertDialogTitle>
+              <AlertDialogDescription className="space-y-2">
+                <p>Bạn sắp <strong>xóa vĩnh viễn {selected.size} video</strong> và <strong>ban {selectedUserIds.size} users</strong>.</p>
+                <p>Hành động này sẽ:</p>
+                <ul className="list-disc list-inside text-sm space-y-1">
+                  <li>Xóa video + likes, comments, rewards liên quan</li>
+                  <li>Ban vĩnh viễn tất cả users đã đăng video</li>
+                  <li>Đưa ví của users vào blacklist</li>
+                </ul>
+                <p className="text-destructive font-medium">⚠️ Không thể hoàn tác!</p>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleteBanLoading}>Hủy</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleBulkDeleteBan}
+                disabled={deleteBanLoading}
+                className="bg-red-700 hover:bg-red-800"
+              >
+                {deleteBanLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Shield className="w-4 h-4 mr-1" />}
+                Xác nhận Xóa & Ban
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    </TooltipProvider>
   );
 }
