@@ -1,6 +1,12 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
+
+export const getAnomalyFlags = (user: AdminUser) => ({
+  isHighPending: (user.pending_rewards || 0) > 500000,
+  isNoActivity: (user.videos_count || 0) === 0 && (user.total_camly_rewards || 0) > 2000000,
+  isSuspicious: (user.pending_rewards || 0) > 500000 && (user.videos_count || 0) === 0,
+});
 
 export interface AdminUser {
   id: string;
@@ -36,8 +42,15 @@ export const useAdminManage = () => {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const cacheRef = useRef<{ data: AdminUser[]; timestamp: number }>({ data: [], timestamp: 0 });
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (force = false) => {
+    const now = Date.now();
+    if (!force && cacheRef.current.data.length > 0 && now - cacheRef.current.timestamp < 120_000) {
+      setUsers(cacheRef.current.data);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const { data, error } = await supabase.rpc("get_users_directory_stats" as any);
@@ -62,6 +75,7 @@ export const useAdminManage = () => {
         comments_count: p.comments_count || 0,
       })) as AdminUser[];
 
+      cacheRef.current = { data: enrichedUsers, timestamp: Date.now() };
       setUsers(enrichedUsers);
     } catch (error) {
       console.error("Error fetching users:", error);

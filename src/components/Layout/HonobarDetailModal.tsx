@@ -1,4 +1,5 @@
-import { Crown, Users, Video, Eye, MessageSquare, Coins, Gem, TrendingUp, Heart, Medal } from "lucide-react";
+import { useState } from "react";
+import { Crown, Users, Video, Eye, MessageSquare, Coins, Gem, TrendingUp, Heart, Medal, RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -59,12 +60,20 @@ interface ModalContentProps {
   loading: boolean;
   ranking: ReturnType<typeof useTopRanking>['users'];
   rankingLoading: boolean;
+  onRefreshRanking?: () => Promise<void>;
   sponsors: ReturnType<typeof useTopSponsors>['sponsors'];
   sponsorsLoading: boolean;
   onDonate: () => void;
 }
 
-const ModalContent = ({ stats, loading, ranking, rankingLoading, sponsors, sponsorsLoading, onDonate }: ModalContentProps) => {
+const ModalContent = ({ stats, loading, ranking, rankingLoading, sponsors, sponsorsLoading, onDonate, onRefreshRanking }: ModalContentProps) => {
+  const [refreshingRank, setRefreshingRank] = useState(false);
+  const handleRefreshRank = async () => {
+    if (!onRefreshRanking) return;
+    setRefreshingRank(true);
+    await onRefreshRanking();
+    setRefreshingRank(false);
+  };
   const statItems = [
     { icon: Users, label: "NGƯỜI DÙNG", value: stats.totalUsers },
     { icon: MessageSquare, label: "BÌNH LUẬN", value: stats.totalComments },
@@ -114,9 +123,16 @@ const ModalContent = ({ stats, loading, ranking, rankingLoading, sponsors, spons
         transition={{ delay: 0.4 }}
         className="border-t border-[#00E7FF]/30 pt-4"
       >
-        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
-          <Medal className="w-4 h-4 text-[#FFD700]" />
-          <span className="font-semibold uppercase tracking-wide">Bảng Xếp Hạng Top 5</span>
+        <div className="flex items-center justify-between text-sm text-muted-foreground mb-3">
+          <div className="flex items-center gap-2">
+            <Medal className="w-4 h-4 text-[#FFD700]" />
+            <span className="font-semibold uppercase tracking-wide">Bảng Xếp Hạng Top 5</span>
+          </div>
+          {onRefreshRanking && (
+            <button onClick={handleRefreshRank} className="p-1 rounded-full hover:bg-muted/50 transition-colors">
+              <RefreshCw className={`h-3.5 w-3.5 ${refreshingRank ? "animate-spin" : ""}`} />
+            </button>
+          )}
         </div>
         
         {rankingLoading ? (
@@ -267,7 +283,7 @@ const ModalContent = ({ stats, loading, ranking, rankingLoading, sponsors, spons
 
 export const HonobarDetailModal = ({ isOpen, onClose }: HonobarDetailModalProps) => {
   const { stats, loading } = useHonobarStats();
-  const { users: ranking, loading: rankingLoading } = useTopRanking(5);
+  const { users: ranking, loading: rankingLoading, refetch: refetchRanking } = useTopRanking(5);
   const { sponsors, loading: sponsorsLoading } = useTopSponsors(5);
   const isMobile = useIsMobile();
   const navigate = useNavigate();
@@ -297,6 +313,7 @@ export const HonobarDetailModal = ({ isOpen, onClose }: HonobarDetailModalProps)
               sponsors={sponsors}
               sponsorsLoading={sponsorsLoading}
               onDonate={handleDonate}
+              onRefreshRanking={refetchRanking}
             />
           </div>
         </SheetContent>
@@ -323,6 +340,7 @@ export const HonobarDetailModal = ({ isOpen, onClose }: HonobarDetailModalProps)
           sponsors={sponsors}
           sponsorsLoading={sponsorsLoading}
           onDonate={handleDonate}
+          onRefreshRanking={refetchRanking}
         />
       </DialogContent>
     </Dialog>

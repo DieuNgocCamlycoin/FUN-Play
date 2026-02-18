@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Trophy, ChevronRight, Coins } from "lucide-react";
+import { Trophy, ChevronRight, Coins, RefreshCw } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
@@ -80,7 +81,15 @@ interface TopRankingCardProps {
 
 export const TopRankingCard = ({ className }: TopRankingCardProps) => {
   const navigate = useNavigate();
-  const { users, loading } = useTopRanking(5);
+  const { users, loading, refetch } = useTopRanking(5);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setRefreshing(true);
+    await refetch();
+    setRefreshing(false);
+  };
 
   return (
     <motion.div
@@ -101,11 +110,14 @@ export const TopRankingCard = ({ className }: TopRankingCardProps) => {
       }}
     >
       {/* Header */}
-      <div className="flex items-center justify-center gap-1.5 mb-3">
+      <div className="flex items-center justify-center gap-1.5 mb-3 relative">
         <Trophy className="h-4 w-4 text-[#FFD700] drop-shadow-[0_0_10px_rgba(255,215,0,0.8)]" />
         <h2 className="text-base font-black italic bg-gradient-to-r from-[#00E7FF] via-[#7A2BFF] to-[#FF00E5] bg-clip-text text-transparent">
           TOP RANKING
         </h2>
+        <button onClick={handleRefresh} className="absolute right-0 p-1 rounded-full hover:bg-muted/50 transition-colors" title="Cập nhật">
+          <RefreshCw className={`h-3.5 w-3.5 text-muted-foreground ${refreshing ? "animate-spin" : ""}`} />
+        </button>
       </div>
 
       {/* Ranking List */}

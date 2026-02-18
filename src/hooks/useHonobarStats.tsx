@@ -28,7 +28,15 @@ export const useHonobarStats = () => {
   const [loading, setLoading] = useState(true);
   const isMountedRef = useRef(true);
 
+  const cacheRef = useRef<{ data: HonobarStats | null; timestamp: number }>({ data: null, timestamp: 0 });
+
   const fetchStats = useCallback(async () => {
+    const now = Date.now();
+    if (cacheRef.current.data && now - cacheRef.current.timestamp < 120_000) {
+      if (isMountedRef.current) setStats(cacheRef.current.data);
+      if (isMountedRef.current) setLoading(false);
+      return;
+    }
     try {
       const { data, error } = await supabase.rpc("get_honobar_stats");
 
@@ -38,7 +46,9 @@ export const useHonobarStats = () => {
       }
 
       if (isMountedRef.current && data) {
-        setStats(data as unknown as HonobarStats);
+        const parsed = data as unknown as HonobarStats;
+        cacheRef.current = { data: parsed, timestamp: Date.now() };
+        setStats(parsed);
       }
     } catch (error) {
       console.error("Error fetching Honobar stats:", error);

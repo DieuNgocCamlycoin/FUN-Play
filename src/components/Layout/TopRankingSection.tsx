@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Trophy, Coins, ChevronRight, Gem, Heart } from "lucide-react";
+import { Trophy, Coins, ChevronRight, Gem, Heart, RefreshCw } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
@@ -87,7 +88,14 @@ interface TopRankingSectionProps {
 
 export const TopRankingSection = ({ showSponsors = false }: TopRankingSectionProps) => {
   const navigate = useNavigate();
-  const { users, loading } = useTopRanking(5);
+  const { users, loading, refetch } = useTopRanking(5);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await refetch();
+    setRefreshing(false);
+  };
   const { sponsors, loading: sponsorsLoading } = useTopSponsors(showSponsors ? 5 : 0);
 
   return (
@@ -103,9 +111,14 @@ export const TopRankingSection = ({ showSponsors = false }: TopRankingSectionPro
           <Trophy className="h-4 w-4 text-[#FFD700]" />
           Top 5 Ranking
         </h3>
-        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-          <Coins className="h-3 w-3 text-[#FFD700]" />
-          CAMLY
+        <div className="flex items-center gap-2">
+          <button onClick={handleRefresh} className="p-1 rounded-full hover:bg-muted/50 transition-colors" title="Cập nhật">
+            <RefreshCw className={`h-3.5 w-3.5 text-muted-foreground ${refreshing ? "animate-spin" : ""}`} />
+          </button>
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            <Coins className="h-3 w-3 text-[#FFD700]" />
+            CAMLY
+          </div>
         </div>
       </div>
 
