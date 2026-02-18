@@ -204,9 +204,9 @@ serve(async (req) => {
     const userId = user.id;
 
     // === BAN CHECK (early exit before any reward logic) ===
-    const serviceRoleKeyEarly = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-    const adminSupabaseEarly = createClient(supabaseUrl, serviceRoleKeyEarly);
-    const { data: profileCheck } = await adminSupabaseEarly
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    const adminSupabase = createClient(supabaseUrl, serviceRoleKey);
+    const { data: profileCheck } = await adminSupabase
       .from('profiles')
       .select('banned')
       .eq('id', userId)
@@ -222,7 +222,7 @@ serve(async (req) => {
 
     // === RATE LIMIT: Max 10 reward transactions per minute per user ===
     const oneMinuteAgo = new Date(Date.now() - 60 * 1000).toISOString();
-    const { count: recentTxCount } = await adminSupabaseEarly
+    const { count: recentTxCount } = await adminSupabase
       .from('reward_transactions')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', userId)
@@ -242,7 +242,7 @@ serve(async (req) => {
     const HARD_DAILY_LIMITS: Record<string, number> = { VIEW: 10, LIKE: 20, SHARE: 10, COMMENT: 10 };
     if (['VIEW', 'LIKE', 'SHARE', 'COMMENT'].includes(type)) {
       const todayStr = new Date().toISOString().split('T')[0];
-      const { data: quickLimits } = await adminSupabaseEarly
+      const { data: quickLimits } = await adminSupabase
         .from('daily_reward_limits')
         .select('view_count, like_count, share_count, comment_count')
         .eq('user_id', userId)
@@ -268,7 +268,7 @@ serve(async (req) => {
 
     // === SERVER-SIDE WATCH TIME VALIDATION for VIEW ===
     if (type === 'VIEW' && videoId && actualWatchTime != null) {
-      const { data: videoForWatch } = await adminSupabaseEarly
+      const { data: videoForWatch } = await adminSupabase
         .from('videos')
         .select('duration')
         .eq('id', videoId)
@@ -289,7 +289,7 @@ serve(async (req) => {
     // === UPLOAD REWARD GATES (anti-farming) ===
     const uploadRewardTypes = ['SHORT_VIDEO_UPLOAD', 'LONG_VIDEO_UPLOAD', 'UPLOAD', 'FIRST_UPLOAD'];
     if (uploadRewardTypes.includes(type)) {
-      const { data: profileGate } = await adminSupabaseEarly
+      const { data: profileGate } = await adminSupabase
         .from('profiles')
         .select('created_at, signup_ip_hash')
         .eq('id', userId)
@@ -308,7 +308,7 @@ serve(async (req) => {
 
         // Gate B: Block if 5+ accounts share the same signup IP
         if (profileGate.signup_ip_hash) {
-          const { count: sameIpAccounts } = await adminSupabaseEarly
+          const { count: sameIpAccounts } = await adminSupabase
             .from('profiles')
             .select('id', { count: 'exact', head: true })
             .eq('signup_ip_hash', profileGate.signup_ip_hash);
@@ -325,7 +325,7 @@ serve(async (req) => {
 
       // Gate C: FIRST_UPLOAD requires at least 1 view from a different user
       if (type === 'FIRST_UPLOAD' && videoId) {
-        const { count: externalViews } = await adminSupabaseEarly
+        const { count: externalViews } = await adminSupabase
           .from('watch_history')
           .select('id', { count: 'exact', head: true })
           .eq('video_id', videoId)
@@ -343,7 +343,7 @@ serve(async (req) => {
 
     // === SIGNUP REWARD GATE: Profile must be completed ===
     if (type === 'SIGNUP') {
-      const { data: signupProfile } = await adminSupabaseEarly
+      const { data: signupProfile } = await adminSupabase
         .from('profiles')
         .select('display_name, avatar_url, username')
         .eq('id', userId)
@@ -379,10 +379,6 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    // 5. Use service role for database operations
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-    const adminSupabase = createClient(supabaseUrl, serviceRoleKey);
 
     // 6. Load reward config from database
     const { amounts: REWARD_AMOUNTS, limits: DAILY_LIMITS, validation } = await getRewardConfig(adminSupabase);
