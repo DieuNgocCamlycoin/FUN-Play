@@ -1,49 +1,68 @@
 
 
-# Xoa trigger trung lap tren bang video_reports
+# He thong xac thuc tieu de video thong minh
 
-## Van de
+## Tong quan
 
-Hien tai co 2 trigger tren bang `video_reports` deu goi cung function `handle_video_report()`:
-- `on_video_report_insert`
-- `on_video_report_inserted`
+Xay dung function `validateVideoTitle()` trong `videoUploadValidation.ts`, su dung lai cac pattern tu `nameFilter.ts`. Tich hop vao 4 file UI (web upload, mobile upload, edit modal, edit page) de validate real-time phia client.
 
-Dieu nay khien moi lan bao cao video, `report_count` tang 2 thay vi 1, va video chi can 3 bao cao (thay vi 5) la bi auto-hide.
+## Chi tiet ky thuat
 
-## Giai phap
+### 1. Tao function `validateVideoTitle` trong `src/lib/videoUploadValidation.ts`
 
-Xoa trigger cu `on_video_report_insert`, giu lai `on_video_report_inserted` (trigger moi tao).
+Them function tra ve `{ ok: boolean; reason?: string }` voi cac kiem tra:
 
-### Database Migration
-
-```text
-DROP TRIGGER IF EXISTS on_video_report_insert ON public.video_reports;
-```
-
-### Dong bo lai du lieu
-
-Sau khi xoa trigger trung, can cap nhat lai `report_count` cho chinh xac (vi truoc do co the da bi tang gap doi):
-
-```text
-UPDATE videos v
-SET report_count = COALESCE(sub.cnt, 0)
-FROM (
-  SELECT video_id, COUNT(*) as cnt
-  FROM video_reports
-  GROUP BY video_id
-) sub
-WHERE v.id = sub.video_id
-  AND v.report_count != sub.cnt;
-```
-
-### Khong can thay doi code
-
-Khong co thay doi frontend. Chi la sua database.
-
-## Ket qua
-
-| Thay doi | Chi tiet |
+| Kiem tra | Chi tiet |
 |----------|----------|
-| Migration SQL | Xoa trigger `on_video_report_insert` |
-| Data sync | Cap nhat lai `report_count` chinh xac |
+| Do dai toi thieu | >= 5 ky tu |
+| Phai co chu cai | Regex cho chu Latin va chu Viet (Unicode) |
+| Khong chi so | Block chuoi chi chua so |
+| Khong ky tu lap 3+ | Regex `(.)\1{2,}` |
+| Keyboard spam | qwerty, asdfgh, zxcvbn, qazwsx, abcdef |
+| Tu ngu nhay cam | Goi `isNameAppropriate()` tu `nameFilter.ts` |
+
+```text
+export function validateVideoTitle(title: string): { ok: boolean; reason?: string }
+```
+
+### 2. Cap nhat `UploadMetadataForm.tsx` (Web upload)
+
+- Goi `validateVideoTitle()` khi title thay doi
+- Hien thi loi mau do duoi input title
+- Them dong PPLP: "Mot tieu de dep la khoi dau cua phung su va anh sang"
+- Cap nhat dieu kien `isValid` de ket hop ket qua validation
+
+### 3. Cap nhat `VideoDetailsForm.tsx` (Mobile upload)
+
+- Goi `validateVideoTitle()` khi title thay doi
+- Hien thi loi mau do duoi input title (giong warning duration/description)
+- Them dong PPLP
+- Cap nhat `canUpload` de ket hop validation
+
+### 4. Cap nhat `EditVideoModal.tsx` (Studio edit)
+
+- Goi `validateVideoTitle()` khi title thay doi
+- Hien thi loi mau do duoi input
+- Them dong PPLP
+- Disable nut "Luu thay doi" khi title khong hop le
+
+### 5. Cap nhat `EditVideo.tsx` (Edit page)
+
+- Goi `validateVideoTitle()` khi title thay doi
+- Hien thi loi mau do duoi input
+- Them dong PPLP
+- Disable nut "Luu thay doi" khi title khong hop le
+
+## Khong thay doi backend
+
+Toan bo validation chay phia client. Khong goi Supabase khi title khong hop le.
+
+## Vi du thong bao loi cu the
+
+- "Tieu de phai co it nhat 5 ky tu"
+- "Tieu de phai chua it nhat mot chu cai"
+- "Tieu de khong duoc chi chua so"
+- "Vui long khong su dung ky tu lap lai lien tiep"
+- "Tieu de khong hop le"
+- "Tieu de chua tu ngu khong phu hop..."
 
