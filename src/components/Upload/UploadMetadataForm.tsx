@@ -12,6 +12,7 @@ import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
+import { validateVideoTitle, TITLE_PPLP_TEXT } from "@/lib/videoUploadValidation";
 
 export interface VideoMetadata {
   title: string;
@@ -114,7 +115,8 @@ export function UploadMetadataForm({ metadata, onChange, onNext, onBack }: Uploa
     if (navigator.vibrate) navigator.vibrate(30);
   };
 
-  const isValid = metadata.title.trim().length >= 3;
+  const titleValidation = validateVideoTitle(metadata.title);
+  const isValid = metadata.title.trim().length >= 3 && titleValidation.ok;
 
   return (
     <div className="space-y-6">
@@ -145,9 +147,13 @@ export function UploadMetadataForm({ metadata, onChange, onNext, onBack }: Uploa
             {metadata.title.length}/100
           </span>
         </div>
-        {metadata.title.length > 0 && metadata.title.length < 3 && (
+        {!titleValidation.ok && metadata.title.length > 0 && (
+          <p className="text-xs text-destructive">{titleValidation.reason}</p>
+        )}
+        {metadata.title.length > 0 && metadata.title.length < 3 && titleValidation.ok && (
           <p className="text-xs text-destructive">Tiêu đề cần ít nhất 3 ký tự</p>
         )}
+        <p className="text-xs text-muted-foreground italic">{TITLE_PPLP_TEXT}</p>
       </div>
 
       {/* Description - Clickable label */}
