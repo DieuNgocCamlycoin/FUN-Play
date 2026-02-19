@@ -298,7 +298,7 @@ export function UploadPreview({
           {!descriptionOk && (
             <div className="flex items-center gap-2 p-3 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive text-sm cursor-pointer" onClick={() => onEditMetadata?.()}>
               <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-              {getDescriptionWarning(metadata.description.trim().length)}
+              {getDescriptionWarning(metadata.description)}
               <span className="text-xs underline ml-auto">Sửa mô tả</span>
             </div>
           )}

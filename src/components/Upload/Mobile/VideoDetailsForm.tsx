@@ -18,7 +18,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { isDescriptionValid, getDescriptionWarning, validateVideoTitle, TITLE_PPLP_TEXT } from "@/lib/videoUploadValidation";
+import { isDescriptionValid, getDescriptionWarning, validateVideoTitle, TITLE_PPLP_TEXT, validateVideoDescription } from "@/lib/videoUploadValidation";
 
 interface VideoDetailsFormProps {
   metadata: {
@@ -214,7 +214,7 @@ export function VideoDetailsForm({
             {!descriptionOk && (
               <div className="flex items-center gap-2 p-2 rounded-lg bg-destructive/10 text-destructive text-xs cursor-pointer" onClick={onEditDescription}>
                 <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
-                {getDescriptionWarning(metadata.description.trim().length)}
+                {getDescriptionWarning(metadata.description)}
               </div>
             )}
           </div>

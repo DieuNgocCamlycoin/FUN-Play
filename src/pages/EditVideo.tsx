@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Loader2 } from "lucide-react";
-import { validateVideoTitle, TITLE_PPLP_TEXT } from "@/lib/videoUploadValidation";
+import { validateVideoTitle, TITLE_PPLP_TEXT, validateVideoDescription, getHashtagHint, MAX_DESCRIPTION_LENGTH, DESCRIPTION_PLACEHOLDER } from "@/lib/videoUploadValidation";
 
 const EditVideo = () => {
   const { id } = useParams<{ id: string }>();
@@ -34,7 +34,10 @@ const EditVideo = () => {
   };
 
   const titleValidation = validateVideoTitle(title);
+  const descriptionValidation = validateVideoDescription(description);
+  const hashtagHint = getHashtagHint(description);
   const isTitleValid = title.trim().length > 0 && titleValidation.ok;
+  const isFormValid = isTitleValid && descriptionValidation.ok;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,9 +59,17 @@ const EditVideo = () => {
         <h1 className="text-3xl font-bold mb-6">Chỉnh sửa video</h1>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div><Label htmlFor="title">Tiêu đề (bắt buộc)</Label><Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Nhập tiêu đề video" required />{!titleValidation.ok && title.length > 0 && <p className="text-xs text-destructive mt-1">{titleValidation.reason}</p>}<p className="text-xs text-muted-foreground italic mt-1">{TITLE_PPLP_TEXT}</p></div>
-          <div><Label htmlFor="description">Mô tả</Label><Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Thêm mô tả cho video" className="min-h-[150px]" /></div>
+          <div>
+            <Label htmlFor="description">Mô tả</Label>
+            <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value.slice(0, MAX_DESCRIPTION_LENGTH))} placeholder={DESCRIPTION_PLACEHOLDER} className="min-h-[150px]" maxLength={MAX_DESCRIPTION_LENGTH} />
+            <div className="flex justify-between mt-1">
+              <p className={`text-xs ${!descriptionValidation.ok && description.length > 0 ? "text-destructive" : "text-muted-foreground"}`}>{!descriptionValidation.ok && description.length > 0 ? descriptionValidation.reason : descriptionValidation.ok ? "✓ Đủ yêu cầu" : ""}</p>
+              <p className="text-xs text-muted-foreground">{description.length}/{MAX_DESCRIPTION_LENGTH}</p>
+            </div>
+            {hashtagHint && <p className="text-xs text-blue-500 mt-1">{hashtagHint}</p>}
+          </div>
           <div className="flex gap-4">
-            <Button type="submit" disabled={saving || !isTitleValid} className="flex-1">{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Lưu thay đổi</Button>
+            <Button type="submit" disabled={saving || !isFormValid} className="flex-1">{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Lưu thay đổi</Button>
             <Button type="button" variant="outline" onClick={() => navigate("/your-videos")}>Hủy</Button>
           </div>
         </form>
