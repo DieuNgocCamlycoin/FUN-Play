@@ -780,3 +780,14 @@ body > [data-w3m-modal] {
   );
   animation: diamond-sparkle 3s ease-in-out infinite;
 }
+
+/* Social Media Orbit Rotation */
+@keyframes orbit-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes orbit-counter-spin {
+  0% { transform: translate(-50%, -50%) rotate(0deg); }
+  100% { transform: translate(-50%, -50%) rotate(-360deg); }
+}

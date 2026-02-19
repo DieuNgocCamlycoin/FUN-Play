@@ -120,3 +120,6 @@ verify_jwt = false
 
 [functions.batch-award-camly]
 verify_jwt = false
+
+[functions.fetch-social-avatar]
+verify_jwt = false

@@ -421,6 +421,24 @@ export default function ProfileSettings() {
 
       if (error) throw error;
 
+      // Fetch social avatars in background (non-blocking)
+      const socialPlatforms: Record<string, string | null> = {};
+      if (facebookUrl) socialPlatforms.facebook = facebookUrl;
+      if (youtubeUrl) socialPlatforms.youtube = youtubeUrl;
+      if (twitterUrl) socialPlatforms.twitter = twitterUrl;
+      if (tiktokUrl) socialPlatforms.tiktok = tiktokUrl;
+      if (telegramUrl) socialPlatforms.telegram = telegramUrl;
+      if (angelaiUrl) socialPlatforms.angelai = angelaiUrl;
+      if (funplayUrl) socialPlatforms.funplay = funplayUrl;
+      if (linkedinUrl) socialPlatforms.linkedin = linkedinUrl;
+      if (zaloUrl) socialPlatforms.zalo = zaloUrl;
+
+      if (Object.keys(socialPlatforms).length > 0) {
+        supabase.functions.invoke("fetch-social-avatar", {
+          body: { userId: user!.id, platforms: socialPlatforms },
+        }).catch((e) => console.warn("Social avatar fetch failed:", e));
+      }
+
       // Update channel banner if channel exists
       if (channelId && bannerUrl !== undefined) {
         const { error: channelError } = await supabase
