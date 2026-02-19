@@ -38,7 +38,7 @@ import { ProfileOnboardingModal } from './components/Onboarding/ProfileOnboardin
 
 // Lazy loaded pages - Less frequently used
 const ProfileSettings = lazy(() => import("./pages/ProfileSettings"));
-const Upload = lazy(() => import("./pages/Upload"));
+
 const CreatePost = lazy(() => import("./pages/CreatePost"));
 const YourVideos = lazy(() => import("./pages/YourVideos"));
 const EditVideo = lazy(() => import("./pages/EditVideo"));
@@ -153,7 +153,7 @@ function AppContent() {
             
             {/* Lazy loaded pages */}
             <Route path="/settings" element={<ProfileSettings />} />
-            <Route path="/upload" element={<Upload />} />
+            <Route path="/upload" element={<Navigate to="/" replace />} />
             <Route path="/create-post" element={<CreatePost />} />
             <Route path="/your-videos" element={<YourVideos />} />
             <Route path="/edit-video/:id" element={<EditVideo />} />
