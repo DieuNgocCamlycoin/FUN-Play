@@ -1545,6 +1545,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          angelai_url: string | null
           approved_reward: number | null
           avatar_url: string | null
           avatar_verified: boolean | null
@@ -1557,9 +1558,12 @@ export type Database = {
           display_name: string | null
           facebook_url: string | null
           first_upload_rewarded: boolean | null
+          funplay_url: string | null
           id: string
+          instagram_url: string | null
           last_claim_at: string | null
           last_fun_mint_at: string | null
+          linkedin_url: string | null
           music_enabled: boolean | null
           music_url: string | null
           pending_rewards: number | null
@@ -1578,8 +1582,10 @@ export type Database = {
           wallet_connect_rewarded: boolean | null
           wallet_type: string | null
           youtube_url: string | null
+          zalo_url: string | null
         }
         Insert: {
+          angelai_url?: string | null
           approved_reward?: number | null
           avatar_url?: string | null
           avatar_verified?: boolean | null
@@ -1592,9 +1598,12 @@ export type Database = {
           display_name?: string | null
           facebook_url?: string | null
           first_upload_rewarded?: boolean | null
+          funplay_url?: string | null
           id: string
+          instagram_url?: string | null
           last_claim_at?: string | null
           last_fun_mint_at?: string | null
+          linkedin_url?: string | null
           music_enabled?: boolean | null
           music_url?: string | null
           pending_rewards?: number | null
@@ -1613,8 +1622,10 @@ export type Database = {
           wallet_connect_rewarded?: boolean | null
           wallet_type?: string | null
           youtube_url?: string | null
+          zalo_url?: string | null
         }
         Update: {
+          angelai_url?: string | null
           approved_reward?: number | null
           avatar_url?: string | null
           avatar_verified?: boolean | null
@@ -1627,9 +1638,12 @@ export type Database = {
           display_name?: string | null
           facebook_url?: string | null
           first_upload_rewarded?: boolean | null
+          funplay_url?: string | null
           id?: string
+          instagram_url?: string | null
           last_claim_at?: string | null
           last_fun_mint_at?: string | null
+          linkedin_url?: string | null
           music_enabled?: boolean | null
           music_url?: string | null
           pending_rewards?: number | null
@@ -1648,6 +1662,7 @@ export type Database = {
           wallet_connect_rewarded?: boolean | null
           wallet_type?: string | null
           youtube_url?: string | null
+          zalo_url?: string | null
         }
         Relationships: []
       }

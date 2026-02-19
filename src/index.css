@@ -755,3 +755,28 @@ body > [data-w3m-modal] {
 .animate-tet-scale-float-1 { animation: tet-scale-float 2.4s ease-in-out infinite 0.3s; }
 .animate-tet-scale-float-2 { animation: tet-scale-float 2.8s ease-in-out infinite 0.6s; }
 .animate-tet-scale-float-3 { animation: tet-scale-float 3.2s ease-in-out infinite 0.9s; }
+
+/* Diamond Sparkle Effect */
+@keyframes diamond-sparkle {
+  0%, 100% { opacity: 0; transform: translateX(-100%) rotate(45deg); }
+  50% { opacity: 0.8; transform: translateX(100%) rotate(45deg); }
+}
+
+.diamond-sparkle-container {
+  position: relative;
+}
+
+.diamond-sparkle-ray {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.6) 50%,
+    transparent 100%
+  );
+  animation: diamond-sparkle 3s ease-in-out infinite;
+}

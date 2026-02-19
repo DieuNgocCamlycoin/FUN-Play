@@ -38,11 +38,16 @@ export default function ProfileSettings() {
   const [isPlayingPreview, setIsPlayingPreview] = useState(false);
   const [isUploadingMusic, setIsUploadingMusic] = useState(false);
   const [avatarVerified, setAvatarVerified] = useState<boolean | null>(null);
+  const [angelaiUrl, setAngelaiUrl] = useState("");
+  const [funplayUrl, setFunplayUrl] = useState("");
   const [facebookUrl, setFacebookUrl] = useState("");
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [twitterUrl, setTwitterUrl] = useState("");
-  const [tiktokUrl, setTiktokUrl] = useState("");
   const [telegramUrl, setTelegramUrl] = useState("");
+  const [tiktokUrl, setTiktokUrl] = useState("");
+  const [instagramUrl, setInstagramUrl] = useState("");
+  const [linkedinUrl, setLinkedinUrl] = useState("");
+  const [zaloUrl, setZaloUrl] = useState("");
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const musicFileInputRef = useRef<HTMLInputElement | null>(null);
   const usernameDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -133,11 +138,16 @@ export default function ProfileSettings() {
         setBio(data.bio || "");
         setMusicUrl(data.music_url || "");
         setAvatarVerified(data.avatar_verified ?? null);
+        setAngelaiUrl((data as any).angelai_url || "");
+        setFunplayUrl((data as any).funplay_url || "");
         setFacebookUrl(data.facebook_url || "");
         setYoutubeUrl(data.youtube_url || "");
         setTwitterUrl(data.twitter_url || "");
-        setTiktokUrl(data.tiktok_url || "");
         setTelegramUrl(data.telegram_url || "");
+        setTiktokUrl(data.tiktok_url || "");
+        setInstagramUrl((data as any).instagram_url || "");
+        setLinkedinUrl((data as any).linkedin_url || "");
+        setZaloUrl((data as any).zalo_url || "");
       }
 
       // Fetch channel info for banner
@@ -390,11 +400,16 @@ export default function ProfileSettings() {
         avatar_url: avatarUrl,
         bio: bio,
         music_url: finalMusicUrl,
+        angelai_url: angelaiUrl || null,
+        funplay_url: funplayUrl || null,
         facebook_url: facebookUrl || null,
         youtube_url: youtubeUrl || null,
         twitter_url: twitterUrl || null,
-        tiktok_url: tiktokUrl || null,
         telegram_url: telegramUrl || null,
+        tiktok_url: tiktokUrl || null,
+        instagram_url: instagramUrl || null,
+        linkedin_url: linkedinUrl || null,
+        zalo_url: zaloUrl || null,
       } as any;
 
       // Update username if user provided a custom one
@@ -622,6 +637,14 @@ export default function ProfileSettings() {
                 </h3>
                 <div className="space-y-3">
                   <div>
+                    <Label htmlFor="angelaiUrl">Angel AI</Label>
+                    <Input id="angelaiUrl" type="url" placeholder="https://angel.ai/profile" value={angelaiUrl} onChange={(e) => setAngelaiUrl(e.target.value)} className="mt-1" />
+                  </div>
+                  <div>
+                    <Label htmlFor="funplayUrl">Fun Play</Label>
+                    <Input id="funplayUrl" type="url" placeholder="https://play.fun.rich/@username" value={funplayUrl} onChange={(e) => setFunplayUrl(e.target.value)} className="mt-1" />
+                  </div>
+                  <div>
                     <Label htmlFor="facebookUrl">Facebook</Label>
                     <Input id="facebookUrl" type="url" placeholder="https://facebook.com/username" value={facebookUrl} onChange={(e) => setFacebookUrl(e.target.value)} className="mt-1" />
                   </div>
@@ -634,14 +657,26 @@ export default function ProfileSettings() {
                     <Input id="twitterUrl" type="url" placeholder="https://x.com/username" value={twitterUrl} onChange={(e) => setTwitterUrl(e.target.value)} className="mt-1" />
                   </div>
                   <div>
+                    <Label htmlFor="telegramUrl">Telegram</Label>
+                    <Input id="telegramUrl" type="url" placeholder="https://t.me/username" value={telegramUrl} onChange={(e) => setTelegramUrl(e.target.value)} className="mt-1" />
+                  </div>
+                  <div>
                     <Label htmlFor="tiktokUrl">TikTok</Label>
                     <Input id="tiktokUrl" type="url" placeholder="https://tiktok.com/@username" value={tiktokUrl} onChange={(e) => setTiktokUrl(e.target.value)} className="mt-1" />
                   </div>
                   <div>
-                    <Label htmlFor="telegramUrl">Telegram</Label>
-                    <Input id="telegramUrl" type="url" placeholder="https://t.me/username" value={telegramUrl} onChange={(e) => setTelegramUrl(e.target.value)} className="mt-1" />
+                    <Label htmlFor="instagramUrl">Instagram</Label>
+                    <Input id="instagramUrl" type="url" placeholder="https://instagram.com/username" value={instagramUrl} onChange={(e) => setInstagramUrl(e.target.value)} className="mt-1" />
                   </div>
-                  <p className="text-xs text-muted-foreground">Các link sẽ hiển thị quanh avatar trên trang cá nhân của bạn</p>
+                  <div>
+                    <Label htmlFor="linkedinUrl">LinkedIn</Label>
+                    <Input id="linkedinUrl" type="url" placeholder="https://linkedin.com/in/username" value={linkedinUrl} onChange={(e) => setLinkedinUrl(e.target.value)} className="mt-1" />
+                  </div>
+                  <div>
+                    <Label htmlFor="zaloUrl">Zalo</Label>
+                    <Input id="zaloUrl" type="url" placeholder="https://zalo.me/username" value={zaloUrl} onChange={(e) => setZaloUrl(e.target.value)} className="mt-1" />
+                  </div>
+                  <p className="text-xs text-muted-foreground">Các link sẽ hiển thị quanh avatar trên trang cá nhân của bạn (tối đa 10 nền tảng)</p>
                 </div>
               </div>
 

@@ -32,6 +32,13 @@ interface UserProfileData {
   twitter_url: string | null;
   tiktok_url: string | null;
   telegram_url: string | null;
+  angelai_url: string | null;
+  funplay_url: string | null;
+  instagram_url: string | null;
+  linkedin_url: string | null;
+  zalo_url: string | null;
+  violation_level: number | null;
+  banned: boolean | null;
 }
 
 interface ChannelData {
@@ -273,6 +280,9 @@ export default function UserProfile() {
         <ProfileHeader
           profile={profile}
           channel={channel}
+          lightScore={Math.min(100, Math.floor((profile.total_camly_rewards || 0) / 100))}
+          banned={profile.banned ?? false}
+          violationLevel={profile.violation_level ?? 0}
         />
 
         {/* User Info + Actions */}
