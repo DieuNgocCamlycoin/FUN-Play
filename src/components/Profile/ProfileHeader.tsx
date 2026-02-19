@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { ProfileHonorBoard } from "./ProfileHonorBoard";
 import { SocialMediaOrbit } from "./SocialMediaOrbit";
+import { DiamondBadge } from "./DiamondBadge";
 
 interface ProfileHeaderProps {
   profile: {
@@ -13,44 +14,42 @@ interface ProfileHeaderProps {
     twitter_url?: string | null;
     tiktok_url?: string | null;
     telegram_url?: string | null;
+    angelai_url?: string | null;
+    funplay_url?: string | null;
+    instagram_url?: string | null;
+    linkedin_url?: string | null;
+    zalo_url?: string | null;
   };
   channel: {
     id: string;
     banner_url: string | null;
     user_id: string;
   } | null;
+  lightScore?: number;
+  banned?: boolean;
+  violationLevel?: number;
 }
 
-export const ProfileHeader = ({ profile, channel }: ProfileHeaderProps) => {
+export const ProfileHeader = ({ profile, channel, lightScore = 0, banned, violationLevel }: ProfileHeaderProps) => {
   const displayName = profile.display_name || profile.username || "User";
 
   return (
     <div className="relative">
       {/* Cover Photo Container */}
       <div className="relative w-full h-48 md:h-64 lg:h-80 xl:h-[400px] overflow-hidden">
-        {/* Cover Image or Gradient */}
         {channel?.banner_url ? (
-          <img
-            src={channel.banner_url}
-            alt="Cover"
-            className="w-full h-full object-cover"
-          />
+          <img src={channel.banner_url} alt="Cover" className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-[hsl(var(--cosmic-cyan))]/20 via-[hsl(var(--cosmic-magenta))]/15 to-[hsl(var(--cosmic-gold))]/20" />
         )}
-
-        {/* Gradient Overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-background/20 to-transparent" />
         <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--cosmic-purple))]/10 via-transparent to-[hsl(var(--cosmic-cyan))]/10" />
-
-        {/* Honor Board - Desktop only (on cover) */}
         <ProfileHonorBoard userId={profile.id} placement="cover" />
       </div>
 
-      {/* Honor Board - Mobile only (below cover) */}
       <ProfileHonorBoard userId={profile.id} placement="below" />
 
-      {/* Avatar - Overlapping cover */}
+      {/* Avatar */}
       <div className="relative max-w-6xl mx-auto px-4 lg:px-6">
         <motion.div
           initial={{ scale: 0.8, opacity: 0, y: 20 }}
@@ -58,12 +57,14 @@ export const ProfileHeader = ({ profile, channel }: ProfileHeaderProps) => {
           transition={{ duration: 0.5, type: "spring" }}
           className="absolute -top-20 md:-top-24 lg:-top-28"
         >
-          {/* Avatar Container with Hologram Border */}
           <div className="relative group">
-            {/* Animated Glow Ring */}
+            {/* Diamond Badge */}
+            <DiamondBadge lightScore={lightScore} banned={banned} violationLevel={violationLevel} />
+
+            {/* Glow Ring */}
             <div className="absolute -inset-1.5 rounded-full bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] via-[hsl(var(--cosmic-magenta))] to-[hsl(var(--cosmic-gold))] opacity-70 blur-md animate-pulse group-hover:opacity-100 transition-opacity" />
             
-            {/* Rainbow Border Animation */}
+            {/* Rainbow Border */}
             <div
               className="absolute -inset-1 rounded-full animate-spin-slow"
               style={{
@@ -72,14 +73,10 @@ export const ProfileHeader = ({ profile, channel }: ProfileHeaderProps) => {
               }}
             />
 
-            {/* Avatar with Diamond + Social Icons */}
+            {/* Avatar */}
             <div className="relative w-32 h-32 md:w-40 md:h-40 lg:w-48 lg:h-48 rounded-full border-4 border-background overflow-hidden bg-background">
               {profile.avatar_url ? (
-                <img
-                  src={profile.avatar_url}
-                  alt={displayName}
-                  className="w-full h-full object-cover"
-                />
+                <img src={profile.avatar_url} alt={displayName} className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full bg-gradient-to-br from-[hsl(var(--cosmic-cyan))] to-[hsl(var(--cosmic-magenta))] flex items-center justify-center">
                   <span className="text-4xl md:text-5xl lg:text-6xl font-bold text-white">
@@ -89,19 +86,23 @@ export const ProfileHeader = ({ profile, channel }: ProfileHeaderProps) => {
               )}
             </div>
 
-            {/* Social Media Icons around bottom */}
+            {/* Social Media Orbit */}
             <SocialMediaOrbit
+              angelaiUrl={profile.angelai_url}
+              funplayUrl={profile.funplay_url}
               facebookUrl={profile.facebook_url}
               youtubeUrl={profile.youtube_url}
               twitterUrl={profile.twitter_url}
-              tiktokUrl={profile.tiktok_url}
               telegramUrl={profile.telegram_url}
+              tiktokUrl={profile.tiktok_url}
+              instagramUrl={profile.instagram_url}
+              linkedinUrl={profile.linkedin_url}
+              zaloUrl={profile.zalo_url}
             />
           </div>
         </motion.div>
       </div>
 
-      {/* Spacer for avatar overlap */}
       <div className="h-16 md:h-20 lg:h-24" />
     </div>
   );

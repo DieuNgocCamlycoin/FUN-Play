@@ -1,4 +1,4 @@
-import { Facebook, Youtube, Send } from "lucide-react";
+import { Facebook, Youtube, Send, Instagram, Linkedin } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -7,11 +7,16 @@ import {
 } from "@/components/ui/tooltip";
 
 interface SocialMediaOrbitProps {
+  angelaiUrl?: string | null;
+  funplayUrl?: string | null;
   facebookUrl?: string | null;
   youtubeUrl?: string | null;
   twitterUrl?: string | null;
-  tiktokUrl?: string | null;
   telegramUrl?: string | null;
+  tiktokUrl?: string | null;
+  instagramUrl?: string | null;
+  linkedinUrl?: string | null;
+  zaloUrl?: string | null;
 }
 
 const XIcon = ({ className }: { className?: string }) => (
@@ -26,36 +31,69 @@ const TikTokIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+const AngelAIIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+    <path d="M12 2l2.4 7.2H22l-6 4.8 2.4 7.2L12 16.4l-6.4 4.8 2.4-7.2-6-4.8h7.6z" />
+  </svg>
+);
+
+const FunPlayIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+    <path d="M8 5v14l11-7z" />
+  </svg>
+);
+
+const ZaloIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+    <path d="M12 2C6.48 2 2 6.03 2 11c0 2.76 1.36 5.22 3.5 6.87V22l4.06-2.23c.78.22 1.6.33 2.44.33 5.52 0 10-4.03 10-9S17.52 2 12 2zm1 13H8v-1.5h5V15zm2.5-3H8v-1.5h7.5V12zm0-3H8V7.5h7.5V9z" />
+  </svg>
+);
+
 const platforms = [
+  { key: "angelai", icon: AngelAIIcon, color: "#FFD700", label: "Angel AI" },
+  { key: "funplay", icon: FunPlayIcon, color: "#00E7FF", label: "Fun Play" },
   { key: "facebook", icon: Facebook, color: "#1877F2", label: "Facebook" },
   { key: "youtube", icon: Youtube, color: "#FF0000", label: "YouTube" },
   { key: "twitter", icon: XIcon, color: "#1DA1F2", label: "X / Twitter" },
-  { key: "tiktok", icon: TikTokIcon, color: "#69C9D0", label: "TikTok" },
   { key: "telegram", icon: Send, color: "#0088cc", label: "Telegram" },
+  { key: "tiktok", icon: TikTokIcon, color: "#69C9D0", label: "TikTok" },
+  { key: "instagram", icon: Instagram, color: "#E4405F", label: "Instagram" },
+  { key: "linkedin", icon: Linkedin, color: "#0A66C2", label: "LinkedIn" },
+  { key: "zalo", icon: ZaloIcon, color: "#0068FF", label: "Zalo" },
 ] as const;
 
 export const SocialMediaOrbit = ({
+  angelaiUrl,
+  funplayUrl,
   facebookUrl,
   youtubeUrl,
   twitterUrl,
-  tiktokUrl,
   telegramUrl,
+  tiktokUrl,
+  instagramUrl,
+  linkedinUrl,
+  zaloUrl,
 }: SocialMediaOrbitProps) => {
   const urls: Record<string, string | null | undefined> = {
+    angelai: angelaiUrl,
+    funplay: funplayUrl,
     facebook: facebookUrl,
     youtube: youtubeUrl,
     twitter: twitterUrl,
-    tiktok: tiktokUrl,
     telegram: telegramUrl,
+    tiktok: tiktokUrl,
+    instagram: instagramUrl,
+    linkedin: linkedinUrl,
+    zalo: zaloUrl,
   };
 
   const activePlatforms = platforms.filter((p) => urls[p.key]);
   if (activePlatforms.length === 0) return null;
 
-  // Position icons along bottom arc of avatar
-  // Spread evenly from -70deg to +70deg (bottom arc)
-  const totalAngle = 140; // degrees spread
-  const startAngle = 200; // start from bottom-left (200deg on circle)
+  // Spread from 30° to 330° (avoid top 60° zone where diamond sits)
+  const startAngle = 30;
+  const endAngle = 330;
+  const totalAngle = endAngle - startAngle; // 300°
   const step = activePlatforms.length > 1 ? totalAngle / (activePlatforms.length - 1) : 0;
 
   return (
@@ -66,7 +104,6 @@ export const SocialMediaOrbit = ({
           ? 270 // single icon at bottom center
           : startAngle + step * index;
         const rad = (angle * Math.PI) / 180;
-        // Position relative to avatar center, radius ~58% of avatar size
         const x = Math.cos(rad) * 58;
         const y = Math.sin(rad) * 58;
 
@@ -77,15 +114,15 @@ export const SocialMediaOrbit = ({
                 href={urls[platform.key]!}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="absolute z-20 flex items-center justify-center w-6 h-6 md:w-7 md:h-7 rounded-full border-2 border-background shadow-lg transition-transform hover:scale-125 cursor-pointer"
+                className="absolute z-20 flex items-center justify-center w-6 h-6 md:w-7 md:h-7 rounded-full border-2 shadow-lg transition-transform hover:scale-125 cursor-pointer bg-background/80 dark:bg-background/60"
                 style={{
-                  backgroundColor: platform.color,
+                  borderColor: platform.color,
                   left: `calc(50% + ${x}%)`,
                   top: `calc(50% + ${y}%)`,
                   transform: "translate(-50%, -50%)",
                 }}
               >
-                <Icon className="w-3 h-3 md:w-3.5 md:h-3.5 text-white" />
+                <Icon className="w-3 h-3 md:w-3.5 md:h-3.5" style={{ color: platform.color }} />
               </a>
             </TooltipTrigger>
             <TooltipContent side="bottom" className="text-xs">
