@@ -1,4 +1,4 @@
-import { Facebook, Youtube, Send, Instagram, Linkedin } from "lucide-react";
+import { Facebook, Youtube, Send, Linkedin } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -14,7 +14,6 @@ interface SocialMediaOrbitProps {
   twitterUrl?: string | null;
   telegramUrl?: string | null;
   tiktokUrl?: string | null;
-  instagramUrl?: string | null;
   linkedinUrl?: string | null;
   zaloUrl?: string | null;
 }
@@ -37,9 +36,9 @@ const AngelAIIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-const FunPlayIcon = ({ className }: { className?: string }) => (
+const FunProfileIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path d="M8 5v14l11-7z" />
+    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
   </svg>
 );
 
@@ -50,14 +49,13 @@ const ZaloIcon = ({ className }: { className?: string }) => (
 );
 
 const platforms = [
+  { key: "funplay", icon: FunProfileIcon, color: "#00E7FF", label: "Fun Profile" },
   { key: "angelai", icon: AngelAIIcon, color: "#FFD700", label: "Angel AI" },
-  { key: "funplay", icon: FunPlayIcon, color: "#00E7FF", label: "Fun Play" },
   { key: "facebook", icon: Facebook, color: "#1877F2", label: "Facebook" },
   { key: "youtube", icon: Youtube, color: "#FF0000", label: "YouTube" },
   { key: "twitter", icon: XIcon, color: "#1DA1F2", label: "X / Twitter" },
   { key: "telegram", icon: Send, color: "#0088cc", label: "Telegram" },
   { key: "tiktok", icon: TikTokIcon, color: "#69C9D0", label: "TikTok" },
-  { key: "instagram", icon: Instagram, color: "#E4405F", label: "Instagram" },
   { key: "linkedin", icon: Linkedin, color: "#0A66C2", label: "LinkedIn" },
   { key: "zalo", icon: ZaloIcon, color: "#0068FF", label: "Zalo" },
 ] as const;
@@ -70,7 +68,6 @@ export const SocialMediaOrbit = ({
   twitterUrl,
   telegramUrl,
   tiktokUrl,
-  instagramUrl,
   linkedinUrl,
   zaloUrl,
 }: SocialMediaOrbitProps) => {
@@ -82,7 +79,6 @@ export const SocialMediaOrbit = ({
     twitter: twitterUrl,
     telegram: telegramUrl,
     tiktok: tiktokUrl,
-    instagram: instagramUrl,
     linkedin: linkedinUrl,
     zalo: zaloUrl,
   };
