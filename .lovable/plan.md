@@ -1,30 +1,39 @@
 
 
-# Admin Dashboard Review: Remove Dead Code
+# Add "Delete Only" Button to Spam Filter (No Ban)
 
-## Review Results
+## What's Needed
 
-All core systems verified and working correctly:
-- **Bulk Delete and Ban**: RPC `bulk_delete_videos_and_ban_users` called correctly with confirmation dialog
-- **Hide Button**: Sets both `is_hidden: true` and `approval_status: 'rejected'` -- confirmed working
-- **Spam Tracing**: Owner column with tooltip (short/total video counts) and Quick Ban button all functional
-- **Reward Avatar Links**: Avatars link to `official-funplay.lovable.app/{username}` in new tab -- confirmed working
+Currently the Spam Filter only has two bulk actions: "Hide" and "Delete & Ban". You want a third option: **Delete videos only** (without banning the users). This applies to all three filter tabs: Reported, Short, and Repetitive.
 
-## One Issue Found: Dead `selectedDate` in RewardApprovalTab
+## Changes
 
-In `src/components/Admin/tabs/RewardApprovalTab.tsx`, the `selectedDate` state variable and its date picker input are rendered in the UI but **never used to filter the user list**. The filtering logic (line 38-44) only checks `searchTerm` -- it completely ignores the date. This is dead/non-functional code.
+### 1. New Database Function: `bulk_delete_videos_only`
 
-### Fix: Remove dead date picker code
+Create a new RPC that deletes videos and all related data (likes, comments, watch_history, reward_transactions, etc.) but does **NOT** ban the users.
 
-**File**: `src/components/Admin/tabs/RewardApprovalTab.tsx`
+Parameters: `p_admin_id uuid, p_video_ids uuid[]`
 
-Remove these items:
-- Line 33: `const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));`
-- Lines 131-139: The date picker `<div>` containing `<Calendar>` icon and `<Input type="date">`
-- Line 21: The `format` import from `date-fns` (no longer needed after removal)
-- Line 18: The `Calendar` icon import from `lucide-react` (no longer needed)
+Returns: `{ deleted_videos: number }`
 
-## Summary
+### 2. UI: Add "Delete Only" Button
 
-The admin panel is in good shape. The only change needed is removing ~10 lines of dead date-picker code that renders a UI element with no actual filtering effect. No functional or logic changes required.
+**File**: `src/components/Admin/tabs/VideosManagementTab.tsx`
+
+Add a new button between "Hide" and "Delete & Ban":
+- Orange/amber colored "Trash" icon button labeled "Xoa X video" (delete X videos)
+- Shows a simpler confirmation dialog (no ban warning)
+- On confirm, calls the new `bulk_delete_videos_only` RPC
+- Refreshes the list after completion
+
+### 3. New State & Dialog
+
+Add state for `deleteOnlyOpen` and `deleteOnlyLoading`, plus a new `AlertDialog` for the "Delete Only" confirmation that clearly states videos will be permanently deleted but users will NOT be banned.
+
+## File Changes Summary
+
+| File | Change |
+|------|--------|
+| **New migration** | Create `bulk_delete_videos_only` RPC |
+| `VideosManagementTab.tsx` | Add "Xoa Video" button, confirmation dialog, and handler calling new RPC |
 
