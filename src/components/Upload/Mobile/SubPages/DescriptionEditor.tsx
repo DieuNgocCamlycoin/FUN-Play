@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { Hash, Clock, Check } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { useHapticFeedback } from "@/hooks/useHapticFeedback";
-import { MIN_DESCRIPTION_LENGTH } from "@/lib/videoUploadValidation";
+import { validateVideoDescription, getHashtagHint, MAX_DESCRIPTION_LENGTH, DESCRIPTION_PLACEHOLDER } from "@/lib/videoUploadValidation";
 import { cn } from "@/lib/utils";
 
 interface DescriptionEditorProps {
@@ -24,10 +24,14 @@ export function DescriptionEditor({ value, onChange, onSave }: DescriptionEditor
     }, 300);
   }, []);
 
+  const descriptionValidation = validateVideoDescription(localValue);
+  const hashtagHint = getHashtagHint(localValue);
+
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     lightTap();
-    setLocalValue(e.target.value);
-    onChange(e.target.value);
+    const newValue = e.target.value.slice(0, MAX_DESCRIPTION_LENGTH);
+    setLocalValue(newValue);
+    onChange(newValue);
   };
 
   const handleSave = () => {
@@ -108,30 +112,33 @@ export function DescriptionEditor({ value, onChange, onSave }: DescriptionEditor
           ref={textareaRef}
           value={localValue}
           onChange={handleChange}
-          placeholder="Nói cho người xem biết về video của bạn...
-
-Bạn có thể thêm:
-#hashtag để dễ tìm kiếm
-0:00 mốc thời gian trong video
-@kênh để đề cập kênh khác"
+          placeholder={DESCRIPTION_PLACEHOLDER}
           className="w-full h-full min-h-[300px] text-base border-0 resize-none focus-visible:ring-0 bg-transparent p-0"
-          maxLength={5000}
+          maxLength={MAX_DESCRIPTION_LENGTH}
         />
       </div>
 
       {/* Character Count with minimum requirement */}
-      <div className="px-4 pb-2 flex justify-between">
-        <p className={cn(
-          "text-xs",
-          localValue.trim().length < MIN_DESCRIPTION_LENGTH ? "text-destructive" : "text-green-600"
-        )}>
-          {localValue.trim().length < MIN_DESCRIPTION_LENGTH
-            ? `Tối thiểu ${MIN_DESCRIPTION_LENGTH} ký tự (còn ${MIN_DESCRIPTION_LENGTH - localValue.trim().length})`
-            : `✓ Đủ yêu cầu`}
-        </p>
-        <p className="text-xs text-muted-foreground">
-          {localValue.length}/5000
-        </p>
+      <div className="px-4 pb-2 space-y-1">
+        <div className="flex justify-between">
+          <p className={cn(
+            "text-xs",
+            !descriptionValidation.ok ? "text-destructive" : "text-green-600"
+          )}>
+            {!descriptionValidation.ok
+              ? descriptionValidation.reason
+              : `✓ Đủ yêu cầu`}
+          </p>
+          <p className={cn(
+            "text-xs",
+            localValue.length > MAX_DESCRIPTION_LENGTH - 50 ? "text-destructive" : "text-muted-foreground"
+          )}>
+            {localValue.length}/{MAX_DESCRIPTION_LENGTH}
+          </p>
+        </div>
+        {hashtagHint && (
+          <p className="text-xs text-[hsl(var(--cosmic-cyan))]">{hashtagHint}</p>
+        )}
       </div>
 
       {/* Save Button */}

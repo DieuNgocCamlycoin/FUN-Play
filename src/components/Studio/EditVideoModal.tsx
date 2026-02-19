@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useR2Upload } from "@/hooks/useR2Upload";
 import { Loader2, Upload, Film } from "lucide-react";
-import { validateVideoTitle, TITLE_PPLP_TEXT } from "@/lib/videoUploadValidation";
+import { validateVideoTitle, TITLE_PPLP_TEXT, validateVideoDescription, getHashtagHint, MAX_DESCRIPTION_LENGTH, DESCRIPTION_PLACEHOLDER } from "@/lib/videoUploadValidation";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { extractVideoThumbnailFromUrl } from "@/lib/videoThumbnail";
 
@@ -108,7 +108,10 @@ export const EditVideoModal = ({ video, open, onClose, onSaved }: EditVideoModal
   };
 
   const titleValidation = validateVideoTitle(title);
+  const descriptionValidation = validateVideoDescription(description);
+  const hashtagHint = getHashtagHint(description);
   const isTitleValid = title.trim().length > 0 && titleValidation.ok;
+  const isFormValid = isTitleValid && descriptionValidation.ok;
 
   const handleSave = async () => {
     if (!isTitleValid) {
@@ -191,10 +194,18 @@ export const EditVideoModal = ({ video, open, onClose, onSaved }: EditVideoModal
             <Textarea
               id="edit-description"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Giới thiệu video của bạn cho người xem"
+              onChange={(e) => setDescription(e.target.value.slice(0, MAX_DESCRIPTION_LENGTH))}
+              placeholder={DESCRIPTION_PLACEHOLDER}
               className="mt-2 min-h-[150px]"
+              maxLength={MAX_DESCRIPTION_LENGTH}
             />
+            <div className="flex justify-between mt-1">
+              <p className={`text-xs ${!descriptionValidation.ok && description.length > 0 ? "text-destructive" : "text-muted-foreground"}`}>
+                {!descriptionValidation.ok && description.length > 0 ? descriptionValidation.reason : descriptionValidation.ok ? "✓ Đủ yêu cầu" : ""}
+              </p>
+              <p className="text-xs text-muted-foreground">{description.length}/{MAX_DESCRIPTION_LENGTH}</p>
+            </div>
+            {hashtagHint && <p className="text-xs text-blue-500 mt-1">{hashtagHint}</p>}
           </div>
 
           <div>
@@ -269,7 +280,7 @@ export const EditVideoModal = ({ video, open, onClose, onSaved }: EditVideoModal
           <Button variant="outline" onClick={onClose} disabled={saving}>
             Hủy
           </Button>
-          <Button onClick={handleSave} disabled={saving || !isTitleValid}>
+          <Button onClick={handleSave} disabled={saving || !isFormValid}>
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Lưu thay đổi
           </Button>

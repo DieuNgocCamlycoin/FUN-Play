@@ -12,7 +12,7 @@ import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
-import { validateVideoTitle, TITLE_PPLP_TEXT } from "@/lib/videoUploadValidation";
+import { validateVideoTitle, TITLE_PPLP_TEXT, validateVideoDescription, getHashtagHint, MAX_DESCRIPTION_LENGTH, DESCRIPTION_PLACEHOLDER } from "@/lib/videoUploadValidation";
 
 export interface VideoMetadata {
   title: string;
@@ -116,7 +116,9 @@ export function UploadMetadataForm({ metadata, onChange, onNext, onBack }: Uploa
   };
 
   const titleValidation = validateVideoTitle(metadata.title);
-  const isValid = metadata.title.trim().length > 0 && titleValidation.ok;
+  const descriptionValidation = validateVideoDescription(metadata.description);
+  const hashtagHint = getHashtagHint(metadata.description);
+  const isValid = metadata.title.trim().length > 0 && titleValidation.ok && descriptionValidation.ok;
 
   return (
     <div className="space-y-6">
@@ -167,30 +169,34 @@ export function UploadMetadataForm({ metadata, onChange, onNext, onBack }: Uploa
           ref={descriptionRef}
           id="description"
           value={metadata.description}
-          onChange={(e) => onChange({ ...metadata, description: e.target.value.slice(0, 5000) })}
-          placeholder={`Mô tả nội dung video (tối thiểu 50 ký tự), thêm link, hashtag, timestamp...
-
-Ví dụ:
-0:00 Giới thiệu
-1:30 Nội dung chính
-
-#funplay #camlycoin #5d`}
+          onChange={(e) => onChange({ ...metadata, description: e.target.value.slice(0, MAX_DESCRIPTION_LENGTH) })}
+          placeholder={DESCRIPTION_PLACEHOLDER}
           className="min-h-[140px] sm:min-h-[160px] resize-none text-base focus:ring-2 focus:ring-[hsl(var(--cosmic-cyan)/0.5)] focus:border-[hsl(var(--cosmic-cyan))]"
-          maxLength={5000}
+          maxLength={MAX_DESCRIPTION_LENGTH}
         />
         <div className="flex justify-between">
           <p className={cn(
             "text-xs",
-            metadata.description.trim().length < 50 ? "text-destructive" : "text-muted-foreground"
+            !descriptionValidation.ok ? "text-destructive" : "text-green-600"
           )}>
-            {metadata.description.trim().length < 50 
-              ? `Tối thiểu 50 ký tự (còn thiếu ${50 - metadata.description.trim().length})` 
-              : "✓ Đủ yêu cầu"}
+            {!descriptionValidation.ok && metadata.description.length > 0
+              ? descriptionValidation.reason
+              : metadata.description.trim().length < 50
+                ? `Mô tả cần ít nhất 50 ký tự để chia sẻ giá trị tốt hơn`
+                : "✓ Đủ yêu cầu"}
           </p>
-          <p className="text-xs text-muted-foreground">
-            {metadata.description.length}/5000
+          <p className={cn(
+            "text-xs transition-colors",
+            metadata.description.length > MAX_DESCRIPTION_LENGTH - 50 ? "text-destructive" : "text-muted-foreground"
+          )}>
+            {metadata.description.length}/{MAX_DESCRIPTION_LENGTH}
           </p>
         </div>
+        {hashtagHint && (
+          <p className="text-xs text-[hsl(var(--cosmic-cyan))] flex items-center gap-1">
+            {hashtagHint}
+          </p>
+        )}
       </div>
 
       {/* Tags - Clickable label */}

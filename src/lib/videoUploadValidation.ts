@@ -62,6 +62,48 @@ export function validateVideoTitle(title: string): { ok: boolean; reason?: strin
 
 export const MIN_VIDEO_DURATION = 60; // seconds
 export const MIN_DESCRIPTION_LENGTH = 50; // characters
+export const MAX_DESCRIPTION_LENGTH = 500; // characters
+
+export const DESCRIPTION_PLACEHOLDER = "Hãy chia sẻ cảm hứng của bạn về video này (tối thiểu 50 ký tự)...";
+
+/**
+ * Validate video description quality (client-side only).
+ * Returns { ok: true } or { ok: false, reason: string } with specific error.
+ */
+export function validateVideoDescription(description: string): { ok: boolean; reason?: string } {
+  const trimmed = description.trim();
+
+  if (trimmed.length === 0) {
+    return { ok: false, reason: "Mô tả cần ít nhất 50 ký tự để chia sẻ giá trị tốt hơn" };
+  }
+
+  if (trimmed.length < MIN_DESCRIPTION_LENGTH) {
+    const remaining = MIN_DESCRIPTION_LENGTH - trimmed.length;
+    return { ok: false, reason: `Mô tả cần ít nhất ${MIN_DESCRIPTION_LENGTH} ký tự để chia sẻ giá trị tốt hơn (còn thiếu ${remaining} ký tự)` };
+  }
+
+  // Must contain at least one letter (Latin or Vietnamese Unicode)
+  if (!/[a-zA-ZÀ-ỹ]/u.test(trimmed)) {
+    return { ok: false, reason: "Mô tả phải chứa ít nhất một chữ cái có nghĩa" };
+  }
+
+  // Block 3+ consecutive identical characters (spam)
+  if (/(.)\1{2,}/i.test(trimmed)) {
+    return { ok: false, reason: "Vui lòng không sử dụng ký tự lặp lại liên tiếp trong mô tả" };
+  }
+
+  return { ok: true };
+}
+
+/**
+ * Get hashtag hint if description doesn't contain '#'
+ */
+export function getHashtagHint(description: string): string | null {
+  if (description.trim().length > 0 && !description.includes('#')) {
+    return "Thêm hashtag để video của bạn dễ tìm hơn! 🔍";
+  }
+  return null;
+}
 
 // Blocked filename patterns - sample video sites
 export const BLOCKED_FILENAME_PATTERNS = [
@@ -110,7 +152,7 @@ export function isDurationValid(durationSeconds: number): boolean {
  * Check if description meets minimum length requirement
  */
 export function isDescriptionValid(description: string): boolean {
-  return description.trim().length >= MIN_DESCRIPTION_LENGTH;
+  return validateVideoDescription(description).ok;
 }
 
 /**
@@ -124,7 +166,7 @@ export function getDurationWarning(durationSeconds: number): string {
 /**
  * Get description warning message
  */
-export function getDescriptionWarning(currentLength: number): string {
-  const remaining = MIN_DESCRIPTION_LENGTH - currentLength;
-  return `Mô tả cần ít nhất ${MIN_DESCRIPTION_LENGTH} ký tự (còn thiếu ${remaining} ký tự) ✍️`;
+export function getDescriptionWarning(description: string): string {
+  const validation = validateVideoDescription(description);
+  return validation.reason || `Mô tả cần ít nhất ${MIN_DESCRIPTION_LENGTH} ký tự ✍️`;
 }
