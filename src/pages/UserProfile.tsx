@@ -38,6 +38,8 @@ interface UserProfileData {
   zalo_url: string | null;
   violation_level: number | null;
   banned: boolean | null;
+  light_score: number | null;
+  suspicious_score: number | null;
 }
 
 interface ChannelData {
@@ -279,7 +281,8 @@ export default function UserProfile() {
         <ProfileHeader
           profile={profile}
           channel={channel}
-          lightScore={Math.min(100, Math.floor((profile.total_camly_rewards || 0) / 100))}
+          lightScore={profile.light_score ?? 0}
+          suspiciousScore={profile.suspicious_score ?? 0}
           banned={profile.banned ?? false}
           violationLevel={profile.violation_level ?? 0}
         />

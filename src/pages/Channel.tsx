@@ -23,6 +23,10 @@ interface ProfileData {
   approved_reward: number | null;
   background_music_url: string | null;
   music_enabled: boolean | null;
+  light_score: number | null;
+  suspicious_score: number | null;
+  banned: boolean | null;
+  violation_level: number | null;
 }
 
 interface ChannelData {
@@ -325,7 +329,14 @@ export default function Channel() {
 
       <div className="min-h-screen bg-background">
         {/* Header with Cover + Avatar + Honor Board */}
-        <ProfileHeader profile={profile} channel={channel} />
+        <ProfileHeader
+          profile={profile}
+          channel={channel}
+          lightScore={profile.light_score ?? 0}
+          suspiciousScore={profile.suspicious_score ?? 0}
+          banned={profile.banned ?? false}
+          violationLevel={profile.violation_level ?? 0}
+        />
 
         {/* User Info + Actions */}
         <div className="max-w-6xl mx-auto px-4 lg:px-6">

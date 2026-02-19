@@ -718,9 +718,20 @@ serve(async (req) => {
     // 14. Create reward transaction record
     const txHash = `REWARD_${effectiveType}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
-    // For FIRST_UPLOAD: always set as pending escrow (48h hold)
+    // For FIRST_UPLOAD: set escrow based on user's light_score (PPLP dynamic escrow)
     const isFirstUploadEscrow = effectiveType === 'FIRST_UPLOAD';
-    const escrowReleaseAt = isFirstUploadEscrow ? new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString() : null;
+    let escrowHours = 48; // default
+    if (isFirstUploadEscrow) {
+      const { data: lightProfile } = await adminSupabase
+        .from('profiles')
+        .select('light_score')
+        .eq('id', userId)
+        .single();
+      const ls = lightProfile?.light_score || 0;
+      if (ls >= 80) escrowHours = 12;
+      else if (ls >= 60) escrowHours = 24;
+    }
+    const escrowReleaseAt = isFirstUploadEscrow ? new Date(Date.now() + escrowHours * 60 * 60 * 1000).toISOString() : null;
     const txApproved = isFirstUploadEscrow ? false : canAutoApprove;
     const txApprovedAt = (isFirstUploadEscrow ? null : (canAutoApprove ? new Date().toISOString() : null));
 
