@@ -40,6 +40,7 @@ interface UserProfileData {
   banned: boolean | null;
   light_score: number | null;
   suspicious_score: number | null;
+  social_avatars: any;
 }
 
 interface ChannelData {
