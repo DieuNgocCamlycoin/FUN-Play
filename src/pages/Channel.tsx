@@ -27,6 +27,15 @@ interface ProfileData {
   suspicious_score: number | null;
   banned: boolean | null;
   violation_level: number | null;
+  facebook_url: string | null;
+  youtube_url: string | null;
+  twitter_url: string | null;
+  tiktok_url: string | null;
+  telegram_url: string | null;
+  angelai_url: string | null;
+  funplay_url: string | null;
+  linkedin_url: string | null;
+  zalo_url: string | null;
 }
 
 interface ChannelData {
