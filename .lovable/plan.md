@@ -1,68 +1,35 @@
 
+# Sua loi va don dep he thong validation tieu de video
 
-# He thong xac thuc tieu de video thong minh
+## Van de phat hien
 
-## Tong quan
+### Loi trong `UploadMetadataForm.tsx` (Web Upload)
 
-Xay dung function `validateVideoTitle()` trong `videoUploadValidation.ts`, su dung lai cac pattern tu `nameFilter.ts`. Tich hop vao 4 file UI (web upload, mobile upload, edit modal, edit page) de validate real-time phia client.
+1. **Dieu kien `isValid` sai**: Dong 119 kiem tra `length >= 3` trong khi `validateVideoTitle()` yeu cau `>= 5`. Dieu nay tao mau thuan — khi title co 3-4 ky tu, validation tra ve `ok: false` nhung dieu kien `length >= 3` van dung. Ket qua: nut "Tiep tuc" bi disable dung nhung ly do hien thi khong nhat quan.
 
-## Chi tiet ky thuat
+2. **Thong bao loi thua/xung dot** (dong 153-155): Hien thi "Tieu de can it nhat 3 ky tu" — mau thuan voi thong bao chinh thuc "Tieu de phai co it nhat 5 ky tu" tu `validateVideoTitle()`. Nguoi dung thay 2 thong bao khac nhau ve do dai toi thieu.
 
-### 1. Tao function `validateVideoTitle` trong `src/lib/videoUploadValidation.ts`
+### Cac file khac: Khong co loi
 
-Them function tra ve `{ ok: boolean; reason?: string }` voi cac kiem tra:
+`EditVideo.tsx`, `EditVideoModal.tsx`, `VideoDetailsForm.tsx` — tat ca da dung `title.trim().length > 0 && titleValidation.ok` dung cach.
 
-| Kiem tra | Chi tiet |
-|----------|----------|
-| Do dai toi thieu | >= 5 ky tu |
-| Phai co chu cai | Regex cho chu Latin va chu Viet (Unicode) |
-| Khong chi so | Block chuoi chi chua so |
-| Khong ky tu lap 3+ | Regex `(.)\1{2,}` |
-| Keyboard spam | qwerty, asdfgh, zxcvbn, qazwsx, abcdef |
-| Tu ngu nhay cam | Goi `isNameAppropriate()` tu `nameFilter.ts` |
+## Giai phap
 
-```text
-export function validateVideoTitle(title: string): { ok: boolean; reason?: string }
-```
+### 1. Sua `UploadMetadataForm.tsx`
 
-### 2. Cap nhat `UploadMetadataForm.tsx` (Web upload)
+- Doi `isValid` tu `metadata.title.trim().length >= 3` thanh `metadata.title.trim().length > 0` de nhat quan voi cac file khac
+- Xoa doan thong bao loi thua "Tieu de can it nhat 3 ky tu" (dong 153-155) vi `validateVideoTitle()` da xu ly viec nay
 
-- Goi `validateVideoTitle()` khi title thay doi
-- Hien thi loi mau do duoi input title
-- Them dong PPLP: "Mot tieu de dep la khoi dau cua phung su va anh sang"
-- Cap nhat dieu kien `isValid` de ket hop ket qua validation
+### Chi tiet thay doi
 
-### 3. Cap nhat `VideoDetailsForm.tsx` (Mobile upload)
+| File | Thay doi | Ly do |
+|------|----------|-------|
+| `UploadMetadataForm.tsx` dong 119 | `length >= 3` -> `length > 0` | Thong nhat voi cac file khac, uy quyen cho `validateVideoTitle()` |
+| `UploadMetadataForm.tsx` dong 153-155 | Xoa 3 dong thong bao loi thua | Trung lap va xung dot voi validation chinh |
 
-- Goi `validateVideoTitle()` khi title thay doi
-- Hien thi loi mau do duoi input title (giong warning duration/description)
-- Them dong PPLP
-- Cap nhat `canUpload` de ket hop validation
+### Khong thay doi
 
-### 4. Cap nhat `EditVideoModal.tsx` (Studio edit)
-
-- Goi `validateVideoTitle()` khi title thay doi
-- Hien thi loi mau do duoi input
-- Them dong PPLP
-- Disable nut "Luu thay doi" khi title khong hop le
-
-### 5. Cap nhat `EditVideo.tsx` (Edit page)
-
-- Goi `validateVideoTitle()` khi title thay doi
-- Hien thi loi mau do duoi input
-- Them dong PPLP
-- Disable nut "Luu thay doi" khi title khong hop le
-
-## Khong thay doi backend
-
-Toan bo validation chay phia client. Khong goi Supabase khi title khong hop le.
-
-## Vi du thong bao loi cu the
-
-- "Tieu de phai co it nhat 5 ky tu"
-- "Tieu de phai chua it nhat mot chu cai"
-- "Tieu de khong duoc chi chua so"
-- "Vui long khong su dung ky tu lap lai lien tiep"
-- "Tieu de khong hop le"
-- "Tieu de chua tu ngu khong phu hop..."
-
+- `videoUploadValidation.ts` — logic validation dung, khong can sua
+- `EditVideo.tsx` — da dung
+- `EditVideoModal.tsx` — da dung
+- `VideoDetailsForm.tsx` — da dung
