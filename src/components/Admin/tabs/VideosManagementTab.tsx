@@ -559,6 +559,8 @@ function SpamFilterContent() {
   const [scanning, setScanning] = useState(false);
   const [deleteBanOpen, setDeleteBanOpen] = useState(false);
   const [deleteBanLoading, setDeleteBanLoading] = useState(false);
+  const [deleteOnlyOpen, setDeleteOnlyOpen] = useState(false);
+  const [deleteOnlyLoading, setDeleteOnlyLoading] = useState(false);
   const [userVideoCounts, setUserVideoCounts] = useState<Map<string, { short: number; total: number }>>(new Map());
 
   useEffect(() => { fetchSpamVideos(); }, [filter]);
@@ -663,6 +665,28 @@ function SpamFilterContent() {
     setDeleteBanLoading(false);
   };
 
+  const handleBulkDeleteOnly = async () => {
+    setDeleteOnlyLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { data, error } = await supabase.rpc("bulk_delete_videos_only", {
+        p_admin_id: user.id,
+        p_video_ids: Array.from(selected),
+      });
+      if (error) throw error;
+      const result = data as any;
+      toast.success(`Đã xóa ${result.deleted_videos} video (không ban users)`);
+      setSelected(new Set());
+      setDeleteOnlyOpen(false);
+      fetchSpamVideos();
+    } catch (err: any) {
+      toast.error(err.message || "Lỗi khi xóa video");
+    }
+    setDeleteOnlyLoading(false);
+  };
+
   const handleQuickBan = async (userId: string, username: string) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -733,6 +757,13 @@ function SpamFilterContent() {
               <>
                 <Button variant="destructive" size="sm" onClick={handleBulkHide} className="gap-1">
                   <EyeOff className="w-3 h-3" /> Ẩn {selected.size} video
+                </Button>
+                <Button 
+                  size="sm" 
+                  onClick={() => setDeleteOnlyOpen(true)} 
+                  className="gap-1 bg-amber-600 hover:bg-amber-700 text-white"
+                >
+                  <Trash2 className="w-3 h-3" /> Xóa {selected.size} video
                 </Button>
                 <Button 
                   size="sm" 
@@ -852,6 +883,35 @@ function SpamFilterContent() {
             </CardContent>
           </Card>
         )}
+
+        {/* Delete Only Confirmation Dialog */}
+        <AlertDialog open={deleteOnlyOpen} onOpenChange={setDeleteOnlyOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>🗑️ Xóa Video (Không Ban)</AlertDialogTitle>
+              <AlertDialogDescription className="space-y-2">
+                <p>Bạn sắp <strong>xóa vĩnh viễn {selected.size} video</strong>.</p>
+                <p>Hành động này sẽ:</p>
+                <ul className="list-disc list-inside text-sm space-y-1">
+                  <li>Xóa video + likes, comments, rewards liên quan</li>
+                  <li>Users sẽ <strong>KHÔNG bị ban</strong></li>
+                </ul>
+                <p className="text-amber-600 font-medium">⚠️ Không thể hoàn tác!</p>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleteOnlyLoading}>Hủy</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleBulkDeleteOnly}
+                disabled={deleteOnlyLoading}
+                className="bg-amber-600 hover:bg-amber-700"
+              >
+                {deleteOnlyLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Trash2 className="w-4 h-4 mr-1" />}
+                Xác nhận Xóa Video
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* Delete & Ban Confirmation Dialog */}
         <AlertDialog open={deleteBanOpen} onOpenChange={setDeleteBanOpen}>

@@ -2582,6 +2582,10 @@ export type Database = {
         Args: { p_admin_id: string; p_video_ids: string[] }
         Returns: Json
       }
+      bulk_delete_videos_only: {
+        Args: { p_admin_id: string; p_video_ids: string[] }
+        Returns: Json
+      }
       bulk_notify_system_usernames: {
         Args: { p_admin_id: string }
         Returns: number
