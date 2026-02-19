@@ -16,7 +16,6 @@ interface ProfileHeaderProps {
     telegram_url?: string | null;
     angelai_url?: string | null;
     funplay_url?: string | null;
-    instagram_url?: string | null;
     linkedin_url?: string | null;
     zalo_url?: string | null;
   };
@@ -95,7 +94,6 @@ export const ProfileHeader = ({ profile, channel, lightScore = 0, banned, violat
               twitterUrl={profile.twitter_url}
               telegramUrl={profile.telegram_url}
               tiktokUrl={profile.tiktok_url}
-              instagramUrl={profile.instagram_url}
               linkedinUrl={profile.linkedin_url}
               zaloUrl={profile.zalo_url}
             />

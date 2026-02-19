@@ -34,7 +34,6 @@ interface UserProfileData {
   telegram_url: string | null;
   angelai_url: string | null;
   funplay_url: string | null;
-  instagram_url: string | null;
   linkedin_url: string | null;
   zalo_url: string | null;
   violation_level: number | null;
