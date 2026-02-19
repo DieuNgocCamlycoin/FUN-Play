@@ -25,11 +25,12 @@ interface ProfileHeaderProps {
     user_id: string;
   } | null;
   lightScore?: number;
+  suspiciousScore?: number;
   banned?: boolean;
   violationLevel?: number;
 }
 
-export const ProfileHeader = ({ profile, channel, lightScore = 0, banned, violationLevel }: ProfileHeaderProps) => {
+export const ProfileHeader = ({ profile, channel, lightScore = 0, suspiciousScore = 0, banned, violationLevel }: ProfileHeaderProps) => {
   const displayName = profile.display_name || profile.username || "User";
 
   return (
@@ -58,7 +59,7 @@ export const ProfileHeader = ({ profile, channel, lightScore = 0, banned, violat
         >
           <div className="relative group">
             {/* Diamond Badge */}
-            <DiamondBadge lightScore={lightScore} banned={banned} violationLevel={violationLevel} />
+            <DiamondBadge lightScore={lightScore} suspiciousScore={suspiciousScore} banned={banned} violationLevel={violationLevel} />
 
             {/* Glow Ring */}
             <div className="absolute -inset-1.5 rounded-full bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] via-[hsl(var(--cosmic-magenta))] to-[hsl(var(--cosmic-gold))] opacity-70 blur-md animate-pulse group-hover:opacity-100 transition-opacity" />

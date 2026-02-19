@@ -4,6 +4,14 @@ export function getShareUrl(path: string): string {
   return `${PRODUCTION_URL}${path}`;
 }
 
+/**
+ * Generate a SEO-friendly video share URL
+ * Format: /c/username/video/slug
+ */
+export function getVideoShareUrl(username: string, slug: string): string {
+  return `${PRODUCTION_URL}/c/${username}/video/${slug}`;
+}
+
 export async function copyToClipboard(text: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text);

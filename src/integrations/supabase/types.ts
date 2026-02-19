@@ -1563,6 +1563,9 @@ export type Database = {
           instagram_url: string | null
           last_claim_at: string | null
           last_fun_mint_at: string | null
+          last_light_score_update: string | null
+          light_score: number
+          light_score_details: Json | null
           linkedin_url: string | null
           music_enabled: boolean | null
           music_url: string | null
@@ -1603,6 +1606,9 @@ export type Database = {
           instagram_url?: string | null
           last_claim_at?: string | null
           last_fun_mint_at?: string | null
+          last_light_score_update?: string | null
+          light_score?: number
+          light_score_details?: Json | null
           linkedin_url?: string | null
           music_enabled?: boolean | null
           music_url?: string | null
@@ -1643,6 +1649,9 @@ export type Database = {
           instagram_url?: string | null
           last_claim_at?: string | null
           last_fun_mint_at?: string | null
+          last_light_score_update?: string | null
+          light_score?: number
+          light_score_details?: Json | null
           linkedin_url?: string | null
           music_enabled?: boolean | null
           music_url?: string | null
@@ -2270,6 +2279,7 @@ export type Database = {
           is_public: boolean | null
           like_count: number | null
           report_count: number | null
+          slug: string | null
           sub_category: string | null
           thumbnail_scan_result: string | null
           thumbnail_scanned: boolean | null
@@ -2296,6 +2306,7 @@ export type Database = {
           is_public?: boolean | null
           like_count?: number | null
           report_count?: number | null
+          slug?: string | null
           sub_category?: string | null
           thumbnail_scan_result?: string | null
           thumbnail_scanned?: boolean | null
@@ -2322,6 +2333,7 @@ export type Database = {
           is_public?: boolean | null
           like_count?: number | null
           report_count?: number | null
+          slug?: string | null
           sub_category?: string | null
           thumbnail_scan_result?: string | null
           thumbnail_scanned?: boolean | null
@@ -2605,6 +2617,7 @@ export type Database = {
         Args: { p_admin_id: string }
         Returns: number
       }
+      calculate_user_light_score: { Args: { p_user_id: string }; Returns: Json }
       check_admin_rate_limit: {
         Args: { p_action: string; p_admin_id: string; p_max_requests?: number }
         Returns: Json

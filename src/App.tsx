@@ -68,6 +68,7 @@ const BrowseMusic = lazy(() => import("./pages/BrowseMusic"));
 const PlatformDocs = lazy(() => import("./pages/PlatformDocs"));
 const PostDetail = lazy(() => import("./pages/PostDetail"));
 const VideoRedirect = lazy(() => import("./pages/VideoRedirect"));
+const VideoBySlug = lazy(() => import("./pages/VideoBySlug"));
 const YourVideosMobile = lazy(() => import("./pages/YourVideosMobile"));
 const DownloadedVideos = lazy(() => import("./pages/DownloadedVideos"));
 const Bounty = lazy(() => import("./pages/Bounty"));
@@ -143,6 +144,7 @@ function AppContent() {
             <Route path="/watch/:id" element={<Watch />} />
             <Route path="/channel/:id" element={<Channel />} />
             <Route path="/c/:username" element={<Channel />} />
+            <Route path="/c/:username/video/:slug" element={<VideoBySlug />} />
             <Route path="/@:username" element={<Channel />} />
             <Route path="/wallet" element={<Wallet />} />
             <Route path="/shorts" element={<Shorts />} />
