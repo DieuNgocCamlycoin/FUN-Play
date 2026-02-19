@@ -1,0 +1,1 @@
+DROP TRIGGER IF EXISTS on_video_report_insert ON public.video_reports;
