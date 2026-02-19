@@ -1,74 +1,95 @@
 
 
-# Smart Routing + PPLP Light Score System - Verification Report
+# Social Media Orbit - Profile Avatar Thumbnails
 
-## Status: All Systems Working Correctly
+## Overview
+Thay the cac icon SVG trong vong tron nho xung quanh avatar bang hinh dai dien that cua user tren cac nen tang xa hoi. Cac vong tron se co kich thuoc lon hon (nhu trong hinh tham khao), vien mau dac trung cua nen tang, va xoay theo chieu kim dong ho.
 
-After thorough verification of the entire Smart Routing + PPLP Light Score system, everything is functioning properly on both web and mobile versions.
+## Architecture
 
----
+### 1. Backend: Edge Function `fetch-social-avatar`
+Tao edge function de lay hinh dai dien tu URL mang xa hoi cua user:
+- Fetch HTML cua trang ca nhan user
+- Extract Open Graph image (`og:image`) tu meta tags
+- Fallback: platform favicon hoac icon mac dinh
+- Tra ve URL hinh anh
 
-## Verification Results
+### 2. Database: Cache avatars
+Them cot `social_avatars` (JSONB) vao bang `profiles` de cache ket qua:
+```text
+{
+  "facebook": "https://..../photo.jpg",
+  "youtube": "https://..../avatar.jpg",
+  "telegram": null,
+  ...
+}
+```
+- Tranh fetch lai moi lan load trang
+- Tu dong cap nhat khi user thay doi URL mang xa hoi
 
-### 1. Smart Routing System
-- Video slug generation is active - new videos automatically get slugs via database trigger
-- Route `/c/:username/video/:slug` correctly resolves to the watch page
-- Tested with `/c/hongthienhanh68/video/2421245333821254935` - loads successfully
-- Backward compatibility maintained with `/watch/:id` routes
-- Share URL utility (`getVideoShareUrl`) generates correct format
+### 3. Frontend: Updated SocialMediaOrbit
+- Hien thi hinh dai dien that (tu cache) thay vi icon SVG
+- Fallback ve icon SVG neu khong co hinh
+- Vong tron lon hon: ~36x36px (mobile) va ~44x44px (desktop) - giong hinh tham khao
+- Vien 3px mau dac trung cua nen tang
+- Animation xoay cham theo chieu kim dong ho (CSS `@keyframes`)
+- Hover: phong to + hien tooltip voi link toi trang ca nhan
 
-### 2. PPLP Light Score System
-- Database RPC `calculate_user_light_score` working correctly
-- Top users verified:
-  - hongthienhanh68: 89 (White Diamond)
-  - vinhdsi: 85
-  - user_e4b465e1: 83
-  - thu_huyen: 79
-  - angelhoangtydo: 76
-- Five pillar breakdown (Truth, Trust, Service, Healing, Community) stored in `light_score_details` JSONB
-- Repentance mechanism active (50% reduction visible in details)
-- PPLP bonus (up to +10) correctly applied
-
-### 3. Diamond Badge
-- Color logic verified: White (>=80), Blue (>=60), Cyan (>=40), Green (>=20), Black (risk), Silver (default)
-- Sparkle animation and glow effects working
-- Correctly receives `lightScore`, `suspiciousScore`, `banned`, `violationLevel` props
-
-### 4. Dynamic Escrow (award-camly)
-- Light score-based escrow periods implemented: 12h (>=80), 24h (>=60), 48h (default)
-
-### 5. Cron Job
-- Running every 4 hours, successfully updating 370 users with 0 errors
-- Manual "Update Reputation" available with 1-hour rate limit
-
-### 6. Console Errors
-- No errors related to the Smart Routing or PPLP system
-- Only unrelated platform CORS warnings (normal in preview environment)
-
----
-
-## Minor Fix: TypeScript Completeness
-
-There is one minor improvement to make - the `ProfileData` interface in `Channel.tsx` is missing social URL fields. While this works at runtime (since the query uses `select("*")`), it should be typed properly to match `ProfileHeader`'s expectations.
-
-### File to Modify
-
-**`src/pages/Channel.tsx`** - Add missing social URL fields to `ProfileData` interface:
-- `facebook_url`, `youtube_url`, `twitter_url`, `tiktok_url`
-- `telegram_url`, `angelai_url`, `funplay_url`, `linkedin_url`, `zalo_url`
-
-This is a TypeScript-only change with zero runtime impact.
+### 4. Integration Flow
+```text
+User saves social URL in Settings
+        |
+        v
+Edge function "fetch-social-avatar" duoc goi
+        |
+        v
+Lay og:image tu URL -> luu vao profiles.social_avatars
+        |
+        v
+SocialMediaOrbit doc tu social_avatars
+        |
+        v
+Hien thi hinh tron voi avatar that + vien mau nen tang
+```
 
 ---
 
-## No Unnecessary Code Found
+## Technical Details
 
-All code related to the Smart Routing and PPLP system is actively used:
-- `src/lib/slugify.ts` - Used for client-side slug generation
-- `src/pages/VideoBySlug.tsx` - Active route handler
-- `supabase/functions/recalculate-light-scores/index.ts` - Active cron job
-- `DiamondBadge.tsx` - Used in ProfileHeader
-- `useLightActivity.ts` - Used for FUN Money minting (separate from profile light_score, both are needed)
+### Edge Function: `fetch-social-avatar`
+- Input: `{ userId, platform, url }`
+- Fetch URL voi `User-Agent` header de tranh bi block
+- Parse HTML bang regex (nhe, khong can DOM parser) de tim `<meta property="og:image" content="...">`
+- Luu ket qua vao `profiles.social_avatars` JSONB
+- Rate limit: 1 request/platform/user/hour
 
-No dead code to remove.
+### Database Migration
+```text
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS social_avatars jsonb DEFAULT '{}';
+```
+
+### SocialMediaOrbit Changes
+- Them prop `socialAvatars` (JSONB object)
+- Moi vong tron: neu co avatar -> hien `<img>` trong vong tron, neu khong -> fallback ve icon SVG hien tai
+- Tang kich thuoc vong tron tu 24-28px len 36-44px
+- Them CSS animation `orbit-rotate` xoay cham (20s/vong)
+- Hover effect: `scale(1.3)` + tooltip hien link
+
+### ProfileHeader Changes
+- Truyen `socialAvatars` tu profile data xuong `SocialMediaOrbit`
+
+### Settings Integration
+- Khi user luu/thay doi URL mang xa hoi -> goi edge function `fetch-social-avatar` de cap nhat cache
+
+---
+
+## Files to Create/Modify
+
+| File | Action |
+|------|--------|
+| `supabase/functions/fetch-social-avatar/index.ts` | Create - Edge function lay OG image |
+| `supabase/migrations/xxx_add_social_avatars.sql` | Create - Them cot social_avatars |
+| `src/components/Profile/SocialMediaOrbit.tsx` | Modify - Hien avatar that, tang kich thuoc, them animation |
+| `src/components/Profile/ProfileHeader.tsx` | Modify - Truyen socialAvatars prop |
+| Settings page (noi luu social URLs) | Modify - Goi fetch-social-avatar khi luu |
 
