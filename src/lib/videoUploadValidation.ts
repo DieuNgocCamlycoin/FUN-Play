@@ -77,6 +77,11 @@ export const BLOCKED_FILENAME_PATTERNS = [
   "test_video",
   "stock-video",
   "stock_video",
+  "snaptik",
+  "snaptick",
+  "ssstik",
+  "tikdown",
+  "musicaldown",
 ];
 
 /**
