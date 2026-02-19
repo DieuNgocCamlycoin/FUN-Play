@@ -7,7 +7,7 @@ export const MIN_VIDEO_DURATION = 60; // seconds
 export const MIN_DESCRIPTION_LENGTH = 50; // characters
 
 // Blocked filename patterns - sample video sites
-const BLOCKED_FILENAME_PATTERNS = [
+export const BLOCKED_FILENAME_PATTERNS = [
   "mixkit",
   "pexels",
   "pixabay",
