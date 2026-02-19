@@ -15,10 +15,10 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Gift, Check, X, Search, Calendar, CheckCheck, Loader2 } from "lucide-react";
+import { Gift, Check, X, Search, CheckCheck, Loader2 } from "lucide-react";
 import { AdminUser } from "@/hooks/useAdminManage";
 import { toast } from "sonner";
-import { format } from "date-fns";
+
 
 interface RewardApprovalTabProps {
   users: AdminUser[];
@@ -30,7 +30,7 @@ interface RewardApprovalTabProps {
 
 const RewardApprovalTab = ({ users, onApprove, onReject, onBulkApproveAll, loading }: RewardApprovalTabProps) => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  
   const [bulkLoading, setBulkLoading] = useState(false);
 
   const pendingUsers = users.filter((u) => (u.pending_rewards || 0) > 0);
@@ -126,15 +126,6 @@ const RewardApprovalTab = ({ users, onApprove, onReject, onBulkApproveAll, loadi
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
-          />
-        </div>
-        <div className="flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-muted-foreground" />
-          <Input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="w-auto"
           />
         </div>
       </div>
