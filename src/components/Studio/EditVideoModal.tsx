@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useR2Upload } from "@/hooks/useR2Upload";
 import { Loader2, Upload, Film } from "lucide-react";
+import { validateVideoTitle, TITLE_PPLP_TEXT } from "@/lib/videoUploadValidation";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { extractVideoThumbnailFromUrl } from "@/lib/videoThumbnail";
 
@@ -106,11 +107,14 @@ export const EditVideoModal = ({ video, open, onClose, onSaved }: EditVideoModal
     }
   };
 
+  const titleValidation = validateVideoTitle(title);
+  const isTitleValid = title.trim().length > 0 && titleValidation.ok;
+
   const handleSave = async () => {
-    if (!title.trim()) {
+    if (!isTitleValid) {
       toast({
         title: "Lỗi",
-        description: "Vui lòng nhập tiêu đề video",
+        description: titleValidation.reason || "Vui lòng nhập tiêu đề video",
         variant: "destructive",
       });
       return;
@@ -176,6 +180,10 @@ export const EditVideoModal = ({ video, open, onClose, onSaved }: EditVideoModal
               placeholder="Thêm tiêu đề mô tả video của bạn"
               className="mt-2"
             />
+            {!titleValidation.ok && title.length > 0 && (
+              <p className="text-xs text-destructive mt-1">{titleValidation.reason}</p>
+            )}
+            <p className="text-xs text-muted-foreground italic mt-1">{TITLE_PPLP_TEXT}</p>
           </div>
 
           <div>
@@ -261,7 +269,7 @@ export const EditVideoModal = ({ video, open, onClose, onSaved }: EditVideoModal
           <Button variant="outline" onClick={onClose} disabled={saving}>
             Hủy
           </Button>
-          <Button onClick={handleSave} disabled={saving || !title.trim()}>
+          <Button onClick={handleSave} disabled={saving || !isTitleValid}>
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Lưu thay đổi
           </Button>

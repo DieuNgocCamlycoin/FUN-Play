@@ -3,6 +3,63 @@
  * Part of the Video Quality Control System to combat spam uploads
  */
 
+import { isNameAppropriate } from "@/lib/nameFilter";
+
+/** PPLP reminder text for title fields */
+export const TITLE_PPLP_TEXT = "Một tiêu đề đẹp là khởi đầu của phụng sự và ánh sáng ✨";
+
+const KEYBOARD_SPAM_PATTERNS = [
+  "qwerty", "asdfgh", "zxcvbn", "qazwsx", "abcdef",
+  "123456", "qwertz", "ytrewq", "asdf", "zxcv",
+];
+
+/**
+ * Validate video title quality (client-side only).
+ * Returns { ok: true } or { ok: false, reason: string } with specific error.
+ */
+export function validateVideoTitle(title: string): { ok: boolean; reason?: string } {
+  const trimmed = title.trim();
+
+  if (trimmed.length === 0) {
+    return { ok: true }; // empty = not yet typed, don't show error
+  }
+
+  if (trimmed.length < 5) {
+    return { ok: false, reason: "Tiêu đề phải có ít nhất 5 ký tự" };
+  }
+
+  // Must contain at least one letter (Latin or Vietnamese Unicode)
+  if (!/[a-zA-ZÀ-ỹ]/u.test(trimmed)) {
+    return { ok: false, reason: "Tiêu đề phải chứa ít nhất một chữ cái" };
+  }
+
+  // Block all-numeric titles
+  if (/^\d+$/.test(trimmed)) {
+    return { ok: false, reason: "Tiêu đề không được chỉ chứa số" };
+  }
+
+  // Block 3+ consecutive identical characters
+  if (/(.)\1{2,}/i.test(trimmed)) {
+    return { ok: false, reason: "Vui lòng không sử dụng ký tự lặp lại liên tiếp" };
+  }
+
+  // Block keyboard spam
+  const lower = trimmed.toLowerCase();
+  for (const spam of KEYBOARD_SPAM_PATTERNS) {
+    if (lower.includes(spam)) {
+      return { ok: false, reason: "Tiêu đề không hợp lệ" };
+    }
+  }
+
+  // Check offensive content
+  const nameCheck = isNameAppropriate(trimmed);
+  if (!nameCheck.ok) {
+    return { ok: false, reason: "Tiêu đề chứa từ ngữ không phù hợp. Vui lòng chọn tiêu đề khác." };
+  }
+
+  return { ok: true };
+}
+
 export const MIN_VIDEO_DURATION = 60; // seconds
 export const MIN_DESCRIPTION_LENGTH = 50; // characters
 

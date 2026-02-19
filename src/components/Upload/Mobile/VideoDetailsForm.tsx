@@ -18,7 +18,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { isDescriptionValid, getDescriptionWarning } from "@/lib/videoUploadValidation";
+import { isDescriptionValid, getDescriptionWarning, validateVideoTitle, TITLE_PPLP_TEXT } from "@/lib/videoUploadValidation";
 
 interface VideoDetailsFormProps {
   metadata: {
@@ -73,9 +73,10 @@ export function VideoDetailsForm({
   const visibilityInfo = VISIBILITY_LABELS[metadata.visibility];
   const VisibilityIcon = visibilityInfo.icon;
 
+  const titleValidation = validateVideoTitle(metadata.title);
   const descriptionOk = isDescriptionValid(metadata.description);
   const durationOk = videoDuration >= 60;
-  const canUpload = metadata.title.trim().length > 0 && descriptionOk && durationOk;
+  const canUpload = metadata.title.trim().length > 0 && titleValidation.ok && descriptionOk && durationOk;
 
   const handleUpload = () => {
     if (!canUpload) return;
@@ -143,6 +144,10 @@ export function VideoDetailsForm({
         <p className="text-xs text-muted-foreground mt-2 text-right">
           {metadata.title.length}/100
         </p>
+        {!titleValidation.ok && metadata.title.length > 0 && (
+          <p className="text-xs text-destructive mt-1">{titleValidation.reason}</p>
+        )}
+        <p className="text-xs text-muted-foreground italic mt-1">{TITLE_PPLP_TEXT}</p>
       </div>
 
       {/* Menu Items */}
@@ -192,8 +197,14 @@ export function VideoDetailsForm({
       {/* Upload Button */}
       <div className="p-4 border-t border-border bg-background sticky bottom-0 pb-safe">
         {/* Validation warnings */}
-        {(!durationOk || !descriptionOk) && (
+        {(!durationOk || !descriptionOk || (!titleValidation.ok && metadata.title.length > 0)) && (
           <div className="mb-3 space-y-1.5">
+            {!titleValidation.ok && metadata.title.length > 0 && (
+              <div className="flex items-center gap-2 p-2 rounded-lg bg-destructive/10 text-destructive text-xs">
+                <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+                {titleValidation.reason}
+              </div>
+            )}
             {!durationOk && (
               <div className="flex items-center gap-2 p-2 rounded-lg bg-destructive/10 text-destructive text-xs">
                 <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
