@@ -18,7 +18,7 @@ interface ProfileHeaderProps {
     funplay_url?: string | null;
     linkedin_url?: string | null;
     zalo_url?: string | null;
-    social_avatars?: Record<string, string | null> | null;
+    social_avatars?: any;
   };
   channel: {
     id: string;
