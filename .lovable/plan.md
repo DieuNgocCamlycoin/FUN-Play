@@ -1,58 +1,78 @@
 
 
-# Sua loi he thong kiem soat chat luong video
+# Toi uu hoa validation mo ta video toan he thong
 
-## Van de phat hien
+## Tong quan
 
-### 1. Trang `/upload` cu (Upload.tsx) - KHONG CO BAT KY VALIDATION NAO
-Trang `src/pages/Upload.tsx` (782 dong) la trang upload cu van con hoat dong tai route `/upload`. Trang nay **KHONG** co:
-- Kiem tra thoi luong video (cho phep video 12s)
-- Kiem tra ten file bi chan (cho phep snaptik, mixkit, v.v.)
-- Kiem tra tieu de (validateVideoTitle)
-- Kiem tra mo ta (min 50 ky tu)
-- Kiem tra avatar (avatar gate)
-- Kiem tra noi dung (content moderation)
+Them validation mo ta video day du (tuong tu tieu de) va dong bo tren tat ca 6 file: Web Upload, Mobile Upload, Mobile Description Editor, Edit Video Modal, Edit Video Page, va file validation trung tam.
 
-Day la ly do video 12s va video tu snaptik van duoc dang thanh cong.
+## Thay doi chi tiet
 
-### 2. "snaptik" chua co trong danh sach chan
-File `videoUploadValidation.ts` co `BLOCKED_FILENAME_PATTERNS` nhung thieu "snaptik" va "snaptick" - hai ten file phoi bien tu trang tai video TikTok.
+### 1. `src/lib/videoUploadValidation.ts` - Them validation mo ta
 
-### 3. UploadVideoModal.tsx - Code chet (888 dong)
-File `src/components/Video/UploadVideoModal.tsx` khong duoc import o bat ky dau trong du an. Day la 888 dong code thua hoan toan.
+Them ham `validateVideoDescription()` moi, tuong tu `validateVideoTitle()`:
+- **Do dai**: 50 - 500 ky tu
+- **Spam**: Chan 3+ ky tu lap lien tiep (giong title)
+- **Noi dung co nghia**: Phai chua it nhat mot chu cai (Latin hoac Vietnamese Unicode), khong duoc chi la ky tu dac biet/emoji
+- **Goi y hashtag**: Neu khong co '#', tra ve hint rieng (khong phai loi)
+- Them hang so `MAX_DESCRIPTION_LENGTH = 500`
+- Them ham `getHashtagHint()` tra ve "Them hashtag de video cua ban de tim hon!"
+- Cap nhat `isDescriptionValid()` de dung `validateVideoDescription()` thay vi chi check do dai
+- Them placeholder text lam hang so: `DESCRIPTION_PLACEHOLDER`
 
-## Giai phap
+### 2. `src/components/Upload/UploadMetadataForm.tsx` - Web Upload
 
-### Buoc 1: Xoa trang Upload.tsx cu va route cua no
-- Xoa file `src/pages/Upload.tsx` (782 dong code thua)
-- Xoa route `/upload` trong `App.tsx`
-- Chuyen huong `/upload` ve trang chu (hoac mo UploadWizard)
+- Thay `maxLength={5000}` thanh `maxLength={500}`
+- Thay `onChange` de `.slice(0, 500)`
+- Thay placeholder moi: "Hay chia se cam hung cua ban ve video nay (toi thieu 50 ky tu)..."
+- Thay counter `X/5000` thanh `X/500`
+- Them hien thi loi tu `validateVideoDescription()` (spam, chi ky tu dac biet)
+- Them hien thi hashtag hint khi khong co '#'
+- Cap nhat `isValid` de bao gom `descriptionValidation.ok`
 
-### Buoc 2: Xoa UploadVideoModal.tsx (code chet)
-- Xoa file `src/components/Video/UploadVideoModal.tsx` (888 dong code thua)
+### 3. `src/components/Upload/Mobile/SubPages/DescriptionEditor.tsx` - Mobile Editor
 
-### Buoc 3: Them "snaptik"/"snaptick" vao BLOCKED_FILENAME_PATTERNS
-Trong `src/lib/videoUploadValidation.ts`, them cac pattern:
-- "snaptik"
-- "snaptick"
-- "ssstik" (mot trang tai TikTok khac)
-- "tikdown"
-- "musicaldown"
+- Thay `maxLength={5000}` thanh `maxLength={500}`
+- Thay placeholder moi
+- Thay counter `X/5000` thanh `X/500`
+- Them hien thi loi validation (spam, ky tu dac biet)
+- Them hashtag hint
 
-### Buoc 4: Cap nhat App.tsx
-- Xoa lazy import cua Upload page
-- Thay route `/upload` bang redirect ve trang chu
+### 4. `src/components/Upload/Mobile/VideoDetailsForm.tsx` - Mobile Details
 
-## Tong ket thay doi
+- Cap nhat `descriptionOk` de dung `validateVideoDescription()` moi
+- Cap nhat thong bao canh bao cho phu hop
 
-| File | Hanh dong | Ly do |
-|------|-----------|-------|
-| `src/pages/Upload.tsx` | XOA | Trang upload cu khong co validation, la lo hong bao mat chinh |
-| `src/components/Video/UploadVideoModal.tsx` | XOA | Code chet, khong duoc import o dau |
-| `src/lib/videoUploadValidation.ts` | SUA | Them snaptik va cac pattern moi vao danh sach chan |
-| `src/App.tsx` | SUA | Xoa route `/upload` cu, them redirect |
+### 5. `src/components/Studio/EditVideoModal.tsx` - Studio Edit
 
-## Ket qua
-- Tat ca nguoi dung chi co the upload qua UploadWizard (web) hoac MobileUploadFlow (mobile) - hai luong nay da co day du validation
-- Video tu snaptik/snaptick bi chan ngay khi chon file
-- Loai bo 1,670 dong code thua (782 + 888)
+- Them validation mo ta: `maxLength={500}`, `.slice(0, 500)`
+- Thay placeholder moi
+- Them counter `X/500`
+- Them hien thi loi validation va hashtag hint
+- Cap nhat nut "Luu thay doi" de disable khi mo ta khong hop le
+
+### 6. `src/pages/EditVideo.tsx` - Edit Page
+
+- Them validation mo ta: `maxLength={500}`, `.slice(0, 500)`
+- Thay placeholder moi
+- Them counter `X/500`
+- Them hien thi loi validation va hashtag hint
+- Cap nhat nut "Luu thay doi" de disable khi mo ta khong hop le
+
+## Tom tat file thay doi
+
+| File | Hanh dong |
+|------|-----------|
+| `videoUploadValidation.ts` | Them `validateVideoDescription()`, `MAX_DESCRIPTION_LENGTH`, `DESCRIPTION_PLACEHOLDER`, `getHashtagHint()` |
+| `UploadMetadataForm.tsx` | Max 500, placeholder moi, validation errors, hashtag hint, cap nhat isValid |
+| `DescriptionEditor.tsx` | Max 500, placeholder moi, validation errors, hashtag hint |
+| `VideoDetailsForm.tsx` | Dung validation moi cho descriptionOk |
+| `EditVideoModal.tsx` | Max 500, placeholder, counter, validation, hashtag hint |
+| `EditVideo.tsx` | Max 500, placeholder, counter, validation, hashtag hint |
+
+## Nguyen tac
+
+- Tat ca validation chay client-side (khong ton cloud)
+- Logic tap trung trong `videoUploadValidation.ts`, cac file UI chi goi ham
+- Thong nhat trai nghiem Web va Mobile
+
