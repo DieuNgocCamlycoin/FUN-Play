@@ -28,6 +28,7 @@ import { vi } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { useAdminVideoStats, formatFileSize, formatDuration } from "@/hooks/useAdminVideoStats";
 import { getCategoryLabel, getCategoryIcon } from "@/lib/videoCategories";
+import { BLOCKED_FILENAME_PATTERNS } from "@/lib/videoUploadValidation";
 import { toast } from "sonner";
 import VideoMigrationPanel from "../VideoMigrationPanel";
 import ThumbnailRegenerationPanel from "../ThumbnailRegenerationPanel";
@@ -554,7 +555,7 @@ function VideoStatsContent() {
 function SpamFilterContent() {
   const [videos, setVideos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<"short" | "reported" | "repetitive">("reported");
+  const [filter, setFilter] = useState<"short" | "reported" | "repetitive" | "sample">("reported");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [scanning, setScanning] = useState(false);
   const [deleteBanOpen, setDeleteBanOpen] = useState(false);
@@ -579,10 +580,15 @@ function SpamFilterContent() {
         query = query.gt("report_count", 0).order("report_count", { ascending: false });
       }
 
-      const { data } = await query.limit(100);
+      const { data } = await query.limit(filter === "sample" ? 200 : 100);
       
       let finalVideos = data || [];
-      if (filter === "repetitive" && data) {
+      if (filter === "sample" && data) {
+        finalVideos = data.filter(v => {
+          const lowerTitle = v.title.toLowerCase();
+          return BLOCKED_FILENAME_PATTERNS.some(pattern => lowerTitle.includes(pattern));
+        });
+      } else if (filter === "repetitive" && data) {
         const titleCounts = new Map<string, any[]>();
         data.forEach(v => {
           const key = v.title.toLowerCase().trim();
@@ -747,6 +753,9 @@ function SpamFilterContent() {
           </Button>
           <Button variant={filter === "repetitive" ? "default" : "outline"} size="sm" onClick={() => setFilter("repetitive")} className="gap-1">
             <Video className="w-3 h-3" /> Trùng lặp
+          </Button>
+          <Button variant={filter === "sample" ? "default" : "outline"} size="sm" onClick={() => setFilter("sample")} className="gap-1">
+            <ExternalLink className="w-3 h-3" /> Video Mẫu
           </Button>
           <div className="ml-auto flex gap-2">
             <Button variant="outline" size="sm" onClick={handleScanThumbnails} disabled={scanning} className="gap-1">
