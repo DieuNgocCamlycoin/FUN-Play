@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Facebook, Youtube, Send, Linkedin } from "lucide-react";
 import {
   Tooltip,
@@ -16,6 +17,7 @@ interface SocialMediaOrbitProps {
   tiktokUrl?: string | null;
   linkedinUrl?: string | null;
   zaloUrl?: string | null;
+  socialAvatars?: Record<string, string | null> | null;
 }
 
 const XIcon = ({ className }: { className?: string }) => (
@@ -70,6 +72,7 @@ export const SocialMediaOrbit = ({
   tiktokUrl,
   linkedinUrl,
   zaloUrl,
+  socialAvatars,
 }: SocialMediaOrbitProps) => {
   const urls: Record<string, string | null | undefined> = {
     angelai: angelaiUrl,
@@ -89,44 +92,81 @@ export const SocialMediaOrbit = ({
   // Spread from 30° to 330° (avoid top 60° zone where diamond sits)
   const startAngle = 30;
   const endAngle = 330;
-  const totalAngle = endAngle - startAngle; // 300°
+  const totalAngle = endAngle - startAngle;
   const step = activePlatforms.length > 1 ? totalAngle / (activePlatforms.length - 1) : 0;
 
   return (
     <TooltipProvider delayDuration={200}>
-      {activePlatforms.map((platform, index) => {
-        const Icon = platform.icon;
-        const angle = activePlatforms.length === 1
-          ? 270 // single icon at bottom center
-          : startAngle + step * index;
-        const rad = (angle * Math.PI) / 180;
-        const x = Math.cos(rad) * 58;
-        const y = Math.sin(rad) * 58;
+      <div
+        className="absolute inset-0 animate-[orbit-spin_25s_linear_infinite]"
+        style={{ transformOrigin: "center center" }}
+      >
+        {activePlatforms.map((platform, index) => {
+          const Icon = platform.icon;
+          const angle = activePlatforms.length === 1
+            ? 270
+            : startAngle + step * index;
+          const rad = (angle * Math.PI) / 180;
+          const x = Math.cos(rad) * 58;
+          const y = Math.sin(rad) * 58;
+          const avatarUrl = socialAvatars?.[platform.key];
 
-        return (
-          <Tooltip key={platform.key}>
-            <TooltipTrigger asChild>
-              <a
-                href={urls[platform.key]!}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="absolute z-20 flex items-center justify-center w-6 h-6 md:w-7 md:h-7 rounded-full border-2 shadow-lg transition-transform hover:scale-125 cursor-pointer bg-background/80 dark:bg-background/60"
-                style={{
-                  borderColor: platform.color,
-                  left: `calc(50% + ${x}%)`,
-                  top: `calc(50% + ${y}%)`,
-                  transform: "translate(-50%, -50%)",
-                }}
-              >
-                <Icon className="w-3 h-3 md:w-3.5 md:h-3.5" style={{ color: platform.color }} />
-              </a>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" className="text-xs">
-              {platform.label}
-            </TooltipContent>
-          </Tooltip>
-        );
-      })}
+          return (
+            <Tooltip key={platform.key}>
+              <TooltipTrigger asChild>
+                <a
+                  href={urls[platform.key]!}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="absolute z-20 flex items-center justify-center w-9 h-9 md:w-11 md:h-11 rounded-full shadow-lg transition-transform hover:scale-[1.3] cursor-pointer overflow-hidden bg-background/80 dark:bg-background/60 animate-[orbit-counter-spin_25s_linear_infinite]"
+                  style={{
+                    border: `3px solid ${platform.color}`,
+                    left: `calc(50% + ${x}%)`,
+                    top: `calc(50% + ${y}%)`,
+                    transform: "translate(-50%, -50%)",
+                    boxShadow: `0 0 8px ${platform.color}40`,
+                  }}
+                >
+                  {avatarUrl ? (
+                    <OrbitImage src={avatarUrl} alt={platform.label} color={platform.color} />
+                  ) : (
+                    <Icon className="w-4 h-4 md:w-5 md:h-5" style={{ color: platform.color }} />
+                  )}
+                </a>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-xs">
+                {platform.label}
+              </TooltipContent>
+            </Tooltip>
+          );
+        })}
+      </div>
     </TooltipProvider>
+  );
+};
+
+// Sub-component for orbit images with fallback
+const OrbitImage = ({ src, alt, color }: { src: string; alt: string; color: string }) => {
+  const [error, setError] = useState(false);
+  
+  if (error) {
+    return (
+      <div
+        className="w-full h-full flex items-center justify-center text-[10px] font-bold"
+        style={{ color }}
+      >
+        {alt.charAt(0)}
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className="w-full h-full object-cover"
+      onError={() => setError(true)}
+      loading="lazy"
+    />
   );
 };

@@ -1572,6 +1572,7 @@ export type Database = {
           pending_rewards: number | null
           signup_ip_hash: string | null
           signup_rewarded: boolean | null
+          social_avatars: Json | null
           suspicious_score: number | null
           telegram_url: string | null
           tiktok_url: string | null
@@ -1615,6 +1616,7 @@ export type Database = {
           pending_rewards?: number | null
           signup_ip_hash?: string | null
           signup_rewarded?: boolean | null
+          social_avatars?: Json | null
           suspicious_score?: number | null
           telegram_url?: string | null
           tiktok_url?: string | null
@@ -1658,6 +1660,7 @@ export type Database = {
           pending_rewards?: number | null
           signup_ip_hash?: string | null
           signup_rewarded?: boolean | null
+          social_avatars?: Json | null
           suspicious_score?: number | null
           telegram_url?: string | null
           tiktok_url?: string | null
