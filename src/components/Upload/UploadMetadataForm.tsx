@@ -116,7 +116,7 @@ export function UploadMetadataForm({ metadata, onChange, onNext, onBack }: Uploa
   };
 
   const titleValidation = validateVideoTitle(metadata.title);
-  const isValid = metadata.title.trim().length >= 3 && titleValidation.ok;
+  const isValid = metadata.title.trim().length > 0 && titleValidation.ok;
 
   return (
     <div className="space-y-6">
@@ -149,9 +149,6 @@ export function UploadMetadataForm({ metadata, onChange, onNext, onBack }: Uploa
         </div>
         {!titleValidation.ok && metadata.title.length > 0 && (
           <p className="text-xs text-destructive">{titleValidation.reason}</p>
-        )}
-        {metadata.title.length > 0 && metadata.title.length < 3 && titleValidation.ok && (
-          <p className="text-xs text-destructive">Tiêu đề cần ít nhất 3 ký tự</p>
         )}
         <p className="text-xs text-muted-foreground italic">{TITLE_PPLP_TEXT}</p>
       </div>
