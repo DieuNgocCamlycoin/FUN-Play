@@ -11,7 +11,7 @@ import { DonationCelebration } from "@/components/Profile/DonationCelebration";
 import { BackgroundMusicPlayer } from "@/components/BackgroundMusicPlayer";
 import { useToast } from "@/hooks/use-toast";
 import { AuthRequiredDialog } from "@/components/Auth/AuthRequiredDialog";
-import { useIsMobile } from "@/hooks/use-mobile";
+
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -60,7 +60,7 @@ export default function UserProfile() {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showCelebration, setShowCelebration] = useState(false);
-  const isMobile = useIsMobile();
+  
   const [celebrationData, setCelebrationData] = useState<{ amount: number; senderName: string } | null>(null);
 
   // Determine target user ID

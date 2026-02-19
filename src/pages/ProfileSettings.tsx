@@ -137,15 +137,15 @@ export default function ProfileSettings() {
         setBio(data.bio || "");
         setMusicUrl(data.music_url || "");
         setAvatarVerified(data.avatar_verified ?? null);
-        setAngelaiUrl((data as any).angelai_url || "");
-        setFunplayUrl((data as any).funplay_url || "");
+        setAngelaiUrl(data.angelai_url || "");
+        setFunplayUrl(data.funplay_url || "");
         setFacebookUrl(data.facebook_url || "");
         setYoutubeUrl(data.youtube_url || "");
         setTwitterUrl(data.twitter_url || "");
         setTelegramUrl(data.telegram_url || "");
         setTiktokUrl(data.tiktok_url || "");
-        setLinkedinUrl((data as any).linkedin_url || "");
-        setZaloUrl((data as any).zalo_url || "");
+        setLinkedinUrl(data.linkedin_url || "");
+        setZaloUrl(data.zalo_url || "");
       }
 
       // Fetch channel info for banner
@@ -407,7 +407,7 @@ export default function ProfileSettings() {
         tiktok_url: tiktokUrl || null,
         linkedin_url: linkedinUrl || null,
         zalo_url: zaloUrl || null,
-      } as any;
+      };
 
       // Update username if user provided a custom one
       if (usernameInput && usernameStatus === "available") {
