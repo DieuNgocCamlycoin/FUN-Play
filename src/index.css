@@ -791,3 +791,11 @@ body > [data-w3m-modal] {
   0% { transform: translate(-50%, -50%) rotate(0deg); }
   100% { transform: translate(-50%, -50%) rotate(-360deg); }
 }
+
+/* Pause orbit on hover/tap for stable tooltips */
+.orbit-container:hover {
+  animation-play-state: paused !important;
+}
+.orbit-container:hover .orbit-item {
+  animation-play-state: paused !important;
+}

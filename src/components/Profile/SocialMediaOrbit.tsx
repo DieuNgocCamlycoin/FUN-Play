@@ -98,7 +98,7 @@ export const SocialMediaOrbit = ({
   return (
     <TooltipProvider delayDuration={0}>
       <div
-        className="absolute inset-0 animate-[orbit-spin_25s_linear_infinite]"
+        className="absolute inset-0 orbit-container animate-[orbit-spin_25s_linear_infinite]"
         style={{ transformOrigin: "center center" }}
       >
         {activePlatforms.map((platform, index) => {
@@ -116,13 +116,13 @@ export const SocialMediaOrbit = ({
                   href={urls[platform.key]!}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="absolute z-20 flex items-center justify-center w-9 h-9 md:w-11 md:h-11 rounded-full shadow-lg transition-transform hover:scale-[1.3] cursor-pointer overflow-hidden bg-background/80 dark:bg-background/60 animate-[orbit-counter-spin_25s_linear_infinite]"
+                  className="absolute z-20 flex items-center justify-center w-9 h-9 md:w-11 md:h-11 rounded-full shadow-lg transition-transform hover:scale-[1.3] cursor-pointer overflow-hidden bg-background/80 dark:bg-background/60 orbit-item animate-[orbit-counter-spin_25s_linear_infinite]"
                   style={{
-                    border: `3px solid ${platform.color}`,
+                    border: "3px solid #00E7FF",
                     left: `calc(50% + ${x}%)`,
                     top: `calc(50% + ${y}%)`,
                     transform: "translate(-50%, -50%)",
-                    boxShadow: `0 0 8px ${platform.color}40`,
+                    boxShadow: "0 0 8px #00E7FF40",
                   }}
                 >
                   {avatarUrl ? (
