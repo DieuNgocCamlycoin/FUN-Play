@@ -46,41 +46,25 @@ export const ClaimRewardsSection = () => {
     
     setLoading(true);
     try {
-      // Fetch profile
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("total_camly_rewards, pending_rewards, approved_reward, avatar_url, avatar_verified")
-        .eq("id", user.id)
-        .single();
+      // Single Source of Truth: RPC get_user_activity_summary
+      const [summaryResult, profileResult, dailyResult] = await Promise.all([
+        supabase.rpc('get_user_activity_summary', { p_user_id: user.id }),
+        supabase.from("profiles").select("avatar_url, avatar_verified").eq("id", user.id).single(),
+        supabase.from("daily_claim_records").select("total_claimed").eq("user_id", user.id).eq("date", new Date().toISOString().split('T')[0]).maybeSingle(),
+      ]);
 
-      // Fetch total claimed
-      const { data: claims } = await supabase
-        .from("claim_requests")
-        .select("amount")
-        .eq("user_id", user.id)
-        .eq("status", "success");
+      const summary = summaryResult.data as any;
+      const profile = profileResult.data;
+      const dailyClaimed = Number(dailyResult.data?.total_claimed || 0);
 
-      const claimedTotal = claims?.reduce((sum, c) => sum + Number(c.amount), 0) || 0;
-
-      // Fetch today's daily claimed amount
-      const today = new Date().toISOString().split('T')[0];
-      const { data: dailyRecord } = await supabase
-        .from("daily_claim_records")
-        .select("total_claimed")
-        .eq("user_id", user.id)
-        .eq("date", today)
-        .maybeSingle();
-
-      const dailyClaimed = Number(dailyRecord?.total_claimed || 0);
-
-      if (profile && isMountedRef.current) {
-        setAvatarUrl(profile.avatar_url);
-        setAvatarVerified(!!profile.avatar_verified);
+      if (isMountedRef.current) {
+        setAvatarUrl(profile?.avatar_url ?? null);
+        setAvatarVerified(!!profile?.avatar_verified);
         setStats({
-          totalRewards: profile.total_camly_rewards || 0,
-          pendingRewards: profile.pending_rewards || 0,
-          approvedRewards: profile.approved_reward || 0,
-          claimedTotal,
+          totalRewards: Number(summary?.total_camly || 0),
+          pendingRewards: Number(summary?.pending_camly || 0),
+          approvedRewards: Number(summary?.claimable_balance || 0),
+          claimedTotal: Number(summary?.total_claimed || 0),
           dailyClaimed,
         });
       }
