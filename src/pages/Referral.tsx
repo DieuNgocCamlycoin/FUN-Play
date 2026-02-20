@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { AuthRequiredDialog } from "@/components/Auth/AuthRequiredDialog";
+import { BackButton } from "@/components/ui/back-button";
 
 interface ReferralStats { totalReferrals: number; totalEarned: number; activeReferrals: number; }
 
@@ -32,7 +33,8 @@ export default function Referral() {
   return (
     <MainLayout>
       <div className="max-w-4xl mx-auto p-6">
-        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-8">
+        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-8 relative">
+          <div className="absolute left-0 top-0"><BackButton /></div>
           <div className="flex items-center justify-center gap-3 mb-4">
             <Gift className="w-12 h-12 text-yellow-400 animate-pulse" />
             <h1 className="text-4xl font-bold bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 bg-clip-text text-transparent">Giới Thiệu Bạn Bè</h1>

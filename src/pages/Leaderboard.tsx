@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { CounterAnimation } from "@/components/Layout/CounterAnimation";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { BackButton } from "@/components/ui/back-button";
 
 interface LeaderboardUser {
   id: string;
@@ -97,6 +98,7 @@ export default function Leaderboard() {
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-8 relative"
         >
+          <div className="absolute left-0 top-0"><BackButton /></div>
           <div className="flex items-center justify-center gap-3 mb-4">
             <Trophy className="w-12 h-12 text-yellow-400 animate-pulse drop-shadow-[0_0_20px_rgba(255,215,0,0.8)]" />
             <h1 className="text-4xl font-bold bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 bg-clip-text text-transparent">

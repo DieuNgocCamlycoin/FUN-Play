@@ -3,6 +3,7 @@ import { useBountySubmissions } from "@/hooks/useBountySubmissions";
 import { BountySubmissionForm } from "@/components/Bounty/BountySubmissionForm";
 import { BountySubmissionList } from "@/components/Bounty/BountySubmissionList";
 import { Trophy, Sparkles, Heart, Award } from "lucide-react";
+import { BackButton } from "@/components/ui/back-button";
 
 export default function Bounty() {
   const {
@@ -19,7 +20,8 @@ export default function Bounty() {
     <MainLayout>
       <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
         {/* Header */}
-        <div className="text-center space-y-2">
+        <div className="text-center space-y-2 relative">
+          <div className="absolute left-0 top-0"><BackButton /></div>
           <div className="flex items-center justify-center gap-2 mb-2">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-500 flex items-center justify-center shadow-md">
               <Trophy className="w-5 h-5 text-white" />

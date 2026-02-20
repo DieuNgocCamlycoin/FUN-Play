@@ -13,6 +13,7 @@ import {
   Smartphone, Cloud, Lock, TrendingUp, FileCode, Layers
 } from "lucide-react";
 import { toast } from "sonner";
+import { BackButton } from "@/components/ui/back-button";
 
 const PlatformDocs = () => {
   const [copiedText, setCopiedText] = useState<string | null>(null);
@@ -69,6 +70,7 @@ const PlatformDocs = () => {
       <div className="bg-gradient-to-r from-primary/20 via-accent/20 to-secondary/20 border-b">
         <div className="container mx-auto px-4 py-12">
           <div className="flex items-center gap-4 mb-4">
+            <BackButton />
             <div className="p-3 bg-primary rounded-xl">
               <BookOpen className="h-8 w-8 text-primary-foreground" />
             </div>
