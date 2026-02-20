@@ -21,7 +21,7 @@ import {
 import { 
   Video, Clock, CheckCircle, XCircle, Eye, Search, Download, 
   HardDrive, Upload, Users, ExternalLink, Play, User, Check, X, Image, CloudUpload, Trash2,
-  AlertTriangle, EyeOff, Loader2, ScanSearch, Shield
+  AlertTriangle, EyeOff, Loader2, ScanSearch, Shield, RefreshCw
 } from "lucide-react";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
@@ -49,6 +49,19 @@ interface VideoForApproval {
 }
 
 export function VideosManagementTab() {
+  const [reportedCount, setReportedCount] = useState<number>(0);
+
+  useEffect(() => {
+    const fetchReportedCount = async () => {
+      const { count } = await supabase
+        .from("videos")
+        .select("id", { count: "exact", head: true })
+        .gt("report_count", 0);
+      setReportedCount(count || 0);
+    };
+    fetchReportedCount();
+  }, []);
+
   return (
     <Tabs defaultValue="approval" className="w-full">
       <TabsList className="flex flex-wrap h-auto gap-1 bg-muted/50 p-1 mb-4">
@@ -69,6 +82,11 @@ export function VideosManagementTab() {
         </TabsTrigger>
         <TabsTrigger value="spam" className="gap-1 text-xs">
           <AlertTriangle className="w-3 h-3" /> Spam Filter
+          {reportedCount > 0 && (
+            <Badge variant="destructive" className="ml-1 px-1.5 py-0 text-[10px] leading-4 h-4 min-w-[18px] flex items-center justify-center">
+              {reportedCount}
+            </Badge>
+          )}
         </TabsTrigger>
       </TabsList>
 
@@ -758,6 +776,10 @@ function SpamFilterContent() {
             <ExternalLink className="w-3 h-3" /> Video Mẫu
           </Button>
           <div className="ml-auto flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => fetchSpamVideos()} disabled={loading} className="gap-1">
+              <RefreshCw className={`w-3 h-3 ${loading ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
             <Button variant="outline" size="sm" onClick={handleScanThumbnails} disabled={scanning} className="gap-1">
               {scanning ? <Loader2 className="w-3 h-3 animate-spin" /> : <ScanSearch className="w-3 h-3" />}
               Scan Thumbnails
