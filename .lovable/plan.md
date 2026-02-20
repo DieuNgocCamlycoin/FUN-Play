@@ -1,14 +1,19 @@
 
 
-## Them tab "Dang Hoat Dong" vao trang Quan Ly Users
+## Nang cap tab "Tat Ca Video" trong Quan Ly Video
 
-### Van de
+### Van de hien tai
 
-Hien tai tab "Tat Ca" hien thi ca user dang hoat dong lan user bi ban, gay kho khan khi quan ly user binh thuong.
+Tab "Duyet Video" (approval) hien la tab mac dinh nhung khong co che do xem toan bo video voi day du chi tiet. Tab "Thong Ke" co bang video nhung thieu cac hanh dong quan tri (xoa, treo thuong, nhac nho...) va thieu thong tin chi tiet khi click vao dong.
 
 ### Giai phap
 
-Them mot tab moi "Dang Hoat Dong" (Active) ke ben tab "Tat Ca", chi hien thi nhung user chua bi ban (`banned = false`).
+Them tab moi **"Tat Ca Video"** (All Videos) lam tab mac dinh, tuong tu nhu AllUsersTab da lam cho User Management, voi:
+
+1. Bang hien thi day du thong tin moi video
+2. Click vao dong de mo chi tiet (Collapsible)
+3. Menu "..." voi cac hanh dong admin
+4. Tim kiem, loc, phan trang
 
 ### Chi tiet ky thuat
 
@@ -16,24 +21,50 @@ Them mot tab moi "Dang Hoat Dong" (Active) ke ben tab "Tat Ca", chi hien thi nhu
 
 | STT | Tep | Noi dung |
 |-----|------|----------|
-| 1 | `src/components/Admin/tabs/UsersManagementTab.tsx` | Them tab "Dang Hoat Dong" voi icon UserCheck, dem so user active, truyen danh sach user da loc (khong banned) vao AllUsersTab |
+| 1 | `src/components/Admin/tabs/AllVideosTab.tsx` | **TAO MOI** - Component bang video chi tiet voi Collapsible, DropdownMenu hanh dong, tim kiem, phan trang |
+| 2 | `src/components/Admin/tabs/VideosManagementTab.tsx` | Them tab "Tat Ca Video" su dung AllVideosTab, dat lam tab mac dinh |
 
-**Thay doi cu the trong `UsersManagementTab.tsx`:**
+**Bang du lieu hien thi (AllVideosTab):**
 
-- Tinh `activeUsers = users.filter(u => !u.banned)` va `activeCount`
-- Them TabsTrigger moi: "Dang Hoat Dong (activeCount)" voi icon UserCheck, dat giua "Tat Ca" va "Dang Ban"
-- Them TabsContent moi su dung lai component `AllUsersTab` nhung truyen `activeUsers` thay vi `users`
+| # | Thumbnail + Tieu de | Nguoi tai | Views | Likes | Comments | Thoi luong | Dung luong | Trang thai | Ngay | ... |
 
-**Thu tu tab moi:**
-1. Tat Ca (tong so)
-2. Dang Hoat Dong (so user khong bi ban) -- **MAC DINH**
-3. Dang Ban (so user bi ban)
-4. Xoa Nhanh
+**Menu hanh dong "..." cho moi video (DropdownMenu):**
+- Xem video (mo dialog preview)
+- Mo trang video (tab moi)
+- Duyet thuong / Tu choi thuong
+- Treo thuong video (dong bang reward cua video nay)
+- An video (is_hidden = true)
+- Hien video (is_hidden = false, neu da an)
+- Xoa video (voi dialog xac nhan)
+- Xem profile nguoi tai (tab moi)
 
-### Ket qua
+**Click vao dong de mo chi tiet (Collapsible):**
+- Mo ta video
+- URL video + thumbnail
+- Category, sub_category
+- file_size, duration, slug
+- approval_status, is_hidden, report_count
+- Ngay tao, ngay cap nhat
+- Video player inline
 
-- Tab "Dang Hoat Dong" la tab mac dinh khi mo trang Quan Ly Users
-- Chi hien thi user chua bi ban, de quan ly nhanh hon
-- Tab "Tat Ca" van giu nguyen, hien thi toan bo user
-- Khong can thay doi AllUsersTab.tsx vi component nay da nhan `users` tu props
+**Tinh nang loc:**
+- Tim kiem theo tieu de
+- Loc theo trang thai: Tat ca / Da duyet / Cho duyet / Da tu choi / Da an
+- Sap xep theo: Moi nhat, Views cao nhat, Reports nhieu nhat
+
+**Du lieu duoc fetch truc tiep tu Supabase** (tuong tu VideoApprovalContent), khong can tao RPC moi. Query se join `profiles` va `channels`, phan trang 20 video/trang.
+
+**Logic cac hanh dong admin:**
+- **Duyet/Tu choi**: Update `approval_status` (da co san trong VideoApprovalContent)
+- **An/Hien video**: Update `is_hidden`
+- **Xoa video**: Delete tu bang `videos` (cascade se xoa likes, comments, rewards lien quan)
+- **Treo thuong**: Update `approval_status = 'rejected'` + gui thong bao
+
+### Ket qua mong doi
+
+- Tab "Tat Ca Video" la tab mac dinh khi mo Quan Ly Video
+- Hien thi toan bo video voi chi tiet tuong tu AllUsersTab
+- Admin co the thao tac nhanh qua menu "..." ma khong can chuyen tab
+- Click vao dong de xem chi tiet day du + video player
+- Tim kiem, loc, phan trang hoat dong muot ma
 
