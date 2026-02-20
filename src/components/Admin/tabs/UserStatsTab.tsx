@@ -146,7 +146,7 @@ export function UserStatsTab() {
         </div>
         <div className="flex items-center gap-3 border-t border-border pt-3">
           <span className="text-sm"><span className="text-muted-foreground">FUN:</span> <span className="font-medium">{user.mint_requests_count} requests · {fmt(user.minted_fun_total)} minted</span></span>
-          <Button variant="outline" size="sm" className="ml-auto" onClick={() => navigate(`/user/${user.user_id}`)}>
+          <Button variant="outline" size="sm" className="ml-auto" onClick={() => { const url = getProfileUrl(user.username, user.user_id); if (url) window.open(url, '_blank'); }}>
             <ExternalLink className="w-3 h-3 mr-1" />Xem Profile
           </Button>
         </div>

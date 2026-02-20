@@ -9,5 +9,5 @@
 export function getProfileUrl(username?: string | null, userId?: string): string | null {
   const identifier = username || userId;
   if (!identifier) return null;
-  return `https://official-funplay.lovable.app/c/${identifier}`;
+  return `/c/${identifier}`;
 }

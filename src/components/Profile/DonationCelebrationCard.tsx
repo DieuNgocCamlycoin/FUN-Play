@@ -336,7 +336,7 @@ export const DonationCelebrationCard = ({
           <div className="flex items-center justify-between gap-2">
             <div
               className="flex flex-col items-center gap-1 flex-1 min-w-0 cursor-pointer hover:opacity-80 transition-opacity"
-              onClick={() => navigate(`/u/${data.sender_username}`)}
+              onClick={() => navigate(`/c/${data.sender_username}`)}
             >
               <Avatar className="h-12 w-12 ring-2 ring-white/30">
                 <AvatarImage src={data.sender_avatar || ""} />
@@ -367,7 +367,7 @@ export const DonationCelebrationCard = ({
 
             <div
               className="flex flex-col items-center gap-1 flex-1 min-w-0 cursor-pointer hover:opacity-80 transition-opacity"
-              onClick={() => navigate(`/u/${data.receiver_username}`)}
+              onClick={() => navigate(`/c/${data.receiver_username}`)}
             >
               <Avatar className="h-12 w-12 ring-2 ring-amber-400/30">
                 <AvatarImage src={data.receiver_avatar || ""} />
