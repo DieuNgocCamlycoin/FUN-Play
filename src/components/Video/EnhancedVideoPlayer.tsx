@@ -711,7 +711,7 @@ export function EnhancedVideoPlayer({
 
       {/* Controls overlay */}
       <div
-        className={`absolute inset-0 transition-opacity duration-300 pointer-events-none ${
+        className={`absolute inset-0 transition-opacity duration-300 pointer-events-none z-20 ${
           showControls ? "opacity-100" : "opacity-0"
         }`}
       >
@@ -795,7 +795,7 @@ export function EnhancedVideoPlayer({
                 variant="ghost"
                 size="icon"
                 className="h-10 w-10 text-white hover:bg-white/20"
-                onClick={togglePlay}
+                onClick={(e) => { e.stopPropagation(); togglePlay(); }}
               >
                 {isPlaying ? (
                   <Pause className="h-6 w-6" />
@@ -810,7 +810,7 @@ export function EnhancedVideoPlayer({
                   variant="ghost"
                   size="icon"
                   className="h-9 w-9 text-white hover:bg-white/20"
-                  onClick={handlePrevious}
+                  onClick={(e) => { e.stopPropagation(); handlePrevious(); }}
                 >
                   <SkipBack className="h-5 w-5" />
                 </Button>
@@ -822,7 +822,7 @@ export function EnhancedVideoPlayer({
                   variant="ghost"
                   size="icon"
                   className="h-9 w-9 text-white hover:bg-white/20"
-                  onClick={onNext}
+                  onClick={(e) => { e.stopPropagation(); onNext?.(); }}
                 >
                   <SkipForward className="h-5 w-5" />
                 </Button>
@@ -834,7 +834,7 @@ export function EnhancedVideoPlayer({
                   variant="ghost"
                   size="icon"
                   className="h-9 w-9 text-white hover:bg-white/20"
-                  onClick={toggleMute}
+                  onClick={(e) => { e.stopPropagation(); toggleMute(); }}
                 >
                   {settings.muted || settings.volume === 0 ? (
                     <VolumeX className="h-5 w-5" />
@@ -980,7 +980,7 @@ export function EnhancedVideoPlayer({
                   className={`h-9 w-9 hover:bg-white/20 hidden sm:flex ${
                     isPiPActive ? "text-cosmic-cyan" : "text-white"
                   }`}
-                  onClick={togglePiP}
+                  onClick={(e) => { e.stopPropagation(); togglePiP(); }}
                 >
                   <PictureInPicture2 className="h-5 w-5" />
                 </Button>
@@ -994,7 +994,7 @@ export function EnhancedVideoPlayer({
                   className={`h-9 w-9 hover:bg-white/20 hidden lg:flex ${
                     isTheaterMode ? "text-cosmic-cyan" : "text-white"
                   }`}
-                  onClick={onTheaterToggle}
+                  onClick={(e) => { e.stopPropagation(); onTheaterToggle?.(); }}
                   title={isTheaterMode ? "Chế độ mặc định (t)" : "Chế độ rạp phim (t)"}
                 >
                   <RectangleHorizontal className="h-5 w-5" />
@@ -1006,7 +1006,7 @@ export function EnhancedVideoPlayer({
                 variant="ghost"
                 size="icon"
                 className="h-9 w-9 text-white hover:bg-white/20"
-                onClick={toggleFullscreen}
+                onClick={(e) => { e.stopPropagation(); toggleFullscreen(); }}
               >
                 {isFullscreen ? (
                   <Minimize className="h-5 w-5" />
