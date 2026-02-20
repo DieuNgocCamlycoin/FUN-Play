@@ -223,12 +223,12 @@ export function MintableCard({ activity, loading, onMintSuccess }: MintableCardP
                     disabled={!canMint || isMinting || submitLoading}
                     size="lg"
                     className={cn(
-                      "w-full h-14 text-lg font-bold gap-2 transition-all duration-300",
-                      canMint && !isMinting && "bg-gradient-to-r from-[#F9E37A] via-[#F0D96C] to-[#B78C1A] hover:from-[#F0D96C] hover:via-[#E8D060] hover:to-[#A07818] text-[#A9710F] shadow-lg hover:shadow-xl hover:scale-[1.02]",
+                      "w-full h-14 text-lg font-bold gap-2 transition-all duration-300 relative overflow-hidden",
+                      canMint && !isMinting && "bg-[linear-gradient(180deg,#F9E37A_0%,#F0D96C_25%,#B78C1A_50%,#D4A94E_75%,#F9E37A_100%)] text-[#A9710F] hover:scale-[1.02] border border-t-[#F9E37A]/80 border-b-[#8B6914]/60 border-x-[#C28F1A]/60 animate-luxury-pulse",
                       (!canMint || isMinting) && "opacity-50 cursor-not-allowed"
                     )}
                     style={canMint && !isMinting ? {
-                      boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -2px 4px rgba(0,0,0,0.1), 0 4px 12px rgba(198,143,26,0.3)'
+                      boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.7), inset 0 -2px 6px rgba(120,70,10,0.3), 0 0 20px rgba(198,143,26,0.5), 0 2px 8px rgba(120,70,10,0.4)'
                     } : {}}
                   >
                     {isMinting || submitLoading ? (
@@ -238,8 +238,11 @@ export function MintableCard({ activity, loading, onMintSuccess }: MintableCardP
                       </>
                     ) : (
                       <>
-                        <Sparkles className="w-5 h-5" />
-                        MINT NOW
+                        <Sparkles className="w-5 h-5 relative z-10" />
+                        <span className="relative z-10">MINT NOW</span>
+                        {/* Glossy highlight */}
+                        <div className="absolute inset-x-0 top-0 h-[45%] bg-gradient-to-b from-white/40 via-white/20 to-transparent rounded-t-full pointer-events-none" />
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-mirror-shimmer" />
                       </>
                     )}
                   </Button>

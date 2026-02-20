@@ -155,15 +155,16 @@ export function TokenLifecyclePanel({
           {/* Badge showing total minted */}
           <Badge 
             className={cn(
-              "gap-1.5 px-3 py-1.5",
-              "bg-gradient-to-b from-[#F9E37A] to-[#B78C1A]",
+              "gap-1.5 px-3 py-1.5 relative overflow-hidden",
+              "bg-[linear-gradient(180deg,#F9E37A_0%,#F0D96C_25%,#B78C1A_50%,#D4A94E_75%,#F9E37A_100%)]",
               "text-[#A9710F] font-bold",
-              "shadow-[inset_0_2px_4px_rgba(255,255,255,0.6)]",
-              "border-none"
+              "shadow-[inset_0_2px_4px_rgba(255,255,255,0.7),inset_0_-2px_6px_rgba(120,70,10,0.3),0_0_15px_rgba(198,143,26,0.4)]",
+              "border border-t-[#F9E37A]/80 border-b-[#8B6914]/60 border-x-[#C28F1A]/60"
             )}
           >
-            <img src={FUN_COIN_LOGO} alt="" className="w-4 h-4" />
-            {formatFunAmount(stats.totalFlowing.toString())} đã mint
+            <img src={FUN_COIN_LOGO} alt="" className="w-4 h-4 relative z-10" />
+            <span className="relative z-10">{formatFunAmount(stats.totalFlowing.toString())} đã mint</span>
+            <div className="absolute inset-x-0 top-0 h-[45%] bg-gradient-to-b from-white/40 via-white/20 to-transparent pointer-events-none" />
           </Badge>
         </div>
 

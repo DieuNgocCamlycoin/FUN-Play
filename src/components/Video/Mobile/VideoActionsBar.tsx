@@ -251,14 +251,18 @@ export function VideoActionsBar({
           {/* Donate button - Premium Gold with Mirror Shimmer */}
           <Button
             onClick={() => { lightTap(); setDonateModalOpen(true); }}
-            className="relative overflow-hidden rounded-full bg-gradient-to-b from-[#F9E37A] via-[#F0D96C] to-[#B78C1A] 
+            className="relative overflow-hidden rounded-full 
+                       bg-[linear-gradient(180deg,#F9E37A_0%,#F0D96C_25%,#B78C1A_50%,#D4A94E_75%,#F9E37A_100%)]
                        text-[#A9710F] font-bold h-10 px-4 gap-1.5 shrink-0
-                       shadow-[0_0_15px_rgba(198,143,26,0.4),inset_0_2px_4px_rgba(255,255,255,0.6)]
-                       hover:shadow-[0_0_25px_rgba(240,217,108,0.7)] 
-                       border border-[#C28F1A]/60 transition-all duration-300"
+                       shadow-[inset_0_2px_4px_rgba(255,255,255,0.7),inset_0_-2px_6px_rgba(120,70,10,0.3),0_0_20px_rgba(198,143,26,0.5),0_2px_8px_rgba(120,70,10,0.4)]
+                       hover:shadow-[inset_0_2px_4px_rgba(255,255,255,0.8),inset_0_-2px_6px_rgba(120,70,10,0.3),0_0_35px_rgba(240,217,108,0.7),0_0_60px_rgba(198,143,26,0.3),0_2px_8px_rgba(120,70,10,0.4)]
+                       border border-t-[#F9E37A]/80 border-b-[#8B6914]/60 border-x-[#C28F1A]/60
+                       transition-all duration-300 animate-luxury-pulse"
           >
             <Gift className="h-5 w-5 relative z-10" />
             <span className="text-sm font-bold relative z-10">Tặng</span>
+            {/* Glossy highlight */}
+            <div className="absolute inset-x-0 top-0 h-[45%] bg-gradient-to-b from-white/40 via-white/20 to-transparent rounded-t-full pointer-events-none" />
             {/* Mirror shimmer effect - continuous */}
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-mirror-shimmer" />
           </Button>

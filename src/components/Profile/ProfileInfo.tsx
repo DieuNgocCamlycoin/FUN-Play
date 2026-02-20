@@ -149,12 +149,14 @@ export const ProfileInfo = ({
           {/* Donate Button - Premium Metallic Gold Style - ALWAYS VISIBLE */}
           <Button
             onClick={() => setDonateModalOpen(true)}
-            className="relative overflow-hidden bg-gradient-to-b from-[#F9E37A] via-[#F0D96C] to-[#B78C1A] text-[#A9710F] font-bold px-5 py-2.5 rounded-full shadow-[0_0_20px_rgba(198,143,26,0.5),inset_0_2px_4px_rgba(255,255,255,0.6),inset_0_-1px_2px_rgba(0,0,0,0.1)] hover:shadow-[0_0_35px_rgba(240,217,108,0.7),0_0_50px_rgba(198,143,26,0.4)] border border-[#C28F1A]/60 transition-all duration-300 hover:scale-105"
+            className="relative overflow-hidden bg-[linear-gradient(180deg,#F9E37A_0%,#F0D96C_25%,#B78C1A_50%,#D4A94E_75%,#F9E37A_100%)] text-[#A9710F] font-bold px-5 py-2.5 rounded-full shadow-[inset_0_2px_4px_rgba(255,255,255,0.7),inset_0_-2px_6px_rgba(120,70,10,0.3),0_0_20px_rgba(198,143,26,0.5),0_2px_8px_rgba(120,70,10,0.4)] hover:shadow-[inset_0_2px_4px_rgba(255,255,255,0.8),inset_0_-2px_6px_rgba(120,70,10,0.3),0_0_35px_rgba(240,217,108,0.7),0_0_60px_rgba(198,143,26,0.3),0_2px_8px_rgba(120,70,10,0.4)] border border-t-[#F9E37A]/80 border-b-[#8B6914]/60 border-x-[#C28F1A]/60 transition-all duration-300 hover:scale-105 animate-luxury-pulse"
           >
             <span className="relative z-10 flex items-center gap-2">
               <Gift className="w-4 h-4" />
               Tặng & Thưởng
             </span>
+            {/* Glossy highlight */}
+            <div className="absolute inset-x-0 top-0 h-[45%] bg-gradient-to-b from-white/40 via-white/20 to-transparent rounded-t-full pointer-events-none" />
             {/* Mirror shimmer effect - continuous */}
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-mirror-shimmer" />
           </Button>
