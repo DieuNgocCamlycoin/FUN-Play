@@ -384,7 +384,7 @@ const PlatformDocs = () => {
                       <tbody>
                         <tr className="border-b"><td className="p-2 font-mono">/</td><td className="p-2">Index</td><td className="p-2">Homepage, video feed</td></tr>
                         <tr className="border-b"><td className="p-2 font-mono">/shorts</td><td className="p-2">Shorts</td><td className="p-2">TikTok-style swipe videos</td></tr>
-                        <tr className="border-b"><td className="p-2 font-mono">/watch/:id</td><td className="p-2">Watch</td><td className="p-2">Xem video + comments</td></tr>
+                        <tr className="border-b"><td className="p-2 font-mono">/:username/video/:slug</td><td className="p-2">Watch</td><td className="p-2">Xem video + comments</td></tr>
                         <tr className="border-b"><td className="p-2 font-mono">/auth</td><td className="p-2">Auth</td><td className="p-2">Login/Signup</td></tr>
                         <tr className="border-b"><td className="p-2 font-mono">/settings</td><td className="p-2">ProfileSettings</td><td className="p-2">Cài đặt profile</td></tr>
                       </tbody>

@@ -14,6 +14,7 @@ import {
   ExternalLink
 } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
+import { useVideoNavigation } from "@/lib/videoNavigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -80,12 +81,15 @@ export function UpNextSidebar({ onVideoSelect }: UpNextSidebarProps) {
 
   // formatDuration and formatViewsShort imported from @/lib/formatters
 
+  const { goToVideo } = useVideoNavigation();
+
   const handleVideoClick = (video: VideoItem) => {
     if (onVideoSelect) {
       onVideoSelect(video);
     } else {
       skipToVideo(video.id);
-      navigate(`/watch/${video.id}${session.context_type === "PLAYLIST" && session.context_id ? `?list=${session.context_id}` : ''}`);
+      const qp = session.context_type === "PLAYLIST" && session.context_id ? `?list=${session.context_id}` : '';
+      goToVideo(video.id, qp);
     }
   };
 

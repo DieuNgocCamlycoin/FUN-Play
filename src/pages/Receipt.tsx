@@ -431,7 +431,7 @@ function DonationReceipt({ receiptPublicId }: { receiptPublicId: string }) {
                       <p className="text-sm text-muted-foreground">Tặng tại video</p>
                       <p className="font-medium truncate">{contextInfo.title}</p>
                     </div>
-                    <Link to={`/watch/${contextInfo.id}`}>
+                    <Link to={`/v/${contextInfo.id}`}>
                       <Button size="sm" variant="ghost">
                         <Play className="h-4 w-4" />
                       </Button>
