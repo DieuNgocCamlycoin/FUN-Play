@@ -74,8 +74,10 @@ export function VideosManagementTab() {
     fetchReportedCount();
   }, []);
 
+  const [activeTab, setActiveTab] = useState("approval");
+
   return (
-    <Tabs defaultValue="approval" className="w-full">
+    <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
       <TabsList className="flex flex-wrap h-auto gap-1 bg-muted/50 p-1 mb-4">
         <TabsTrigger value="approval" className="gap-1 text-xs">
           <Clock className="w-3 h-3" /> Duyệt Video
@@ -123,7 +125,7 @@ export function VideosManagementTab() {
       </TabsContent>
 
       <TabsContent value="spam">
-        <SpamFilterContent onReportCountChange={fetchReportedCount} />
+        <SpamFilterContent onReportCountChange={fetchReportedCount} isActive={activeTab === "spam"} />
       </TabsContent>
     </Tabs>
   );
@@ -582,7 +584,7 @@ function VideoStatsContent() {
 }
 
 // Spam Filter Content
-function SpamFilterContent({ onReportCountChange }: { onReportCountChange?: () => void }) {
+function SpamFilterContent({ onReportCountChange, isActive }: { onReportCountChange?: () => void; isActive?: boolean }) {
   const [videos, setVideos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"short" | "reported" | "repetitive" | "sample">("reported");
@@ -625,6 +627,13 @@ function SpamFilterContent({ onReportCountChange }: { onReportCountChange?: () =
   };
 
   useEffect(() => { fetchSpamVideos(); }, [filter]);
+
+  useEffect(() => {
+    if (isActive) {
+      fetchSpamVideos();
+      onReportCountChange?.();
+    }
+  }, [isActive]);
 
   const fetchSpamVideos = async () => {
     setLoading(true);
