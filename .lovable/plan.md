@@ -1,79 +1,41 @@
 
 
-## Hoàn thiện Hệ thống Báo cáo Video - FUN Play
+## Ket qua Kiem tra He thong Bao cao Video
 
-### Hiện trạng
+### Trang thai hien tai: HE THONG DANG HOAT DONG BINH THUONG
 
-- **ReportSpamButton**: Hoạt động trên cả Web (`Watch.tsx`) va Mobile (`VideoActionsBar.tsx`), nhung ly do chua khop voi yeu cau.
-- **video_reports table**: Thieu cot `status` (chi co `id, video_id, reporter_id, reason, created_at`).
-- **Admin Spam Filter**: Hien thi `report_count` badge nhung **khong co chuc nang xem chi tiet ly do bao cao** khi click vao tag.
-- **Debounce**: Chua co tren nut "Gui bao cao".
+Sau khi kiem tra ky luong, he thong bao cao video da hoat dong dung:
 
----
+- **Database**: 1 bao cao ton tai cho video `c58723a7...`, `report_count = 1`
+- **Trigger `handle_video_report`**: Tang `report_count` tu dong khi co bao cao moi
+- **RLS Policies**: Admin da co quyen SELECT, UPDATE, DELETE tren bang `videos` va `video_reports`
+- **ReportSpamButton**: Hoat dong tren ca Web va Mobile voi debounce 2 giay
+- **Spam Filter Tab**: Mac dinh hien thi video bi bao cao, co nut Refresh, co Badge so luong
 
-### Thay doi
+### Ly do truoc do khong thay video bao cao
 
-#### 1. Database Migration - Them cot `status` vao `video_reports`
+Cac chinh sach RLS cho admin tren bang `videos` **vua moi duoc them** trong phien truoc. Truoc do, admin chi co the thay video `is_public = true` hoac video do chinh ho tao. Hien tai van de nay da duoc giai quyet.
 
-Them cot `status` (mac dinh `'pending'`) de Admin co the theo doi trang thai xu ly bao cao.
+### Cai tien nho de tang do tin cay
 
-```sql
-ALTER TABLE public.video_reports 
-  ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'pending';
-```
+Muc du he thong da hoat dong, co mot so cai tien nho giup dong bo tot hon:
 
-#### 2. Cap nhat ly do bao cao (ReportSpamButton.tsx)
+1. **Dong bo badge count sau khi admin thao tac**: Khi admin an/xoa/ban video trong Spam Filter, badge so luong tren tab "Spam Filter" khong tu dong cap nhat. Can truyen callback de refresh count.
 
-Thay doi danh sach `REPORT_REASONS` theo yeu cau:
-- "Noi dung rac / Spam"
-- "Trung lap"
-- "Video qua ngan / Chat luong thap"
-- "Vi pham quy tac cong dong"
-
-Cap nhat thong bao thanh cong: **"Cam on ban da dong gop anh sang cho cong dong"**
-
-Them debounce cho nut "Gui bao cao" (chong nhan lien tuc) bang cach disable nut sau khi nhan va them `useRef` timeout 2 giay.
-
-#### 3. Admin - Xem chi tiet ly do bao cao (VideosManagementTab.tsx)
-
-Khi Admin click vao Badge "X bao cao" trong bang Spam Filter:
-- Mo Dialog hien thi danh sach tat ca ly do bao cao tu `video_reports` table
-- Hien thi: nguoi bao cao, ly do, thoi gian bao cao
-- Truy van: `supabase.from("video_reports").select("*, profiles:reporter_id(display_name, username, avatar_url)").eq("video_id", videoId)`
-
-#### 4. Toi uu Cloud
-
-- Chi gui request khi User nhan "Gui" (da dung nhu vay).
-- Them debounce 2 giay sau khi gui thanh cong de chong spam request.
-
----
+2. **Tu dong chuyen sang tab "Bi bao cao" khi co bao cao moi**: Hien tai Spam Filter mac dinh la "reported" khi mount, nhung khong tu dong refresh khi admin quay lai tab.
 
 ### Chi tiet ky thuat
 
-**Files thay doi:**
+**File thay doi:**
 
 | File | Thay doi |
 |------|----------|
-| Database migration | Them cot `status` vao `video_reports` |
-| `src/components/Video/ReportSpamButton.tsx` | Cap nhat ly do, thong bao, debounce |
-| `src/components/Admin/tabs/VideosManagementTab.tsx` | Them Dialog xem chi tiet ly do bao cao khi click Badge |
+| `src/components/Admin/tabs/VideosManagementTab.tsx` | Truyen callback `onReportCountChange` tu `VideosManagementTab` vao `SpamFilterContent` de dong bo badge count khi admin thao tac (an/xoa/ban). Sau moi hanh dong bulk, goi lai `fetchReportedCount()` |
 
-**ReportSpamButton - Ly do moi:**
-```typescript
-const REPORT_REASONS = [
-  { value: "spam", label: "Noi dung rac / Spam" },
-  { value: "duplicate", label: "Trung lap" },
-  { value: "low_quality", label: "Video qua ngan / Chat luong thap" },
-  { value: "community_violation", label: "Vi pham quy tac cong dong" },
-];
-```
+**Logic thay doi:**
+- Chuyen `fetchReportedCount` thanh function co the goi lai
+- Truyen no vao `SpamFilterContent` nhu prop
+- Goi lai sau moi hanh dong: `handleBulkHide`, `handleBulkDeleteOnly`, `handleBulkDeleteBan`
 
-**Admin Report Detail Dialog:**
-- Badge `report_count` trong bang Spam Filter se tro thanh clickable
-- Click mo Dialog voi danh sach bao cao tu `video_reports` join `profiles`
-- Hien thi avatar, ten nguoi bao cao, ly do, thoi gian
-
-**Debounce:**
-- Sau khi gui bao cao thanh cong, disable nut 2 giay bang `useState` + `setTimeout`
-- Chong nguoi dung nhan lien tuc
+Day la thay doi nho, khong anh huong den logic chinh cua he thong.
 
