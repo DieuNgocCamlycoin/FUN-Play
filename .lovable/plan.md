@@ -1,70 +1,72 @@
 
 
-## Nang cap tab "Tat Ca Video" trong Quan Ly Video
+## Nâng cấp trang Watch FUN PLAY giống YouTube Desktop
 
-### Van de hien tai
+### Phân tích hiện trạng
 
-Tab "Duyet Video" (approval) hien la tab mac dinh nhung khong co che do xem toan bo video voi day du chi tiet. Tab "Thong Ke" co bang video nhung thieu cac hanh dong quan tri (xoa, treo thuong, nhac nho...) va thieu thong tin chi tiet khi click vao dong.
+Trang Watch hiện tại đã có cấu trúc cơ bản tốt: Video Player, Title, Channel + Subscribe, Action buttons, Description, Comments (trái), và UpNextSidebar (phải). Tuy nhiên cần chỉnh sửa để đạt chuẩn YouTube 90%:
 
-### Giai phap
+**Vấn đề chính:**
+1. Sidebar (UpNextSidebar) không sticky khi cuộn - mất khi cuộn xuống phần bình luận
+2. Thông tin kênh và các nút hành động nằm trên 2 dòng riêng, chưa gộp lại 1 dòng như YouTube
+3. Lượt xem và ngày đăng nằm riêng ngoài, chưa nằm trong Description box
+4. Sidebar không có filter chips (Tất cả / Cùng kênh / Liên quan)
+5. Một số nút có gradient sặc sỡ, chưa sạch như YouTube
+6. Sidebar có quá nhiều phần phụ (Đang phát, Header controls) chiếm diện tích
 
-Them tab moi **"Tat Ca Video"** (All Videos) lam tab mac dinh, tuong tu nhu AllUsersTab da lam cho User Management, voi:
+### Kế hoạch thay đổi
 
-1. Bang hien thi day du thong tin moi video
-2. Click vao dong de mo chi tiet (Collapsible)
-3. Menu "..." voi cac hanh dong admin
-4. Tim kiem, loc, phan trang
+#### 1. Watch.tsx - Chỉnh layout Desktop
 
-### Chi tiet ky thuat
+**Thay đổi cụ thể:**
 
-**Tep thay doi:**
+- Thêm `lg:items-start` vào grid để sidebar sticky hoạt động đúng
+- **Xóa dòng hiển thị lượt xem + ngày đăng riêng** (dòng 740-745) - chuyển vào trong Description box
+- **Gộp Channel + Actions vào 1 dòng**: Avatar + tên kênh + nút Đăng ký (bên trái), Like/Dislike + Chia sẻ + Lưu + Tặng + menu "..." (bên phải)
+- **Nút ReportSpam**: Chuyển vào trong menu "..." thay vì hiển thị riêng
+- **Nút Chia sẻ, Lưu**: Bỏ border, dùng `bg-muted hover:bg-muted/80` sạch hơn
+- **Nút Đăng ký khi chưa đăng ký**: Giữ màu cosmic-cyan đặc trưng FUN PLAY (không đổi sang đen như YouTube)
+- **Nút Tặng (Gift)**: Giữ nguyên hiệu ứng gold đặc trưng nhưng nhẹ hơn
 
-| STT | Tep | Noi dung |
-|-----|------|----------|
-| 1 | `src/components/Admin/tabs/AllVideosTab.tsx` | **TAO MOI** - Component bang video chi tiet voi Collapsible, DropdownMenu hanh dong, tim kiem, phan trang |
-| 2 | `src/components/Admin/tabs/VideosManagementTab.tsx` | Them tab "Tat Ca Video" su dung AllVideosTab, dat lam tab mac dinh |
+#### 2. UpNextSidebar.tsx - Sticky + Filter Chips + Gọn gàng
 
-**Bang du lieu hien thi (AllVideosTab):**
+**Thay đổi cụ thể:**
 
-| # | Thumbnail + Tieu de | Nguoi tai | Views | Likes | Comments | Thoi luong | Dung luong | Trang thai | Ngay | ... |
+- Bọc toàn bộ sidebar trong `div` có `sticky top-[72px]` để dính khi cuộn
+- **Thêm filter chips** phía trên danh sách video:
+  - `[Tất cả]` - mặc định, hiển thị toàn bộ video đề xuất
+  - `[Cùng kênh]` - lọc video cùng channel_id với video đang xem
+  - `[Liên quan]` - lọc video cùng category
+- **Gọn hóa header**: Gộp Autoplay toggle + Shuffle/Repeat vào 1 dòng nhỏ gọn, bỏ card viền
+- **Bỏ khung "Đang phát"** (currently playing card) vì YouTube không có
+- **Bỏ số thứ tự** (index number) ở mỗi video, giống YouTube
+- **Tăng kích thước thumbnail**: Từ `w-28` lên `w-40` với `aspect-video`
+- **Hiển thị mỗi video**: Thumbnail + Title (tối đa 2 dòng) + Tên kênh + Lượt xem + Thời gian
 
-**Menu hanh dong "..." cho moi video (DropdownMenu):**
-- Xem video (mo dialog preview)
-- Mo trang video (tab moi)
-- Duyet thuong / Tu choi thuong
-- Treo thuong video (dong bang reward cua video nay)
-- An video (is_hidden = true)
-- Hien video (is_hidden = false, neu da an)
-- Xoa video (voi dialog xac nhan)
-- Xem profile nguoi tai (tab moi)
+#### 3. Logic đề xuất video đa dạng kênh
 
-**Click vao dong de mo chi tiet (Collapsible):**
-- Mo ta video
-- URL video + thumbnail
-- Category, sub_category
-- file_size, duration, slug
-- approval_status, is_hidden, report_count
-- Ngay tao, ngay cap nhat
-- Video player inline
+Giữ nguyên logic round-robin hiện tại đã đảm bảo đa dạng kênh (tối thiểu 5 kênh khác nhau, không quá 2 video liên tiếp cùng kênh). Logic này đã được triển khai tốt trong `fetchRecommendedVideos`.
 
-**Tinh nang loc:**
-- Tim kiem theo tieu de
-- Loc theo trang thai: Tat ca / Da duyet / Cho duyet / Da tu choi / Da an
-- Sap xep theo: Moi nhat, Views cao nhat, Reports nhieu nhat
+### Chi tiết kỹ thuật
 
-**Du lieu duoc fetch truc tiep tu Supabase** (tuong tu VideoApprovalContent), khong can tao RPC moi. Query se join `profiles` va `channels`, phan trang 20 video/trang.
+| STT | Tệp | Nội dung thay đổi |
+|-----|------|-------------------|
+| 1 | `src/pages/Watch.tsx` | Gộp Channel + Actions 1 dòng, chuyển lượt xem vào Description box, chuyển ReportSpam vào menu "...", bỏ border các nút phụ, thêm `items-start` cho grid |
+| 2 | `src/components/Video/UpNextSidebar.tsx` | Thêm `sticky top-[72px]`, thêm filter chips (Tất cả/Cùng kênh/Liên quan), gọn hóa header, bỏ card "Đang phát", bỏ số thứ tự, tăng kích thước thumbnail |
 
-**Logic cac hanh dong admin:**
-- **Duyet/Tu choi**: Update `approval_status` (da co san trong VideoApprovalContent)
-- **An/Hien video**: Update `is_hidden`
-- **Xoa video**: Delete tu bang `videos` (cascade se xoa likes, comments, rewards lien quan)
-- **Treo thuong**: Update `approval_status = 'rejected'` + gui thong bao
+### Giữ lại nét đặc trưng FUN PLAY
 
-### Ket qua mong doi
+- Nút "Tặng" (Gift) giữ nguyên với icon vàng gold
+- Nút "Đăng ký" giữ màu cosmic-cyan khi chưa đăng ký
+- Like/Dislike giữ hiệu ứng màu cosmic-cyan/magenta khi active
+- Ambient glow effect phía sau player giữ nguyên
+- Mini profile card hover giữ nguyên
 
-- Tab "Tat Ca Video" la tab mac dinh khi mo Quan Ly Video
-- Hien thi toan bo video voi chi tiet tuong tu AllUsersTab
-- Admin co the thao tac nhanh qua menu "..." ma khong can chuyen tab
-- Click vao dong de xem chi tiet day du + video player
-- Tim kiem, loc, phan trang hoat dong muot ma
+### Kết quả mong đợi
+
+- Layout giống YouTube trên 90%: Player → Title → Channel + Actions (1 dòng) → Description (gray card) → Comments | Sidebar sticky
+- Sidebar dính khi cuộn, có filter chips để lọc nhanh
+- Các nút hành động sạch sẽ, hiện đại, không gradient sặc sỡ
+- Typography và spacing chuẩn YouTube
+- Vẫn giữ nét thương hiệu FUN PLAY: nút Tặng, màu cosmic, ambient glow
 
