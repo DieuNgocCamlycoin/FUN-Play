@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useVideoNavigation } from "@/lib/videoNavigation";
 import { supabase } from "@/integrations/supabase/client";
 import { VideoCard } from "@/components/Video/VideoCard";
 import { Video, Zap } from "lucide-react";
@@ -27,6 +28,7 @@ interface VideoData {
 
 export const ProfileVideosTab = ({ userId, channelId, type }: ProfileVideosTabProps) => {
   const navigate = useNavigate();
+  const { goToVideo } = useVideoNavigation();
   const [videos, setVideos] = useState<VideoData[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -119,7 +121,7 @@ export const ProfileVideosTab = ({ userId, channelId, type }: ProfileVideosTabPr
           <div
             key={video.id}
             className="cursor-pointer group"
-            onClick={() => navigate(`/watch/${video.id}`)}
+            onClick={() => goToVideo(video.id)}
           >
             <div className="relative aspect-[9/16] rounded-lg overflow-hidden bg-muted">
               {video.thumbnail_url ? (

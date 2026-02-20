@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { isVideoWatchPage } from "@/lib/videoNavigation";
 import { useMiniPlayer } from "@/contexts/MiniPlayerContext";
 import { Button } from "@/components/ui/button";
 import { Play, Pause, X, Maximize2, Volume2, VolumeX } from "lucide-react";
@@ -25,9 +26,8 @@ export function GlobalMiniPlayer() {
   const [isMuted, setIsMuted] = useState(false);
   const [showUnmutePrompt, setShowUnmutePrompt] = useState(false);
 
-  const isOnWatchPage = location.pathname.startsWith("/watch/");
-  const watchingVideoId = isOnWatchPage ? location.pathname.split("/watch/")[1] : null;
-  const shouldHide = watchingVideoId === miniPlayerVideo?.id;
+  const isOnWatchPage = isVideoWatchPage(location.pathname);
+  const shouldHide = isOnWatchPage;
 
   // Reliable autoplay: try unmuted first, fallback to muted + prompt
   const attemptPlay = useCallback(async (video: HTMLVideoElement) => {
@@ -72,10 +72,12 @@ export function GlobalMiniPlayer() {
     setShowUnmutePrompt(false);
   }, [miniPlayerVideo?.id]);
 
-  const handleExpand = () => {
+  const handleExpand = async () => {
     if (miniPlayerVideo) {
       lightTap();
-      navigate(`/watch/${miniPlayerVideo.id}`);
+      const { getVideoPath } = await import("@/lib/videoNavigation");
+      const path = await getVideoPath(miniPlayerVideo.id);
+      navigate(path);
       hideMiniPlayer();
     }
   };

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { useVideoNavigation } from "@/lib/videoNavigation";
 import { MainLayout } from "@/components/Layout/MainLayout";
 import { VideoCard } from "@/components/Video/VideoCard";
 import { useToast } from "@/hooks/use-toast";
@@ -36,6 +37,7 @@ const LikedVideos = () => {
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const { goToVideo } = useVideoNavigation();
   const { createSession } = useVideoPlayback();
 
   const fetchLikedVideos = useCallback(async () => {
@@ -118,14 +120,14 @@ const LikedVideos = () => {
   const handlePlayAll = async () => {
     if (videos.length === 0) return;
     await createSession(videos[0].id, 'HOME_FEED', undefined, videos);
-    navigate(`/watch/${videos[0].id}`);
+    goToVideo(videos[0].id);
   };
 
   const handleShuffle = async () => {
     if (videos.length === 0) return;
     const shuffled = [...videos].sort(() => Math.random() - 0.5);
     await createSession(shuffled[0].id, 'HOME_FEED', undefined, shuffled);
-    navigate(`/watch/${shuffled[0].id}`);
+    goToVideo(shuffled[0].id);
   };
 
   if (!authLoading && !user) {

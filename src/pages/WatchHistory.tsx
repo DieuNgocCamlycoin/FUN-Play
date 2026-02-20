@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import funplayPlanetLogo from "@/assets/funplay-planet-logo.png";
 import { useNavigate } from 'react-router-dom';
+import { useVideoNavigation } from "@/lib/videoNavigation";
 import { History, Play, Trash2, ArrowLeft, AlertCircle, Search, X, MoreVertical, Bookmark, Share2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -35,6 +36,7 @@ import { AuthRequiredDialog } from '@/components/Auth/AuthRequiredDialog';
 const WatchHistory = () => {
   const { watchHistory, loading, removeFromHistory, clearAllHistory } = useWatchHistory();
   const navigate = useNavigate();
+  const { goToVideo } = useVideoNavigation();
   const { toast } = useToast();
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
@@ -44,7 +46,7 @@ const WatchHistory = () => {
   const [playlistVideoTitle, setPlaylistVideoTitle] = useState('');
 
   const handlePlayVideo = (videoId: string, position: number) => {
-    navigate(`/watch/${videoId}?t=${position}`);
+    goToVideo(videoId, `?t=${position}`);
   };
 
   const getProgressPercentage = (position: number, duration: number | null) => {

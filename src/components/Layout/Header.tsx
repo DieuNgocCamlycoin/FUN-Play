@@ -11,6 +11,7 @@ import { GlobalDonateButton } from "@/components/Donate/GlobalDonateButton";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { useNavigate } from "react-router-dom";
+import { useVideoNavigation } from "@/lib/videoNavigation";
 import { useSearchSuggestions } from "@/hooks/useSearchSuggestions";
 import { motion } from "framer-motion";
 import {
@@ -53,6 +54,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
   const { user, signOut } = useAuth();
   const { profile } = useProfile();
   const navigate = useNavigate();
+  const { goToVideo } = useVideoNavigation();
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const { videos: suggestedVideos, channels: suggestedChannels, isOpen: showSuggestions, query: searchQuery, setQuery: setSearchQuery, open: openSuggestions, close: closeSuggestions, clear: clearSearch } = useSearchSuggestions();
   const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -80,7 +82,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
   };
 
   const handleSuggestionClick = (videoId: string) => {
-    navigate(`/watch/${videoId}`);
+    goToVideo(videoId);
     clearSearch();
   };
 

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useVideoNavigation } from "@/lib/videoNavigation";
 import { MainLayout } from "@/components/Layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -42,6 +43,7 @@ const getVisibilityInfo = (is_public: boolean | null) => {
 const Playlist = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { goToVideo } = useVideoNavigation();
   const { toast } = useToast();
   const [playlist, setPlaylist] = useState<PlaylistWithVideos | null>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -92,7 +94,7 @@ const Playlist = () => {
       : queue[0];
 
     await createSession(startVideo.id, "PLAYLIST", playlist.id, queue);
-    navigate(`/watch/${startVideo.id}?list=${playlist.id}`);
+    goToVideo(startVideo.id, `?list=${playlist.id}`);
   };
 
   const handlePlayVideo = async (video: PlaylistVideo, index: number) => {
@@ -110,7 +112,7 @@ const Playlist = () => {
     }));
 
     await createSession(video.video.id, "PLAYLIST", playlist.id, queue);
-    navigate(`/watch/${video.video.id}?list=${playlist.id}`);
+    goToVideo(video.video.id, `?list=${playlist.id}`);
   };
 
   const handleRemoveVideo = async (videoId: string) => {

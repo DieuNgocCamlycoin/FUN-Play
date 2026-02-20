@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useVideoNavigation } from "@/lib/videoNavigation";
 import { Clock, Play, ArrowLeft, MoreVertical, Share2, Bookmark, Trash2 } from 'lucide-react';
 import { MainLayout } from '@/components/Layout/MainLayout';
 import { Button } from '@/components/ui/button';
@@ -23,6 +24,7 @@ const WatchLater = () => {
   const { watchLaterList, loading, removeFromWatchLater } = useWatchLater();
   const { createSession } = useVideoPlayback();
   const navigate = useNavigate();
+  const { goToVideo } = useVideoNavigation();
   const { user } = useAuth();
   const [shareVideoId, setShareVideoId] = useState<string | null>(null);
   const [shareVideoTitle, setShareVideoTitle] = useState('');
@@ -33,11 +35,11 @@ const WatchLater = () => {
     if (watchLaterList.length === 0) return;
     const videos = watchLaterList.map(item => item.video);
     await createSession(videos[0].id, 'HOME_FEED', undefined, videos);
-    navigate(`/watch/${videos[0].id}`);
+    goToVideo(videos[0].id);
   };
 
   const handlePlayVideo = (videoId: string) => {
-    navigate(`/watch/${videoId}`);
+    goToVideo(videoId);
   };
 
   const totalDuration = watchLaterList.reduce((acc, item) => acc + (item.video?.duration || 0), 0);

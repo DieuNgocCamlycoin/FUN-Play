@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { toast as sonnerToast } from "sonner";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useVideoNavigation } from "@/lib/videoNavigation";
 import { Header } from "@/components/Layout/Header";
 import { CollapsibleSidebar } from "@/components/Layout/CollapsibleSidebar";
 import { Button } from "@/components/ui/button";
@@ -66,8 +67,9 @@ interface RecommendedVideo {
   };
 }
 
-export default function Watch() {
-  const { id } = useParams();
+export default function Watch({ videoIdProp }: { videoIdProp?: string }) {
+  const { id: paramId } = useParams();
+  const id = videoIdProp || paramId;
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
   const [channelAvatarUrl, setChannelAvatarUrl] = useState<string | null>(null);
   const [video, setVideo] = useState<Video | null>(null);
@@ -98,6 +100,7 @@ export default function Watch() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const { goToVideo } = useVideoNavigation();
   const { createSession, nextVideo, previousVideo, isAutoplayEnabled, session, getUpNext } = useVideoPlayback();
   const { awardCommentReward, awardLikeReward } = useAutoReward();
 
@@ -117,7 +120,7 @@ export default function Watch() {
   const handleSwipeLeft = () => {
     const next = nextVideo();
     if (next) {
-      navigate(`/watch/${next.id}`);
+      goToVideo(next.id);
       toast({ title: "Video tiếp theo", description: next.title });
     }
   };
@@ -125,7 +128,7 @@ export default function Watch() {
   const handleSwipeRight = () => {
     const prev = previousVideo();
     if (prev) {
-      navigate(`/watch/${prev.id}`);
+      goToVideo(prev.id);
       toast({ title: "Video trước", description: prev.title });
     }
   };
@@ -324,7 +327,7 @@ export default function Watch() {
     
     const next = nextVideo();
     if (next) {
-      navigate(`/watch/${next.id}`);
+      goToVideo(next.id);
       toast({
         title: "Đang phát video tiếp theo",
         description: next.title,
@@ -576,7 +579,7 @@ export default function Watch() {
     );
   }
 
-  const shareUrl = `${window.location.origin}/watch/${video.id}`;
+  const shareUrl = `${window.location.origin}${window.location.pathname}`;
 
   // Mobile view - use new YouTube-style layout
   if (isMobile) {
@@ -671,11 +674,11 @@ export default function Watch() {
                   onEnded={handleVideoEnd}
                   onPrevious={() => {
                     const prev = previousVideo();
-                    if (prev) navigate(`/watch/${prev.id}`);
+                    if (prev) goToVideo(prev.id);
                   }}
                   onNext={() => {
                     const next = nextVideo();
-                    if (next) navigate(`/watch/${next.id}`);
+                    if (next) goToVideo(next.id);
                   }}
                   hasPrevious={session?.history && session.history.length > 1}
                   hasNext={getUpNext(1).length > 0}
@@ -708,12 +711,12 @@ export default function Watch() {
                       src={channelAvatarUrl}
                       alt={video.channels.name}
                       className="w-10 h-10 rounded-full object-cover cursor-pointer hover:shadow-[0_0_40px_rgba(0,255,255,0.7)] transition-shadow"
-                      onClick={() => navigate(`/channel/${video.channels.id}`)}
+                      onClick={() => navigate(`/${video.user_id}`)}
                     />
                   ) : (
                     <div
                       className="w-10 h-10 rounded-full bg-gradient-to-br from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta flex items-center justify-center text-foreground font-semibold cursor-pointer hover:shadow-[0_0_40px_rgba(0,255,255,0.7)] transition-shadow"
-                      onClick={() => navigate(`/channel/${video.channels.id}`)}
+                      onClick={() => navigate(`/${video.user_id}`)}
                     >
                       {video.channels.name[0]}
                     </div>
@@ -723,7 +726,7 @@ export default function Watch() {
                       className="cursor-pointer"
                       onMouseEnter={() => setShowMiniProfile(true)}
                       onMouseLeave={() => setShowMiniProfile(false)}
-                      onClick={() => navigate(`/channel/${video.channels.id}`)}
+                      onClick={() => navigate(`/${video.user_id}`)}
                     >
                       <div className="flex items-center gap-1">
                         <p className="font-semibold text-foreground hover:text-cosmic-cyan transition-colors">
@@ -913,7 +916,7 @@ export default function Watch() {
 
             {/* Up Next Sidebar with Smart Queue */}
             <UpNextSidebar 
-              onVideoSelect={(video) => navigate(`/watch/${video.id}`)}
+              onVideoSelect={(video) => goToVideo(video.id)}
             />
           </div>
         </div>

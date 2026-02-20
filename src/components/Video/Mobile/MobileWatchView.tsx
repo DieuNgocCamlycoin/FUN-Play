@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useVideoNavigation } from "@/lib/videoNavigation";
 import { YouTubeMobilePlayer } from "../YouTubeMobilePlayer";
 import { VideoInfoSection } from "./VideoInfoSection";
 import { VideoActionsBar } from "./VideoActionsBar";
@@ -57,6 +58,7 @@ export function MobileWatchView({
   channelAvatarUrl,
 }: MobileWatchViewProps) {
   const navigate = useNavigate();
+  const { goToVideo } = useVideoNavigation();
   const { session, nextVideo, previousVideo, getUpNext } = useVideoPlayback();
   const { showMiniPlayer } = useMiniPlayer();
   const [showCommentsDrawer, setShowCommentsDrawer] = useState(false);
@@ -101,14 +103,14 @@ export function MobileWatchView({
   const handlePrevious = () => {
     const prev = previousVideo();
     if (prev) {
-      navigate(`/watch/${prev.id}`);
+      goToVideo(prev.id);
     }
   };
 
   const handleNext = () => {
     const next = nextVideo();
     if (next) {
-      navigate(`/watch/${next.id}`);
+      goToVideo(next.id);
     }
   };
 
@@ -202,7 +204,7 @@ export function MobileWatchView({
 
         {/* Related Videos */}
         <div className="px-3 py-4">
-          <UpNextSidebar onVideoSelect={(v) => navigate(`/watch/${v.id}`)} />
+          <UpNextSidebar onVideoSelect={(v) => goToVideo(v.id)} />
         </div>
       </ScrollArea>
 

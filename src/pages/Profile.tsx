@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useVideoNavigation } from "@/lib/videoNavigation";
 import { Bell, Search, Settings, ChevronRight, Play, Download, Plus, Clock } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
@@ -28,6 +29,7 @@ interface Playlist {
 
 const Profile = () => {
   const navigate = useNavigate();
+  const { goToVideo } = useVideoNavigation();
   const { user, loading: authLoading } = useAuth();
   const { profile, loading: profileLoading } = useProfile();
   const { watchHistory, loading: historyLoading } = useWatchHistory();
@@ -196,7 +198,7 @@ const Profile = () => {
               <div
                 key={item.id}
                 className="flex-shrink-0 w-36 cursor-pointer"
-                onClick={() => navigate(`/watch/${item.video_id}`)}
+                onClick={() => goToVideo(item.video_id)}
               >
                 <div className="relative aspect-video rounded-lg overflow-hidden bg-muted mb-2">
                   {item.video?.thumbnail_url ? (
