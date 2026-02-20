@@ -170,11 +170,14 @@ export default function Channel() {
       let profileData: ProfileData | null = null;
 
       if (targetUsername) {
-        // Fetch by username - first get profile
+        // Detect if the param is a UUID (fallback from getProfileUrl)
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-/.test(targetUsername);
+
+        // Fetch profile by id or username accordingly
         const { data: pData, error: pError } = await supabase
           .from("profiles")
           .select("*")
-          .eq("username", targetUsername)
+          .eq(isUUID ? "id" : "username", targetUsername)
           .maybeSingle();
 
         if (pError) throw pError;
