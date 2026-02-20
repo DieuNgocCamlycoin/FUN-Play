@@ -8,7 +8,6 @@ import {
   Repeat1, 
   Play,
   X,
-  GripVertical,
   ListMusic,
   ListPlus,
   ExternalLink
@@ -16,13 +15,15 @@ import {
 import { useNavigate, Link } from "react-router-dom";
 import { useVideoNavigation } from "@/lib/videoNavigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { VideoPlaceholder } from "./VideoPlaceholder";
-import { formatDuration, formatViews } from "@/lib/formatters";
+import { formatDuration, formatViews, formatTimestamp } from "@/lib/formatters";
 
 interface UpNextSidebarProps {
   onVideoSelect?: (video: VideoItem) => void;
+  currentChannelId?: string;
+  currentCategory?: string | null;
 }
 
 interface PlaylistInfo {
@@ -31,7 +32,9 @@ interface PlaylistInfo {
   video_count: number;
 }
 
-export function UpNextSidebar({ onVideoSelect }: UpNextSidebarProps) {
+type FilterType = "all" | "same_channel" | "related";
+
+export function UpNextSidebar({ onVideoSelect, currentChannelId, currentCategory }: UpNextSidebarProps) {
   const navigate = useNavigate();
   const {
     session,
@@ -47,8 +50,8 @@ export function UpNextSidebar({ onVideoSelect }: UpNextSidebarProps) {
   } = useVideoPlayback();
 
   const { goToVideo } = useVideoNavigation();
-  const [isReordering, setIsReordering] = useState(false);
   const [playlistInfo, setPlaylistInfo] = useState<PlaylistInfo | null>(null);
+  const [activeFilter, setActiveFilter] = useState<FilterType>("all");
 
   // Fetch playlist info if context is PLAYLIST
   useEffect(() => {
@@ -78,11 +81,23 @@ export function UpNextSidebar({ onVideoSelect }: UpNextSidebarProps) {
   const [displayCount, setDisplayCount] = useState(20);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-  if (!session) return null;
+  const upNextVideos = session ? getUpNext(displayCount) : [];
+  const queueLength = session?.queue.length || 0;
+  const hasMore = session ? session.current_index + displayCount < queueLength : false;
 
-  const upNextVideos = getUpNext(displayCount);
-  const queueLength = session.queue.length;
-  const hasMore = session.current_index + displayCount < queueLength;
+  // Filter videos based on active filter
+  const filteredVideos = useMemo(() => {
+    if (activeFilter === "all") return upNextVideos;
+    if (activeFilter === "same_channel" && currentChannelId) {
+      return upNextVideos.filter(v => v.channel_id === currentChannelId);
+    }
+    if (activeFilter === "related" && currentCategory) {
+      return upNextVideos.filter(v => (v as any).category === currentCategory);
+    }
+    return upNextVideos;
+  }, [upNextVideos, activeFilter, currentChannelId, currentCategory]);
+
+  if (!session) return null;
 
   const handleVideoClick = (video: VideoItem) => {
     if (onVideoSelect) {
@@ -91,19 +106,6 @@ export function UpNextSidebar({ onVideoSelect }: UpNextSidebarProps) {
       skipToVideo(video.id);
       const qp = session.context_type === "PLAYLIST" && session.context_id ? `?list=${session.context_id}` : '';
       goToVideo(video.id, qp);
-    }
-  };
-
-  const handleReorder = (newOrder: VideoItem[]) => {
-    const fromVideo = session.queue.find(v => 
-      !newOrder.find(n => n.id === v.id && session.queue.indexOf(v) === newOrder.indexOf(n))
-    );
-    if (fromVideo) {
-      const fromIdx = session.queue.indexOf(fromVideo);
-      const toIdx = newOrder.findIndex(n => n.id === fromVideo.id);
-      if (fromIdx !== -1 && toIdx !== -1) {
-        reorderQueue(fromIdx, toIdx);
-      }
     }
   };
 
@@ -123,160 +125,138 @@ export function UpNextSidebar({ onVideoSelect }: UpNextSidebarProps) {
     setRepeat(modes[nextIdx]);
   };
 
+  const filterChips: { key: FilterType; label: string }[] = [
+    { key: "all", label: "Tất cả" },
+    { key: "same_channel", label: "Cùng kênh" },
+    { key: "related", label: "Liên quan" },
+  ];
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* Playlist Header (if in playlist context) */}
       {playlistInfo && (
-        <div className="bg-gradient-to-r from-primary/20 to-primary/10 rounded-xl p-4 border border-primary/30">
+        <div className="bg-primary/10 rounded-xl p-3 border border-primary/20">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <ListPlus className="h-5 w-5 text-primary" />
+              <ListPlus className="h-4 w-4 text-primary" />
               <div>
                 <Link 
                   to={`/playlist/${playlistInfo.id}`}
-                  className="font-semibold text-foreground hover:text-primary transition-colors"
+                  className="font-semibold text-sm text-foreground hover:text-primary transition-colors"
                 >
                   {playlistInfo.name}
                 </Link>
                 <p className="text-xs text-muted-foreground">
-                  {session.current_index + 1}/{playlistInfo.video_count} videos
+                  {session.current_index + 1}/{playlistInfo.video_count}
                 </p>
               </div>
             </div>
             <Link to={`/playlist/${playlistInfo.id}`}>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <ExternalLink className="h-4 w-4" />
+              <Button variant="ghost" size="icon" className="h-7 w-7 !shadow-none !border-0">
+                <ExternalLink className="h-3.5 w-3.5" />
               </Button>
             </Link>
           </div>
         </div>
       )}
 
-      {/* Header with controls */}
-      <div className="bg-card/50 backdrop-blur-sm rounded-xl p-4 border border-border/50">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <ListMusic className="h-5 w-5 text-primary" />
-            <span className="font-semibold text-foreground">Tiếp theo</span>
-            {!playlistInfo && (
-              <span className="text-sm text-muted-foreground">
-                ({session.current_index + 1}/{queueLength})
-              </span>
-            )}
-          </div>
-          
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className={`h-8 w-8 rounded-full ${session.shuffle ? "text-primary bg-primary/20" : ""}`}
-              onClick={() => setShuffle(!session.shuffle)}
-              title="Xáo trộn"
-            >
-              <Shuffle className="h-4 w-4" />
-            </Button>
-            
-            <Button
-              variant="ghost"
-              size="icon"
-              className={`h-8 w-8 rounded-full ${session.repeat !== "off" ? "text-primary bg-primary/20" : ""}`}
-              onClick={cycleRepeat}
-              title={session.repeat === "off" ? "Lặp lại: tắt" : session.repeat === "all" ? "Lặp lại: tất cả" : "Lặp lại: một bài"}
-            >
-              {getRepeatIcon()}
-            </Button>
-          </div>
+      {/* Compact controls row */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <span className="text-sm font-semibold text-foreground">Tiếp theo</span>
+          {!playlistInfo && (
+            <span className="text-xs text-muted-foreground">
+              ({session.current_index + 1}/{queueLength})
+            </span>
+          )}
         </div>
-
-        {/* Autoplay toggle */}
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-muted-foreground">Tự động phát</span>
+        
+        <div className="flex items-center gap-1">
+          {/* Autoplay toggle */}
+          <span className="text-xs text-muted-foreground mr-1">Tự động phát</span>
           <Switch
             checked={isAutoplayEnabled}
             onCheckedChange={setAutoplay}
+            className="scale-75"
           />
+          <Button
+            variant="ghost"
+            size="icon"
+            className={`h-7 w-7 rounded-full !shadow-none !border-0 ${session.shuffle ? "text-primary bg-primary/15" : ""}`}
+            onClick={() => setShuffle(!session.shuffle)}
+            title="Xáo trộn"
+          >
+            <Shuffle className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className={`h-7 w-7 rounded-full !shadow-none !border-0 ${session.repeat !== "off" ? "text-primary bg-primary/15" : ""}`}
+            onClick={cycleRepeat}
+            title={session.repeat === "off" ? "Lặp lại: tắt" : session.repeat === "all" ? "Lặp lại: tất cả" : "Lặp lại: một bài"}
+          >
+            {getRepeatIcon()}
+          </Button>
         </div>
       </div>
 
-      {/* Currently Playing */}
-      {currentVideo && (
-        <div className="bg-gradient-to-r from-primary/10 to-primary/5 rounded-xl p-3 border border-primary/20">
-          <span className="text-xs font-medium text-primary mb-2 block">
-            Đang phát
-          </span>
-          <div className="flex gap-3">
-            <div className="relative w-24 aspect-video rounded-lg overflow-hidden bg-muted flex-shrink-0">
-              {currentVideo.thumbnail_url ? (
-                <img
-                  src={currentVideo.thumbnail_url}
-                  alt={currentVideo.title}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <VideoPlaceholder />
-              )}
-              {currentVideo.duration && (
-                <span className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1 rounded">
-                  {formatDuration(currentVideo.duration)}
-                </span>
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <h4 className="text-sm font-medium text-foreground line-clamp-2">
-                {currentVideo.title}
-              </h4>
-              <p className="text-xs text-muted-foreground mt-1">
-                {currentVideo.channel_name}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Filter Chips */}
+      <div className="flex gap-2">
+        {filterChips.map(chip => (
+          <button
+            key={chip.key}
+            onClick={() => setActiveFilter(chip.key)}
+            className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+              activeFilter === chip.key
+                ? "bg-foreground text-background"
+                : "bg-muted hover:bg-muted/80 text-foreground"
+            }`}
+          >
+            {chip.label}
+          </button>
+        ))}
+      </div>
 
       {/* Up Next List */}
-      <ScrollArea className="h-[calc(100vh-450px)] min-h-[300px]">
+      <ScrollArea className="h-[calc(100vh-320px)] min-h-[300px]">
         <AnimatePresence mode="popLayout">
-          {upNextVideos.map((video, index) => (
+          {filteredVideos.map((video, index) => (
             <motion.div
               key={video.id}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ delay: index * 0.05 }}
-              className="group relative flex gap-2 p-2 hover:bg-muted/50 rounded-lg cursor-pointer transition-colors"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ delay: index * 0.03 }}
+              className="group relative flex gap-2 p-1.5 hover:bg-muted/50 rounded-lg cursor-pointer transition-colors"
               onClick={() => handleVideoClick(video)}
             >
-              {/* Index number */}
-              <div className="w-6 flex items-center justify-center text-sm text-muted-foreground">
-                {isReordering ? (
-                  <GripVertical className="h-4 w-4 cursor-grab" />
-                ) : (
-                  <span className="group-hover:hidden">{index + 1}</span>
-                )}
-                <Play className="h-4 w-4 hidden group-hover:block" />
-              </div>
-
-              {/* Thumbnail */}
-              <div className="relative w-28 aspect-video rounded-lg overflow-hidden bg-muted flex-shrink-0">
+              {/* Thumbnail — larger */}
+              <div className="relative w-40 aspect-video rounded-lg overflow-hidden bg-muted flex-shrink-0">
                 {video.thumbnail_url ? (
                   <img
                     src={video.thumbnail_url}
                     alt={video.title}
-                    className="w-full h-full object-cover group-hover:opacity-80 transition-opacity"
+                    className="w-full h-full object-cover group-hover:opacity-90 transition-opacity"
                   />
                 ) : (
-                  <VideoPlaceholder className="group-hover:opacity-80 transition-opacity" />
+                  <VideoPlaceholder className="group-hover:opacity-90 transition-opacity" />
                 )}
                 {video.duration && (
-                  <span className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1 rounded">
+                  <span className="absolute bottom-1 right-1 bg-black/80 text-white text-[10px] px-1 rounded font-medium">
                     {formatDuration(video.duration)}
                   </span>
                 )}
+                {/* Play icon on hover */}
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="bg-black/60 rounded-full p-1.5">
+                    <Play className="h-4 w-4 text-white fill-white" />
+                  </div>
+                </div>
               </div>
 
               {/* Info */}
-              <div className="flex-1 min-w-0">
-                <h4 className="text-sm font-medium text-foreground line-clamp-2 group-hover:text-primary transition-colors">
+              <div className="flex-1 min-w-0 py-0.5">
+                <h4 className="text-sm font-medium text-foreground line-clamp-2 leading-snug group-hover:text-primary transition-colors">
                   {video.title}
                 </h4>
                 <p className="text-xs text-muted-foreground mt-1">
@@ -291,7 +271,7 @@ export function UpNextSidebar({ onVideoSelect }: UpNextSidebarProps) {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity absolute top-2 right-2"
+                className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity absolute top-1.5 right-1.5 !shadow-none !border-0"
                 onClick={(e) => {
                   e.stopPropagation();
                   removeFromQueue(video.id);
@@ -303,20 +283,22 @@ export function UpNextSidebar({ onVideoSelect }: UpNextSidebarProps) {
           ))}
         </AnimatePresence>
 
-        {upNextVideos.length === 0 && (
+        {filteredVideos.length === 0 && (
           <div className="text-center py-8 text-muted-foreground">
-            <ListMusic className="h-12 w-12 mx-auto mb-3 opacity-50" />
-            <p className="text-sm">Không còn video trong hàng đợi</p>
+            <ListMusic className="h-10 w-10 mx-auto mb-2 opacity-50" />
+            <p className="text-sm">
+              {activeFilter !== "all" ? "Không có video phù hợp bộ lọc" : "Không còn video trong hàng đợi"}
+            </p>
           </div>
         )}
 
         {/* Show More button */}
-        {hasMore && (
+        {hasMore && activeFilter === "all" && (
           <div className="py-3 text-center">
             <Button
               variant="ghost"
               size="sm"
-              className="text-primary hover:text-primary/80"
+              className="text-primary hover:text-primary/80 !shadow-none !border-0"
               onClick={() => {
                 setIsLoadingMore(true);
                 setTimeout(() => {
@@ -331,13 +313,6 @@ export function UpNextSidebar({ onVideoSelect }: UpNextSidebarProps) {
           </div>
         )}
       </ScrollArea>
-
-      {/* Queue info */}
-      {session.history.length > 1 && (
-        <div className="text-xs text-center text-muted-foreground">
-          {session.history.length} video đã phát trong phiên này
-        </div>
-      )}
     </div>
   );
 }

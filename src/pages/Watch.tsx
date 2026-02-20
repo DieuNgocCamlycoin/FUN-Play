@@ -691,9 +691,9 @@ export default function Watch({ videoIdProp }: { videoIdProp?: string }) {
 
       <main className={`pt-14 transition-all duration-300 ${isSidebarExpanded ? "lg:pl-60" : "lg:pl-16"}`}>
         <div className="max-w-[1920px] mx-auto">
-          <div className={`grid gap-6 p-6 ${isTheaterMode ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-[1fr_400px]'}`}>
+          <div className={`grid gap-6 p-6 ${isTheaterMode ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-[1fr_400px] lg:items-start'}`}>
             {/* Main Content */}
-            <div className="space-y-4">
+            <div className="space-y-3">
               {/* Video Player with Ambient Glow */}
               <div ref={videoPlayerRef} className="relative">
                 {/* Ambient glow effect behind the player */}
@@ -733,30 +733,24 @@ export default function Watch({ videoIdProp }: { videoIdProp?: string }) {
               </div>
 
               {/* Video Title */}
-              <h1 className="text-xl font-bold text-foreground">
+              <h1 className="text-xl font-bold text-foreground mt-3">
                 {video.title}
               </h1>
 
-              {/* View Count & Timestamp */}
-              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                <span>{formatViews(video.view_count)}</span>
-                <span>•</span>
-                <span>{formatTimestamp(video.created_at)}</span>
-              </div>
-
-              {/* Channel Info & Actions */}
-              <div className="flex items-center justify-between flex-wrap gap-4">
+              {/* Channel Info + Action Buttons — ONE ROW like YouTube */}
+              <div className="flex items-center justify-between flex-wrap gap-3 mt-2">
+                {/* Left: Channel avatar + name + subscribe */}
                 <div className="flex items-center gap-3">
                   {channelAvatarUrl ? (
                     <img
                       src={channelAvatarUrl}
                       alt={video.channels.name}
-                      className="w-10 h-10 rounded-full object-cover cursor-pointer hover:shadow-[0_0_40px_rgba(0,255,255,0.7)] transition-shadow"
+                      className="w-10 h-10 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
                       onClick={() => navigate(`/${video.user_id}`)}
                     />
                   ) : (
                     <div
-                      className="w-10 h-10 rounded-full bg-gradient-to-br from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta flex items-center justify-center text-foreground font-semibold cursor-pointer hover:shadow-[0_0_40px_rgba(0,255,255,0.7)] transition-shadow"
+                      className="w-10 h-10 rounded-full bg-gradient-to-br from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta flex items-center justify-center text-foreground font-semibold cursor-pointer hover:opacity-80 transition-opacity"
                       onClick={() => navigate(`/${video.user_id}`)}
                     >
                       {video.channels.name[0]}
@@ -770,7 +764,7 @@ export default function Watch({ videoIdProp }: { videoIdProp?: string }) {
                       onClick={() => navigate(`/${video.user_id}`)}
                     >
                       <div className="flex items-center gap-1">
-                        <p className="font-semibold text-foreground hover:text-cosmic-cyan transition-colors">
+                        <p className="font-semibold text-sm text-foreground hover:text-primary transition-colors">
                           {video.channels.name}
                         </p>
                         {video.channels.is_verified && (
@@ -779,13 +773,13 @@ export default function Watch({ videoIdProp }: { videoIdProp?: string }) {
                           </svg>
                         )}
                       </div>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-xs text-muted-foreground">
                         {formatViewsShort(video.channels.subscriber_count)} người đăng ký
                       </p>
                     </div>
                     {showMiniProfile && (
                       <div
-                        className="absolute top-full left-0 mt-2"
+                        className="absolute top-full left-0 mt-2 z-50"
                         onMouseEnter={() => setShowMiniProfile(true)}
                         onMouseLeave={() => setShowMiniProfile(false)}
                       >
@@ -803,34 +797,37 @@ export default function Watch({ videoIdProp }: { videoIdProp?: string }) {
                   </div>
                   <Button
                     onClick={handleSubscribe}
-                    className={`rounded-full ml-2 ${
+                    size="sm"
+                    className={`rounded-full ml-1 ${
                       isSubscribed
-                        ? "bg-muted hover:bg-muted/80 text-foreground"
-                        : "bg-gradient-to-r from-cosmic-sapphire to-cosmic-cyan hover:from-cosmic-sapphire/90 hover:to-cosmic-cyan/90 text-foreground shadow-[0_0_30px_rgba(0,255,255,0.5)]"
+                        ? "bg-muted hover:bg-muted/80 text-foreground !shadow-none !border-0"
+                        : "bg-gradient-to-r from-cosmic-sapphire to-cosmic-cyan hover:from-cosmic-sapphire/90 hover:to-cosmic-cyan/90 text-foreground shadow-[0_0_20px_rgba(0,255,255,0.4)] !border-0"
                     }`}
                   >
                     {isSubscribed ? "Đã đăng ký" : "Đăng ký"}
                   </Button>
                 </div>
 
+                {/* Right: Action buttons — clean, no gradient */}
                 <div className="flex items-center gap-2 flex-wrap">
-                  <div className="flex items-center bg-muted/50 rounded-full overflow-hidden border border-cosmic-cyan/20">
+                  {/* Like/Dislike pill */}
+                  <div className="flex items-center bg-muted rounded-full overflow-hidden">
                     <Button
                       variant="ghost"
                       size="sm"
-                      className={`rounded-full rounded-r-none gap-2 hover:bg-cosmic-cyan/20 ${
+                      className={`rounded-full rounded-r-none gap-1.5 h-9 px-4 hover:bg-muted/80 !shadow-none !border-0 ${
                         hasLiked ? "text-cosmic-cyan" : ""
                       }`}
                       onClick={handleLike}
                     >
                       <ThumbsUp className={`h-4 w-4 ${hasLiked ? "fill-current" : ""}`} />
-                      <span className="font-semibold">{formatViewsShort(video.like_count)}</span>
+                      <span className="text-sm font-medium">{formatViewsShort(video.like_count)}</span>
                     </Button>
                     <div className="w-px h-6 bg-border"></div>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className={`rounded-full rounded-l-none hover:bg-cosmic-magenta/20 ${
+                      className={`rounded-full rounded-l-none h-9 px-3 hover:bg-muted/80 !shadow-none !border-0 ${
                         hasDisliked ? "text-cosmic-magenta" : ""
                       }`}
                       onClick={handleDislike}
@@ -838,43 +835,47 @@ export default function Watch({ videoIdProp }: { videoIdProp?: string }) {
                       <ThumbsDown className={`h-4 w-4 ${hasDisliked ? "fill-current" : ""}`} />
                     </Button>
                   </div>
+
+                  {/* Share */}
                   <Button
-                    variant="secondary"
+                    variant="ghost"
                     size="sm"
-                    className="rounded-full gap-2 bg-muted/50 hover:bg-cosmic-sapphire/20 border border-cosmic-sapphire/20"
+                    className="rounded-full gap-1.5 h-9 bg-muted hover:bg-muted/80 !shadow-none !border-0"
                     onClick={() => setShareModalOpen(true)}
                   >
                     <Share2 className="h-4 w-4" />
-                    Chia sẻ
+                    <span className="text-sm">Chia sẻ</span>
                   </Button>
+
+                  {/* Save */}
                   <Button
-                    variant="secondary"
+                    variant="ghost"
                     size="sm"
-                    className="rounded-full gap-2 bg-muted/50 hover:bg-muted/70 border border-border"
+                    className="rounded-full gap-1.5 h-9 bg-muted hover:bg-muted/80 !shadow-none !border-0"
                     onClick={() => setPlaylistModalOpen(true)}
                   >
                     <Bookmark className="h-4 w-4" />
-                    Lưu
+                    <span className="text-sm">Lưu</span>
                   </Button>
+
+                  {/* Gift — keep gold accent but subtle */}
                   <Button
-                    variant="secondary"
+                    variant="ghost"
                     size="sm"
-                    className="rounded-full gap-2 bg-gradient-to-r from-glow-gold/20 to-divine-rose-gold/20 hover:from-glow-gold/30 hover:to-divine-rose-gold/30 border border-glow-gold/30"
+                    className="rounded-full gap-1.5 h-9 bg-muted hover:bg-glow-gold/10 !shadow-none !border-0"
                     onClick={() => setDonateModalOpen(true)}
                   >
                     <Gift className="h-4 w-4 text-glow-gold" />
-                    Tặng
+                    <span className="text-sm">Tặng</span>
                   </Button>
-                  <ReportSpamButton
-                    videoId={video.id}
-                    className="rounded-full bg-muted/50 hover:bg-destructive/10 border border-border gap-2"
-                  />
+
+                  {/* More menu — includes Report */}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
-                        variant="secondary"
+                        variant="ghost"
                         size="icon"
-                        className="rounded-full bg-muted/50 hover:bg-muted/70"
+                        className="rounded-full h-9 w-9 bg-muted hover:bg-muted/80 !shadow-none !border-0"
                       >
                         <MoreHorizontal className="h-4 w-4" />
                       </Button>
@@ -884,27 +885,35 @@ export default function Watch({ videoIdProp }: { videoIdProp?: string }) {
                         <EyeOff className="mr-2 h-4 w-4" />
                         Không quan tâm
                       </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <div>
+                          <ReportSpamButton
+                            videoId={video.id}
+                            className="w-full justify-start px-2 py-1.5 text-sm cursor-pointer !shadow-none !border-0 !bg-transparent hover:!bg-muted"
+                          />
+                        </div>
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
               </div>
 
-              {/* Description - YouTube style expand/collapse */}
+              {/* Description Box — YouTube style gray card */}
               <div
-                className="bg-muted rounded-xl p-4 cursor-pointer hover:bg-muted/80 transition-colors"
+                className="bg-muted/50 rounded-xl p-3 cursor-pointer hover:bg-muted/70 transition-colors mt-3"
                 onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
               >
-                <div className="flex items-center gap-2 text-sm font-semibold text-foreground mb-2">
-                  <span>{(video.view_count || 0).toLocaleString("vi-VN")} lượt xem</span>
+                <div className="flex items-center gap-2 text-sm font-semibold text-foreground mb-1">
+                  <span>{formatViews(video.view_count)}</span>
                   <span>•</span>
-                  <span>{new Date(video.created_at).toLocaleDateString("vi-VN", { day: "numeric", month: "short", year: "numeric" })}</span>
+                  <span>{formatTimestamp(video.created_at)}</span>
                 </div>
                 {/* Clickable hashtags */}
                 {(() => {
                   const hashtags = video.description?.match(/#[\w\u00C0-\u024F\u1E00-\u1EFF]+/g);
                   if (!hashtags || hashtags.length === 0) return null;
                   return (
-                    <div className="flex flex-wrap gap-1.5 mb-2">
+                    <div className="flex flex-wrap gap-1.5 mb-1.5">
                       {[...new Set(hashtags)].slice(0, 5).map((tag) => (
                         <button
                           key={tag}
@@ -921,18 +930,18 @@ export default function Watch({ videoIdProp }: { videoIdProp?: string }) {
                   );
                 })()}
                 <p className={`text-sm text-foreground whitespace-pre-wrap ${
-                  !isDescriptionExpanded ? "line-clamp-3" : ""
+                  !isDescriptionExpanded ? "line-clamp-2" : ""
                 }`}>
                   {video.description}
                 </p>
-                {video.description && video.description.length > 150 && (
-                  <button className="text-sm font-semibold text-muted-foreground mt-2 hover:text-foreground">
+                {video.description && video.description.length > 100 && (
+                  <button className="text-sm font-semibold text-muted-foreground mt-1.5 hover:text-foreground">
                     {isDescriptionExpanded ? "Thu gọn" : "...xem thêm"}
                   </button>
                 )}
               </div>
 
-              {/* Comments Section - New Component */}
+              {/* Comments Section */}
               <div className="mt-6">
               <VideoCommentList
                   videoId={id!}
@@ -942,10 +951,14 @@ export default function Watch({ videoIdProp }: { videoIdProp?: string }) {
               </div>
             </div>
 
-            {/* Up Next Sidebar with Smart Queue */}
-            <UpNextSidebar 
-              onVideoSelect={(video) => goToVideo(video.id)}
-            />
+            {/* Up Next Sidebar — Sticky */}
+            <div className="lg:sticky lg:top-[72px]">
+              <UpNextSidebar 
+                onVideoSelect={(video) => goToVideo(video.id)}
+                currentChannelId={video.channels.id}
+                currentCategory={(video as any).category}
+              />
+            </div>
           </div>
         </div>
       </main>
