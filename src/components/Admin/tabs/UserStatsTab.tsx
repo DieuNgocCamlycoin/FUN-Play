@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { getProfileUrl } from "@/lib/adminUtils";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { RewardBreakdownGrid, ThreeSegmentProgress } from "@/components/Rewards/RewardBreakdownGrid";
@@ -181,10 +182,22 @@ export function UserStatsTab() {
             <Card className="p-3">
               <CollapsibleTrigger className="w-full">
                 <div className="flex items-center gap-3">
-                  <Avatar className="h-10 w-10">
-                    <AvatarImage src={user.avatar_url || ""} />
-                    <AvatarFallback>{user.display_name?.[0] || "?"}</AvatarFallback>
-                  </Avatar>
+                  {(() => {
+                    const profileUrl = getProfileUrl(user.username, user.user_id);
+                    return profileUrl ? (
+                      <a href={profileUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+                        <Avatar className="h-10 w-10 cursor-pointer hover:ring-2 hover:ring-primary transition-all">
+                          <AvatarImage src={user.avatar_url || ""} />
+                          <AvatarFallback>{user.display_name?.[0] || "?"}</AvatarFallback>
+                        </Avatar>
+                      </a>
+                    ) : (
+                      <Avatar className="h-10 w-10 opacity-50">
+                        <AvatarImage src={user.avatar_url || ""} />
+                        <AvatarFallback>{user.display_name?.[0] || "?"}</AvatarFallback>
+                      </Avatar>
+                    );
+                  })()}
                   <div className="flex-1 text-left min-w-0">
                     <div className="flex items-center gap-1.5">
                       <p className="font-medium text-sm truncate">{user.display_name || user.username}</p>
@@ -261,10 +274,22 @@ export function UserStatsTab() {
                   <TableCell>
                     <div className="flex items-center gap-3">
                       {isAnomaly && <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />}
-                      <Avatar className="h-8 w-8">
-                        <AvatarImage src={user.avatar_url || ""} />
-                        <AvatarFallback className="text-xs">{user.display_name?.[0] || "?"}</AvatarFallback>
-                      </Avatar>
+                      {(() => {
+                        const profileUrl = getProfileUrl(user.username, user.user_id);
+                        return profileUrl ? (
+                          <a href={profileUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+                            <Avatar className="h-8 w-8 cursor-pointer hover:ring-2 hover:ring-primary transition-all">
+                              <AvatarImage src={user.avatar_url || ""} />
+                              <AvatarFallback className="text-xs">{user.display_name?.[0] || "?"}</AvatarFallback>
+                            </Avatar>
+                          </a>
+                        ) : (
+                          <Avatar className="h-8 w-8 opacity-50">
+                            <AvatarImage src={user.avatar_url || ""} />
+                            <AvatarFallback className="text-xs">{user.display_name?.[0] || "?"}</AvatarFallback>
+                          </Avatar>
+                        );
+                      })()}
                       <div>
                         <div className="flex items-center gap-1.5">
                           <p className="font-medium text-sm">{user.display_name || user.username}</p>

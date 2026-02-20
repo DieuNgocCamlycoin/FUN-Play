@@ -26,6 +26,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { getProfileUrl } from "@/lib/adminUtils";
 
 interface ApprovedListTabProps {
   users: AdminUser[];
@@ -141,12 +142,22 @@ const ApprovedListTab = ({ users, onUnapprove, loading }: ApprovedListTabProps) 
                     <TableCell className="font-medium">{index + 1}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <Avatar className="w-8 h-8">
-                          <AvatarImage src={user.avatar_url || undefined} />
-                          <AvatarFallback>
-                            {(user.display_name || user.username)?.[0]}
-                          </AvatarFallback>
-                        </Avatar>
+                        {(() => {
+                          const profileUrl = getProfileUrl(user.username, user.id);
+                          return profileUrl ? (
+                            <a href={profileUrl} target="_blank" rel="noopener noreferrer">
+                              <Avatar className="w-8 h-8 cursor-pointer hover:ring-2 hover:ring-primary transition-all">
+                                <AvatarImage src={user.avatar_url || undefined} />
+                                <AvatarFallback>{(user.display_name || user.username)?.[0]}</AvatarFallback>
+                              </Avatar>
+                            </a>
+                          ) : (
+                            <Avatar className="w-8 h-8 opacity-50">
+                              <AvatarImage src={user.avatar_url || undefined} />
+                              <AvatarFallback>{(user.display_name || user.username)?.[0]}</AvatarFallback>
+                            </Avatar>
+                          );
+                        })()}
                         <div className="min-w-0">
                           <div className="font-medium truncate max-w-[150px]">
                             {user.display_name || user.username}

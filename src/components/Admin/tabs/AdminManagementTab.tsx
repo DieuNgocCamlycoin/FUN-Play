@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Crown, Shield, UserPlus, Trash2, Search, Loader2, Mail, User, Users } from "lucide-react";
 import { toast } from "sonner";
+import { getProfileUrl } from "@/lib/adminUtils";
 
 interface AdminUser {
   id: string;
@@ -417,10 +418,22 @@ const AdminManagementTab = () => {
                 }`}
               >
                 <div className="flex items-center gap-4">
-                  <Avatar className="w-12 h-12">
-                    <AvatarImage src={admin.avatar_url || undefined} />
-                    <AvatarFallback>{admin.username?.[0]?.toUpperCase()}</AvatarFallback>
-                  </Avatar>
+                  {(() => {
+                    const profileUrl = getProfileUrl(admin.username, admin.id);
+                    return profileUrl ? (
+                      <a href={profileUrl} target="_blank" rel="noopener noreferrer">
+                        <Avatar className="w-12 h-12 cursor-pointer hover:ring-2 hover:ring-primary transition-all">
+                          <AvatarImage src={admin.avatar_url || undefined} />
+                          <AvatarFallback>{admin.username?.[0]?.toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                      </a>
+                    ) : (
+                      <Avatar className="w-12 h-12 opacity-50">
+                        <AvatarImage src={admin.avatar_url || undefined} />
+                        <AvatarFallback>{admin.username?.[0]?.toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                    );
+                  })()}
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-semibold">
