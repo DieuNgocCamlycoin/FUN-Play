@@ -62,14 +62,15 @@ interface VideoForApproval {
 export function VideosManagementTab() {
   const [reportedCount, setReportedCount] = useState<number>(0);
 
+  const fetchReportedCount = async () => {
+    const { count } = await supabase
+      .from("videos")
+      .select("id", { count: "exact", head: true })
+      .gt("report_count", 0);
+    setReportedCount(count || 0);
+  };
+
   useEffect(() => {
-    const fetchReportedCount = async () => {
-      const { count } = await supabase
-        .from("videos")
-        .select("id", { count: "exact", head: true })
-        .gt("report_count", 0);
-      setReportedCount(count || 0);
-    };
     fetchReportedCount();
   }, []);
 
@@ -122,7 +123,7 @@ export function VideosManagementTab() {
       </TabsContent>
 
       <TabsContent value="spam">
-        <SpamFilterContent />
+        <SpamFilterContent onReportCountChange={fetchReportedCount} />
       </TabsContent>
     </Tabs>
   );
@@ -581,7 +582,7 @@ function VideoStatsContent() {
 }
 
 // Spam Filter Content
-function SpamFilterContent() {
+function SpamFilterContent({ onReportCountChange }: { onReportCountChange?: () => void }) {
   const [videos, setVideos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"short" | "reported" | "repetitive" | "sample">("reported");
@@ -703,6 +704,7 @@ function SpamFilterContent() {
       toast.success(`Đã ẩn ${ids.length} video`);
       setSelected(new Set());
       fetchSpamVideos();
+      onReportCountChange?.();
     } else {
       toast.error("Lỗi khi ẩn video");
     }
@@ -724,6 +726,7 @@ function SpamFilterContent() {
       setSelected(new Set());
       setDeleteBanOpen(false);
       fetchSpamVideos();
+      onReportCountChange?.();
     } catch (err: any) {
       toast.error(err.message || "Lỗi khi xóa & ban");
     }
@@ -746,6 +749,7 @@ function SpamFilterContent() {
       setSelected(new Set());
       setDeleteOnlyOpen(false);
       fetchSpamVideos();
+      onReportCountChange?.();
     } catch (err: any) {
       toast.error(err.message || "Lỗi khi xóa video");
     }
