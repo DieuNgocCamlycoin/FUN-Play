@@ -1,11 +1,11 @@
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams, Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { Navigate } from "react-router-dom";
 import { getVideoPath } from "@/lib/videoNavigation";
 import NotFound from "./NotFound";
 
-const VideoRedirect = () => {
+const WatchLegacyRedirect = () => {
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   const [redirectPath, setRedirectPath] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -18,8 +18,13 @@ const VideoRedirect = () => {
         return;
       }
 
-      const path = await getVideoPath(id);
+      // Preserve query params (like ?t=120&list=xxx)
+      const qp = searchParams.toString();
+      const queryString = qp ? `?${qp}` : '';
       
+      const path = await getVideoPath(id, queryString);
+      
+      // If getVideoPath returned a /watch/ fallback, video wasn't found
       if (path.startsWith('/watch/')) {
         setNotFound(true);
       } else {
@@ -29,7 +34,7 @@ const VideoRedirect = () => {
     };
 
     resolve();
-  }, [id]);
+  }, [id, searchParams]);
 
   if (loading) {
     return (
@@ -45,4 +50,4 @@ const VideoRedirect = () => {
   return null;
 };
 
-export default VideoRedirect;
+export default WatchLegacyRedirect;

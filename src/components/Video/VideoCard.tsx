@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useNavigate } from "react-router-dom";
+import { useVideoNavigation } from "@/lib/videoNavigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { ShareModal } from "./ShareModal";
@@ -60,6 +61,7 @@ export const VideoCard = ({
   isLoading = false,
 }: VideoCardProps) => {
   const navigate = useNavigate();
+  const { goToVideo } = useVideoNavigation();
   const { user } = useAuth();
   const { toast } = useToast();
   const { lightTap } = useHapticFeedback();
@@ -121,7 +123,7 @@ export const VideoCard = ({
     if (onPlay && videoId) {
       onPlay(videoId);
     } else if (videoId) {
-      navigate(`/watch/${videoId}`);
+      goToVideo(videoId);
     }
   };
 

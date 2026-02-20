@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { useNavigate } from "react-router-dom";
+import { useVideoNavigation } from "@/lib/videoNavigation";
 import { useSearchSuggestions } from "@/hooks/useSearchSuggestions";
 import { cn } from "@/lib/utils";
 import {
@@ -30,6 +31,7 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
   const { user, signOut } = useAuth();
   const { profile } = useProfile();
   const navigate = useNavigate();
+  const { goToVideo } = useVideoNavigation();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const { videos: suggestedVideos, channels: suggestedChannels, isOpen: suggestionsOpen, query: searchQuery, setQuery: setSearchQuery, open: openSuggestions, close: closeSuggestions, clear: clearSearch } = useSearchSuggestions();
   const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -86,7 +88,7 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
   };
 
   const handleSuggestionClick = (videoId: string) => {
-    navigate(`/watch/${videoId}`);
+    goToVideo(videoId);
     setIsSearchOpen(false);
     clearSearch();
   };

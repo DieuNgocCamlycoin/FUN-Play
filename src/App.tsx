@@ -22,11 +22,14 @@ const LegacyCVideoRedirect = () => {
   const { username, slug } = useParams();
   return <Navigate to={`/${username}/video/${slug}`} replace />;
 };
+
+// Legacy /watch/:id redirect - fetches video data and redirects to clean URL
+const WatchLegacyRedirect = lazy(() => import("./pages/WatchLegacyRedirect"));
 import { WagmiProvider } from 'wagmi';
 import { VersionCheck } from './components/VersionCheck';
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
-import Watch from "./pages/Watch";
+
 import Channel from "./pages/Channel";
 import NotFound from "./pages/NotFound";
 import Wallet from "./pages/Wallet";
@@ -159,7 +162,7 @@ function AppContent() {
             {/* Core pages - not lazy loaded for instant access */}
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
-            <Route path="/watch/:id" element={<Watch />} />
+            <Route path="/watch/:id" element={<WatchLegacyRedirect />} />
             <Route path="/wallet" element={<Wallet />} />
             <Route path="/shorts" element={<Shorts />} />
             <Route path="/profile" element={<Profile />} />

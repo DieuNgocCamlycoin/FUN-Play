@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { useVideoNavigation } from "@/lib/videoNavigation";
 import { Play, X } from 'lucide-react';
 import { useWatchHistory } from '@/hooks/useWatchHistory';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
@@ -9,6 +10,7 @@ import { formatDuration } from '@/lib/formatters';
 export const ContinueWatching = () => {
   const { continueWatching, removeFromHistory } = useWatchHistory();
   const navigate = useNavigate();
+  const { goToVideo } = useVideoNavigation();
 
   if (continueWatching.length === 0) return null;
 
@@ -20,7 +22,7 @@ export const ContinueWatching = () => {
   };
 
   const handlePlay = (videoId: string, position: number) => {
-    navigate(`/watch/${videoId}?t=${position}`);
+    goToVideo(videoId, `?t=${position}`);
   };
 
   const handleRemove = async (e: React.MouseEvent, videoId: string) => {

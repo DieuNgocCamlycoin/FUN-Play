@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { formatViews, formatViewsShort, formatTimestamp, formatDuration } from "@/lib/formatters";
 import { useSearchParams, useNavigate } from "react-router-dom";
+import { useVideoNavigation } from "@/lib/videoNavigation";
 import { supabase } from "@/integrations/supabase/client";
 import { MainLayout } from "@/components/Layout/MainLayout";
 import { VideoCard } from "@/components/Video/VideoCard";
@@ -61,6 +62,7 @@ type SortOption = "relevance" | "date" | "views";
 const Search = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { goToVideo } = useVideoNavigation();
   const query = searchParams.get("q") || "";
   const [localQuery, setLocalQuery] = useState(query);
   const [videoResults, setVideoResults] = useState<(SearchVideo & { profile?: ProfileInfo })[]>([]);
@@ -331,7 +333,7 @@ const Search = () => {
                 {/* Mobile: grid, Desktop: list */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-4">
                   {videoResults.map((video) => (
-                    <div key={video.id} className="hidden lg:flex gap-4 cursor-pointer group" onClick={() => navigate(`/watch/${video.id}`)}>
+                    <div key={video.id} className="hidden lg:flex gap-4 cursor-pointer group" onClick={() => goToVideo(video.id)}>
                       {/* Thumbnail with hover preview */}
                       <div
                         className="relative w-[360px] shrink-0 aspect-video rounded-xl overflow-hidden"
@@ -405,7 +407,7 @@ const Search = () => {
                       duration={video.duration}
                       isVerified={video.channels?.is_verified}
                       videoUrl={video.video_url || undefined}
-                      onPlay={() => navigate(`/watch/${video.id}`)}
+                      onPlay={() => goToVideo(video.id)}
                     />
                   ))}
                 </div>

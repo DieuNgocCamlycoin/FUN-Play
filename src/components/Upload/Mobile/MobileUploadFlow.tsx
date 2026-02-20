@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { useVideoNavigation } from "@/lib/videoNavigation";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ArrowLeft, Video, Zap, Radio, FileText, Sparkles } from "lucide-react";
@@ -60,6 +61,7 @@ const CONTENT_TYPES = [
 
 export function MobileUploadFlow({ open, onOpenChange }: MobileUploadFlowProps) {
   const navigate = useNavigate();
+  const { goToVideo } = useVideoNavigation();
   const { user } = useAuth();
   const { toast } = useToast();
   const { addUpload } = useUpload();
@@ -324,7 +326,7 @@ export function MobileUploadFlow({ open, onOpenChange }: MobileUploadFlowProps) 
 
   const handleViewVideo = () => {
     if (uploadedVideoId) {
-      navigate(`/watch/${uploadedVideoId}`);
+      goToVideo(uploadedVideoId);
       handleClose();
     }
   };

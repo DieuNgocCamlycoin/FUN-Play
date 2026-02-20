@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { useVideoNavigation } from "@/lib/videoNavigation";
 import { Header } from "@/components/Layout/Header";
 import { CollapsibleSidebar } from "@/components/Layout/CollapsibleSidebar";
 import { HonoboardRightSidebar } from "@/components/Layout/HonoboardRightSidebar";
@@ -65,6 +66,7 @@ const Index = () => {
   const { toast } = useToast();
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const { goToVideo } = useVideoNavigation();
   const isMobile = useIsMobile();
   const { successFeedback } = useHapticFeedback();
 
@@ -272,7 +274,7 @@ const Index = () => {
   }, [fetchVideos, toast]);
 
   const handlePlayVideo = (videoId: string) => {
-    navigate(`/watch/${videoId}`);
+    goToVideo(videoId);
   };
 
   // Filter and sort videos

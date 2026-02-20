@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/card";
 import { useNavigate, useLocation } from "react-router-dom";
 import { VideoPlaceholder } from "./VideoPlaceholder";
 import { cn } from "@/lib/utils";
+import { isVideoWatchPage, extractVideoIdFromPath } from "@/lib/videoNavigation";
 
 interface GlobalVideoState {
   videoId: string;
@@ -51,8 +52,12 @@ export const GlobalVideoPlayer = () => {
   const [audioOnly, setAudioOnly] = useState(true); // Default to audio-only mode
 
   // Check if we're on the watch page for the current video
-  const isOnWatchPage = location.pathname.startsWith('/watch/') && 
-    videoState?.videoId === location.pathname.split('/watch/')[1]?.split('?')[0];
+  const isOnWatchPage = isVideoWatchPage(location.pathname) && (() => {
+    const legacyId = extractVideoIdFromPath(location.pathname);
+    if (legacyId) return videoState?.videoId === legacyId;
+    // New URL: detection is by global state matching (video is playing on current page)
+    return true;
+  })();
 
   // Hide player when on the same video's watch page
   useEffect(() => {
@@ -202,13 +207,15 @@ export const GlobalVideoPlayer = () => {
     window.dispatchEvent(new CustomEvent('globalPlayerClosed'));
   }, []);
 
-  const handleExpand = useCallback(() => {
+  const handleExpand = useCallback(async () => {
     if (videoState) {
       // Save current time before navigating
       if (globalVideoState && videoRef.current) {
         globalVideoState.currentTime = videoRef.current.currentTime;
       }
-      navigate(`/watch/${videoState.videoId}?t=${Math.floor(currentTime)}`);
+      const { getVideoPath } = await import("@/lib/videoNavigation");
+      const path = await getVideoPath(videoState.videoId, `?t=${Math.floor(currentTime)}`);
+      navigate(path);
     }
   }, [videoState, currentTime, navigate]);
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { formatDuration, formatViews } from "@/lib/formatters";
 import { useNavigate } from "react-router-dom";
+import { useVideoNavigation } from "@/lib/videoNavigation";
 import { ArrowLeft, MoreVertical, Globe, Lock, Eye, Play, FileText, List, Radio } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
@@ -39,6 +40,7 @@ interface Post {
 
 const YourVideosMobile = () => {
   const navigate = useNavigate();
+  const { goToVideo } = useVideoNavigation();
   const { user, loading: authLoading } = useAuth();
   const { profile } = useProfile();
   
@@ -230,7 +232,7 @@ const YourVideosMobile = () => {
                 <div key={video.id} className="flex gap-3">
                   <div
                     className="relative w-40 aspect-video rounded-lg overflow-hidden bg-muted flex-shrink-0 cursor-pointer"
-                    onClick={() => navigate(`/watch/${video.id}`)}
+                    onClick={() => goToVideo(video.id)}
                   >
                     {video.thumbnail_url ? (
                       <img
@@ -319,7 +321,7 @@ const YourVideosMobile = () => {
                 <div
                   key={video.id}
                   className="cursor-pointer group"
-                  onClick={() => navigate(`/watch/${video.id}`)}
+                  onClick={() => goToVideo(video.id)}
                 >
                   <div className="relative aspect-[9/16] rounded-lg overflow-hidden bg-muted">
                     {video.thumbnail_url ? (
