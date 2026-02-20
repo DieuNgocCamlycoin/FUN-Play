@@ -27,18 +27,18 @@ function extractOgImage(html: string): string | null {
   return null;
 }
 
-// Platform favicon fallbacks
-const platformFavicons: Record<string, string> = {
-  facebook: "https://www.facebook.com/favicon.ico",
-  youtube: "https://www.youtube.com/favicon.ico",
-  twitter: "https://abs.twimg.com/favicons/twitter.3.ico",
-  tiktok: "https://www.tiktok.com/favicon.ico",
-  telegram: "https://telegram.org/favicon.ico",
-  linkedin: "https://www.linkedin.com/favicon.ico",
-  zalo: "https://chat.zalo.me/favicon.ico",
-  angelai: null,
-  funplay: null,
-};
+// Filter out junk images (favicons, generic logos, placeholders)
+function isJunkImage(url: string): boolean {
+  const lower = url.toLowerCase();
+  return lower.includes("favicon") ||
+         lower.endsWith(".ico") ||
+         lower.includes("/img/t_logo") ||
+         lower.includes("static/images/logo") ||
+         lower.includes("default_profile") ||
+         lower.includes("placeholder") ||
+         lower.includes("default-user") ||
+         lower.includes("no-photo");
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -85,17 +85,18 @@ Deno.serve(async (req) => {
         clearTimeout(timeout);
 
         if (!response.ok) {
-          avatars[platform] = platformFavicons[platform] || null;
+          avatars[platform] = null;
           continue;
         }
 
         const html = await response.text();
         const ogImage = extractOgImage(html);
 
-        avatars[platform] = ogImage || platformFavicons[platform] || null;
+        // Only save real profile images, not favicons or generic logos
+        avatars[platform] = ogImage && !isJunkImage(ogImage) ? ogImage : null;
       } catch (e) {
         console.log(`Failed to fetch ${platform} (${url}):`, e.message);
-        avatars[platform] = platformFavicons[platform] || null;
+        avatars[platform] = null;
       }
     }
 
