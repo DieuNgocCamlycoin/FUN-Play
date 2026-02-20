@@ -1,94 +1,116 @@
 
 
-## Nang cap Trang Xem Video FUN PLAY theo Chuan YouTube
+## Chuan hoa Video Player FUN PLAY giong YouTube 100%
 
-### Phan tich Hien trang - DA CO SAN
+### Phan tich so sanh
 
-Sau khi kiem tra ky toan bo ma nguon, **phan lon tinh nang da duoc xay dung day du**:
+**Hien tai FUN PLAY (qua nhieu nut):**
+- Bottom-left: SkipBack, RotateCcw, Play/Pause, RotateCw, SkipForward, Volume, Time
+- Bottom-right: Shuffle, Repeat, Settings, PiP, Fullscreen
+- Top: Title overlay + Close (X) button
+- Tong cong: 12 nut tren overlay
 
-| Tinh nang | Trang thai | Chi tiet |
-|-----------|-----------|----------|
-| Play/Pause, Skip, Tua 10s/15s | DA CO | EnhancedVideoPlayer + YouTubeMobilePlayer |
-| Volume control | DA CO | Slider + mute toggle + keyboard shortcuts |
-| Playback speed (0.25x-2x) | DA CO | Settings dropdown voi 8 toc do |
-| Fullscreen | DA CO | Desktop + Mobile voi orientation lock |
-| Theater mode | DA CO | Nut RectangleHorizontal tren desktop |
-| Mini player | DA CO | MiniPlayer + GlobalMiniPlayer + PiP |
-| Autoplay + toggle | DA CO | VideoPlaybackContext + EnhancedVideoPlayer |
-| Like/Dislike | DA CO | Watch.tsx voi toggle logic |
-| Subscribe/Unsubscribe | DA CO | Realtime subscriber count |
-| Share, Save playlist, Report | DA CO | ShareModal, AddToPlaylistModal, ReportSpamButton |
-| Donate (Tang) | DA CO | DonateModal |
-| Keyboard shortcuts | DA CO | Space, K, J, L, M, F, 0-9, Arrows |
-| Ambient mode | DA CO | Canvas color sampling |
-| Chapters | DA CO | parseChapters tu description |
-| Anti-repeat (20 video) | DA CO | VideoPlaybackContext history |
-| Shuffle + Repeat | DA CO | off/all/one modes |
-| Loading skeleton | DA CO | Watch.tsx loading state |
-| No page reload khi chuyen video | DA CO | goToVideo navigation |
-| Queue management | DA CO | UpNextSidebar voi reorder, remove |
-| View reward tracking | DA CO | 30% watch time threshold |
-| Realtime updates | DA CO | Supabase channels for video + channel |
-| Comment system | DA CO | VideoCommentList + CommentsDrawer |
-| Spam detection | DA CO | suspicious_score, report_count auto-hide |
+**YouTube chuan (toi gian):**
+- Bottom-left: Play/Pause, Next, Volume+slider, Time
+- Bottom-right: Settings, Subtitles/PiP, Theater, Fullscreen
+- Top: Khong co title, khong co X
+- Tong cong: 7-8 nut
 
-### Phan CAN NANG CAP (3 thay doi chinh)
+### Cac thay doi cu the
 
 ---
 
-### Thay doi 1: Nang cap thuat toan de xuat video
+### Thay doi 1: Don dep bottom-left controls
 
-**Tep**: `src/contexts/VideoPlaybackContext.tsx`
+**Tep**: `src/components/Video/EnhancedVideoPlayer.tsx`
 
-**Van de hien tai**: Ham `fetchRelatedVideos` chi lay theo category, channel, roi trending. Khong loc `approval_status`, khong dam bao da dang kenh, khong uu tien chat luong.
+**Xoa khoi overlay:**
+- Nut RotateCcw (tua lui 10s) — da co double-click va phim J
+- Nut RotateCw (tua toi 10s) — da co double-click va phim L
 
-**Giai phap**:
-- Them filter `approval_status = 'approved'` va `is_hidden = false` vao tat ca query
-- Them logic **channel diversity**: khong qua 2 video lien tiep tu cung 1 kenh
-- Uu tien video tu kenh verified (is_verified = true)
-- Giam hien thi video tu tai khoan moi (created_at < 7 ngay)
-- Random co kiem soat de tang da dang
+**Sap xep lai theo thu tu YouTube:**
+1. Play/Pause
+2. Prev (chi khi co queue/hasPrevious)
+3. Next (chi khi co queue/hasNext)
+4. Volume + slider
+5. Time display
 
-### Thay doi 2: Nang cap fetchRecommendedVideos trong Watch.tsx
+### Thay doi 2: Don dep bottom-right controls
 
-**Tep**: `src/pages/Watch.tsx`
+**Xoa khoi overlay:**
+- Nut Shuffle — chuyen vao Settings menu
+- Nut Repeat — da co trong Settings menu roi
 
-**Van de**: Ham `fetchRecommendedVideos` hien tai chi lay 20 video moi nhat, khong co thuat toan uu tien.
+**Giu lai theo thu tu YouTube:**
+1. Settings (gear icon)
+2. PiP (mini player)
+3. Theater mode (them vao player, hien tai nam ngoai Watch.tsx)
+4. Fullscreen
 
-**Giai phap**:
-- Them loc kenh da dang (it nhat 5 kenh khac nhau)
-- Uu tien video co view_count cao
-- Loai bo video tu kenh bi ban
-- Them infinite loading khi cuon xuong trong UpNextSidebar
+### Thay doi 3: Don dep top layer
 
-### Thay doi 3: Infinite scroll cho UpNextSidebar
+**Xoa:**
+- Title overlay o top bar (YouTube khong hien title tren player)
+- Top gradient
 
-**Tep**: `src/components/Video/UpNextSidebar.tsx`
+**Giu:**
+- Close (X) button — giu lai vi FUN PLAY can nut quay ve trang chu (YouTube dung browser back)
 
-**Van de**: Hien tai chi hien thi 10 video (`getUpNext(10)`), khong co tai them.
+### Thay doi 4: Them Theater mode vao player
 
-**Giai phap**:
-- Tang so luong hien thi tu 10 len 20
-- Them nut "Hien thi them" o cuoi danh sach
-- Khi het video trong queue, tu dong fetch them video lien quan
-- Them loading state khi dang tai
+**Van de**: Nut Theater mode hien dang nam ben ngoai player, trong Watch.tsx (duoi phan action buttons). Can them vao bottom-right cua player overlay.
+
+**Giai phap**: Them prop `onTheaterToggle` va `isTheaterMode` vao EnhancedVideoPlayer, hien thi nut Theater o bottom-right (truoc Fullscreen).
+
+### Thay doi 5: Gom Shuffle vao Settings menu
+
+Chuyen Shuffle toggle vao trong DropdownMenu Settings, giong nhu Autoplay va Loop da co san.
+
+### Thay doi 6: Them T keyboard shortcut cho Theater mode
+
+Them phim T vao handleKeydown de toggle theater mode.
+
+### Thay doi 7: An cursor khi dang phat
+
+Them logic an cursor (`cursor-none`) khi controls bi an va video dang phat.
 
 ---
+
+### Tom tat bo cuc moi
+
+```text
++--------------------------------------------------+
+| [X]                                              |  <- Top: chi Close button
+|                                                  |
+|                                                  |
+|              (click = play/pause)                 |  <- Center: click toggle
+|         (double-click trai = -10s)               |
+|         (double-click phai = +10s)               |
+|                                                  |
+|  ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬  |  <- Progress bar
+|  [▶] [⏮] [⏭] [🔊━━] 0:08/3:14   [⚙][🖼][▭][⛶] |  <- Bottom controls
++--------------------------------------------------+
+```
+
+Bottom-left: Play, Prev*, Next*, Volume+slider, Time
+Bottom-right: Settings, PiP, Theater, Fullscreen
+
+(*) Prev/Next chi hien khi co queue
 
 ### Danh sach tep thay doi
 
 | STT | Tep | Noi dung |
 |-----|-----|---------|
-| 1 | `src/contexts/VideoPlaybackContext.tsx` | Them approval_status filter, channel diversity, verified priority |
-| 2 | `src/pages/Watch.tsx` | Nang cap fetchRecommendedVideos voi da dang kenh |
-| 3 | `src/components/Video/UpNextSidebar.tsx` | Tang hien thi 20 video, them nut "Hien thi them" |
+| 1 | `src/components/Video/EnhancedVideoPlayer.tsx` | Xoa RotateCcw/RotateCw, Shuffle, Repeat khoi overlay. Gom Shuffle vao Settings. Them Theater mode button + prop. Xoa title top bar. An cursor khi controls an. Them phim T. Sap xep lai thu tu nut. |
+| 2 | `src/pages/Watch.tsx` | Truyen isTheaterMode va onTheaterToggle props xuong EnhancedVideoPlayer. Xoa nut Theater mode tu phan action buttons ben ngoai. |
 
 ### Ket qua
 
-- De xuat da kenh (it nhat 5 kenh khac nhau)
-- Khong hien thi video chua duyet hoac bi an
-- Uu tien kenh verified va video chat luong
-- Khong trung lap video
-- Co the tai them video khi cuon xuong
-- Toan bo tinh nang player da co san duoc giu nguyen
+- Player overlay giong YouTube 90-100%
+- Chi 7-8 nut thay vi 12
+- Shuffle/Repeat/Speed/Ambient gom vao Settings
+- Theater mode trong player
+- Cursor an khi dang phat
+- Phim tat T cho theater
+- Prev/Next chi hien khi co queue
 
