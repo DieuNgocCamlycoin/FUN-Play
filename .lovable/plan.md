@@ -1,61 +1,64 @@
 
 
-## Auto-refresh Spam Filter tab khi Admin chuyen tab
+## Nang cap tuong tac trang Admin Quan ly Video (Spam Filter)
 
-### Ket qua kiem tra End-to-End
-
-He thong bao cao video **DA HOAT DONG HOAN CHINH**:
-- User bao cao -> Dialog 4 ly do -> Gui thanh cong -> Toast "Cam on ban da dong gop anh sang cho cong dong"
-- Database ghi nhan report voi `status: pending`
-- Trigger tang `report_count` tu dong
-- Admin Spam Filter hien thi 2 video bi bao cao voi badge do "1 bao cao"
-
-### Thay doi: Auto-refresh khi Admin chuyen sang tab Spam Filter
-
-Hien tai, `SpamFilterContent` chi fetch data 1 lan khi mount. Khi admin chuyen qua tab khac roi quay lai, data khong duoc cap nhat.
-
-**Giai phap**: Truyen trang thai tab hien tai (`activeTab`) vao `SpamFilterContent`. Khi tab chuyen sang "spam", tu dong goi lai `fetchSpamVideos()` va `fetchReportedCount()`.
+### Tong quan
+Them 3 tinh nang chinh cho tat ca cac tab trong Spam Filter (Reported, Short, Duplicate, Sample):
+1. Click thumbnail/title de xem video trong Modal
+2. Click ten Owner de mo trang ca nhan trong tab moi
+3. Nut "Xoa Video" va "Khoa User" ngay trong Modal xem video
 
 ### Chi tiet ky thuat
 
 **File thay doi:** `src/components/Admin/tabs/VideosManagementTab.tsx`
 
-1. **Them state `activeTab`** trong `VideosManagementTab`:
-   - Chuyen tu `<Tabs defaultValue="approval">` sang controlled mode voi `value` va `onValueChange`
-   
-2. **Truyen prop `isActive` vao `SpamFilterContent`**:
-   - Khi `activeTab === "spam"`, truyen `isActive={true}`
+#### 1. Cap nhat truy van `fetchSpamVideos` - them truong `video_url`
+- Hien tai query khong lay truong `video_url`, can bo sung de co the phat video trong Modal
+- Them `video_url` vao select query dong 643
 
-3. **Auto-refresh trong `SpamFilterContent`**:
-   - Them `useEffect` theo doi `isActive`
-   - Khi `isActive` chuyen tu `false` sang `true`, goi `fetchSpamVideos()` va `onReportCountChange?.()`
+#### 2. Them state cho Video Preview Modal
+- `previewVideo`: luu video dang xem (hoac null)
+- `previewOpen`: boolean dieu khien hien thi Modal
 
-4. **Dong thoi refresh badge count**:
-   - Goi `fetchReportedCount()` moi khi admin chuyen sang tab Spam Filter
+#### 3. Click Thumbnail / Title de mo Modal xem video
+- Boc thumbnail (dong 898-904) va title (dong 906) trong `cursor-pointer` va `onClick` de set `previewVideo`
+- Video chi duoc load (stream) khi Modal mo = dung the `<video>` voi `src` chi khi `previewOpen === true` (On Demand)
 
-```typescript
-// VideosManagementTab - controlled tabs
-const [activeTab, setActiveTab] = useState("approval");
+#### 4. Click ten Owner de mo trang ca nhan
+- Thay `<span>` (dong 920) thanh `<a>` voi `href="https://official-funplay.lovable.app/c/${profile.username}"` va `target="_blank"`
+- Giu nguyen Tooltip hien thi thong ke video
 
-<Tabs value={activeTab} onValueChange={setActiveTab}>
-  ...
-  <TabsContent value="spam">
-    <SpamFilterContent 
-      onReportCountChange={fetchReportedCount} 
-      isActive={activeTab === "spam"} 
-    />
-  </TabsContent>
-</Tabs>
+#### 5. Modal xem video voi Quick Actions
+- Dung component `Dialog` co san (da import)
+- Noi dung Modal:
+  - Tieu de video
+  - The `<video>` phat video (chi render khi Modal mo)
+  - Thong tin Owner + link
+  - 2 nut hanh dong:
+    - "Xoa Video": Goi `supabase.rpc("bulk_delete_videos_only")` voi 1 video, dong Modal, refresh list
+    - "Khoa User": Goi `handleQuickBan()` co san, dong Modal, refresh list
 
-// SpamFilterContent - auto refresh
-function SpamFilterContent({ onReportCountChange, isActive }: { ... isActive?: boolean }) {
-  useEffect(() => {
-    if (isActive) {
-      fetchSpamVideos();
-      onReportCountChange?.();
-    }
-  }, [isActive]);
-}
+#### 6. Ham xu ly trong Modal
+```text
+handleDeleteFromModal(videoId):
+  - Goi bulk_delete_videos_only voi [videoId]
+  - Toast thanh cong
+  - Dong Modal
+  - fetchSpamVideos()
+  - onReportCountChange()
+
+handleBanFromModal(userId, username):
+  - Goi handleQuickBan(userId, username)
+  - Dong Modal
 ```
 
-Day la thay doi nho, chi anh huong den 1 file, khong thay doi logic nghiep vu.
+### Khong thay doi
+- Khong tao file moi - tat ca thay doi trong 1 file duy nhat
+- Khong thay doi logic cua cac Dialog xac nhan hien co (Delete Only, Delete & Ban, Report Detail)
+- Khong anh huong den tab Approval hay Stats
+
+### Tac dong
+- Tiet kiem tai nguyen: Video chi load khi Admin mo Modal
+- Thao tac nhanh hon: Xem video + xu ly ngay trong 1 cua so
+- Kiem tra Owner nhanh: 1 click mo trang ca nhan
+
