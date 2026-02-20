@@ -34,6 +34,17 @@ import VideoMigrationPanel from "../VideoMigrationPanel";
 import ThumbnailRegenerationPanel from "../ThumbnailRegenerationPanel";
 import BannedVideoCleanupPanel from "../BannedVideoCleanupPanel";
 
+const REPORT_REASON_LABELS: Record<string, string> = {
+  spam: "Nội dung rác / Spam",
+  duplicate: "Trùng lặp",
+  low_quality: "Video quá ngắn / Chất lượng thấp",
+  community_violation: "Vi phạm quy tắc cộng đồng",
+  fake: "Nội dung giả mạo",
+  reupload: "Video reupload / sao chép",
+  inappropriate: "Nội dung không phù hợp",
+  scam: "Lừa đảo",
+};
+
 interface VideoForApproval {
   id: string;
   title: string;
@@ -581,6 +592,36 @@ function SpamFilterContent() {
   const [deleteOnlyOpen, setDeleteOnlyOpen] = useState(false);
   const [deleteOnlyLoading, setDeleteOnlyLoading] = useState(false);
   const [userVideoCounts, setUserVideoCounts] = useState<Map<string, { short: number; total: number }>>(new Map());
+  const [reportDetailOpen, setReportDetailOpen] = useState(false);
+  const [reportDetailVideoId, setReportDetailVideoId] = useState<string | null>(null);
+  const [reportDetailVideoTitle, setReportDetailVideoTitle] = useState("");
+  const [reportDetails, setReportDetails] = useState<any[]>([]);
+  const [reportDetailsLoading, setReportDetailsLoading] = useState(false);
+
+  const handleViewReports = async (videoId: string, videoTitle: string) => {
+    setReportDetailVideoId(videoId);
+    setReportDetailVideoTitle(videoTitle);
+    setReportDetailOpen(true);
+    setReportDetailsLoading(true);
+    const { data } = await supabase
+      .from("video_reports")
+      .select("id, reason, status, created_at, reporter_id")
+      .eq("video_id", videoId)
+      .order("created_at", { ascending: false });
+    
+    if (data && data.length > 0) {
+      const reporterIds = [...new Set(data.map(r => r.reporter_id))];
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, display_name, username, avatar_url")
+        .in("id", reporterIds);
+      const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+      setReportDetails(data.map(r => ({ ...r, profile: profileMap.get(r.reporter_id) || null })));
+    } else {
+      setReportDetails([]);
+    }
+    setReportDetailsLoading(false);
+  };
 
   useEffect(() => { fetchSpamVideos(); }, [filter]);
 
@@ -878,7 +919,13 @@ function SpamFilterContent() {
                         <TableCell className="font-mono text-sm">{video.duration ? `${video.duration}s` : "N/A"}</TableCell>
                         <TableCell>
                           {(video.report_count || 0) > 0 ? (
-                            <Badge variant="destructive">{video.report_count} báo cáo</Badge>
+                            <Badge 
+                              variant="destructive" 
+                              className="cursor-pointer hover:opacity-80"
+                              onClick={() => handleViewReports(video.id, video.title)}
+                            >
+                              {video.report_count} báo cáo
+                            </Badge>
                           ) : (
                             <span className="text-muted-foreground text-sm">0</span>
                           )}
@@ -973,6 +1020,50 @@ function SpamFilterContent() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Report Detail Dialog */}
+        <Dialog open={reportDetailOpen} onOpenChange={setReportDetailOpen}>
+          <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>🚩 Chi tiết báo cáo</DialogTitle>
+              <p className="text-sm text-muted-foreground truncate">{reportDetailVideoTitle}</p>
+            </DialogHeader>
+            {reportDetailsLoading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-14" />)}
+              </div>
+            ) : reportDetails.length === 0 ? (
+              <p className="text-center text-muted-foreground py-4">Không có báo cáo nào</p>
+            ) : (
+              <div className="space-y-3">
+                {reportDetails.map((report) => (
+                  <div key={report.id} className="flex items-start gap-3 p-3 rounded-lg border border-border bg-muted/30">
+                    <Avatar className="w-8 h-8 shrink-0">
+                      <AvatarImage src={report.profile?.avatar_url || undefined} />
+                      <AvatarFallback className="text-xs">
+                        {(report.profile?.display_name || report.profile?.username || "?")?.[0]}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium">
+                        {report.profile?.display_name || report.profile?.username || "Ẩn danh"}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {REPORT_REASON_LABELS[report.reason] || report.reason}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {format(new Date(report.created_at), "dd/MM/yyyy HH:mm", { locale: vi })}
+                      </p>
+                    </div>
+                    <Badge variant="outline" className="text-xs shrink-0">
+                      {report.status || "pending"}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </TooltipProvider>
   );

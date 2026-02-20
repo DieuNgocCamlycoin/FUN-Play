@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Flag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,11 +20,10 @@ interface ReportSpamButtonProps {
 }
 
 const REPORT_REASONS = [
-  { value: "spam", label: "Video spam / rác" },
-  { value: "fake", label: "Nội dung giả mạo" },
-  { value: "reupload", label: "Video reupload / sao chép" },
-  { value: "inappropriate", label: "Nội dung không phù hợp" },
-  { value: "scam", label: "Lừa đảo" },
+  { value: "spam", label: "Nội dung rác / Spam" },
+  { value: "duplicate", label: "Trùng lặp" },
+  { value: "low_quality", label: "Video quá ngắn / Chất lượng thấp" },
+  { value: "community_violation", label: "Vi phạm quy tắc cộng đồng" },
 ];
 
 export function ReportSpamButton({ videoId, className }: ReportSpamButtonProps) {
@@ -33,12 +32,16 @@ export function ReportSpamButton({ videoId, className }: ReportSpamButtonProps) 
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("spam");
   const [submitting, setSubmitting] = useState(false);
+  const debounceRef = useRef(false);
 
   const handleReport = async () => {
     if (!user) {
       toast({ title: "Vui lòng đăng nhập", variant: "destructive" });
       return;
     }
+
+    if (debounceRef.current) return;
+    debounceRef.current = true;
 
     setSubmitting(true);
     const { error } = await supabase.from("video_reports").insert({
@@ -54,11 +57,16 @@ export function ReportSpamButton({ videoId, className }: ReportSpamButtonProps) 
         toast({ title: "Lỗi", description: error.message, variant: "destructive" });
       }
     } else {
-      toast({ title: "Đã báo cáo thành công ✅", description: "Cảm ơn bạn đã giúp cộng đồng sạch hơn!" });
+      toast({ title: "Cảm ơn bạn đã đóng góp ánh sáng cho cộng đồng ✨", description: "Báo cáo của bạn đã được ghi nhận" });
     }
 
     setSubmitting(false);
     setOpen(false);
+
+    // Debounce 2s
+    setTimeout(() => {
+      debounceRef.current = false;
+    }, 2000);
   };
 
   return (
