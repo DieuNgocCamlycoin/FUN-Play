@@ -7,6 +7,7 @@ import {
   PictureInPicture2, Shuffle, ChevronRight,
   Check, X, Sun, RectangleHorizontal
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import {
@@ -107,6 +108,8 @@ export function EnhancedVideoPlayer({
     try { return localStorage.getItem('funplay_ambient_mode') === 'true'; } catch { return false; }
   });
   const [hoveredChapterIdx, setHoveredChapterIdx] = useState<number | null>(null);
+  const [skipIndicator, setSkipIndicator] = useState<'left' | 'right' | null>(null);
+  const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastTimeUpdateRef = useRef(0);
   const accumulatedWatchTimeRef = useRef(0);
 
@@ -559,8 +562,7 @@ export function EnhancedVideoPlayer({
         ref={videoRef}
         src={videoUrl}
         className="w-full h-full object-contain"
-        onClick={togglePlay}
-        onTimeUpdate={handleTimeUpdate}
+      onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
         onProgress={handleProgress}
         onEnded={handleEnded}
@@ -630,9 +632,75 @@ export function EnhancedVideoPlayer({
         </div>
       )}
 
-      {/* Play/Pause overlay on click */}
+      {/* Click zone for play/pause and double-click seek */}
       <div
-        className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 pointer-events-none ${
+        className="absolute inset-0 z-10"
+        onClick={(e) => {
+          // Don't handle clicks on controls area (bottom 80px)
+          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+          const relativeY = e.clientY - rect.top;
+          if (relativeY > rect.height - 80) return;
+          // Don't handle clicks on top area (close button, 60px)
+          if (relativeY < 60) return;
+
+          e.stopPropagation();
+
+          if (clickTimeoutRef.current) {
+            // Double click detected
+            clearTimeout(clickTimeoutRef.current);
+            clickTimeoutRef.current = null;
+
+            const x = e.clientX - rect.left;
+            const isLeftHalf = x < rect.width / 2;
+
+            if (isLeftHalf) {
+              seekRelative(-10);
+              setSkipIndicator('left');
+            } else {
+              seekRelative(10);
+              setSkipIndicator('right');
+            }
+            setTimeout(() => setSkipIndicator(null), 600);
+          } else {
+            // Single click - wait to see if double click follows
+            clickTimeoutRef.current = setTimeout(() => {
+              clickTimeoutRef.current = null;
+              togglePlay();
+            }, 300);
+          }
+        }}
+      />
+
+      {/* Skip Indicators */}
+      <AnimatePresence>
+        {skipIndicator && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.5 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.5 }}
+            className={cn(
+              "absolute top-1/2 -translate-y-1/2 w-24 h-24 rounded-full bg-black/50 flex items-center justify-center backdrop-blur-sm z-20 pointer-events-none",
+              skipIndicator === 'left' ? "left-[20%]" : "right-[20%]"
+            )}
+          >
+            {skipIndicator === 'left' ? (
+              <div className="text-center">
+                <RotateCcw className="h-8 w-8 text-white mx-auto" />
+                <span className="text-white text-sm font-medium">-10 giây</span>
+              </div>
+            ) : (
+              <div className="text-center">
+                <RotateCcw className="h-8 w-8 text-white mx-auto transform scale-x-[-1]" />
+                <span className="text-white text-sm font-medium">+10 giây</span>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Play/Pause overlay icon */}
+      <div
+        className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 pointer-events-none z-15 ${
           !isPlaying && showControls ? "opacity-100" : "opacity-0"
         }`}
       >
@@ -643,7 +711,7 @@ export function EnhancedVideoPlayer({
 
       {/* Controls overlay */}
       <div
-        className={`absolute inset-0 transition-opacity duration-300 ${
+        className={`absolute inset-0 transition-opacity duration-300 pointer-events-none ${
           showControls ? "opacity-100" : "opacity-0"
         }`}
       >
@@ -651,7 +719,7 @@ export function EnhancedVideoPlayer({
         <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/80 to-transparent pointer-events-none" />
 
         {/* Bottom controls */}
-        <div className="absolute bottom-0 inset-x-0 p-3 space-y-2">
+        <div className="absolute bottom-0 inset-x-0 p-3 space-y-2 pointer-events-auto">
           {/* Progress bar */}
           <div className="group/progress relative h-1 bg-white/30 rounded-full cursor-pointer hover:h-2 transition-all">
             {/* Buffered progress */}
