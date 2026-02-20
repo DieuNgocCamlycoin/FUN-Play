@@ -1,84 +1,146 @@
 
+## Kế hoạch thiết kế lại giao diện 3 cột FUN PLAY – Trang Preview
 
-## Sửa triệt để thuật toán video gợi ý - Diversity-First
+### Tổng quan chiến lược
 
-### Vấn đề gốc rễ (3 lỗi chính)
+Thay vì sửa trực tiếp layout hiện tại có thể gây lỗi, tôi sẽ **tạo một trang Preview riêng** tại `/ui-preview` để con xem và duyệt thiết kế mới trước khi áp dụng. Trang này hoàn toàn độc lập, không ảnh hưởng gì đến giao diện hiện tại.
 
-1. **Session chỉ tạo 1 lần**: Dòng 307 trong Watch.tsx kiểm tra `!session` - nghĩa là khi đã có session (cache từ localStorage), KHÔNG BAO GIỜ tạo lại. Danh sách gợi ý cũ sẽ hiển thị mãi.
+---
 
-2. **Chỉ lấy top 80 video theo view**: Kênh Angel Que Anh (2,798 views) chiếm phần lớn top 80. Nhiều kênh nhỏ không bao giờ xuất hiện trong pool ứng viên.
+### Phân tích hiện trạng
 
-3. **MAX_PER_CHANNEL = 3 vẫn quá nhiều**: Với 20 video hiển thị, 3 video/kênh nghĩa là 1 kênh chiếm 15%. Cần giảm xuống 2.
+| Thành phần | Hiện tại | Vấn đề |
+|---|---|---|
+| Left sidebar | `bg-background border-r` (nền trắng đặc) | Không trong suốt, thiếu glassmorphism |
+| Right sidebar | `bg-gradient-to-b from-white via-white` + `border-l` | Nền trắng đặc, không xuyên qua background |
+| Cards (HonorBoard, Ranking) | `bg-white/85` | Gần đúng nhưng thiếu viền hologram đủ đẹp |
+| Video grid | `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3` | OK nhưng chưa tối ưu card style |
+| Background | `bg-background` = trắng 100% | Chưa có cơ chế thay theme linh hoạt |
 
-### Giải pháp - Xây dựng lại hoàn toàn
+---
 
-#### 1. Watch.tsx - Luôn tạo session mới khi đổi video
+### Nội dung trang UIPreview (`/ui-preview`)
 
-Thay `if (video && id && !session)` bằng `if (video && id)` kèm kiểm tra `session.start_video_id !== id` - bắt buộc tạo lại session khi xem video khác.
+**Trang UIPreview sẽ render đầy đủ layout 3 cột giả lập:**
 
-#### 2. VideoPlaybackContext.tsx - Thuật toán mới hoàn toàn
+#### 1. Background hệ thống (thay được theme)
+- Nền mặc định: gradient nhẹ trắng → tím/xanh nhạt (giống mock của con)
+- Thêm các lớp trang trí nhẹ hai bên (bông hoa, ánh sáng)
+- CSS variable `--bg-theme` để sau này thay theme dễ
 
-**a. Thay fetchRelatedVideos bằng getUpNextRecommendations:**
-
-- Lấy 200 video ứng viên (thay vì 80), sắp xếp ngẫu nhiên + view_count
-- Phân nhóm theo channel_id
-- MAX_PER_CHANNEL = 2 (giảm từ 3)
-- Round-robin nghiêm ngặt: vòng 1 lấy 1 video/kênh, vòng 2 mới cho phép video thứ 2
-- Trong top 10: mỗi kênh tối đa 1 video
-- Đảm bảo tối thiểu 8 kênh unique (nếu DB đủ data)
-
-**b. Chống lặp theo phiên:**
-
-- Lưu 100 video ID đã gợi ý gần nhất trong sessionStorage
-- Loại trừ các video đã gợi ý khi tính lại danh sách
-
-**c. Debug logging:**
-
-- Log số kênh unique, số video/kênh, cảnh báo nếu < 8 kênh
-
-### Chi tiet ky thuat
-
-**File 1: `src/contexts/VideoPlaybackContext.tsx`**
-
-Thay doi:
-- `MAX_PER_CHANNEL`: 3 thanh 2
-- `fetchRelatedVideos`: Xay lai hoan toan
-  - Query 200 video approved (khong chi top view, pha tron random)
-  - Group theo channel
-  - Round-robin: vong 1 lay dung 1 video/kenh, vong 2 moi cho them
-  - Top 10 video: max 1/kenh
-  - Kiem tra unique channels >= 8, neu khong du thi mo rong pool
-  - Loai tru session seen IDs
-- `applyChannelDiversity`: Cap = 2 thay vi 3
-- Them `SESSION_SEEN_KEY` trong sessionStorage de theo doi video da goi y
-
-Logic moi (pseudocode):
-
-```text
-1. seenIds = load from sessionStorage (max 100)
-2. Query 200 videos, exclude currentVideo + seenIds
-3. Group by channel_id
-4. Shuffle channel order (to avoid always same priority)
-5. Round 1: pick best video from each channel (max 1/channel)
-   -> This gives us 1 video per channel = diversity guaranteed
-6. Round 2: pick 2nd best from each channel (if needed, cap = 2)
-7. Apply consecutive rule (no 2+ in a row same channel)
-8. Take top 20
-9. Save these 20 IDs to sessionStorage seen list
-10. Console.log: unique channels count, per-channel counts
+#### 2. Component `GlassPanel` (dùng chung cho cả 2 panel)
+```
+background: rgba(255,255,255,0.14)
+backdrop-filter: blur(14px)
+border: 1.5px solid rgba(255,255,255,0.30)
+border-radius: 20px
+```
+Biến thể `HoloBorder` cho panel phải:
+```
+border: 2px solid transparent
+background-clip: padding-box
++ ::after overlay gradient 7 màu nhẹ
 ```
 
-**File 2: `src/pages/Watch.tsx`**
+#### 3. Left Panel – FUN Ecosystem (260–300px)
+- Tiêu đề "🌿 FUN ECOSYSTEM" với gradient text
+- **About FUN PLAY** – nút Collapsible có mũi tên xuống:
+  - Luật Ánh Sáng
+  - Build & Bounty
+  - White Paper
+- Danh sách 10 platform với card nhỏ:
+  1. FUN PROFILE – fun.rich
+  2. ANGEL AI – angel.fun.rich
+  3. FUN TREASURY – treasury.fun.rich
+  4. FUN FARM – farm.fun.rich
+  5. FUN PLANET – planet.fun.rich
+  6. FUN CHARITY – charity.fun.rich
+  7. FUN GREEN EARTH – 5DEarth.fun.rich
+  8. FUN ACADEMY – academy.fun.rich
+  9. CAMLY COIN – camly.co
+  10. FUN WALLET – wallet.fun.rich
+- Mỗi platform card: logo tròn + tên + mũi tên link ngoài + hover glow
+- Phần điều hướng còn lại (Trang chủ, Shorts…) → gộp vào menu 3 gạch (drawer)
 
-Thay doi:
-- Line 306-310: Bo `!session` check, thay bang logic tao lai session moi khi video ID thay doi
-- Them `clearSession()` truoc khi `createSession()` de dam bao fresh data
+#### 4. Center Content – Grid video 3 cột
+- Header filter chips (Tất cả / Xu hướng / Âm nhạc…)
+- Grid `grid-cols-3` desktop, `grid-cols-2` tablet, `grid-cols-1` mobile
+- 6 VideoCard mẫu (mock data) theo chuẩn YouTube:
+  - Thumbnail 16:9 bo 16px
+  - Avatar trái + dấu 3 chấm phải
+  - Tên video tối đa 2 dòng
+  - Tên kênh
+  - Lượt xem · thời gian
 
-### Ket qua mong doi
+#### 5. Right Panel – Honor Board / Ranking / Sponsor (300–340px)
+- Glass panel + HoloBorder gradient 7 màu nhẹ
+- 3 stat-card stacked:
+  - Honor Board (users, posts, photos, videos, rewards)
+  - Top Ranking
+  - Top Sponsors
+- Mỗi stat-card: nền gradient FUN PLAY nhẹ + icon + số liệu
 
-- Mo 10 video khac nhau: moi video co danh sach goi y KHAC NHAU
-- Trong 20 video goi y: khong kenh nao qua 2 video
-- Toi thieu 8 kenh unique trong danh sach
-- Console log hien thi so lieu da dang kenh de kiem chung
-- Khong con tinh trang lap lai 1-2 kenh
+---
 
+### Breakpoints
+
+| Màn hình | Layout |
+|---|---|
+| Desktop ≥ 1280px | 3 cột: Left 280px + Center fluid + Right 320px |
+| Tablet 768-1279px | 2 cột: Center + Right, Left thành icon sidebar |
+| Mobile < 768px | 1 cột: Center → Right cards → Left drawer |
+
+Max-width toàn trang: `1560px`, canh giữa.
+
+---
+
+### Các file sẽ tạo/chỉnh sửa
+
+| STT | File | Hành động | Mô tả |
+|---|---|---|---|
+| 1 | `src/pages/UIPreview.tsx` | Tạo mới | Trang preview 3 cột hoàn chỉnh |
+| 2 | `src/components/Layout/GlassPanel.tsx` | Tạo mới | Component panel trong suốt dùng chung |
+| 3 | `src/components/Layout/FunEcosystemPanel.tsx` | Tạo mới | Left panel với 10 platform + About FUN PLAY collapsible |
+| 4 | `src/components/Layout/HonorRightPanel.tsx` | Tạo mới | Right panel glass + holoBorder, tích hợp 3 card |
+| 5 | `src/App.tsx` | Chỉnh sửa | Thêm route `/ui-preview` |
+
+---
+
+### Chi tiết kỹ thuật
+
+**GlassPanel.tsx:**
+```tsx
+// Nền trong suốt chuẩn glassmorphism
+// Variant: "default" | "holo"
+// "holo" = viền gradient 7 màu nhẹ (không lòe loẹt)
+```
+
+**FunEcosystemPanel.tsx:**
+```tsx
+// 10 platform items dạng card nhỏ
+// Collapsible "About FUN PLAY"
+// Hover: glow nhẹ theo màu logo
+// Cuộn được nếu nội dung dài
+```
+
+**UIPreview.tsx:**
+```tsx
+// Header preview (logo + search + buttons giả lập)
+// 3-column grid: left (280px) + center (1fr) + right (320px)
+// Background: gradient trắng → lavender nhẹ
+// Scrollable page
+// Ghi chú "Preview Mode" để phân biệt với giao diện thật
+```
+
+---
+
+### Kết quả mong đợi
+
+Sau khi xong, con có thể truy cập `/ui-preview` để xem toàn bộ giao diện mới:
+- Left panel glassmorphism với 10 platform + About FUN PLAY collapsible
+- Center: 6 video card mẫu (3 cột desktop)
+- Right panel với holoBorder + 3 card stat
+- Background xuyên qua panel rõ ràng
+- Responsive chuẩn desktop/tablet/mobile
+
+Khi con duyệt → Cha sẽ áp dụng vào layout thật (`CollapsibleSidebar`, `HonoboardRightSidebar`, `Index.tsx`).
