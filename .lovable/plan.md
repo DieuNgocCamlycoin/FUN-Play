@@ -1,144 +1,117 @@
 
 
-## Ket qua kiem tra toan dien (System Audit) va ke hoach nang cap
+## Dai tu URL: Bo `/c/` va `/watch/` - Chuyen sang URL sach
 
-### 1. Kiem tra tinh dong nhat Username - DA TOT
+### Tong quan
 
-**Ket qua**: He thong DA CO san co che tao username mac dinh khi dang ky.
+Chuyen doi toan bo he thong URL tu:
+- `play.fun.rich/c/username` -> `play.fun.rich/username`
+- `play.fun.rich/watch/ID` -> `play.fun.rich/username/video/slug`
 
-Trong database trigger `handle_new_user()`:
-```sql
-INSERT INTO profiles (id, username, display_name)
-VALUES (
-  NEW.id,
-  COALESCE(NEW.raw_user_meta_data->>'username', 'user_' || SUBSTRING(NEW.id::TEXT, 1, 8)),
-  ...
-);
-```
-Moi user deu co username dang `user_abc12345` ngay khi dang ky. Khong bao gio co truong hop username NULL.
+Giu lai cac route cu lam redirect de khong mat SEO va khong bi 404.
 
-He thong cung da co:
-- `ProfileOnboardingModal` nhac user doi username dep hon
-- `ProfileNudgeBanner` hien banner goi y
-- `ProfileSettings` cho phep doi username voi validation realtime
+### Giai quyet xung dot route
 
-**Khong can thay doi gi.**
+React Router v6 su dung **he thong diem** (scoring) de phan biet route. Static route (`/admin`) luon co diem cao hon dynamic route (`/:username`). Vi vay `/:username` dat cuoi cung se **khong bao gio** xung dot voi `/admin`, `/wallet`, `/shorts`...
 
----
+**Nhung** can chan truong hop user dat username trung ten route (vi du username = "admin"). Can them danh sach **reserved words** vao validation.
 
-### 2. Kiem tra Redirect - CAN SUA 1 CHO
+### Chi tiet thay doi
 
-**Ket qua**: `/user/:userId` va `/u/:username` da redirect sang `/c/:identifier` trong `App.tsx`.
+#### 1. Them Reserved Words vao `src/lib/nameFilter.ts`
 
-**Van de**: Redirect hien tai la **client-side** (React Navigate), khong phai 301. Day la gioi han cua React SPA - khong the lam 301 phia client. Tuy nhien, dieu nay van hoat dong tot cho nguoi dung.
+Them danh sach ~50 tu cam (la ten cac route hien co) vao `validateUsernameFormat`:
 
-**Van de thuc su**: Khi truy cap `/c/UUID`, `Channel.tsx` da xu ly dung (detect UUID va query by `id`). Nhung **khong redirect ve URL dep**. Vi du:
-- Truy cap `/c/550e8400-e29b-41d4-a716...` -> hien trang profile nhung URL van la UUID
-- Nen redirect ve `/c/angelthuha` (username that)
-
-**Can sua**: Them logic redirect trong `Channel.tsx` - sau khi fetch profile thanh cong bang UUID, neu user co username, replace URL thanh `/c/${username}`.
-
----
-
-### 3. Kiem tra Video Slug - DA TOT
-
-**Ket qua**: Route `/c/:username/video/:slug` -> `VideoBySlug.tsx` hoat dong dung:
-1. Tim profile theo username
-2. Tim video theo `user_id` + `slug`
-3. Redirect sang `/watch/:id`
-
-Ham `slugify()` trong `src/lib/slugify.ts` da xu ly day du tieng Viet (bo dau, chuyen thanh slug).
-
-**Khong can thay doi gi.**
-
----
-
-### 4. Kiem tra code du thua - SACH
-
-**Ket qua quet**:
-- Khong con `/user/${...}` trong bat ky component nao (da chuyen het sang `/c/`)
-- File `UserProfile.tsx` da bi xoa
-- Tat ca 10 file dung `/c/${username || userId}` nhat quan
-- Legacy redirect van giu trong `App.tsx` de tuong thich nguoc (dung)
-
-**Khong can xoa them gi.**
-
----
-
-### 5. Kiem tra Report System - KHONG THAY DOI (da hoat dong)
-
-`ReportSpamButton.tsx` insert vao `video_reports`. Admin tab `VideosManagementTab.tsx` hien thi bao cao. Khong lien quan den thay doi URL.
-
----
-
-### 6. Kiem tra Admin Avatar Links - DA TOT
-
-Tat ca 9 tab admin dung `getProfileUrl()` tu `adminUtils.ts` voi `target="_blank"`. Da kiem tra trong audit truoc.
-
----
-
-### 7. Xu ly khi User doi username - CAN THEM
-
-**Van de**: Khi user doi username tu `thuha` sang `thuha_new`, link cu `/c/thuha` se 404 ngay lap tuc.
-
-**Giai phap**: Luu `previous_username` trong bang profiles. Khi truy cap `/c/thuha` va khong tim thay, query them cot `previous_username`. Neu match, redirect sang username moi.
-
----
-
-## Ke hoach thay doi
-
-### Thay doi 1: Auto-redirect UUID ve username dep (Channel.tsx)
-
-Sau khi fetch profile thanh cong bang UUID, kiem tra:
-- Neu user co username (khong phai `user_*`)
-- Replace URL tu `/c/UUID` sang `/c/username` (dung `navigate(..., { replace: true })`)
-
-```typescript
-// After fetching profile successfully by UUID
-if (isUUID && profileData?.username && !profileData.username.startsWith('user_')) {
-  navigate(`/c/${profileData.username}`, { replace: true });
-  return; // re-fetch with username
-}
+```text
+RESERVED_WORDS = [
+  "auth", "watch", "channel", "wallet", "shorts", "profile",
+  "library", "settings", "upload", "create-post", "your-videos",
+  "manage-posts", "manage-playlists", "manage-channel", "studio",
+  "dashboard", "leaderboard", "reward-history", "referral",
+  "user-dashboard", "admin", "nft-gallery", "fun-wallet",
+  "fun-money", "meditate", "create-music", "music", "browse",
+  "install", "watch-later", "history", "subscriptions",
+  "camly-price", "liked", "post", "docs", "your-videos-mobile",
+  "downloads", "build-bounty", "bounty", "my-ai-music", "ai-music",
+  "receipt", "messages", "search", "notifications", "transactions",
+  "preview-celebration", "users", "c", "u", "user", "v",
+  "edit-video", "edit-post", "playlist"
+]
 ```
 
-### Thay doi 2: Them cot `previous_username` va logic redirect
+#### 2. Cap nhat Routes trong `src/App.tsx`
 
-**Database**: Them cot `previous_username` vao bang `profiles`.
+```text
+Them route moi:
+  /:username              -> <Channel />
+  /:username/video/:slug  -> <VideoBySlug />
 
-**Trigger**: Khi update username, tu dong luu username cu vao `previous_username`.
+Chuyen route cu thanh redirect:
+  /c/:username            -> Navigate to /:username
+  /c/:username/video/:slug -> Navigate to /:username/video/:slug
+  /watch/:id              -> <Watch /> (giu de tuong thich nguoc, component tu redirect)
+  /channel/:id            -> Navigate to /:id
+  /@:username             -> Navigate to /:username
 
-**Channel.tsx**: Neu khong tim thay profile theo username, query them `previous_username`. Neu match, redirect sang username moi.
+Dat /:username va /:username/video/:slug SAU tat ca route co dinh, TRUOC route "*"
+```
 
-### Thay doi 3: Cap nhat ProfileSettings.tsx
-
-Khi user doi username thanh cong, hien thong bao: "Link cu cua ban se tu dong chuyen huong ve link moi."
-
-### Tong ket thay doi
+#### 3. Cap nhat cac ham tien ich (3 file)
 
 | File | Thay doi |
 |------|---------|
-| `Channel.tsx` | Them auto-redirect UUID->username, them fallback query `previous_username` |
-| `ProfileSettings.tsx` | Them thong bao khi doi username |
-| Database migration | Them cot `previous_username`, them trigger tu dong luu username cu |
+| `src/lib/adminUtils.ts` | `getProfileUrl` tra ve `/${identifier}` thay vi `/c/${identifier}` |
+| `src/lib/shareUtils.ts` | `getVideoShareUrl` tra ve `${PRODUCTION_URL}/${username}/video/${slug}` |
+| `src/lib/slugify.ts` | `getVideoShareUrl` tra ve `/${username}/video/${slug}` |
 
-### Danh sach tat ca file da thay doi trong qua trinh chuyen doi UUID->Slug/Username (tu dau den gio)
+#### 4. Cap nhat ~15 component dung `/c/` truc tiep
 
-1. `src/lib/adminUtils.ts` - Tao helper `getProfileUrl`
-2. `src/App.tsx` - Them legacy redirects
-3. `src/pages/Channel.tsx` - UUID detection
-4. `src/pages/UserProfile.tsx` - DA XOA
-5. `src/pages/UsersDirectory.tsx` - Chuyen sang `/c/`
-6. `src/components/Layout/Header.tsx` - Chuyen sang `/c/`
-7. `src/components/Chat/ChatHeader.tsx` - Chuyen sang `/c/`
-8. `src/components/Transactions/TransactionCard.tsx` - Chuyen sang `/c/`
-9. `src/components/Transactions/UserProfileDisplay.tsx` - Chuyen sang `/c/`
-10. `src/components/Wallet/TopSponsorsSection.tsx` - Chuyen sang `/c/`
-11. `src/components/Donate/DonationSuccessOverlay.tsx` - Chuyen sang `/c/`
-12. `src/components/Donate/GiftCelebrationModal.tsx` - Chuyen sang `/c/`
-13. `src/components/Admin/tabs/UserStatsTab.tsx` - Dung `getProfileUrl`
-14. `src/components/Profile/DonationCelebrationCard.tsx` - Chuyen sang `/c/`
-15. `src/components/Chat/ChatDonationCard.tsx` - Chuyen sang `/c/`
-16. `src/components/Profile/PostCard.tsx` - Chuyen sang `/c/`
-17. `src/components/Profile/ProfileInfo.tsx` - Chuyen sang `/c/`
-18. 8 file Admin tabs - Dung `getProfileUrl` voi `target="_blank"`
+| File | Thay doi |
+|------|---------|
+| `ChatHeader.tsx` | `/c/${...}` -> `/${...}` |
+| `UsersDirectory.tsx` | `/c/${...}` -> `/${...}` |
+| `TopSponsorsSection.tsx` | `/c/${...}` -> `/${...}` |
+| `UserProfileDisplay.tsx` | `/c/${...}` -> `/${...}` |
+| `TransactionCard.tsx` | `/c/${...}` -> `/${...}` |
+| `DonationSuccessOverlay.tsx` | `/c/${...}` -> `/${...}` |
+| `GiftCelebrationModal.tsx` | `/c/${...}` -> `/${...}` |
+| `DonationCelebrationCard.tsx` | `/c/${...}` -> `/${...}` |
+| `ChatDonationCard.tsx` | `/c/${...}` -> `/${...}` |
+| `PostCard.tsx` | `/c/${...}` -> `/${...}` |
+| `ProfileInfo.tsx` | `/c/${...}` -> `/${...}` |
+| `Header.tsx` | `/c/${...}` -> `/${...}` |
+| `VideosManagementTab.tsx` | URL admin link bo `/c/` |
+
+#### 5. Cap nhat `VideoBySlug.tsx`
+
+Thay doi param tu `username` (tu route `/c/:username/video/:slug`) sang `username` (tu route `/:username/video/:slug`). Logic khong doi vi ten param giong nhau.
+
+#### 6. Cap nhat `Channel.tsx`
+
+Route param doi tu `/c/:username` sang `/:username`. Logic khong doi vi van dung `useParams` lay `username`.
+
+#### 7. Cap nhat redirect logic trong `Channel.tsx`
+
+Khi redirect UUID -> username dep:
+```typescript
+// Cu: navigate(`/c/${pData.username}`, { replace: true });
+// Moi: navigate(`/${pData.username}`, { replace: true });
+```
+
+#### 8. Giu `/watch/:id` hoat dong
+
+`Watch` component van giu nguyen. Route `/watch/:id` van ton tai de:
+- Tuong thich voi link cu
+- `VideoBySlug.tsx` van redirect sang `/watch/:id` noi bo (dung Navigate)
+
+**Trong tuong lai** co the chuyen Watch component sang nhan slug truc tiep, nhung hien tai giu `/watch/:id` nhu route noi bo de khong pha vo qua nhieu.
+
+### Tong ket
+
+- **4 file tien ich** thay doi (nameFilter, adminUtils, shareUtils, slugify)
+- **1 file routing** (App.tsx)
+- **~13 component** thay doi link `/c/` -> `/`
+- **2 file page** (Channel.tsx, VideoBySlug.tsx) cap nhat redirect path
+- Tat ca link cu `/c/`, `/watch/`, `/user/`, `/u/`, `/@` van redirect dung
+- Khong mat SEO, khong 404
 
