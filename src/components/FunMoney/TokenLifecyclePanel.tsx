@@ -156,10 +156,10 @@ export function TokenLifecyclePanel({
           <Badge 
             className={cn(
               "gap-1.5 px-3 py-1.5 relative overflow-hidden",
-              "bg-[linear-gradient(180deg,#F9E37A_0%,#F0D96C_25%,#B78C1A_50%,#D4A94E_75%,#F9E37A_100%)]",
-              "text-[#A9710F] font-bold",
-              "shadow-[inset_0_2px_4px_rgba(255,255,255,0.7),inset_0_-2px_6px_rgba(120,70,10,0.3),0_0_15px_rgba(198,143,26,0.4)]",
-              "border border-t-[#F9E37A]/80 border-b-[#8B6914]/60 border-x-[#C28F1A]/60"
+              "bg-[linear-gradient(90deg,#F9E37A_0%,#FFD700_20%,#FFEC8B_40%,#FFF8DC_50%,#FFEC8B_60%,#FFD700_80%,#F9E37A_100%)]",
+              "text-[#8B6914] font-bold",
+              "shadow-[inset_0_1px_2px_rgba(255,255,255,0.6),0_0_25px_rgba(255,215,0,0.6),0_0_50px_rgba(255,215,0,0.3)]",
+              "border border-[#DAA520]/70"
             )}
           >
             <img src={FUN_COIN_LOGO} alt="" className="w-4 h-4 relative z-10" />

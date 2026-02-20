@@ -286,11 +286,11 @@ export const ClaimRewardsSection = () => {
                 dailyLimitReached
                   ? "bg-muted text-muted-foreground"
                   : canClaim
-                    ? "bg-[linear-gradient(180deg,#F9E37A_0%,#F0D96C_25%,#B78C1A_50%,#D4A94E_75%,#F9E37A_100%)] text-[#A9710F] border border-t-[#F9E37A]/80 border-b-[#8B6914]/60 border-x-[#C28F1A]/60 animate-luxury-pulse"
+                    ? "bg-[linear-gradient(90deg,#F9E37A_0%,#FFD700_20%,#FFEC8B_40%,#FFF8DC_50%,#FFEC8B_60%,#FFD700_80%,#F9E37A_100%)] text-[#8B6914] border border-[#DAA520]/70 animate-luxury-pulse"
                     : "bg-muted text-muted-foreground"
               )}
               style={canClaim && !dailyLimitReached ? {
-                boxShadow: "inset 0 2px 4px rgba(255,255,255,0.7), inset 0 -2px 6px rgba(120,70,10,0.3), 0 0 20px rgba(198,143,26,0.5), 0 2px 8px rgba(120,70,10,0.4)"
+                boxShadow: "inset 0 1px 2px rgba(255,255,255,0.6), 0 0 25px rgba(255,215,0,0.6), 0 0 50px rgba(255,215,0,0.3)"
               } : undefined}
             >
               <Coins className="h-5 w-5 relative z-10" />
