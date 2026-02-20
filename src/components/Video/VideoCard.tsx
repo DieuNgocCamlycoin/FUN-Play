@@ -263,6 +263,7 @@ export const VideoCard = ({
             className="font-semibold text-sm leading-snug line-clamp-2 text-gray-900 group-hover:text-cosmic-cyan transition-colors duration-300 cursor-pointer"
             onClick={handlePlay}
           >
+            {title}
           </h3>
           <div className="flex items-center gap-1 mt-0.5">
             <p 
