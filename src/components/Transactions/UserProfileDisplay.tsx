@@ -59,8 +59,9 @@ export const UserProfileDisplay = memo(function UserProfileDisplay({
   };
 
   const handleUserClick = () => {
-    if (userId) {
-      navigate(`/user/${userId}`);
+    const identifier = username || userId;
+    if (identifier) {
+      navigate(`/c/${identifier}`);
     }
   };
 

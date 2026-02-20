@@ -3,7 +3,17 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
+
+// Legacy redirect components
+const LegacyUserRedirect = () => {
+  const { userId } = useParams();
+  return <Navigate to={`/c/${userId}`} replace />;
+};
+const LegacyUsernameRedirect = () => {
+  const { username } = useParams();
+  return <Navigate to={`/c/${username}`} replace />;
+};
 import { WagmiProvider } from 'wagmi';
 import { VersionCheck } from './components/VersionCheck';
 import Index from "./pages/Index";
@@ -14,7 +24,7 @@ import NotFound from "./pages/NotFound";
 import Wallet from "./pages/Wallet";
 import Shorts from "./pages/Shorts";
 import Profile from "./pages/Profile";
-import UserProfile from "./pages/UserProfile";
+
 import { wagmiConfig, initWeb3Modal } from '@/lib/web3Config';
 import { GlobalPaymentNotifications } from './components/Web3/GlobalPaymentNotifications';
 import { MusicPlayerProvider } from './contexts/MusicPlayerContext';
@@ -149,8 +159,9 @@ function AppContent() {
             <Route path="/wallet" element={<Wallet />} />
             <Route path="/shorts" element={<Shorts />} />
             <Route path="/profile" element={<Profile />} />
-            <Route path="/user/:userId" element={<UserProfile />} />
-            <Route path="/u/:username" element={<UserProfile />} />
+            {/* Legacy redirects to /c/:identifier */}
+            <Route path="/user/:userId" element={<LegacyUserRedirect />} />
+            <Route path="/u/:username" element={<LegacyUsernameRedirect />} />
             <Route path="/library" element={<Library />} />
             
             {/* Lazy loaded pages */}

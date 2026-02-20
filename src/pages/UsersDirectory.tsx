@@ -87,7 +87,7 @@ const UsersDirectory = () => {
   };
 
   const goToProfile = (u: PublicUserStat) => {
-    navigate(u.username ? `/c/${u.username}` : `/user/${u.user_id}`);
+    navigate(`/c/${u.username || u.user_id}`);
   };
 
   const ExpandedRow = ({ u }: { u: PublicUserStat }) => {

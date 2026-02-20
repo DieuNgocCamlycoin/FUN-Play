@@ -110,7 +110,7 @@ export const TransactionCard = memo(function TransactionCard({
             <div className="flex items-center gap-2 min-w-0 sm:flex-1">
               <Avatar 
                 className="h-8 w-8 sm:h-9 sm:w-9 flex-shrink-0 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all"
-                onClick={() => transaction.sender_user_id && navigate(`/user/${transaction.sender_user_id}`)}
+                onClick={() => transaction.sender_user_id && navigate(`/c/${transaction.sender_username || transaction.sender_user_id}`)}
               >
                 <AvatarImage src={transaction.sender_avatar_url || undefined} />
                 <AvatarFallback className="bg-primary/10 text-primary text-xs">
@@ -120,7 +120,7 @@ export const TransactionCard = memo(function TransactionCard({
               <div className="min-w-0">
                 <p 
                   className="text-sm font-medium truncate cursor-pointer hover:text-primary transition-colors"
-                  onClick={() => transaction.sender_user_id && navigate(`/user/${transaction.sender_user_id}`)}
+                  onClick={() => transaction.sender_user_id && navigate(`/c/${transaction.sender_username || transaction.sender_user_id}`)}
                 >
                   {transaction.sender_display_name}
                 </p>
@@ -147,7 +147,7 @@ export const TransactionCard = memo(function TransactionCard({
             <div className="flex items-center gap-2 min-w-0 sm:flex-1 sm:justify-end">
               <Avatar 
                 className="h-8 w-8 sm:h-9 sm:w-9 flex-shrink-0 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all sm:order-2"
-                onClick={() => transaction.receiver_user_id && navigate(`/user/${transaction.receiver_user_id}`)}
+                onClick={() => transaction.receiver_user_id && navigate(`/c/${transaction.receiver_username || transaction.receiver_user_id}`)}
               >
                 <AvatarImage src={transaction.receiver_avatar_url || undefined} />
                 <AvatarFallback className="bg-primary/10 text-primary text-xs">
@@ -157,7 +157,7 @@ export const TransactionCard = memo(function TransactionCard({
               <div className="min-w-0 sm:text-right sm:order-1">
                 <p 
                   className="text-sm font-medium truncate cursor-pointer hover:text-primary transition-colors"
-                  onClick={() => transaction.receiver_user_id && navigate(`/user/${transaction.receiver_user_id}`)}
+                  onClick={() => transaction.receiver_user_id && navigate(`/c/${transaction.receiver_username || transaction.receiver_user_id}`)}
                 >
                   {transaction.receiver_display_name}
                 </p>
