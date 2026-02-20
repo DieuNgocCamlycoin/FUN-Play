@@ -303,20 +303,20 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
         
         if (d.context_type === 'claim' && d.sender_id === SYSTEM_TREASURY_SENDER_ID) {
           finalSenderInfo = {
-            displayName: SYSTEM_WALLETS.TREASURY.displayName,
-            username: SYSTEM_WALLETS.TREASURY.username,
-            avatarUrl: SYSTEM_WALLETS.TREASURY.avatarUrl,
-            channelName: SYSTEM_WALLETS.TREASURY.channelName,
+            displayName: SYSTEM_WALLETS.AUTO_REWARD.displayName,
+            username: SYSTEM_WALLETS.AUTO_REWARD.username,
+            avatarUrl: SYSTEM_WALLETS.AUTO_REWARD.avatarUrl,
+            channelName: SYSTEM_WALLETS.AUTO_REWARD.channelName,
           };
-          senderUserId = SYSTEM_WALLETS.TREASURY.userId || null;
-          senderWalletFrom = formatAddress(SYSTEM_WALLETS.TREASURY.address);
-          senderWalletFromFull = SYSTEM_WALLETS.TREASURY.address;
+          senderUserId = SYSTEM_WALLETS.AUTO_REWARD.userId || null;
+          senderWalletFrom = formatAddress(SYSTEM_WALLETS.AUTO_REWARD.address);
+          senderWalletFromFull = SYSTEM_WALLETS.AUTO_REWARD.address;
         }
         
         const token = tokensMap[d.token_id];
         
         // UPDATED: "tip" → "gift", "donate" stays "donate"
-        const transactionType: TransactionType = (d.context_type === "tip" || d.context_type === "donate") ? "gift" : "gift";
+        const transactionType: TransactionType = d.context_type === "claim" ? "claim" : "gift";
         
         allTransactions.push({
           id: d.id,
@@ -474,8 +474,8 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
 
       // ========== 9. Loại bỏ trùng lặp theo tx_hash ==========
       const SOURCE_PRIORITY: Record<string, number> = {
-        "donation_transactions": 1,
-        "claim_requests": 2,
+        "claim_requests": 1,
+        "donation_transactions": 2,
         "wallet_transactions": 3,
       };
 
