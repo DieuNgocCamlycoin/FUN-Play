@@ -1,70 +1,79 @@
 
 
-## Analysis: Video Report System Issues
+## Hoàn thiện Hệ thống Báo cáo Video - FUN Play
 
-### Investigation Results
+### Hiện trạng
 
-**Database Level**: Working correctly.
-- The `video_reports` table has 1 record for the reported video
-- The trigger `handle_video_report` correctly incremented `report_count` to 1 on the `videos` table
-- The video `c58723a7...` has `report_count = 1`, `is_public = true`
+- **ReportSpamButton**: Hoạt động trên cả Web (`Watch.tsx`) va Mobile (`VideoActionsBar.tsx`), nhung ly do chua khop voi yeu cau.
+- **video_reports table**: Thieu cot `status` (chi co `id, video_id, reporter_id, reason, created_at`).
+- **Admin Spam Filter**: Hien thi `report_count` badge nhung **khong co chuc nang xem chi tiet ly do bao cao** khi click vao tag.
+- **Debounce**: Chua co tren nut "Gui bao cao".
 
-### Root Causes Identified
+---
 
-**1. Missing Admin RLS Policies on `videos` table (Critical)**
-The `videos` table only has this SELECT policy:
-```
-(is_public = true) OR (auth.uid() = user_id)
-```
-There is NO admin override. This means:
-- Admins **cannot see** reported videos that have `is_public = false`
-- Admins **cannot UPDATE** (hide/reject) any video they don't own -- bulk hide/reject will silently fail
-- The specific video you reported works because it happens to be `is_public = true`, but the system is broken for non-public videos
+### Thay doi
 
-**2. No Manual Refresh Button in Spam Filter**
-The Spam Filter tab only fetches data on filter change (via `useEffect`). If the admin is already on the "Bị báo cáo" filter, new reports won't appear until they switch away and back.
+#### 1. Database Migration - Them cot `status` vao `video_reports`
 
-**3. No Report Count Badge on Spam Filter Tab**
-The admin has no visual indicator of how many reported videos exist, making it easy to miss new reports.
+Them cot `status` (mac dinh `'pending'`) de Admin co the theo doi trang thai xu ly bao cao.
 
-### Plan
-
-#### Step 1: Add Admin RLS Policies to `videos` Table
-Create a database migration to add:
-- `SELECT` policy for admins: `has_role(auth.uid(), 'admin'::app_role)` -- allows admins to see ALL videos including non-public ones
-- `UPDATE` policy for admins: same condition -- allows admins to hide/reject/modify any video
-
-#### Step 2: Add Refresh Button to Spam Filter
-Add a manual "Refresh" button next to the existing filter buttons so admins can reload reported videos on demand.
-
-#### Step 3: Add Reported Count Badge to Spam Filter Tab
-Show a live count of reported videos on the "Spam Filter" tab trigger so admins immediately see when new reports come in.
-
-#### Step 4: Clean Up Redundant Code
-Review and remove any unused imports or dead code in the reporting flow.
-
-### Technical Details
-
-**Migration SQL:**
 ```sql
-CREATE POLICY "Admins can view all videos"
-  ON public.videos FOR SELECT
-  USING (has_role(auth.uid(), 'admin'::app_role));
-
-CREATE POLICY "Admins can update all videos"
-  ON public.videos FOR UPDATE
-  USING (has_role(auth.uid(), 'admin'::app_role));
-
-CREATE POLICY "Admins can delete all videos"
-  ON public.videos FOR DELETE
-  USING (has_role(auth.uid(), 'admin'::app_role));
+ALTER TABLE public.video_reports 
+  ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'pending';
 ```
 
-**UI Changes in `VideosManagementTab.tsx`:**
-- Add a refresh button (RefreshCw icon) next to the Spam Filter filter buttons
-- Fetch reported video count on tab mount and display as a badge on the "Spam Filter" tab
+#### 2. Cap nhat ly do bao cao (ReportSpamButton.tsx)
 
-**Files Modified:**
-- `src/components/Admin/tabs/VideosManagementTab.tsx` -- refresh button, reported count badge
-- Database migration -- 3 new admin RLS policies on `videos` table
+Thay doi danh sach `REPORT_REASONS` theo yeu cau:
+- "Noi dung rac / Spam"
+- "Trung lap"
+- "Video qua ngan / Chat luong thap"
+- "Vi pham quy tac cong dong"
+
+Cap nhat thong bao thanh cong: **"Cam on ban da dong gop anh sang cho cong dong"**
+
+Them debounce cho nut "Gui bao cao" (chong nhan lien tuc) bang cach disable nut sau khi nhan va them `useRef` timeout 2 giay.
+
+#### 3. Admin - Xem chi tiet ly do bao cao (VideosManagementTab.tsx)
+
+Khi Admin click vao Badge "X bao cao" trong bang Spam Filter:
+- Mo Dialog hien thi danh sach tat ca ly do bao cao tu `video_reports` table
+- Hien thi: nguoi bao cao, ly do, thoi gian bao cao
+- Truy van: `supabase.from("video_reports").select("*, profiles:reporter_id(display_name, username, avatar_url)").eq("video_id", videoId)`
+
+#### 4. Toi uu Cloud
+
+- Chi gui request khi User nhan "Gui" (da dung nhu vay).
+- Them debounce 2 giay sau khi gui thanh cong de chong spam request.
+
+---
+
+### Chi tiet ky thuat
+
+**Files thay doi:**
+
+| File | Thay doi |
+|------|----------|
+| Database migration | Them cot `status` vao `video_reports` |
+| `src/components/Video/ReportSpamButton.tsx` | Cap nhat ly do, thong bao, debounce |
+| `src/components/Admin/tabs/VideosManagementTab.tsx` | Them Dialog xem chi tiet ly do bao cao khi click Badge |
+
+**ReportSpamButton - Ly do moi:**
+```typescript
+const REPORT_REASONS = [
+  { value: "spam", label: "Noi dung rac / Spam" },
+  { value: "duplicate", label: "Trung lap" },
+  { value: "low_quality", label: "Video qua ngan / Chat luong thap" },
+  { value: "community_violation", label: "Vi pham quy tac cong dong" },
+];
+```
+
+**Admin Report Detail Dialog:**
+- Badge `report_count` trong bang Spam Filter se tro thanh clickable
+- Click mo Dialog voi danh sach bao cao tu `video_reports` join `profiles`
+- Hien thi avatar, ten nguoi bao cao, ly do, thoi gian
+
+**Debounce:**
+- Sau khi gui bao cao thanh cong, disable nut 2 giay bang `useState` + `setTimeout`
+- Chong nguoi dung nhan lien tuc
 
