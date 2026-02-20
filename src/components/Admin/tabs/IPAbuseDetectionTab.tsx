@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Globe, Users, Wallet, Ban, RefreshCw, Loader2, UserCheck, RotateCcw, Radio, ShieldAlert } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { getProfileUrl } from "@/lib/adminUtils";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
@@ -311,12 +312,22 @@ const IPAbuseDetectionTab = ({ onBan, onUnbanWithRestore, loading }: IPAbuseDete
                         user.banned ? "bg-red-500/10 opacity-60" : "bg-muted/30"
                       }`}
                     >
-                      <Avatar className="w-8 h-8">
-                        <AvatarImage src={user.avatar_url || undefined} />
-                        <AvatarFallback>
-                          {(user.display_name || user.username)?.[0] || "?"}
-                        </AvatarFallback>
-                      </Avatar>
+                      {(() => {
+                        const profileUrl = getProfileUrl(user.username, user.id);
+                        return profileUrl ? (
+                          <a href={profileUrl} target="_blank" rel="noopener noreferrer">
+                            <Avatar className="w-8 h-8 cursor-pointer hover:ring-2 hover:ring-primary transition-all">
+                              <AvatarImage src={user.avatar_url || undefined} />
+                              <AvatarFallback>{(user.display_name || user.username)?.[0] || "?"}</AvatarFallback>
+                            </Avatar>
+                          </a>
+                        ) : (
+                          <Avatar className="w-8 h-8 opacity-50">
+                            <AvatarImage src={user.avatar_url || undefined} />
+                            <AvatarFallback>{(user.display_name || user.username)?.[0] || "?"}</AvatarFallback>
+                          </Avatar>
+                        );
+                      })()}
                       <div className="flex-1 min-w-0">
                         <div className="font-medium text-sm truncate">
                           {user.display_name || user.username}

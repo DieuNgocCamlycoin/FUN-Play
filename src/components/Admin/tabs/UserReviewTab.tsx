@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ShieldAlert, ShieldCheck, ShieldX, Eye } from "lucide-react";
 import { AdminUser } from "@/hooks/useAdminManage";
 import { toast } from "sonner";
+import { getProfileUrl } from "@/lib/adminUtils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -183,10 +184,22 @@ const UserReviewTab = ({ users, onBan, getSuspicionScore, loading }: UserReviewT
                     key={user.id}
                     className="flex items-center gap-4 p-3 rounded-lg bg-muted/30 hover:bg-muted/50"
                   >
-                    <Avatar className="w-10 h-10">
-                      <AvatarImage src={user.avatar_url || undefined} />
-                      <AvatarFallback>{(user.display_name || user.username)?.[0]}</AvatarFallback>
-                    </Avatar>
+                    {(() => {
+                      const profileUrl = getProfileUrl(user.username, user.id);
+                      return profileUrl ? (
+                        <a href={profileUrl} target="_blank" rel="noopener noreferrer">
+                          <Avatar className="w-10 h-10 cursor-pointer hover:ring-2 hover:ring-primary transition-all">
+                            <AvatarImage src={user.avatar_url || undefined} />
+                            <AvatarFallback>{(user.display_name || user.username)?.[0]}</AvatarFallback>
+                          </Avatar>
+                        </a>
+                      ) : (
+                        <Avatar className="w-10 h-10 opacity-50">
+                          <AvatarImage src={user.avatar_url || undefined} />
+                          <AvatarFallback>{(user.display_name || user.username)?.[0]}</AvatarFallback>
+                        </Avatar>
+                      );
+                    })()}
                     <div className="flex-1 min-w-0">
                       <div className="font-medium truncate">{user.display_name || user.username}</div>
                       <div className="text-xs text-muted-foreground">
@@ -243,10 +256,22 @@ const UserReviewTab = ({ users, onBan, getSuspicionScore, loading }: UserReviewT
                     key={user.id}
                     className="flex items-center gap-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30"
                   >
-                    <Avatar className="w-10 h-10 opacity-50">
-                      <AvatarImage src={user.avatar_url || undefined} />
-                      <AvatarFallback>{(user.display_name || user.username)?.[0]}</AvatarFallback>
-                    </Avatar>
+                    {(() => {
+                      const profileUrl = getProfileUrl(user.username, user.id);
+                      return profileUrl ? (
+                        <a href={profileUrl} target="_blank" rel="noopener noreferrer">
+                          <Avatar className="w-10 h-10 opacity-50 cursor-pointer hover:ring-2 hover:ring-primary transition-all">
+                            <AvatarImage src={user.avatar_url || undefined} />
+                            <AvatarFallback>{(user.display_name || user.username)?.[0]}</AvatarFallback>
+                          </Avatar>
+                        </a>
+                      ) : (
+                        <Avatar className="w-10 h-10 opacity-50">
+                          <AvatarImage src={user.avatar_url || undefined} />
+                          <AvatarFallback>{(user.display_name || user.username)?.[0]}</AvatarFallback>
+                        </Avatar>
+                      );
+                    })()}
                     <div className="flex-1 min-w-0">
                       <div className="font-medium truncate line-through opacity-70">
                         {user.display_name || user.username}
@@ -277,10 +302,22 @@ const UserReviewTab = ({ users, onBan, getSuspicionScore, loading }: UserReviewT
                     key={user.id}
                     className="flex items-center gap-4 p-3 rounded-lg bg-green-500/10 border border-green-500/30"
                   >
-                    <Avatar className="w-10 h-10">
-                      <AvatarImage src={user.avatar_url || undefined} />
-                      <AvatarFallback>{(user.display_name || user.username)?.[0]}</AvatarFallback>
-                    </Avatar>
+                    {(() => {
+                      const profileUrl = getProfileUrl(user.username, user.id);
+                      return profileUrl ? (
+                        <a href={profileUrl} target="_blank" rel="noopener noreferrer">
+                          <Avatar className="w-10 h-10 cursor-pointer hover:ring-2 hover:ring-primary transition-all">
+                            <AvatarImage src={user.avatar_url || undefined} />
+                            <AvatarFallback>{(user.display_name || user.username)?.[0]}</AvatarFallback>
+                          </Avatar>
+                        </a>
+                      ) : (
+                        <Avatar className="w-10 h-10 opacity-50">
+                          <AvatarImage src={user.avatar_url || undefined} />
+                          <AvatarFallback>{(user.display_name || user.username)?.[0]}</AvatarFallback>
+                        </Avatar>
+                      );
+                    })()}
                     <div className="flex-1 min-w-0">
                       <div className="font-medium truncate">{user.display_name || user.username}</div>
                       <div className="text-xs text-muted-foreground">

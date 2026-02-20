@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Search, Trash2, AlertTriangle, Shield } from "lucide-react";
 import { AdminUser } from "@/hooks/useAdminManage";
 import { toast } from "sonner";
+import { getProfileUrl } from "@/lib/adminUtils";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
@@ -71,10 +72,22 @@ const QuickDeleteTab = ({ users, onBan, getSuspicionScore, loading }: QuickDelet
 
   const UserRow = ({ user, score }: { user: AdminUser; score?: number }) => (
     <div key={user.id} className="flex items-center gap-4 p-3 rounded-lg bg-muted/30 hover:bg-muted/50">
-      <Avatar className="w-10 h-10">
-        <AvatarImage src={user.avatar_url || undefined} />
-        <AvatarFallback>{(user.display_name || user.username)?.[0]}</AvatarFallback>
-      </Avatar>
+      {(() => {
+        const profileUrl = getProfileUrl(user.username, user.id);
+        return profileUrl ? (
+          <a href={profileUrl} target="_blank" rel="noopener noreferrer">
+            <Avatar className="w-10 h-10 cursor-pointer hover:ring-2 hover:ring-primary transition-all">
+              <AvatarImage src={user.avatar_url || undefined} />
+              <AvatarFallback>{(user.display_name || user.username)?.[0]}</AvatarFallback>
+            </Avatar>
+          </a>
+        ) : (
+          <Avatar className="w-10 h-10 opacity-50">
+            <AvatarImage src={user.avatar_url || undefined} />
+            <AvatarFallback>{(user.display_name || user.username)?.[0]}</AvatarFallback>
+          </Avatar>
+        );
+      })()}
       <div className="flex-1 min-w-0">
         <div className="font-medium truncate">{user.display_name || user.username}</div>
         <div className="text-xs text-muted-foreground truncate">
