@@ -865,18 +865,18 @@ export default function Watch({ videoIdProp }: { videoIdProp?: string }) {
                     variant="ghost"
                     size="sm"
                     className="relative rounded-full gap-1.5 h-9 overflow-hidden
-                               bg-gradient-to-b from-[#FFEA00] via-[#FFD700] to-[#E5A800]
-                               text-[#7C5800] font-bold
-                               shadow-[0_0_12px_rgba(255,215,0,0.4),inset_0_1px_2px_rgba(255,255,255,0.5)]
-                               hover:shadow-[0_0_20px_rgba(255,234,0,0.6)]
-                               border border-[#FFEA00]/50
+                               bg-gradient-to-b from-[#F9E37A] via-[#F0D96C] to-[#B78C1A]
+                               text-[#A9710F] font-bold
+                               shadow-[0_0_12px_rgba(198,143,26,0.4),inset_0_1px_2px_rgba(255,255,255,0.5)]
+                               hover:shadow-[0_0_20px_rgba(240,217,108,0.6)]
+                               border border-[#C28F1A]/50
                                transition-all duration-300 hover:scale-105
-                               !border-[#FFEA00]/50"
+                               !border-[#C28F1A]/50"
                     onClick={() => setDonateModalOpen(true)}
                   >
-                    <Gift className="h-4 w-4 text-[#7C5800] relative z-10" />
+                    <Gift className="h-4 w-4 text-[#A9710F] relative z-10" />
                     <span className="text-sm font-extrabold relative z-10">Thưởng & Tặng</span>
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-mirror-shimmer" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-mirror-shimmer" />
                   </Button>
 
                   {/* More menu — includes Report */}

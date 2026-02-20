@@ -224,11 +224,11 @@ export function MintableCard({ activity, loading, onMintSuccess }: MintableCardP
                     size="lg"
                     className={cn(
                       "w-full h-14 text-lg font-bold gap-2 transition-all duration-300",
-                      canMint && !isMinting && "bg-gradient-to-r from-[#FFEA00] via-[#FFD700] to-[#E5A800] hover:from-[#FFD700] hover:via-[#FFC000] hover:to-[#D4A000] text-[#7C5800] shadow-lg hover:shadow-xl hover:scale-[1.02]",
+                      canMint && !isMinting && "bg-gradient-to-r from-[#F9E37A] via-[#F0D96C] to-[#B78C1A] hover:from-[#F0D96C] hover:via-[#E8D060] hover:to-[#A07818] text-[#A9710F] shadow-lg hover:shadow-xl hover:scale-[1.02]",
                       (!canMint || isMinting) && "opacity-50 cursor-not-allowed"
                     )}
                     style={canMint && !isMinting ? {
-                      boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -2px 4px rgba(0,0,0,0.1), 0 4px 12px rgba(255,215,0,0.3)'
+                      boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -2px 4px rgba(0,0,0,0.1), 0 4px 12px rgba(198,143,26,0.3)'
                     } : {}}
                   >
                     {isMinting || submitLoading ? (
