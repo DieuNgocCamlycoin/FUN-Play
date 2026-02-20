@@ -256,7 +256,7 @@ const WatchHistory = () => {
                           className="text-sm text-muted-foreground mt-1 cursor-pointer hover:text-foreground transition-colors"
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (item.video.channels?.id) navigate(`/channel/${item.video.channels.id}`);
+                            if (item.video.channels?.id) navigate(`/${item.video.channels.id}`);
                           }}
                         >
                           <span className="flex items-center gap-1">

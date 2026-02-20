@@ -113,7 +113,7 @@ export function VideoActionsBar({
           {/* Avatar */}
           <Avatar
             className="h-10 w-10 cursor-pointer ring-2 ring-transparent hover:ring-cosmic-cyan/30 transition-all"
-            onClick={() => navigate(`/channel/${channelId}`)}
+            onClick={() => navigate(`/${channelId}`)}
           >
             <AvatarImage src={channelAvatar || undefined} />
             <AvatarFallback className="bg-gradient-to-br from-cosmic-sapphire to-cosmic-cyan text-white font-semibold">
@@ -124,7 +124,7 @@ export function VideoActionsBar({
           {/* Channel info */}
           <div
             className="flex-1 min-w-0 cursor-pointer"
-            onClick={() => navigate(`/channel/${channelId}`)}
+            onClick={() => navigate(`/${channelId}`)}
           >
             <span className="flex items-center gap-1">
               <p className="text-sm font-semibold text-foreground truncate">

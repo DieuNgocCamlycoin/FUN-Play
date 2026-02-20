@@ -66,6 +66,14 @@ export default function Channel() {
   const targetUsername = username?.replace("@", "") || null;
   const targetChannelId = id || null;
 
+  // Guard: prevent navigation to literal "undefined" or "null"
+  useEffect(() => {
+    if (targetUsername === "undefined" || targetUsername === "null" || targetChannelId === "undefined" || targetChannelId === "null") {
+      console.warn("[Channel] Invalid param detected, redirecting to home:", { targetUsername, targetChannelId });
+      navigate("/", { replace: true });
+    }
+  }, [targetUsername, targetChannelId, navigate]);
+
   useEffect(() => {
     fetchChannelAndProfile();
   }, [targetChannelId, targetUsername]);

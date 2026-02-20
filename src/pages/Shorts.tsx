@@ -135,9 +135,9 @@ const ShortsVideoItem = ({
   const goToChannel = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (video.profile?.username) {
-      navigate(`/@${video.profile.username}`);
-    } else if (video.channel_id) {
-      navigate(`/channel/${video.channel_id}`);
+      navigate(`/${video.profile.username}`);
+    } else if (video.user_id) {
+      navigate(`/${video.user_id}`);
     }
   };
 

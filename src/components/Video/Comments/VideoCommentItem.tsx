@@ -81,8 +81,9 @@ export function VideoCommentItem({
   };
 
   const navigateToChannel = () => {
-    if (comment.channel?.id) {
-      navigate(`/channel/${comment.channel.id}`);
+    const target = comment.profiles?.username || comment.user_id;
+    if (target) {
+      navigate(`/${target}`);
     }
   };
 

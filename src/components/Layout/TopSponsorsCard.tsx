@@ -35,7 +35,7 @@ const SponsorItem = ({ rank, sponsor, index }: SponsorItemProps) => {
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: index * 0.08, type: "spring", stiffness: 200 }}
       whileHover={{ x: 4, scale: 1.01 }}
-      onClick={() => navigate(`/channel/${sponsor.userId}`)}
+      onClick={() => navigate(`/${sponsor.username || sponsor.userId}`)}
       className={cn(
         "w-full flex items-center gap-1.5 px-1.5 py-1 rounded-lg transition-all duration-300",
         isTopThree 
