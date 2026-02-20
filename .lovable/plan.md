@@ -1,117 +1,74 @@
 
 
-## Dai tu URL: Bo `/c/` va `/watch/` - Chuyen sang URL sach
+## Sua loi ShareModal trong Watch.tsx
 
-### Tong quan
+### Van de
 
-Chuyen doi toan bo he thong URL tu:
-- `play.fun.rich/c/username` -> `play.fun.rich/username`
-- `play.fun.rich/watch/ID` -> `play.fun.rich/username/video/slug`
+Khi nguoi dung nhan "Chia se" tren trang xem video, link duoc tao ra van dung format cu `/watch/[UUID]` thay vi link sach `/:username/video/:slug`. Nguyen nhan: ShareModal khong duoc truyen `username` va `slug`.
 
-Giu lai cac route cu lam redirect de khong mat SEO va khong bi 404.
+### Giai phap - Chi sua 1 file: `Watch.tsx`
 
-### Giai quyet xung dot route
+#### Thay doi 1: Mo rong query profiles de lay them `username`
 
-React Router v6 su dung **he thong diem** (scoring) de phan biet route. Static route (`/admin`) luon co diem cao hon dynamic route (`/:username`). Vi vay `/:username` dat cuoi cung se **khong bao gio** xung dot voi `/admin`, `/wallet`, `/shorts`...
+Tai dong 243-247, query hien tai chi lay `avatar_url`. Them `username` vao cung lenh select:
 
-**Nhung** can chan truong hop user dat username trung ten route (vi du username = "admin"). Can them danh sach **reserved words** vao validation.
+```
+// Truoc:
+.select("avatar_url")
 
-### Chi tiet thay doi
-
-#### 1. Them Reserved Words vao `src/lib/nameFilter.ts`
-
-Them danh sach ~50 tu cam (la ten cac route hien co) vao `validateUsernameFormat`:
-
-```text
-RESERVED_WORDS = [
-  "auth", "watch", "channel", "wallet", "shorts", "profile",
-  "library", "settings", "upload", "create-post", "your-videos",
-  "manage-posts", "manage-playlists", "manage-channel", "studio",
-  "dashboard", "leaderboard", "reward-history", "referral",
-  "user-dashboard", "admin", "nft-gallery", "fun-wallet",
-  "fun-money", "meditate", "create-music", "music", "browse",
-  "install", "watch-later", "history", "subscriptions",
-  "camly-price", "liked", "post", "docs", "your-videos-mobile",
-  "downloads", "build-bounty", "bounty", "my-ai-music", "ai-music",
-  "receipt", "messages", "search", "notifications", "transactions",
-  "preview-celebration", "users", "c", "u", "user", "v",
-  "edit-video", "edit-post", "playlist"
-]
+// Sau:
+.select("avatar_url, username")
 ```
 
-#### 2. Cap nhat Routes trong `src/App.tsx`
+Luu `username` vao state moi `channelUsername`.
 
-```text
-Them route moi:
-  /:username              -> <Channel />
-  /:username/video/:slug  -> <VideoBySlug />
+#### Thay doi 2: Them state `channelUsername`
 
-Chuyen route cu thanh redirect:
-  /c/:username            -> Navigate to /:username
-  /c/:username/video/:slug -> Navigate to /:username/video/:slug
-  /watch/:id              -> <Watch /> (giu de tuong thich nguoc, component tu redirect)
-  /channel/:id            -> Navigate to /:id
-  /@:username             -> Navigate to /:username
-
-Dat /:username va /:username/video/:slug SAU tat ca route co dinh, TRUOC route "*"
+Them 1 dong state moi gan dong 74:
+```
+const [channelUsername, setChannelUsername] = useState<string | null>(null);
 ```
 
-#### 3. Cap nhat cac ham tien ich (3 file)
+#### Thay doi 3: Luu username trong fetchVideo
 
-| File | Thay doi |
-|------|---------|
-| `src/lib/adminUtils.ts` | `getProfileUrl` tra ve `/${identifier}` thay vi `/c/${identifier}` |
-| `src/lib/shareUtils.ts` | `getVideoShareUrl` tra ve `${PRODUCTION_URL}/${username}/video/${slug}` |
-| `src/lib/slugify.ts` | `getVideoShareUrl` tra ve `/${username}/video/${slug}` |
-
-#### 4. Cap nhat ~15 component dung `/c/` truc tiep
-
-| File | Thay doi |
-|------|---------|
-| `ChatHeader.tsx` | `/c/${...}` -> `/${...}` |
-| `UsersDirectory.tsx` | `/c/${...}` -> `/${...}` |
-| `TopSponsorsSection.tsx` | `/c/${...}` -> `/${...}` |
-| `UserProfileDisplay.tsx` | `/c/${...}` -> `/${...}` |
-| `TransactionCard.tsx` | `/c/${...}` -> `/${...}` |
-| `DonationSuccessOverlay.tsx` | `/c/${...}` -> `/${...}` |
-| `GiftCelebrationModal.tsx` | `/c/${...}` -> `/${...}` |
-| `DonationCelebrationCard.tsx` | `/c/${...}` -> `/${...}` |
-| `ChatDonationCard.tsx` | `/c/${...}` -> `/${...}` |
-| `PostCard.tsx` | `/c/${...}` -> `/${...}` |
-| `ProfileInfo.tsx` | `/c/${...}` -> `/${...}` |
-| `Header.tsx` | `/c/${...}` -> `/${...}` |
-| `VideosManagementTab.tsx` | URL admin link bo `/c/` |
-
-#### 5. Cap nhat `VideoBySlug.tsx`
-
-Thay doi param tu `username` (tu route `/c/:username/video/:slug`) sang `username` (tu route `/:username/video/:slug`). Logic khong doi vi ten param giong nhau.
-
-#### 6. Cap nhat `Channel.tsx`
-
-Route param doi tu `/c/:username` sang `/:username`. Logic khong doi vi van dung `useParams` lay `username`.
-
-#### 7. Cap nhat redirect logic trong `Channel.tsx`
-
-Khi redirect UUID -> username dep:
-```typescript
-// Cu: navigate(`/c/${pData.username}`, { replace: true });
-// Moi: navigate(`/${pData.username}`, { replace: true });
+Tai dong 248-250, them logic luu username:
+```
+if (profileData?.avatar_url) setChannelAvatarUrl(profileData.avatar_url);
+if (profileData?.username) setChannelUsername(profileData.username);
 ```
 
-#### 8. Giu `/watch/:id` hoat dong
+#### Thay doi 4: Truyen username + slug vao ShareModal (2 cho)
 
-`Watch` component van giu nguyen. Route `/watch/:id` van ton tai de:
-- Tuong thich voi link cu
-- `VideoBySlug.tsx` van redirect sang `/watch/:id` noi bo (dung Navigate)
+**Mobile** (dong 607-615):
+```
+<ShareModal
+  ...
+  username={channelUsername || undefined}
+  slug={video?.slug || undefined}
+/>
+```
 
-**Trong tuong lai** co the chuyen Watch component sang nhan slug truc tiep, nhung hien tai giu `/watch/:id` nhu route noi bo de khong pha vo qua nhieu.
+**Desktop** (dong 925-934):
+```
+<ShareModal
+  ...
+  username={channelUsername || undefined}
+  slug={video?.slug || undefined}
+/>
+```
+
+### Ket qua
+
+- **0 request DB bo sung** - username duoc lay cung luc voi avatar_url trong 1 query duy nhat
+- Link chia se se luon la: `play.fun.rich/[username]/video/[slug]`
+- Fallback van hoat dong neu thieu du lieu (ShareModal tu dong dung `/watch/[id]` + legacy redirect xu ly)
 
 ### Tong ket
 
-- **4 file tien ich** thay doi (nameFilter, adminUtils, shareUtils, slugify)
-- **1 file routing** (App.tsx)
-- **~13 component** thay doi link `/c/` -> `/`
-- **2 file page** (Channel.tsx, VideoBySlug.tsx) cap nhat redirect path
-- Tat ca link cu `/c/`, `/watch/`, `/user/`, `/u/`, `/@` van redirect dung
-- Khong mat SEO, khong 404
+| Hang muc | Chi tiet |
+|----------|---------|
+| File thay doi | 1 file: `Watch.tsx` |
+| Dong thay doi | ~8 dong |
+| DB request them | 0 (gop vao query co san) |
+| Risk | Rat thap - chi them props, khong thay doi logic |
 
