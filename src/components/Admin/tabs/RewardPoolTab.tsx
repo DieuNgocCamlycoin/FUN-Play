@@ -505,7 +505,7 @@ const RewardPoolTab = () => {
                         {format(new Date(claim.created_at), "dd/MM HH:mm", { locale: vi })}
                       </td>
                       <td className="py-3 px-2">
-                        <a href={`/c/${claim.username}`} className="flex items-center gap-2 hover:underline">
+                        <a href={`/${claim.username}`} className="flex items-center gap-2 hover:underline">
                           <Avatar className="w-6 h-6">
                             <AvatarImage src={claim.avatar_url || undefined} />
                             <AvatarFallback className="text-[10px]">{(claim.channel_name || claim.username)?.[0]?.toUpperCase()}</AvatarFallback>

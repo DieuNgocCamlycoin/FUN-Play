@@ -593,7 +593,7 @@ export const GiftCelebrationModal = ({
 
             {/* Sender → Amount → Receiver */}
             <div className="flex items-center justify-between gap-2">
-              <a href={`/c/${sender.username || sender.id}`} className="flex flex-col items-center gap-1 flex-1 min-w-0 hover:opacity-80 transition-opacity">
+              <a href={`/${sender.username || sender.id}`} className="flex flex-col items-center gap-1 flex-1 min-w-0 hover:opacity-80 transition-opacity">
                 <Avatar className="h-12 w-12 ring-2 ring-white/30">
                   <AvatarImage src={sender.avatar || ""} />
                   <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-sm">{sender.username[0].toUpperCase()}</AvatarFallback>
@@ -617,7 +617,7 @@ export const GiftCelebrationModal = ({
                 <span className="text-sm font-medium text-white/80">{token.symbol}</span>
               </div>
 
-              <a href={`/c/${receiver.username || receiver.id}`} className="flex flex-col items-center gap-1 flex-1 min-w-0 hover:opacity-80 transition-opacity">
+              <a href={`/${receiver.username || receiver.id}`} className="flex flex-col items-center gap-1 flex-1 min-w-0 hover:opacity-80 transition-opacity">
                 <Avatar className="h-12 w-12 ring-2 ring-amber-400/30">
                   <AvatarImage src={receiver.avatar || ""} />
                   <AvatarFallback className="bg-gradient-to-br from-amber-500 to-orange-500 text-white text-sm">{receiver.username[0].toUpperCase()}</AvatarFallback>

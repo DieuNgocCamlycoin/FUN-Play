@@ -110,6 +110,21 @@ export function validateDisplayName(name: string): { ok: boolean; reason?: strin
  * Rules: 3-30 chars, lowercase letters, numbers, underscores only.
  * Cannot start with "user_" (reserved for system-generated).
  */
+const RESERVED_WORDS: string[] = [
+  "auth", "watch", "channel", "wallet", "shorts", "profile",
+  "library", "settings", "upload", "create-post", "your-videos",
+  "manage-posts", "manage-playlists", "manage-channel", "studio",
+  "dashboard", "leaderboard", "reward-history", "referral",
+  "user-dashboard", "admin", "nft-gallery", "fun-wallet",
+  "fun-money", "meditate", "create-music", "music", "browse",
+  "install", "watch-later", "history", "subscriptions",
+  "camly-price", "liked", "post", "docs", "your-videos-mobile",
+  "downloads", "build-bounty", "bounty", "my-ai-music", "ai-music",
+  "receipt", "messages", "search", "notifications", "transactions",
+  "preview-celebration", "users", "c", "u", "user", "v",
+  "edit-video", "edit-post", "playlist", "video",
+];
+
 export function validateUsernameFormat(username: string): { ok: boolean; reason?: string } {
   if (!username || username.trim().length === 0) {
     return { ok: false, reason: "Username không được để trống" };
@@ -129,6 +144,11 @@ export function validateUsernameFormat(username: string): { ok: boolean; reason?
 
   if (username.startsWith("user_")) {
     return { ok: false, reason: "Username không được bắt đầu bằng 'user_' (dành cho hệ thống)" };
+  }
+
+  // Block reserved route names
+  if (RESERVED_WORDS.includes(username)) {
+    return { ok: false, reason: "Username này đã được hệ thống sử dụng, vui lòng chọn tên khác" };
   }
 
   // Block all-numeric usernames

@@ -178,7 +178,7 @@ export const ChatDonationCard = ({
               <div className="flex items-center justify-between gap-2">
                 <div
                   className="flex flex-col items-center gap-0.5 flex-1 min-w-0 cursor-pointer hover:opacity-80 transition-opacity"
-                  onClick={() => navigate(`/c/${cardData.sender_username}`)}
+                  onClick={() => navigate(`/${cardData.sender_username}`)}
                 >
                   <Avatar className="h-10 w-10 sm:h-12 sm:w-12 ring-2 ring-white/30">
                     <AvatarImage src={cardData.sender_avatar || ""} />
@@ -209,7 +209,7 @@ export const ChatDonationCard = ({
 
                 <div
                   className="flex flex-col items-center gap-0.5 flex-1 min-w-0 cursor-pointer hover:opacity-80 transition-opacity"
-                  onClick={() => navigate(`/c/${cardData.receiver_username}`)}
+                  onClick={() => navigate(`/${cardData.receiver_username}`)}
                 >
                   <Avatar className="h-10 w-10 sm:h-12 sm:w-12 ring-2 ring-amber-400/30">
                     <AvatarImage src={cardData.receiver_avatar || ""} />

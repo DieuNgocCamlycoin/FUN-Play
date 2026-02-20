@@ -8,11 +8,19 @@ import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-
 // Legacy redirect components
 const LegacyUserRedirect = () => {
   const { userId } = useParams();
-  return <Navigate to={`/c/${userId}`} replace />;
+  return <Navigate to={`/${userId}`} replace />;
 };
 const LegacyUsernameRedirect = () => {
   const { username } = useParams();
-  return <Navigate to={`/c/${username}`} replace />;
+  return <Navigate to={`/${username}`} replace />;
+};
+const LegacyCRedirect = () => {
+  const { username } = useParams();
+  return <Navigate to={`/${username}`} replace />;
+};
+const LegacyCVideoRedirect = () => {
+  const { username, slug } = useParams();
+  return <Navigate to={`/${username}/video/${slug}`} replace />;
 };
 import { WagmiProvider } from 'wagmi';
 import { VersionCheck } from './components/VersionCheck';
@@ -152,16 +160,9 @@ function AppContent() {
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/watch/:id" element={<Watch />} />
-            <Route path="/channel/:id" element={<Channel />} />
-            <Route path="/c/:username" element={<Channel />} />
-            <Route path="/c/:username/video/:slug" element={<VideoBySlug />} />
-            <Route path="/@:username" element={<Channel />} />
             <Route path="/wallet" element={<Wallet />} />
             <Route path="/shorts" element={<Shorts />} />
             <Route path="/profile" element={<Profile />} />
-            {/* Legacy redirects to /c/:identifier */}
-            <Route path="/user/:userId" element={<LegacyUserRedirect />} />
-            <Route path="/u/:username" element={<LegacyUsernameRedirect />} />
             <Route path="/library" element={<Library />} />
             
             {/* Lazy loaded pages */}
@@ -220,6 +221,16 @@ function AppContent() {
             <Route path="/transactions" element={<Transactions />} />
             <Route path="/preview-celebration" element={<PreviewCelebration />} />
             <Route path="/users" element={<UsersDirectory />} />
+            {/* Legacy redirects */}
+            <Route path="/user/:userId" element={<LegacyUserRedirect />} />
+            <Route path="/u/:username" element={<LegacyUsernameRedirect />} />
+            <Route path="/channel/:id" element={<LegacyUserRedirect />} />
+            <Route path="/c/:username/video/:slug" element={<LegacyCVideoRedirect />} />
+            <Route path="/c/:username" element={<LegacyCRedirect />} />
+            <Route path="/@:username" element={<LegacyUsernameRedirect />} />
+            {/* Dynamic profile & video routes - MUST be last before catch-all */}
+            <Route path="/:username/video/:slug" element={<VideoBySlug />} />
+            <Route path="/:username" element={<Channel />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>

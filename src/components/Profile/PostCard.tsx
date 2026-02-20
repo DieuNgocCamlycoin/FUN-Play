@@ -110,7 +110,7 @@ export const PostCard = ({ post, onUpdate }: PostCardProps) => {
         <div className="flex items-center gap-3">
           <Avatar
             className="w-10 h-10 cursor-pointer hover:ring-2 hover:ring-[hsl(var(--cosmic-cyan))]/50 transition-all"
-            onClick={() => navigate(`/c/${post.profiles?.username}`)}
+            onClick={() => navigate(`/${post.profiles?.username}`)}
           >
             <AvatarImage src={avatarUrl || undefined} />
             <AvatarFallback className="bg-gradient-to-br from-[hsl(var(--cosmic-cyan))] to-[hsl(var(--cosmic-magenta))] text-white">
@@ -120,7 +120,7 @@ export const PostCard = ({ post, onUpdate }: PostCardProps) => {
           <div>
             <p
               className="font-semibold text-foreground hover:text-[hsl(var(--cosmic-cyan))] cursor-pointer transition-colors"
-              onClick={() => navigate(`/c/${post.profiles?.username}`)}
+              onClick={() => navigate(`/${post.profiles?.username}`)}
             >
               {displayName}
             </p>

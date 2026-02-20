@@ -326,7 +326,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
                 </>
               )}
               
-              <DropdownMenuItem onClick={() => navigate(`/c/${profile?.username || user.id}`)}>
+              <DropdownMenuItem onClick={() => navigate(`/${profile?.username || user.id}`)}>
                 <UserIcon className="mr-2 h-4 w-4" />
                 Trang cá nhân
               </DropdownMenuItem>

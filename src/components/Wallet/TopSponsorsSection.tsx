@@ -68,7 +68,7 @@ export const TopSponsorsSection = () => {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.05 }}
-                onClick={() => navigate(`/c/${sponsor.username || sponsor.userId}`)}
+                onClick={() => navigate(`/${sponsor.username || sponsor.userId}`)}
                 className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 cursor-pointer transition-all group"
               >
                 {/* Rank Badge */}
