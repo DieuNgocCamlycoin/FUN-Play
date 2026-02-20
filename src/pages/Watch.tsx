@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { ThumbsUp, ThumbsDown, Share2, MoreHorizontal, Gift, Bookmark, EyeOff, RectangleHorizontal } from "lucide-react";
+import { ThumbsUp, ThumbsDown, Share2, MoreHorizontal, Gift, Bookmark, EyeOff } from "lucide-react";
 import { ReportSpamButton } from "@/components/Video/ReportSpamButton";
 import { DonateModal } from "@/components/Donate/DonateModal";
 import { ShareModal } from "@/components/Video/ShareModal";
@@ -727,6 +727,8 @@ export default function Watch({ videoIdProp }: { videoIdProp?: string }) {
                     setDuration(dur);
                   }}
                   onAmbientColor={setAmbientColor}
+                  isTheaterMode={isTheaterMode}
+                  onTheaterToggle={() => setIsTheaterMode(!isTheaterMode)}
                 />
               </div>
 
@@ -862,19 +864,6 @@ export default function Watch({ videoIdProp }: { videoIdProp?: string }) {
                   >
                     <Gift className="h-4 w-4 text-glow-gold" />
                     Tặng
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="icon"
-                    className={`rounded-full hidden lg:flex ${
-                      isTheaterMode 
-                        ? "bg-cosmic-cyan/20 text-cosmic-cyan border-cosmic-cyan/30" 
-                        : "bg-muted/50 hover:bg-muted/70"
-                    }`}
-                    onClick={() => setIsTheaterMode(!isTheaterMode)}
-                    title={isTheaterMode ? "Chế độ mặc định" : "Chế độ rạp phim"}
-                  >
-                    <RectangleHorizontal className="h-4 w-4" />
                   </Button>
                   <ReportSpamButton
                     videoId={video.id}

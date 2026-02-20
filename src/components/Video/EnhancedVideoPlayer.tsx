@@ -3,9 +3,9 @@ import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import {
   Play, Pause, Volume2, VolumeX, Maximize, Minimize,
-  SkipBack, SkipForward, Settings, RotateCcw, RotateCw,
-  PictureInPicture2, Repeat, Repeat1, Shuffle, ChevronRight,
-  Check, X, Sun
+  SkipBack, SkipForward, Settings, RotateCcw,
+  PictureInPicture2, Shuffle, ChevronRight,
+  Check, X, Sun, RectangleHorizontal
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -24,12 +24,6 @@ import { useWatchHistory } from "@/hooks/useWatchHistory";
 import { useAutoReward } from "@/hooks/useAutoReward";
 import { useAuth } from "@/hooks/useAuth";
 import { parseChapters, getCurrentChapter, type Chapter } from "@/lib/parseChapters";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 
 interface EnhancedVideoPlayerProps {
   videoUrl: string;
@@ -44,6 +38,8 @@ interface EnhancedVideoPlayerProps {
   onPlayStateChange?: (isPlaying: boolean) => void;
   onTimeUpdate?: (currentTime: number, duration: number) => void;
   onAmbientColor?: (color: string | null) => void;
+  isTheaterMode?: boolean;
+  onTheaterToggle?: () => void;
 }
 
 const PLAYBACK_SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
@@ -76,6 +72,8 @@ export function EnhancedVideoPlayer({
   onPlayStateChange,
   onTimeUpdate,
   onAmbientColor,
+  isTheaterMode,
+  onTheaterToggle,
 }: EnhancedVideoPlayerProps) {
   const navigate = useNavigate();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -136,7 +134,6 @@ export function EnhancedVideoPlayer({
       const dur = video.duration;
       if (!dur || dur <= 0) return;
 
-      // Use accumulated watch time instead of currentTime to prevent fast-forward abuse
       if (accumulatedWatchTimeRef.current >= dur * 0.3) {
         setViewRewarded(true);
         const result = await awardViewReward(videoId, { actualWatchTime: accumulatedWatchTimeRef.current });
@@ -210,7 +207,6 @@ export function EnhancedVideoPlayer({
     progressIntervalRef.current = setInterval(() => {
       if (videoRef.current && isPlaying) {
         updateProgress(videoRef.current.currentTime * 1000);
-        // Also update watch history
         updateWatchProgress(videoId, videoRef.current.currentTime, videoRef.current.duration);
       }
     }, 5000);
@@ -262,6 +258,10 @@ export function EnhancedVideoPlayer({
           e.preventDefault();
           toggleFullscreen();
           break;
+        case "t":
+          e.preventDefault();
+          onTheaterToggle?.();
+          break;
         case "arrowup":
           e.preventDefault();
           adjustVolume(0.1);
@@ -289,7 +289,7 @@ export function EnhancedVideoPlayer({
 
     window.addEventListener("keydown", handleKeydown);
     return () => window.removeEventListener("keydown", handleKeydown);
-  }, [duration]);
+  }, [duration, onTheaterToggle]);
 
   // Auto-hide controls
   const resetControlsTimeout = useCallback(() => {
@@ -318,7 +318,6 @@ export function EnhancedVideoPlayer({
     const video = videoRef.current;
     if (video) {
       const now = video.currentTime;
-      // Track accumulated real watch time: only count delta if <= 2s (prevents seek jumps)
       if (lastTimeUpdateRef.current > 0) {
         const delta = now - lastTimeUpdateRef.current;
         if (delta > 0 && delta <= 2) {
@@ -454,7 +453,6 @@ export function EnhancedVideoPlayer({
   };
 
   const handlePrevious = () => {
-    // If > 3 seconds into video, restart. Otherwise go to previous
     if (currentTime > 3) {
       seekTo(0);
     } else if (onPrevious) {
@@ -525,7 +523,7 @@ export function EnhancedVideoPlayer({
     };
 
     ambientIntervalRef.current = setInterval(sampleColor, 2000);
-    sampleColor(); // immediate first sample
+    sampleColor();
 
     return () => {
       if (ambientIntervalRef.current) {
@@ -544,9 +542,12 @@ export function EnhancedVideoPlayer({
   return (
     <div
       ref={containerRef}
-      className={`relative group bg-black rounded-xl overflow-hidden ${
-        isFullscreen ? "fixed inset-0 z-50" : "aspect-video"
-      }`}
+      className={cn(
+        "relative group bg-black rounded-xl overflow-hidden",
+        isFullscreen ? "fixed inset-0 z-50" : "aspect-video",
+        // Hide cursor when controls are hidden and video is playing
+        !showControls && isPlaying && "cursor-none"
+      )}
       onMouseMove={resetControlsTimeout}
       onMouseLeave={() => isPlaying && setShowControls(false)}
     >
@@ -646,13 +647,8 @@ export function EnhancedVideoPlayer({
           showControls ? "opacity-100" : "opacity-0"
         }`}
       >
-        {/* Gradient overlay */}
+        {/* Bottom gradient only */}
         <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/80 to-transparent pointer-events-none" />
-
-        {/* Top bar */}
-        <div className="absolute top-0 inset-x-0 p-4 bg-gradient-to-b from-black/60 to-transparent">
-          <h3 className="text-white text-lg font-semibold truncate">{title}</h3>
-        </div>
 
         {/* Bottom controls */}
         <div className="absolute bottom-0 inset-x-0 p-3 space-y-2">
@@ -722,31 +718,10 @@ export function EnhancedVideoPlayer({
             </div>
           )}
 
-          {/* Control buttons */}
+          {/* Control buttons - YouTube layout */}
           <div className="flex items-center justify-between">
-            {/* Left controls */}
+            {/* Left controls: Play/Pause, Prev*, Next*, Volume, Time */}
             <div className="flex items-center gap-1 md:gap-2">
-              {/* Previous */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9 text-white hover:bg-white/20"
-                onClick={handlePrevious}
-                disabled={!hasPrevious && currentTime <= 3}
-              >
-                <SkipBack className="h-5 w-5" />
-              </Button>
-
-              {/* Rewind 10s */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9 text-white hover:bg-white/20 hidden sm:flex"
-                onClick={() => seekRelative(-10)}
-              >
-                <RotateCcw className="h-5 w-5" />
-              </Button>
-
               {/* Play/Pause */}
               <Button
                 variant="ghost"
@@ -761,26 +736,29 @@ export function EnhancedVideoPlayer({
                 )}
               </Button>
 
-              {/* Forward 10s */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9 text-white hover:bg-white/20 hidden sm:flex"
-                onClick={() => seekRelative(10)}
-              >
-                <RotateCw className="h-5 w-5" />
-              </Button>
+              {/* Previous - only when queue exists */}
+              {hasPrevious && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 text-white hover:bg-white/20"
+                  onClick={handlePrevious}
+                >
+                  <SkipBack className="h-5 w-5" />
+                </Button>
+              )}
 
-              {/* Next */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9 text-white hover:bg-white/20"
-                onClick={onNext}
-                disabled={!hasNext}
-              >
-                <SkipForward className="h-5 w-5" />
-              </Button>
+              {/* Next - only when queue exists */}
+              {hasNext && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 text-white hover:bg-white/20"
+                  onClick={onNext}
+                >
+                  <SkipForward className="h-5 w-5" />
+                </Button>
+              )}
 
               {/* Volume */}
               <div className="flex items-center gap-1 group/volume">
@@ -814,41 +792,9 @@ export function EnhancedVideoPlayer({
               </span>
             </div>
 
-            {/* Right controls */}
+            {/* Right controls: Settings, PiP, Theater, Fullscreen */}
             <div className="flex items-center gap-1">
-              {/* Shuffle */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className={`h-9 w-9 hover:bg-white/20 hidden sm:flex ${
-                  session?.shuffle ? "text-cosmic-cyan" : "text-white"
-                }`}
-                onClick={() => setShuffle(!session?.shuffle)}
-              >
-                <Shuffle className="h-4 w-4" />
-              </Button>
-
-              {/* Repeat */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className={`h-9 w-9 hover:bg-white/20 hidden sm:flex ${
-                  session?.repeat !== "off" ? "text-cosmic-cyan" : "text-white"
-                }`}
-                onClick={() => {
-                  const modes: ("off" | "all" | "one")[] = ["off", "all", "one"];
-                  const currentIdx = modes.indexOf(session?.repeat || "off");
-                  setRepeat(modes[(currentIdx + 1) % 3]);
-                }}
-              >
-                {session?.repeat === "one" ? (
-                  <Repeat1 className="h-4 w-4" />
-                ) : (
-                  <Repeat className="h-4 w-4" />
-                )}
-              </Button>
-
-              {/* Settings */}
+              {/* Settings - contains Speed, Shuffle, Loop, Ambient, Autoplay */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -886,6 +832,44 @@ export function EnhancedVideoPlayer({
 
                   <DropdownMenuSeparator />
 
+                  {/* Shuffle - moved from overlay button into Settings */}
+                  <DropdownMenuItem
+                    onClick={() => setShuffle(!session?.shuffle)}
+                    className="flex items-center justify-between"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Shuffle className="h-4 w-4" />
+                      Phát ngẫu nhiên
+                    </span>
+                    {session?.shuffle && <Check className="h-4 w-4" />}
+                  </DropdownMenuItem>
+
+                  {/* Loop */}
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>
+                      <span>Lặp lại</span>
+                      <span className="ml-auto text-xs text-muted-foreground">
+                        {session?.repeat === "off" ? "Tắt" : session?.repeat === "all" ? "Tất cả" : "Một"}
+                      </span>
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent>
+                      <DropdownMenuItem onClick={() => setRepeat("off")}>
+                        <span>Tắt</span>
+                        {session?.repeat === "off" && <Check className="ml-auto h-4 w-4" />}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setRepeat("all")}>
+                        <span>Lặp tất cả</span>
+                        {session?.repeat === "all" && <Check className="ml-auto h-4 w-4" />}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setRepeat("one")}>
+                        <span>Lặp một video</span>
+                        {session?.repeat === "one" && <Check className="ml-auto h-4 w-4" />}
+                      </DropdownMenuItem>
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+
+                  <DropdownMenuSeparator />
+
                   {/* Ambient Mode */}
                   <DropdownMenuItem
                     onClick={() => {
@@ -917,30 +901,6 @@ export function EnhancedVideoPlayer({
                     <span>Tự động phát</span>
                     {settings.autoplay && <Check className="h-4 w-4" />}
                   </DropdownMenuItem>
-
-                  {/* Loop */}
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger>
-                      <span>Lặp lại</span>
-                      <span className="ml-auto text-xs text-muted-foreground">
-                        {session?.repeat === "off" ? "Tắt" : session?.repeat === "all" ? "Tất cả" : "Một"}
-                      </span>
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuSubContent>
-                      <DropdownMenuItem onClick={() => setRepeat("off")}>
-                        <span>Tắt</span>
-                        {session?.repeat === "off" && <Check className="ml-auto h-4 w-4" />}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setRepeat("all")}>
-                        <span>Lặp tất cả</span>
-                        {session?.repeat === "all" && <Check className="ml-auto h-4 w-4" />}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setRepeat("one")}>
-                        <span>Lặp một video</span>
-                        {session?.repeat === "one" && <Check className="ml-auto h-4 w-4" />}
-                      </DropdownMenuItem>
-                    </DropdownMenuSubContent>
-                  </DropdownMenuSub>
                 </DropdownMenuContent>
               </DropdownMenu>
 
@@ -955,6 +915,21 @@ export function EnhancedVideoPlayer({
                   onClick={togglePiP}
                 >
                   <PictureInPicture2 className="h-5 w-5" />
+                </Button>
+              )}
+
+              {/* Theater mode - inside player */}
+              {onTheaterToggle && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={`h-9 w-9 hover:bg-white/20 hidden lg:flex ${
+                    isTheaterMode ? "text-cosmic-cyan" : "text-white"
+                  }`}
+                  onClick={onTheaterToggle}
+                  title={isTheaterMode ? "Chế độ mặc định (t)" : "Chế độ rạp phim (t)"}
+                >
+                  <RectangleHorizontal className="h-5 w-5" />
                 </Button>
               )}
 
