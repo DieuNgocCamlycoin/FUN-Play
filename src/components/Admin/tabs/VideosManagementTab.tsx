@@ -598,6 +598,9 @@ function SpamFilterContent({ onReportCountChange, isActive }: { onReportCountCha
   const [reportDetailOpen, setReportDetailOpen] = useState(false);
   const [reportDetailVideoId, setReportDetailVideoId] = useState<string | null>(null);
   const [reportDetailVideoTitle, setReportDetailVideoTitle] = useState("");
+  const [previewVideo, setPreviewVideo] = useState<any | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [modalDeleteLoading, setModalDeleteLoading] = useState(false);
   const [reportDetails, setReportDetails] = useState<any[]>([]);
   const [reportDetailsLoading, setReportDetailsLoading] = useState(false);
 
@@ -640,7 +643,7 @@ function SpamFilterContent({ onReportCountChange, isActive }: { onReportCountCha
     try {
       let query = supabase
         .from("videos")
-        .select("id, title, duration, report_count, is_hidden, thumbnail_url, thumbnail_scanned, thumbnail_scan_result, created_at, user_id, channels(name)")
+        .select("id, title, duration, report_count, is_hidden, thumbnail_url, video_url, thumbnail_scanned, thumbnail_scan_result, created_at, user_id, channels(name)")
         .order("created_at", { ascending: false });
 
       if (filter === "short") {
@@ -781,6 +784,33 @@ function SpamFilterContent({ onReportCountChange, isActive }: { onReportCountCha
     }
   };
 
+  const handleDeleteFromModal = async (videoId: string) => {
+    setModalDeleteLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+      const { data, error } = await supabase.rpc("bulk_delete_videos_only", {
+        p_admin_id: user.id,
+        p_video_ids: [videoId],
+      });
+      if (error) throw error;
+      toast.success("Đã xóa video thành công");
+      setPreviewOpen(false);
+      setPreviewVideo(null);
+      fetchSpamVideos();
+      onReportCountChange?.();
+    } catch (err: any) {
+      toast.error(err.message || "Lỗi khi xóa video");
+    }
+    setModalDeleteLoading(false);
+  };
+
+  const handleBanFromModal = async (userId: string, username: string) => {
+    await handleQuickBan(userId, username);
+    setPreviewOpen(false);
+    setPreviewVideo(null);
+  };
+
   const handleScanThumbnails = async () => {
     setScanning(true);
     try {
@@ -895,15 +925,23 @@ function SpamFilterContent({ onReportCountChange, isActive }: { onReportCountCha
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-3">
-                            <div className="w-16 h-10 rounded bg-muted overflow-hidden shrink-0">
+                            <div 
+                              className="w-16 h-10 rounded bg-muted overflow-hidden shrink-0 cursor-pointer hover:ring-2 hover:ring-primary transition-all"
+                              onClick={() => { setPreviewVideo(video); setPreviewOpen(true); }}
+                            >
                               {video.thumbnail_url ? (
                                 <img src={video.thumbnail_url} alt="" className="w-full h-full object-cover" />
                               ) : (
-                                <div className="w-full h-full flex items-center justify-center"><Video className="w-4 h-4 text-muted-foreground" /></div>
+                                <div className="w-full h-full flex items-center justify-center"><Play className="w-4 h-4 text-muted-foreground" /></div>
                               )}
                             </div>
                             <div className="min-w-0">
-                              <p className="font-medium truncate max-w-[200px]">{video.title}</p>
+                              <p 
+                                className="font-medium truncate max-w-[200px] cursor-pointer hover:text-primary transition-colors"
+                                onClick={() => { setPreviewVideo(video); setPreviewOpen(true); }}
+                              >
+                                {video.title}
+                              </p>
                               <p className="text-xs text-muted-foreground">{video.channels?.name || "N/A"}</p>
                             </div>
                           </div>
@@ -912,12 +950,19 @@ function SpamFilterContent({ onReportCountChange, isActive }: { onReportCountCha
                           {profile ? (
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <div className="flex items-center gap-2 cursor-default">
+                                <div className="flex items-center gap-2">
                                   <Avatar className="w-6 h-6">
                                     <AvatarImage src={profile.avatar_url || undefined} />
                                     <AvatarFallback className="text-xs">{(profile.display_name || profile.username)?.[0]}</AvatarFallback>
                                   </Avatar>
-                                  <span className="text-sm truncate max-w-[100px]">{profile.display_name || profile.username}</span>
+                                  <a 
+                                    href={`https://official-funplay.lovable.app/c/${profile.username}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-sm truncate max-w-[100px] hover:text-primary hover:underline transition-colors"
+                                  >
+                                    {profile.display_name || profile.username}
+                                  </a>
                                 </div>
                               </TooltipTrigger>
                               <TooltipContent side="top" className="text-xs">
@@ -1074,6 +1119,61 @@ function SpamFilterContent({ onReportCountChange, isActive }: { onReportCountCha
                   </div>
                 ))}
               </div>
+            )}
+          </DialogContent>
+        </Dialog>
+        {/* Video Preview Modal */}
+        <Dialog open={previewOpen} onOpenChange={(open) => { setPreviewOpen(open); if (!open) setPreviewVideo(null); }}>
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+            {previewVideo && (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="truncate pr-8">{previewVideo.title}</DialogTitle>
+                  {previewVideo.profile && (
+                    <p className="text-sm text-muted-foreground">
+                      Người đăng:{" "}
+                      <a
+                        href={`https://official-funplay.lovable.app/c/${previewVideo.profile.username}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:text-primary hover:underline transition-colors"
+                      >
+                        {previewVideo.profile.display_name || previewVideo.profile.username}
+                      </a>
+                      {" · "}{previewVideo.duration ? `${previewVideo.duration}s` : "N/A"}
+                    </p>
+                  )}
+                </DialogHeader>
+                <div className="aspect-video bg-black rounded-lg overflow-hidden">
+                  {previewVideo.video_url ? (
+                    <video src={previewVideo.video_url} controls autoPlay className="w-full h-full" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                      <p>Không có video URL</p>
+                    </div>
+                  )}
+                </div>
+                <DialogFooter className="flex gap-2 sm:gap-2">
+                  <Button
+                    variant="destructive"
+                    onClick={() => handleDeleteFromModal(previewVideo.id)}
+                    disabled={modalDeleteLoading}
+                    className="gap-1"
+                  >
+                    {modalDeleteLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                    Xóa Video
+                  </Button>
+                  {previewVideo.profile && (
+                    <Button
+                      onClick={() => handleBanFromModal(previewVideo.user_id, previewVideo.profile.display_name || previewVideo.profile.username)}
+                      className="gap-1 bg-red-700 hover:bg-red-800 text-white"
+                    >
+                      <Shield className="w-4 h-4" />
+                      Khóa User
+                    </Button>
+                  )}
+                </DialogFooter>
+              </>
             )}
           </DialogContent>
         </Dialog>
