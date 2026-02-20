@@ -1,64 +1,79 @@
 
 
-## Nang cap tuong tac trang Admin Quan ly Video (Spam Filter)
+## Sua loi 404 Avatar va dong bo link User tren toan bo Admin
 
-### Tong quan
-Them 3 tinh nang chinh cho tat ca cac tab trong Spam Filter (Reported, Short, Duplicate, Sample):
-1. Click thumbnail/title de xem video trong Modal
-2. Click ten Owner de mo trang ca nhan trong tab moi
-3. Nut "Xoa Video" va "Khoa User" ngay trong Modal xem video
+### Van de
+Trong `RewardApprovalTab.tsx` (tab "Cho Duyet"), link Avatar dang la:
+```
+https://official-funplay.lovable.app/${user.username}
+```
+Thieu prefix `/c/` theo cau truc routing cua he thong (`/c/:username`), gay loi 404.
 
-### Chi tiet ky thuat
+Ngoai ra, nhieu tab admin khac (Approved, UserReview, QuickDelete, BannedUsers, UserStats, AdminManagement, IPAbuse) hien thi Avatar nhung **khong co link** de mo trang ca nhan user.
 
-**File thay doi:** `src/components/Admin/tabs/VideosManagementTab.tsx`
+### Giai phap
 
-#### 1. Cap nhat truy van `fetchSpamVideos` - them truong `video_url`
-- Hien tai query khong lay truong `video_url`, can bo sung de co the phat video trong Modal
-- Them `video_url` vao select query dong 643
+Tao 1 helper function dung chung, sau do ap dung cho **tat ca cac tab admin**.
 
-#### 2. Them state cho Video Preview Modal
-- `previewVideo`: luu video dang xem (hoac null)
-- `previewOpen`: boolean dieu khien hien thi Modal
+#### 1. Tao helper function `getProfileUrl`
 
-#### 3. Click Thumbnail / Title de mo Modal xem video
-- Boc thumbnail (dong 898-904) va title (dong 906) trong `cursor-pointer` va `onClick` de set `previewVideo`
-- Video chi duoc load (stream) khi Modal mo = dung the `<video>` voi `src` chi khi `previewOpen === true` (On Demand)
+Dat trong file rieng (vi du `src/lib/adminUtils.ts`) hoac inline:
 
-#### 4. Click ten Owner de mo trang ca nhan
-- Thay `<span>` (dong 920) thanh `<a>` voi `href="https://official-funplay.lovable.app/c/${profile.username}"` va `target="_blank"`
-- Giu nguyen Tooltip hien thi thong ke video
-
-#### 5. Modal xem video voi Quick Actions
-- Dung component `Dialog` co san (da import)
-- Noi dung Modal:
-  - Tieu de video
-  - The `<video>` phat video (chi render khi Modal mo)
-  - Thong tin Owner + link
-  - 2 nut hanh dong:
-    - "Xoa Video": Goi `supabase.rpc("bulk_delete_videos_only")` voi 1 video, dong Modal, refresh list
-    - "Khoa User": Goi `handleQuickBan()` co san, dong Modal, refresh list
-
-#### 6. Ham xu ly trong Modal
-```text
-handleDeleteFromModal(videoId):
-  - Goi bulk_delete_videos_only voi [videoId]
-  - Toast thanh cong
-  - Dong Modal
-  - fetchSpamVideos()
-  - onReportCountChange()
-
-handleBanFromModal(userId, username):
-  - Goi handleQuickBan(userId, username)
-  - Dong Modal
+```typescript
+function getProfileUrl(username?: string | null, userId?: string): string | null {
+  const identifier = username || userId;
+  if (!identifier) return null;
+  return `https://official-funplay.lovable.app/c/${identifier}`;
+}
 ```
 
-### Khong thay doi
-- Khong tao file moi - tat ca thay doi trong 1 file duy nhat
-- Khong thay doi logic cua cac Dialog xac nhan hien co (Delete Only, Delete & Ban, Report Detail)
-- Khong anh huong den tab Approval hay Stats
+#### 2. Sua `RewardApprovalTab.tsx`
+- Sua link Avatar: Them `/c/` va fallback `user.id`
+- Boc ten user (`display_name`) trong link tuong tu
+- Neu khong co username va id, vo hieu hoa click + hien tooltip "Khong tim thay thong tin User"
+
+#### 3. Them link Avatar cho cac tab khac (dong bo)
+
+| File | Hien tai | Thay doi |
+|------|----------|---------|
+| `RewardApprovalTab.tsx` | Link sai (thieu `/c/`) | Sua URL + fallback |
+| `ApprovedListTab.tsx` | Avatar khong co link | Boc `<a>` voi `target="_blank"` |
+| `UserReviewTab.tsx` | Avatar khong co link | Boc `<a>` voi `target="_blank"` |
+| `QuickDeleteTab.tsx` | Avatar khong co link | Boc `<a>` voi `target="_blank"` |
+| `BannedUsersTab.tsx` | Avatar khong co link | Boc `<a>` voi `target="_blank"` |
+| `UserStatsTab.tsx` | Avatar khong co link | Boc `<a>` voi `target="_blank"` |
+| `AdminManagementTab.tsx` | Avatar khong co link | Boc `<a>` voi `target="_blank"` |
+| `IPAbuseDetectionTab.tsx` | Avatar khong co link | Boc `<a>` voi `target="_blank"` |
+| `VideosManagementTab.tsx` | Da co link dung | Kiem tra + them fallback userId |
+
+#### 4. Xu ly loi du lieu
+- Kiem tra `username` truoc, neu khong co thi dung `user.id`
+- Neu ca 2 deu khong co: khong boc link, hien text "Khong tim thay"
+- Tat ca link deu co `target="_blank"` va `rel="noopener noreferrer"`
+
+#### 5. Mau code cho moi Avatar
+
+```typescript
+const profileUrl = getProfileUrl(user.username, user.id);
+
+{profileUrl ? (
+  <a href={profileUrl} target="_blank" rel="noopener noreferrer">
+    <Avatar className="... cursor-pointer hover:ring-2 hover:ring-primary transition-all">
+      <AvatarImage src={user.avatar_url || undefined} />
+      <AvatarFallback>...</AvatarFallback>
+    </Avatar>
+  </a>
+) : (
+  <Avatar className="... opacity-50">
+    <AvatarImage src={user.avatar_url || undefined} />
+    <AvatarFallback>...</AvatarFallback>
+  </Avatar>
+)}
+```
 
 ### Tac dong
-- Tiet kiem tai nguyen: Video chi load khi Admin mo Modal
-- Thao tac nhanh hon: Xem video + xu ly ngay trong 1 cua so
-- Kiem tra Owner nhanh: 1 click mo trang ca nhan
+- **8 file** duoc cap nhat de dong bo logic link user
+- Tat ca Avatar trong Admin deu co the click de mo trang ca nhan user o tab moi
+- Khong anh huong den cac chuc nang hien co (Approve, Reject, Ban, v.v.)
+- Hoat dong dong nhat tren web va mobile
 
