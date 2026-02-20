@@ -1,81 +1,84 @@
 
 
-## Nâng cấp thuật toán gợi ý video - Đa dạng kênh thực sự
+## Sửa triệt để thuật toán video gợi ý - Diversity-First
 
-### Nguyên nhân gốc rễ
+### Vấn đề gốc rễ (3 lỗi chính)
 
-Hiện tại, cả 4 bước truy vấn video trong `fetchRelatedVideos` đều sắp xếp theo `view_count DESC`. Kênh "Angel Que Anh" có tổng lượt xem gấp 3 lần kênh thứ 2, nên video của kênh này chiếm hầu hết kết quả ở mọi bước. Thuật toán `applyChannelDiversity` chỉ ngăn 2 video **liên tiếp** cùng kênh, nhưng không giới hạn **tổng số** video mỗi kênh, dẫn đến sidebar toàn video Angel Que Anh.
+1. **Session chỉ tạo 1 lần**: Dòng 307 trong Watch.tsx kiểm tra `!session` - nghĩa là khi đã có session (cache từ localStorage), KHÔNG BAO GIỜ tạo lại. Danh sách gợi ý cũ sẽ hiển thị mãi.
 
-**Dữ liệu thực tế:**
-| Kênh | Lượt xem | Số video |
-|------|----------|----------|
-| Angel Que Anh | 2,798 | 21 |
-| ThienHanh68 | 891 | 50 |
-| Vinh Nguyen | 274 | 83 |
-| Tran Van Luc | 269 | 73 |
-| Hoangtydo | 234 | 57 |
-| THU TRANG | 189 | 48 |
-| ... 10+ kênh khác | ... | ... |
+2. **Chỉ lấy top 80 video theo view**: Kênh Angel Que Anh (2,798 views) chiếm phần lớn top 80. Nhiều kênh nhỏ không bao giờ xuất hiện trong pool ứng viên.
 
-### Giải pháp - Thuật toán Round-Robin + Cap mỗi kênh
+3. **MAX_PER_CHANNEL = 3 vẫn quá nhiều**: Với 20 video hiển thị, 3 video/kênh nghĩa là 1 kênh chiếm 15%. Cần giảm xuống 2.
 
-Thay đổi hoàn toàn logic `fetchRelatedVideos` trong `VideoPlaybackContext.tsx`:
+### Giải pháp - Xây dựng lại hoàn toàn
 
-**1. Truy vấn 1 lần duy nhất** (thay vì 4 lần riêng lẻ):
-- Lấy 80 video approved, sắp xếp theo `view_count DESC`
-- Loại trừ video hiện tại
+#### 1. Watch.tsx - Luôn tạo session mới khi đổi video
 
-**2. Phân nhóm theo kênh:**
-- Gom video theo `channel_id`
-- Mỗi kênh tối đa 3 video trong kết quả cuối
+Thay `if (video && id && !session)` bằng `if (video && id)` kèm kiểm tra `session.start_video_id !== id` - bắt buộc tạo lại session khi xem video khác.
 
-**3. Round-robin đa dạng:**
-- Lấy lần lượt 1 video từ mỗi kênh, vòng qua tất cả kênh
-- Ưu tiên video view cao nhất của mỗi kênh trước
-- Đảm bảo tối thiểu 6-8 kênh khác nhau
+#### 2. VideoPlaybackContext.tsx - Thuật toán mới hoàn toàn
 
-**4. Giữ nguyên `applyChannelDiversity`** để đảm bảo không quá 2 liên tiếp cùng kênh
+**a. Thay fetchRelatedVideos bằng getUpNextRecommendations:**
 
-### Nâng cấp `applyChannelDiversity`
+- Lấy 200 video ứng viên (thay vì 80), sắp xếp ngẫu nhiên + view_count
+- Phân nhóm theo channel_id
+- MAX_PER_CHANNEL = 2 (giảm từ 3)
+- Round-robin nghiêm ngặt: vòng 1 lấy 1 video/kênh, vòng 2 mới cho phép video thứ 2
+- Trong top 10: mỗi kênh tối đa 1 video
+- Đảm bảo tối thiểu 8 kênh unique (nếu DB đủ data)
 
-Thêm giới hạn: **tối đa 3 video từ cùng 1 kênh** trong toàn bộ danh sách (không chỉ liên tiếp):
+**b. Chống lặp theo phiên:**
+
+- Lưu 100 video ID đã gợi ý gần nhất trong sessionStorage
+- Loại trừ các video đã gợi ý khi tính lại danh sách
+
+**c. Debug logging:**
+
+- Log số kênh unique, số video/kênh, cảnh báo nếu < 8 kênh
+
+### Chi tiet ky thuat
+
+**File 1: `src/contexts/VideoPlaybackContext.tsx`**
+
+Thay doi:
+- `MAX_PER_CHANNEL`: 3 thanh 2
+- `fetchRelatedVideos`: Xay lai hoan toan
+  - Query 200 video approved (khong chi top view, pha tron random)
+  - Group theo channel
+  - Round-robin: vong 1 lay dung 1 video/kenh, vong 2 moi cho them
+  - Top 10 video: max 1/kenh
+  - Kiem tra unique channels >= 8, neu khong du thi mo rong pool
+  - Loai tru session seen IDs
+- `applyChannelDiversity`: Cap = 2 thay vi 3
+- Them `SESSION_SEEN_KEY` trong sessionStorage de theo doi video da goi y
+
+Logic moi (pseudocode):
 
 ```text
-// Pseudocode
-MAX_PER_CHANNEL = 3
-channelCounts = {}
-for each video in candidates:
-  if channelCounts[video.channel_id] >= MAX_PER_CHANNEL:
-    skip
-  if last 2 videos same channel:
-    defer to later
-  else:
-    add to result
-    channelCounts[channel_id]++
+1. seenIds = load from sessionStorage (max 100)
+2. Query 200 videos, exclude currentVideo + seenIds
+3. Group by channel_id
+4. Shuffle channel order (to avoid always same priority)
+5. Round 1: pick best video from each channel (max 1/channel)
+   -> This gives us 1 video per channel = diversity guaranteed
+6. Round 2: pick 2nd best from each channel (if needed, cap = 2)
+7. Apply consecutive rule (no 2+ in a row same channel)
+8. Take top 20
+9. Save these 20 IDs to sessionStorage seen list
+10. Console.log: unique channels count, per-channel counts
 ```
 
-### Chi tiết kỹ thuật
+**File 2: `src/pages/Watch.tsx`**
 
-**Tệp thay đổi:** `src/contexts/VideoPlaybackContext.tsx`
+Thay doi:
+- Line 306-310: Bo `!session` check, thay bang logic tao lai session moi khi video ID thay doi
+- Them `clearSession()` truoc khi `createSession()` de dam bao fresh data
 
-**fetchRelatedVideos mới:**
-- Gộp 4 query thành 1 query duy nhất (giảm latency)
-- Lấy 80 video, phân nhóm theo kênh
-- Round-robin: lấy video tốt nhất từ mỗi kênh, xoay vòng đến khi đủ 30
-- Cap 3 video/kênh
+### Ket qua mong doi
 
-**applyChannelDiversity nâng cấp:**
-- Thêm `channelCountMap` theo dõi tổng video mỗi kênh
-- Khi kênh đạt 3 video: bỏ qua, chuyển sang kênh khác
-- Giữ rule không quá 2 liên tiếp cùng kênh
+- Mo 10 video khac nhau: moi video co danh sach goi y KHAC NHAU
+- Trong 20 video goi y: khong kenh nao qua 2 video
+- Toi thieu 8 kenh unique trong danh sach
+- Console log hien thi so lieu da dang kenh de kiem chung
+- Khong con tinh trang lap lai 1-2 kenh
 
-**Bỏ fetchRecommendedVideos trong Watch.tsx:**
-- Hàm `fetchRecommendedVideos` (dòng 302-359) hiện không được sử dụng bởi UpNextSidebar (sidebar dùng `getUpNext` từ context)
-- Xóa bỏ để tránh nhầm lẫn và giảm 1 query thừa
-
-### Kết quả mong đợi
-
-- Sidebar hiển thị video từ ít nhất 6-8 kênh khác nhau
-- Mỗi kênh tối đa 3 video (thay vì 10+ như hiện tại)
-- Giảm từ 4 queries xuống 1 query duy nhất (nhanh hơn)
-- Vẫn ưu tiên video chất lượng cao (view count) nhưng phân bổ đều giữa các kênh
