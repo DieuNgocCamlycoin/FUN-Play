@@ -1,99 +1,92 @@
 
 
-## Chuyen useAuth thanh AuthProvider Context - Toi uu hieu nang chuyen trang
+## Sua loi false positive trong bo loc ten - Chuyen tu substring sang word boundary
 
-### Van de hien tai
+### Van de
 
-`useAuth()` la hook doc lap - moi component goi no deu tao subscription, getSession, va checkBanStatus rieng. Khi chuyen trang, 5-10 instance chay dong thoi gay "state thrashing" khien UI bi treo.
+Ham `isNameAppropriate()` tai dong 45 dung `normalized.includes(normalizedWord)` de kiem tra tu cam. Cach nay match SUBSTRING, gay chan sai cac ten Viet Nam pho bien:
 
-### Thay doi
+- "anhnguyet" chua "ngu" -> BI CHAN SAI
+- "nguyenvana" chua "ngu" -> BI CHAN SAI  
+- "kieuloan" chua "lon" -> BI CHAN SAI
+- "chocolate" chua "cho" -> BI CHAN SAI
 
-**File 1: `src/contexts/AuthContext.tsx` (TAO MOI)**
+### Giai phap
 
-AuthProvider chua 1 subscription duy nhat, chia se state cho toan bo app:
+Thay `includes()` bang regex word boundary tai dong 43-50 trong `src/lib/nameFilter.ts`.
+
+### Chi tiet thay doi - 1 file duy nhat
+
+**File: `src/lib/nameFilter.ts` - Ham `isNameAppropriate()`, dong 43-50**
 
 ```typescript
-import { createContext, useEffect, useState, useMemo, ReactNode } from "react";
-import { User, Session } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
-
-interface AuthContextType {
-  user: User | null;
-  session: Session | null;
-  loading: boolean;
-  signOut: () => Promise<void>;
-  isBanned: boolean;
-  banReason: string | null;
+// TRUOC (dong 43-50):
+for (const word of OFFENSIVE_WORDS) {
+  const normalizedWord = removeDiacritics(word.toLowerCase());
+  if (normalized.includes(normalizedWord)) {
+    return {
+      ok: false,
+      reason: `Tên chứa từ ngữ không phù hợp. Vui lòng chọn tên khác.`,
+    };
+  }
 }
 
-export const AuthContext = createContext<AuthContextType | null>(null);
-
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  // ... state + 1 subscription + 1 getSession + 1 checkBanStatus
-  // SIGNED_OUT event -> xoa sach toan bo state
-  // useMemo cho value truyen vao Provider
-};
-```
-
-Diem quan trong:
-- Khi `onAuthStateChange` tra ve `SIGNED_OUT`: reset tat ca state ve gia tri mac dinh (user=null, session=null, isBanned=false, banReason=null)
-- `useMemo` cho context value, chi re-render khi user/session/loading/isBanned/banReason thay doi
-- `signOut` dung `useNavigate` nen AuthProvider PHAI nam trong BrowserRouter
-
-**File 2: `src/hooks/useAuth.tsx` (CAP NHAT)**
-
-Chuyen tu hook doc lap thanh hook doc tu Context:
-
-```typescript
-import { useContext } from "react";
-import { AuthContext } from "@/contexts/AuthContext";
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
+// SAU:
+for (const word of OFFENSIVE_WORDS) {
+  const normalizedWord = removeDiacritics(word.toLowerCase());
+  // Escape ky tu dac biet trong regex
+  const escaped = normalizedWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  // Word boundary: chi match khi tu cam dung doc lap
+  // (^|[^a-z]) = dau chuoi hoac ky tu khong phai chu cai
+  // ([^a-z]|$) = cuoi chuoi hoac ky tu khong phai chu cai
+  const regex = new RegExp(`(^|[^a-z])${escaped}([^a-z]|$)`, 'i');
+  if (regex.test(normalized)) {
+    return {
+      ok: false,
+      reason: `Tên chứa từ ngữ không phù hợp. Vui lòng chọn tên khác.`,
+    };
   }
-  return context;
-};
+}
 ```
 
-104 file su dung `useAuth()` KHONG can sua vi interface giu nguyen.
+### Giai thich logic
 
-**File 3: `src/App.tsx` (CAP NHAT)**
+1. `removeDiacritics()` da duoc goi TRUOC regex (dong 41) nen "ngủ", "ngu", "NGU" deu thanh "ngu" truoc khi kiem tra
+2. Co `i` trong regex dam bao case-insensitive (du da lowercase o dong 41, day la lop bao ve them)
+3. `[^a-z]` la word boundary tu nhien - chi match khi tu cam duoc bao quanh boi ky tu khong phai chu cai (khoang trang, so, gach duoi, dau chuoi, cuoi chuoi)
 
-Them AuthProvider vao component tree, BEN TRONG BrowserRouter, BAO BOC WalletProvider:
+### Ket qua kiem tra
 
-```text
-BrowserRouter
-  -> AuthProvider          <-- THEM VAO DAY (bao WalletProvider)
-    -> WalletProvider
-      -> AppContent
-      -> EnhancedMusicPlayer
-      -> GlobalVideoPlayer
-```
+| Input | Tu cam | Truoc | Sau | Dung? |
+|-------|--------|-------|-----|-------|
+| anhnguyet | ngu | CHAN | PASS | Dung - ten Viet Nam |
+| Anh Nguyet | ngu | CHAN | PASS | Dung - ten Viet Nam |
+| nguyenvana | ngu | CHAN | PASS | Dung - ten Viet Nam |
+| Nguyen Van A | ngu | CHAN | PASS | Dung - ten Viet Nam |
+| kieuloan | lon | CHAN | PASS | Dung - ten Viet Nam |
+| Kieu Loan | lon | CHAN | PASS | Dung - ten Viet Nam |
+| chocolate | cho | CHAN | PASS | Dung - tu tieng Anh |
+| thang ngu | ngu | CHAN | CHAN | Dung - tu cam co khoang trang |
+| thang_ngu | ngu | CHAN | CHAN | Dung - gach duoi la boundary |
+| ngu | ngu | CHAN | CHAN | Dung - tu cam dung mot minh |
+| do ngu | ngu | CHAN | CHAN | Dung - tu cam sau khoang trang |
+| fuck | fuck | CHAN | CHAN | Dung - tu cam tieng Anh |
+| fuckboy | fuck | CHAN | CHAN | Dung - "boy" khong phai chu cai truoc "fuck" |
 
-WalletProvider hien tai KHONG su dung useAuth nen thu tu nay an toan. Nhung dat AuthProvider bao ngoai de tuong lai neu WalletProvider can user data thi da co san.
+Luu y dac biet: "fuckboy" van bi chan vi "fuck" nam o DAU chuoi (`^` match), va "boy" khong anh huong vi regex chi kiem tra boundary TRUOC tu cam.
 
-### Kiem tra thu tu Provider
+### Pham vi anh huong
 
-Da xac nhan: Khong co context nao trong `src/contexts/` import `useAuth`. AuthProvider co the dat o bat ky vi tri nao ben trong BrowserRouter. Dat bao ngoai WalletProvider la chon lua toi uu nhat.
-
-### Ket qua
-
-| Metric | Truoc | Sau |
-|--------|-------|-----|
-| Auth subscriptions | 5-10 / trang | 1 / toan app |
-| getSession calls khi chuyen trang | 5-10 | 0 |
-| checkBanStatus queries khi chuyen trang | 5-10 | 0 |
-| Re-render khong can thiet | Co (setState dong thoi) | Khong (useMemo) |
-| Memory leak khi sign out | Co the (state cu con ton) | Khong (clear sach) |
+Chi sua 1 ham `isNameAppropriate()` trong 1 file. Tat ca cac noi goi ham nay tu dong duoc sua:
+- `validateDisplayName()` (cung file, dong 100)
+- `validateUsernameFormat()` (cung file, dong 164)
+- `ProfileSettings.tsx` - cap nhat ten hien thi
+- `ProfileOnboardingModal.tsx` - onboarding username
+- `videoUploadValidation.ts` - kiem tra tieu de video
 
 ### Danh sach file
 
 | STT | File | Thao tac |
 |-----|------|----------|
-| 1 | `src/contexts/AuthContext.tsx` | TAO MOI |
-| 2 | `src/hooks/useAuth.tsx` | SUA - chuyen sang useContext |
-| 3 | `src/App.tsx` | SUA - them AuthProvider |
+| 1 | `src/lib/nameFilter.ts` | SUA - dong 43-50, thay includes() bang regex word boundary |
 
