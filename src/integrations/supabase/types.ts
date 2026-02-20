@@ -2725,6 +2725,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_completed_profile: {
+        Args: { p: Database["public"]["Tables"]["profiles"]["Row"] }
+        Returns: boolean
+      }
       is_owner: { Args: { _user_id: string }; Returns: boolean }
       refresh_mv_top_ranking: { Args: never; Returns: undefined }
       reject_user_reward: {
