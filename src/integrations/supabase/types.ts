@@ -2631,6 +2631,10 @@ export type Database = {
         Args: { p_action: string; p_admin_id: string; p_max_requests?: number }
         Returns: Json
       }
+      freeze_user_rewards: {
+        Args: { p_admin_id: string; p_user_id: string }
+        Returns: undefined
+      }
       get_admin_dashboard_stats: { Args: never; Returns: Json }
       get_honobar_stats: { Args: never; Returns: Json }
       get_ip_abuse_clusters: {
@@ -2764,6 +2768,10 @@ export type Database = {
           user_id: string
         }[]
       }
+      toggle_user_avatar_verified: {
+        Args: { p_admin_id: string; p_user_id: string }
+        Returns: boolean
+      }
       trace_wallet_detective: {
         Args: { p_admin_id: string; p_wallet_address: string }
         Returns: {
@@ -2786,6 +2794,10 @@ export type Database = {
       unban_user: {
         Args: { p_admin_id: string; p_user_id: string }
         Returns: boolean
+      }
+      wipe_user_rewards: {
+        Args: { p_admin_id: string; p_user_id: string }
+        Returns: undefined
       }
     }
     Enums: {

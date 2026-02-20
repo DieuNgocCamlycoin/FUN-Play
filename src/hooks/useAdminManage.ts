@@ -39,11 +39,30 @@ export interface AdminUser {
   violation_level: number;
   avatar_verified: boolean;
   created_at: string;
-  // Computed stats
+  // Stats from RPC
   posts_count?: number;
   comments_count?: number;
   likes_received?: number;
   videos_count?: number;
+  views_count?: number;
+  likes_count?: number;
+  shares_count?: number;
+  // Reward breakdown
+  view_rewards?: number;
+  like_rewards?: number;
+  comment_rewards?: number;
+  share_rewards?: number;
+  upload_rewards?: number;
+  signup_rewards?: number;
+  bounty_rewards?: number;
+  manual_rewards?: number;
+  // Donations & minting
+  donations_sent_count?: number;
+  donations_sent_total?: number;
+  donations_received_count?: number;
+  donations_received_total?: number;
+  mint_requests_count?: number;
+  minted_fun_total?: number;
 }
 
 export interface WalletGroup {
@@ -89,6 +108,24 @@ export const useAdminManage = () => {
         created_at: p.created_at,
         videos_count: p.videos_count || 0,
         comments_count: p.comments_count || 0,
+        views_count: p.views_count || 0,
+        likes_count: p.likes_count || 0,
+        shares_count: p.shares_count || 0,
+        posts_count: p.posts_count || 0,
+        view_rewards: p.view_rewards || 0,
+        like_rewards: p.like_rewards || 0,
+        comment_rewards: p.comment_rewards || 0,
+        share_rewards: p.share_rewards || 0,
+        upload_rewards: p.upload_rewards || 0,
+        signup_rewards: p.signup_rewards || 0,
+        bounty_rewards: p.bounty_rewards || 0,
+        manual_rewards: p.manual_rewards || 0,
+        donations_sent_count: p.donations_sent_count || 0,
+        donations_sent_total: p.donations_sent_total || 0,
+        donations_received_count: p.donations_received_count || 0,
+        donations_received_total: p.donations_received_total || 0,
+        mint_requests_count: p.mint_requests_count || 0,
+        minted_fun_total: p.minted_fun_total || 0,
       })) as AdminUser[];
 
       cacheRef.current = { data: enrichedUsers, timestamp: Date.now() };
@@ -317,6 +354,63 @@ export const useAdminManage = () => {
     }
   };
 
+  const toggleVerified = async (userId: string) => {
+    if (!user) return false;
+    setActionLoading(true);
+    try {
+      const { data, error } = await supabase.rpc("toggle_user_avatar_verified" as any, {
+        p_admin_id: user.id,
+        p_user_id: userId,
+      });
+      if (error) throw error;
+      await fetchUsers(true);
+      return data as boolean;
+    } catch (error) {
+      console.error("Error toggling verified:", error);
+      return false;
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const freezeRewards = async (userId: string) => {
+    if (!user) return false;
+    setActionLoading(true);
+    try {
+      const { error } = await supabase.rpc("freeze_user_rewards" as any, {
+        p_admin_id: user.id,
+        p_user_id: userId,
+      });
+      if (error) throw error;
+      await fetchUsers(true);
+      return true;
+    } catch (error) {
+      console.error("Error freezing rewards:", error);
+      return false;
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const wipeAllRewards = async (userId: string) => {
+    if (!user) return false;
+    setActionLoading(true);
+    try {
+      const { error } = await supabase.rpc("wipe_user_rewards" as any, {
+        p_admin_id: user.id,
+        p_user_id: userId,
+      });
+      if (error) throw error;
+      await fetchUsers(true);
+      return true;
+    } catch (error) {
+      console.error("Error wiping rewards:", error);
+      return false;
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   return {
     users,
     loading,
@@ -332,6 +426,9 @@ export const useAdminManage = () => {
     rejectReward,
     unapproveReward,
     bulkApproveAll,
+    toggleVerified,
+    freezeRewards,
+    wipeAllRewards,
     refetch: fetchUsers,
   };
 };

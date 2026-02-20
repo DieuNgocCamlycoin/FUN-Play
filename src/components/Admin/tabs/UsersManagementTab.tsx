@@ -19,6 +19,9 @@ export function UsersManagementTab() {
     getSuspicionScore,
     banUser,
     unbanUser,
+    toggleVerified,
+    freezeRewards,
+    wipeAllRewards,
     refetch,
   } = useAdminManage();
   const { user } = useAuth();
@@ -55,23 +58,31 @@ export function UsersManagementTab() {
         </TabsList>
 
         <TabsContent value="all">
-          <AllUsersTab users={users} />
+          <AllUsersTab
+            users={users}
+            onBan={banUser}
+            onUnban={unbanUser}
+            onToggleVerified={toggleVerified}
+            onFreezeRewards={freezeRewards}
+            onWipeRewards={wipeAllRewards}
+            actionLoading={actionLoading}
+          />
         </TabsContent>
 
         <TabsContent value="banned">
-          <BannedUsersTab 
-            users={users} 
-            onUnban={unbanUser} 
-            loading={actionLoading} 
+          <BannedUsersTab
+            users={users}
+            onUnban={unbanUser}
+            loading={actionLoading}
           />
         </TabsContent>
 
         <TabsContent value="quick-delete">
-          <QuickDeleteTab 
-            users={users} 
-            onBan={banUser} 
-            getSuspicionScore={getSuspicionScore} 
-            loading={actionLoading} 
+          <QuickDeleteTab
+            users={users}
+            onBan={banUser}
+            getSuspicionScore={getSuspicionScore}
+            loading={actionLoading}
           />
         </TabsContent>
       </Tabs>
