@@ -218,7 +218,7 @@ export function UpNextSidebar({ onVideoSelect, currentChannelId, currentCategory
       </div>
 
       {/* Up Next List */}
-      <ScrollArea className="h-[calc(100vh-320px)] min-h-[300px]">
+      <div className="space-y-1">
         <AnimatePresence mode="popLayout">
           {filteredVideos.map((video, index) => (
             <motion.div
@@ -312,7 +312,7 @@ export function UpNextSidebar({ onVideoSelect, currentChannelId, currentCategory
             </Button>
           </div>
         )}
-      </ScrollArea>
+      </div>
     </div>
   );
 }

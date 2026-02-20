@@ -693,7 +693,7 @@ export default function Watch({ videoIdProp }: { videoIdProp?: string }) {
 
       <main className={`pt-14 transition-all duration-300 ${isSidebarExpanded ? "lg:pl-60" : "lg:pl-16"}`}>
         <div className="max-w-[1920px] mx-auto">
-          <div className={`grid gap-6 p-6 ${isTheaterMode ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-[1fr_400px] lg:items-start'}`}>
+          <div className={`grid gap-4 p-6 ${isTheaterMode ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-[1fr_minmax(300px,402px)]'}`}>
             {/* Main Content */}
             <div className="space-y-3">
               {/* Video Player with Ambient Glow */}
@@ -963,7 +963,7 @@ export default function Watch({ videoIdProp }: { videoIdProp?: string }) {
             </div>
 
             {/* Up Next Sidebar — Sticky */}
-            <div className="lg:sticky lg:top-[72px]">
+            <div className="lg:sticky lg:top-[80px] lg:self-start lg:max-h-[calc(100vh-96px)] lg:overflow-y-auto">
               <UpNextSidebar 
                 onVideoSelect={(video) => goToVideo(video.id)}
                 currentChannelId={video.channels.id}

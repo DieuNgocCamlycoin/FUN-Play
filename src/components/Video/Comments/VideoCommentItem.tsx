@@ -57,6 +57,8 @@ export function VideoCommentItem({
   const [isReplying, setIsReplying] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(comment.content);
+  const [isContentExpanded, setIsContentExpanded] = useState(false);
+  const isLongContent = comment.content.length > 150;
 
   const isOwner = user?.id === comment.user_id;
   const isCreator = comment.user_id === videoOwnerId;
@@ -173,7 +175,17 @@ export function VideoCommentItem({
           </div>
         ) : (
           <div className="text-sm text-foreground mb-2">
-            <CommentContent content={comment.content} onTimestampClick={onTimestampClick} />
+            <div className={!isContentExpanded && isLongContent ? "line-clamp-3" : ""}>
+              <CommentContent content={comment.content} onTimestampClick={onTimestampClick} />
+            </div>
+            {isLongContent && (
+              <button
+                onClick={() => setIsContentExpanded(!isContentExpanded)}
+                className="text-xs font-semibold text-muted-foreground mt-1 hover:text-foreground transition-colors"
+              >
+                {isContentExpanded ? "Thu gọn" : "Đọc thêm"}
+              </button>
+            )}
           </div>
         )}
 
@@ -322,7 +334,7 @@ export function VideoCommentItem({
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="mt-2 space-y-4 border-l-2 border-muted pl-3"
+                  className="mt-2 space-y-4 pl-6"
                 >
                   {comment.replies!.map((reply) => (
                     <VideoCommentItem
