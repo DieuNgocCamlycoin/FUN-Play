@@ -1,77 +1,94 @@
 
 
-## Them nut quay lai (Back Button) cho tat ca cac trang
+## Nang cap Trang Xem Video FUN PLAY theo Chuan YouTube
 
-### Phan tich hien trang
+### Phan tich Hien trang - DA CO SAN
 
-**Cac trang DA CO nut quay lai (15 trang):**
-- Transactions, ProfileSettings, WatchLater, Shorts, YourVideosMobile, WatchHistory, CreatePost, PostDetail, Subscriptions, MusicDetail, Notifications, Messages, Wallet, LikedVideos, RewardHistory
+Sau khi kiem tra ky toan bo ma nguon, **phan lon tinh nang da duoc xay dung day du**:
 
-**Cac trang CHUA CO nut quay lai (can them):**
+| Tinh nang | Trang thai | Chi tiet |
+|-----------|-----------|----------|
+| Play/Pause, Skip, Tua 10s/15s | DA CO | EnhancedVideoPlayer + YouTubeMobilePlayer |
+| Volume control | DA CO | Slider + mute toggle + keyboard shortcuts |
+| Playback speed (0.25x-2x) | DA CO | Settings dropdown voi 8 toc do |
+| Fullscreen | DA CO | Desktop + Mobile voi orientation lock |
+| Theater mode | DA CO | Nut RectangleHorizontal tren desktop |
+| Mini player | DA CO | MiniPlayer + GlobalMiniPlayer + PiP |
+| Autoplay + toggle | DA CO | VideoPlaybackContext + EnhancedVideoPlayer |
+| Like/Dislike | DA CO | Watch.tsx voi toggle logic |
+| Subscribe/Unsubscribe | DA CO | Realtime subscriber count |
+| Share, Save playlist, Report | DA CO | ShareModal, AddToPlaylistModal, ReportSpamButton |
+| Donate (Tang) | DA CO | DonateModal |
+| Keyboard shortcuts | DA CO | Space, K, J, L, M, F, 0-9, Arrows |
+| Ambient mode | DA CO | Canvas color sampling |
+| Chapters | DA CO | parseChapters tu description |
+| Anti-repeat (20 video) | DA CO | VideoPlaybackContext history |
+| Shuffle + Repeat | DA CO | off/all/one modes |
+| Loading skeleton | DA CO | Watch.tsx loading state |
+| No page reload khi chuyen video | DA CO | goToVideo navigation |
+| Queue management | DA CO | UpNextSidebar voi reorder, remove |
+| View reward tracking | DA CO | 30% watch time threshold |
+| Realtime updates | DA CO | Supabase channels for video + channel |
+| Comment system | DA CO | VideoCommentList + CommentsDrawer |
+| Spam detection | DA CO | suspicious_score, report_count auto-hide |
 
-| STT | Trang | Ghi chu |
-|-----|-------|---------|
-| 1 | UsersDirectory | Header co logo + tieu de, thieu nut quay lai |
-| 2 | Leaderboard | Header text-center, thieu nut quay lai |
-| 3 | NFTGallery | Header co icon + tieu de, thieu nut quay lai |
-| 4 | Bounty | Header text-center, thieu nut quay lai |
-| 5 | FunMoneyPage | Header co tieu de, thieu nut quay lai |
-| 6 | CAMLYPrice | Header co token info, thieu nut quay lai |
-| 7 | Meditate | Header text-center, thieu nut quay lai |
-| 8 | BrowseMusic | Header co tieu de, thieu nut quay lai |
-| 9 | Referral | Header text-center, thieu nut quay lai |
-| 10 | PlatformDocs | Header co tabs, thieu nut quay lai |
-| 11 | Library | Header co tieu de, thieu nut quay lai |
-| 12 | Search | Can kiem tra them |
-| 13 | Channel | Can kiem tra them |
-
-**Trang KHONG CAN nut quay lai** (trang chinh):
-- Index (Home) - trang chu
+### Phan CAN NANG CAP (3 thay doi chinh)
 
 ---
 
-### Chien luoc
+### Thay doi 1: Nang cap thuat toan de xuat video
 
-**Tao 1 component `BackButton` tai su dung**, sau do them vao tung trang thieu.
+**Tep**: `src/contexts/VideoPlaybackContext.tsx`
 
-### Thay doi 1: Tao component BackButton
+**Van de hien tai**: Ham `fetchRelatedVideos` chi lay theo category, channel, roi trending. Khong loc `approval_status`, khong dam bao da dang kenh, khong uu tien chat luong.
 
-**Tep moi**: `src/components/ui/back-button.tsx`
+**Giai phap**:
+- Them filter `approval_status = 'approved'` va `is_hidden = false` vao tat ca query
+- Them logic **channel diversity**: khong qua 2 video lien tiep tu cung 1 kenh
+- Uu tien video tu kenh verified (is_verified = true)
+- Giam hien thi video tu tai khoan moi (created_at < 7 ngay)
+- Random co kiem soat de tang da dang
 
-Component don gian:
-- Su dung `useNavigate` tu react-router-dom
-- Icon `ArrowLeft` tu lucide-react
-- Goi `navigate(-1)` khi click
-- Style giong voi cac trang da co: `Button variant="ghost" size="icon"`
+### Thay doi 2: Nang cap fetchRecommendedVideos trong Watch.tsx
 
-### Thay doi 2-13: Them BackButton vao cac trang
+**Tep**: `src/pages/Watch.tsx`
 
-Moi trang se duoc them nut quay lai vao phan header, truoc tieu de. Logic:
-- Trang co header ngang (flex row): them BackButton vao dau hang
-- Trang co header giua (text-center): them BackButton phia tren ben trai
+**Van de**: Ham `fetchRecommendedVideos` hien tai chi lay 20 video moi nhat, khong co thuat toan uu tien.
+
+**Giai phap**:
+- Them loc kenh da dang (it nhat 5 kenh khac nhau)
+- Uu tien video co view_count cao
+- Loai bo video tu kenh bi ban
+- Them infinite loading khi cuon xuong trong UpNextSidebar
+
+### Thay doi 3: Infinite scroll cho UpNextSidebar
+
+**Tep**: `src/components/Video/UpNextSidebar.tsx`
+
+**Van de**: Hien tai chi hien thi 10 video (`getUpNext(10)`), khong co tai them.
+
+**Giai phap**:
+- Tang so luong hien thi tu 10 len 20
+- Them nut "Hien thi them" o cuoi danh sach
+- Khi het video trong queue, tu dong fetch them video lien quan
+- Them loading state khi dang tai
+
+---
 
 ### Danh sach tep thay doi
 
 | STT | Tep | Noi dung |
 |-----|-----|---------|
-| 1 | `src/components/ui/back-button.tsx` | Tao component moi |
-| 2 | `src/pages/UsersDirectory.tsx` | Them BackButton vao header |
-| 3 | `src/pages/Leaderboard.tsx` | Them BackButton phia tren trai |
-| 4 | `src/pages/NFTGallery.tsx` | Them BackButton vao header |
-| 5 | `src/pages/Bounty.tsx` | Them BackButton phia tren trai |
-| 6 | `src/pages/FunMoneyPage.tsx` | Them BackButton vao header |
-| 7 | `src/pages/CAMLYPrice.tsx` | Them BackButton vao header |
-| 8 | `src/pages/Meditate.tsx` | Them BackButton phia tren trai |
-| 9 | `src/pages/BrowseMusic.tsx` | Them BackButton vao header |
-| 10 | `src/pages/Referral.tsx` | Them BackButton phia tren trai |
-| 11 | `src/pages/PlatformDocs.tsx` | Them BackButton vao header |
-| 12 | `src/pages/Library.tsx` | Them BackButton vao header |
-| 13 | `src/pages/Channel.tsx` | Them BackButton vao header |
+| 1 | `src/contexts/VideoPlaybackContext.tsx` | Them approval_status filter, channel diversity, verified priority |
+| 2 | `src/pages/Watch.tsx` | Nang cap fetchRecommendedVideos voi da dang kenh |
+| 3 | `src/components/Video/UpNextSidebar.tsx` | Tang hien thi 20 video, them nut "Hien thi them" |
 
 ### Ket qua
 
-- Tat ca trang phu deu co nut mui ten quay lai
-- Nguoi dung co the de dang quay ve trang truoc do
-- Thong nhat UX tren toan bo ung dung
-- Component tai su dung, de bao tri
+- De xuat da kenh (it nhat 5 kenh khac nhau)
+- Khong hien thi video chua duyet hoac bi an
+- Uu tien kenh verified va video chat luong
+- Khong trung lap video
+- Co the tai them video khi cuon xuong
+- Toan bo tinh nang player da co san duoc giu nguyen
 
