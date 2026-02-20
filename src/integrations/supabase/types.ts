@@ -1570,6 +1570,7 @@ export type Database = {
           music_enabled: boolean | null
           music_url: string | null
           pending_rewards: number | null
+          previous_username: string | null
           signup_ip_hash: string | null
           signup_rewarded: boolean | null
           social_avatars: Json | null
@@ -1614,6 +1615,7 @@ export type Database = {
           music_enabled?: boolean | null
           music_url?: string | null
           pending_rewards?: number | null
+          previous_username?: string | null
           signup_ip_hash?: string | null
           signup_rewarded?: boolean | null
           social_avatars?: Json | null
@@ -1658,6 +1660,7 @@ export type Database = {
           music_enabled?: boolean | null
           music_url?: string | null
           pending_rewards?: number | null
+          previous_username?: string | null
           signup_ip_hash?: string | null
           signup_rewarded?: boolean | null
           social_avatars?: Json | null

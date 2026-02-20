@@ -181,7 +181,29 @@ export default function Channel() {
           .maybeSingle();
 
         if (pError) throw pError;
+
+        // If not found by username, try previous_username for redirect
+        if (!pData && !isUUID) {
+          const { data: oldData } = await supabase
+            .from("profiles")
+            .select("username")
+            .eq("previous_username", targetUsername)
+            .maybeSingle();
+
+          if (oldData?.username) {
+            navigate(`/c/${oldData.username}`, { replace: true });
+            return;
+          }
+          throw new Error("Không tìm thấy người dùng");
+        }
+
         if (!pData) throw new Error("Không tìm thấy người dùng");
+
+        // Auto-redirect UUID to clean username URL
+        if (isUUID && pData.username && !pData.username.startsWith('user_')) {
+          navigate(`/c/${pData.username}`, { replace: true });
+          return;
+        }
 
         profileData = pData;
 

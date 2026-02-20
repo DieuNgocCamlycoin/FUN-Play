@@ -410,6 +410,7 @@ export default function ProfileSettings() {
       };
 
       // Update username if user provided a custom one
+      const isChangingUsername = usernameInput && usernameStatus === "available" && usernameInput !== username;
       if (usernameInput && usernameStatus === "available") {
         updateData.username = usernameInput;
       }
@@ -451,7 +452,9 @@ export default function ProfileSettings() {
 
       toast({
         title: "Đã cập nhật",
-        description: "Cài đặt của bạn đã được lưu thành công!",
+        description: isChangingUsername
+          ? "Cài đặt đã lưu! Link cũ của bạn sẽ tự động chuyển hướng về link mới."
+          : "Cài đặt của bạn đã được lưu thành công!",
       });
     } catch (error: any) {
       // On error, refetch to revert optimistic update
