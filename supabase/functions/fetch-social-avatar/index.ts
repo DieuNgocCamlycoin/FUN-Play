@@ -8,7 +8,6 @@ const corsHeaders = {
 
 // Platform-specific OG image extractors
 function extractOgImage(html: string): string | null {
-  // Try og:image first
   const ogMatch = html.match(
     /<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i
   ) || html.match(
@@ -16,7 +15,6 @@ function extractOgImage(html: string): string | null {
   );
   if (ogMatch?.[1]) return ogMatch[1];
 
-  // Try twitter:image
   const twitterMatch = html.match(
     /<meta[^>]*name=["']twitter:image["'][^>]*content=["']([^"']+)["']/i
   ) || html.match(
@@ -38,6 +36,80 @@ function isJunkImage(url: string): boolean {
          lower.includes("placeholder") ||
          lower.includes("default-user") ||
          lower.includes("no-photo");
+}
+
+// Extract username from a platform URL
+function extractUsername(url: string): string | null {
+  try {
+    const u = new URL(url);
+    const path = u.pathname.replace(/\/+$/, "").split("/").filter(Boolean).pop();
+    return path && path.length > 0 ? path : null;
+  } catch {
+    return null;
+  }
+}
+
+// Map platform keys to unavatar.io sources
+const unavatarMap: Record<string, string> = {
+  facebook: "facebook",
+  twitter: "twitter",
+  youtube: "youtube",
+  telegram: "telegram",
+  tiktok: "tiktok",
+  linkedin: "linkedin",
+};
+
+// Try unavatar.io proxy first, then fallback to og:image scraping
+async function fetchAvatarForPlatform(platform: string, url: string): Promise<string | null> {
+  const username = extractUsername(url);
+
+  // 1. Try unavatar.io proxy (works for Facebook, Telegram, etc.)
+  if (username && unavatarMap[platform]) {
+    const unavatarUrl = `https://unavatar.io/${unavatarMap[platform]}/${username}`;
+    try {
+      const res = await fetch(unavatarUrl, {
+        method: "HEAD",
+        redirect: "follow",
+        signal: AbortSignal.timeout(5000),
+      });
+      if (res.ok) {
+        const ct = res.headers.get("content-type") || "";
+        if (ct.startsWith("image/")) {
+          return unavatarUrl;
+        }
+      }
+    } catch (e) {
+      console.log(`unavatar.io failed for ${platform}/${username}:`, e.message);
+    }
+  }
+
+  // 2. Fallback: scrape og:image from the URL directly
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        Accept: "text/html,application/xhtml+xml",
+      },
+      signal: controller.signal,
+      redirect: "follow",
+    });
+
+    clearTimeout(timeout);
+
+    if (!response.ok) return null;
+
+    const html = await response.text();
+    const ogImage = extractOgImage(html);
+
+    return ogImage && !isJunkImage(ogImage) ? ogImage : null;
+  } catch (e) {
+    console.log(`og:image scrape failed for ${platform} (${url}):`, e.message);
+    return null;
+  }
 }
 
 Deno.serve(async (req) => {
@@ -68,36 +140,7 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 8000);
-
-        const response = await fetch(url, {
-          headers: {
-            "User-Agent":
-              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            Accept: "text/html,application/xhtml+xml",
-          },
-          signal: controller.signal,
-          redirect: "follow",
-        });
-
-        clearTimeout(timeout);
-
-        if (!response.ok) {
-          avatars[platform] = null;
-          continue;
-        }
-
-        const html = await response.text();
-        const ogImage = extractOgImage(html);
-
-        // Only save real profile images, not favicons or generic logos
-        avatars[platform] = ogImage && !isJunkImage(ogImage) ? ogImage : null;
-      } catch (e) {
-        console.log(`Failed to fetch ${platform} (${url}):`, e.message);
-        avatars[platform] = null;
-      }
+      avatars[platform] = await fetchAvatarForPlatform(platform, url as string);
     }
 
     // Save to profiles.social_avatars
