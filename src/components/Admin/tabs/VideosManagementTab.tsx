@@ -21,7 +21,7 @@ import {
 import { 
   Video, Clock, CheckCircle, XCircle, Eye, Search, Download, 
   HardDrive, Upload, Users, ExternalLink, Play, User, Check, X, Image, CloudUpload, Trash2,
-  AlertTriangle, EyeOff, Loader2, ScanSearch, Shield, RefreshCw
+  AlertTriangle, EyeOff, Loader2, ScanSearch, Shield, RefreshCw, ListVideo
 } from "lucide-react";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
@@ -33,6 +33,7 @@ import { toast } from "sonner";
 import VideoMigrationPanel from "../VideoMigrationPanel";
 import ThumbnailRegenerationPanel from "../ThumbnailRegenerationPanel";
 import BannedVideoCleanupPanel from "../BannedVideoCleanupPanel";
+import AllVideosTab from "./AllVideosTab";
 
 const REPORT_REASON_LABELS: Record<string, string> = {
   spam: "Nội dung rác / Spam",
@@ -74,11 +75,14 @@ export function VideosManagementTab() {
     fetchReportedCount();
   }, []);
 
-  const [activeTab, setActiveTab] = useState("approval");
+  const [activeTab, setActiveTab] = useState("all-videos");
 
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
       <TabsList className="flex flex-wrap h-auto gap-1 bg-muted/50 p-1 mb-4">
+        <TabsTrigger value="all-videos" className="gap-1 text-xs">
+          <ListVideo className="w-3 h-3" /> Tất Cả Video
+        </TabsTrigger>
         <TabsTrigger value="approval" className="gap-1 text-xs">
           <Clock className="w-3 h-3" /> Duyệt Video
         </TabsTrigger>
@@ -103,6 +107,10 @@ export function VideosManagementTab() {
           )}
         </TabsTrigger>
       </TabsList>
+
+      <TabsContent value="all-videos">
+        <AllVideosTab />
+      </TabsContent>
 
       <TabsContent value="approval">
         <VideoApprovalContent />
