@@ -2199,6 +2199,7 @@ export type Database = {
           id: string
           reason: string
           reporter_id: string
+          status: string
           video_id: string
         }
         Insert: {
@@ -2206,6 +2207,7 @@ export type Database = {
           id?: string
           reason?: string
           reporter_id: string
+          status?: string
           video_id: string
         }
         Update: {
@@ -2213,6 +2215,7 @@ export type Database = {
           id?: string
           reason?: string
           reporter_id?: string
+          status?: string
           video_id?: string
         }
         Relationships: [
