@@ -3,19 +3,22 @@ import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { CounterAnimation } from "@/components/Layout/CounterAnimation";
 import { HonobarStats } from "@/hooks/useHonobarStats";
+import { useNavigate } from "react-router-dom";
 interface StatPillProps {
   icon: React.ElementType;
   label: string;
   value: number;
   loading: boolean;
   index: number;
+  onClick?: () => void;
 }
 const StatPill = ({
   icon: Icon,
   label,
   value,
   loading,
-  index
+  index,
+  onClick
 }: StatPillProps) => <motion.div initial={{
   opacity: 0,
   x: -20
@@ -29,10 +32,13 @@ const StatPill = ({
 }} whileHover={{
   x: 4,
   scale: 1.01
-}} className="flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-lg
-      bg-white/90 border border-[#00E7FF]/30
-      shadow-sm hover:shadow-[0_0_12px_rgba(0,231,255,0.3)] hover:border-[#00E7FF]/50
-      hover:bg-[#00E7FF]/5 transition-all duration-200">
+}} onClick={onClick} className={cn(
+  "flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-lg",
+  "bg-white/90 border border-[#00E7FF]/30",
+  "shadow-sm hover:shadow-[0_0_12px_rgba(0,231,255,0.3)] hover:border-[#00E7FF]/50",
+  "hover:bg-[#00E7FF]/5 transition-all duration-200",
+  onClick && "cursor-pointer"
+)}>
     <div className="flex items-center gap-1.5 min-w-0">
       <Icon className="h-3.5 w-3.5 text-[#7A2BFF] shrink-0" />
       <span className="text-[10px] font-semibold text-[#7A2BFF] uppercase tracking-wider truncate">
@@ -53,26 +59,32 @@ export const HonorBoardCard = ({
   loading,
   className
 }: HonorBoardCardProps) => {
+  const navigate = useNavigate();
   const statItems = [{
     icon: Users,
     label: "TOTAL USERS",
-    value: stats.totalUsers
+    value: stats.totalUsers,
+    onClick: () => navigate("/users")
   }, {
     icon: FileText,
     label: "TOTAL POSTS",
-    value: stats.totalPosts
+    value: stats.totalPosts,
+    onClick: () => navigate("/")
   }, {
     icon: Image,
     label: "TOTAL PHOTOS",
-    value: stats.totalPhotos
+    value: stats.totalPhotos,
+    onClick: () => navigate("/")
   }, {
     icon: Video,
     label: "TOTAL VIDEOS",
-    value: stats.totalVideos
+    value: stats.totalVideos,
+    onClick: () => navigate("/")
   }, {
     icon: Coins,
     label: "TOTAL REWARD",
-    value: stats.totalRewards
+    value: stats.totalRewards,
+    onClick: () => navigate("/transactions")
   }];
   return <motion.div initial={{
     opacity: 0,
@@ -120,7 +132,7 @@ export const HonorBoardCard = ({
 
       {/* Stats Pills */}
       <div className="relative space-y-2">
-        {statItems.map((stat, index) => <StatPill key={stat.label} icon={stat.icon} label={stat.label} value={stat.value} loading={loading} index={index} />)}
+        {statItems.map((stat, index) => <StatPill key={stat.label} icon={stat.icon} label={stat.label} value={stat.value} loading={loading} index={index} onClick={stat.onClick} />)}
       </div>
 
       {/* Realtime indicator */}
