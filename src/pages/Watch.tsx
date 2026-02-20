@@ -46,6 +46,7 @@ interface Video {
   like_count: number;
   dislike_count: number;
   duration: number | null;
+  slug: string | null;
   created_at: string;
   user_id: string;
   channels: {
@@ -72,6 +73,7 @@ export default function Watch({ videoIdProp }: { videoIdProp?: string }) {
   const id = videoIdProp || paramId;
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
   const [channelAvatarUrl, setChannelAvatarUrl] = useState<string | null>(null);
+  const [channelUsername, setChannelUsername] = useState<string | null>(null);
   const [video, setVideo] = useState<Video | null>(null);
   const [recommendedVideos, setRecommendedVideos] = useState<RecommendedVideo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -242,11 +244,14 @@ export default function Watch({ videoIdProp }: { videoIdProp?: string }) {
       if (data?.user_id) {
         const { data: profileData } = await supabase
           .from("profiles")
-          .select("avatar_url")
+          .select("avatar_url, username")
           .eq("id", data.user_id)
           .maybeSingle();
         if (profileData?.avatar_url) {
           setChannelAvatarUrl(profileData.avatar_url);
+        }
+        if (profileData?.username) {
+          setChannelUsername(profileData.username);
         }
       }
 
@@ -613,6 +618,8 @@ export default function Watch({ videoIdProp }: { videoIdProp?: string }) {
           thumbnailUrl={video?.thumbnail_url || undefined}
           channelName={video?.channels?.name}
           userId={user?.id}
+          username={channelUsername || undefined}
+          slug={video?.slug || undefined}
         />
         <DonateModal
           open={donateModalOpen}
@@ -931,6 +938,8 @@ export default function Watch({ videoIdProp }: { videoIdProp?: string }) {
         thumbnailUrl={video?.thumbnail_url || undefined}
         channelName={video?.channels?.name}
         userId={user?.id}
+        username={channelUsername || undefined}
+        slug={video?.slug || undefined}
       />
 
       <DonateModal
