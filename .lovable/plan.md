@@ -1,81 +1,131 @@
 
 
-## Toi uu cuoi cung ShareModal: Xoa CAMLY, ScrollArea, Grid layout, Error handling
+## Trien khai 3 sua loi: Dong bo User Count, Single Source of Truth cho Rewards, va Server-side Video Validation
 
-### 1. Xoa hoan toan he thong CAMLY du thua
+### Loi 1: Dong bo logic dem User giua Honor Board va User Directory
 
-**Van de:** Ham `awardShare()` (dong 149-173) goi `supabase.functions.invoke('award-camly')` moi lan chia se - tao request backend vo ich neu khong con can thuong CAMLY tai day.
+**Nguyen nhan:** `get_honobar_stats` dem tat ca user chua bi ban (373), trong khi `get_public_users_directory` chi dem user co ho so hoan thien (133).
 
-**Thay doi:**
-- Xoa ham `awardShare` (dong 149-173)
-- Xoa state `hasShared` (dong 85) - chi phuc vu `awardShare`
-- Xoa 3 lan goi `awardShare()` tai dong 185, 207, 221
-- Xoa block "+2 CAMLY khi chia se..." (dong 509-512)
-- Xoa emoji khoi cac toast message
+**Giai phap:** Tao ham SQL noi bo `is_completed_profile(p profiles)` va cap nhat `get_honobar_stats` su dung ham nay.
 
-### 2. Sua `handleNativeShare` - Fallback copy tham lang
+**Database migration 1:**
+```sql
+-- Ham noi bo kiem tra ho so hoan thien (1 noi duy nhat de sua)
+CREATE OR REPLACE FUNCTION public.is_completed_profile(p profiles)
+RETURNS boolean LANGUAGE sql IMMUTABLE AS $$
+  SELECT COALESCE(p.banned, false) = false
+    AND p.avatar_url IS NOT NULL
+    AND p.username NOT LIKE 'user_%'
+    AND p.display_name IS NOT NULL
+    AND LENGTH(TRIM(p.display_name)) >= 2;
+$$;
 
-**Truoc (dong 199-218):** Khi `navigator.share()` bi chan (iframe), loi bi log ra console va khong co gi xay ra.
-
-**Sau:**
-```tsx
-const handleNativeShare = async () => {
-  if (navigator.share) {
-    try {
-      await navigator.share({
-        title: title,
-        text: `Xem ${getContentTypeLabel()} "${title}" tren FUN Play`,
-        url: shareUrl,
-      });
-      toast({
-        title: "Chia se thanh cong!",
-        description: "Cam on ban da chia se",
-      });
-    } catch (err) {
-      if ((err as Error).name === 'AbortError') return;
-      // Fallback: copy link tham lang
-      const success = await copyToClipboard(shareUrl);
-      if (success) {
-        setCopiedLink(true);
-        setTimeout(() => setCopiedLink(false), 2000);
-        toast({
-          title: "Da sao chep lien ket de chia se",
-        });
-      }
-    }
-  }
-};
+-- Cap nhat get_honobar_stats dung tieu chi ho so hoan thien
+CREATE OR REPLACE FUNCTION public.get_honobar_stats()
+RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path TO 'public' AS $$
+  SELECT jsonb_build_object(
+    'totalUsers', (
+      SELECT COUNT(*) FROM profiles p
+      WHERE is_completed_profile(p)
+    ),
+    'totalVideos', (SELECT COUNT(*) FROM videos WHERE approval_status='approved'),
+    'totalViews', (SELECT COALESCE(SUM(view_count),0) FROM videos WHERE approval_status='approved'),
+    'totalComments', (SELECT COUNT(*) FROM comments),
+    'totalRewards', (
+      SELECT COALESCE(SUM(total_camly_rewards),0) FROM profiles p
+      WHERE is_completed_profile(p)
+    ),
+    'totalSubscriptions', (SELECT COUNT(*) FROM subscriptions),
+    'camlyPool', (
+      SELECT COALESCE(SUM(approved_reward),0) FROM profiles p
+      WHERE is_completed_profile(p)
+    ),
+    'totalPosts', (SELECT COUNT(*) FROM posts),
+    'totalPhotos', (SELECT COUNT(*) FROM videos WHERE category='photo')
+  );
+$$;
 ```
 
-### 3. Layout thong minh voi ScrollArea + Grid
+---
 
-**Thay doi DialogContent:**
-- Them `max-h-[80vh]` de modal khong tran man hinh nho
-- Boc noi dung trong `ScrollArea` (da co san tai `@/components/ui/scroll-area`) de thanh cuon muot ma
+### Loi 2: Thong nhat "Single Source of Truth" cho Rewards
 
-**Thay doi danh sach nut social:**
-- Chuyen tu `flex overflow-x-auto` (cuon ngang, kho thao tac mobile) sang `grid grid-cols-4 sm:grid-cols-5 gap-3 justify-items-center`
-- 4 cot tren mobile, 5 cot tren desktop - tu dong co gian
-- Bo `overflow-x-auto`, `scrollbar-hide`, `pb-2`
+**Buoc 1 - Dong bo du lieu (chay 1 lan):**
+Goi `sync_reward_totals()` de cap nhat lai profiles tu reward_transactions.
 
-**Them `pb-6`** cho container cuoi cung de noi dung khong dinh mep duoi tren dien thoai.
+**Buoc 2 - Cap nhat `ClaimRewardsSection.tsx`:**
+Thay doi `fetchStats` de doc tu RPC `get_user_activity_summary` thay vi doc truc tiep tu profiles. Chi giu 1 query den profiles de lay `avatar_url` va `avatar_verified`.
 
-### 4. Giam space-y
+```text
+Truoc: 3 queries (profiles + claim_requests + daily_claim_records)
+Sau:   3 queries (RPC get_user_activity_summary + profiles chi lay avatar + daily_claim_records)
+```
 
-- `space-y-6` -> `space-y-4` de tiet kiem khong gian doc
+Mapping du lieu tu RPC:
+- `totalRewards` = `summary.total_camly`
+- `pendingRewards` = `summary.pending_camly`
+- `approvedRewards` = `summary.claimable_balance`
+- `claimedTotal` = `summary.total_claimed`
 
-### 5. Don dep imports
+Bo luon query `claim_requests` vi RPC da tinh `total_claimed`.
 
-- Xoa `Smartphone` khoi lucide-react (van giu vi nut native share van dung)
-- Kiem tra khong con import thua nao
+**Buoc 3 - Cap nhat `usePendingRewards` trong `useClaimHistory.ts`:**
+Cung chuyen sang dung RPC thay vi doc truc tiep tu profiles.
 
-### Tom tat thay doi
+**Buoc 4 - Cap nhat `RewardStats.tsx`:**
+Thay `profiles.total_camly_rewards` bang RPC `get_user_activity_summary` de dong nhat nguon du lieu.
 
-| Hang muc | Chi tiet |
-|----------|---------|
-| File | `src/components/Video/ShareModal.tsx` |
-| Xoa | `awardShare()`, `hasShared` state, "+2 CAMLY" block, 3 loi goi awardShare |
-| Sua | `handleNativeShare` fallback copy tham lang |
-| Layout | `ScrollArea` + `grid-cols-4 sm:grid-cols-5` + `max-h-[80vh]` + `pb-6` |
-| Spacing | `space-y-6` -> `space-y-4` |
+Tat ca component hien Skeleton loading khi dang fetch, dam bao khong "nhay so".
+
+---
+
+### Loi 3: Server-side Video Title Validation
+
+**Database migration 2:**
+```sql
+-- Trigger validate tieu de video o cap database
+CREATE OR REPLACE FUNCTION public.validate_video_title()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF LENGTH(TRIM(NEW.title)) < 5 THEN
+    RAISE EXCEPTION 'Title must be at least 5 characters';
+  END IF;
+  IF NEW.title ~ '^\d+$' THEN
+    RAISE EXCEPTION 'Title cannot be only numbers';
+  END IF;
+  IF NEW.title !~ '[a-zA-Z\u00C0-\u1EF9]' THEN
+    RAISE EXCEPTION 'Title must contain at least one letter';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_validate_video_title
+  BEFORE INSERT OR UPDATE ON videos
+  FOR EACH ROW EXECUTE FUNCTION validate_video_title();
+
+-- Fix 115 video hien tai co tieu de chi chua so
+UPDATE videos SET title = 'Video #' || title WHERE title ~ '^\d+$';
+```
+
+---
+
+### Danh sach file thay doi
+
+| STT | File / Action | Loai thay doi |
+|-----|--------------|---------------|
+| 1 | Database migration: `is_completed_profile` + cap nhat `get_honobar_stats` | SQL |
+| 2 | Database: Chay `sync_reward_totals()` | SQL (1 lan) |
+| 3 | `src/components/Wallet/ClaimRewardsSection.tsx` | Code - dung RPC thay profiles |
+| 4 | `src/hooks/useClaimHistory.ts` (`usePendingRewards`) | Code - dung RPC thay profiles |
+| 5 | `src/components/Profile/RewardStats.tsx` | Code - dung RPC thay profiles |
+| 6 | Database migration: trigger `validate_video_title` + fix 115 video | SQL |
+
+### Ket qua mong doi
+
+- Honor Board va User Directory hien cung 1 con so (~133 user ho so hoan thien)
+- Wallet, Reward History, va Profile deu hien cung thong so tu 1 nguon RPC
+- Khong the dang video voi tieu de chi chua so (ca client lan server)
+- 115 video cu duoc sua thanh "Video #[so]" thay vi xoa
 
