@@ -63,18 +63,18 @@ export const usePendingRewards = (userId: string | undefined) => {
     }
 
     try {
-      const { data: profile, error } = await supabase
-        .from("profiles")
-        .select("approved_reward, last_claim_at, total_camly_rewards")
-        .eq("id", userId)
-        .single();
+      const [summaryResult, profileResult] = await Promise.all([
+        supabase.rpc('get_user_activity_summary', { p_user_id: userId }),
+        supabase.from("profiles").select("last_claim_at").eq("id", userId).single(),
+      ]);
 
-      if (error) throw error;
+      const summary = summaryResult.data as any;
+      if (summaryResult.error) throw summaryResult.error;
 
       setData({
-        pendingRewards: Number(profile?.approved_reward) || 0,
-        lastClaimAt: profile?.last_claim_at || null,
-        totalEarned: Number(profile?.total_camly_rewards) || 0,
+        pendingRewards: Number(summary?.claimable_balance || 0),
+        lastClaimAt: profileResult.data?.last_claim_at || null,
+        totalEarned: Number(summary?.total_camly || 0),
       });
     } catch (error) {
       console.error("Error fetching pending rewards:", error);

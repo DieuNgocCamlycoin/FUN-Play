@@ -21,46 +21,20 @@ export const RewardStats = ({ userId, walletAddress }: RewardStatsProps) => {
 
   const fetchRewardStats = async () => {
     try {
-      // Fetch total rewards from profile
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("total_camly_rewards")
-        .eq("id", userId)
-        .single();
+      // Single Source of Truth: RPC + channel query in parallel
+      const [summaryResult, channelResult] = await Promise.all([
+        supabase.rpc('get_user_activity_summary', { p_user_id: userId }),
+        supabase.from("channels").select("subscriber_count").eq("user_id", userId).single(),
+      ]);
 
-      if (profileData) {
-        setTotalRewards(profileData.total_camly_rewards || 0);
+      const summary = summaryResult.data as any;
+      if (summary) {
+        setTotalRewards(Number(summary.total_camly || 0));
+        setCurrentBalance(Number(summary.claimable_balance || 0));
       }
 
-      // Fetch current CAMLY balance from wallet_transactions
-      // This is the balance after all transfers (received - sent)
-      const { data: receivedData } = await supabase
-        .from("wallet_transactions")
-        .select("amount")
-        .eq("to_user_id", userId)
-        .eq("token_type", "CAMLY")
-        .eq("status", "success");
-
-      const { data: sentData } = await supabase
-        .from("wallet_transactions")
-        .select("amount")
-        .eq("from_user_id", userId)
-        .eq("token_type", "CAMLY")
-        .eq("status", "success");
-
-      const totalReceived = receivedData?.reduce((sum, tx) => sum + parseFloat(tx.amount.toString()), 0) || 0;
-      const totalSent = sentData?.reduce((sum, tx) => sum + parseFloat(tx.amount.toString()), 0) || 0;
-      setCurrentBalance(totalReceived - totalSent);
-
-      // Fetch subscriber count
-      const { data: channelData } = await supabase
-        .from("channels")
-        .select("subscriber_count")
-        .eq("user_id", userId)
-        .single();
-
-      if (channelData) {
-        setSubscriberCount(channelData.subscriber_count || 0);
+      if (channelResult.data) {
+        setSubscriberCount(channelResult.data.subscriber_count || 0);
       }
 
       setLoading(false);
