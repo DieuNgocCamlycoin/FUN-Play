@@ -12,6 +12,7 @@ import {
   ChevronRight,
   Library as LibraryIcon,
 } from "lucide-react";
+import { BackButton } from "@/components/ui/back-button";
 
 const libraryItems = [
   {
@@ -84,6 +85,7 @@ const Library = () => {
       <div className="max-w-4xl mx-auto p-4 lg:p-6">
         {/* Header */}
         <div className="flex items-center gap-3 mb-8">
+          <BackButton />
           <div className="w-12 h-12 rounded-full bg-gradient-to-r from-primary to-primary/70 flex items-center justify-center">
             <LibraryIcon className="w-6 h-6 text-primary-foreground" />
           </div>

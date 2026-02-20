@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
 import { Users, Search, ArrowUpDown, BadgeCheck, Calendar, ChevronDown, ChevronUp, ExternalLink, Coins } from "lucide-react";
+import { BackButton } from "@/components/ui/back-button";
 import { useNavigate } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { format, subDays } from "date-fns";
@@ -132,7 +133,8 @@ const UsersDirectory = () => {
       <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
         {/* Header */}
         <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3">
+            <BackButton />
             <img src={funplayPlanetLogo} alt="FUN Play" className="h-10 w-10 rounded-xl object-cover" />
             <div>
               <h1 className="text-2xl font-bold text-foreground">Users Directory</h1>

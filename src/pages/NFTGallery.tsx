@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Image, Wallet, ExternalLink, Sparkles, Grid3X3, List } from "lucide-react";
 import { toast } from "sonner";
+import { BackButton } from "@/components/ui/back-button";
 
 interface NFT {
   id: string;
@@ -96,6 +97,7 @@ const NFTGallery = () => {
           className="mb-8"
         >
           <div className="flex items-center gap-3 mb-2">
+            <BackButton />
             <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-[#00E7FF] to-[#FFD700] flex items-center justify-center">
               <Sparkles className="w-6 h-6 text-white" />
             </div>

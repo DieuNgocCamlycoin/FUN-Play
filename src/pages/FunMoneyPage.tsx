@@ -31,6 +31,7 @@ import {
   ActivitySummary
 } from '@/components/FunMoney';
 import { cn } from '@/lib/utils';
+import { BackButton } from '@/components/ui/back-button';
 
 export default function FunMoney() {
   const { user, loading: authLoading } = useAuth();
@@ -110,13 +111,16 @@ export default function FunMoney() {
       <div className="max-w-6xl mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
-          <div className="min-w-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <BackButton />
+            <div>
             <h1 className="text-2xl sm:text-3xl font-black bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 bg-clip-text text-transparent">
               FUN Money
             </h1>
             <p className="text-sm sm:text-base text-muted-foreground mt-1">
               Proof of Pure Love Protocol - Nhận token từ hoạt động của bạn
             </p>
+            </div>
           </div>
 
           <div className="flex items-center gap-3">

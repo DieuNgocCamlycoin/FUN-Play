@@ -25,6 +25,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { BackButton } from "@/components/ui/back-button";
 import { formatDuration, formatViewsShort } from "@/lib/formatters";
 import {
   Select,
@@ -254,6 +255,7 @@ export default function BrowseMusic() {
           {/* Header */}
             <div className="mb-8">
               <div className="flex items-center gap-3 mb-2">
+                <BackButton />
                 <div className="p-3 rounded-xl bg-gradient-to-br from-primary to-secondary">
                   <Music className="w-8 h-8 text-primary-foreground" />
                 </div>

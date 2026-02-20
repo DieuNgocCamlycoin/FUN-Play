@@ -12,6 +12,7 @@ import { Play, Clock, Infinity, Moon, Sparkles, Headphones } from "lucide-react"
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useMusicPlayer } from "@/contexts/MusicPlayerContext";
+import { BackButton } from "@/components/ui/back-button";
 
 interface Video {
   id: string; title: string; thumbnail_url: string | null; video_url: string;
@@ -83,7 +84,8 @@ const Meditate = () => {
         <MeditatingAngel />
 
         <div className="min-h-screen relative z-10 p-4 md:p-6">
-          <div className="text-center mb-8">
+          <div className="text-center mb-8 relative">
+            <div className="absolute left-0 top-0"><BackButton /></div>
             <div className="inline-flex items-center gap-2 mb-4">
               <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-400 via-yellow-500 to-amber-500 flex items-center justify-center shadow-lg shadow-amber-400/30">
                 <Sparkles className="w-6 h-6 text-white" />

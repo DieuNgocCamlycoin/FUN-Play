@@ -20,6 +20,7 @@ import { useCryptoPrices } from "@/hooks/useCryptoPrices";
 import { useCAMLYPriceAlert } from "@/hooks/useCAMLYPriceAlert";
 import { CAMLY_TOKEN_ADDRESS } from "@/config/tokens";
 import { toast } from "sonner";
+import { BackButton } from "@/components/ui/back-button";
 import { 
   XAxis, 
   YAxis, 
@@ -140,6 +141,7 @@ export default function CAMLYPrice() {
         {/* Token Header with Actions */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
+            <BackButton />
             <img src="/images/camly-coin.png" alt="CAMLY" className="h-10 w-10 rounded-full" />
             <div>
               <h1 className="font-bold text-xl">CAMLY</h1>

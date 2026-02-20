@@ -10,6 +10,7 @@ import { DonationCelebration } from "@/components/Profile/DonationCelebration";
 import { BackgroundMusicPlayer } from "@/components/BackgroundMusicPlayer";
 import { useToast } from "@/hooks/use-toast";
 import { AuthRequiredDialog } from "@/components/Auth/AuthRequiredDialog";
+import { BackButton } from "@/components/ui/back-button";
 
 interface ProfileData {
   id: string;
@@ -371,6 +372,7 @@ export default function Channel() {
       )}
 
       <div className="min-h-screen bg-background">
+        <div className="absolute top-4 left-4 z-20"><BackButton /></div>
         {/* Header with Cover + Avatar + Honor Board */}
         <ProfileHeader
           profile={profile}
