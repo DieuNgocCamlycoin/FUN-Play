@@ -1,41 +1,61 @@
 
 
-## Ket qua Kiem tra He thong Bao cao Video
+## Auto-refresh Spam Filter tab khi Admin chuyen tab
 
-### Trang thai hien tai: HE THONG DANG HOAT DONG BINH THUONG
+### Ket qua kiem tra End-to-End
 
-Sau khi kiem tra ky luong, he thong bao cao video da hoat dong dung:
+He thong bao cao video **DA HOAT DONG HOAN CHINH**:
+- User bao cao -> Dialog 4 ly do -> Gui thanh cong -> Toast "Cam on ban da dong gop anh sang cho cong dong"
+- Database ghi nhan report voi `status: pending`
+- Trigger tang `report_count` tu dong
+- Admin Spam Filter hien thi 2 video bi bao cao voi badge do "1 bao cao"
 
-- **Database**: 1 bao cao ton tai cho video `c58723a7...`, `report_count = 1`
-- **Trigger `handle_video_report`**: Tang `report_count` tu dong khi co bao cao moi
-- **RLS Policies**: Admin da co quyen SELECT, UPDATE, DELETE tren bang `videos` va `video_reports`
-- **ReportSpamButton**: Hoat dong tren ca Web va Mobile voi debounce 2 giay
-- **Spam Filter Tab**: Mac dinh hien thi video bi bao cao, co nut Refresh, co Badge so luong
+### Thay doi: Auto-refresh khi Admin chuyen sang tab Spam Filter
 
-### Ly do truoc do khong thay video bao cao
+Hien tai, `SpamFilterContent` chi fetch data 1 lan khi mount. Khi admin chuyen qua tab khac roi quay lai, data khong duoc cap nhat.
 
-Cac chinh sach RLS cho admin tren bang `videos` **vua moi duoc them** trong phien truoc. Truoc do, admin chi co the thay video `is_public = true` hoac video do chinh ho tao. Hien tai van de nay da duoc giai quyet.
-
-### Cai tien nho de tang do tin cay
-
-Muc du he thong da hoat dong, co mot so cai tien nho giup dong bo tot hon:
-
-1. **Dong bo badge count sau khi admin thao tac**: Khi admin an/xoa/ban video trong Spam Filter, badge so luong tren tab "Spam Filter" khong tu dong cap nhat. Can truyen callback de refresh count.
-
-2. **Tu dong chuyen sang tab "Bi bao cao" khi co bao cao moi**: Hien tai Spam Filter mac dinh la "reported" khi mount, nhung khong tu dong refresh khi admin quay lai tab.
+**Giai phap**: Truyen trang thai tab hien tai (`activeTab`) vao `SpamFilterContent`. Khi tab chuyen sang "spam", tu dong goi lai `fetchSpamVideos()` va `fetchReportedCount()`.
 
 ### Chi tiet ky thuat
 
-**File thay doi:**
+**File thay doi:** `src/components/Admin/tabs/VideosManagementTab.tsx`
 
-| File | Thay doi |
-|------|----------|
-| `src/components/Admin/tabs/VideosManagementTab.tsx` | Truyen callback `onReportCountChange` tu `VideosManagementTab` vao `SpamFilterContent` de dong bo badge count khi admin thao tac (an/xoa/ban). Sau moi hanh dong bulk, goi lai `fetchReportedCount()` |
+1. **Them state `activeTab`** trong `VideosManagementTab`:
+   - Chuyen tu `<Tabs defaultValue="approval">` sang controlled mode voi `value` va `onValueChange`
+   
+2. **Truyen prop `isActive` vao `SpamFilterContent`**:
+   - Khi `activeTab === "spam"`, truyen `isActive={true}`
 
-**Logic thay doi:**
-- Chuyen `fetchReportedCount` thanh function co the goi lai
-- Truyen no vao `SpamFilterContent` nhu prop
-- Goi lai sau moi hanh dong: `handleBulkHide`, `handleBulkDeleteOnly`, `handleBulkDeleteBan`
+3. **Auto-refresh trong `SpamFilterContent`**:
+   - Them `useEffect` theo doi `isActive`
+   - Khi `isActive` chuyen tu `false` sang `true`, goi `fetchSpamVideos()` va `onReportCountChange?.()`
 
-Day la thay doi nho, khong anh huong den logic chinh cua he thong.
+4. **Dong thoi refresh badge count**:
+   - Goi `fetchReportedCount()` moi khi admin chuyen sang tab Spam Filter
 
+```typescript
+// VideosManagementTab - controlled tabs
+const [activeTab, setActiveTab] = useState("approval");
+
+<Tabs value={activeTab} onValueChange={setActiveTab}>
+  ...
+  <TabsContent value="spam">
+    <SpamFilterContent 
+      onReportCountChange={fetchReportedCount} 
+      isActive={activeTab === "spam"} 
+    />
+  </TabsContent>
+</Tabs>
+
+// SpamFilterContent - auto refresh
+function SpamFilterContent({ onReportCountChange, isActive }: { ... isActive?: boolean }) {
+  useEffect(() => {
+    if (isActive) {
+      fetchSpamVideos();
+      onReportCountChange?.();
+    }
+  }, [isActive]);
+}
+```
+
+Day la thay doi nho, chi anh huong den 1 file, khong thay doi logic nghiep vu.
