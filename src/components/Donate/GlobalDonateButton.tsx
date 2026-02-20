@@ -35,13 +35,13 @@ export const GlobalDonateButton = ({ variant = "default", className }: GlobalDon
           size="icon"
           onClick={handleClick}
           className="relative h-9 w-9 rounded-full overflow-hidden
-                     bg-[linear-gradient(180deg,#F9E37A_0%,#F0D96C_25%,#B78C1A_50%,#D4A94E_75%,#F9E37A_100%)]
-                     shadow-[inset_0_2px_4px_rgba(255,255,255,0.7),inset_0_-2px_6px_rgba(120,70,10,0.3),0_0_20px_rgba(198,143,26,0.5),0_2px_8px_rgba(120,70,10,0.4)]
-                     hover:shadow-[inset_0_2px_4px_rgba(255,255,255,0.8),inset_0_-2px_6px_rgba(120,70,10,0.3),0_0_35px_rgba(240,217,108,0.7),0_0_60px_rgba(198,143,26,0.3),0_2px_8px_rgba(120,70,10,0.4)]
-                     border border-t-[#F9E37A]/80 border-b-[#8B6914]/60 border-x-[#C28F1A]/60
+                     bg-[linear-gradient(90deg,#F9E37A_0%,#FFD700_20%,#FFEC8B_40%,#FFF8DC_50%,#FFEC8B_60%,#FFD700_80%,#F9E37A_100%)]
+                     shadow-[inset_0_1px_2px_rgba(255,255,255,0.6),0_0_25px_rgba(255,215,0,0.6),0_0_50px_rgba(255,215,0,0.3)]
+                     hover:shadow-[inset_0_1px_3px_rgba(255,255,255,0.8),0_0_40px_rgba(255,215,0,0.8),0_0_80px_rgba(255,215,0,0.4)]
+                     border border-[#DAA520]/70
                      transition-all duration-300 hover:scale-110 animate-luxury-pulse"
         >
-          <Gift className="h-5 w-5 text-[#A9710F] relative z-10" />
+          <Gift className="h-5 w-5 text-[#8B6914] relative z-10" />
           {/* Glossy highlight */}
           <div className="absolute inset-x-0 top-0 h-[45%] bg-gradient-to-b from-white/40 via-white/20 to-transparent rounded-t-full pointer-events-none" />
           {/* Mirror shimmer effect */}
@@ -61,11 +61,11 @@ export const GlobalDonateButton = ({ variant = "default", className }: GlobalDon
       <Button
         onClick={handleClick}
         className={`relative group overflow-hidden flex items-center gap-2 h-10
-                   bg-[linear-gradient(180deg,#F9E37A_0%,#F0D96C_25%,#B78C1A_50%,#D4A94E_75%,#F9E37A_100%)]
-                   text-[#A9710F] font-bold rounded-full px-4
-                   shadow-[inset_0_2px_4px_rgba(255,255,255,0.7),inset_0_-2px_6px_rgba(120,70,10,0.3),0_0_20px_rgba(198,143,26,0.5),0_2px_8px_rgba(120,70,10,0.4)]
-                   hover:shadow-[inset_0_2px_4px_rgba(255,255,255,0.8),inset_0_-2px_6px_rgba(120,70,10,0.3),0_0_35px_rgba(240,217,108,0.7),0_0_60px_rgba(198,143,26,0.3),0_2px_8px_rgba(120,70,10,0.4)]
-                   border border-t-[#F9E37A]/80 border-b-[#8B6914]/60 border-x-[#C28F1A]/60
+                   bg-[linear-gradient(90deg,#F9E37A_0%,#FFD700_20%,#FFEC8B_40%,#FFF8DC_50%,#FFEC8B_60%,#FFD700_80%,#F9E37A_100%)]
+                   text-[#8B6914] font-bold rounded-full px-4
+                   shadow-[inset_0_1px_2px_rgba(255,255,255,0.6),0_0_25px_rgba(255,215,0,0.6),0_0_50px_rgba(255,215,0,0.3)]
+                   hover:shadow-[inset_0_1px_3px_rgba(255,255,255,0.8),0_0_40px_rgba(255,215,0,0.8),0_0_80px_rgba(255,215,0,0.4)]
+                   border border-[#DAA520]/70
                    transition-all duration-300 hover:scale-105 animate-luxury-pulse ${className}`}
       >
         <Gift className="h-4 w-4 relative z-10" />
