@@ -301,6 +301,7 @@ export default function Watch({ videoIdProp }: { videoIdProp?: string }) {
 
   const fetchRecommendedVideos = async () => {
     try {
+      // Fetch popular approved videos with channel diversity
       const { data, error } = await supabase
         .from("videos")
         .select(`
@@ -309,19 +310,50 @@ export default function Watch({ videoIdProp }: { videoIdProp?: string }) {
           thumbnail_url,
           view_count,
           created_at,
+          channel_id,
           channels (
-            name
+            name,
+            is_verified
           )
         `)
         .eq("is_public", true)
         .eq("approval_status", "approved")
         .or('is_hidden.is.null,is_hidden.eq.false')
         .neq("id", id)
-        .order("created_at", { ascending: false })
-        .limit(20);
+        .order("view_count", { ascending: false })
+        .limit(50);
 
       if (error) throw error;
-      setRecommendedVideos(data || []);
+      
+      if (data && data.length > 0) {
+        // Apply channel diversity: ensure at least 5 different channels
+        const channelMap = new Map<string, typeof data>();
+        const diverseResults: typeof data = [];
+        
+        for (const video of data) {
+          const chId = (video as any).channel_id || 'unknown';
+          if (!channelMap.has(chId)) channelMap.set(chId, []);
+          channelMap.get(chId)!.push(video);
+        }
+        
+        // Round-robin from channels to ensure diversity
+        let added = 0;
+        const channels = Array.from(channelMap.values());
+        let round = 0;
+        while (added < 20 && channels.some(ch => ch.length > round)) {
+          for (const ch of channels) {
+            if (ch.length > round && added < 20) {
+              diverseResults.push(ch[round]);
+              added++;
+            }
+          }
+          round++;
+        }
+        
+        setRecommendedVideos(diverseResults);
+      } else {
+        setRecommendedVideos([]);
+      }
     } catch (error: any) {
       console.error("Error loading recommended videos:", error);
     }

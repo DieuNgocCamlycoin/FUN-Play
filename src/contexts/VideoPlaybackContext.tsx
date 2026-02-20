@@ -117,6 +117,59 @@ export function VideoPlaybackProvider({ children }: { children: ReactNode }) {
     return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   };
 
+  // Apply channel diversity: no more than 2 consecutive videos from same channel
+  const applyChannelDiversity = (videos: VideoItem[]): VideoItem[] => {
+    if (videos.length <= 2) return videos;
+    
+    const result: VideoItem[] = [];
+    const remaining = [...videos];
+    
+    while (remaining.length > 0) {
+      // Find next video that doesn't violate diversity rule
+      let found = false;
+      for (let i = 0; i < remaining.length; i++) {
+        const video = remaining[i];
+        const lastTwo = result.slice(-2);
+        const sameChannelCount = lastTwo.filter(v => v.channel_id === video.channel_id).length;
+        
+        if (sameChannelCount < 2) {
+          result.push(video);
+          remaining.splice(i, 1);
+          found = true;
+          break;
+        }
+      }
+      
+      // If no valid candidate found, just add next one
+      if (!found) {
+        result.push(remaining.shift()!);
+      }
+    }
+    
+    return result;
+  };
+
+  // Map raw video data to VideoItem
+  const mapVideoItem = (v: any): VideoItem => ({
+    id: v.id,
+    title: v.title,
+    thumbnail_url: v.thumbnail_url,
+    video_url: v.video_url,
+    duration: v.duration,
+    view_count: v.view_count,
+    channel_name: (v.channels as any)?.name,
+    channel_id: (v.channels as any)?.id,
+    category: v.category,
+  });
+
+  // Base filters for approved, visible videos
+  const applyBaseFilters = (query: any) => {
+    return query
+      .eq("is_public", true)
+      .eq("approval_status", "approved")
+      .or("is_hidden.is.null,is_hidden.eq.false");
+  };
+
   // Fetch related videos for queue generation
   const fetchRelatedVideos = async (
     currentVideoId: string,
@@ -125,95 +178,101 @@ export function VideoPlaybackProvider({ children }: { children: ReactNode }) {
     excludeIds: string[]
   ): Promise<VideoItem[]> => {
     const results: VideoItem[] = [];
+    const seenIds = new Set([currentVideoId, ...excludeIds]);
     
-    // 1. Videos from same category
+    const addResults = (videos: any[]) => {
+      for (const v of videos) {
+        if (!seenIds.has(v.id)) {
+          seenIds.add(v.id);
+          results.push(mapVideoItem(v));
+        }
+      }
+    };
+
+    // 1. Videos from same category (prioritize verified channels & high views)
     if (category) {
-      const { data: categoryVideos } = await supabase
+      const q = supabase
         .from("videos")
         .select(`
           id, title, thumbnail_url, video_url, duration, view_count, category,
-          channels!inner (id, name)
+          channels!inner (id, name, is_verified)
         `)
-        .eq("is_public", true)
         .eq("category", category)
-        .not("id", "in", `(${[currentVideoId, ...excludeIds].join(",")})`)
+        .not("id", "in", `(${[...seenIds].join(",")})`)
         .order("view_count", { ascending: false })
-        .limit(10);
+        .limit(15);
       
-      if (categoryVideos) {
-        results.push(...categoryVideos.map(v => ({
-          id: v.id,
-          title: v.title,
-          thumbnail_url: v.thumbnail_url,
-          video_url: v.video_url,
-          duration: v.duration,
-          view_count: v.view_count,
-          channel_name: (v.channels as any)?.name,
-          channel_id: (v.channels as any)?.id,
-          category: v.category,
-        })));
-      }
+      const { data: categoryVideos } = await applyBaseFilters(q);
+      if (categoryVideos) addResults(categoryVideos);
     }
 
-    // 2. Videos from same channel
-    if (channelId && results.length < 15) {
-      const { data: channelVideos } = await supabase
+    // 2. Videos from same channel (limit to 5 to ensure diversity)
+    if (channelId && results.length < 20) {
+      const q = supabase
         .from("videos")
         .select(`
           id, title, thumbnail_url, video_url, duration, view_count, category,
-          channels!inner (id, name)
+          channels!inner (id, name, is_verified)
         `)
-        .eq("is_public", true)
         .eq("channel_id", channelId)
-        .not("id", "in", `(${[currentVideoId, ...excludeIds, ...results.map(r => r.id)].join(",")})`)
+        .not("id", "in", `(${[...seenIds].join(",")})`)
         .order("created_at", { ascending: false })
-        .limit(10);
+        .limit(5);
       
-      if (channelVideos) {
-        results.push(...channelVideos.map(v => ({
-          id: v.id,
-          title: v.title,
-          thumbnail_url: v.thumbnail_url,
-          video_url: v.video_url,
-          duration: v.duration,
-          view_count: v.view_count,
-          channel_name: (v.channels as any)?.name,
-          channel_id: (v.channels as any)?.id,
-          category: v.category,
-        })));
-      }
+      const { data: channelVideos } = await applyBaseFilters(q);
+      if (channelVideos) addResults(channelVideos);
     }
 
-    // 3. Fallback: trending/recent videos
-    if (results.length < 20) {
-      const allExcludeIds = [currentVideoId, ...excludeIds, ...results.map(r => r.id)];
-      const { data: trendingVideos } = await supabase
+    // 3. Trending videos from verified channels
+    if (results.length < 25) {
+      const q = supabase
         .from("videos")
         .select(`
           id, title, thumbnail_url, video_url, duration, view_count, category,
-          channels!inner (id, name)
+          channels!inner (id, name, is_verified)
         `)
-        .eq("is_public", true)
-        .not("id", "in", `(${allExcludeIds.join(",")})`)
+        .eq("channels.is_verified", true)
+        .not("id", "in", `(${[...seenIds].join(",")})`)
         .order("view_count", { ascending: false })
-        .limit(20 - results.length);
+        .limit(15);
       
-      if (trendingVideos) {
-        results.push(...trendingVideos.map(v => ({
-          id: v.id,
-          title: v.title,
-          thumbnail_url: v.thumbnail_url,
-          video_url: v.video_url,
-          duration: v.duration,
-          view_count: v.view_count,
-          channel_name: (v.channels as any)?.name,
-          channel_id: (v.channels as any)?.id,
-          category: v.category,
-        })));
-      }
+      const { data: verifiedVideos } = await applyBaseFilters(q);
+      if (verifiedVideos) addResults(verifiedVideos);
     }
 
-    return results;
+    // 4. Fallback: popular videos for diversity
+    if (results.length < 30) {
+      const q = supabase
+        .from("videos")
+        .select(`
+          id, title, thumbnail_url, video_url, duration, view_count, category,
+          channels!inner (id, name, is_verified)
+        `)
+        .not("id", "in", `(${[...seenIds].join(",")})`)
+        .order("view_count", { ascending: false })
+        .limit(30 - results.length);
+      
+      const { data: trendingVideos } = await applyBaseFilters(q);
+      if (trendingVideos) addResults(trendingVideos);
+    }
+
+    // Apply channel diversity and controlled randomization
+    const diversified = applyChannelDiversity(results);
+    
+    // Ensure at least 5 unique channels if possible
+    const channelSet = new Set(diversified.map(v => v.channel_id).filter(Boolean));
+    if (channelSet.size < 5 && diversified.length > 5) {
+      // Shuffle middle section to increase variety
+      const first3 = diversified.slice(0, 3);
+      const rest = diversified.slice(3);
+      for (let i = rest.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [rest[i], rest[j]] = [rest[j], rest[i]];
+      }
+      return [...first3, ...rest];
+    }
+
+    return diversified;
   };
 
   // Fetch playlist videos

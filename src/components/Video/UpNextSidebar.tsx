@@ -75,10 +75,14 @@ export function UpNextSidebar({ onVideoSelect }: UpNextSidebarProps) {
     }
   };
 
+  const [displayCount, setDisplayCount] = useState(20);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
   if (!session) return null;
 
-  const upNextVideos = getUpNext(10);
+  const upNextVideos = getUpNext(displayCount);
   const queueLength = session.queue.length;
+  const hasMore = session.current_index + displayCount < queueLength;
 
   const handleVideoClick = (video: VideoItem) => {
     if (onVideoSelect) {
@@ -303,6 +307,27 @@ export function UpNextSidebar({ onVideoSelect }: UpNextSidebarProps) {
           <div className="text-center py-8 text-muted-foreground">
             <ListMusic className="h-12 w-12 mx-auto mb-3 opacity-50" />
             <p className="text-sm">Không còn video trong hàng đợi</p>
+          </div>
+        )}
+
+        {/* Show More button */}
+        {hasMore && (
+          <div className="py-3 text-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-primary hover:text-primary/80"
+              onClick={() => {
+                setIsLoadingMore(true);
+                setTimeout(() => {
+                  setDisplayCount(prev => prev + 20);
+                  setIsLoadingMore(false);
+                }, 300);
+              }}
+              disabled={isLoadingMore}
+            >
+              {isLoadingMore ? "Đang tải..." : "Hiển thị thêm"}
+            </Button>
           </div>
         )}
       </ScrollArea>
