@@ -1,52 +1,70 @@
 
 
-# Security Action: Permanent Ban of Dung Luu / Joni Nguyen Fraud Ring
+## Analysis: Video Report System Issues
 
-## Summary of Fraud
+### Investigation Results
 
-The investigation confirmed a coordinated multi-account farming operation:
-- **Total accounts identified**: 21+ accounts across the fraud ring
-- **Total CAMLY extracted**: ~6,490,000 CAMLY via wallet funnel
-- **3 main receiving wallets** identified as endpoints
-- **8 accounts still active** that need immediate banning
+**Database Level**: Working correctly.
+- The `video_reports` table has 1 record for the reported video
+- The trigger `handle_video_report` correctly incremented `report_count` to 1 on the `videos` table
+- The video `c58723a7...` has `report_count = 1`, `is_public = true`
 
-## Action Plan
+### Root Causes Identified
 
-### Step 1: Ban All Active Fraud Accounts
-Execute database updates to permanently ban the 8 remaining active accounts, setting:
-- `banned = true`
-- `banned_at = now()`
-- `ban_reason = 'Permanent ban: Dung Luu / Joni Nguyen coordinated fraud ring - multi-account farming'`
-- `violation_level = 3`
-- `pending_rewards = 0`
-- `approved_reward = 0`
+**1. Missing Admin RLS Policies on `videos` table (Critical)**
+The `videos` table only has this SELECT policy:
+```
+(is_public = true) OR (auth.uid() = user_id)
+```
+There is NO admin override. This means:
+- Admins **cannot see** reported videos that have `is_public = false`
+- Admins **cannot UPDATE** (hide/reject) any video they don't own -- bulk hide/reject will silently fail
+- The specific video you reported works because it happens to be `is_public = true`, but the system is broken for non-public videos
 
-Target accounts:
-1. **Luu Thi Lien** (f287a53a) - 909,000 approved + 123,000 pending
-2. **Dung** (912c1dd6) - 500,000 approved + 50,000 pending
-3. **Luu Lien** (491ceec1) - 54,000 approved
-4. **Dung pham** (bc813955) - 50,000 approved
-5. **Luu dung** (edaec4d3) - 20,000 approved
-6. **Dam thi Dung** (04fefdf7) - 50,000 pending
-7. **Nguyendung** (1fab2a80) - 50,000 pending
-8. **Hanh Dung** (6a545452) - 0 rewards
+**2. No Manual Refresh Button in Spam Filter**
+The Spam Filter tab only fetches data on filter change (via `useEffect`). If the admin is already on the "Bị báo cáo" filter, new reports won't appear until they switch away and back.
 
-### Step 2: Blacklist All Associated Wallets
-Add all wallets from the fraud ring to the `blacklisted_wallets` table to prevent re-entry:
-- `0xcBb90eE9776b54AD7B9508B15f7201c236694C2F` (joni - main funnel)
-- `0x77dfA842a276E269f942d6bC89f2fF330D59eC7b` (LUUDUNG)
-- `0x0CFc026492fA6fb729Ae9Ac67540da3b54fdb59B` (LUUDUNG alt)
-- `0xdaae7ffff89a69948ecd0aad9d366dabcd9200fc` (Luu Thi Lien)
-- `0x4cc23a2a18c1b22c3012c97a50af52a426195ccd` (Luu Lien)
-- `0x1B4c41d6C8A5fab58EA88927a56D0472178Df909` (Dung pham)
-- `0x709c6B45f8D2abAAe8E61c1d487336A43F79211b` (Dam thi Dung)
-- All wallets from the IP cluster accounts (already banned but wallets not yet blacklisted)
+**3. No Report Count Badge on Spam Filter Tab**
+The admin has no visual indicator of how many reported videos exist, making it easy to miss new reports.
 
-### Step 3: Flag IP Hashes for Auto-Block
-The `track-ip` Edge Function already auto-bans new signups from IPs with 2+ banned accounts. The banned accounts' IP hashes will automatically trigger this protection for any future re-entry attempts.
+### Plan
 
-## Technical Implementation
-- Use direct database UPDATE statements via the insert tool for banning
-- Use INSERT statements for wallet blacklisting
-- No code changes needed - the existing ban enforcement system handles the rest (BannedScreen, reward blocking, claim rejection)
+#### Step 1: Add Admin RLS Policies to `videos` Table
+Create a database migration to add:
+- `SELECT` policy for admins: `has_role(auth.uid(), 'admin'::app_role)` -- allows admins to see ALL videos including non-public ones
+- `UPDATE` policy for admins: same condition -- allows admins to hide/reject/modify any video
+
+#### Step 2: Add Refresh Button to Spam Filter
+Add a manual "Refresh" button next to the existing filter buttons so admins can reload reported videos on demand.
+
+#### Step 3: Add Reported Count Badge to Spam Filter Tab
+Show a live count of reported videos on the "Spam Filter" tab trigger so admins immediately see when new reports come in.
+
+#### Step 4: Clean Up Redundant Code
+Review and remove any unused imports or dead code in the reporting flow.
+
+### Technical Details
+
+**Migration SQL:**
+```sql
+CREATE POLICY "Admins can view all videos"
+  ON public.videos FOR SELECT
+  USING (has_role(auth.uid(), 'admin'::app_role));
+
+CREATE POLICY "Admins can update all videos"
+  ON public.videos FOR UPDATE
+  USING (has_role(auth.uid(), 'admin'::app_role));
+
+CREATE POLICY "Admins can delete all videos"
+  ON public.videos FOR DELETE
+  USING (has_role(auth.uid(), 'admin'::app_role));
+```
+
+**UI Changes in `VideosManagementTab.tsx`:**
+- Add a refresh button (RefreshCw icon) next to the Spam Filter filter buttons
+- Fetch reported video count on tab mount and display as a badge on the "Spam Filter" tab
+
+**Files Modified:**
+- `src/components/Admin/tabs/VideosManagementTab.tsx` -- refresh button, reported count badge
+- Database migration -- 3 new admin RLS policies on `videos` table
 
