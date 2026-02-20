@@ -188,23 +188,23 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
                 variant="ghost"
                 onClick={() => navigate("/fun-money")}
                 className="relative hidden md:flex items-center gap-2 overflow-hidden
-                           bg-gradient-to-b from-[#FFEA00] via-[#FFD700] to-[#E5A800] 
-                           text-[#7C5800] font-extrabold rounded-full px-4 h-10
-                           shadow-[0_0_15px_rgba(255,215,0,0.4),inset_0_2px_4px_rgba(255,255,255,0.6),inset_0_-1px_2px_rgba(0,0,0,0.1)] 
-                           hover:shadow-[0_0_25px_rgba(255,234,0,0.6),0_0_40px_rgba(255,215,0,0.3)] 
-                           border border-[#FFEA00]/60 
+                           bg-gradient-to-b from-[#F9E37A] via-[#F0D96C] to-[#B78C1A] 
+                           text-[#A9710F] font-extrabold rounded-full px-4 h-10
+                           shadow-[0_0_15px_rgba(198,143,26,0.4),inset_0_2px_4px_rgba(255,255,255,0.6),inset_0_-1px_2px_rgba(0,0,0,0.1)] 
+                           hover:shadow-[0_0_25px_rgba(240,217,108,0.6),0_0_40px_rgba(198,143,26,0.3)] 
+                           border border-[#C28F1A]/60
                            transition-all duration-300 hover:scale-105"
               >
                 <img 
                   src="/images/fun-money-coin.png" 
                   alt="FUN Money" 
-                  className="h-5 w-5 rounded-full object-cover ring-1 ring-[#7C5800]/30 relative z-10"
+                  className="h-5 w-5 rounded-full object-cover ring-1 ring-[#A9710F]/30 relative z-10"
                 />
                 <span className="text-base font-extrabold relative z-10 tracking-wide">
                   MINT
                 </span>
                 {/* Mirror shimmer effect */}
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-mirror-shimmer" />
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-mirror-shimmer" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>Mint FUN Money - PPLP Protocol</TooltipContent>

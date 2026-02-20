@@ -156,8 +156,8 @@ export function TokenLifecyclePanel({
           <Badge 
             className={cn(
               "gap-1.5 px-3 py-1.5",
-              "bg-gradient-to-b from-[#FFEA00] to-[#E5A800]",
-              "text-[#7C5800] font-bold",
+              "bg-gradient-to-b from-[#F9E37A] to-[#B78C1A]",
+              "text-[#A9710F] font-bold",
               "shadow-[inset_0_2px_4px_rgba(255,255,255,0.6)]",
               "border-none"
             )}
