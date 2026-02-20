@@ -1,116 +1,55 @@
 
 
-## Chuan hoa Video Player FUN PLAY giong YouTube 100%
+## Sửa lỗi: Bấm vào màn hình video để Dừng/Phát và Bấm đúp để tua ±10 giây
 
-### Phan tich so sanh
+### Vấn đề hiện tại
 
-**Hien tai FUN PLAY (qua nhieu nut):**
-- Bottom-left: SkipBack, RotateCcw, Play/Pause, RotateCw, SkipForward, Volume, Time
-- Bottom-right: Shuffle, Repeat, Settings, PiP, Fullscreen
-- Top: Title overlay + Close (X) button
-- Tong cong: 12 nut tren overlay
+Lớp overlay điều khiển (dòng 644-648) phủ toàn bộ bề mặt video với `absolute inset-0`, chặn mọi sự kiện chuột. Sự kiện `onClick={togglePlay}` trên thẻ `<video>` (dòng 562) không bao giờ được kích hoạt vì overlay nằm phía trên. Ngoài ra, chưa có logic xử lý bấm đúp (double-click) để tua nhanh ±10 giây trên desktop.
 
-**YouTube chuan (toi gian):**
-- Bottom-left: Play/Pause, Next, Volume+slider, Time
-- Bottom-right: Settings, Subtitles/PiP, Theater, Fullscreen
-- Top: Khong co title, khong co X
-- Tong cong: 7-8 nut
+### Giải pháp
 
-### Cac thay doi cu the
+**Tệp**: `src/components/Video/EnhancedVideoPlayer.tsx`
 
----
+#### Bước 1: Thêm state mới cho hiệu ứng tua
 
-### Thay doi 1: Don dep bottom-left controls
+- `skipIndicator`: hiển thị biểu tượng tua lùi/tua tới khi bấm đúp (giống YouTubeMobilePlayer đã có sẵn)
+- `clickTimeout`: ref lưu timeout để phân biệt bấm đơn và bấm đúp
 
-**Tep**: `src/components/Video/EnhancedVideoPlayer.tsx`
+#### Bước 2: Thêm vùng bấm (click zone) trong overlay
 
-**Xoa khoi overlay:**
-- Nut RotateCcw (tua lui 10s) — da co double-click va phim J
-- Nut RotateCw (tua toi 10s) — da co double-click va phim L
+- Thêm một div trong suốt nằm giữa overlay, phía trên thanh điều khiển dưới cùng nhưng phía dưới nút Close
+- Chia vùng bấm thành 2 nửa: trái và phải
+- Xử lý logic:
+  - **Bấm đơn** (single click): gọi `togglePlay()` — dừng hoặc phát video
+  - **Bấm đúp nửa trái** (double-click left): gọi `seekRelative(-10)` — tua lùi 10 giây
+  - **Bấm đúp nửa phải** (double-click right): gọi `seekRelative(10)` — tua tới 10 giây
 
-**Sap xep lai theo thu tu YouTube:**
-1. Play/Pause
-2. Prev (chi khi co queue/hasPrevious)
-3. Next (chi khi co queue/hasNext)
-4. Volume + slider
-5. Time display
+#### Bước 3: Hiệu ứng phản hồi trực quan
 
-### Thay doi 2: Don dep bottom-right controls
+- Khi bấm đúp trái: hiện biểu tượng tua lùi kèm chữ "-10 giây" rồi tự động ẩn sau 600ms
+- Khi bấm đúp phải: hiện biểu tượng tua tới kèm chữ "+10 giây" rồi tự động ẩn sau 600ms
 
-**Xoa khoi overlay:**
-- Nut Shuffle — chuyen vao Settings menu
-- Nut Repeat — da co trong Settings menu roi
+#### Bước 4: Xóa onClick thừa trên thẻ video
 
-**Giu lai theo thu tu YouTube:**
-1. Settings (gear icon)
-2. PiP (mini player)
-3. Theater mode (them vao player, hien tai nam ngoai Watch.tsx)
-4. Fullscreen
+- Xóa `onClick={togglePlay}` khỏi thẻ `<video>` vì sự kiện này không bao giờ được kích hoạt (bị overlay chặn)
 
-### Thay doi 3: Don dep top layer
+### Chi tiết kỹ thuật
 
-**Xoa:**
-- Title overlay o top bar (YouTube khong hien title tren player)
-- Top gradient
+- Sử dụng `setTimeout` 300ms để phân biệt bấm đơn và bấm đúp
+- Khi bấm lần đầu: đặt timeout 300ms, nếu không có bấm thêm thì kích hoạt Play/Pause
+- Khi bấm lần hai trong 300ms: hủy timeout, xác định vị trí bấm (trái/phải) rồi tua tương ứng
+- Sử dụng `e.clientX` và `getBoundingClientRect()` để xác định nửa trái hay nửa phải
 
-**Giu:**
-- Close (X) button — giu lai vi FUN PLAY can nut quay ve trang chu (YouTube dung browser back)
+### Tệp thay đổi
 
-### Thay doi 4: Them Theater mode vao player
+| STT | Tệp | Nội dung |
+|-----|------|----------|
+| 1 | `src/components/Video/EnhancedVideoPlayer.tsx` | Thêm vùng bấm với logic bấm đơn/bấm đúp, hiệu ứng tua, xóa onClick thừa trên video |
 
-**Van de**: Nut Theater mode hien dang nam ben ngoai player, trong Watch.tsx (duoi phan action buttons). Can them vao bottom-right cua player overlay.
+### Kết quả
 
-**Giai phap**: Them prop `onTheaterToggle` va `isTheaterMode` vao EnhancedVideoPlayer, hien thi nut Theater o bottom-right (truoc Fullscreen).
-
-### Thay doi 5: Gom Shuffle vao Settings menu
-
-Chuyen Shuffle toggle vao trong DropdownMenu Settings, giong nhu Autoplay va Loop da co san.
-
-### Thay doi 6: Them T keyboard shortcut cho Theater mode
-
-Them phim T vao handleKeydown de toggle theater mode.
-
-### Thay doi 7: An cursor khi dang phat
-
-Them logic an cursor (`cursor-none`) khi controls bi an va video dang phat.
-
----
-
-### Tom tat bo cuc moi
-
-```text
-+--------------------------------------------------+
-| [X]                                              |  <- Top: chi Close button
-|                                                  |
-|                                                  |
-|              (click = play/pause)                 |  <- Center: click toggle
-|         (double-click trai = -10s)               |
-|         (double-click phai = +10s)               |
-|                                                  |
-|  ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬  |  <- Progress bar
-|  [▶] [⏮] [⏭] [🔊━━] 0:08/3:14   [⚙][🖼][▭][⛶] |  <- Bottom controls
-+--------------------------------------------------+
-```
-
-Bottom-left: Play, Prev*, Next*, Volume+slider, Time
-Bottom-right: Settings, PiP, Theater, Fullscreen
-
-(*) Prev/Next chi hien khi co queue
-
-### Danh sach tep thay doi
-
-| STT | Tep | Noi dung |
-|-----|-----|---------|
-| 1 | `src/components/Video/EnhancedVideoPlayer.tsx` | Xoa RotateCcw/RotateCw, Shuffle, Repeat khoi overlay. Gom Shuffle vao Settings. Them Theater mode button + prop. Xoa title top bar. An cursor khi controls an. Them phim T. Sap xep lai thu tu nut. |
-| 2 | `src/pages/Watch.tsx` | Truyen isTheaterMode va onTheaterToggle props xuong EnhancedVideoPlayer. Xoa nut Theater mode tu phan action buttons ben ngoai. |
-
-### Ket qua
-
-- Player overlay giong YouTube 90-100%
-- Chi 7-8 nut thay vi 12
-- Shuffle/Repeat/Speed/Ambient gom vao Settings
-- Theater mode trong player
-- Cursor an khi dang phat
-- Phim tat T cho theater
-- Prev/Next chi hien khi co queue
+- Bấm vào bất kỳ vị trí nào trên video sẽ Dừng/Phát
+- Bấm đúp nửa trái tua lùi 10 giây với hiệu ứng trực quan
+- Bấm đúp nửa phải tua tới 10 giây với hiệu ứng trực quan
+- Phím tắt vẫn hoạt động bình thường (J/L/K/Space)
 
