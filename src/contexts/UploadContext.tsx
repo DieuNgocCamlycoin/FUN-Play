@@ -341,7 +341,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
           description: `Video "${metadata.title}" đã sẵn sàng.`,
           action: (
             <a
-              href={`/watch/${videoData.id}`}
+              href={`/v/${videoData.id}`}
               className="text-[hsl(var(--cosmic-cyan))] font-medium underline"
             >
               Xem ngay

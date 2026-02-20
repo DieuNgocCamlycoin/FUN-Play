@@ -56,6 +56,9 @@ interface ShareModalProps {
   thumbnailUrl?: string;
   channelName?: string;
   userId?: string;
+  // Clean URL props for video sharing
+  username?: string;
+  slug?: string;
   // Legacy props for backward compatibility
   videoId?: string;
   videoTitle?: string;
@@ -70,6 +73,8 @@ export const ShareModal = ({
   thumbnailUrl,
   channelName,
   userId,
+  username,
+  slug,
   // Legacy props
   videoId,
   videoTitle,
@@ -89,13 +94,20 @@ export const ShareModal = ({
     const baseUrl = PRODUCTION_URL;
     switch (contentType) {
       case 'video':
+        // Use clean URL if username + slug available
+        if (username && slug) {
+          return `${baseUrl}/${username}/video/${slug}`;
+        }
         return `${baseUrl}/watch/${id}`;
       case 'music':
         return `${baseUrl}/music/${id}`;
       case 'ai-music':
         return `${baseUrl}/ai-music/${id}`;
       case 'channel':
-        return `${baseUrl}/channel/${id}`;
+        if (username) {
+          return `${baseUrl}/${username}`;
+        }
+        return `${baseUrl}/${id}`;
       default:
         return `${baseUrl}/watch/${id}`;
     }
@@ -103,11 +115,20 @@ export const ShareModal = ({
 
   // Generate prerender URL for social media crawlers (with proper OG tags)
   const getPrerenderUrl = () => {
-    const path = contentType === 'video' ? `/watch/${id}` 
-      : contentType === 'music' ? `/music/${id}` 
-      : contentType === 'ai-music' ? `/ai-music/${id}`
-      : contentType === 'channel' ? `/channel/${id}` 
-      : `/watch/${id}`;
+    let path: string;
+    if (contentType === 'video' && username && slug) {
+      path = `/${username}/video/${slug}`;
+    } else if (contentType === 'video') {
+      path = `/watch/${id}`;
+    } else if (contentType === 'music') {
+      path = `/music/${id}`;
+    } else if (contentType === 'ai-music') {
+      path = `/ai-music/${id}`;
+    } else if (contentType === 'channel') {
+      path = username ? `/${username}` : `/${id}`;
+    } else {
+      path = `/watch/${id}`;
+    }
     
     return `https://fzgjmvxtgrlwrluxdwjq.supabase.co/functions/v1/prerender?path=${encodeURIComponent(path)}`;
   };

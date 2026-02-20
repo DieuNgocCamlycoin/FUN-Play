@@ -5,6 +5,8 @@ import { CheckCircle, Copy, ExternalLink, Plus, Sparkles, Check, Share2, Message
 import confetti from "canvas-confetti";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { PRODUCTION_URL } from "@/lib/shareUtils";
+import { getVideoPath } from "@/lib/videoNavigation";
 
 interface UploadSuccessProps {
   videoId: string;
@@ -15,8 +17,13 @@ interface UploadSuccessProps {
 
 export function UploadSuccess({ videoId, onViewVideo, onUploadAnother, onClose }: UploadSuccessProps) {
   const [copied, setCopied] = useState(false);
-  const videoUrl = `${window.location.origin}/watch/${videoId}`;
-  const shortUrl = `${window.location.origin}/v/${videoId}`;
+  const [shareUrl, setShareUrl] = useState(`${PRODUCTION_URL}/watch/${videoId}`);
+
+  useEffect(() => {
+    getVideoPath(videoId).then(path => {
+      setShareUrl(`${PRODUCTION_URL}${path}`);
+    });
+  }, [videoId]);
 
   useEffect(() => {
     // Celebration confetti with aurora colors
@@ -59,7 +66,7 @@ export function UploadSuccess({ videoId, onViewVideo, onUploadAnother, onClose }
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(shortUrl);
+      await navigator.clipboard.writeText(shareUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
@@ -68,17 +75,17 @@ export function UploadSuccess({ videoId, onViewVideo, onUploadAnother, onClose }
   };
 
   const shareToX = () => {
-    const text = `Xem video mới của tôi trên FUN PLAY! ✨ ${shortUrl}`;
+    const text = `Xem video mới của tôi trên FUN PLAY! ✨ ${shareUrl}`;
     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank');
   };
 
   const shareToFacebook = () => {
-    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shortUrl)}`, '_blank');
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`, '_blank');
   };
 
   const shareToTelegram = () => {
     const text = `Xem video mới của tôi! ✨`;
-    window.open(`https://t.me/share/url?url=${encodeURIComponent(shortUrl)}&text=${encodeURIComponent(text)}`, '_blank');
+    window.open(`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(text)}`, '_blank');
   };
 
   return (
@@ -146,8 +153,8 @@ export function UploadSuccess({ videoId, onViewVideo, onUploadAnother, onClose }
         <p className="text-sm font-semibold">Đường liên kết video</p>
         <div className="flex gap-2">
           <Input 
-            value={shortUrl} 
-            readOnly 
+            value={shareUrl} 
+            readOnly
             className="text-center font-mono text-sm bg-muted/50 border-[hsl(var(--cosmic-cyan)/0.3)]" 
           />
           <Button 

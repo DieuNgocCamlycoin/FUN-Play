@@ -57,7 +57,9 @@ export function MobileUploadSuccess({ videoId, onViewVideo, onClose }: MobileUpl
 
   const handleCopyLink = async () => {
     if (videoId) {
-      const url = getShareUrl(`/watch/${videoId}`);
+      const { getVideoPath } = await import("@/lib/videoNavigation");
+      const path = await getVideoPath(videoId);
+      const url = getShareUrl(path);
       mediumTap();
       const success = await copyToClipboard(url);
       toast({
@@ -72,10 +74,12 @@ export function MobileUploadSuccess({ videoId, onViewVideo, onClose }: MobileUpl
     if (videoId && navigator.share) {
       mediumTap();
       try {
+        const { getVideoPath } = await import("@/lib/videoNavigation");
+        const path = await getVideoPath(videoId);
         await navigator.share({
           title: "Xem video mới của tôi!",
           text: "Xem video mới của tôi trên FUN PLAY! 🎬✨",
-          url: getShareUrl(`/watch/${videoId}`),
+          url: getShareUrl(path),
         });
       } catch {
         // User cancelled share
