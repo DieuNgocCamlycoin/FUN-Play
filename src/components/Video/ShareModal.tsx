@@ -26,7 +26,7 @@ import {
   Check,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
-import { useAutoReward } from "@/hooks/useAutoReward";
+
 import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { PRODUCTION_URL, copyToClipboard as sharedCopyToClipboard } from "@/lib/shareUtils";
