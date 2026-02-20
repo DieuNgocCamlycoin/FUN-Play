@@ -46,6 +46,7 @@ export function UpNextSidebar({ onVideoSelect }: UpNextSidebarProps) {
     getUpNext,
   } = useVideoPlayback();
 
+  const { goToVideo } = useVideoNavigation();
   const [isReordering, setIsReordering] = useState(false);
   const [playlistInfo, setPlaylistInfo] = useState<PlaylistInfo | null>(null);
 
@@ -78,10 +79,6 @@ export function UpNextSidebar({ onVideoSelect }: UpNextSidebarProps) {
 
   const upNextVideos = getUpNext(10);
   const queueLength = session.queue.length;
-
-  // formatDuration and formatViewsShort imported from @/lib/formatters
-
-  const { goToVideo } = useVideoNavigation();
 
   const handleVideoClick = (video: VideoItem) => {
     if (onVideoSelect) {
