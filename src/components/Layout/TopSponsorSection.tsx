@@ -72,7 +72,7 @@ export const TopSponsorSection = () => {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: index * 0.05 }}
               whileHover={{ scale: 1.02, x: 4 }}
-              onClick={() => navigate(`/channel/${sponsor.userId}`)}
+              onClick={() => navigate(`/${sponsor.username || sponsor.userId}`)}
               className={cn(
                 "flex items-center gap-2 p-2 rounded-lg transition-all duration-200 cursor-pointer",
                 "hover:bg-[#F0FDFF]",

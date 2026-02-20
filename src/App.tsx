@@ -8,7 +8,11 @@ import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-
 // Legacy redirect components
 const LegacyUserRedirect = () => {
   const { userId } = useParams();
-  return <Navigate to={`/${userId}`} replace />;
+  return <Navigate to={`/${userId || ''}`} replace />;
+};
+const LegacyChannelRedirect = () => {
+  const { id } = useParams();
+  return <Navigate to={`/${id || ''}`} replace />;
 };
 const LegacyUsernameRedirect = () => {
   const { username } = useParams();
@@ -228,7 +232,7 @@ function AppContent() {
             {/* Legacy redirects */}
             <Route path="/user/:userId" element={<LegacyUserRedirect />} />
             <Route path="/u/:username" element={<LegacyUsernameRedirect />} />
-            <Route path="/channel/:id" element={<LegacyUserRedirect />} />
+            <Route path="/channel/:id" element={<LegacyChannelRedirect />} />
             <Route path="/c/:username/video/:slug" element={<LegacyCVideoRedirect />} />
             <Route path="/c/:username" element={<LegacyCRedirect />} />
             <Route path="/@:username" element={<LegacyUsernameRedirect />} />

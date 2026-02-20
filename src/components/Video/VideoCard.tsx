@@ -154,8 +154,9 @@ export const VideoCard = ({
 
   const handleChannelClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (channelId) {
-      navigate(`/channel/${channelId}`);
+    const target = userId || channelId;
+    if (target) {
+      navigate(`/${target}`);
     }
   };
 

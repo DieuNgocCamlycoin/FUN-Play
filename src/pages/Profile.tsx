@@ -167,7 +167,7 @@ const Profile = () => {
           <Button
             variant="ghost"
             className="mt-2 text-primary hover:text-primary/80"
-            onClick={() => channel && navigate(`/channel/${channel.id}`)}
+            onClick={() => navigate(`/${profile?.username || user.id}`)}
           >
             Xem kênh <ChevronRight className="h-4 w-4 ml-1" />
           </Button>

@@ -87,7 +87,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
   };
 
   const handleChannelClick = (channelId: string) => {
-    navigate(`/channel/${channelId}`);
+    navigate(`/${channelId}`);
     clearSearch();
   };
 
@@ -230,7 +230,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
                 <Music className="mr-2 h-4 w-4 text-cyan-500" />
                 Tạo Nhạc Ánh Sáng
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate("/channel/" + user.id)}>
+              <DropdownMenuItem onClick={() => navigate(`/${profile?.username || user.id}`)}>
                 <Settings className="mr-2 h-4 w-4" />
                 Quản lý kênh
               </DropdownMenuItem>

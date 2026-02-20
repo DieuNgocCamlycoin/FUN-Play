@@ -344,7 +344,7 @@ export default function MusicDetail() {
                             {track.title}
                           </h1>
                           <button 
-                            onClick={() => track.channels && navigate(`/channel/${track.channels.id}`)}
+                            onClick={() => track.user_id && navigate(`/${track.user_id}`)}
                             className="text-lg text-primary hover:underline"
                           >
                             {track.channels?.name || "Nghệ sĩ chưa xác định"}

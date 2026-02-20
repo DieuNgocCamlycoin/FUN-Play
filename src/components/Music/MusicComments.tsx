@@ -180,16 +180,8 @@ export function MusicComments({ musicId, onCommentCountChange }: MusicCommentsPr
     }
   };
 
-  const navigateToChannel = async (userId: string) => {
-    const { data } = await supabase
-      .from("channels")
-      .select("id")
-      .eq("user_id", userId)
-      .maybeSingle();
-    
-    if (data) {
-      navigate(`/channel/${data.id}`);
-    }
+  const navigateToChannel = (userId: string) => {
+    navigate(`/${userId}`);
   };
 
   const formatTime = (dateString: string) => {

@@ -94,7 +94,7 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
   };
 
   const handleChannelClick = (channelId: string) => {
-    navigate(`/channel/${channelId}`);
+    navigate(`/${channelId}`);
     setIsSearchOpen(false);
     clearSearch();
   };

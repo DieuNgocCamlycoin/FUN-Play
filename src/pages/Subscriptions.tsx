@@ -160,7 +160,7 @@ const Subscriptions = () => {
             {subscriptions.map((sub) => (
               <div key={sub.id}>
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => navigate(`/channel/${sub.channel.id}`)}>
+                  <div className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => navigate(`/${sub.channel.user_id}`)}>
                     <Avatar className="w-10 h-10">
                       <AvatarImage src={sub.channel.profile?.avatar_url || undefined} />
                       <AvatarFallback className="bg-gradient-to-r from-cosmic-sapphire to-cosmic-cyan text-white">{sub.channel.name?.charAt(0) || 'C'}</AvatarFallback>
@@ -184,7 +184,7 @@ const Subscriptions = () => {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => navigate(`/channel/${sub.channel.id}`)}>
+                      <DropdownMenuItem onClick={() => navigate(`/${sub.channel.user_id}`)}>
                         <ExternalLink className="mr-2 h-4 w-4" />
                         Chuyển đến kênh
                       </DropdownMenuItem>

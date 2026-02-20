@@ -292,7 +292,7 @@ const Search = () => {
                   <div
                     key={ch.id}
                     className="flex items-center gap-4 p-4 rounded-xl hover:bg-muted/50 cursor-pointer transition-colors"
-                    onClick={() => navigate(`/channel/${ch.id}`)}
+                    onClick={() => navigate(`/${ch.user_id}`)}
                   >
                     <Avatar className="h-16 w-16 shrink-0">
                       <AvatarImage src={ch.avatar_url || undefined} />
