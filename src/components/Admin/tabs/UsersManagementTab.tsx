@@ -3,7 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { useAdminManage } from "@/hooks/useAdminManage";
 import { useAuth } from "@/hooks/useAuth";
-import { Users, Ban, Trash2, RefreshCw } from "lucide-react";
+import { Users, UserCheck, Ban, Trash2, RefreshCw } from "lucide-react";
 import { checkAdminRateLimit } from "@/lib/adminRateLimit";
 
 import AllUsersTab from "./AllUsersTab";
@@ -44,10 +44,13 @@ export function UsersManagementTab() {
         </Button>
       </div>
 
-      <Tabs defaultValue="all" className="w-full">
+      <Tabs defaultValue="active" className="w-full">
         <TabsList className="flex flex-wrap h-auto gap-1 bg-muted/50 p-1 mb-4">
           <TabsTrigger value="all" className="gap-1 text-xs">
             <Users className="w-3 h-3" /> Tất Cả ({stats.totalUsers})
+          </TabsTrigger>
+          <TabsTrigger value="active" className="gap-1 text-xs">
+            <UserCheck className="w-3 h-3" /> Đang Hoạt Động ({users.filter(u => !u.banned).length})
           </TabsTrigger>
           <TabsTrigger value="banned" className="gap-1 text-xs">
             <Ban className="w-3 h-3" /> Đang Ban ({stats.bannedCount})
@@ -60,6 +63,18 @@ export function UsersManagementTab() {
         <TabsContent value="all">
           <AllUsersTab
             users={users}
+            onBan={banUser}
+            onUnban={unbanUser}
+            onToggleVerified={toggleVerified}
+            onFreezeRewards={freezeRewards}
+            onWipeRewards={wipeAllRewards}
+            actionLoading={actionLoading}
+          />
+        </TabsContent>
+
+        <TabsContent value="active">
+          <AllUsersTab
+            users={users.filter(u => !u.banned)}
             onBan={banUser}
             onUnban={unbanUser}
             onToggleVerified={toggleVerified}
