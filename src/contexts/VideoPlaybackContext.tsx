@@ -27,9 +27,9 @@ export interface PlaybackSession {
   user_id: string | null;
   start_video_id: string;
   context_type: PlaybackContextType;
-  context_id: string | null; // playlist_id, channel_id, etc.
+  context_id: string | null;
   queue: VideoItem[];
-  history: string[]; // Array of video IDs that have been played
+  history: string[];
   current_index: number;
   position_ms: number;
   autoplay: boolean;
@@ -39,12 +39,9 @@ export interface PlaybackSession {
 }
 
 interface VideoPlaybackContextType {
-  // Session state
   session: PlaybackSession | null;
   currentVideo: VideoItem | null;
   isAutoplayEnabled: boolean;
-  
-  // Session management
   createSession: (
     videoId: string, 
     contextType: PlaybackContextType, 
@@ -53,36 +50,57 @@ interface VideoPlaybackContextType {
   ) => Promise<void>;
   resumeSession: () => void;
   clearSession: () => void;
-  
-  // Playback control
   nextVideo: () => VideoItem | null;
   previousVideo: () => VideoItem | null;
   skipToVideo: (videoId: string) => void;
-  
-  // Queue management
   addToQueue: (video: VideoItem) => void;
   removeFromQueue: (videoId: string) => void;
   reorderQueue: (fromIndex: number, toIndex: number) => void;
-  
-  // Settings
   setAutoplay: (enabled: boolean) => void;
   setShuffle: (enabled: boolean) => void;
   setRepeat: (mode: "off" | "all" | "one") => void;
-  
-  // Progress tracking
   updateProgress: (positionMs: number) => void;
-  
-  // Up Next preview
   getUpNext: (count?: number) => VideoItem[];
-  
-  // Anti-repeat status
   canPlayVideo: (videoId: string) => boolean;
 }
 
 const VideoPlaybackContext = createContext<VideoPlaybackContextType | undefined>(undefined);
 
-const HISTORY_LIMIT = 20; // Don't repeat videos in last 20 played
+const HISTORY_LIMIT = 20;
 const SESSION_STORAGE_KEY = "funplay_playback_session";
+const SESSION_SEEN_KEY = "funplay_seen_video_ids";
+const MAX_PER_CHANNEL = 2;
+const MIN_UNIQUE_CHANNELS = 8;
+const MAX_SEEN_IDS = 100;
+
+// Session seen IDs management
+const getSessionSeenIds = (): Set<string> => {
+  try {
+    const stored = sessionStorage.getItem(SESSION_SEEN_KEY);
+    if (stored) {
+      const arr = JSON.parse(stored) as string[];
+      return new Set(arr.slice(-MAX_SEEN_IDS));
+    }
+  } catch {}
+  return new Set();
+};
+
+const addSessionSeenIds = (ids: string[]) => {
+  const existing = getSessionSeenIds();
+  ids.forEach(id => existing.add(id));
+  const arr = Array.from(existing).slice(-MAX_SEEN_IDS);
+  sessionStorage.setItem(SESSION_SEEN_KEY, JSON.stringify(arr));
+};
+
+// Shuffle array in place (Fisher-Yates)
+const shuffleArray = <T,>(arr: T[]): T[] => {
+  const result = [...arr];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+};
 
 export function VideoPlaybackProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<PlaybackSession | null>(null);
@@ -112,64 +130,8 @@ export function VideoPlaybackProvider({ children }: { children: ReactNode }) {
     }
   }, [session]);
 
-  // Generate unique session ID
   const generateSessionId = () => {
     return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  };
-
-  const MAX_PER_CHANNEL = 3;
-
-  // Apply channel diversity: no more than 2 consecutive + max 3 per channel total
-  const applyChannelDiversity = (videos: VideoItem[]): VideoItem[] => {
-    if (videos.length <= 2) return videos;
-    
-    const result: VideoItem[] = [];
-    const remaining = [...videos];
-    const channelCounts = new Map<string, number>();
-    
-    while (remaining.length > 0) {
-      let found = false;
-      for (let i = 0; i < remaining.length; i++) {
-        const video = remaining[i];
-        const chId = video.channel_id || 'unknown';
-        
-        // Skip if channel already has MAX_PER_CHANNEL videos
-        if ((channelCounts.get(chId) || 0) >= MAX_PER_CHANNEL) {
-          continue;
-        }
-        
-        // Check consecutive rule (no more than 2 in a row from same channel)
-        const lastTwo = result.slice(-2);
-        const sameChannelCount = lastTwo.filter(v => v.channel_id === chId).length;
-        
-        if (sameChannelCount < 2) {
-          result.push(video);
-          remaining.splice(i, 1);
-          channelCounts.set(chId, (channelCounts.get(chId) || 0) + 1);
-          found = true;
-          break;
-        }
-      }
-      
-      // If no valid candidate found, try any remaining that hasn't hit cap
-      if (!found) {
-        const idx = remaining.findIndex(v => {
-          const chId = v.channel_id || 'unknown';
-          return (channelCounts.get(chId) || 0) < MAX_PER_CHANNEL;
-        });
-        if (idx !== -1) {
-          const video = remaining[idx];
-          result.push(video);
-          const chId = video.channel_id || 'unknown';
-          channelCounts.set(chId, (channelCounts.get(chId) || 0) + 1);
-          remaining.splice(idx, 1);
-        } else {
-          break; // All remaining videos are from channels at cap
-        }
-      }
-    }
-    
-    return result;
   };
 
   // Map raw video data to VideoItem
@@ -193,94 +155,155 @@ export function VideoPlaybackProvider({ children }: { children: ReactNode }) {
       .or("is_hidden.is.null,is_hidden.eq.false");
   };
 
-  // Round-robin: pick 1 video from each channel in rotation
-  const roundRobinSelect = (channelGroups: Map<string, VideoItem[]>, maxTotal: number): VideoItem[] => {
-    const result: VideoItem[] = [];
-    const channels = Array.from(channelGroups.entries());
-    let round = 0;
-    
-    while (result.length < maxTotal) {
-      let addedThisRound = false;
-      for (const [, videos] of channels) {
-        if (round < videos.length && result.length < maxTotal) {
-          result.push(videos[round]);
-          addedThisRound = true;
-        }
-      }
-      if (!addedThisRound) break;
-      round++;
-    }
-    
-    return result;
-  };
-
-  // Fetch related videos with true channel diversity
-  const fetchRelatedVideos = async (
+  // ============================================================
+  // DIVERSITY-FIRST RECOMMENDATION ENGINE
+  // ============================================================
+  const fetchDiverseRecommendations = async (
     currentVideoId: string,
     category: string | null,
     channelId: string | null,
-    excludeIds: string[]
+    limit: number = 20
   ): Promise<VideoItem[]> => {
-    const seenIds = new Set([currentVideoId, ...excludeIds]);
-    
-    // Single query: fetch top 80 approved videos sorted by views
+    const seenIds = getSessionSeenIds();
+    const excludeIds = new Set([currentVideoId, ...seenIds]);
+
+    // Step 1: Fetch 200 candidate videos
     const q = supabase
       .from("videos")
       .select(`
         id, title, thumbnail_url, video_url, duration, view_count, category,
         channels!inner (id, name, is_verified)
       `)
-      .not("id", "in", `(${[...seenIds].join(",")})`)
+      .not("id", "in", `(${[...excludeIds].join(",")})`)
       .order("view_count", { ascending: false })
-      .limit(80);
-    
+      .limit(200);
+
     const { data: allVideos } = await applyBaseFilters(q);
-    if (!allVideos || allVideos.length === 0) return [];
     
-    // Map to VideoItem and group by channel
+    if (!allVideos || allVideos.length === 0) {
+      // Fallback: if all videos seen, clear seen list and retry without exclusion
+      console.warn("[Recommendations] All videos seen, clearing session seen list");
+      sessionStorage.removeItem(SESSION_SEEN_KEY);
+      
+      const fallbackQ = supabase
+        .from("videos")
+        .select(`
+          id, title, thumbnail_url, video_url, duration, view_count, category,
+          channels!inner (id, name, is_verified)
+        `)
+        .neq("id", currentVideoId)
+        .order("view_count", { ascending: false })
+        .limit(200);
+      
+      const { data: fallbackVideos } = await applyBaseFilters(fallbackQ);
+      if (!fallbackVideos || fallbackVideos.length === 0) return [];
+      return buildDiverseList(fallbackVideos.map(mapVideoItem), category, limit);
+    }
+
+    return buildDiverseList(allVideos.map(mapVideoItem), category, limit);
+  };
+
+  const buildDiverseList = (candidates: VideoItem[], category: string | null, limit: number): VideoItem[] => {
+    // Step 2: Group by channel
     const channelGroups = new Map<string, VideoItem[]>();
-    
-    for (const v of allVideos) {
-      const item = mapVideoItem(v);
-      const chId = item.channel_id || 'unknown';
+    for (const video of candidates) {
+      const chId = video.channel_id || 'unknown';
       if (!channelGroups.has(chId)) channelGroups.set(chId, []);
-      // Each channel keeps max MAX_PER_CHANNEL videos (already sorted by views)
-      if (channelGroups.get(chId)!.length < MAX_PER_CHANNEL) {
-        channelGroups.get(chId)!.push(item);
+      channelGroups.get(chId)!.push(video);
+    }
+
+    // Step 3: Prioritize same-category channels, then shuffle order
+    const sameCategoryChannels = new Set<string>();
+    const otherChannels = new Set<string>();
+    
+    for (const [chId, videos] of channelGroups) {
+      if (category && videos.some(v => v.category === category)) {
+        sameCategoryChannels.add(chId);
+      } else {
+        otherChannels.add(chId);
+      }
+    }
+
+    // Shuffle within each priority group to avoid deterministic ordering
+    const orderedChannels = [
+      ...shuffleArray(Array.from(sameCategoryChannels)),
+      ...shuffleArray(Array.from(otherChannels)),
+    ];
+
+    // Step 4: Strict round-robin selection
+    // Round 1: exactly 1 video per channel
+    const result: VideoItem[] = [];
+    const channelPickCount = new Map<string, number>();
+
+    for (const chId of orderedChannels) {
+      if (result.length >= limit) break;
+      const videos = channelGroups.get(chId)!;
+      if (videos.length > 0) {
+        result.push(videos[0]); // Best video (highest views) from each channel
+        channelPickCount.set(chId, 1);
+      }
+    }
+
+    // Round 2: allow 2nd video per channel (if needed to reach limit)
+    if (result.length < limit) {
+      for (const chId of orderedChannels) {
+        if (result.length >= limit) break;
+        const count = channelPickCount.get(chId) || 0;
+        if (count >= MAX_PER_CHANNEL) continue;
+        const videos = channelGroups.get(chId)!;
+        if (videos.length > 1) {
+          result.push(videos[1]);
+          channelPickCount.set(chId, count + 1);
+        }
+      }
+    }
+
+    // Step 5: Apply consecutive channel rule (no 2+ in a row from same channel)
+    const finalList = applyConsecutiveRule(result);
+
+    // Step 6: Debug logging
+    const uniqueChannels = new Set(finalList.map(v => v.channel_id));
+    const perChannelCounts: Record<string, number> = {};
+    finalList.forEach(v => {
+      const ch = v.channel_name || v.channel_id || 'unknown';
+      perChannelCounts[ch] = (perChannelCounts[ch] || 0) + 1;
+    });
+
+    console.log(`[Recommendations] ✅ ${finalList.length} videos from ${uniqueChannels.size} unique channels`);
+    console.log(`[Recommendations] Per-channel:`, perChannelCounts);
+    if (uniqueChannels.size < MIN_UNIQUE_CHANNELS) {
+      console.warn(`[Recommendations] ⚠️ Only ${uniqueChannels.size} unique channels (target: ${MIN_UNIQUE_CHANNELS}+)`);
+    }
+
+    // Save to session seen list
+    addSessionSeenIds(finalList.map(v => v.id));
+
+    return finalList;
+  };
+
+  // Ensure no more than 1 consecutive video from same channel
+  const applyConsecutiveRule = (videos: VideoItem[]): VideoItem[] => {
+    if (videos.length <= 1) return videos;
+    
+    const result: VideoItem[] = [videos[0]];
+    const remaining = videos.slice(1);
+    
+    while (remaining.length > 0) {
+      const lastChannel = result[result.length - 1].channel_id;
+      
+      // Find first video from a different channel
+      const diffIdx = remaining.findIndex(v => v.channel_id !== lastChannel);
+      
+      if (diffIdx !== -1) {
+        result.push(remaining[diffIdx]);
+        remaining.splice(diffIdx, 1);
+      } else {
+        // All remaining are same channel, just append
+        result.push(remaining.shift()!);
       }
     }
     
-    // Prioritize same-category videos by putting their channels first
-    if (category) {
-      const sameCategoryChannels = new Set<string>();
-      for (const v of allVideos) {
-        if (v.category === category) {
-          const chId = (v.channels as any)?.id || 'unknown';
-          sameCategoryChannels.add(chId);
-        }
-      }
-      
-      // Reorder: same-category channels first, then others
-      const prioritized = new Map<string, VideoItem[]>();
-      for (const chId of sameCategoryChannels) {
-        if (channelGroups.has(chId)) {
-          prioritized.set(chId, channelGroups.get(chId)!);
-        }
-      }
-      for (const [chId, videos] of channelGroups) {
-        if (!prioritized.has(chId)) {
-          prioritized.set(chId, videos);
-        }
-      }
-      
-      // Round-robin from prioritized channels
-      const selected = roundRobinSelect(prioritized, 30);
-      return applyChannelDiversity(selected);
-    }
-    
-    // Default: round-robin from all channels
-    const selected = roundRobinSelect(channelGroups, 30);
-    return applyChannelDiversity(selected);
+    return result;
   };
 
   // Fetch playlist videos
@@ -401,13 +424,13 @@ export function VideoPlaybackProvider({ children }: { children: ReactNode }) {
         case "RELATED":
         case "SEARCH_RESULTS":
         default:
-          // Start with current video, then fetch related
+          // Use diversity-first algorithm
           queue = [startVideo];
-          const related = await fetchRelatedVideos(
+          const related = await fetchDiverseRecommendations(
             videoId,
             startVideo.category || null,
             startVideo.channel_id || null,
-            [videoId]
+            20
           );
           queue.push(...related);
           break;
@@ -422,7 +445,7 @@ export function VideoPlaybackProvider({ children }: { children: ReactNode }) {
 
     const newSession: PlaybackSession = {
       session_id: generateSessionId(),
-      user_id: null, // Will be set from auth context
+      user_id: null,
       start_video_id: videoId,
       context_type: contextType,
       context_id: contextId || null,
@@ -444,58 +467,40 @@ export function VideoPlaybackProvider({ children }: { children: ReactNode }) {
   // Check if a video can be played (anti-repeat)
   const canPlayVideo = useCallback((videoId: string): boolean => {
     if (!session) return true;
-    
-    // Never repeat the immediately previous video
     if (session.history.length > 0 && session.history[session.history.length - 1] === videoId) {
       return false;
     }
-    
-    // Check if video is in recent history
     const recentHistory = session.history.slice(-HISTORY_LIMIT);
     if (recentHistory.includes(videoId)) {
-      // Only allow if all eligible videos have been exhausted
       const eligibleVideos = session.queue.filter(v => !recentHistory.includes(v.id));
-      if (eligibleVideos.length > 0) {
-        return false;
-      }
-      // All videos exhausted, check exhausted pool
-      if (exhaustedPoolRef.current.has(videoId)) {
-        return false;
-      }
+      if (eligibleVideos.length > 0) return false;
+      if (exhaustedPoolRef.current.has(videoId)) return false;
     }
-    
     return true;
   }, [session]);
 
-  // Get next video based on context and anti-repeat rules
+  // Get next video
   const nextVideo = useCallback((): VideoItem | null => {
     if (!session || session.queue.length === 0) return null;
 
-    // Handle repeat one
-    if (session.repeat === "one") {
-      return currentVideo;
-    }
+    if (session.repeat === "one") return currentVideo;
 
     let nextIdx: number;
     let nextVid: VideoItem | null = null;
 
     if (session.shuffle) {
-      // Shuffle mode: find a random unplayed video
       const recentHistory = session.history.slice(-HISTORY_LIMIT);
       let candidates = session.queue.filter(v => 
         v.id !== currentVideo?.id && !recentHistory.includes(v.id)
       );
-      
-      // If all exhausted, reset (but avoid immediate repeat)
       if (candidates.length === 0) {
         if (session.repeat === "all") {
           candidates = session.queue.filter(v => v.id !== currentVideo?.id);
           exhaustedPoolRef.current.clear();
         } else {
-          return null; // End of queue
+          return null;
         }
       }
-      
       if (candidates.length > 0) {
         nextVid = candidates[Math.floor(Math.random() * candidates.length)];
         nextIdx = session.queue.findIndex(v => v.id === nextVid!.id);
@@ -503,22 +508,16 @@ export function VideoPlaybackProvider({ children }: { children: ReactNode }) {
         return null;
       }
     } else {
-      // Sequential mode
       nextIdx = session.current_index + 1;
-      
       if (nextIdx >= session.queue.length) {
         if (session.repeat === "all") {
           nextIdx = 0;
         } else {
-          return null; // End of queue
+          return null;
         }
       }
-      
       nextVid = session.queue[nextIdx];
-      
-      // Anti-repeat check
       if (!canPlayVideo(nextVid.id)) {
-        // Find next eligible video
         for (let i = 1; i <= session.queue.length; i++) {
           const checkIdx = (session.current_index + i) % session.queue.length;
           if (canPlayVideo(session.queue[checkIdx].id)) {
@@ -533,13 +532,8 @@ export function VideoPlaybackProvider({ children }: { children: ReactNode }) {
     if (nextVid) {
       setSession(prev => {
         if (!prev) return null;
-        const newHistory = [...prev.history, nextVid!.id].slice(-50); // Keep last 50
-        return {
-          ...prev,
-          current_index: nextIdx,
-          history: newHistory,
-          position_ms: 0,
-        };
+        const newHistory = [...prev.history, nextVid!.id].slice(-50);
+        return { ...prev, current_index: nextIdx, history: newHistory, position_ms: 0 };
       });
       setCurrentVideo(nextVid);
     }
@@ -547,59 +541,38 @@ export function VideoPlaybackProvider({ children }: { children: ReactNode }) {
     return nextVid;
   }, [session, currentVideo, canPlayVideo]);
 
-  // Get previous video from history
+  // Get previous video
   const previousVideo = useCallback((): VideoItem | null => {
     if (!session || session.history.length < 2) return null;
-
     const prevVideoId = session.history[session.history.length - 2];
     const prevVid = session.queue.find(v => v.id === prevVideoId);
-    
     if (prevVid) {
       const prevIdx = session.queue.findIndex(v => v.id === prevVideoId);
       setSession(prev => {
         if (!prev) return null;
-        return {
-          ...prev,
-          current_index: prevIdx,
-          history: prev.history.slice(0, -1),
-          position_ms: 0,
-        };
+        return { ...prev, current_index: prevIdx, history: prev.history.slice(0, -1), position_ms: 0 };
       });
       setCurrentVideo(prevVid);
     }
-
     return prevVid || null;
   }, [session]);
 
-  // Skip to specific video in queue
+  // Skip to specific video
   const skipToVideo = useCallback((videoId: string) => {
     if (!session) return;
-
     const idx = session.queue.findIndex(v => v.id === videoId);
     if (idx === -1) return;
-
     const video = session.queue[idx];
     setSession(prev => {
       if (!prev) return null;
-      return {
-        ...prev,
-        current_index: idx,
-        history: [...prev.history, videoId].slice(-50),
-        position_ms: 0,
-      };
+      return { ...prev, current_index: idx, history: [...prev.history, videoId].slice(-50), position_ms: 0 };
     });
     setCurrentVideo(video);
   }, [session]);
 
   // Queue management
   const addToQueue = useCallback((video: VideoItem) => {
-    setSession(prev => {
-      if (!prev) return null;
-      return {
-        ...prev,
-        queue: [...prev.queue, video],
-      };
-    });
+    setSession(prev => prev ? { ...prev, queue: [...prev.queue, video] } : null);
   }, []);
 
   const removeFromQueue = useCallback((videoId: string) => {
@@ -607,18 +580,9 @@ export function VideoPlaybackProvider({ children }: { children: ReactNode }) {
       if (!prev) return null;
       const newQueue = prev.queue.filter(v => v.id !== videoId);
       let newIndex = prev.current_index;
-      
-      // Adjust index if removed video was before current
       const removedIdx = prev.queue.findIndex(v => v.id === videoId);
-      if (removedIdx < prev.current_index) {
-        newIndex = Math.max(0, newIndex - 1);
-      }
-      
-      return {
-        ...prev,
-        queue: newQueue,
-        current_index: newIndex,
-      };
+      if (removedIdx < prev.current_index) newIndex = Math.max(0, newIndex - 1);
+      return { ...prev, queue: newQueue, current_index: newIndex };
     });
   }, []);
 
@@ -628,22 +592,11 @@ export function VideoPlaybackProvider({ children }: { children: ReactNode }) {
       const newQueue = [...prev.queue];
       const [removed] = newQueue.splice(fromIndex, 1);
       newQueue.splice(toIndex, 0, removed);
-      
-      // Adjust current index
       let newIndex = prev.current_index;
-      if (fromIndex === prev.current_index) {
-        newIndex = toIndex;
-      } else if (fromIndex < prev.current_index && toIndex >= prev.current_index) {
-        newIndex = prev.current_index - 1;
-      } else if (fromIndex > prev.current_index && toIndex <= prev.current_index) {
-        newIndex = prev.current_index + 1;
-      }
-      
-      return {
-        ...prev,
-        queue: newQueue,
-        current_index: newIndex,
-      };
+      if (fromIndex === prev.current_index) newIndex = toIndex;
+      else if (fromIndex < prev.current_index && toIndex >= prev.current_index) newIndex--;
+      else if (fromIndex > prev.current_index && toIndex <= prev.current_index) newIndex++;
+      return { ...prev, queue: newQueue, current_index: newIndex };
     });
   }, []);
 
@@ -654,21 +607,17 @@ export function VideoPlaybackProvider({ children }: { children: ReactNode }) {
 
   const setShuffle = useCallback((enabled: boolean) => {
     setSession(prev => prev ? { ...prev, shuffle: enabled } : null);
-    if (enabled) {
-      exhaustedPoolRef.current.clear();
-    }
+    if (enabled) exhaustedPoolRef.current.clear();
   }, []);
 
   const setRepeat = useCallback((mode: "off" | "all" | "one") => {
     setSession(prev => prev ? { ...prev, repeat: mode } : null);
   }, []);
 
-  // Progress tracking
   const updateProgress = useCallback((positionMs: number) => {
     setSession(prev => prev ? { ...prev, position_ms: positionMs } : null);
   }, []);
 
-  // Resume session
   const resumeSession = useCallback(() => {
     const savedSession = localStorage.getItem(SESSION_STORAGE_KEY);
     if (savedSession) {
@@ -680,7 +629,6 @@ export function VideoPlaybackProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Clear session
   const clearSession = useCallback(() => {
     setSession(null);
     setCurrentVideo(null);
@@ -688,19 +636,14 @@ export function VideoPlaybackProvider({ children }: { children: ReactNode }) {
     exhaustedPoolRef.current.clear();
   }, []);
 
-  // Get up next videos
   const getUpNext = useCallback((count: number = 5): VideoItem[] => {
     if (!session) return [];
-    
     const upNextVideos: VideoItem[] = [];
     let idx = session.current_index + 1;
-    
     while (upNextVideos.length < count && idx < session.queue.length) {
       upNextVideos.push(session.queue[idx]);
       idx++;
     }
-    
-    // If repeat all and not enough, wrap around
     if (session.repeat === "all" && upNextVideos.length < count) {
       idx = 0;
       while (upNextVideos.length < count && idx < session.current_index) {
@@ -708,31 +651,19 @@ export function VideoPlaybackProvider({ children }: { children: ReactNode }) {
         idx++;
       }
     }
-    
     return upNextVideos;
   }, [session]);
 
   return (
     <VideoPlaybackContext.Provider
       value={{
-        session,
-        currentVideo,
+        session, currentVideo,
         isAutoplayEnabled: session?.autoplay ?? true,
-        createSession,
-        resumeSession,
-        clearSession,
-        nextVideo,
-        previousVideo,
-        skipToVideo,
-        addToQueue,
-        removeFromQueue,
-        reorderQueue,
-        setAutoplay,
-        setShuffle,
-        setRepeat,
-        updateProgress,
-        getUpNext,
-        canPlayVideo,
+        createSession, resumeSession, clearSession,
+        nextVideo, previousVideo, skipToVideo,
+        addToQueue, removeFromQueue, reorderQueue,
+        setAutoplay, setShuffle, setRepeat,
+        updateProgress, getUpNext, canPlayVideo,
       }}
     >
       {children}
