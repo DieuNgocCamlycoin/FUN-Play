@@ -1,97 +1,121 @@
 
-
-## Sua 4 loi Social Media Orbit + Toi uu Mobile & Edge Function
+## Sua Social Media Orbit: Dung xoay khi hover, mau vien #00E7FF, avatar proxy, don dep code
 
 ### Tong quan
-
-Sua 4 loi trong he thong Social Media Orbit: (1) vong tron khong cach deu, (2) avatar chi hien YouTube, (3) tooltip thieu link, (4) mobile touch khong hien tooltip. Dong thoi toi uu edge function de loc favicon/logo chung.
+4 thay doi chinh: (1) dung orbit khi hover/tap de tooltip co dinh, (2) mau vien thong nhat #00E7FF, (3) edge function dung unavatar.io proxy de lay avatar tu cac nen tang bi chan, (4) don dep code thua.
 
 ---
 
-### Thay doi 1: SocialMediaOrbit.tsx - Sua cong thuc goc 360/count
+### Thay doi 1: SocialMediaOrbit.tsx - Dung xoay khi hover + mau vien + don dep
 
-**Van de hien tai:** Dung `startAngle=30, endAngle=330` chia 300 do, tao khoang trong khong deu o dinh.
+**A. Dung orbit khi hover/tap:**
 
-**Giai phap:** Chia deu 360 do, bat dau tu vi tri 12h (270 do):
-- 1 vong tron: dat tai 270 do (dinh 12h)
-- 2 vong tron: 270 do va 90 do (doi xung doc)
-- 3+ vong tron: 360/count, offset nua buoc tu 270 do de tranh diamond badge
+Them class `group` vao container orbit, va them CSS rule trong `index.css` de pause animation khi hover:
 
-```typescript
-const count = activePlatforms.length;
-const step = 360 / count;
-// 1 item: dat tai 12h (270). 2+ items: offset nua buoc tu 12h de tranh diamond
-const baseAngle = count === 1 ? 270 : (count === 2 ? 225 : 270 + step / 2);
-// ...
-const angle = baseAngle + step * index;
+```css
+/* index.css - them vao sau @keyframes orbit-counter-spin */
+.orbit-container:hover {
+  animation-play-state: paused !important;
+}
+.orbit-container:hover .orbit-item {
+  animation-play-state: paused !important;
+}
 ```
 
-Ket qua:
-- 1 vong: 270 do (12h chinh xac)
-- 2 vong: 225 do va 315 do (doi xung qua truc doc, ne diamond)
-- 4 vong: 315, 45, 135, 225 (can doi 4 goc)
-- 9 vong: cach deu 40 do
-
----
-
-### Thay doi 2: SocialMediaOrbit.tsx - Tooltip hien link + ho tro mobile tap
-
-**Van de:** Tooltip chi hien ten nen tang, mobile khong hover duoc.
-
-**Giai phap:**
-- Them URL vao tooltip content
-- Dung `delayDuration={0}` de tap tren mobile mo tooltip ngay
-- Link trong tooltip co padding du lon (min 44px touch target)
-- Tooltip co `max-w-[280px]` va truncate URL dai
-
+Thay class cua container tu arbitrary animate thanh class co ten:
 ```typescript
-<TooltipContent side="bottom" className="text-xs max-w-[280px] p-2">
-  <div className="font-semibold">{platform.label}</div>
-  <div className="text-muted-foreground truncate text-[10px] mt-0.5 min-h-[20px]">
-    {urls[platform.key]}
-  </div>
-</TooltipContent>
+className="absolute inset-0 orbit-container animate-[orbit-spin_25s_linear_infinite]"
 ```
 
+Them class `orbit-item` vao moi vong tron nho de dong bo pause.
+
+**B. Mau vien dong nhat #00E7FF:**
+
+Thay dong 121-125:
+```typescript
+// Cu: border: `3px solid ${platform.color}`
+// Moi:
+border: "3px solid #00E7FF",
+boxShadow: "0 0 8px #00E7FF40",
+```
+
+Icon ben trong VAN giu `platform.color` de nhan dien nen tang (dong 131).
+
+**C. Don dep:**
+
+Trong mang `platforms` (dong 53-63), truong `color` van can thiet cho icon ben trong va OrbitImage fallback. Khong xoa duoc vi van dung o dong 129 va 131. Tuy nhien, co the xoa `platform.color` khoi style border/boxShadow vi da hardcode `#00E7FF`.
+
 ---
 
-### Thay doi 3: fetch-social-avatar/index.ts - Loc favicon va anh nho
+### Thay doi 2: index.css - Them CSS hover pause
 
-**Van de:** Edge function luu favicon (16x16px) va logo chung lam "avatar", hien thi xau tren UI.
+Them sau dong 793:
+```css
+/* Pause orbit on hover/tap for stable tooltips */
+.orbit-container:hover {
+  animation-play-state: paused !important;
+}
+.orbit-container:hover .orbit-item {
+  animation-play-state: paused !important;
+}
+```
 
-**Giai phap:**
+Uu diem: CSS hover tuong thich voi mobile touch event (tap giu), va `animation-play-state: paused` giu vi tri hien tai thay vi reset ve 0.
 
-1. Them ham `isJunkImage()` kiem tra URL pattern:
-   - Chua "favicon" hoac ket thuc ".ico"
-   - Chua "/img/t_logo" (Telegram logo chung)
-   - Chua "static/images/logo" (generic logos)
+---
 
-2. Xoa hoan toan `platformFavicons` map - KHONG bao gio luu favicon lam avatar. Khi khong co og:image that, tra ve `null` de frontend hien icon nen tang.
+### Thay doi 3: fetch-social-avatar/index.ts - Dung unavatar.io proxy
 
-3. Logic moi:
+**Van de:** Facebook, Telegram, Fun Profile chan scraping og:image. Can mot proxy de lay avatar.
+
+**Giai phap:** Dung `unavatar.io` - dich vu mien phi lay avatar tu nhieu nen tang. Truoc khi scrape truc tiep, thu lay tu unavatar truoc:
+
+Logic moi:
 ```typescript
-function isJunkImage(url: string): boolean {
-  const lower = url.toLowerCase();
-  return lower.includes("favicon") ||
-         lower.endsWith(".ico") ||
-         lower.includes("/img/t_logo") ||
-         lower.includes("static/images/logo") ||
-         lower.includes("default_profile") ||
-         lower.includes("placeholder");
+// Trich username tu URL
+function extractUsername(platform: string, url: string): string | null {
+  try {
+    const u = new URL(url);
+    const path = u.pathname.replace(/\/$/, "").split("/").pop();
+    return path && path.length > 0 ? path : null;
+  } catch { return null; }
 }
 
-// Trong vong lap xu ly:
-const ogImage = extractOgImage(html);
-avatars[platform] = ogImage && !isJunkImage(ogImage) ? ogImage : null;
+// Thu unavatar truoc, roi fallback ve scrape og:image
+async function fetchAvatar(platform: string, url: string): Promise<string | null> {
+  const username = extractUsername(platform, url);
+  
+  // Map platform key to unavatar source
+  const unavatarMap: Record<string, string> = {
+    facebook: "facebook",
+    twitter: "twitter", 
+    youtube: "youtube",
+    telegram: "telegram",
+    tiktok: "tiktok",
+    linkedin: "linkedin",
+    github: "github",
+  };
+  
+  // Try unavatar.io first (fast, reliable proxy)
+  if (username && unavatarMap[platform]) {
+    const unavatarUrl = `https://unavatar.io/${unavatarMap[platform]}/${username}`;
+    try {
+      const res = await fetch(unavatarUrl, { method: "HEAD", redirect: "follow" });
+      if (res.ok && res.headers.get("content-type")?.startsWith("image/")) {
+        return unavatarUrl;
+      }
+    } catch {}
+  }
+  
+  // Fallback: scrape og:image from URL
+  // ... (giu logic hien tai)
+}
 ```
 
-Luu y: Kiem tra kich thuoc anh (64x64) trong edge function khong kha thi vi can tai anh ve va decode - ton thoi gian va tai nguyen. Thay vao do, loc bang URL pattern da du hieu qua (favicon, .ico, logo chung).
-
----
-
-### Thay doi 4: Xac nhan funplay_url
-
-Kiem tra database cho thay `funplay_url` cua user `angelthuha` dang la `null`. User co the da nhap link nhung chua nhan Luu. Day KHONG phai loi code - chi can user nhap lai va nhan Luu. Code luu funplay_url tai `ProfileSettings.tsx` dong 402 da dung.
+Cach nay:
+- Facebook, Twitter, Telegram: unavatar.io lay avatar thanh cong
+- YouTube: van dung og:image (da hoat dong)
+- AngelAI, FunPlay: khong co trong unavatar -> fallback ve og:image scrape -> neu khong co thi tra ve null -> hien icon thuong hieu
 
 ---
 
@@ -99,6 +123,13 @@ Kiem tra database cho thay `funplay_url` cua user `angelthuha` dang la `null`. U
 
 | STT | File | Thao tac |
 |-----|------|----------|
-| 1 | `src/components/Profile/SocialMediaOrbit.tsx` | SUA - cong thuc goc 360/count, tooltip voi URL, mobile touch |
-| 2 | `supabase/functions/fetch-social-avatar/index.ts` | SUA - loc favicon/logo, xoa platformFavicons, chi luu avatar that |
+| 1 | `src/components/Profile/SocialMediaOrbit.tsx` | SUA - them orbit-container/orbit-item class, border #00E7FF, don dep |
+| 2 | `src/index.css` | SUA - them CSS hover pause cho orbit |
+| 3 | `supabase/functions/fetch-social-avatar/index.ts` | SUA - them unavatar.io proxy, giu fallback og:image |
 
+### Luu y tuong thich
+
+- **Web**: Hover vao vong tron -> orbit dung -> tooltip co dinh
+- **Mobile**: Touch/tap -> CSS :hover trigger tuong tu -> orbit dung -> tooltip hien
+- `delayDuration={0}` da co tu truoc -> tooltip hien ngay khi tap
+- `max-w-[280px]` va `truncate` bao ve layout tren mobile
