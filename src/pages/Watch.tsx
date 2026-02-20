@@ -57,16 +57,6 @@ interface Video {
   };
 }
 
-interface RecommendedVideo {
-  id: string;
-  title: string;
-  thumbnail_url: string | null;
-  view_count: number | null;
-  created_at: string;
-  channels: {
-    name: string;
-  };
-}
 
 export default function Watch({ videoIdProp }: { videoIdProp?: string }) {
   const { id: paramId } = useParams();
@@ -75,7 +65,7 @@ export default function Watch({ videoIdProp }: { videoIdProp?: string }) {
   const [channelAvatarUrl, setChannelAvatarUrl] = useState<string | null>(null);
   const [channelUsername, setChannelUsername] = useState<string | null>(null);
   const [video, setVideo] = useState<Video | null>(null);
-  const [recommendedVideos, setRecommendedVideos] = useState<RecommendedVideo[]>([]);
+  const [recommendedVideos, setRecommendedVideos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [donateModalOpen, setDonateModalOpen] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
@@ -162,7 +152,6 @@ export default function Watch({ videoIdProp }: { videoIdProp?: string }) {
   useEffect(() => {
     if (id) {
       fetchVideo();
-      fetchRecommendedVideos();
     }
   }, [id]);
 
@@ -299,65 +288,6 @@ export default function Watch({ videoIdProp }: { videoIdProp?: string }) {
     }
   };
 
-  const fetchRecommendedVideos = async () => {
-    try {
-      // Fetch popular approved videos with channel diversity
-      const { data, error } = await supabase
-        .from("videos")
-        .select(`
-          id,
-          title,
-          thumbnail_url,
-          view_count,
-          created_at,
-          channel_id,
-          channels (
-            name,
-            is_verified
-          )
-        `)
-        .eq("is_public", true)
-        .eq("approval_status", "approved")
-        .or('is_hidden.is.null,is_hidden.eq.false')
-        .neq("id", id)
-        .order("view_count", { ascending: false })
-        .limit(50);
-
-      if (error) throw error;
-      
-      if (data && data.length > 0) {
-        // Apply channel diversity: ensure at least 5 different channels
-        const channelMap = new Map<string, typeof data>();
-        const diverseResults: typeof data = [];
-        
-        for (const video of data) {
-          const chId = (video as any).channel_id || 'unknown';
-          if (!channelMap.has(chId)) channelMap.set(chId, []);
-          channelMap.get(chId)!.push(video);
-        }
-        
-        // Round-robin from channels to ensure diversity
-        let added = 0;
-        const channels = Array.from(channelMap.values());
-        let round = 0;
-        while (added < 20 && channels.some(ch => ch.length > round)) {
-          for (const ch of channels) {
-            if (ch.length > round && added < 20) {
-              diverseResults.push(ch[round]);
-              added++;
-            }
-          }
-          round++;
-        }
-        
-        setRecommendedVideos(diverseResults);
-      } else {
-        setRecommendedVideos([]);
-      }
-    } catch (error: any) {
-      console.error("Error loading recommended videos:", error);
-    }
-  };
 
   const handleVideoEnd = () => {
     if (!isAutoplayEnabled) return;

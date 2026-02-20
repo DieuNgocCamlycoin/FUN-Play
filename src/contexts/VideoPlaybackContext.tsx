@@ -117,32 +117,55 @@ export function VideoPlaybackProvider({ children }: { children: ReactNode }) {
     return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   };
 
-  // Apply channel diversity: no more than 2 consecutive videos from same channel
+  const MAX_PER_CHANNEL = 3;
+
+  // Apply channel diversity: no more than 2 consecutive + max 3 per channel total
   const applyChannelDiversity = (videos: VideoItem[]): VideoItem[] => {
     if (videos.length <= 2) return videos;
     
     const result: VideoItem[] = [];
     const remaining = [...videos];
+    const channelCounts = new Map<string, number>();
     
     while (remaining.length > 0) {
-      // Find next video that doesn't violate diversity rule
       let found = false;
       for (let i = 0; i < remaining.length; i++) {
         const video = remaining[i];
+        const chId = video.channel_id || 'unknown';
+        
+        // Skip if channel already has MAX_PER_CHANNEL videos
+        if ((channelCounts.get(chId) || 0) >= MAX_PER_CHANNEL) {
+          continue;
+        }
+        
+        // Check consecutive rule (no more than 2 in a row from same channel)
         const lastTwo = result.slice(-2);
-        const sameChannelCount = lastTwo.filter(v => v.channel_id === video.channel_id).length;
+        const sameChannelCount = lastTwo.filter(v => v.channel_id === chId).length;
         
         if (sameChannelCount < 2) {
           result.push(video);
           remaining.splice(i, 1);
+          channelCounts.set(chId, (channelCounts.get(chId) || 0) + 1);
           found = true;
           break;
         }
       }
       
-      // If no valid candidate found, just add next one
+      // If no valid candidate found, try any remaining that hasn't hit cap
       if (!found) {
-        result.push(remaining.shift()!);
+        const idx = remaining.findIndex(v => {
+          const chId = v.channel_id || 'unknown';
+          return (channelCounts.get(chId) || 0) < MAX_PER_CHANNEL;
+        });
+        if (idx !== -1) {
+          const video = remaining[idx];
+          result.push(video);
+          const chId = video.channel_id || 'unknown';
+          channelCounts.set(chId, (channelCounts.get(chId) || 0) + 1);
+          remaining.splice(idx, 1);
+        } else {
+          break; // All remaining videos are from channels at cap
+        }
       }
     }
     
@@ -170,109 +193,94 @@ export function VideoPlaybackProvider({ children }: { children: ReactNode }) {
       .or("is_hidden.is.null,is_hidden.eq.false");
   };
 
-  // Fetch related videos for queue generation
+  // Round-robin: pick 1 video from each channel in rotation
+  const roundRobinSelect = (channelGroups: Map<string, VideoItem[]>, maxTotal: number): VideoItem[] => {
+    const result: VideoItem[] = [];
+    const channels = Array.from(channelGroups.entries());
+    let round = 0;
+    
+    while (result.length < maxTotal) {
+      let addedThisRound = false;
+      for (const [, videos] of channels) {
+        if (round < videos.length && result.length < maxTotal) {
+          result.push(videos[round]);
+          addedThisRound = true;
+        }
+      }
+      if (!addedThisRound) break;
+      round++;
+    }
+    
+    return result;
+  };
+
+  // Fetch related videos with true channel diversity
   const fetchRelatedVideos = async (
     currentVideoId: string,
     category: string | null,
     channelId: string | null,
     excludeIds: string[]
   ): Promise<VideoItem[]> => {
-    const results: VideoItem[] = [];
     const seenIds = new Set([currentVideoId, ...excludeIds]);
     
-    const addResults = (videos: any[]) => {
-      for (const v of videos) {
-        if (!seenIds.has(v.id)) {
-          seenIds.add(v.id);
-          results.push(mapVideoItem(v));
+    // Single query: fetch top 80 approved videos sorted by views
+    const q = supabase
+      .from("videos")
+      .select(`
+        id, title, thumbnail_url, video_url, duration, view_count, category,
+        channels!inner (id, name, is_verified)
+      `)
+      .not("id", "in", `(${[...seenIds].join(",")})`)
+      .order("view_count", { ascending: false })
+      .limit(80);
+    
+    const { data: allVideos } = await applyBaseFilters(q);
+    if (!allVideos || allVideos.length === 0) return [];
+    
+    // Map to VideoItem and group by channel
+    const channelGroups = new Map<string, VideoItem[]>();
+    
+    for (const v of allVideos) {
+      const item = mapVideoItem(v);
+      const chId = item.channel_id || 'unknown';
+      if (!channelGroups.has(chId)) channelGroups.set(chId, []);
+      // Each channel keeps max MAX_PER_CHANNEL videos (already sorted by views)
+      if (channelGroups.get(chId)!.length < MAX_PER_CHANNEL) {
+        channelGroups.get(chId)!.push(item);
+      }
+    }
+    
+    // Prioritize same-category videos by putting their channels first
+    if (category) {
+      const sameCategoryChannels = new Set<string>();
+      for (const v of allVideos) {
+        if (v.category === category) {
+          const chId = (v.channels as any)?.id || 'unknown';
+          sameCategoryChannels.add(chId);
         }
       }
-    };
-
-    // 1. Videos from same category (prioritize verified channels & high views)
-    if (category) {
-      const q = supabase
-        .from("videos")
-        .select(`
-          id, title, thumbnail_url, video_url, duration, view_count, category,
-          channels!inner (id, name, is_verified)
-        `)
-        .eq("category", category)
-        .not("id", "in", `(${[...seenIds].join(",")})`)
-        .order("view_count", { ascending: false })
-        .limit(15);
       
-      const { data: categoryVideos } = await applyBaseFilters(q);
-      if (categoryVideos) addResults(categoryVideos);
-    }
-
-    // 2. Videos from same channel (limit to 5 to ensure diversity)
-    if (channelId && results.length < 20) {
-      const q = supabase
-        .from("videos")
-        .select(`
-          id, title, thumbnail_url, video_url, duration, view_count, category,
-          channels!inner (id, name, is_verified)
-        `)
-        .eq("channel_id", channelId)
-        .not("id", "in", `(${[...seenIds].join(",")})`)
-        .order("created_at", { ascending: false })
-        .limit(5);
-      
-      const { data: channelVideos } = await applyBaseFilters(q);
-      if (channelVideos) addResults(channelVideos);
-    }
-
-    // 3. Trending videos from verified channels
-    if (results.length < 25) {
-      const q = supabase
-        .from("videos")
-        .select(`
-          id, title, thumbnail_url, video_url, duration, view_count, category,
-          channels!inner (id, name, is_verified)
-        `)
-        .eq("channels.is_verified", true)
-        .not("id", "in", `(${[...seenIds].join(",")})`)
-        .order("view_count", { ascending: false })
-        .limit(15);
-      
-      const { data: verifiedVideos } = await applyBaseFilters(q);
-      if (verifiedVideos) addResults(verifiedVideos);
-    }
-
-    // 4. Fallback: popular videos for diversity
-    if (results.length < 30) {
-      const q = supabase
-        .from("videos")
-        .select(`
-          id, title, thumbnail_url, video_url, duration, view_count, category,
-          channels!inner (id, name, is_verified)
-        `)
-        .not("id", "in", `(${[...seenIds].join(",")})`)
-        .order("view_count", { ascending: false })
-        .limit(30 - results.length);
-      
-      const { data: trendingVideos } = await applyBaseFilters(q);
-      if (trendingVideos) addResults(trendingVideos);
-    }
-
-    // Apply channel diversity and controlled randomization
-    const diversified = applyChannelDiversity(results);
-    
-    // Ensure at least 5 unique channels if possible
-    const channelSet = new Set(diversified.map(v => v.channel_id).filter(Boolean));
-    if (channelSet.size < 5 && diversified.length > 5) {
-      // Shuffle middle section to increase variety
-      const first3 = diversified.slice(0, 3);
-      const rest = diversified.slice(3);
-      for (let i = rest.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [rest[i], rest[j]] = [rest[j], rest[i]];
+      // Reorder: same-category channels first, then others
+      const prioritized = new Map<string, VideoItem[]>();
+      for (const chId of sameCategoryChannels) {
+        if (channelGroups.has(chId)) {
+          prioritized.set(chId, channelGroups.get(chId)!);
+        }
       }
-      return [...first3, ...rest];
+      for (const [chId, videos] of channelGroups) {
+        if (!prioritized.has(chId)) {
+          prioritized.set(chId, videos);
+        }
+      }
+      
+      // Round-robin from prioritized channels
+      const selected = roundRobinSelect(prioritized, 30);
+      return applyChannelDiversity(selected);
     }
-
-    return diversified;
+    
+    // Default: round-robin from all channels
+    const selected = roundRobinSelect(channelGroups, 30);
+    return applyChannelDiversity(selected);
   };
 
   // Fetch playlist videos
