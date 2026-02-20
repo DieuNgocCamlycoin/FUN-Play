@@ -302,12 +302,15 @@ export default function Watch({ videoIdProp }: { videoIdProp?: string }) {
     }
   };
 
-  // Initialize playback session when video loads
+  // Initialize playback session when video loads - ALWAYS recreate on video change
   useEffect(() => {
-    if (video && id && !session) {
-      createSession(id, "RELATED", video.channels?.id);
+    if (video && id) {
+      // Always create fresh session when video changes
+      if (!session || session.start_video_id !== id) {
+        createSession(id, "RELATED", video.channels?.id);
+      }
     }
-  }, [video?.id]);
+  }, [video?.id, id]);
 
   // Enable global playback when navigating away while video is playing
   useEffect(() => {
