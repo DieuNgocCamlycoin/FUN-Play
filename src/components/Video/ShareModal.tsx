@@ -27,9 +27,14 @@ import {
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useAutoReward } from "@/hooks/useAutoReward";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { PRODUCTION_URL, copyToClipboard as sharedCopyToClipboard } from "@/lib/shareUtils";
+
+// Shared styles - CSS native transitions instead of framer-motion
+const socialBtnClass = "flex flex-col items-center gap-2 min-w-[70px] group transition-transform duration-150 hover:scale-105 active:scale-95";
+const socialIconClass = "w-14 h-14 rounded-full flex items-center justify-center shadow-md";
+const socialLabelClass = "text-xs text-foreground/80 group-hover:text-foreground";
 
 // TikTok SVG Icon
 const TikTokIcon = () => (
@@ -56,10 +61,8 @@ interface ShareModalProps {
   thumbnailUrl?: string;
   channelName?: string;
   userId?: string;
-  // Clean URL props for video sharing
   username?: string;
   slug?: string;
-  // Legacy props for backward compatibility
   videoId?: string;
   videoTitle?: string;
 }
@@ -75,7 +78,6 @@ export const ShareModal = ({
   userId,
   username,
   slug,
-  // Legacy props
   videoId,
   videoTitle,
 }: ShareModalProps) => {
@@ -85,7 +87,6 @@ export const ShareModal = ({
   const [showCopySuccess, setShowCopySuccess] = useState(false);
   const { toast } = useToast();
   
-  // Support legacy props
   const id = contentId || videoId || '';
   const title = contentTitle || videoTitle || '';
   
@@ -94,7 +95,6 @@ export const ShareModal = ({
     const baseUrl = PRODUCTION_URL;
     switch (contentType) {
       case 'video':
-        // Use clean URL if username + slug available
         if (username && slug) {
           return `${baseUrl}/${username}/video/${slug}`;
         }
@@ -150,7 +150,6 @@ export const ShareModal = ({
     if (!id || hasShared) return;
     setHasShared(true);
     try {
-      // Always get userId from auth session - don't rely on prop
       const { supabase } = await import('@/integrations/supabase/client');
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -173,7 +172,6 @@ export const ShareModal = ({
     }
   };
 
-  // Use shared clipboard utility
   const copyToClipboard = sharedCopyToClipboard;
 
   const handleCopyLink = async () => {
@@ -198,7 +196,6 @@ export const ShareModal = ({
     }
   };
 
-  // Native Web Share API
   const handleNativeShare = async () => {
     if (navigator.share) {
       try {
@@ -213,7 +210,6 @@ export const ShareModal = ({
           description: "Cảm ơn bạn đã lan tỏa ánh sáng",
         });
       } catch (err) {
-        // User cancelled or error
         if ((err as Error).name !== 'AbortError') {
           console.error('Share failed:', err);
         }
@@ -223,8 +219,6 @@ export const ShareModal = ({
 
   const handleShare = async (platform: string) => {
     awardShare();
-    // Use prerender URL for ALL social media platforms (for proper OG meta tags)
-    // Bots from Telegram, WhatsApp, Zalo, Facebook, etc. all need OG tags
     const usePrerenderUrl = ['facebook', 'twitter', 'linkedin', 'messenger', 'telegram', 'whatsapp', 'zalo'].includes(platform);
     const urlToShare = usePrerenderUrl ? prerenderUrl : shareUrl;
     const encodedUrl = encodeURIComponent(urlToShare);
@@ -249,7 +243,6 @@ export const ShareModal = ({
         shareLink = `https://zalo.me/share?url=${encodedUrl}`;
         break;
       case "tiktok":
-        // TikTok doesn't have a direct share URL, copy link instead
         const tiktokCopySuccess = await copyToClipboard(shareUrl);
         if (tiktokCopySuccess) {
           toast({
@@ -289,10 +282,7 @@ export const ShareModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg glass-card border-2 border-cosmic-cyan/30 overflow-hidden">
-        {/* Animated background - pointer-events-none to not block clicks */}
-        <div className="absolute inset-0 bg-gradient-to-br from-cosmic-cyan/5 via-transparent to-cosmic-magenta/5 pointer-events-none -z-10" />
-        
+      <DialogContent className="sm:max-w-lg bg-background/95 backdrop-blur-sm border border-border rounded-xl overflow-hidden">
         <DialogHeader>
           <DialogTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
             <Share2 className="w-5 h-5 text-cosmic-cyan" />
@@ -304,13 +294,9 @@ export const ShareModal = ({
         </DialogHeader>
 
         <div className="space-y-6 relative">
-          {/* Content Preview */}
+          {/* Content Preview - CSS fade-in instead of motion.div */}
           {(thumbnailUrl || title) && (
-            <motion.div 
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg border border-border/50"
-            >
+            <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg border border-border/50 animate-fade-in">
               {thumbnailUrl ? (
                 <img 
                   src={thumbnailUrl} 
@@ -328,7 +314,7 @@ export const ShareModal = ({
                   <p className="text-sm text-muted-foreground">{channelName}</p>
                 )}
               </div>
-            </motion.div>
+            </div>
           )}
 
           {/* Copy Link Section */}
@@ -348,33 +334,12 @@ export const ShareModal = ({
                     : "bg-cosmic-cyan hover:bg-cosmic-cyan/90 shadow-[0_0_20px_rgba(0,231,255,0.4)]"
                 )}
               >
-                <AnimatePresence mode="wait">
-                  {copiedLink ? (
-                    <motion.div
-                      key="check"
-                      initial={{ scale: 0, rotate: -180 }}
-                      animate={{ scale: 1, rotate: 0 }}
-                      exit={{ scale: 0 }}
-                      transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                    >
-                      <Check className="w-4 h-4" />
-                    </motion.div>
-                  ) : (
-                    <motion.div
-                      key="copy"
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      exit={{ scale: 0 }}
-                    >
-                      <Copy className="w-4 h-4" />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                {copiedLink ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                 {copiedLink ? "Đã copy!" : "Sao chép"}
               </Button>
             </div>
 
-            {/* Copy Success Animation Overlay */}
+            {/* Copy Success Animation - reduced particles */}
             <AnimatePresence>
               {showCopySuccess && (
                 <motion.div
@@ -383,41 +348,35 @@ export const ShareModal = ({
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                 >
-                  {/* Pulse ring effect */}
+                  {/* Single pulse ring */}
                   <motion.div
                     className="absolute w-16 h-16 rounded-full border-4 border-green-400"
                     initial={{ scale: 0, opacity: 1 }}
                     animate={{ scale: 2.5, opacity: 0 }}
                     transition={{ duration: 0.7, ease: "easeOut" }}
                   />
-                  <motion.div
-                    className="absolute w-16 h-16 rounded-full border-4 border-cosmic-cyan"
-                    initial={{ scale: 0, opacity: 1 }}
-                    animate={{ scale: 2, opacity: 0 }}
-                    transition={{ duration: 0.6, ease: "easeOut", delay: 0.1 }}
-                  />
                   
-                  {/* Center check icon with glow */}
+                  {/* Center check icon */}
                   <motion.div
                     className="w-14 h-14 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center shadow-[0_0_30px_rgba(34,197,94,0.7)]"
-                    initial={{ scale: 0, rotate: -180 }}
-                    animate={{ scale: 1, rotate: 0 }}
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
                     exit={{ scale: 0, opacity: 0 }}
                     transition={{ type: "spring", stiffness: 300, damping: 20 }}
                   >
                     <Check className="w-7 h-7 text-white" strokeWidth={3} />
                   </motion.div>
                   
-                  {/* Floating particles */}
-                  {[...Array(8)].map((_, i) => (
+                  {/* Reduced floating particles: 8 -> 4 */}
+                  {[...Array(4)].map((_, i) => (
                     <motion.div
                       key={i}
                       className="absolute w-2 h-2 rounded-full bg-green-400"
                       initial={{ scale: 0, x: 0, y: 0, opacity: 1 }}
                       animate={{
                         scale: [0, 1.2, 0],
-                        x: Math.cos((i * 45 * Math.PI) / 180) * 50,
-                        y: Math.sin((i * 45 * Math.PI) / 180) * 50,
+                        x: Math.cos((i * 90 * Math.PI) / 180) * 50,
+                        y: Math.sin((i * 90 * Math.PI) / 180) * 50,
                         opacity: [1, 1, 0],
                       }}
                       transition={{ duration: 0.6, delay: 0.05 * i, ease: "easeOut" }}
@@ -440,156 +399,90 @@ export const ShareModal = ({
             </Button>
           )}
 
-          {/* Social Media Share Buttons */}
+          {/* Social Media Share Buttons - CSS native transitions */}
           <div className="space-y-3">
             <label className="text-sm font-medium text-foreground">Chia sẻ lên mạng xã hội</label>
             <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-hide">
-              {/* Facebook */}
-              <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => handleShare("facebook")}
-                className="flex flex-col items-center gap-2 min-w-[70px] group"
-              >
-                <div className="w-14 h-14 rounded-full bg-[#1877F2] flex items-center justify-center shadow-lg shadow-[#1877F2]/30">
+              <button onClick={() => handleShare("facebook")} className={socialBtnClass}>
+                <div className={cn(socialIconClass, "bg-[#1877F2]")}>
                   <Facebook className="h-6 w-6 text-white" />
                 </div>
-                <span className="text-xs text-foreground/80 group-hover:text-foreground">Facebook</span>
-              </motion.button>
-              
-              {/* Messenger */}
-              <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => handleShare("messenger")}
-                className="flex flex-col items-center gap-2 min-w-[70px] group"
-              >
-                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#00B2FF] to-[#006AFF] flex items-center justify-center shadow-lg shadow-[#006AFF]/30">
+                <span className={socialLabelClass}>Facebook</span>
+              </button>
+
+              <button onClick={() => handleShare("messenger")} className={socialBtnClass}>
+                <div className={cn(socialIconClass, "bg-gradient-to-br from-[#00B2FF] to-[#006AFF]")}>
                   <MessageSquare className="h-6 w-6 text-white" />
                 </div>
-                <span className="text-xs text-foreground/80 group-hover:text-foreground">Messenger</span>
-              </motion.button>
-              
-              {/* WhatsApp */}
-              <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => handleShare("whatsapp")}
-                className="flex flex-col items-center gap-2 min-w-[70px] group"
-              >
-                <div className="w-14 h-14 rounded-full bg-[#25D366] flex items-center justify-center shadow-lg shadow-[#25D366]/30">
+                <span className={socialLabelClass}>Messenger</span>
+              </button>
+
+              <button onClick={() => handleShare("whatsapp")} className={socialBtnClass}>
+                <div className={cn(socialIconClass, "bg-[#25D366]")}>
                   <MessageCircle className="h-6 w-6 text-white" />
                 </div>
-                <span className="text-xs text-foreground/80 group-hover:text-foreground">WhatsApp</span>
-              </motion.button>
+                <span className={socialLabelClass}>WhatsApp</span>
+              </button>
 
-              {/* X (Twitter) */}
-              <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => handleShare("twitter")}
-                className="flex flex-col items-center gap-2 min-w-[70px] group"
-              >
-                <div className="w-14 h-14 rounded-full bg-[#000000] flex items-center justify-center shadow-lg">
+              <button onClick={() => handleShare("twitter")} className={socialBtnClass}>
+                <div className={cn(socialIconClass, "bg-[#000000]")}>
                   <Twitter className="h-6 w-6 text-white" />
                 </div>
-                <span className="text-xs text-foreground/80 group-hover:text-foreground">X</span>
-              </motion.button>
+                <span className={socialLabelClass}>X</span>
+              </button>
 
-              {/* TikTok */}
-              <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => handleShare("tiktok")}
-                className="flex flex-col items-center gap-2 min-w-[70px] group"
-              >
-                <div className="w-14 h-14 rounded-full bg-[#000000] flex items-center justify-center shadow-lg">
+              <button onClick={() => handleShare("tiktok")} className={socialBtnClass}>
+                <div className={cn(socialIconClass, "bg-[#000000]")}>
                   <TikTokIcon />
                 </div>
-                <span className="text-xs text-foreground/80 group-hover:text-foreground">TikTok</span>
-              </motion.button>
+                <span className={socialLabelClass}>TikTok</span>
+              </button>
 
-              {/* Telegram */}
-              <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => handleShare("telegram")}
-                className="flex flex-col items-center gap-2 min-w-[70px] group"
-              >
-                <div className="w-14 h-14 rounded-full bg-[#0088cc] flex items-center justify-center shadow-lg shadow-[#0088cc]/30">
+              <button onClick={() => handleShare("telegram")} className={socialBtnClass}>
+                <div className={cn(socialIconClass, "bg-[#0088cc]")}>
                   <Send className="h-6 w-6 text-white" />
                 </div>
-                <span className="text-xs text-foreground/80 group-hover:text-foreground">Telegram</span>
-              </motion.button>
+                <span className={socialLabelClass}>Telegram</span>
+              </button>
 
-              {/* Zalo */}
-              <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => handleShare("zalo")}
-                className="flex flex-col items-center gap-2 min-w-[70px] group"
-              >
-                <div className="w-14 h-14 rounded-full bg-[#0068FF] flex items-center justify-center shadow-lg shadow-[#0068FF]/30">
+              <button onClick={() => handleShare("zalo")} className={socialBtnClass}>
+                <div className={cn(socialIconClass, "bg-[#0068FF]")}>
                   <MessageCircle className="h-6 w-6 text-white" />
                 </div>
-                <span className="text-xs text-foreground/80 group-hover:text-foreground">Zalo</span>
-              </motion.button>
+                <span className={socialLabelClass}>Zalo</span>
+              </button>
 
-              {/* LinkedIn */}
-              <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => handleShare("linkedin")}
-                className="flex flex-col items-center gap-2 min-w-[70px] group"
-              >
-                <div className="w-14 h-14 rounded-full bg-[#0A66C2] flex items-center justify-center shadow-lg shadow-[#0A66C2]/30">
+              <button onClick={() => handleShare("linkedin")} className={socialBtnClass}>
+                <div className={cn(socialIconClass, "bg-[#0A66C2]")}>
                   <LinkedInIcon />
                 </div>
-                <span className="text-xs text-foreground/80 group-hover:text-foreground">LinkedIn</span>
-              </motion.button>
+                <span className={socialLabelClass}>LinkedIn</span>
+              </button>
 
-              {/* Email */}
-              <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => handleShare("email")}
-                className="flex flex-col items-center gap-2 min-w-[70px] group"
-              >
-                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center shadow-lg shadow-red-500/30">
+              <button onClick={() => handleShare("email")} className={socialBtnClass}>
+                <div className={cn(socialIconClass, "bg-gradient-to-br from-red-500 to-orange-500")}>
                   <Mail className="h-6 w-6 text-white" />
                 </div>
-                <span className="text-xs text-foreground/80 group-hover:text-foreground">Email</span>
-              </motion.button>
+                <span className={socialLabelClass}>Email</span>
+              </button>
 
-              {/* SMS */}
-              <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => handleShare("sms")}
-                className="flex flex-col items-center gap-2 min-w-[70px] group"
-              >
-                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center shadow-lg shadow-green-500/30">
+              <button onClick={() => handleShare("sms")} className={socialBtnClass}>
+                <div className={cn(socialIconClass, "bg-gradient-to-br from-green-500 to-emerald-500")}>
                   <MessageSquare className="h-6 w-6 text-white" />
                 </div>
-                <span className="text-xs text-foreground/80 group-hover:text-foreground">SMS</span>
-              </motion.button>
+                <span className={socialLabelClass}>SMS</span>
+              </button>
 
-              {/* QR Code */}
-              <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setShowQR(!showQR)}
-                className="flex flex-col items-center gap-2 min-w-[70px] group"
-              >
-                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-cosmic-cyan to-cosmic-magenta flex items-center justify-center shadow-lg shadow-cosmic-cyan/30">
+              <button onClick={() => setShowQR(!showQR)} className={socialBtnClass}>
+                <div className={cn(socialIconClass, "bg-gradient-to-br from-cosmic-cyan to-cosmic-magenta")}>
                   <QrCode className="h-6 w-6 text-white" />
                 </div>
-                <span className="text-xs text-foreground/80 group-hover:text-foreground">QR Code</span>
-              </motion.button>
+                <span className={socialLabelClass}>QR Code</span>
+              </button>
             </div>
           </div>
 
-          {/* QR Code Display */}
+          {/* QR Code Display - keep AnimatePresence (runs once on toggle) */}
           <AnimatePresence>
             {showQR && (
               <motion.div 
