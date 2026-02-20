@@ -89,23 +89,21 @@ export const SocialMediaOrbit = ({
   const activePlatforms = platforms.filter((p) => urls[p.key]);
   if (activePlatforms.length === 0) return null;
 
-  // Spread from 30° to 330° (avoid top 60° zone where diamond sits)
-  const startAngle = 30;
-  const endAngle = 330;
-  const totalAngle = endAngle - startAngle;
-  const step = activePlatforms.length > 1 ? totalAngle / (activePlatforms.length - 1) : 0;
+  // Distribute evenly across 360°, starting from 12h (270°)
+  const count = activePlatforms.length;
+  const step = 360 / count;
+  // 1 item: top (270°). 2 items: symmetric across vertical axis. 3+: offset half-step from 12h to avoid diamond badge
+  const baseAngle = count === 1 ? 270 : (count === 2 ? 225 : 270 + step / 2);
 
   return (
-    <TooltipProvider delayDuration={200}>
+    <TooltipProvider delayDuration={0}>
       <div
         className="absolute inset-0 animate-[orbit-spin_25s_linear_infinite]"
         style={{ transformOrigin: "center center" }}
       >
         {activePlatforms.map((platform, index) => {
           const Icon = platform.icon;
-          const angle = activePlatforms.length === 1
-            ? 270
-            : startAngle + step * index;
+          const angle = baseAngle + step * index;
           const rad = (angle * Math.PI) / 180;
           const x = Math.cos(rad) * 58;
           const y = Math.sin(rad) * 58;
@@ -134,8 +132,11 @@ export const SocialMediaOrbit = ({
                   )}
                 </a>
               </TooltipTrigger>
-              <TooltipContent side="bottom" className="text-xs">
-                {platform.label}
+              <TooltipContent side="bottom" className="text-xs max-w-[280px] p-2">
+                <div className="font-semibold">{platform.label}</div>
+                <div className="text-muted-foreground truncate text-[10px] mt-0.5">
+                  {urls[platform.key]}
+                </div>
               </TooltipContent>
             </Tooltip>
           );
