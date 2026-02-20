@@ -1,135 +1,141 @@
 
-## Sua Social Media Orbit: Dung xoay khi hover, mau vien #00E7FF, avatar proxy, don dep code
 
-### Tong quan
-4 thay doi chinh: (1) dung orbit khi hover/tap de tooltip co dinh, (2) mau vien thong nhat #00E7FF, (3) edge function dung unavatar.io proxy de lay avatar tu cac nen tang bi chan, (4) don dep code thua.
+## Sửa lỗi điều hướng trang Kênh (Channel Page) - Lỗi "/undefined"
+
+### Nguyên nhân gốc rễ
+
+Lỗi có **một nguyên nhân nghiêm trọng** và **một vấn đề hệ thống**:
+
+1. **Lỗi nghiêm trọng trong LegacyUserRedirect**: Component chuyển hướng đọc `useParams().userId`, nhưng route `/channel/:id` định nghĩa tham số là `:id`. Vì không có tham số nào tên `userId`, giá trị trả về là `undefined`, tạo ra URL `/undefined`.
+
+```text
+Route:     /channel/:id        --> tên tham số là "id"
+Component: useParams().userId  --> tìm "userId" (SAI!)
+Kết quả:   Chuyển hướng đến /undefined
+```
+
+2. **Vấn đề hệ thống**: Hơn 17 component vẫn dùng `navigate('/channel/${...}')` với nhiều loại ID khác nhau (channel ID, profile ID, user ID). Dù có redirect xử lý, việc đọc sai tham số khiến toàn bộ cơ chế bị hỏng.
 
 ---
 
-### Thay doi 1: SocialMediaOrbit.tsx - Dung xoay khi hover + mau vien + don dep
+### Chiến lược sửa lỗi
 
-**A. Dung orbit khi hover/tap:**
+**Phương pháp**: Sửa hai phần:
+- (A) Sửa LegacyUserRedirect để đọc đúng tên tham số
+- (B) Chuyển đổi toàn bộ lệnh điều hướng sang URL sạch dùng username (ưu tiên) hoặc userId, loại bỏ sự phụ thuộc vào redirect cũ
 
-Them class `group` vao container orbit, va them CSS rule trong `index.css` de pause animation khi hover:
+---
 
-```css
-/* index.css - them vao sau @keyframes orbit-counter-spin */
-.orbit-container:hover {
-  animation-play-state: paused !important;
-}
-.orbit-container:hover .orbit-item {
-  animation-play-state: paused !important;
-}
-```
+### Thay đổi 1: Sửa LegacyUserRedirect (Quan trọng - sửa ngay)
 
-Thay class cua container tu arbitrary animate thanh class co ten:
+**Tệp**: `src/App.tsx`
+
+Sửa việc trích xuất tham số. Route `/channel/:id` truyền `:id`, nên component phải đọc `id`:
+
 ```typescript
-className="absolute inset-0 orbit-container animate-[orbit-spin_25s_linear_infinite]"
+const LegacyChannelRedirect = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!id) {
+      navigate('/', { replace: true });
+      return;
+    }
+    // id có thể là UUID của kênh hoặc người dùng - Channel.tsx xử lý cả hai
+    navigate(`/${id}`, { replace: true });
+  }, [id, navigate]);
+
+  return null;
+};
 ```
 
-Them class `orbit-item` vao moi vong tron nho de dong bo pause.
+Cập nhật route để dùng component mới:
+```
+<Route path="/channel/:id" element={<LegacyChannelRedirect />} />
+```
 
-**B. Mau vien dong nhat #00E7FF:**
+Giữ nguyên `LegacyUserRedirect` cho `/user/:userId` (component này đã đúng).
 
-Thay dong 121-125:
+---
+
+### Thay đổi 2: Chuyển đổi các lệnh điều hướng sang URL sạch
+
+**17 tệp** hiện đang dùng `navigate('/channel/${...}')`. Với mỗi tệp, thay bằng `navigate('/${username || userId}')`, ưu tiên dùng username khi có, userId làm phương án dự phòng.
+
+Các tệp chính và thay đổi tương ứng:
+
+| Tệp | Hiện tại | Sửa thành |
+|------|---------|-----------|
+| `TopRankingCard.tsx` | `navigate('/channel/${user.id}')` | `navigate('/${user.username \|\| user.id}')` |
+| `TopSponsorSection.tsx` | `navigate('/channel/${sponsor.userId}')` | `navigate('/${sponsor.username \|\| sponsor.userId}')` |
+| `TopSponsorsCard.tsx` | `navigate('/channel/${sponsor.userId}')` | `navigate('/${sponsor.username \|\| sponsor.userId}')` |
+| `VideoCard.tsx` | `navigate('/channel/${channelId}')` | `navigate('/${userId \|\| channelId}')` - cần thêm prop username |
+| `VideoCommentItem.tsx` | `navigate('/channel/${comment.channel?.id}')` | `navigate('/${comment.profile?.username \|\| comment.user_id}')` |
+| `Header.tsx` | `navigate('/channel/${channelId}')` | `navigate('/${username \|\| channelId}')` |
+| `MobileHeader.tsx` | `navigate('/channel/${channelId}')` | `navigate('/${username \|\| channelId}')` |
+| `VideoActionsBar.tsx` | `navigate('/channel/${channelId}')` | `navigate('/${userId \|\| channelId}')` |
+| `Subscriptions.tsx` | `navigate('/channel/${sub.channel.id}')` | `navigate('/${sub.channel.profile?.username \|\| sub.channel.user_id}')` |
+| `WatchHistory.tsx` | `navigate('/channel/${...}')` | Dùng username hoặc user_id |
+| `WatchLater.tsx` | Tương tự | Tương tự |
+| `Search.tsx` | Tương tự | Tương tự |
+| `MusicDetail.tsx` | Tương tự | Tương tự |
+| `MusicComments.tsx` | Tương tự | Tương tự |
+| `Watch.tsx` | Đã dùng `navigate('/${video.user_id}')` | Giữ nguyên |
+| `Profile.tsx` | `navigate('/channel/${channel.id}')` | `navigate('/${profile?.username \|\| channel?.user_id}')` |
+| `Shorts.tsx` | Lẫn lộn - một số dùng username, một số channelId | Chuẩn hóa |
+
+---
+
+### Thay đổi 3: Thêm cơ chế bảo vệ
+
+Trong `Channel.tsx`, thêm kiểm tra cho username `undefined`:
+
 ```typescript
-// Cu: border: `3px solid ${platform.color}`
-// Moi:
-border: "3px solid #00E7FF",
-boxShadow: "0 0 8px #00E7FF40",
-```
+const targetUsername = username?.replace("@", "") || null;
 
-Icon ben trong VAN giu `platform.color` de nhan dien nen tang (dong 131).
-
-**C. Don dep:**
-
-Trong mang `platforms` (dong 53-63), truong `color` van can thiet cho icon ben trong va OrbitImage fallback. Khong xoa duoc vi van dung o dong 129 va 131. Tuy nhien, co the xoa `platform.color` khoi style border/boxShadow vi da hardcode `#00E7FF`.
-
----
-
-### Thay doi 2: index.css - Them CSS hover pause
-
-Them sau dong 793:
-```css
-/* Pause orbit on hover/tap for stable tooltips */
-.orbit-container:hover {
-  animation-play-state: paused !important;
-}
-.orbit-container:hover .orbit-item {
-  animation-play-state: paused !important;
+// Bảo vệ: nếu tham số là chuỗi "undefined", chuyển về trang chủ
+if (targetUsername === "undefined" || targetUsername === "null") {
+  navigate("/", { replace: true });
+  return;
 }
 ```
 
-Uu diem: CSS hover tuong thich voi mobile touch event (tap giu), va `animation-play-state: paused` giu vi tri hien tai thay vi reset ve 0.
+---
+
+### Thay đổi 4: Đảm bảo dữ liệu sẵn có
+
+Với các component như `TopRankingCard` đã có `user.username` trong dữ liệu, chỉ cần sử dụng trực tiếp. Với các component như `VideoCard` chỉ nhận `channelId` mà không có `username`, cần bổ sung username vào luồng props từ truy vấn cha (hầu hết truy vấn cha đã select `profiles.username`).
 
 ---
 
-### Thay doi 3: fetch-social-avatar/index.ts - Dung unavatar.io proxy
+### Danh sách tệp cần thay đổi
 
-**Van de:** Facebook, Telegram, Fun Profile chan scraping og:image. Can mot proxy de lay avatar.
+| STT | Tệp | Nội dung thay đổi |
+|-----|------|-------------------|
+| 1 | `src/App.tsx` | Sửa LegacyChannelRedirect đọc đúng tham số, thêm bảo vệ |
+| 2 | `src/components/Layout/TopRankingCard.tsx` | Dùng username |
+| 3 | `src/components/Layout/TopSponsorSection.tsx` | Dùng username |
+| 4 | `src/components/Layout/TopSponsorsCard.tsx` | Dùng username |
+| 5 | `src/components/Video/VideoCard.tsx` | Dùng userId thay vì channelId |
+| 6 | `src/components/Video/Comments/VideoCommentItem.tsx` | Dùng username/user_id |
+| 7 | `src/components/Layout/Header.tsx` | Dùng username |
+| 8 | `src/components/Layout/MobileHeader.tsx` | Dùng username |
+| 9 | `src/components/Video/Mobile/VideoActionsBar.tsx` | Dùng userId |
+| 10 | `src/pages/Subscriptions.tsx` | Dùng username |
+| 11 | `src/pages/WatchHistory.tsx` | Dùng username/userId |
+| 12 | `src/pages/WatchLater.tsx` | Dùng username/userId |
+| 13 | `src/pages/Search.tsx` | Dùng username |
+| 14 | `src/pages/MusicDetail.tsx` | Dùng username |
+| 15 | `src/components/Music/MusicComments.tsx` | Dùng username |
+| 16 | `src/pages/Profile.tsx` | Dùng username |
+| 17 | `src/pages/Shorts.tsx` | Chuẩn hóa |
+| 18 | `src/pages/Channel.tsx` | Thêm bảo vệ chống "undefined" |
 
-**Giai phap:** Dung `unavatar.io` - dich vu mien phi lay avatar tu nhieu nen tang. Truoc khi scrape truc tiep, thu lay tu unavatar truoc:
+### Kết quả đạt được
 
-Logic moi:
-```typescript
-// Trich username tu URL
-function extractUsername(platform: string, url: string): string | null {
-  try {
-    const u = new URL(url);
-    const path = u.pathname.replace(/\/$/, "").split("/").pop();
-    return path && path.length > 0 ? path : null;
-  } catch { return null; }
-}
+- Không còn URL `/undefined`
+- Toàn bộ điều hướng dùng định dạng `/:username` sạch (dự phòng userId)
+- Chuyển hướng cũ `/channel/:id` hoạt động đúng như lưới an toàn
+- Cơ chế bảo vệ ngăn điều hướng lỗi ngay cả khi thiếu dữ liệu
 
-// Thu unavatar truoc, roi fallback ve scrape og:image
-async function fetchAvatar(platform: string, url: string): Promise<string | null> {
-  const username = extractUsername(platform, url);
-  
-  // Map platform key to unavatar source
-  const unavatarMap: Record<string, string> = {
-    facebook: "facebook",
-    twitter: "twitter", 
-    youtube: "youtube",
-    telegram: "telegram",
-    tiktok: "tiktok",
-    linkedin: "linkedin",
-    github: "github",
-  };
-  
-  // Try unavatar.io first (fast, reliable proxy)
-  if (username && unavatarMap[platform]) {
-    const unavatarUrl = `https://unavatar.io/${unavatarMap[platform]}/${username}`;
-    try {
-      const res = await fetch(unavatarUrl, { method: "HEAD", redirect: "follow" });
-      if (res.ok && res.headers.get("content-type")?.startsWith("image/")) {
-        return unavatarUrl;
-      }
-    } catch {}
-  }
-  
-  // Fallback: scrape og:image from URL
-  // ... (giu logic hien tai)
-}
-```
-
-Cach nay:
-- Facebook, Twitter, Telegram: unavatar.io lay avatar thanh cong
-- YouTube: van dung og:image (da hoat dong)
-- AngelAI, FunPlay: khong co trong unavatar -> fallback ve og:image scrape -> neu khong co thi tra ve null -> hien icon thuong hieu
-
----
-
-### Danh sach file thay doi
-
-| STT | File | Thao tac |
-|-----|------|----------|
-| 1 | `src/components/Profile/SocialMediaOrbit.tsx` | SUA - them orbit-container/orbit-item class, border #00E7FF, don dep |
-| 2 | `src/index.css` | SUA - them CSS hover pause cho orbit |
-| 3 | `supabase/functions/fetch-social-avatar/index.ts` | SUA - them unavatar.io proxy, giu fallback og:image |
-
-### Luu y tuong thich
-
-- **Web**: Hover vao vong tron -> orbit dung -> tooltip co dinh
-- **Mobile**: Touch/tap -> CSS :hover trigger tuong tu -> orbit dung -> tooltip hien
-- `delayDuration={0}` da co tu truoc -> tooltip hien ngay khi tap
-- `max-w-[280px]` va `truncate` bao ve layout tren mobile
