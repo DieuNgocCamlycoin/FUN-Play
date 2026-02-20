@@ -469,6 +469,16 @@ body > [data-w3m-modal] {
   animation: mirror-shimmer 3s ease-in-out infinite;
 }
 
+/* Luxury pulse - soft aura glow for metallic gold buttons */
+@keyframes luxury-pulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(198,143,26,0.4); }
+  50% { box-shadow: 0 0 30px rgba(240,217,108,0.6); }
+}
+
+.animate-luxury-pulse {
+  animation: luxury-pulse 2s ease-in-out infinite;
+}
+
 /* Scrollbar hide utility */
 .scrollbar-hide {
   -ms-overflow-style: none;

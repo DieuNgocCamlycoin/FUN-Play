@@ -282,18 +282,19 @@ export const ClaimRewardsSection = () => {
               onClick={handleClaimClick}
               disabled={!canClaim && !dailyLimitReached}
               className={cn(
-                "flex-1 gap-2 font-bold",
+                "flex-1 gap-2 font-bold relative overflow-hidden",
                 dailyLimitReached
                   ? "bg-muted text-muted-foreground"
                   : canClaim
-                    ? "bg-gradient-to-r from-[#F9E37A] via-[#F0D96C] to-[#B78C1A] text-[#A9710F] hover:from-[#F0D96C] hover:via-[#F9E37A] hover:to-[#B78C1A]"
+                    ? "bg-[linear-gradient(180deg,#F9E37A_0%,#F0D96C_25%,#B78C1A_50%,#D4A94E_75%,#F9E37A_100%)] text-[#A9710F] border border-t-[#F9E37A]/80 border-b-[#8B6914]/60 border-x-[#C28F1A]/60 animate-luxury-pulse"
                     : "bg-muted text-muted-foreground"
               )}
               style={canClaim && !dailyLimitReached ? {
-                boxShadow: "0 0 20px rgba(198, 143, 26, 0.4), inset 0 2px 4px rgba(255, 255, 255, 0.6)"
+                boxShadow: "inset 0 2px 4px rgba(255,255,255,0.7), inset 0 -2px 6px rgba(120,70,10,0.3), 0 0 20px rgba(198,143,26,0.5), 0 2px 8px rgba(120,70,10,0.4)"
               } : undefined}
             >
-              <Coins className="h-5 w-5" />
+              <Coins className="h-5 w-5 relative z-10" />
+              <span className="relative z-10">
               {dailyLimitReached
                 ? "Đã đạt giới hạn hôm nay"
                 : canClaim
@@ -305,6 +306,13 @@ export const ClaimRewardsSection = () => {
                       : stats.approvedRewards < CLAIM_THRESHOLD
                         ? `Cần ${(CLAIM_THRESHOLD - stats.approvedRewards).toLocaleString()} CAMLY nữa`
                         : `Cần ${CLAIM_THRESHOLD.toLocaleString()} CAMLY`}
+              </span>
+              {canClaim && !dailyLimitReached && (
+                <>
+                  <div className="absolute inset-x-0 top-0 h-[45%] bg-gradient-to-b from-white/40 via-white/20 to-transparent pointer-events-none" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-mirror-shimmer" />
+                </>
+              )}
             </Button>
           )}
         </div>
