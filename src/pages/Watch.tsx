@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { ThumbsUp, ThumbsDown, Share2, MoreHorizontal, Gift, Bookmark, EyeOff } from "lucide-react";
 import { ReportSpamButton } from "@/components/Video/ReportSpamButton";
-import { DonateModal } from "@/components/Donate/DonateModal";
+import { EnhancedDonateModal } from "@/components/Donate/EnhancedDonateModal";
 import { ShareModal } from "@/components/Video/ShareModal";
 import { MiniProfileCard } from "@/components/Video/MiniProfileCard";
 
@@ -653,12 +653,14 @@ export default function Watch({ videoIdProp }: { videoIdProp?: string }) {
           username={channelUsername || undefined}
           slug={video?.slug || undefined}
         />
-        <DonateModal
+        <EnhancedDonateModal
           open={donateModalOpen}
           onOpenChange={setDonateModalOpen}
-          videoId={id}
-          creatorName={video?.channels.name || ""}
-          channelUserId={video?.user_id}
+          defaultReceiverId={video?.user_id}
+          defaultReceiverName={video?.channels?.name}
+          defaultReceiverAvatar={channelAvatarUrl}
+          contextType="video"
+          contextId={id}
         />
         <RewardNotification 
           amount={rewardNotif.amount}
@@ -858,15 +860,23 @@ export default function Watch({ videoIdProp }: { videoIdProp?: string }) {
                     <span className="text-sm">Lưu</span>
                   </Button>
 
-                  {/* Gift — keep gold accent but subtle */}
+                  {/* Thưởng & Tặng — gold style matching GlobalDonateButton */}
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="rounded-full gap-1.5 h-9 bg-muted hover:bg-glow-gold/10 !shadow-none !border-0"
+                    className="relative rounded-full gap-1.5 h-9 overflow-hidden
+                               bg-gradient-to-b from-[#FFEA00] via-[#FFD700] to-[#E5A800]
+                               text-[#7C5800] font-bold
+                               shadow-[0_0_12px_rgba(255,215,0,0.4),inset_0_1px_2px_rgba(255,255,255,0.5)]
+                               hover:shadow-[0_0_20px_rgba(255,234,0,0.6)]
+                               border border-[#FFEA00]/50
+                               transition-all duration-300 hover:scale-105
+                               !border-[#FFEA00]/50"
                     onClick={() => setDonateModalOpen(true)}
                   >
-                    <Gift className="h-4 w-4 text-glow-gold" />
-                    <span className="text-sm">Tặng</span>
+                    <Gift className="h-4 w-4 text-[#7C5800] relative z-10" />
+                    <span className="text-sm font-extrabold relative z-10">Thưởng & Tặng</span>
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-mirror-shimmer" />
                   </Button>
 
                   {/* More menu — includes Report */}
@@ -976,12 +986,14 @@ export default function Watch({ videoIdProp }: { videoIdProp?: string }) {
         slug={video?.slug || undefined}
       />
 
-      <DonateModal
+      <EnhancedDonateModal
         open={donateModalOpen}
         onOpenChange={setDonateModalOpen}
-        videoId={id}
-        creatorName={video?.channels.name || ""}
-        channelUserId={video?.user_id}
+        defaultReceiverId={video?.user_id}
+        defaultReceiverName={video?.channels?.name}
+        defaultReceiverAvatar={channelAvatarUrl}
+        contextType="video"
+        contextId={id}
       />
 
       {id && (
