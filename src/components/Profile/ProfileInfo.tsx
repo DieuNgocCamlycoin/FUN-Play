@@ -52,7 +52,7 @@ export const ProfileInfo = ({
   const subscriberCount = channel?.subscriber_count || 0;
 
   const handleShare = async (platform: string) => {
-    const profileUrl = getShareUrl(`/c/${profile.username}`);
+    const profileUrl = getShareUrl(`/${profile.username}`);
     const text = `Khám phá trang cá nhân của ${displayName} trên FUN PLAY! 🎉`;
 
     let shareLink = "";

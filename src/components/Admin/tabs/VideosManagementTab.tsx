@@ -956,7 +956,7 @@ function SpamFilterContent({ onReportCountChange, isActive }: { onReportCountCha
                                     <AvatarFallback className="text-xs">{(profile.display_name || profile.username)?.[0]}</AvatarFallback>
                                   </Avatar>
                                   <a 
-                                    href={`https://official-funplay.lovable.app/c/${profile.username}`}
+                                    href={`https://official-funplay.lovable.app/${profile.username}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="text-sm truncate max-w-[100px] hover:text-primary hover:underline transition-colors"
@@ -1133,7 +1133,7 @@ function SpamFilterContent({ onReportCountChange, isActive }: { onReportCountCha
                     <p className="text-sm text-muted-foreground">
                       Người đăng:{" "}
                       <a
-                        href={`https://official-funplay.lovable.app/c/${previewVideo.profile.username}`}
+                        href={`https://official-funplay.lovable.app/${previewVideo.profile.username}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="hover:text-primary hover:underline transition-colors"

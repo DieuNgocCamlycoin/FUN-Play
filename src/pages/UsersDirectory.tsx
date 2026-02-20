@@ -83,11 +83,11 @@ const UsersDirectory = () => {
 
   const goToChannel = (e: React.MouseEvent, u: PublicUserStat) => {
     e.stopPropagation();
-    navigate(u.username ? `/c/${u.username}` : `/channel/${u.user_id}`);
+    navigate(u.username ? `/${u.username}` : `/channel/${u.user_id}`);
   };
 
   const goToProfile = (u: PublicUserStat) => {
-    navigate(`/c/${u.username || u.user_id}`);
+    navigate(`/${u.username || u.user_id}`);
   };
 
   const ExpandedRow = ({ u }: { u: PublicUserStat }) => {

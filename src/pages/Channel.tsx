@@ -191,7 +191,7 @@ export default function Channel() {
             .maybeSingle();
 
           if (oldData?.username) {
-            navigate(`/c/${oldData.username}`, { replace: true });
+            navigate(`/${oldData.username}`, { replace: true });
             return;
           }
           throw new Error("Không tìm thấy người dùng");
@@ -201,7 +201,7 @@ export default function Channel() {
 
         // Auto-redirect UUID to clean username URL
         if (isUUID && pData.username && !pData.username.startsWith('user_')) {
-          navigate(`/c/${pData.username}`, { replace: true });
+          navigate(`/${pData.username}`, { replace: true });
           return;
         }
 

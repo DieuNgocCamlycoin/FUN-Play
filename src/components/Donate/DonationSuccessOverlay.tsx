@@ -213,7 +213,7 @@ export const DonationSuccessOverlay = ({
         {/* Sender → Amount → Receiver */}
         <div className="relative flex items-center justify-between gap-2">
           {/* Sender */}
-          <a href={`/c/${sender.username || sender.id}`} className="flex flex-col items-center gap-1 flex-1 min-w-0 hover:opacity-80 transition-opacity">
+          <a href={`/${sender.username || sender.id}`} className="flex flex-col items-center gap-1 flex-1 min-w-0 hover:opacity-80 transition-opacity">
             <Avatar className="h-11 w-11 ring-2 ring-purple-500/30">
               <AvatarImage src={sender.avatar || ""} />
               <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-xs">{sender.username[0].toUpperCase()}</AvatarFallback>
@@ -239,7 +239,7 @@ export const DonationSuccessOverlay = ({
           </div>
 
           {/* Receiver */}
-          <a href={`/c/${receiver.username || receiver.id}`} className="flex flex-col items-center gap-1 flex-1 min-w-0 hover:opacity-80 transition-opacity">
+          <a href={`/${receiver.username || receiver.id}`} className="flex flex-col items-center gap-1 flex-1 min-w-0 hover:opacity-80 transition-opacity">
             <Avatar className="h-11 w-11 ring-2 ring-amber-500/30">
               <AvatarImage src={receiver.avatar || ""} />
               <AvatarFallback className="bg-gradient-to-br from-amber-500 to-orange-500 text-white text-xs">{receiver.username[0].toUpperCase()}</AvatarFallback>

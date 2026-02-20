@@ -49,7 +49,7 @@ export const ChatHeader = ({
           {/* User info */}
           <div
             className="flex items-center gap-3 min-w-0 cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => navigate(`/c/${otherUser.username || otherUser.id}`)}
+            onClick={() => navigate(`/${otherUser.username || otherUser.id}`)}
           >
             <Avatar className="h-10 w-10 ring-2 ring-purple-200/50 flex-shrink-0">
               <AvatarImage src={otherUser.avatar_url || undefined} />
@@ -87,7 +87,7 @@ export const ChatHeader = ({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem
-                onClick={() => navigate(`/c/${otherUser.username || otherUser.id}`)}
+                onClick={() => navigate(`/${otherUser.username || otherUser.id}`)}
               >
                 <Info className="mr-2 h-4 w-4" />
                 Xem trang cá nhân
