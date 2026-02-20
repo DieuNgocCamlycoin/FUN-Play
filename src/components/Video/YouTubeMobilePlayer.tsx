@@ -90,8 +90,7 @@ export function YouTubeMobilePlayer({
   const chapters = useMemo(() => parseChapters(description), [description]);
   const currentChapter = useMemo(() => getCurrentChapter(chapters, currentTime), [chapters, currentTime]);
 
-  // Skip amount changed from 10s to 15s
-  const SKIP_SECONDS = 15;
+  const SKIP_SECONDS = 10;
   
 
   // Format time
