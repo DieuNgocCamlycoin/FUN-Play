@@ -109,6 +109,7 @@ const Library = lazy(() => import("./pages/Library"));
 const Transactions = lazy(() => import("./pages/Transactions"));
 const PreviewCelebration = lazy(() => import("./pages/PreviewCelebration"));
 const UsersDirectory = lazy(() => import("./pages/UsersDirectory"));
+const UIPreview = lazy(() => import("./pages/UIPreview"));
 
 const queryClient = new QueryClient();
 
@@ -229,6 +230,7 @@ function AppContent() {
             <Route path="/transactions" element={<Transactions />} />
             <Route path="/preview-celebration" element={<PreviewCelebration />} />
             <Route path="/users" element={<UsersDirectory />} />
+            <Route path="/ui-preview" element={<UIPreview />} />
             {/* Legacy redirects */}
             <Route path="/user/:userId" element={<LegacyUserRedirect />} />
             <Route path="/u/:username" element={<LegacyUsernameRedirect />} />
