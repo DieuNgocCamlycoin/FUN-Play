@@ -1,68 +1,77 @@
 
 
-## Biến Honor Board thành Clickable + Tăng cường Minh bạch Hệ thống
+## Them nut quay lai (Back Button) cho tat ca cac trang
 
-### Phân tích hiện trạng
+### Phan tich hien trang
 
-Sau khi kiểm tra kỹ toàn bộ mã nguồn, hệ thống FUN PLAY **ĐÃ CÓ SẴN** phần lớn các tính năng được yêu cầu:
+**Cac trang DA CO nut quay lai (15 trang):**
+- Transactions, ProfileSettings, WatchLater, Shorts, YourVideosMobile, WatchHistory, CreatePost, PostDetail, Subscriptions, MusicDetail, Notifications, Messages, Wallet, LikedVideos, RewardHistory
 
-| Tính năng | Trạng thái | Ghi chú |
-|-----------|-----------|---------|
-| Admin Dashboard | DA CO | 20+ tab: Users, Videos, Rewards, Abuse Detection, Banned Users, IP Tracking... |
-| Users Directory | DA CO | Trang `/users` - danh sach cong khai, tim kiem, sap xep, filter |
-| Report system | DA CO | Bang `video_reports`, component `ReportSpamButton` tren trang Watch va Mobile |
-| Ban system | DA CO | Truong `banned`, `violation_level`, ban log, BannedScreen |
-| Abuse detection | DA CO | IP tracking, suspicious scoring, Wallet Detective, fraud rings |
-| Reward moderation | DA CO | Tab RewardApproval, FunMoneyApproval, RewardPool |
+**Cac trang CHUA CO nut quay lai (can them):**
 
-### Phan can lam MOI
+| STT | Trang | Ghi chu |
+|-----|-------|---------|
+| 1 | UsersDirectory | Header co logo + tieu de, thieu nut quay lai |
+| 2 | Leaderboard | Header text-center, thieu nut quay lai |
+| 3 | NFTGallery | Header co icon + tieu de, thieu nut quay lai |
+| 4 | Bounty | Header text-center, thieu nut quay lai |
+| 5 | FunMoneyPage | Header co tieu de, thieu nut quay lai |
+| 6 | CAMLYPrice | Header co token info, thieu nut quay lai |
+| 7 | Meditate | Header text-center, thieu nut quay lai |
+| 8 | BrowseMusic | Header co tieu de, thieu nut quay lai |
+| 9 | Referral | Header text-center, thieu nut quay lai |
+| 10 | PlatformDocs | Header co tabs, thieu nut quay lai |
+| 11 | Library | Header co tieu de, thieu nut quay lai |
+| 12 | Search | Can kiem tra them |
+| 13 | Channel | Can kiem tra them |
 
-Chi can **1 thay doi chinh**: Bien cac chi so Honor Board thanh **clickable** de dieu huong den cac trang tuong ung da co san.
-
----
-
-### Thay doi 1: HonorBoardCard.tsx - Them onClick cho tung StatPill
-
-**Tep**: `src/components/Layout/HonorBoardCard.tsx`
-
-Them prop `onClick` vao component `StatPill` va gan hanh dong dieu huong:
-
-| Chi so | Click vao | Dieu huong den |
-|--------|-----------|----------------|
-| TOTAL USERS | Trang danh sach nguoi dung | `/users` (da co san) |
-| TOTAL POSTS | Trang chu (feed bai viet) | `/` (Home feed) |
-| TOTAL PHOTOS | Trang chu | `/` |
-| TOTAL VIDEOS | Trang chu (video tab) | `/` |
-| TOTAL REWARD | Trang giao dich minh bach | `/transactions` (da co san) |
-
-Logic:
-- Import `useNavigate` tu react-router-dom
-- Them prop `onClick?: () => void` vao `StatPill`
-- Them `cursor-pointer` class khi co onClick
-- Gan `navigate('/users')` cho TOTAL USERS
-- Gan `navigate('/transactions')` cho TOTAL REWARD
-- Cac chi so con lai dieu huong ve Home
-
-### Thay doi 2: HonoboardRightSidebar.tsx - Truyen navigate xuong
-
-Khong can thay doi file nay vi `HonorBoardCard` tu quan ly navigation ben trong.
+**Trang KHONG CAN nut quay lai** (trang chinh):
+- Index (Home) - trang chu
 
 ---
+
+### Chien luoc
+
+**Tao 1 component `BackButton` tai su dung**, sau do them vao tung trang thieu.
+
+### Thay doi 1: Tao component BackButton
+
+**Tep moi**: `src/components/ui/back-button.tsx`
+
+Component don gian:
+- Su dung `useNavigate` tu react-router-dom
+- Icon `ArrowLeft` tu lucide-react
+- Goi `navigate(-1)` khi click
+- Style giong voi cac trang da co: `Button variant="ghost" size="icon"`
+
+### Thay doi 2-13: Them BackButton vao cac trang
+
+Moi trang se duoc them nut quay lai vao phan header, truoc tieu de. Logic:
+- Trang co header ngang (flex row): them BackButton vao dau hang
+- Trang co header giua (text-center): them BackButton phia tren ben trai
 
 ### Danh sach tep thay doi
 
 | STT | Tep | Noi dung |
 |-----|-----|---------|
-| 1 | `src/components/Layout/HonorBoardCard.tsx` | Them onClick cho StatPill, useNavigate, cursor-pointer |
+| 1 | `src/components/ui/back-button.tsx` | Tao component moi |
+| 2 | `src/pages/UsersDirectory.tsx` | Them BackButton vao header |
+| 3 | `src/pages/Leaderboard.tsx` | Them BackButton phia tren trai |
+| 4 | `src/pages/NFTGallery.tsx` | Them BackButton vao header |
+| 5 | `src/pages/Bounty.tsx` | Them BackButton phia tren trai |
+| 6 | `src/pages/FunMoneyPage.tsx` | Them BackButton vao header |
+| 7 | `src/pages/CAMLYPrice.tsx` | Them BackButton vao header |
+| 8 | `src/pages/Meditate.tsx` | Them BackButton phia tren trai |
+| 9 | `src/pages/BrowseMusic.tsx` | Them BackButton vao header |
+| 10 | `src/pages/Referral.tsx` | Them BackButton phia tren trai |
+| 11 | `src/pages/PlatformDocs.tsx` | Them BackButton vao header |
+| 12 | `src/pages/Library.tsx` | Them BackButton vao header |
+| 13 | `src/pages/Channel.tsx` | Them BackButton vao header |
 
 ### Ket qua
 
-- Honor Board clickable, moi chi so dan den trang chi tiet tuong ung
-- Tan dung toan bo cac trang va tinh nang DA CO SAN
-- Khong tao them trang moi khong can thiet
-- Khong anh huong hieu suat
-
-### Ghi chu ve cac yeu cau khac
-
-Cac tinh nang Admin Dashboard, Report, Ban, Abuse Detection da duoc xay dung day du truoc do. Neu can bo sung them tinh nang cu the nao trong Admin Dashboard (vi du: tab moi, filter moi), hay chi ro de trien khai rieng.
+- Tat ca trang phu deu co nut mui ten quay lai
+- Nguoi dung co the de dang quay ve trang truoc do
+- Thong nhat UX tren toan bo ung dung
+- Component tai su dung, de bao tri
 
