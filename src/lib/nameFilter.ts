@@ -42,7 +42,9 @@ export function isNameAppropriate(name: string): { ok: boolean; reason?: string 
 
   for (const word of OFFENSIVE_WORDS) {
     const normalizedWord = removeDiacritics(word.toLowerCase());
-    if (normalized.includes(normalizedWord)) {
+    const escaped = normalizedWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`(^|[^a-z])${escaped}([^a-z]|$)`, 'i');
+    if (regex.test(normalized)) {
       return {
         ok: false,
         reason: `Tên chứa từ ngữ không phù hợp. Vui lòng chọn tên khác.`,
