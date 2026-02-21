@@ -21,7 +21,7 @@ interface CategoryChipsProps {
 
 export const CategoryChips = ({ selected = "Tất cả", onSelect }: CategoryChipsProps) => {
   return (
-    <div className="border-b border-border bg-background">
+    <div className="sticky top-[calc(env(safe-area-inset-top,0px)+3.5rem)] lg:top-14 z-10 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
       <ScrollArea className="w-full whitespace-nowrap">
         <div className="flex gap-3 px-4 py-3">
           {categories.map((category) => (

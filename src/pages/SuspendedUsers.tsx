@@ -115,7 +115,7 @@ const SuspendedUsers = () => {
           </div>
         ) : (
           <Table wrapperClassName="border border-border rounded-lg">
-            <TableHeader className="sticky top-[200px] z-[9] bg-background">
+            <TableHeader className="bg-background">
               <TableRow className="hover:bg-transparent">
                 <TableHead className="w-12 hidden md:table-cell">#</TableHead>
                 <TableHead>Người dùng</TableHead>
