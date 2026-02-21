@@ -1,52 +1,109 @@
 
-## Kế hoạch cập nhật: Liên kết tên channel + Thêm admin mới
 
-### 1. Thêm liên kết điều hướng khi nhấp vào tên channel trong các bảng danh dự
+## Kế hoạch: Trang công khai Danh sách tài khoản bị đình chỉ
 
-**Vấn đề hiện tại:**
+### Tổng quan
 
-| Component | Tình trạng |
-|---|---|
-| `TopRankingCard.tsx` | DA CO navigate khi click ca item (dong 39) |
-| `TopSponsorsCard.tsx` | DA CO navigate khi click ca item (dong 38) |
-| `TopRankingSection.tsx` | CO navigate nhung dung `/channel/${user.id}` (SAI - nen dung `/${user.username \|\| user.id}`) |
-| `TopRankingSection.tsx` (Sponsors) | CO navigate nhung dung `/channel/${sponsor.userId}` (SAI) |
-| `MobileTopRankingCard.tsx` | KHONG CO navigate khi nhan vao tung user |
-| `MobileTopSponsorsCard.tsx` | KHONG CO navigate khi nhan vao tung sponsor |
-| `HonorBoardCard.tsx` | Khong co ten channel - chi co so lieu thong ke (khong can sua) |
-
-**Cac thay doi:**
-
-- **`TopRankingSection.tsx`** (dong 46): Sua `navigate('/channel/${user.id}')` thanh `navigate('/${user.username || user.id}')` de dung chuan URL sach cua du an
-- **`TopRankingSection.tsx`** (dong 202): Sua `navigate('/channel/${sponsor.userId}')` thanh `navigate('/${sponsor.username || sponsor.userId}')`
-- **`MobileTopRankingCard.tsx`**: Them `onClick` navigate vao moi `MiniRankPill` de khi nhan vao se den trang channel tuong ung
-- **`MobileTopSponsorsCard.tsx`**: Them `onClick` navigate vao moi `MiniSponsorPill` de khi nhan vao se den trang channel tuong ung
+Tạo trang công khai `/suspended` (ai cũng xem được, không cần đăng nhập) hiển thị danh sách user bị ban và ví bị blacklist, phù hợp với triết lý minh bạch tuyệt đối của FUN Play.
 
 ---
 
-### 2. Cap nhat user lekhanhi772@gmail.com thanh admin
+### Dữ liệu cần hiển thị
 
-**Cach thuc hien:** Su dung cong cu SQL insert de goi ham `add_admin_role` hoac truc tiep INSERT vao bang `user_roles`.
+**Bảng 1 – User bị Ban:**
 
-**Buoc 1:** Tim user ID cua email `lekhanhi772@gmail.com` tu bang `profiles` (vi email nam trong `auth.users`, can truy van qua edge function hoac tim trong profiles neu co)
+| Cột | Nguồn |
+|---|---|
+| Avatar (mờ) | `profiles.avatar_url` |
+| Tên hiển thị | `profiles.display_name` |
+| Username | `profiles.username` |
+| Lý do | `profiles.ban_reason` |
+| Ngày bị ban | `profiles.banned_at` |
+| Mức vi phạm | `profiles.violation_level` |
 
-**Buoc 2:** Them role admin bang cach INSERT vao `user_roles`:
+**Bảng 2 – Ví bị Blacklist:**
+
+| Cột | Nguồn |
+|---|---|
+| Địa chỉ ví (rút gọn) | `blacklisted_wallets.wallet_address` |
+| Lý do | `blacklisted_wallets.reason` |
+| Ngày tạo | `blacklisted_wallets.created_at` |
+| Vĩnh viễn? | `blacklisted_wallets.is_permanent` |
+
+---
+
+### Thay đổi cần thiết
+
+#### 1. Database: Tạo RPC `get_public_suspended_list`
+
+Tạo một hàm RPC mới (security definer) để trả về dữ liệu an toàn (chỉ các trường công khai, không lộ email hay thông tin nhạy cảm):
 
 ```sql
-INSERT INTO user_roles (user_id, role)
-SELECT id, 'admin'
-FROM auth.users
-WHERE email = 'lekhanhi772@gmail.com'
-ON CONFLICT (user_id, role) DO NOTHING;
+CREATE OR REPLACE FUNCTION get_public_suspended_list()
+RETURNS TABLE (
+  user_id uuid,
+  username text,
+  display_name text,
+  avatar_url text,
+  ban_reason text,
+  banned_at timestamptz,
+  violation_level int
+) LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT id, username, display_name, avatar_url, ban_reason, banned_at, violation_level
+  FROM profiles
+  WHERE COALESCE(banned, false) = true
+  ORDER BY banned_at DESC NULLS LAST;
+$$;
 ```
+
+Bảng `blacklisted_wallets` đã có RLS policy "Everyone can view" nên query trực tiếp được.
+
+#### 2. Hook: `src/hooks/usePublicSuspendedList.ts` (Tạo mới)
+
+- Gọi RPC `get_public_suspended_list` cho danh sách user bị ban
+- Query `blacklisted_wallets` trực tiếp cho danh sách ví
+- Polling mỗi 2 phút (giống pattern `usePublicUsersDirectory`)
+
+#### 3. Trang: `src/pages/SuspendedUsers.tsx` (Tạo mới)
+
+- Header: Tiêu đề "Danh sách đình chỉ" + badge tổng số + mô tả ngắn về chính sách minh bạch
+- 2 tab: "Tài khoản bị Ban" | "Ví bị Blacklist"
+- Tab 1: Card list với avatar mờ, tên gạch ngang, lý do, ngày ban, badge violation level
+- Tab 2: Bảng ví với địa chỉ rút gọn (0x1234...abcd), lý do, ngày, badge vĩnh viễn/tạm thời
+- Thanh tìm kiếm cho cả 2 tab
+- Responsive: desktop = bảng, mobile = card
+- Không có nút Unban (chỉ xem, không hành động)
+
+#### 4. Routing: `src/App.tsx` (Chỉnh sửa)
+
+- Thêm route `/suspended` lazy-loaded
+
+#### 5. Navigation: Thêm link vào sidebar/drawer
+
+- `CollapsibleSidebar.tsx`: Thêm mục "Danh sách đình chỉ" (icon Ban) vào nhóm "Minh bạch" gần "Lịch Sử Giao Dịch"
+- `MobileDrawer.tsx`: Thêm tương tự
 
 ---
 
-### Tong ket cac file can sua
+### Chính sách hiển thị
 
-| STT | File | Thay doi |
+- Trang hoàn toàn công khai (không cần đăng nhập)
+- Không hiển thị email, số điện thoại hay thông tin cá nhân nhạy cảm
+- Chỉ hiển thị: avatar, tên, username, lý do ban, ngày, mức vi phạm
+- Ví blacklist: chỉ hiển thị địa chỉ ví (đã là thông tin on-chain công khai)
+
+---
+
+### Tổng kết file thay đổi
+
+| STT | File | Hành động |
 |---|---|---|
-| 1 | `src/components/Layout/TopRankingSection.tsx` | Sua duong dan navigate tu `/channel/id` thanh `/:username` |
-| 2 | `src/components/Layout/MobileTopRankingCard.tsx` | Them onClick navigate vao MiniRankPill |
-| 3 | `src/components/Layout/MobileTopSponsorsCard.tsx` | Them onClick navigate vao MiniSponsorPill |
-| 4 | Database (SQL) | Them admin role cho user lekhanhi772@gmail.com |
+| 1 | Database migration | Tạo RPC `get_public_suspended_list` |
+| 2 | `src/hooks/usePublicSuspendedList.ts` | Tạo mới |
+| 3 | `src/pages/SuspendedUsers.tsx` | Tạo mới |
+| 4 | `src/App.tsx` | Thêm route `/suspended` |
+| 5 | `src/components/Layout/CollapsibleSidebar.tsx` | Thêm link điều hướng |
+| 6 | `src/components/Layout/MobileDrawer.tsx` | Thêm link điều hướng |
+
