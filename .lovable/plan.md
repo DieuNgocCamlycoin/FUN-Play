@@ -1,24 +1,37 @@
 
 
-## Cập nhật trang Danh sách Đình chỉ: Tên user có thể nhấp vào
+## Cập nhật kênh bị đình chỉ: Bỏ hiệu ứng trắng đen
 
-### Thay đổi
+### Yêu cầu 1: Giữ màu channel bình thường
 
-Trong file `src/pages/SuspendedUsers.tsx`, component `SuspendedRow`:
+**File:** `src/components/Profile/ProfileHeader.tsx`
 
-- Bọc tên hiển thị (`display_name`) và `@username` bằng thẻ `Link` từ `react-router-dom`
-- Khi nhấp vào tên hoặc username, điều hướng đến `/:username` (hoặc `/:user_id` nếu không có username)
-- Chỉ áp dụng cho user có `user_id` (không phải orphan/wallet không xác định)
-- Thêm hiệu ứng hover (underline, màu sáng hơn) để người dùng biết đây là link có thể nhấp
+Xóa các class `grayscale` và `opacity-70` khi user bị ban, nhưng vẫn giữ:
+- Banner "Kênh này đã bị đình chỉ" (SuspendedBanner)
+- Ẩn glow ring khi bị ban
+- Ẩn các nút hành động (Theo dõi, Chia sẻ, v.v.)
+
+Cụ thể:
+- **Dòng 40**: Bỏ `grayscale opacity-70` khỏi cover photo container
+- **Dòng 71-81**: Bỏ điều kiện thay rainbow border bằng viền xám -- giữ rainbow border bình thường cho tất cả
+- **Dòng 84**: Bỏ `grayscale` khỏi avatar container
+
+Glow ring (dòng 65-68) vẫn có thể giữ hoặc bỏ tùy ý -- theo yêu cầu "giữ bình thường" thì sẽ hiện lại glow ring.
+
+### Yêu cầu 2: Về video/short trống
+
+Đây không phải lỗi code. Video và Short của kênh đã bị admin sử dụng công cụ "Cleanup" (xóa video user bị ban) để giải phóng dung lượng. Khi admin chạy cleanup, toàn bộ video/thumbnail bị xóa khỏi storage và database, nên kênh hiển thị "Chưa có Video".
+
+Thưởng (677K CAMLY) vẫn còn vì theo chính sách "Bảo toàn tài chính" -- dữ liệu thưởng được giữ nguyên để đảm bảo tính chính xác của tổng lượng tiền lưu thông.
+
+**Không cần sửa code cho phần này.**
 
 ### Chi tiết kỹ thuật
 
-**File:** `src/pages/SuspendedUsers.tsx`
+| Vị trí | Hiện tại | Sau khi sửa |
+|---|---|---|
+| Cover photo (dòng 40) | `grayscale opacity-70` khi banned | Không thêm class nào |
+| Rainbow border (dòng 71-81) | Thay bằng viền xám khi banned | Giữ rainbow border bình thường |
+| Avatar (dòng 84) | `grayscale` khi banned | Không thêm class nào |
+| Glow ring (dòng 65-68) | Ẩn khi banned | Hiện bình thường |
 
-1. Import `Link` từ `react-router-dom`
-2. Trong `SuspendedRow`, bọc phần tên + username (dòng 141-147) bằng `<Link to={`/${entry.username || entry.user_id}`}>`:
-   - Tên (`display_name`): giữ nguyên style gạch ngang, thêm hover effect
-   - `@username`: giữ nguyên style, thêm hover effect
-   - Chỉ wrap bằng Link khi `!isOrphan`
-
-Không cần thay đổi database hay các file khác.
