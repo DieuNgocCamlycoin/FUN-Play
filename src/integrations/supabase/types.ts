@@ -1554,6 +1554,7 @@ export type Database = {
           banned: boolean | null
           banned_at: string | null
           bio: string | null
+          claim_freeze_until: string | null
           created_at: string
           display_name: string | null
           facebook_url: string | null
@@ -1564,6 +1565,7 @@ export type Database = {
           last_claim_at: string | null
           last_fun_mint_at: string | null
           last_light_score_update: string | null
+          last_wallet_change_at: string | null
           light_score: number
           light_score_details: Json | null
           linkedin_url: string | null
@@ -1584,7 +1586,9 @@ export type Database = {
           username: string
           violation_level: number | null
           wallet_address: string | null
+          wallet_change_count_30d: number | null
           wallet_connect_rewarded: boolean | null
+          wallet_risk_status: string | null
           wallet_type: string | null
           youtube_url: string | null
           zalo_url: string | null
@@ -1599,6 +1603,7 @@ export type Database = {
           banned?: boolean | null
           banned_at?: string | null
           bio?: string | null
+          claim_freeze_until?: string | null
           created_at?: string
           display_name?: string | null
           facebook_url?: string | null
@@ -1609,6 +1614,7 @@ export type Database = {
           last_claim_at?: string | null
           last_fun_mint_at?: string | null
           last_light_score_update?: string | null
+          last_wallet_change_at?: string | null
           light_score?: number
           light_score_details?: Json | null
           linkedin_url?: string | null
@@ -1629,7 +1635,9 @@ export type Database = {
           username: string
           violation_level?: number | null
           wallet_address?: string | null
+          wallet_change_count_30d?: number | null
           wallet_connect_rewarded?: boolean | null
+          wallet_risk_status?: string | null
           wallet_type?: string | null
           youtube_url?: string | null
           zalo_url?: string | null
@@ -1644,6 +1652,7 @@ export type Database = {
           banned?: boolean | null
           banned_at?: string | null
           bio?: string | null
+          claim_freeze_until?: string | null
           created_at?: string
           display_name?: string | null
           facebook_url?: string | null
@@ -1654,6 +1663,7 @@ export type Database = {
           last_claim_at?: string | null
           last_fun_mint_at?: string | null
           last_light_score_update?: string | null
+          last_wallet_change_at?: string | null
           light_score?: number
           light_score_details?: Json | null
           linkedin_url?: string | null
@@ -1674,7 +1684,9 @@ export type Database = {
           username?: string
           violation_level?: number | null
           wallet_address?: string | null
+          wallet_change_count_30d?: number | null
           wallet_connect_rewarded?: boolean | null
+          wallet_risk_status?: string | null
           wallet_type?: string | null
           youtube_url?: string | null
           zalo_url?: string | null
@@ -2418,6 +2430,99 @@ export type Database = {
           },
         ]
       }
+      wallet_change_log: {
+        Row: {
+          created_at: string | null
+          id: string
+          ip_hash: string | null
+          new_wallet: string | null
+          old_wallet: string | null
+          reason: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          ip_hash?: string | null
+          new_wallet?: string | null
+          old_wallet?: string | null
+          reason?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          ip_hash?: string | null
+          new_wallet?: string | null
+          old_wallet?: string | null
+          reason?: string | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_change_log_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "mv_top_ranking"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wallet_change_log_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wallet_history: {
+        Row: {
+          created_by: string | null
+          ended_at: string | null
+          id: string
+          is_active: boolean | null
+          started_at: string | null
+          user_id: string
+          wallet_address: string
+        }
+        Insert: {
+          created_by?: string | null
+          ended_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          started_at?: string | null
+          user_id: string
+          wallet_address: string
+        }
+        Update: {
+          created_by?: string | null
+          ended_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          started_at?: string | null
+          user_id?: string
+          wallet_address?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_history_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "mv_top_ranking"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wallet_history_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wallet_links: {
         Row: {
           id: string
@@ -2762,6 +2867,16 @@ export type Database = {
       remove_admin_role: {
         Args: { p_owner_id: string; p_target_user_id: string }
         Returns: boolean
+      }
+      request_wallet_change: {
+        Args: {
+          p_ip_hash?: string
+          p_new_wallet: string
+          p_reason?: string
+          p_user_agent?: string
+          p_user_id: string
+        }
+        Returns: Json
       }
       restore_user_rewards: {
         Args: { p_admin_id: string; p_user_id: string }
