@@ -76,11 +76,24 @@ export const WalletChangeConfirmDialog = ({
             </div>
           </div>
 
-          {/* Warning message */}
-          <div className="rounded-lg bg-warning/10 p-3 text-center">
-            <p className="text-sm text-warning">
-              ⚠️ <strong>Lưu ý:</strong> Phần thưởng CAMLY sẽ được gửi đến ví mới nếu bạn cập nhật.
-            </p>
+          {/* Warning messages */}
+          <div className="space-y-2">
+            <div className="rounded-lg bg-warning/10 p-3 text-center">
+              <p className="text-sm text-warning">
+                ⚠️ <strong>Lưu ý:</strong> Phần thưởng CAMLY sẽ được gửi đến ví mới nếu bạn cập nhật.
+              </p>
+            </div>
+            <div className="rounded-lg bg-destructive/10 p-3 space-y-1">
+              <p className="text-xs text-destructive font-medium">
+                🔒 Đổi ví sẽ freeze claim trong 72 giờ
+              </p>
+              <p className="text-xs text-destructive font-medium">
+                ⏱️ Bạn chỉ được đổi ví 1 lần / 30 ngày
+              </p>
+              <p className="text-xs text-destructive font-medium">
+                ⚠️ Đổi ví nhiều lần sẽ bị khóa claim vĩnh viễn
+              </p>
+            </div>
           </div>
         </div>
 
