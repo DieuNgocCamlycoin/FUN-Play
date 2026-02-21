@@ -2759,6 +2759,7 @@ export type Database = {
           ban_reason: string
           banned_at: string
           display_name: string
+          total_camly_rewards: number
           user_id: string
           username: string
           violation_level: number

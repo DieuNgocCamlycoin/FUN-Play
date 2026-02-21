@@ -10,6 +10,7 @@ export interface SuspendedUser {
   ban_reason: string | null;
   banned_at: string | null;
   violation_level: number | null;
+  total_camly_rewards: number;
 }
 
 export interface BlacklistedWallet {
@@ -35,6 +36,7 @@ export interface SuspendedEntry {
   ban_reason: string | null;
   banned_at: string | null;
   violation_level: number | null;
+  total_camly_rewards: number;
   wallets: BlacklistedWallet[];
   historical_wallets: HistoricalWallet[];
 }
@@ -108,6 +110,7 @@ export function usePublicSuspendedList() {
       ban_reason: u.ban_reason,
       banned_at: u.banned_at,
       violation_level: u.violation_level,
+      total_camly_rewards: u.total_camly_rewards ?? 0,
       wallets: walletsByUser.get(u.user_id) || [],
       historical_wallets: histByUser.get(u.user_id) || [],
     }));
@@ -121,6 +124,7 @@ export function usePublicSuspendedList() {
         ban_reason: w.reason,
         banned_at: w.created_at,
         violation_level: null,
+        total_camly_rewards: 0,
         wallets: [w],
         historical_wallets: [],
       });

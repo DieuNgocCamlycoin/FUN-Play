@@ -122,6 +122,7 @@ const SuspendedUsers = () => {
                 <TableHead>Ví liên kết</TableHead>
                 <TableHead className="hidden sm:table-cell">Lý do</TableHead>
                 <TableHead className="hidden sm:table-cell">Mức độ</TableHead>
+                <TableHead className="hidden md:table-cell">Tổng thưởng</TableHead>
                 <TableHead className="hidden md:table-cell">Ngày đình chỉ</TableHead>
               </TableRow>
             </TableHeader>
@@ -275,6 +276,13 @@ function SuspendedRow({ entry, index }: { entry: SuspendedEntry; index: number }
       {/* Level - hidden on mobile */}
       <TableCell className="hidden sm:table-cell">
         {violationBadge(entry.violation_level)}
+      </TableCell>
+
+      {/* Total rewards */}
+      <TableCell className="hidden md:table-cell text-xs text-muted-foreground">
+        {entry.total_camly_rewards > 0
+          ? `${entry.total_camly_rewards.toLocaleString()} CAMLY`
+          : "—"}
       </TableCell>
 
       {/* Date - hidden on mobile */}
