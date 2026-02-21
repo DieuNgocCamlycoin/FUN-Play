@@ -37,7 +37,7 @@ export const ProfileHeader = ({ profile, channel, lightScore = 0, suspiciousScor
   return (
     <div className="relative">
       {/* Cover Photo Container */}
-      <div className="relative w-full h-48 md:h-64 lg:h-80 xl:h-[400px] overflow-hidden">
+      <div className={`relative w-full h-48 md:h-64 lg:h-80 xl:h-[400px] overflow-hidden ${banned ? 'grayscale opacity-70' : ''}`}>
         {channel?.banner_url ? (
           <img src={channel.banner_url} alt="Cover" className="w-full h-full object-cover" />
         ) : (
@@ -62,20 +62,26 @@ export const ProfileHeader = ({ profile, channel, lightScore = 0, suspiciousScor
             {/* Diamond Badge */}
             <DiamondBadge lightScore={lightScore} suspiciousScore={suspiciousScore} banned={banned} violationLevel={violationLevel} />
 
-            {/* Glow Ring */}
-            <div className="absolute -inset-1.5 rounded-full bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] via-[hsl(var(--cosmic-magenta))] to-[hsl(var(--cosmic-gold))] opacity-70 blur-md animate-pulse group-hover:opacity-100 transition-opacity" />
+            {/* Glow Ring - hidden when banned */}
+            {!banned && (
+              <div className="absolute -inset-1.5 rounded-full bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] via-[hsl(var(--cosmic-magenta))] to-[hsl(var(--cosmic-gold))] opacity-70 blur-md animate-pulse group-hover:opacity-100 transition-opacity" />
+            )}
             
-            {/* Rainbow Border */}
-            <div
-              className="absolute -inset-1 rounded-full animate-spin-slow"
-              style={{
-                background: "conic-gradient(from 0deg, hsl(var(--cosmic-cyan)), hsl(var(--cosmic-purple)), hsl(var(--cosmic-magenta)), hsl(var(--cosmic-gold)), hsl(var(--cosmic-cyan)))",
-                animationDuration: "4s",
-              }}
-            />
+            {/* Rainbow Border - gray when banned */}
+            {banned ? (
+              <div className="absolute -inset-1 rounded-full bg-muted-foreground/30" />
+            ) : (
+              <div
+                className="absolute -inset-1 rounded-full animate-spin-slow"
+                style={{
+                  background: "conic-gradient(from 0deg, hsl(var(--cosmic-cyan)), hsl(var(--cosmic-purple)), hsl(var(--cosmic-magenta)), hsl(var(--cosmic-gold)), hsl(var(--cosmic-cyan)))",
+                  animationDuration: "4s",
+                }}
+              />
+            )}
 
             {/* Avatar */}
-            <div className="relative w-32 h-32 md:w-40 md:h-40 lg:w-48 lg:h-48 rounded-full border-4 border-background overflow-hidden bg-background">
+            <div className={`relative w-32 h-32 md:w-40 md:h-40 lg:w-48 lg:h-48 rounded-full border-4 border-background overflow-hidden bg-background ${banned ? 'grayscale' : ''}`}>
               {profile.avatar_url ? (
                 <img src={profile.avatar_url} alt={displayName} className="w-full h-full object-cover" />
               ) : (
@@ -87,19 +93,21 @@ export const ProfileHeader = ({ profile, channel, lightScore = 0, suspiciousScor
               )}
             </div>
 
-            {/* Social Media Orbit */}
-            <SocialMediaOrbit
-              angelaiUrl={profile.angelai_url}
-              funplayUrl={profile.funplay_url}
-              facebookUrl={profile.facebook_url}
-              youtubeUrl={profile.youtube_url}
-              twitterUrl={profile.twitter_url}
-              telegramUrl={profile.telegram_url}
-              tiktokUrl={profile.tiktok_url}
-              linkedinUrl={profile.linkedin_url}
-              zaloUrl={profile.zalo_url}
-              socialAvatars={profile.social_avatars}
-            />
+            {/* Social Media Orbit - hidden when banned */}
+            {!banned && (
+              <SocialMediaOrbit
+                angelaiUrl={profile.angelai_url}
+                funplayUrl={profile.funplay_url}
+                facebookUrl={profile.facebook_url}
+                youtubeUrl={profile.youtube_url}
+                twitterUrl={profile.twitter_url}
+                telegramUrl={profile.telegram_url}
+                tiktokUrl={profile.tiktok_url}
+                linkedinUrl={profile.linkedin_url}
+                zaloUrl={profile.zalo_url}
+                socialAvatars={profile.social_avatars}
+              />
+            )}
           </div>
         </motion.div>
       </div>

@@ -11,9 +11,10 @@ interface ProfileTabsProps {
   userId: string;
   channelId?: string;
   isOwnProfile: boolean;
+  banned?: boolean;
 }
 
-export const ProfileTabs = ({ userId, channelId, isOwnProfile }: ProfileTabsProps) => {
+export const ProfileTabs = ({ userId, channelId, isOwnProfile, banned }: ProfileTabsProps) => {
   const [activeTab, setActiveTab] = useState("videos");
 
   const [aboutData, setAboutData] = useState<{
@@ -118,11 +119,11 @@ export const ProfileTabs = ({ userId, channelId, isOwnProfile }: ProfileTabsProp
         </TabsContent>
 
         <TabsContent value="posts" className="mt-0">
-          <ProfilePostsTab userId={userId} isOwnProfile={isOwnProfile} />
+          <ProfilePostsTab userId={userId} isOwnProfile={banned ? false : isOwnProfile} />
         </TabsContent>
 
         <TabsContent value="playlists" className="mt-0">
-          <ProfilePlaylistsTab userId={userId} isOwnProfile={isOwnProfile} />
+          <ProfilePlaylistsTab userId={userId} isOwnProfile={banned ? false : isOwnProfile} />
         </TabsContent>
 
         <TabsContent value="about" className="mt-0">
