@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { MainLayout } from "@/components/Layout/MainLayout";
 import { Link } from "react-router-dom";
 import { usePublicSuspendedList } from "@/hooks/usePublicSuspendedList";
 import { Input } from "@/components/ui/input";
@@ -50,7 +51,7 @@ const SuspendedUsers = () => {
   }, [mergedEntries, search]);
 
   return (
-    <div className="min-h-screen bg-background">
+    <MainLayout>
       <div className="max-w-5xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">
@@ -111,7 +112,7 @@ const SuspendedUsers = () => {
           </Table>
         )}
       </div>
-    </div>
+    </MainLayout>
   );
 };
 
