@@ -24,9 +24,13 @@ interface MiniSponsorPillProps {
   sponsor: TopSponsor;
 }
 
-const MiniSponsorPill = ({ rank, sponsor }: MiniSponsorPillProps) => (
+const MiniSponsorPill = ({ rank, sponsor }: MiniSponsorPillProps) => {
+  const navigate = useNavigate();
+  return (
   <div
+    onClick={() => navigate(`/${sponsor.username || sponsor.userId}`)}
     className={cn(
+      "cursor-pointer",
       "flex items-center gap-1.5 px-2 py-1 rounded-full",
       "bg-gradient-to-r from-[#FF00E5]/10 via-[#7A2BFF]/10 to-[#00E7FF]/10",
       "border border-[#FF00E5]/30",
@@ -44,7 +48,8 @@ const MiniSponsorPill = ({ rank, sponsor }: MiniSponsorPillProps) => (
       {formatAmount(sponsor.totalDonated)}
     </span>
   </div>
-);
+  );
+};
 
 export const MobileTopSponsorsCard = () => {
   const navigate = useNavigate();

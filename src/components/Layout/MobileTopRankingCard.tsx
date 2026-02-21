@@ -25,11 +25,14 @@ interface MiniRankPillProps {
 }
 
 const MiniRankPill = ({ rank, user }: MiniRankPillProps) => {
+  const navigate = useNavigate();
   if (!user) return null;
 
   return (
     <div
+      onClick={(e) => { e.stopPropagation(); navigate(`/${user.username || user.id}`); }}
       className={cn(
+        "cursor-pointer",
         "flex items-center gap-1.5 px-2 py-1 rounded-full",
         "bg-gradient-to-r from-[#00E7FF]/10 via-[#7A2BFF]/10 to-[#FF00E5]/10",
         "border border-[#7A2BFF]/30",
