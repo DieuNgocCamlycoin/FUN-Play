@@ -37,7 +37,7 @@ export const ProfileHeader = ({ profile, channel, lightScore = 0, suspiciousScor
   return (
     <div className="relative">
       {/* Cover Photo Container */}
-      <div className={`relative w-full h-48 md:h-64 lg:h-80 xl:h-[400px] overflow-hidden ${banned ? 'grayscale opacity-70' : ''}`}>
+      <div className="relative w-full h-48 md:h-64 lg:h-80 xl:h-[400px] overflow-hidden">
         {channel?.banner_url ? (
           <img src={channel.banner_url} alt="Cover" className="w-full h-full object-cover" />
         ) : (
@@ -62,26 +62,20 @@ export const ProfileHeader = ({ profile, channel, lightScore = 0, suspiciousScor
             {/* Diamond Badge */}
             <DiamondBadge lightScore={lightScore} suspiciousScore={suspiciousScore} banned={banned} violationLevel={violationLevel} />
 
-            {/* Glow Ring - hidden when banned */}
-            {!banned && (
-              <div className="absolute -inset-1.5 rounded-full bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] via-[hsl(var(--cosmic-magenta))] to-[hsl(var(--cosmic-gold))] opacity-70 blur-md animate-pulse group-hover:opacity-100 transition-opacity" />
-            )}
+            {/* Glow Ring */}
+            <div className="absolute -inset-1.5 rounded-full bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] via-[hsl(var(--cosmic-magenta))] to-[hsl(var(--cosmic-gold))] opacity-70 blur-md animate-pulse group-hover:opacity-100 transition-opacity" />
             
-            {/* Rainbow Border - gray when banned */}
-            {banned ? (
-              <div className="absolute -inset-1 rounded-full bg-muted-foreground/30" />
-            ) : (
-              <div
-                className="absolute -inset-1 rounded-full animate-spin-slow"
-                style={{
-                  background: "conic-gradient(from 0deg, hsl(var(--cosmic-cyan)), hsl(var(--cosmic-purple)), hsl(var(--cosmic-magenta)), hsl(var(--cosmic-gold)), hsl(var(--cosmic-cyan)))",
-                  animationDuration: "4s",
-                }}
-              />
-            )}
+            {/* Rainbow Border */}
+            <div
+              className="absolute -inset-1 rounded-full animate-spin-slow"
+              style={{
+                background: "conic-gradient(from 0deg, hsl(var(--cosmic-cyan)), hsl(var(--cosmic-purple)), hsl(var(--cosmic-magenta)), hsl(var(--cosmic-gold)), hsl(var(--cosmic-cyan)))",
+                animationDuration: "4s",
+              }}
+            />
 
             {/* Avatar */}
-            <div className={`relative w-32 h-32 md:w-40 md:h-40 lg:w-48 lg:h-48 rounded-full border-4 border-background overflow-hidden bg-background ${banned ? 'grayscale' : ''}`}>
+            <div className="relative w-32 h-32 md:w-40 md:h-40 lg:w-48 lg:h-48 rounded-full border-4 border-background overflow-hidden bg-background">
               {profile.avatar_url ? (
                 <img src={profile.avatar_url} alt={displayName} className="w-full h-full object-cover" />
               ) : (
