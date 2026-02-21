@@ -21,6 +21,12 @@ export interface BlacklistedWallet {
   user_id: string | null;
 }
 
+export interface HistoricalWallet {
+  user_id: string;
+  wallet_address: string;
+  source: string; // 'tracking' | 'claim' | 'profile'
+}
+
 export interface SuspendedEntry {
   user_id: string | null;
   username: string | null;
@@ -30,6 +36,7 @@ export interface SuspendedEntry {
   banned_at: string | null;
   violation_level: number | null;
   wallets: BlacklistedWallet[];
+  historical_wallets: HistoricalWallet[];
 }
 
 export function usePublicSuspendedList() {
@@ -56,12 +63,24 @@ export function usePublicSuspendedList() {
     refetchInterval: 2 * 60 * 1000,
   });
 
+  const historicalWalletsQuery = useQuery({
+    queryKey: ["public-suspended-wallet-history"],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_suspended_wallet_history");
+      if (error) throw error;
+      return (data || []) as HistoricalWallet[];
+    },
+    refetchInterval: 2 * 60 * 1000,
+  });
+
   const bannedUsers = bannedUsersQuery.data || [];
   const blacklistedWallets = blacklistedWalletsQuery.data || [];
+  const historicalWallets = historicalWalletsQuery.data || [];
 
   const mergedEntries = useMemo<SuspendedEntry[]>(() => {
     const walletsByUser = new Map<string, BlacklistedWallet[]>();
     const orphanWallets: BlacklistedWallet[] = [];
+    const histByUser = new Map<string, HistoricalWallet[]>();
 
     for (const w of blacklistedWallets) {
       if (w.user_id) {
@@ -70,6 +89,14 @@ export function usePublicSuspendedList() {
         walletsByUser.set(w.user_id, existing);
       } else {
         orphanWallets.push(w);
+      }
+    }
+
+    for (const h of historicalWallets) {
+      if (h.user_id) {
+        const existing = histByUser.get(h.user_id) || [];
+        existing.push(h);
+        histByUser.set(h.user_id, existing);
       }
     }
 
@@ -82,9 +109,9 @@ export function usePublicSuspendedList() {
       banned_at: u.banned_at,
       violation_level: u.violation_level,
       wallets: walletsByUser.get(u.user_id) || [],
+      historical_wallets: histByUser.get(u.user_id) || [],
     }));
 
-    // Append orphan wallets as separate entries
     for (const w of orphanWallets) {
       entries.push({
         user_id: null,
@@ -95,17 +122,18 @@ export function usePublicSuspendedList() {
         banned_at: w.created_at,
         violation_level: null,
         wallets: [w],
+        historical_wallets: [],
       });
     }
 
     return entries;
-  }, [bannedUsers, blacklistedWallets]);
+  }, [bannedUsers, blacklistedWallets, historicalWallets]);
 
   return {
     bannedUsers,
     blacklistedWallets,
     mergedEntries,
     totalCount: bannedUsers.length + blacklistedWallets.length,
-    isLoading: bannedUsersQuery.isLoading || blacklistedWalletsQuery.isLoading,
+    isLoading: bannedUsersQuery.isLoading || blacklistedWalletsQuery.isLoading || historicalWalletsQuery.isLoading,
   };
 }

@@ -4,7 +4,7 @@ import { usePublicSuspendedList } from "@/hooks/usePublicSuspendedList";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Search, ShieldBan, AlertTriangle, Wallet } from "lucide-react";
+import { Search, ShieldBan, AlertTriangle, Wallet, History } from "lucide-react";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -44,7 +44,8 @@ const SuspendedUsers = () => {
         e.username?.toLowerCase().includes(q) ||
         e.display_name?.toLowerCase().includes(q) ||
         e.ban_reason?.toLowerCase().includes(q) ||
-        e.wallets.some((w) => w.wallet_address.toLowerCase().includes(q))
+        e.wallets.some((w) => w.wallet_address.toLowerCase().includes(q)) ||
+        e.historical_wallets.some((h) => h.wallet_address.toLowerCase().includes(q))
     );
   }, [mergedEntries, search]);
 
@@ -166,7 +167,7 @@ function SuspendedRow({ entry, index }: { entry: SuspendedEntry; index: number }
 
       {/* Wallets */}
       <TableCell>
-        {entry.wallets.length === 0 ? (
+        {entry.wallets.length === 0 && entry.historical_wallets.length === 0 ? (
           <span className="text-muted-foreground text-xs">—</span>
         ) : (
           <div className="space-y-1">
@@ -187,6 +188,29 @@ function SuspendedRow({ entry, index }: { entry: SuspendedEntry; index: number }
                 </Badge>
               </div>
             ))}
+            {entry.historical_wallets.length > 0 && (
+              <>
+                {entry.wallets.length > 0 && (
+                  <div className="flex items-center gap-1 pt-1 border-t border-border/50 mt-1">
+                    <History className="h-3 w-3 text-muted-foreground/60" />
+                    <span className="text-[10px] text-muted-foreground/60">Lịch sử kết nối</span>
+                  </div>
+                )}
+                {entry.historical_wallets.map((h, i) => (
+                  <div key={`hist-${i}`} className="flex items-center gap-1.5 opacity-60">
+                    <code className="text-xs font-mono text-muted-foreground">
+                      {truncateAddress(h.wallet_address)}
+                    </code>
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] px-1.5 py-0 bg-muted/30 text-muted-foreground border-border/50"
+                    >
+                      {h.source === 'claim' ? 'Rút thưởng' : h.source === 'tracking' ? 'Đã kết nối' : 'Hồ sơ'}
+                    </Badge>
+                  </div>
+                ))}
+              </>
+            )}
           </div>
         )}
       </TableCell>

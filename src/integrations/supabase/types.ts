@@ -2798,6 +2798,14 @@ export type Database = {
           view_rewards: number
         }[]
       }
+      get_suspended_wallet_history: {
+        Args: never
+        Returns: {
+          source: string
+          user_id: string
+          wallet_address: string
+        }[]
+      }
       get_transaction_stats: {
         Args: { p_wallet_address?: string }
         Returns: Json
