@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { Link } from "react-router-dom";
 import { usePublicSuspendedList } from "@/hooks/usePublicSuspendedList";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -139,11 +140,17 @@ function SuspendedRow({ entry, index }: { entry: SuspendedEntry; index: number }
             </Avatar>
           )}
           <div className="min-w-0">
-            <p className="font-medium text-sm text-foreground line-through decoration-destructive/50 truncate">
-              {isOrphan ? "Không xác định" : (entry.display_name || entry.username)}
-            </p>
-            {!isOrphan && (
-              <p className="text-xs text-muted-foreground truncate">@{entry.username}</p>
+            {isOrphan ? (
+              <p className="font-medium text-sm text-foreground line-through decoration-destructive/50 truncate">
+                Không xác định
+              </p>
+            ) : (
+              <Link to={`/${entry.username || entry.user_id}`} className="group">
+                <p className="font-medium text-sm text-foreground line-through decoration-destructive/50 truncate group-hover:underline group-hover:text-primary transition-colors">
+                  {entry.display_name || entry.username}
+                </p>
+                <p className="text-xs text-muted-foreground truncate group-hover:text-primary transition-colors">@{entry.username}</p>
+              </Link>
             )}
             {/* Mobile-only: show reason & level inline */}
             <div className="flex items-center gap-2 mt-1 sm:hidden">
