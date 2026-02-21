@@ -1,14 +1,15 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { MainLayout } from "@/components/Layout/MainLayout";
 import { Link } from "react-router-dom";
 import { usePublicSuspendedList } from "@/hooks/usePublicSuspendedList";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Search, ShieldBan, AlertTriangle, Wallet, History } from "lucide-react";
+import { Search, ShieldBan, AlertTriangle, Wallet, History, Copy, ArrowUp } from "lucide-react";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
 import {
   Table,
   TableHeader,
@@ -33,9 +34,27 @@ const violationBadge = (level: number | null) => {
 const truncateAddress = (addr: string) =>
   addr.length > 12 ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : addr;
 
+const copyToClipboard = (address: string) => {
+  navigator.clipboard.writeText(address);
+  toast.success("Đã sao chép mã ví");
+};
+
 const SuspendedUsers = () => {
   const { mergedEntries, totalCount, isLoading } = usePublicSuspendedList();
   const [search, setSearch] = useState("");
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 300);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const filtered = useMemo(() => {
     if (!search) return mergedEntries;
@@ -53,31 +72,33 @@ const SuspendedUsers = () => {
   return (
     <MainLayout>
       <div className="max-w-5xl mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-3">
-            <ShieldBan className="h-8 w-8 text-destructive" />
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground">
-              Danh sách đình chỉ
-            </h1>
-            <Badge variant="secondary" className="text-sm">
-              {totalCount}
-            </Badge>
+        {/* Sticky Header */}
+        <div className="sticky top-[64px] z-10 bg-background pb-4">
+          <div className="mb-4">
+            <div className="flex items-center gap-3 mb-3">
+              <ShieldBan className="h-8 w-8 text-destructive" />
+              <h1 className="text-2xl md:text-3xl font-bold text-foreground">
+                Danh sách đình chỉ
+              </h1>
+              <Badge variant="secondary" className="text-sm">
+                {totalCount}
+              </Badge>
+            </div>
+            <p className="text-muted-foreground text-sm md:text-base">
+              FUN Play cam kết minh bạch tuyệt đối. Tất cả tài khoản bị đình chỉ và ví bị chặn đều được công khai tại đây.
+            </p>
           </div>
-          <p className="text-muted-foreground text-sm md:text-base">
-            FUN Play cam kết minh bạch tuyệt đối. Tất cả tài khoản bị đình chỉ và ví bị chặn đều được công khai tại đây.
-          </p>
-        </div>
 
-        {/* Search */}
-        <div className="relative mb-6">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Tìm kiếm theo tên, username, địa chỉ ví..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-10"
-          />
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Tìm kiếm theo tên, username, địa chỉ ví..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-10"
+            />
+          </div>
         </div>
 
         {/* Table */}
@@ -94,7 +115,7 @@ const SuspendedUsers = () => {
           </div>
         ) : (
           <Table wrapperClassName="border border-border rounded-lg">
-            <TableHeader>
+            <TableHeader className="sticky top-[200px] z-[9] bg-background">
               <TableRow className="hover:bg-transparent">
                 <TableHead className="w-12 hidden md:table-cell">#</TableHead>
                 <TableHead>Người dùng</TableHead>
@@ -112,6 +133,17 @@ const SuspendedUsers = () => {
           </Table>
         )}
       </div>
+
+      {/* Scroll to top button */}
+      {showScrollTop && (
+        <button
+          onClick={scrollToTop}
+          className="fixed bottom-20 right-6 z-50 h-10 w-10 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 transition-all duration-300 animate-fade-in"
+          aria-label="Scroll to top"
+        >
+          <ArrowUp className="h-5 w-5" />
+        </button>
+      )}
     </MainLayout>
   );
 };
@@ -174,6 +206,13 @@ function SuspendedRow({ entry, index }: { entry: SuspendedEntry; index: number }
           <div className="space-y-1">
             {entry.wallets.map((w) => (
               <div key={w.id} className="flex items-center gap-1.5">
+                <button
+                  onClick={() => copyToClipboard(w.wallet_address)}
+                  className="text-muted-foreground/50 hover:text-foreground transition-colors shrink-0"
+                  title="Sao chép mã ví"
+                >
+                  <Copy className="h-3 w-3" />
+                </button>
                 <code className="text-xs font-mono text-foreground/80">
                   {truncateAddress(w.wallet_address)}
                 </code>
@@ -199,6 +238,13 @@ function SuspendedRow({ entry, index }: { entry: SuspendedEntry; index: number }
                 )}
                 {entry.historical_wallets.map((h, i) => (
                   <div key={`hist-${i}`} className="flex items-center gap-1.5 opacity-60">
+                    <button
+                      onClick={() => copyToClipboard(h.wallet_address)}
+                      className="text-muted-foreground/50 hover:text-foreground transition-colors shrink-0"
+                      title="Sao chép mã ví"
+                    >
+                      <Copy className="h-3 w-3" />
+                    </button>
                     <code className="text-xs font-mono text-muted-foreground">
                       {truncateAddress(h.wallet_address)}
                     </code>
