@@ -59,7 +59,7 @@ serve(async (req) => {
     // === SERVER-SIDE SECURITY CHECKS ===
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
-      .select('banned, avatar_verified, wallet_address')
+      .select('banned, avatar_verified, wallet_address, claim_freeze_until, wallet_risk_status')
       .eq('id', user.id)
       .single();
 
@@ -73,6 +73,17 @@ serve(async (req) => {
 
     if (!profile.avatar_verified) {
       return jsonError('Cần xác minh ảnh chân dung trước khi claim. Vui lòng vào Cài đặt hồ sơ.');
+    }
+
+    // Check claim freeze (wallet change security)
+    if (profile.claim_freeze_until && new Date(profile.claim_freeze_until) > new Date()) {
+      const freezeDate = new Date(profile.claim_freeze_until).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      return jsonError(`Tài khoản đang được kiểm tra bảo mật do thay đổi ví. Vui lòng thử lại sau: ${freezeDate}`);
+    }
+
+    // Check blocked wallet risk status
+    if (profile.wallet_risk_status === 'BLOCKED') {
+      return jsonError('Tài khoản bị khóa claim do thay đổi ví bất thường. Vui lòng liên hệ support.');
     }
 
     const body = await req.json();

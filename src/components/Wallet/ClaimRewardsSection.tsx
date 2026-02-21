@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Coins, CheckCircle, Clock, Wallet, Trophy, Info, Hourglass, Camera } from "lucide-react";
+import { Coins, CheckCircle, Clock, Wallet, Trophy, Info, Hourglass, Camera, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { ClaimRewardsModal } from "@/components/Rewards/ClaimRewardsModal";
@@ -33,6 +33,8 @@ export const ClaimRewardsSection = () => {
   const [loading, setLoading] = useState(true);
   const isMountedRef = useRef(true);
   const DAILY_CLAIM_LIMIT = 500000;
+  const [claimFreezeUntil, setClaimFreezeUntil] = useState<string | null>(null);
+  const [walletRiskStatus, setWalletRiskStatus] = useState<string>('NORMAL');
   const [stats, setStats] = useState({
     totalRewards: 0,
     pendingRewards: 0,
@@ -49,7 +51,7 @@ export const ClaimRewardsSection = () => {
       // Single Source of Truth: RPC get_user_activity_summary
       const [summaryResult, profileResult, dailyResult] = await Promise.all([
         supabase.rpc('get_user_activity_summary', { p_user_id: user.id }),
-        supabase.from("profiles").select("avatar_url, avatar_verified").eq("id", user.id).single(),
+        supabase.from("profiles").select("avatar_url, avatar_verified, claim_freeze_until, wallet_risk_status").eq("id", user.id).single(),
         supabase.from("daily_claim_records").select("total_claimed").eq("user_id", user.id).eq("date", new Date().toISOString().split('T')[0]).maybeSingle(),
       ]);
 
@@ -60,6 +62,8 @@ export const ClaimRewardsSection = () => {
       if (isMountedRef.current) {
         setAvatarUrl(profile?.avatar_url ?? null);
         setAvatarVerified(!!profile?.avatar_verified);
+        setClaimFreezeUntil((profile as any)?.claim_freeze_until ?? null);
+        setWalletRiskStatus((profile as any)?.wallet_risk_status ?? 'NORMAL');
         setStats({
           totalRewards: Number(summary?.total_camly || 0),
           pendingRewards: Number(summary?.pending_camly || 0),
@@ -142,7 +146,9 @@ export const ClaimRewardsSection = () => {
   const progressPercent = Math.min((stats.approvedRewards / CLAIM_THRESHOLD) * 100, 100);
   const dailyLimitReached = stats.dailyClaimed >= DAILY_CLAIM_LIMIT;
   const dailyProgressPercent = Math.min((stats.dailyClaimed / DAILY_CLAIM_LIMIT) * 100, 100);
-  const canClaim = stats.approvedRewards >= CLAIM_THRESHOLD && isConnected && !dailyLimitReached && avatarVerified;
+  const isFrozen = claimFreezeUntil && new Date(claimFreezeUntil) > new Date();
+  const isBlocked = walletRiskStatus === 'BLOCKED';
+  const canClaim = stats.approvedRewards >= CLAIM_THRESHOLD && isConnected && !dailyLimitReached && avatarVerified && !isFrozen && !isBlocked;
 
   const handleClaimClick = () => {
     if (!avatarUrl) {
@@ -348,6 +354,24 @@ export const ClaimRewardsSection = () => {
             )}
           </div>
         </div>
+
+        {/* Freeze/Blocked Warning */}
+        {!loading && isBlocked && (
+          <div className="flex items-center gap-2 p-3 rounded-xl bg-gradient-to-r from-destructive/15 to-red-500/15 border border-destructive/30">
+            <AlertTriangle className="h-4 w-4 text-destructive flex-shrink-0" />
+            <p className="text-xs text-destructive font-medium flex-1">
+              🚫 Tài khoản bị khóa claim do thay đổi ví bất thường. Vui lòng liên hệ support.
+            </p>
+          </div>
+        )}
+        {!loading && isFrozen && !isBlocked && (
+          <div className="flex items-center gap-2 p-3 rounded-xl bg-gradient-to-r from-amber-500/15 to-orange-500/15 border border-amber-400/30">
+            <Clock className="h-4 w-4 text-amber-500 flex-shrink-0" />
+            <p className="text-xs text-muted-foreground flex-1">
+              🔒 Tài khoản đang được kiểm tra bảo mật do thay đổi ví. Vui lòng thử lại sau: {new Date(claimFreezeUntil!).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+            </p>
+          </div>
+        )}
 
         {/* Avatar Warning - Compact */}
         {!loading && !avatarUrl && (

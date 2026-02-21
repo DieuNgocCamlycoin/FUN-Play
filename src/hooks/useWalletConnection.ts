@@ -106,18 +106,58 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
     }
   }, [address, fetchBalance]);
 
-  // Save wallet info to database (uses userRef for stability)
+  // Save wallet info to database via RPC (uses userRef for stability)
   const saveWalletToDb = useCallback(async (walletAddress: string, type: WalletType) => {
     const currentUser = userRef.current;
     if (!currentUser) return;
     try {
-      await supabase
-        .from('profiles')
-        .update({
-          wallet_address: walletAddress,
-          wallet_type: type === 'metamask' ? 'MetaMask' : type === 'bitget' ? 'Bitget Wallet' : 'Unknown',
-        })
-        .eq('id', currentUser.id);
+      // Check if this is first-time wallet save (no previous wallet)
+      const isFirstSave = !previousAddressRef.current;
+      
+      if (isFirstSave) {
+        // First-time wallet connection: direct update (no RPC needed)
+        await supabase
+          .from('profiles')
+          .update({
+            wallet_address: walletAddress,
+            wallet_type: type === 'metamask' ? 'MetaMask' : type === 'bitget' ? 'Bitget Wallet' : 'Unknown',
+          })
+          .eq('id', currentUser.id);
+      } else {
+        // Wallet CHANGE: go through RPC for security checks
+        const { data, error } = await supabase.rpc('request_wallet_change', {
+          p_user_id: currentUser.id,
+          p_new_wallet: walletAddress,
+          p_user_agent: navigator.userAgent,
+        });
+        
+        const result = data as any;
+        if (error || result?.error) {
+          const errorMsg = result?.message || result?.error || error?.message || 'Không thể đổi ví';
+          toastRef.current({
+            title: '⚠️ Không thể đổi ví',
+            description: errorMsg,
+            variant: 'destructive',
+          });
+          throw new Error(errorMsg);
+        }
+        
+        // Update wallet_type separately (RPC only updates wallet_address)
+        await supabase
+          .from('profiles')
+          .update({
+            wallet_type: type === 'metamask' ? 'MetaMask' : type === 'bitget' ? 'Bitget Wallet' : 'Unknown',
+          })
+          .eq('id', currentUser.id);
+        
+        // Show freeze warning if applicable
+        if (result?.risk_status && result.risk_status !== 'NORMAL') {
+          toastRef.current({
+            title: '🔒 Cảnh báo bảo mật',
+            description: `Claim sẽ bị tạm khóa do đổi ví. Trạng thái: ${result.risk_status}`,
+          });
+        }
+      }
       
       // Update refs
       previousAddressRef.current = walletAddress;
@@ -129,6 +169,7 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
       }).catch(e => console.warn('[Wallet] track-ip failed:', e));
     } catch (error) {
       console.error('Failed to save wallet to DB:', error);
+      throw error; // Re-throw so callers can handle
     }
   }, []); // stable - uses userRef
 
@@ -203,13 +244,22 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
         title: '✅ Đã cập nhật ví',
         description: `Ví mới: ${walletChangeDetails.newAddress.slice(0, 6)}...${walletChangeDetails.newAddress.slice(-4)}`,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to confirm wallet change:', error);
-      toastRef.current({
-        title: 'Lỗi cập nhật ví',
-        description: 'Không thể cập nhật ví. Vui lòng thử lại.',
-        variant: 'destructive',
-      });
+      // If RPC rejected (DISABLED/COOLDOWN/MAX_CHANGES), disconnect new wallet
+      try {
+        await disconnect(wagmiConfig);
+      } catch {}
+      // Restore previous state
+      if (previousAddressRef.current) {
+        setAddress(previousAddressRef.current);
+        setWalletType(previousWalletTypeRef.current);
+        setIsConnected(true);
+      } else {
+        setAddress('');
+        setWalletType('unknown');
+        setIsConnected(false);
+      }
     } finally {
       setShowWalletChangeDialog(false);
       setWalletChangeDetails(null);
