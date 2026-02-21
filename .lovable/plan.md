@@ -1,34 +1,30 @@
 
 
-## Cập nhật 2 trang: Trang Chủ và Trang Suspended
+## Thêm cột Tổng thưởng vào trang /suspended
 
-### 1. Trang Chủ (Index.tsx) -- Ghim thanh CategoryChips + Scroll-to-top
+### Thay đổi
 
-**Vấn đề:** Thanh danh mục (Tất cả, Xu hướng, Âm nhạc...) bị cuộn mất khi kéo xuống dưới, và nút scroll-to-top chỉ hiện trên mobile.
-
-**Giải pháp:**
-- Thêm `sticky top-0 z-10` cho `CategoryChips` để thanh công cụ luôn hiển thị khi cuộn
-- Hiển thị nút scroll-to-top trên cả desktop (bỏ điều kiện `isMobile` cho scroll listener và button)
-
-### 2. Trang Suspended (SuspendedUsers.tsx) -- Sửa đề mục bảng chen ngang
-
-**Vấn đề:** `TableHeader` đang dùng `sticky top-[200px]` -- giá trị `200px` không chính xác, khiến dòng đề mục (#, Người dùng, Ví liên kết...) bị trôi vào giữa nội dung thay vì nằm ngay dưới phần sticky header.
-
-**Giải pháp:**
-- Xóa `sticky top-[200px]` khỏi `TableHeader` (không dùng sticky riêng cho header bảng nữa, vì nó gây xung đột)
-- Giữ nguyên phần sticky cho tiêu đề + search ở trên
-
----
+Thêm 1 cột "Tổng thưởng" hiển thị tổng CAMLY rewards của mỗi tài khoản bị đình chỉ.
 
 ### Chi tiết kỹ thuật
 
-**File 1: `src/components/Layout/CategoryChips.tsx`**
-- Thêm `sticky top-0 z-10` vào div ngoài cùng để ghim thanh danh mục khi cuộn
+**1. Database Migration -- Cập nhật RPC `get_public_suspended_list`**
+- Thêm trường `total_camly_rewards` vào kết quả trả về
 
-**File 2: `src/pages/Index.tsx`**
-- Bỏ điều kiện `if (!isMobile) return;` trong useEffect scroll listener (line 75-76) để theo dõi scroll trên mọi thiết bị
-- Bỏ điều kiện `isMobile &&` trong phần render nút ArrowUp (line 456) để hiện nút trên cả desktop
+```text
+RETURNS TABLE(
+  ..., total_camly_rewards numeric
+)
+SELECT ..., COALESCE(total_camly_rewards, 0)
+FROM profiles WHERE banned = true
+```
 
-**File 3: `src/pages/SuspendedUsers.tsx`**
-- Sửa line 118: xóa `sticky top-[200px] z-[9]` khỏi `TableHeader`, chỉ giữ `bg-background`
+**2. File: `src/hooks/usePublicSuspendedList.ts`**
+- Thêm `total_camly_rewards: number` vào interface `SuspendedUser` và `SuspendedEntry`
+- Map giá trị trong `mergedEntries` (orphan wallets sẽ có giá trị `0`)
+
+**3. File: `src/pages/SuspendedUsers.tsx`**
+- Thêm 1 `TableHead` mới: "Tổng thưởng" (class `hidden md:table-cell`) sau cột "Mức độ"
+- Thêm 1 `TableCell` tương ứng trong `SuspendedRow`, hiển thị số CAMLY đã format (ví dụ: `1,250,000 CAMLY`)
+- Giá trị `0` hiển thị dấu "—"
 
