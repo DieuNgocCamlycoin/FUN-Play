@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Home, Zap, Users, Library, History, Video, Clock, ThumbsUp, Wallet, ListVideo, FileText, Tv, Trophy, Coins, UserPlus, Image, Sparkles, Music, ExternalLink, ChevronDown, ChevronUp, Award, Globe } from "lucide-react";
+import { Home, Zap, Users, Library, History, Video, Clock, ThumbsUp, Wallet, ListVideo, FileText, Tv, Trophy, Coins, UserPlus, Image, Sparkles, Music, ExternalLink, ChevronDown, ChevronUp, Award, Globe, ShieldBan } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -66,6 +66,7 @@ const rewardItems: NavItem[] = [
   { icon: Trophy, label: "Bảng Xếp Hạng", href: "/leaderboard" },
   { icon: Coins, label: "Lịch Sử Phần Thưởng", href: "/reward-history" },
   { icon: Globe, label: "Lịch Sử Giao Dịch", href: "/transactions" },
+  { icon: ShieldBan, label: "Danh Sách Đình Chỉ", href: "/suspended" },
   { 
     customIcon: '/images/fun-money-coin.png',
     label: "FUN Money", 
