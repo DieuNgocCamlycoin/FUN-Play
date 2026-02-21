@@ -6,6 +6,7 @@ import { MainLayout } from "@/components/Layout/MainLayout";
 import { ProfileHeader } from "@/components/Profile/ProfileHeader";
 import { ProfileInfo } from "@/components/Profile/ProfileInfo";
 import { ProfileTabs } from "@/components/Profile/ProfileTabs";
+import { SuspendedBanner } from "@/components/Profile/SuspendedBanner";
 import { DonationCelebration } from "@/components/Profile/DonationCelebration";
 import { BackgroundMusicPlayer } from "@/components/BackgroundMusicPlayer";
 import { useToast } from "@/hooks/use-toast";
@@ -85,9 +86,9 @@ export default function Channel() {
     }
   }, [profile, user, channel]);
 
-  // Real-time subscription for donations
+  // Real-time subscription for donations (skip for banned channels)
   useEffect(() => {
-    if (!profile) return;
+    if (!profile || profile.banned) return;
 
     const donationChannel = supabase
       .channel(`channel-donations-${profile.id}`)
@@ -383,6 +384,9 @@ export default function Channel() {
           violationLevel={profile.violation_level ?? 0}
         />
 
+        {/* Suspended Banner */}
+        <SuspendedBanner banned={profile.banned} />
+
         {/* User Info + Actions */}
         <div className="max-w-6xl mx-auto px-4 lg:px-6">
           <ProfileInfo
@@ -391,6 +395,7 @@ export default function Channel() {
             isOwnProfile={isOwnProfile}
             isSubscribed={isSubscribed}
             onSubscribe={handleSubscribe}
+            banned={profile.banned ?? false}
           />
 
           {/* Tabs Content */}
@@ -398,6 +403,7 @@ export default function Channel() {
             userId={profile.id}
             channelId={channel?.id}
             isOwnProfile={isOwnProfile}
+            banned={profile.banned ?? false}
           />
         </div>
       </div>
