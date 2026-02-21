@@ -1,29 +1,24 @@
 
 
-## Cập nhật thống kê Admin Dashboard: Chỉ sửa Tổng bình luận
+## Cập nhật trang Danh sách Đình chỉ: Tên user có thể nhấp vào
 
-### Thay đổi duy nhất
+### Thay đổi
 
-Sửa hàm RPC `get_admin_dashboard_stats` trong database:
+Trong file `src/pages/SuspendedUsers.tsx`, component `SuspendedRow`:
 
-- **`totalComments`**: Bỏ điều kiện lọc user banned -- đếm tất cả bình luận kể cả từ user bị ban
-- **`totalUsers`**: **Giữ nguyên** -- vẫn chỉ đếm user không bị ban như hiện tại
+- Bọc tên hiển thị (`display_name`) và `@username` bằng thẻ `Link` từ `react-router-dom`
+- Khi nhấp vào tên hoặc username, điều hướng đến `/:username` (hoặc `/:user_id` nếu không có username)
+- Chỉ áp dụng cho user có `user_id` (không phải orphan/wallet không xác định)
+- Thêm hiệu ứng hover (underline, màu sáng hơn) để người dùng biết đây là link có thể nhấp
 
 ### Chi tiết kỹ thuật
 
-| Mục | Hiện tại | Sau khi sửa |
-|---|---|---|
-| `totalUsers` | `COUNT(*) FROM profiles WHERE COALESCE(banned,false)=false` | **Giữ nguyên** |
-| `totalComments` | `COUNT(*) FROM comments WHERE user_id IN (SELECT id FROM profiles WHERE COALESCE(banned,false)=false)` | `COUNT(*) FROM comments` |
+**File:** `src/pages/SuspendedUsers.tsx`
 
-### Không thay đổi
+1. Import `Link` từ `react-router-dom`
+2. Trong `SuspendedRow`, bọc phần tên + username (dòng 141-147) bằng `<Link to={`/${entry.username || entry.user_id}`}>`:
+   - Tên (`display_name`): giữ nguyên style gạch ngang, thêm hover effect
+   - `@username`: giữ nguyên style, thêm hover effect
+   - Chỉ wrap bằng Link khi `!isOrphan`
 
-- `totalUsers`: giữ nguyên (chỉ đếm user đang hoạt động)
-- `totalVideos`, `totalViews`, `totalRewardsDistributed`, `activeUsersToday`: giữ nguyên
-- Top 10 Earners, Top 10 Creators: giữ nguyên (vẫn loại user bị ban)
-- `dailyStats`: giữ nguyên
-- Honor Board, bảng xếp hạng công khai: giữ nguyên (vẫn loại user bị ban)
-- Không cần sửa file TypeScript hay giao diện -- chỉ thay đổi logic tính toán phía database
-
-Chỉ cần 1 SQL migration duy nhất để tạo lại hàm `get_admin_dashboard_stats`.
-
+Không cần thay đổi database hay các file khác.
