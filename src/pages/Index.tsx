@@ -70,9 +70,8 @@ const Index = () => {
   const isMobile = useIsMobile();
   const { successFeedback } = useHapticFeedback();
 
-  // Scroll-to-top listener (mobile only)
+  // Scroll-to-top listener
   useEffect(() => {
-    if (!isMobile) return;
     const handleScroll = () => {
       const y = window.scrollY;
       setShowScrollTop(prev => {
@@ -83,7 +82,7 @@ const Index = () => {
     };
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [isMobile]);
+  }, []);
 
   const scrollToTop = useCallback(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -451,16 +450,16 @@ const Index = () => {
         />
       )}
 
-      {/* Mobile Scroll-to-Top Button */}
+      {/* Scroll-to-Top Button */}
       <AnimatePresence>
-        {isMobile && showScrollTop && (
+        {showScrollTop && (
           <motion.button
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
             transition={{ duration: 0.2 }}
             onClick={scrollToTop}
-            className="fixed bottom-20 right-3 z-40 h-10 w-10 rounded-full bg-gradient-to-br from-cosmic-sapphire to-cosmic-cyan shadow-lg flex items-center justify-center border border-glow-cyan/50 active:scale-95 transition-transform"
+            className="fixed bottom-20 lg:bottom-6 right-3 lg:right-6 z-40 h-10 w-10 rounded-full bg-gradient-to-br from-cosmic-sapphire to-cosmic-cyan shadow-lg flex items-center justify-center border border-glow-cyan/50 active:scale-95 transition-transform"
             aria-label="Cuộn lên đầu trang"
           >
             <ArrowUp className="h-5 w-5 text-white" />
