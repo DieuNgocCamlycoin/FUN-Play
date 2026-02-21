@@ -2647,6 +2647,18 @@ export type Database = {
           users: Json
         }[]
       }
+      get_public_suspended_list: {
+        Args: never
+        Returns: {
+          avatar_url: string
+          ban_reason: string
+          banned_at: string
+          display_name: string
+          user_id: string
+          username: string
+          violation_level: number
+        }[]
+      }
       get_public_users_directory: {
         Args: never
         Returns: {
