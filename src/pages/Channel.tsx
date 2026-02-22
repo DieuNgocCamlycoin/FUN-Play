@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -61,6 +61,7 @@ export default function Channel() {
   const [channel, setChannel] = useState<ChannelData | null>(null);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [loading, setLoading] = useState(true);
+  const initialLoadDone = useRef(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const [celebrationData, setCelebrationData] = useState<{ amount: number; senderName: string } | null>(null);
 
@@ -174,7 +175,9 @@ export default function Channel() {
 
   const fetchChannelAndProfile = async () => {
     try {
-      setLoading(true);
+      if (!initialLoadDone.current) {
+        setLoading(true);
+      }
 
       let channelData: ChannelData | null = null;
       let profileData: ProfileData | null = null;
@@ -260,6 +263,7 @@ export default function Channel() {
       });
     } finally {
       setLoading(false);
+      initialLoadDone.current = true;
     }
   };
 
