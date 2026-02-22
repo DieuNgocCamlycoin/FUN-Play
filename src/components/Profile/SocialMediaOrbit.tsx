@@ -244,6 +244,8 @@ export const SocialMediaOrbit = ({
             const defaultAvatarMap: Record<string, string> = {
               funplay: '/images/FUN_Profile.png',
               angelai: '/images/Angel_AI.png',
+              facebook: '/images/facebook-default.png',
+              twitter: '/images/twitter-default.png',
             };
             const displayUrl = avatarUrl || defaultAvatarMap[platform.key] || null;
 
