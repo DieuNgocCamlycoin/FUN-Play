@@ -802,6 +802,11 @@ body > [data-w3m-modal] {
   100% { transform: translate(-50%, -50%) rotate(-360deg); }
 }
 
+@keyframes orbit-tooltip-counter-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(-360deg); }
+}
+
 /* Pause orbit on hover/tap for stable tooltips */
 .orbit-container:hover {
   animation-play-state: paused !important;
