@@ -1,61 +1,35 @@
 
 
-## Cập nhật batch-fetch để re-fetch TẤT CẢ avatar mạng xã hội
+## Thêm link profile FUN Play bên cạnh mã ví
 
-### Vấn đề hiện tại
-Function `batch-fetch-social-avatars` chỉ fetch avatar cho platform **chưa có** avatar (dòng 49: `if (url && !existingAvatars[key])`). Nghĩa là nếu avatar cũ đã lưu (dù sai hoặc lỗi), hệ thống sẽ bỏ qua và không cập nhật lại.
+### Mô tả
+Thêm một pill hiển thị link rút gọn `play.fun.rich/"username"` ngay bên cạnh (cùng hàng) với pill mã ví hiện tại. Khi nhấn nút copy, sẽ copy link đầy đủ `https://play.fun.rich/"username"`.
 
-### Giải pháp
-Thêm param `forceRefresh` vào `batch-fetch-social-avatars`. Khi `forceRefresh = true`, function sẽ gửi **tất cả** platform có URL (Facebook, YouTube, X/Twitter, Telegram, TikTok, LinkedIn, Zalo, FUN Profile, Angel AI) để re-fetch avatar mới, chỉ giữ nguyên avatar được user upload thủ công.
+### Vị trí hiển thị
+Dòng 128-147 trong `ProfileInfo.tsx` -- ngay sau pill mã ví, cùng hàng:
+
+```text
+[ Wallet icon | 0x1234...5678 | Copy ]   [ Link icon | play.fun.rich/username | Copy ]
+```
 
 ### File thay đổi
 
 | File | Thay đổi |
 |---|---|
-| `supabase/functions/batch-fetch-social-avatars/index.ts` | Thêm `forceRefresh` param, khi `true` gửi tất cả platform có URL để re-fetch. Truyền `manualAvatars` để bảo vệ avatar thủ công |
+| `src/components/Profile/ProfileInfo.tsx` | Bọc wallet pill + profile link pill trong `flex` container. Thêm pill mới hiển thị link rút gọn với nút copy |
 
 ### Chi tiết kỹ thuật
 
-**Thay đổi chính trong `batch-fetch-social-avatars/index.ts`:**
+1. **Wrap trong flex row**: Bọc wallet pill hiện có (dòng 129-147) trong một `div className="flex flex-wrap items-center gap-2"`
+2. **Thêm profile link pill** ngay sau wallet pill, cùng style (rounded-full, bg-muted/60, border):
+   - Icon: `Link` từ lucide-react
+   - Hiển thị text rút gọn: `play.fun.rich/{username}`
+   - Nút Copy: click sẽ copy full URL `https://play.fun.rich/{username}`
+   - Toast: "Da copy link profile!"
+3. **Profile link pill luon hien thi** (khong phu thuoc vao wallet_address) -- vi moi user deu co username
+4. **Responsive**: Dung `flex-wrap` de xuong dong tren man hinh nho
 
-1. Parse `forceRefresh` từ request body (default `false`)
-2. Thay đổi logic lọc platform (dòng 46-52):
-   - Khi `forceRefresh = false`: giữ logic cũ (chỉ fetch platform chưa có avatar)
-   - Khi `forceRefresh = true`: gửi tất cả platform có URL, bất kể đã có avatar hay chưa
-3. Xác định danh sách manual avatars: avatar nào chứa URL từ R2 storage (ví dụ chứa `r2.dev` hoặc `social-avatars/`) sẽ được coi là upload thủ công, truyền vào `manualAvatars` để `fetch-social-avatar` không ghi đè
-4. Tăng limit từ 500 lên 1000 để cover nhiều user hơn
-
-```typescript
-// Parse forceRefresh
-const body = await req.json().catch(() => ({}));
-const forceRefresh = body?.forceRefresh === true;
-
-// Trong vòng lặp:
-const platformsToFetch: Record<string, string> = {};
-const manualAvatarKeys: string[] = [];
-
-for (const { key, field } of socialFields) {
-  const url = (profile as any)[field];
-  if (!url) continue;
-  
-  const existingAvatar = existingAvatars[key];
-  // Detect manual uploads (R2 storage URLs)
-  const isManual = existingAvatar && (
-    existingAvatar.includes("social-avatars/") || 
-    existingAvatar.includes("r2.dev")
-  );
-  
-  if (isManual) {
-    manualAvatarKeys.push(key);
-    continue; // Luôn bảo vệ avatar thủ công
-  }
-  
-  if (forceRefresh || !existingAvatar) {
-    platformsToFetch[key] = url;
-  }
-}
-```
-
-### Sau khi deploy
-Sẽ gọi function với `{ "forceRefresh": true }` để cập nhật avatar cho tất cả mạng xã hội (Facebook, YouTube, X/Twitter, Telegram, TikTok, LinkedIn, Zalo, FUN Profile, Angel AI) trên toàn bộ user.
+### Luu y
+- Profile link pill se hien thi **bat ke** user co wallet hay khong (di chuyen ra ngoai block `if wallet_address`)
+- Style dong nhat voi wallet pill: `inline-flex items-center gap-2.5 px-4 py-2 bg-muted/60 border border-primary/30 rounded-full`
 
