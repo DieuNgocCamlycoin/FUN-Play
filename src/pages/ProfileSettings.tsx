@@ -9,7 +9,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Save, Play, Pause, Lock, ShieldCheck, Loader2, CheckCircle2, XCircle, AtSign, Facebook, Youtube, Twitter, MessageCircle, Music, Linkedin, Phone, Globe, Bot, Gamepad2, Plus, X } from "lucide-react";
+import { ArrowLeft, Save, Play, Pause, Lock, ShieldCheck, Loader2, CheckCircle2, XCircle, AtSign, Facebook, Youtube, Twitter, MessageCircle, Music, Linkedin, Phone, Globe, Bot, Gamepad2, Plus, X, Check, AlertTriangle, Info } from "lucide-react";
+import { useWalletContext } from "@/contexts/WalletContext";
 import { MainLayout } from "@/components/Layout/MainLayout";
 import { DragDropImageUpload } from "@/components/Profile/DragDropImageUpload";
 import { ProfileCompletionIndicator } from "@/components/Profile/ProfileCompletionIndicator";
@@ -108,6 +109,42 @@ export default function ProfileSettings() {
       checkUsernameAvailability(cleaned);
     }, 500);
   };
+
+// Wallet match status component
+const WalletMatchStatus = ({ walletAddress }: { walletAddress: string }) => {
+  const { address, lastConnectedWallet } = useWalletContext();
+  
+  if (!walletAddress) return null;
+  
+  const referenceWallet = address || lastConnectedWallet;
+  
+  if (!referenceWallet) {
+    return (
+      <p className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+        <Info className="h-3.5 w-3.5" />
+        Kết nối ví Web3 để xác minh địa chỉ
+      </p>
+    );
+  }
+  
+  const isMatch = walletAddress.toLowerCase() === referenceWallet.toLowerCase();
+  
+  if (isMatch) {
+    return (
+      <p className="flex items-center gap-1 text-xs text-green-600 mt-1">
+        <Check className="h-3.5 w-3.5" />
+        Khớp với ví đang kết nối
+      </p>
+    );
+  }
+  
+  return (
+    <p className="flex items-center gap-1 text-xs text-amber-600 mt-1">
+      <AlertTriangle className="h-3.5 w-3.5" />
+      Không khớp với ví kết nối. Hãy kiểm tra lại
+    </p>
+  );
+};
 
 
   useEffect(() => {
@@ -586,6 +623,7 @@ export default function ProfileSettings() {
                   onChange={(e) => setWalletAddress(e.target.value)}
                   className="mt-1 font-mono text-sm"
                 />
+                <WalletMatchStatus walletAddress={walletAddress} />
                 <p className="text-xs text-muted-foreground mt-1">
                   Địa chỉ ví BSC để nhận donate từ người xem
                 </p>
