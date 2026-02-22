@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Edit, Trash2, Globe, Lock, Plus, ListVideo, ExternalLink } from "lucide-react";
+import { Edit, Trash2, Globe, Lock, Link2, Plus, ListVideo, ExternalLink } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -46,7 +46,7 @@ export const StudioPlaylists = () => {
   const [deletePlaylistId, setDeletePlaylistId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [isPublic, setIsPublic] = useState(true);
+  const [visibility, setVisibility] = useState<"public" | "unlisted" | "private">("public");
   const [saving, setSaving] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
@@ -97,12 +97,12 @@ export const StudioPlaylists = () => {
       setEditingPlaylist(playlist);
       setName(playlist.name);
       setDescription(playlist.description || "");
-      setIsPublic(playlist.is_public !== false);
+      setVisibility(playlist.is_public === true ? "public" : playlist.is_public === false ? "private" : "unlisted");
     } else {
       setEditingPlaylist(null);
       setName("");
       setDescription("");
-      setIsPublic(true);
+      setVisibility("public");
     }
     setDialogOpen(true);
   };
@@ -120,13 +120,15 @@ export const StudioPlaylists = () => {
     try {
       setSaving(true);
 
+      const isPublicValue = visibility === "public" ? true : visibility === "private" ? false : null;
+
       if (editingPlaylist) {
         const { error } = await supabase
           .from("playlists")
           .update({
             name: name.trim(),
             description: description.trim() || null,
-            is_public: isPublic,
+            is_public: isPublicValue,
           })
           .eq("id", editingPlaylist.id);
 
@@ -143,7 +145,7 @@ export const StudioPlaylists = () => {
             user_id: user?.id,
             name: name.trim(),
             description: description.trim() || null,
-            is_public: isPublic,
+            is_public: isPublicValue,
           });
 
         if (error) throw error;
@@ -195,20 +197,24 @@ export const StudioPlaylists = () => {
   };
 
   const handleToggleVisibility = async (playlistId: string, currentStatus: boolean | null) => {
+    // Cycle: public(true) -> unlisted(null) -> private(false) -> public(true)
+    const nextStatus = currentStatus === true ? null : currentStatus === null ? false : true;
+    const statusLabel = nextStatus === true ? "Công khai" : nextStatus === null ? "Không công khai" : "Riêng tư";
+
     try {
       const { error } = await supabase
         .from("playlists")
-        .update({ is_public: !currentStatus })
+        .update({ is_public: nextStatus })
         .eq("id", playlistId);
 
       if (error) throw error;
 
       toast({
         title: "Thành công",
-        description: currentStatus ? "Danh sách phát đã được ẩn" : "Danh sách phát đã được công khai",
+        description: `Danh sách phát đã chuyển sang ${statusLabel}`,
       });
 
-      setPlaylists(playlists.map(p => p.id === playlistId ? { ...p, is_public: !currentStatus } : p));
+      setPlaylists(playlists.map(p => p.id === playlistId ? { ...p, is_public: nextStatus } : p));
     } catch (error: any) {
       console.error("Error toggling visibility:", error);
       toast({
@@ -281,10 +287,15 @@ export const StudioPlaylists = () => {
                       </p>
                     )}
                     <div className="flex items-center gap-3 text-sm">
-                      {playlist.is_public !== false ? (
+                      {playlist.is_public === true ? (
                         <span className="flex items-center gap-1.5 text-primary">
                           <Globe className="h-4 w-4" />
                           Công khai
+                        </span>
+                      ) : playlist.is_public === null ? (
+                        <span className="flex items-center gap-1.5 text-yellow-500">
+                          <Link2 className="h-4 w-4" />
+                          Không công khai
                         </span>
                       ) : (
                         <span className="flex items-center gap-1.5 text-muted-foreground">
@@ -318,7 +329,7 @@ export const StudioPlaylists = () => {
                       size="sm"
                       onClick={() => handleToggleVisibility(playlist.id, playlist.is_public)}
                     >
-                      {playlist.is_public ? <Lock className="h-4 w-4" /> : <Globe className="h-4 w-4" />}
+                      {playlist.is_public === true ? <Link2 className="h-4 w-4" /> : playlist.is_public === null ? <Lock className="h-4 w-4" /> : <Globe className="h-4 w-4" />}
                     </Button>
                     <Button
                       variant="outline"
@@ -372,12 +383,13 @@ export const StudioPlaylists = () => {
 
             <div>
               <Label>Chế độ hiển thị</Label>
-              <Select value={isPublic ? "public" : "private"} onValueChange={(v) => setIsPublic(v === "public")}>
+              <Select value={visibility} onValueChange={(v) => setVisibility(v as "public" | "unlisted" | "private")}>
                 <SelectTrigger className="mt-2">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="public">Công khai - Mọi người đều có thể xem</SelectItem>
+                  <SelectItem value="unlisted">Không công khai - Ai có link đều xem được</SelectItem>
                   <SelectItem value="private">Riêng tư - Chỉ bạn có thể xem</SelectItem>
                 </SelectContent>
               </Select>
