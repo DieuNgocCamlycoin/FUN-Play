@@ -1,39 +1,28 @@
 
+## Chỉnh sửa Tooltip mạng xã hội trên Orbit
 
-## Sửa lỗi trang cá nhân chớp/load lại liên tục
+### Thay đổi
 
-### Nguyên nhân gốc
+**File: `src/components/Profile/SocialMediaOrbit.tsx` (dòng 275-282)**
 
-Vòng lặp vô hạn xảy ra theo chuỗi:
+Thay thế tooltip hiện tại (1 dòng ngang: tên + link) bằng layout mới:
 
-1. `SocialMediaOrbit` mount, phát hiện thiếu avatar MXH, gọi edge function `fetch-social-avatar`
-2. Khi xong, gọi `onProfileUpdate()` -- chính là `fetchChannelAndProfile` trong Channel.tsx
-3. `fetchChannelAndProfile` gọi `setLoading(true)` (dòng 177) -- hiển thị spinner "Đang tải..."
-4. Spinner **unmount** toàn bộ `SocialMediaOrbit`, xóa biến `fetchTriggered.current`
-5. Khi load xong, `SocialMediaOrbit` **mount lại** với `fetchTriggered.current = false`
-6. Quay lại bước 1 -- lặp vô tận!
+- **Hàng 1**: Tên mạng xã hội (font-semibold, căn giữa)
+- **Hàng 2**: Link thu gọn (text nhỏ, muted)
+- **Hàng 3**: Hình tròn nhỏ chứa avatar MXH tương ứng (căn giữa)
 
-### Giải pháp
-
-**File: `src/pages/Channel.tsx`** (dòng 175-177)
-
-Tách biệt lần load đầu tiên (hiện spinner) và lần refresh sau đó (không hiện spinner):
-
-- Thêm biến `initialLoadDone` dùng `useRef` để biết đã load xong lần đầu chưa
-- Lần đầu: `setLoading(true)` bình thường
-- Các lần sau (do `onProfileUpdate` gọi lại): **không gọi** `setLoading(true)`, chỉ cập nhật dữ liệu profile/channel mà không unmount component
-
-```text
-Trước:
-  fetchChannelAndProfile() -> setLoading(true) -> unmount tất cả -> mount lại -> loop
-
-Sau:
-  fetchChannelAndProfile() -> chỉ setLoading(true) lần đầu -> các lần sau giữ UI ổn định
-```
+Layout sẽ dùng `flex flex-col items-center` để tên và avatar nằm giữa so với link. Tooltip luôn hiển thị phía trên (`side="top"`) để nằm ngang, không bị xéo theo orbit.
 
 ### Chi tiết kỹ thuật
 
-| File | Thay doi |
-|---|---|
-| `src/pages/Channel.tsx` | Thêm `useRef(false)` cho `initialLoadDone`, chỉ `setLoading(true)` khi chưa load lần đầu |
+```text
+TooltipContent side="top"
+  flex flex-col items-center gap-1
+    ├─ Hàng 1: <span font-semibold>{platform.label}</span>
+    ├─ Hàng 2: <span text-muted truncate>{shortened URL}</span>
+    └─ Hàng 3: <div w-6 h-6 rounded-full overflow-hidden>
+                  <img src={displayUrl} /> hoặc <Icon />
+               </div>
+```
 
+Biến `displayUrl` đã có sẵn trong scope (dòng 250), chỉ cần sử dụng trong tooltip.
