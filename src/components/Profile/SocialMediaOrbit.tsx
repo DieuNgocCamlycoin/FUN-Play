@@ -272,12 +272,19 @@ export const SocialMediaOrbit = ({
                     )}
                   </a>
                 </TooltipTrigger>
-                <TooltipContent side="bottom" className="text-xs max-w-[320px] px-3 py-2">
-                  <div className="flex items-center gap-1.5 truncate">
-                    <span className="font-semibold shrink-0">{platform.label}</span>
-                    <span className="text-muted-foreground truncate text-[11px]">
-                      {(urls[platform.key] || "").replace(/^https?:\/\/(www\.)?/, "")}
-                    </span>
+                <TooltipContent side="top" className="bg-transparent border-none shadow-none p-0">
+                  <div className="overflow-hidden rounded-md shadow-lg min-w-[120px]">
+                    <div
+                      className="px-3 py-1.5 text-white font-bold text-center text-xs"
+                      style={{ backgroundColor: platform.key === 'tiktok' ? '#000000' : platform.color }}
+                    >
+                      {platform.label}
+                    </div>
+                    <div className="px-3 py-1.5 bg-white text-center">
+                      <span className="text-[#2563EB] text-[11px]">
+                        {(urls[platform.key] || "").replace(/^https?:\/\/(www\.)?/, "")}
+                      </span>
+                    </div>
                   </div>
                 </TooltipContent>
               </Tooltip>
