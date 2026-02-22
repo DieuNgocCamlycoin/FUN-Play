@@ -765,7 +765,8 @@ const WalletMatchStatus = ({ walletAddress }: { walletAddress: string }) => {
                                 </div>
                                 <p className="text-xs text-muted-foreground truncate">{platform.value}</p>
                               </div>
-                              {/* Upload avatar button */}
+                              {/* Upload avatar button - hidden for tiktok, telegram, twitter, youtube */}
+                              {!["tiktok", "telegram", "twitter", "youtube"].includes(avatarKey) && (
                               <button
                                 type="button"
                                 onClick={() => {
@@ -777,6 +778,7 @@ const WalletMatchStatus = ({ walletAddress }: { walletAddress: string }) => {
                               >
                                 <Camera className="h-4 w-4" />
                               </button>
+                              )}
                               <button
                                 type="button"
                                 onClick={() => { platform.setter(""); }}
