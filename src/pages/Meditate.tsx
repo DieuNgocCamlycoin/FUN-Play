@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useMusicPlayer } from "@/contexts/MusicPlayerContext";
 import { BackButton } from "@/components/ui/back-button";
+import { fetchBannedUserIds } from "@/hooks/useBannedUserIds";
 
 interface Video {
   id: string; title: string; thumbnail_url: string | null; video_url: string;
@@ -40,7 +41,10 @@ const Meditate = () => {
       .eq("category", "meditation").eq("is_public", true).eq("approval_status", "approved").or('is_hidden.is.null,is_hidden.eq.false')
       .order("created_at", { ascending: false });
     if (error) console.error("Error fetching meditation videos:", error);
-    else setVideos(data || []);
+    else {
+      const bannedIds = await fetchBannedUserIds();
+      setVideos((data || []).filter(v => !bannedIds.has(v.user_id)));
+    }
     setIsLoading(false);
   };
 

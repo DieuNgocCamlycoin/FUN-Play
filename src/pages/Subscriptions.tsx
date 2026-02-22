@@ -15,6 +15,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { fetchBannedUserIds } from "@/hooks/useBannedUserIds";
 interface SubscribedChannel {
   id: string;
   channel_id: string;
@@ -93,13 +94,16 @@ const Subscriptions = () => {
           videosByChannel.set(video.channel_id, existing);
         });
 
-        setSubscriptions(subsData.map((sub: any) => ({
-          id: sub.id,
-          channel_id: sub.channel_id,
-          subscribed_at: sub.created_at,
-          channel: { ...sub.channels, profile: profilesMap.get(sub.channels?.user_id) || { avatar_url: null } },
-          latestVideos: videosByChannel.get(sub.channel_id) || [],
-        })));
+        const bannedIds = await fetchBannedUserIds();
+        setSubscriptions(subsData
+          .filter((sub: any) => !bannedIds.has(sub.channels?.user_id))
+          .map((sub: any) => ({
+            id: sub.id,
+            channel_id: sub.channel_id,
+            subscribed_at: sub.created_at,
+            channel: { ...sub.channels, profile: profilesMap.get(sub.channels?.user_id) || { avatar_url: null } },
+            latestVideos: videosByChannel.get(sub.channel_id) || [],
+          })));
       } catch (error) { console.error('Error fetching subscriptions:', error); }
       finally { setLoading(false); }
     };

@@ -27,6 +27,7 @@ import { Loader2, ArrowUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatViews, formatTimestamp } from "@/lib/formatters";
 import { AnimatePresence, motion } from "framer-motion";
+import { useBannedUserIds } from "@/hooks/useBannedUserIds";
 
 interface Video {
   id: string;
@@ -69,6 +70,7 @@ const Index = () => {
   const { goToVideo } = useVideoNavigation();
   const isMobile = useIsMobile();
   const { successFeedback } = useHapticFeedback();
+  const bannedIds = useBannedUserIds();
 
   // Scroll-to-top listener
   useEffect(() => {
@@ -278,6 +280,7 @@ const Index = () => {
 
   // Filter and sort videos
   const filteredVideos = videos
+    .filter((video) => !bannedIds.has(video.user_id))
     .filter((video) => {
       if (selectedCategory === "Tất cả") return true;
       if (selectedCategory === "Xu hướng") return true;

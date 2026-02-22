@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchBannedUserIds } from "@/hooks/useBannedUserIds";
 
 export interface VideoSuggestion {
   id: string;
   title: string;
+  user_id: string;
 }
 
 export interface ChannelSuggestion {
@@ -56,13 +58,13 @@ export function useSearchSuggestions(debounceMs = 300): UseSearchSuggestionsResu
         const [videosRes, channelsRes] = await Promise.all([
           supabase
             .from("videos")
-            .select("id, title")
+            .select("id, title, user_id")
             .eq("is_public", true)
             .eq("approval_status", "approved")
             .or('is_hidden.is.null,is_hidden.eq.false')
             .ilike("title", `%${q}%`)
             .order("view_count", { ascending: false })
-            .limit(5),
+            .limit(10),
           supabase
             .from("channels")
             .select("id, name, subscriber_count, user_id")
@@ -71,11 +73,12 @@ export function useSearchSuggestions(debounceMs = 300): UseSearchSuggestionsResu
             .limit(3),
         ]);
 
-        const vids = videosRes.data || [];
+        const bannedIds = await fetchBannedUserIds();
+        const vids = (videosRes.data || []).filter(v => !bannedIds.has(v.user_id)).slice(0, 5);
         setVideos(vids);
 
-        // Fetch avatars for channels
-        const channelData = channelsRes.data || [];
+        // Fetch avatars for channels, filter banned
+        const channelData = (channelsRes.data || []).filter(c => !bannedIds.has(c.user_id));
         let chans: ChannelSuggestion[] = [];
         if (channelData.length > 0) {
           const userIds = channelData.map((c) => c.user_id);

@@ -20,6 +20,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { fetchBannedUserIds } from "@/hooks/useBannedUserIds";
 
 interface ShortVideo {
   id: string;
@@ -419,11 +420,14 @@ export default function Shorts() {
 
       const profileMap = new Map(profiles?.map(p => [p.id, p]));
 
-      return (data || []).map(video => ({
-        ...video,
-        channel: video.channels ? { id: (video.channels as any).id, name: (video.channels as any).name, user_id: video.user_id, is_verified: (video.channels as any).is_verified } : undefined,
-        profile: profileMap.get(video.user_id)
-      })) as ShortVideo[];
+      const bannedIds = await fetchBannedUserIds();
+      return (data || [])
+        .filter(video => !bannedIds.has(video.user_id))
+        .map(video => ({
+          ...video,
+          channel: video.channels ? { id: (video.channels as any).id, name: (video.channels as any).name, user_id: video.user_id, is_verified: (video.channels as any).is_verified } : undefined,
+          profile: profileMap.get(video.user_id)
+        })) as ShortVideo[];
     }
   });
 

@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useCallback, useEffect, ReactNode, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchBannedUserIds } from "@/hooks/useBannedUserIds";
 
 // Context types for playback
 export type PlaybackContextType = 
@@ -166,12 +167,13 @@ export function VideoPlaybackProvider({ children }: { children: ReactNode }) {
   ): Promise<VideoItem[]> => {
     const seenIds = getSessionSeenIds();
     const excludeIds = new Set([currentVideoId, ...seenIds]);
+    const bannedIds = await fetchBannedUserIds();
 
     // Step 1: Fetch 200 candidate videos
     const q = supabase
       .from("videos")
       .select(`
-        id, title, thumbnail_url, video_url, duration, view_count, category,
+        id, title, thumbnail_url, video_url, duration, view_count, category, user_id,
         channels!inner (id, name, is_verified)
       `)
       .not("id", "in", `(${[...excludeIds].join(",")})`)
@@ -188,7 +190,7 @@ export function VideoPlaybackProvider({ children }: { children: ReactNode }) {
       const fallbackQ = supabase
         .from("videos")
         .select(`
-          id, title, thumbnail_url, video_url, duration, view_count, category,
+          id, title, thumbnail_url, video_url, duration, view_count, category, user_id,
           channels!inner (id, name, is_verified)
         `)
         .neq("id", currentVideoId)
@@ -197,10 +199,12 @@ export function VideoPlaybackProvider({ children }: { children: ReactNode }) {
       
       const { data: fallbackVideos } = await applyBaseFilters(fallbackQ);
       if (!fallbackVideos || fallbackVideos.length === 0) return [];
-      return buildDiverseList(fallbackVideos.map(mapVideoItem), category, limit);
+      const filtered = fallbackVideos.filter((v: any) => !bannedIds.has(v.user_id));
+      return buildDiverseList(filtered.map(mapVideoItem), category, limit);
     }
 
-    return buildDiverseList(allVideos.map(mapVideoItem), category, limit);
+    const filtered = allVideos.filter((v: any) => !bannedIds.has(v.user_id));
+    return buildDiverseList(filtered.map(mapVideoItem), category, limit);
   };
 
   const buildDiverseList = (candidates: VideoItem[], category: string | null, limit: number): VideoItem[] => {

@@ -17,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useBannedUserIds } from "@/hooks/useBannedUserIds";
 
 interface SearchVideo {
   id: string;
@@ -60,6 +61,7 @@ type FilterTab = "all" | "videos" | "channels" | "playlists";
 type SortOption = "relevance" | "date" | "views";
 
 const Search = () => {
+  const bannedIds = useBannedUserIds();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { goToVideo } = useVideoNavigation();
@@ -116,9 +118,9 @@ const Search = () => {
         searchChannels(q),
         searchPlaylists(q),
       ]);
-      setVideoResults(videosRes);
-      setChannelResults(channelsRes);
-      setPlaylistResults(playlistsRes);
+      setVideoResults(videosRes.filter(v => !bannedIds.has(v.user_id)));
+      setChannelResults(channelsRes.filter(c => !bannedIds.has(c.user_id)));
+      setPlaylistResults(playlistsRes.filter(p => !bannedIds.has(p.user_id)));
     } catch (err) {
       console.error("Search error:", err);
     } finally {
