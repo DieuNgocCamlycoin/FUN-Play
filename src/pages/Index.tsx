@@ -318,7 +318,7 @@ const Index = () => {
 
   return (
     <div 
-      className="min-h-screen bg-background relative overflow-hidden"
+      className="min-h-screen bg-background relative overflow-x-hidden"
       {...(isMobile ? pullHandlers : {})}
     >
       {/* Honor Board Detail Modal */}
