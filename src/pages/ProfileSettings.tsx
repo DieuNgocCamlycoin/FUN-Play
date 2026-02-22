@@ -9,7 +9,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Save, Play, Pause, Lock, ShieldCheck, Loader2, CheckCircle2, XCircle, AtSign, Facebook, Youtube, Twitter, MessageCircle, Music, Linkedin, Phone, Globe, Bot, Gamepad2, Plus, X, Check, AlertTriangle, Info } from "lucide-react";
+import { ArrowLeft, Save, Play, Pause, Lock, ShieldCheck, Loader2, CheckCircle2, XCircle, AtSign, Facebook, Youtube, Twitter, MessageCircle, Music, Linkedin, Phone, Globe, Bot, Gamepad2, Plus, X, Check, AlertTriangle, Info, Camera } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useWalletContext } from "@/contexts/WalletContext";
 import { MainLayout } from "@/components/Layout/MainLayout";
 import { DragDropImageUpload } from "@/components/Profile/DragDropImageUpload";
@@ -22,6 +23,7 @@ export default function ProfileSettings() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { uploadToR2 } = useR2Upload({ folder: 'music' });
+  const { uploadToR2: uploadSocialAvatar, uploading: uploadingSocialAvatar } = useR2Upload({ folder: 'social-avatars' });
   
   const [displayName, setDisplayName] = useState("");
   const [username, setUsername] = useState("");
@@ -51,6 +53,10 @@ export default function ProfileSettings() {
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
   const [tempUrl, setTempUrl] = useState("");
   const [urlError, setUrlError] = useState("");
+  const [socialAvatars, setSocialAvatars] = useState<Record<string, string | null>>({});
+  const [avatarUploadPlatform, setAvatarUploadPlatform] = useState<string | null>(null);
+  const [tempAvatarUrl, setTempAvatarUrl] = useState("");
+  const socialAvatarFileRef = useRef<HTMLInputElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const musicFileInputRef = useRef<HTMLInputElement | null>(null);
   const usernameDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -186,6 +192,10 @@ const WalletMatchStatus = ({ walletAddress }: { walletAddress: string }) => {
         setTiktokUrl(data.tiktok_url || "");
         setLinkedinUrl(data.linkedin_url || "");
         setZaloUrl(data.zalo_url || "");
+        // Load social avatars
+        if (data.social_avatars && typeof data.social_avatars === 'object') {
+          setSocialAvatars(data.social_avatars as Record<string, string | null>);
+        }
       }
 
       // Fetch channel info for banner
@@ -447,6 +457,7 @@ const WalletMatchStatus = ({ walletAddress }: { walletAddress: string }) => {
         tiktok_url: tiktokUrl || null,
         linkedin_url: linkedinUrl || null,
         zalo_url: zaloUrl || null,
+        social_avatars: socialAvatars,
       };
 
       // Update username if user provided a custom one
@@ -474,9 +485,12 @@ const WalletMatchStatus = ({ walletAddress }: { walletAddress: string }) => {
       if (linkedinUrl) socialPlatforms.linkedin = linkedinUrl;
       if (zaloUrl) socialPlatforms.zalo = zaloUrl;
 
+      // Build list of manually-set avatar platforms to skip auto-fetch
+      const manualAvatarKeys = Object.keys(socialAvatars).filter(k => socialAvatars[k]);
+
       if (Object.keys(socialPlatforms).length > 0) {
         supabase.functions.invoke("fetch-social-avatar", {
-          body: { userId: user!.id, platforms: socialPlatforms },
+          body: { userId: user!.id, platforms: socialPlatforms, manualAvatars: manualAvatarKeys },
         }).catch((e) => console.warn("Social avatar fetch failed:", e));
       }
 
@@ -731,10 +745,18 @@ const WalletMatchStatus = ({ walletAddress }: { walletAddress: string }) => {
                       <div className="space-y-2 mb-4">
                         {addedPlatforms.map((platform) => {
                           const IconComp = platform.icon;
+                          // Map platform id to socialAvatars key
+                          const avatarKey = platform.id.replace("Url", "").replace("funplay", "funprofile");
+                          const currentAvatar = socialAvatars[avatarKey];
                           return (
                             <div key={platform.id} className="flex items-center gap-3 p-3 rounded-lg border border-border bg-muted/30">
-                              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10">
-                                <IconComp className="h-4 w-4 text-primary" />
+                              {/* Avatar thumbnail or platform icon */}
+                              <div className="relative flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 overflow-hidden">
+                                {currentAvatar ? (
+                                  <img src={currentAvatar} alt={platform.label} className="w-full h-full object-cover" />
+                                ) : (
+                                  <IconComp className="h-4 w-4 text-primary" />
+                                )}
                               </div>
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-1.5">
@@ -743,6 +765,18 @@ const WalletMatchStatus = ({ walletAddress }: { walletAddress: string }) => {
                                 </div>
                                 <p className="text-xs text-muted-foreground truncate">{platform.value}</p>
                               </div>
+                              {/* Upload avatar button */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setAvatarUploadPlatform(avatarKey);
+                                  setTempAvatarUrl(currentAvatar || "");
+                                }}
+                                className="p-1 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                                title={`Cập nhật avatar ${platform.label}`}
+                              >
+                                <Camera className="h-4 w-4" />
+                              </button>
                               <button
                                 type="button"
                                 onClick={() => { platform.setter(""); }}
@@ -892,6 +926,80 @@ const WalletMatchStatus = ({ walletAddress }: { walletAddress: string }) => {
                   </div>
                 </div>
               </div>
+
+              {/* Social Avatar Upload Dialog */}
+              <Dialog open={!!avatarUploadPlatform} onOpenChange={(open) => { if (!open) { setAvatarUploadPlatform(null); setTempAvatarUrl(""); } }}>
+                <DialogContent className="max-w-sm">
+                  <DialogHeader>
+                    <DialogTitle>Cập nhật avatar {avatarUploadPlatform}</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    {/* Preview */}
+                    {tempAvatarUrl && (
+                      <div className="flex justify-center">
+                        <img src={tempAvatarUrl} alt="Preview" className="w-20 h-20 rounded-full object-cover border-2 border-border" />
+                      </div>
+                    )}
+                    {/* URL input */}
+                    <div>
+                      <Label>Paste URL ảnh đại diện</Label>
+                      <Input
+                        type="url"
+                        placeholder="https://example.com/avatar.jpg"
+                        value={tempAvatarUrl}
+                        onChange={(e) => setTempAvatarUrl(e.target.value)}
+                        className="mt-1"
+                      />
+                    </div>
+                    {/* File upload */}
+                    <div>
+                      <input
+                        ref={socialAvatarFileRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          if (file.size > 2 * 1024 * 1024) {
+                            toast({ title: "File quá lớn", description: "Tối đa 2MB", variant: "destructive" });
+                            return;
+                          }
+                          try {
+                            const result = await uploadSocialAvatar(file);
+                            if (result) setTempAvatarUrl(result.publicUrl);
+                          } catch (err: any) {
+                            toast({ title: "Lỗi tải lên", description: err.message, variant: "destructive" });
+                          }
+                          if (socialAvatarFileRef.current) socialAvatarFileRef.current.value = '';
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        className="w-full gap-2"
+                        disabled={uploadingSocialAvatar}
+                        onClick={() => socialAvatarFileRef.current?.click()}
+                      >
+                        {uploadingSocialAvatar ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+                        {uploadingSocialAvatar ? "Đang tải..." : "Hoặc tải ảnh lên"}
+                      </Button>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" type="button" onClick={() => { setAvatarUploadPlatform(null); setTempAvatarUrl(""); }}>Hủy</Button>
+                    <Button type="button" onClick={() => {
+                      if (avatarUploadPlatform) {
+                        setSocialAvatars(prev => ({ ...prev, [avatarUploadPlatform]: tempAvatarUrl || null }));
+                        toast({ title: "Đã cập nhật", description: `Avatar ${avatarUploadPlatform} đã được cập nhật. Nhấn "Lưu thay đổi" để hoàn tất.` });
+                      }
+                      setAvatarUploadPlatform(null);
+                      setTempAvatarUrl("");
+                    }}>Xác nhận</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
 
               <div className="flex justify-end gap-3 pt-4">
                 <Button

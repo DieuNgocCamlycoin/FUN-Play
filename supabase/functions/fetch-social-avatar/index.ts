@@ -293,7 +293,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { userId, platforms } = await req.json();
+    const { userId, platforms, manualAvatars = [] } = await req.json();
 
     if (!userId || !platforms || typeof platforms !== "object") {
       return new Response(
@@ -306,22 +306,40 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const avatars: Record<string, string | null> = {};
+    // Read existing social_avatars to preserve manual ones
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("social_avatars")
+      .eq("id", userId)
+      .maybeSingle();
 
-    // Process each platform URL
+    const existingAvatars: Record<string, string | null> = (profile?.social_avatars as Record<string, string | null>) || {};
+    const manualSet = new Set(Array.isArray(manualAvatars) ? manualAvatars : []);
+
+    const avatars: Record<string, string | null> = { ...existingAvatars };
+
+    // Only auto-fetch for platforms NOT manually set
     const promises = Object.entries(platforms).map(async ([platform, url]) => {
-      if (!url || typeof url !== "string") {
-        avatars[platform] = null;
+      if (manualSet.has(platform)) {
+        console.log(`[fetch-avatar] Skipping ${platform} (manual avatar set)`);
         return;
       }
-      avatars[platform] = await fetchAvatarForPlatform(platform, url as string);
+      if (!url || typeof url !== "string") {
+        avatars[platform] = existingAvatars[platform] || null;
+        return;
+      }
+      const fetched = await fetchAvatarForPlatform(platform, url as string);
+      if (fetched) {
+        avatars[platform] = fetched;
+      }
+      // If fetch failed, keep existing avatar
     });
 
     await Promise.all(promises);
 
     console.log(`[fetch-avatar] Results for ${userId}:`, JSON.stringify(avatars));
 
-    // Save to profiles.social_avatars
+    // Save merged avatars
     const { error: updateError } = await supabase
       .from("profiles")
       .update({ social_avatars: avatars })
