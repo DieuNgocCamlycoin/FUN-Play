@@ -1,30 +1,23 @@
 
 
-## Thêm cột Tổng thưởng vào trang /suspended
+## Ghim cố định thanh danh mục (CategoryChips) trên Trang Chủ
 
-### Thay đổi
+### Vấn đề hiện tại
 
-Thêm 1 cột "Tổng thưởng" hiển thị tổng CAMLY rewards của mỗi tài khoản bị đình chỉ.
+Thanh danh mục đã có `sticky` nhưng giá trị `top` trên mobile không đúng. Trên mobile, nội dung cuộn bên trong một div riêng (`overflow-y-auto` ở line 358), nên `top` cần là `0` thay vì `calc(safe-area + 3.5rem)`.
 
-### Chi tiết kỹ thuật
+### Giải pháp
 
-**1. Database Migration -- Cập nhật RPC `get_public_suspended_list`**
-- Thêm trường `total_camly_rewards` vào kết quả trả về
+**File: `src/components/Layout/CategoryChips.tsx` (line 24)**
 
-```text
-RETURNS TABLE(
-  ..., total_camly_rewards numeric
-)
-SELECT ..., COALESCE(total_camly_rewards, 0)
-FROM profiles WHERE banned = true
+Sửa class của div ngoài cùng:
+- Mobile: `top-0` (vì scroll container nằm bên trong div đã trừ header rồi)
+- Desktop: giữ `lg:top-14` (scroll toàn trang, cần trừ header)
+
+```
+Trước: sticky top-[calc(env(safe-area-inset-top,0px)+3.5rem)] lg:top-14
+Sau:   sticky top-0 lg:top-14
 ```
 
-**2. File: `src/hooks/usePublicSuspendedList.ts`**
-- Thêm `total_camly_rewards: number` vào interface `SuspendedUser` và `SuspendedEntry`
-- Map giá trị trong `mergedEntries` (orphan wallets sẽ có giá trị `0`)
-
-**3. File: `src/pages/SuspendedUsers.tsx`**
-- Thêm 1 `TableHead` mới: "Tổng thưởng" (class `hidden md:table-cell`) sau cột "Mức độ"
-- Thêm 1 `TableCell` tương ứng trong `SuspendedRow`, hiển thị số CAMLY đã format (ví dụ: `1,250,000 CAMLY`)
-- Giá trị `0` hiển thị dấu "—"
+Chỉ thay đổi 1 dòng duy nhất trong 1 file.
 
