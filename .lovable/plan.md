@@ -1,31 +1,86 @@
 
 
-## 3 thay đổi cần thực hiện
+## Kế hoạch chi tiết: Sửa lỗi ví biến mất + Thêm cảnh báo khớp/không khớp ví
 
-### 1. Sửa link Angel AI
-Thay đổi pattern validation của Angel AI từ `https://angel.ai/` thành `https://angel.fun.rich/` trong mảng `socialPlatforms`.
+### Vấn đề hiện tại
+Khi bạn nhập địa chỉ ví bằng tay vào ô "Địa chỉ ví (BSC)" trong trang Cài đặt và bấm Lưu, địa chỉ bị xóa sau vài giây. Nguyên nhân: hệ thống tự động (dòng 521 trong `useWalletConnection.ts`) thấy "không có ví Web3 nào kết nối" nên xóa luôn địa chỉ trong database.
+
+---
+
+### Việc 1: Không xóa ví nhập tay nữa
+
+**File: `src/hooks/useWalletConnection.ts`**
+
+- Thêm biến `wasWeb3ConnectedRef = useRef(false)` ở đầu hook
+- Khi ví Web3 kết nối thành công (dòng 503-508), đặt `wasWeb3ConnectedRef.current = true`
+- Sửa đoạn xử lý ngắt kết nối (dòng 515-522):
+
+```text
+// TRƯỚC (dòng 515-522):
+} else {
+  setAddress('');
+  setIsConnected(false);
+  setWalletType('unknown');
+  setChainId(undefined);
+  setBnbBalance('0');
+  await clearWalletFromDb();   // <-- luôn xóa -> LỖI
+}
+
+// SAU:
+} else {
+  setAddress('');
+  setIsConnected(false);
+  setWalletType('unknown');
+  setChainId(undefined);
+  setBnbBalance('0');
+  if (wasWeb3ConnectedRef.current) {   // chỉ xóa nếu trước đó có kết nối Web3 thật
+    await clearWalletFromDb();
+    wasWeb3ConnectedRef.current = false;
+  }
+}
+```
+
+---
+
+### Việc 2: Lưu ví Web3 kết nối gần nhất
+
+**File: `src/hooks/useWalletConnection.ts`**
+
+- Khi ví Web3 kết nối thành công (dòng 503-508), thêm:
+  ```
+  localStorage.setItem('last_connected_wallet', account.address);
+  ```
+- Thêm vào return (dòng 529-548):
+  ```
+  lastConnectedWallet: localStorage.getItem('last_connected_wallet') || ''
+  ```
+- Cập nhật interface `UseWalletConnectionReturn` (dòng 28-49) thêm `lastConnectedWallet: string`
+
+---
+
+### Việc 3: Hiện cảnh báo khớp/không khớp ví
 
 **File: `src/pages/ProfileSettings.tsx`**
-- Pattern: `["https://angel.ai/"]` -> `["https://angel.fun.rich/"]`
-- Placeholder: `"https://angel.ai/profile"` -> `"https://angel.fun.rich/username"`
 
-### 2. Tăng kích thước viên kim cương lên 1.5x
-Hiện tại kim cương có kích thước `width="28" height="28"` (mobile) và class `md:w-8 md:h-8` (desktop = 32px).
+Ngay dưới ô input "Địa chỉ ví (BSC)" (sau dòng 588), thêm phần hiển thị trạng thái:
 
-Tăng 1.5x:
-- Mobile: 28 -> 42 (`width="42" height="42"`)
-- Desktop: 32 -> 48 (`md:w-12 md:h-12`)
-- SVG viewBox giữ nguyên `0 0 32 32`
-- Điều chỉnh vị trí `-top` để kim cương vẫn nằm đúng trên avatar
+- Lấy `address` (ví đang kết nối) và `lastConnectedWallet` (ví kết nối gần nhất) từ `useWalletContext()`
+- So sánh địa chỉ nhập tay với ví tham chiếu (ưu tiên ví đang kết nối, nếu không có thì dùng ví gần nhất)
+- Hiển thị 3 trường hợp:
 
-**File: `src/components/Profile/DiamondBadge.tsx`**
+| Trường hợp | Hiển thị | Màu |
+|---|---|---|
+| Ví nhập tay **giống** ví đang/đã kết nối | "Khớp với ví đang kết nối" + icon Check | Xanh lá |
+| Ví nhập tay **khác** ví đang/đã kết nối | "Không khớp với ví kết nối. Hãy kiểm tra lại" + icon AlertTriangle | Vàng/cam |
+| Chưa từng kết nối ví Web3 nào | "Kết nối ví Web3 để xác minh địa chỉ" + icon Info | Xám |
+| Ô input trống | Không hiện gì | - |
 
-### 3. Xóa FUN Play khỏi danh sách mạng xã hội
-FUN Play là nền tảng của chính mình (play.fun.rich), không cần cho người dùng thêm link. Xóa dòng FUN Play khỏi mảng `socialPlatforms`.
+---
 
-**File: `src/pages/ProfileSettings.tsx`**
-- Xóa dòng: `{ id: "funPlayUrl", label: "FUN Play", ... }`
-- Số lượng nền tảng giảm từ 10 xuống 9
+### Tóm tắt
+- **2 file cần sửa**: `useWalletConnection.ts` và `ProfileSettings.tsx`
+- Sửa bug ví nhập tay bị xóa
+- Lưu ví Web3 gần nhất vào localStorage
+- Hiện cảnh báo trực quan dưới ô nhập ví
+- Không ảnh hưởng gì đến hiển thị ví ở trang cá nhân, tặng quà, hay admin
 
-### Tổng kết
-- 2 file cần sửa: `ProfileSettings.tsx` và `DiamondBadge.tsx`
