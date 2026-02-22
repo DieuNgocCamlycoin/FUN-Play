@@ -1,22 +1,30 @@
 
 
-## Thiết kế lại hiển thị mã ví trên trang cá nhân
+## Thay đổi cần thực hiện
 
-### Mô tả
+### 1. Giảm kích thước viên kim cương xuống 3/4
 
-Theo hình tham chiếu, mã ví cần được hiển thị dạng badge/chip nổi bật với viền bo tròn, icon copy rõ ràng, nằm ngay dưới username - thay vì kiểu text nhỏ mờ hiện tại.
+**File: `src/components/Profile/DiamondBadge.tsx` (dòng 43-49)**
 
-### Thay đổi
+- Kích thước hiện tại: `w-[84px] h-[84px] md:w-24 md:h-24` (84px / 96px)
+- Kích thước mới: `w-[63px] h-[63px] md:w-[72px] md:h-[72px]` (63px / 72px)
+- Điều chỉnh vị trí: `-top-10 md:-top-12` (thay vì `-top-14 md:-top-16`)
 
-**File: `src/components/Profile/ProfileInfo.tsx` (dòng 127-146)**
+### 2. Tooltip hiển thị tên MXH + link thu gọn nằm ngang
 
-Thay thế phần hiển thị wallet hiện tại bằng thiết kế mới:
+**File: `src/components/Profile/SocialMediaOrbit.tsx` (dòng 275-280)**
 
-- **Chip/badge** với nền `bg-muted/60` hoặc `bg-card`, viền `border border-primary/30`, bo tròn `rounded-full`
-- **Icon ví** (Wallet) bên trái, kích thước lớn hơn (`w-4 h-4`), màu primary
-- **Địa chỉ ví** font mono, cỡ chữ `text-sm` (tăng từ `text-xs`), màu `text-foreground` (thay vì muted)
-- **Nút copy** bên phải, có hover effect rõ ràng, icon `Copy` lớn hơn (`w-4 h-4`)
-- **Padding** thoáng hơn: `px-4 py-2`
-- Toàn bộ chip có `hover:border-primary/50` transition
+Thay thế TooltipContent hiện tại (tên trên, link dưới) bằng layout nằm ngang:
+- Tên mạng xã hội (bold) + link thu gọn nằm cùng 1 dòng, cách nhau bằng khoảng trắng
+- Logic thu gọn link:
+  - `https://www.facebook.com/...` -> `facebook.com/...`
+  - `https://t.me/...` -> `t.me/...`
+- Giống hình tham chiếu: "Facebook" rồi "www.facebook.com/le.kha.nhi..." hoặc "Telegram" rồi "t.me/LeKhaNhi"
 
-Kết quả: mã ví nổi bật, dễ đọc, dễ copy - giống style trong hình tham chiếu.
+### Tóm tắt
+
+| File | Dòng | Thay đổi |
+|---|---|---|
+| `DiamondBadge.tsx` | 43-49 | Giảm size 3/4, chỉnh vị trí top |
+| `SocialMediaOrbit.tsx` | 275-280 | Tooltip nằm ngang: tên + link thu gọn |
+
