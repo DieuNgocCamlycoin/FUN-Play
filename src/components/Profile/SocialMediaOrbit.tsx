@@ -154,6 +154,8 @@ export const SocialMediaOrbit = ({
       });
   }, [userId]);
 
+  const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
+
   // Distribute evenly across 360°, starting from 12h (270°)
   const allOrbitItems = [...activePlatforms];
   const showAddButton = isOwnProfile && missingPlatforms.length > 0;
@@ -226,6 +228,8 @@ export const SocialMediaOrbit = ({
     }
   };
 
+
+
   return (
     <TooltipProvider delayDuration={0}>
       <div className="absolute inset-0">
@@ -250,12 +254,14 @@ export const SocialMediaOrbit = ({
             const displayUrl = avatarUrl || defaultAvatarMap[platform.key] || null;
 
             return (
-              <Tooltip key={platform.key}>
+              <Tooltip key={platform.key} open={activeTooltip === platform.key} onOpenChange={(open) => setActiveTooltip(open ? platform.key : null)}>
                 <TooltipTrigger asChild>
                   <a
                     href={urls[platform.key]!}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onMouseEnter={() => setActiveTooltip(platform.key)}
+                    onMouseLeave={() => setActiveTooltip(null)}
                     className="absolute z-20 flex items-center justify-center w-9 h-9 md:w-11 md:h-11 rounded-full shadow-lg transition-transform hover:scale-[1.3] cursor-pointer overflow-hidden bg-background/80 dark:bg-background/60 orbit-item animate-[orbit-counter-spin_25s_linear_infinite]"
                     style={{
                       border: "3px solid #00E7FF",
@@ -272,7 +278,7 @@ export const SocialMediaOrbit = ({
                     )}
                   </a>
                 </TooltipTrigger>
-                <TooltipContent side="top" className="bg-transparent border-none shadow-none p-0 animate-[orbit-tooltip-counter-spin_25s_linear_infinite]">
+                <TooltipContent side="top" className="bg-transparent border-none shadow-none p-0">
                   <div className="flex flex-col items-center gap-1">
                     <div
                       className="px-3 py-1.5 text-white font-bold text-center text-xs rounded-md shadow-lg w-fit whitespace-nowrap"
