@@ -167,7 +167,7 @@ function SuspendedRow({ entry, index }: { entry: SuspendedEntry; index: number }
               <Wallet className="h-4 w-4 text-muted-foreground" />
             </div>
           ) : (
-            <Avatar className="h-9 w-9 opacity-40 grayscale shrink-0">
+            <Avatar className="h-9 w-9 shrink-0">
               <AvatarImage src={entry.avatar_url || undefined} />
               <AvatarFallback className="bg-muted text-muted-foreground text-xs">
                 {(entry.display_name || entry.username || "?")[0]?.toUpperCase()}
@@ -176,12 +176,12 @@ function SuspendedRow({ entry, index }: { entry: SuspendedEntry; index: number }
           )}
           <div className="min-w-0">
             {isOrphan ? (
-              <p className="font-medium text-sm text-foreground line-through decoration-destructive/50 truncate">
+              <p className="font-medium text-sm text-foreground truncate">
                 Không xác định
               </p>
             ) : (
               <Link to={`/${entry.username || entry.user_id}`} className="group">
-                <p className="font-medium text-sm text-foreground line-through decoration-destructive/50 truncate group-hover:underline group-hover:text-primary transition-colors">
+                <p className="font-medium text-sm text-foreground truncate group-hover:underline group-hover:text-primary transition-colors">
                   {entry.display_name || entry.username}
                 </p>
                 <p className="text-xs text-muted-foreground truncate group-hover:text-primary transition-colors">@{entry.username}</p>
