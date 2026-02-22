@@ -272,7 +272,8 @@ export const SocialMediaOrbit = ({
             funplay: '/images/FUN_Profile.png',
             angelai: '/images/Angel_AI.png',
             facebook: '/images/facebook-default.png',
-            twitter: '/images/twitter-default.png',
+            zalo: '/images/zalo-default.png',
+            linkedin: '/images/linkedin-default.png',
           };
           const displayUrl = avatarUrl || defaultAvatarMap[platform.key] || null;
 
