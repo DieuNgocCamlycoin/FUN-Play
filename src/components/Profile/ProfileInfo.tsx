@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Gift, UserPlus, UserCheck, Share2, Copy, Settings, Wallet } from "lucide-react";
+import { Gift, UserPlus, UserCheck, Share2, Copy, Settings, Wallet, Link } from "lucide-react";
 import { AdminChannelActions } from "@/components/Admin/AdminChannelActions";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -125,26 +125,45 @@ export const ProfileInfo = ({
             </p>
           )}
 
-          {/* Wallet/Fun-ID */}
-          {profile.wallet_address && (
+          {/* Wallet + Profile Link */}
+          <div className="flex flex-wrap items-center gap-2">
+            {profile.wallet_address && (
+              <div className="inline-flex items-center gap-2.5 px-4 py-2 bg-muted/60 border border-primary/30 rounded-full hover:border-primary/50 transition-colors duration-200">
+                <Wallet className="w-4 h-4 text-primary flex-shrink-0" />
+                <span className="font-mono text-sm text-foreground truncate max-w-[200px]">
+                  {profile.wallet_address.slice(0, 6)}...{profile.wallet_address.slice(-4)}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 hover:bg-primary/10 rounded-full flex-shrink-0"
+                  onClick={() => {
+                    navigator.clipboard.writeText(profile.wallet_address || "");
+                    toast({ title: "Đã copy địa chỉ ví" });
+                  }}
+                >
+                  <Copy className="w-4 h-4 text-primary" />
+                </Button>
+              </div>
+            )}
             <div className="inline-flex items-center gap-2.5 px-4 py-2 bg-muted/60 border border-primary/30 rounded-full hover:border-primary/50 transition-colors duration-200">
-              <Wallet className="w-4 h-4 text-primary flex-shrink-0" />
+              <Link className="w-4 h-4 text-primary flex-shrink-0" />
               <span className="font-mono text-sm text-foreground truncate max-w-[200px]">
-                {profile.wallet_address.slice(0, 6)}...{profile.wallet_address.slice(-4)}
+                play.fun.rich/{profile.username}
               </span>
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7 hover:bg-primary/10 rounded-full flex-shrink-0"
                 onClick={() => {
-                  navigator.clipboard.writeText(profile.wallet_address || "");
-                  toast({ title: "Đã copy địa chỉ ví" });
+                  navigator.clipboard.writeText(`https://play.fun.rich/${profile.username}`);
+                  toast({ title: "Đã copy link profile!" });
                 }}
               >
                 <Copy className="w-4 h-4 text-primary" />
               </Button>
             </div>
-          )}
+          </div>
         </div>
 
         {/* Right: Action Buttons - hidden when banned */}
