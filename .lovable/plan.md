@@ -1,23 +1,36 @@
 
 
-## Fix: Ghim CategoryChips cố định ở đầu trang
+## Fix: Avatar mạng xã hội hiện chữ cái thay vì hình mặc định
 
-### Nguyên nhân
-Div gốc của trang (`line 324`) có class `overflow-x-hidden`. Trong CSS, khi set `overflow-x: hidden`, trình duyệt tự động tạo scroll container mới, khiến `sticky` không hoạt động đúng.
+### Nguyên nhân gốc
+
+Ở dòng 277 trong `SocialMediaOrbit.tsx`:
+```
+const displayUrl = avatarUrl || defaultAvatarMap[platform.key] || null;
+```
+
+Khi `social_avatars.facebook` chứa một URL cũ bị hỏng (từ trước khi có hệ thống default avatar), `avatarUrl` có giá trị -> bỏ qua `defaultAvatarMap` -> `OrbitImage` load ảnh thất bại -> hiện chữ cái đầu ("f" cho Facebook).
 
 ### Giải pháp
-Đổi CategoryChips từ `sticky` sang `fixed` positioning trên cả mobile và desktop, đảm bảo nó luôn cố định ở đầu khu vực nội dung.
+
+Sửa component `OrbitImage` để khi ảnh load lỗi, thay vì hiện chữ cái đầu, sẽ fallback về **hình mặc định của nền tảng** hoặc **icon nền tảng**.
 
 ### File thay đổi
 
 | File | Thay đổi |
 |---|---|
-| `src/components/Layout/CategoryChips.tsx` | Đổi từ `sticky top-0 lg:top-14` sang `fixed` positioning với `top` và `left/right` phù hợp |
-| `src/pages/Index.tsx` | Thêm padding-top cho nội dung bên dưới CategoryChips để bù phần bị che (~44px). Truyền thêm prop `sidebarExpanded` vào CategoryChips để căn chỉnh `left` trên desktop |
+| `src/components/Profile/SocialMediaOrbit.tsx` | Sửa `OrbitImage` nhận thêm props `fallbackSrc` và `FallbackIcon`. Khi ảnh chính lỗi, thử load `fallbackSrc` (hình mặc định). Nếu cả hình mặc định cũng lỗi, hiện `FallbackIcon`. Cập nhật nơi gọi `OrbitImage` để truyền thêm 2 props này. |
 
 ### Chi tiết kỹ thuật
 
-1. **CategoryChips.tsx**: Đổi class thành `fixed`, set `top` phù hợp (mobile: `top-[3.5rem]` sau header, desktop: `lg:top-14`), set `left`/`right` để khớp với sidebar và right panel. Nhận prop `sidebarExpanded` để tính `left` đúng (60 hoặc 16 = `lg:left-60` hoặc `lg:left-16`). `right` trên desktop = `lg:right-[260px]` khớp với right sidebar.
+1. **Sửa `OrbitImage` (dòng 434-457)**: Thêm props `fallbackSrc` (URL hình mặc định) và `FallbackIcon` (React component icon nền tảng). Logic 3 bước:
+   - Bước 1: Hiện ảnh chính (`src`)
+   - Bước 2: Nếu lỗi, thử hiện `fallbackSrc` (hình mặc định từ `defaultAvatarMap`)
+   - Bước 3: Nếu `fallbackSrc` cũng lỗi hoặc không có, hiện `FallbackIcon` với `color`
 
-2. **Index.tsx**: Thêm `mt-[44px]` (hoặc tương đương) vào div nội dung ngay dưới CategoryChips để tránh bị che. Truyền prop `sidebarExpanded={isSidebarExpanded}` vào CategoryChips.
+2. **Sửa nơi gọi `OrbitImage` (dòng 297-298)**: Truyền thêm:
+   - `fallbackSrc={defaultAvatarMap[platform.key]}` - hình mặc định
+   - `FallbackIcon={Icon}` - icon nền tảng
+
+3. Kết quả: Dù `social_avatars.facebook` chứa URL lỗi, user sẽ thấy logo Facebook mặc định thay vì chữ "f".
 
