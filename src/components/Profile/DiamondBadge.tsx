@@ -40,13 +40,13 @@ export const DiamondBadge = ({ lightScore, suspiciousScore, banned, violationLev
 
   return (
     <div
-      className="absolute z-30 left-1/2 -translate-x-1/2 -top-14 md:-top-16"
+    className="absolute z-30 left-1/2 -translate-x-1/2 -top-10 md:-top-12"
       style={{ filter: glow }}
     >
       <img
         src="/images/diamond-badge.png"
         alt="Diamond Badge"
-        className="w-[84px] h-[84px] md:w-24 md:h-24 object-contain"
+        className="w-[63px] h-[63px] md:w-[72px] md:h-[72px] object-contain"
         style={{ filter: imgFilter !== "none" ? imgFilter : undefined }}
       />
     </div>
