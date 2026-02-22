@@ -1,43 +1,23 @@
 
 
-## Ghim thanh danh mục (CategoryChips) cố định ở đầu Trang Chủ
+## Fix: Ghim CategoryChips cố định ở đầu trang
 
-### Vấn đề
-CategoryChips hiện dùng `sticky`, nhưng có thể bị ảnh hưởng bởi cấu trúc scroll container bên trong. Cần đảm bảo thanh danh mục luôn cố định ở đầu khu vực nội dung, không bị cuộn theo.
+### Nguyên nhân
+Div gốc của trang (`line 324`) có class `overflow-x-hidden`. Trong CSS, khi set `overflow-x: hidden`, trình duyệt tự động tạo scroll container mới, khiến `sticky` không hoạt động đúng.
 
 ### Giải pháp
-Di chuyển `CategoryChips` ra ngoài container cuộn (`overflow-y-auto`) trên mobile, và đảm bảo nó luôn nằm cố định phía trên nội dung cuộn trên cả desktop lẫn mobile.
+Đổi CategoryChips từ `sticky` sang `fixed` positioning trên cả mobile và desktop, đảm bảo nó luôn cố định ở đầu khu vực nội dung.
 
 ### File thay đổi
 
 | File | Thay đổi |
 |---|---|
-| `src/pages/Index.tsx` | Di chuyển `<CategoryChips>` ra ngoài div có `overflow-y-auto` (dòng 361), đặt ngay trước div đó. Div cuộn sẽ chỉ chứa nội dung video phía dưới. |
-| `src/components/Layout/CategoryChips.tsx` | Tăng z-index lên `z-20` để đảm bảo luôn hiển thị trên các thành phần khác |
+| `src/components/Layout/CategoryChips.tsx` | Đổi từ `sticky top-0 lg:top-14` sang `fixed` positioning với `top` và `left/right` phù hợp |
+| `src/pages/Index.tsx` | Thêm padding-top cho nội dung bên dưới CategoryChips để bù phần bị che (~44px). Truyền thêm prop `sidebarExpanded` vào CategoryChips để căn chỉnh `left` trên desktop |
 
 ### Chi tiết kỹ thuật
 
-Trong `Index.tsx`, cấu trúc hiện tại:
-```text
-<main>
-  <div class="overflow-y-auto"> <-- container cuộn
-    <CategoryChips />            <-- bị cuộn theo trên mobile
-    <MobileCards />
-    <Videos />
-  </div>
-</main>
-```
+1. **CategoryChips.tsx**: Đổi class thành `fixed`, set `top` phù hợp (mobile: `top-[3.5rem]` sau header, desktop: `lg:top-14`), set `left`/`right` để khớp với sidebar và right panel. Nhận prop `sidebarExpanded` để tính `left` đúng (60 hoặc 16 = `lg:left-60` hoặc `lg:left-16`). `right` trên desktop = `lg:right-[260px]` khớp với right sidebar.
 
-Sẽ đổi thành:
-```text
-<main>
-  <CategoryChips />              <-- nằm ngoài, cố định ở trên
-  <div class="overflow-y-auto"> <-- chỉ cuộn nội dung bên dưới
-    <MobileCards />
-    <Videos />
-  </div>
-</main>
-```
-
-Trên mobile, div cuộn cần giảm chiều cao để trừ thêm phần CategoryChips (~44px).
+2. **Index.tsx**: Thêm `mt-[44px]` (hoặc tương đương) vào div nội dung ngay dưới CategoryChips để tránh bị che. Truyền prop `sidebarExpanded={isSidebarExpanded}` vào CategoryChips.
 
