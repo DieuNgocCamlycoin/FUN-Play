@@ -10,6 +10,7 @@ import {
   Upload,
   Sparkles,
   AlertTriangle,
+  ListVideo,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -25,12 +26,14 @@ interface VideoDetailsFormProps {
     title: string;
     description: string;
     visibility: "public" | "unlisted" | "private";
+    playlistIds?: string[];
   };
   thumbnailPreview: string | null;
   videoDuration?: number;
   onEditVisibility: () => void;
   onEditDescription: () => void;
   onEditThumbnail: () => void;
+  onEditPlaylist: () => void;
   onTitleChange: (title: string) => void;
   onUpload: () => void;
 }
@@ -48,6 +51,7 @@ export function VideoDetailsForm({
   onEditVisibility,
   onEditDescription,
   onEditThumbnail,
+  onEditPlaylist,
   onTitleChange,
   onUpload,
 }: VideoDetailsFormProps) {
@@ -110,6 +114,16 @@ export function VideoDetailsForm({
       value: thumbnailPreview ? "Đã chọn" : null,
       preview: thumbnailPreview,
       onClick: onEditThumbnail,
+    },
+    {
+      id: "playlist",
+      icon: ListVideo,
+      iconColor: "text-muted-foreground",
+      label: "Danh sách phát",
+      value: metadata.playlistIds && metadata.playlistIds.length > 0
+        ? `${metadata.playlistIds.length} danh sách`
+        : null,
+      onClick: onEditPlaylist,
     },
   ];
 

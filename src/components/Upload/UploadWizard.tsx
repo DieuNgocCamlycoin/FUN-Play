@@ -54,6 +54,7 @@ export function UploadWizard({ open, onOpenChange }: UploadWizardProps) {
     tags: [],
     visibility: "public",
     scheduledAt: null,
+    playlistIds: [],
   });
   const [isShort, setIsShort] = useState(false);
   const [videoDuration, setVideoDuration] = useState(0);
@@ -201,6 +202,7 @@ export function UploadWizard({ open, onOpenChange }: UploadWizardProps) {
           duration: videoDuration,
           channelId,
           approvalStatus: gateCheck.approvalStatus,
+          playlistIds: metadata.playlistIds,
         },
         thumbnailBlob,
         thumbnailPreview
@@ -238,6 +240,7 @@ export function UploadWizard({ open, onOpenChange }: UploadWizardProps) {
       tags: [],
       visibility: "public",
       scheduledAt: null,
+      playlistIds: [],
     });
     setIsShort(false);
     setVideoDuration(0);

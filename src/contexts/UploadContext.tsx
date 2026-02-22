@@ -14,6 +14,7 @@ export interface UploadItem {
     duration: number;
     channelId: string;
     approvalStatus?: "approved" | "pending_review";
+    playlistIds?: string[];
   };
   thumbnailBlob: Blob | null;
   thumbnailPreview: string | null;
@@ -256,6 +257,16 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
           .single();
 
         if (videoError) throw videoError;
+
+        // Insert into playlists if selected
+        if (metadata.playlistIds && metadata.playlistIds.length > 0) {
+          const playlistInserts = metadata.playlistIds.map((playlistId) => ({
+            playlist_id: playlistId,
+            video_id: videoData.id,
+            position: 0,
+          }));
+          await supabase.from("playlist_videos").insert(playlistInserts);
+        }
 
         updateUpload(id, {
           progress: 100,
