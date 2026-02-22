@@ -17,11 +17,12 @@ const categories = [
 interface CategoryChipsProps {
   selected?: string;
   onSelect?: (category: string) => void;
+  sidebarExpanded?: boolean;
 }
 
-export const CategoryChips = ({ selected = "Tất cả", onSelect }: CategoryChipsProps) => {
+export const CategoryChips = ({ selected = "Tất cả", onSelect, sidebarExpanded = false }: CategoryChipsProps) => {
   return (
-    <div className="sticky top-0 lg:top-14 z-20 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+    <div className={`fixed top-[calc(env(safe-area-inset-top,0px)+3.5rem)] lg:top-14 left-0 right-0 z-20 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 ${sidebarExpanded ? 'lg:left-60' : 'lg:left-16'} lg:right-[260px]`}>
       <ScrollArea className="w-full whitespace-nowrap">
         <div className="flex gap-3 px-4 py-3">
           {categories.map((category) => (

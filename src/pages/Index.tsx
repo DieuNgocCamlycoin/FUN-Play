@@ -358,8 +358,8 @@ const Index = () => {
         isSidebarExpanded ? 'lg:pl-60' : 'lg:pl-16'
       } lg:pr-[260px]`}>
         {/* Center content area - SCROLLABLE */}
-        <CategoryChips selected={selectedCategory} onSelect={setSelectedCategory} />
-        <div className="h-[calc(100vh-3.5rem-44px)] overflow-y-auto lg:h-auto lg:overflow-visible">
+        <CategoryChips selected={selectedCategory} onSelect={setSelectedCategory} sidebarExpanded={isSidebarExpanded} />
+        <div className="mt-[44px] h-[calc(100vh-3.5rem-44px-44px)] overflow-y-auto lg:mt-[44px] lg:h-auto lg:overflow-visible">
           
           {/* Mobile 3-Card Layout */}
           <div className="lg:hidden px-4 mb-4 space-y-3">
