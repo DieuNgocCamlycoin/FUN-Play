@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -172,13 +172,9 @@ export default function Channel() {
     };
   }, [profile?.id]);
 
-  const initialLoadDone = useRef(false);
-
   const fetchChannelAndProfile = async () => {
     try {
-      if (!initialLoadDone.current) {
-        setLoading(true);
-      }
+      setLoading(true);
 
       let channelData: ChannelData | null = null;
       let profileData: ProfileData | null = null;
@@ -264,7 +260,6 @@ export default function Channel() {
       });
     } finally {
       setLoading(false);
-      initialLoadDone.current = true;
     }
   };
 

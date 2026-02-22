@@ -272,19 +272,12 @@ export const SocialMediaOrbit = ({
                     )}
                   </a>
                 </TooltipTrigger>
-                <TooltipContent side="top" className="text-xs max-w-[320px] px-3 py-2">
-                  <div className="flex flex-col items-center gap-1">
-                    <span className="font-semibold">{platform.label}</span>
-                    <span className="text-muted-foreground truncate text-[11px] max-w-full">
+                <TooltipContent side="bottom" className="text-xs max-w-[320px] px-3 py-2">
+                  <div className="flex items-center gap-1.5 truncate">
+                    <span className="font-semibold shrink-0">{platform.label}</span>
+                    <span className="text-muted-foreground truncate text-[11px]">
                       {(urls[platform.key] || "").replace(/^https?:\/\/(www\.)?/, "")}
                     </span>
-                    <div className="w-6 h-6 rounded-full overflow-hidden flex items-center justify-center bg-muted">
-                      {displayUrl ? (
-                        <img src={displayUrl} alt={platform.label} className="w-full h-full object-cover" />
-                      ) : (
-                        <Icon className="w-3.5 h-3.5" style={{ color: platform.color }} />
-                      )}
-                    </div>
                   </div>
                 </TooltipContent>
               </Tooltip>
