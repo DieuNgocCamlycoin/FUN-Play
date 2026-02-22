@@ -1,55 +1,49 @@
 
 
-## Cập nhật orbit: phân bố đều + sửa lỗi TikTok avatar
+## Thêm tính năng chọn/tạo playlist khi đăng video
 
-### 1. Phân bố đều các icon trên orbit
+### Tổng quan
+Tích hợp playlist selector (chọn playlist hiện có + tạo playlist mới) vào cả Desktop Upload Wizard và Mobile Upload Flow, tương tự YouTube. Tận dụng logic từ `AddToPlaylistModal` có sẵn.
 
-**Vấn đề:** Hiện tại biến `count` bao gồm cả nút "+" (`count = allOrbitItems.length + (showAddButton ? 1 : 0)`), nhưng nút "+" lại được đặt cố định bên ngoài orbit (vị trí 10h). Điều này tạo ra một khoảng trống trên orbit nơi nút "+" "lẽ ra" nằm, khiến các icon không được phân bố đều.
-
-**Giải pháp:** Chỉ đếm các icon mạng xã hội thực sự trên orbit khi tính `step`:
-- `count = allOrbitItems.length` (bỏ phần `+ (showAddButton ? 1 : 0)`)
-- Giữ nguyên công thức `step = 360 / count` -- khi số icon thay đổi, khoảng cách tự động điều chỉnh
-
-### 2. Khắc phục lỗi TikTok avatar
-
-**Vấn đề:** Edge function `fetch-social-avatar` dùng TikTok oembed endpoint với URL profile (`tiktok.com/@username`), nhưng oembed yêu cầu URL video cụ thể. Trường `thumbnail_url` trong response oembed là thumbnail video, không phải avatar profile. Các chiến lược fallback (unavatar.io, og:image scrape) cũng thường bị TikTok chặn.
-
-**Giải pháp:** Cập nhật `fetchTiktokAvatar` trong edge function:
-- Thay oembed bằng TikTok user detail API: `https://www.tiktok.com/api/user/detail/?uniqueId=username`
-- Response chứa `userInfo.user.avatarMedium` hoặc `avatarLarger` -- đây chính là ảnh đại diện profile
-- Giữ unavatar.io và og:image scrape làm fallback
-- Thêm retry với nhiều User-Agent khác nhau
-
-### Chi tiết thay đổi
+### File thay đổi
 
 | File | Thay đổi |
 |---|---|
-| `src/components/Profile/SocialMediaOrbit.tsx` | Sửa `count` chỉ đếm `allOrbitItems.length`, bỏ đếm nút "+" |
-| `supabase/functions/fetch-social-avatar/index.ts` | Thay TikTok oembed bằng user detail API endpoint, giữ fallback cũ |
+| `src/components/Upload/PlaylistSelector.tsx` | **Mới** -- Component chọn/tạo playlist, tái sử dụng từ pattern `AddToPlaylistModal` |
+| `src/components/Upload/UploadMetadataForm.tsx` | Thêm `playlistIds` vào `VideoMetadata`, thêm section PlaylistSelector sau Tags |
+| `src/components/Upload/Mobile/VideoDetailsForm.tsx` | Thêm menu item "Danh sách phát" mở PlaylistSelector |
+| `src/components/Upload/UploadWizard.tsx` | Thêm `playlistIds: []` vào initial metadata state |
+| `src/components/Upload/Mobile/MobileUploadFlow.tsx` | Thêm `playlistIds: []` vào metadata, thêm sub-page playlist |
+| `src/contexts/UploadContext.tsx` | Thêm `playlistIds` vào metadata type, insert vào `playlist_videos` sau khi tạo video |
 
-### Chi tiết kỹ thuật
+### Chi tiết
 
-**SocialMediaOrbit.tsx (dòng 188):**
-```
-// Trước:
-const count = allOrbitItems.length + (showAddButton ? 1 : 0);
-// Sau:
-const count = allOrbitItems.length;
-```
+#### 1. PlaylistSelector component
+- Fetch playlists của user từ bảng `playlists` (dùng `useAuth` + supabase query)
+- Hiển thị checkbox list với tên + icon public/private
+- Phần "Tạo danh sách phát mới" ở cuối: input + nút Tạo (insert vào bảng `playlists`, tự động check)
+- Props: `selectedIds: string[]`, `onChange: (ids: string[]) => void`
+- Style theo Design System (aurora gradient, cosmic colors)
 
-**fetch-social-avatar/index.ts - fetchTiktokAvatar:**
+#### 2. Desktop (UploadMetadataForm)
+- Thêm `playlistIds: string[]` vào interface `VideoMetadata`
+- Thêm section "Danh sách phát" sau phần Tags, chứa `PlaylistSelector`
+
+#### 3. Mobile (VideoDetailsForm + MobileUploadFlow)
+- Thêm menu item "Danh sách phát" (icon `ListVideo`) vào `menuItems` trong `VideoDetailsForm`
+- Click mở sub-page chứa `PlaylistSelector` (tương tự visibility/description sub-pages)
+- Thêm `playlistIds` vào metadata state trong `MobileUploadFlow`
+
+#### 4. Upload Context
+- Sau khi insert video thành công, nếu `playlistIds.length > 0`, insert vào `playlist_videos`:
 ```typescript
-// Strategy 1: TikTok user detail API
-const apiUrl = `https://www.tiktok.com/api/user/detail/?uniqueId=${cleanUsername}`;
-const res = await fetchWithTimeout(apiUrl, {
-  headers: { "User-Agent": USER_AGENTS[0] }
-}, 8000);
-if (res.ok) {
-  const data = await res.json();
-  const avatar = data?.userInfo?.user?.avatarLarger 
-    || data?.userInfo?.user?.avatarMedium;
-  if (avatar && !isJunkImage(avatar)) return avatar;
-}
-// Fallback: unavatar.io + og:image scrape (giữ nguyên)
+const inserts = metadata.playlistIds.map(pid => ({
+  playlist_id: pid,
+  video_id: videoData.id,
+  position: 0,
+}));
+await supabase.from("playlist_videos").insert(inserts);
 ```
 
+### Không cần migration
+Bảng `playlists` và `playlist_videos` đã có sẵn với RLS policies đầy đủ. Hook `usePlaylistOperations` cũng đã tồn tại.
