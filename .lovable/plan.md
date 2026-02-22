@@ -1,25 +1,39 @@
 
 
-## Sửa 2 lỗi Tooltip trên Orbit
+## Cập nhật trang Danh sách đình chỉ (/suspended)
 
-### Lỗi 1: Tooltip cũ không ẩn khi rê sang icon khác (chồng chéo + chớp tắt)
+### 1. Sticky header bao gồm cả hàng tiêu đề bảng
 
-Hiện tại mỗi `<Tooltip>` là uncontrolled (không có state quản lý). Khi hover sang icon khác, tooltip cũ không tự đóng.
+Hiện tại chỉ phần tiêu đề + search được sticky. Cần thêm sticky cho `TableHeader` (hàng "#, Người dùng, Ví liên kết...").
 
-**Giải pháp**: Thêm state `activeTooltip` (lưu key của platform đang hover). Mỗi `<Tooltip>` sẽ controlled bằng `open={activeTooltip === platform.key}` và `onOpenChange` sẽ set/clear state này. Chỉ 1 tooltip hiển thị tại 1 thời điểm.
+**Cách làm**: 
+- Giữ nguyên sticky cho phần tiêu đề + search (top-[64px])
+- Thêm `sticky top-[calc(64px+<header_height>)] z-10 bg-background` cho `TableHeader`
+- Dùng `overflow-visible` cho Table wrapper để sticky hoạt động trong scroll chính của trang
 
-### Lỗi 2: Tooltip xoay tròn quanh trục chính mình
+**File**: `src/pages/SuspendedUsers.tsx`
+- Dòng 117: Thêm `wrapperClassName="overflow-visible border border-border rounded-lg"` (thay vì chỉ border)
+- Dòng 118: Thêm className sticky cho `TableHeader`: `"bg-background sticky top-[200px] z-[9]"` (tính toán offset = 64px navbar + ~136px header section)
 
-Nguyên nhân: Class `animate-[orbit-tooltip-counter-spin_25s_linear_infinite]` đang áp dụng cho `TooltipContent`. Radix tooltip render qua **portal** (nằm ngoài DOM của orbit), nên nó không bị xoay theo orbit. Việc thêm counter-spin lại khiến nó tự xoay vòng.
+### 2. Thêm cột "Tổng Claimed"
 
-**Giải pháp**: Xóa class `animate-[orbit-tooltip-counter-spin_25s_linear_infinite]` khỏi `TooltipContent`. Tooltip sẽ tự động nằm ngang vì nó render ngoài container xoay.
+Hiển thị tổng số tiền user đã rút thành công (claim_requests với status = 'success').
+
+**File**: `src/hooks/usePublicSuspendedList.ts`
+- Thêm query mới lấy tổng claimed từ `claim_requests` (status = 'success'), group by user_id
+- Bảng `claim_requests` có RLS cho phép public xem claims có tx_hash + status = success
+- Merge dữ liệu vào `SuspendedEntry` với field mới `total_claimed: number`
+
+**File**: `src/pages/SuspendedUsers.tsx`
+- Thêm `TableHead` mới "Tổng claimed" sau cột "Tổng thưởng" (hidden md:table-cell)
+- Thêm `TableCell` tương ứng trong `SuspendedRow` hiển thị số CAMLY đã claimed
 
 ### Chi tiết kỹ thuật
 
-| File | Dòng | Thay đổi |
-|---|---|---|
-| `SocialMediaOrbit.tsx` | ~230 | Thêm `const [activeTooltip, setActiveTooltip] = useState<string \| null>(null)` |
-| `SocialMediaOrbit.tsx` | 253 | `<Tooltip>` -> `<Tooltip open={activeTooltip === platform.key} onOpenChange={(open) => setActiveTooltip(open ? platform.key : null)}>` |
-| `SocialMediaOrbit.tsx` | 255-273 | Thêm `onMouseEnter={() => setActiveTooltip(platform.key)}` và `onMouseLeave={() => setActiveTooltip(null)}` cho thẻ `<a>` |
-| `SocialMediaOrbit.tsx` | 275 | Xóa `animate-[orbit-tooltip-counter-spin_25s_linear_infinite]` khỏi className của `TooltipContent` |
+| File | Thay đổi |
+|---|---|
+| `src/hooks/usePublicSuspendedList.ts` | Thêm query `claim_requests` (status=success, group by user_id), thêm field `total_claimed` vào `SuspendedEntry`, merge vào `mergedEntries` |
+| `src/pages/SuspendedUsers.tsx` dòng 117-118 | Table wrapper overflow-visible, TableHeader sticky |
+| `src/pages/SuspendedUsers.tsx` dòng 125-126 | Thêm TableHead "Tổng claimed" |
+| `src/pages/SuspendedUsers.tsx` dòng 282-286 | Thêm TableCell hiển thị total_claimed |
 
