@@ -15,21 +15,20 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 
-interface ReportSpamButtonProps {
-  videoId: string;
+interface ReportChannelButtonProps {
+  channelId: string;
   className?: string;
 }
 
 const REPORT_REASONS = [
-  { value: "spam", label: "Nội dung rác / Spam" },
-  { value: "duplicate", label: "Trùng lặp" },
-  { value: "low_quality", label: "Video quá ngắn / Chất lượng thấp" },
+  { value: "spam", label: "Kênh spam / Nội dung rác" },
+  { value: "impersonation", label: "Mạo danh người khác" },
+  { value: "harassment", label: "Quấy rối / Bắt nạt" },
+  { value: "misleading", label: "Thông tin gây hiểu lầm" },
   { value: "community_violation", label: "Vi phạm quy tắc cộng đồng" },
-  { value: "harmful", label: "Nội dung có hại / Bạo lực" },
-  { value: "misinformation", label: "Thông tin sai lệch" },
 ];
 
-export function ReportSpamButton({ videoId, className }: ReportSpamButtonProps) {
+export function ReportChannelButton({ channelId, className }: ReportChannelButtonProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
@@ -48,21 +47,21 @@ export function ReportSpamButton({ videoId, className }: ReportSpamButtonProps) 
     debounceRef.current = true;
 
     setSubmitting(true);
-    const { error } = await supabase.from("video_reports").insert({
-      video_id: videoId,
+    const { error } = await supabase.from("channel_reports" as any).insert({
+      channel_id: channelId,
       reporter_id: user.id,
       reason,
       detail: detail.trim() || null,
-    });
+    } as any);
 
     if (error) {
       if (error.code === "23505") {
-        toast({ title: "Bạn đã báo cáo video này rồi", description: "Mỗi người chỉ được báo cáo 1 lần" });
+        toast({ title: "Bạn đã báo cáo kênh này rồi", description: "Mỗi người chỉ được báo cáo 1 lần" });
       } else {
         toast({ title: "Lỗi", description: error.message, variant: "destructive" });
       }
     } else {
-      toast({ title: "Cảm ơn bạn đã đóng góp ánh sáng cho cộng đồng ✨", description: "Báo cáo của bạn đã được ghi nhận" });
+      toast({ title: "Cảm ơn bạn đã đóng góp ánh sáng cho cộng đồng ✨", description: "Báo cáo kênh đã được ghi nhận" });
     }
 
     setSubmitting(false);
@@ -83,20 +82,20 @@ export function ReportSpamButton({ videoId, className }: ReportSpamButtonProps) 
         onClick={() => setOpen(true)}
       >
         <Flag className="w-4 h-4 mr-1" />
-        Báo cáo
+        Báo cáo kênh
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Báo cáo video 🚩</DialogTitle>
+            <DialogTitle>Báo cáo kênh 🚩</DialogTitle>
           </DialogHeader>
 
           <RadioGroup value={reason} onValueChange={setReason} className="space-y-3">
             {REPORT_REASONS.map((r) => (
               <div key={r.value} className="flex items-center space-x-3">
-                <RadioGroupItem value={r.value} id={`video-${r.value}`} />
-                <Label htmlFor={`video-${r.value}`} className="cursor-pointer">{r.label}</Label>
+                <RadioGroupItem value={r.value} id={`channel-${r.value}`} />
+                <Label htmlFor={`channel-${r.value}`} className="cursor-pointer">{r.label}</Label>
               </div>
             ))}
           </RadioGroup>

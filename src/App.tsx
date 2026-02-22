@@ -111,6 +111,7 @@ const PreviewCelebration = lazy(() => import("./pages/PreviewCelebration"));
 const UsersDirectory = lazy(() => import("./pages/UsersDirectory"));
 const UIPreview = lazy(() => import("./pages/UIPreview"));
 const SuspendedUsers = lazy(() => import("./pages/SuspendedUsers"));
+const MyReports = lazy(() => import("./pages/MyReports"));
 
 const queryClient = new QueryClient();
 
@@ -233,6 +234,7 @@ function AppContent() {
             <Route path="/users" element={<UsersDirectory />} />
             <Route path="/ui-preview" element={<UIPreview />} />
             <Route path="/suspended" element={<SuspendedUsers />} />
+            <Route path="/my-reports" element={<MyReports />} />
             {/* Legacy redirects */}
             <Route path="/user/:userId" element={<LegacyUserRedirect />} />
             <Route path="/u/:username" element={<LegacyUsernameRedirect />} />

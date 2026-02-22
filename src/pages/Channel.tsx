@@ -12,6 +12,7 @@ import { BackgroundMusicPlayer } from "@/components/BackgroundMusicPlayer";
 import { useToast } from "@/hooks/use-toast";
 import { AuthRequiredDialog } from "@/components/Auth/AuthRequiredDialog";
 import { BackButton } from "@/components/ui/back-button";
+import { ReportChannelButton } from "@/components/Channel/ReportChannelButton";
 
 interface ProfileData {
   id: string;
@@ -403,6 +404,13 @@ export default function Channel() {
             onSubscribe={handleSubscribe}
             banned={profile.banned ?? false}
           />
+
+          {/* Report Channel Button - only for other users' channels */}
+          {!isOwnProfile && channel && (
+            <div className="mt-2">
+              <ReportChannelButton channelId={channel.id} />
+            </div>
+          )}
 
           {/* Tabs Content */}
           <ProfileTabs
