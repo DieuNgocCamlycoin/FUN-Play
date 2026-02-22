@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Gift, UserPlus, UserCheck, Share2, Copy, Settings, Wallet } from "lucide-react";
+import { Gift, UserPlus, UserCheck, Share2, Copy, Settings, Wallet, Link } from "lucide-react";
 import { AdminChannelActions } from "@/components/Admin/AdminChannelActions";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -125,26 +125,53 @@ export const ProfileInfo = ({
             </p>
           )}
 
-          {/* Wallet/Fun-ID */}
-          {profile.wallet_address && (
-            <div className="inline-flex items-center gap-2.5 px-4 py-2 bg-muted/60 border border-primary/30 rounded-full hover:border-primary/50 transition-colors duration-200">
-              <Wallet className="w-4 h-4 text-primary flex-shrink-0" />
-              <span className="font-mono text-sm text-foreground truncate max-w-[200px]">
-                {profile.wallet_address.slice(0, 6)}...{profile.wallet_address.slice(-4)}
+          {/* Profile Link + Wallet/Fun-ID */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Profile Link Chip */}
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-muted/60 border border-primary/30 rounded-full hover:border-primary/50 transition-colors duration-200">
+              <Link className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+              <span className="font-mono text-sm text-foreground">
+                fun.rich/{profile.username}
               </span>
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7 hover:bg-primary/10 rounded-full flex-shrink-0"
+                className="h-6 w-6 hover:bg-primary/10 rounded-full flex-shrink-0"
                 onClick={() => {
-                  navigator.clipboard.writeText(profile.wallet_address || "");
-                  toast({ title: "Đã copy địa chỉ ví" });
+                  const profileLink = `https://fun.rich/${profile.username}`;
+                  copyToClipboard(profileLink).then(success => {
+                    toast({ title: success ? "Đã copy link profile! ✨" : "Lỗi sao chép" });
+                  });
                 }}
               >
-                <Copy className="w-4 h-4 text-primary" />
+                <Copy className="w-3.5 h-3.5 text-primary" />
               </Button>
             </div>
-          )}
+
+            {/* Wallet Chip */}
+            {profile.wallet_address && (
+              <>
+                <span className="text-muted-foreground text-sm">•</span>
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-muted/60 border border-primary/30 rounded-full hover:border-primary/50 transition-colors duration-200">
+                  <Wallet className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                  <span className="font-mono text-sm text-foreground truncate max-w-[200px]">
+                    {profile.wallet_address.slice(0, 6)}...{profile.wallet_address.slice(-4)}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 hover:bg-primary/10 rounded-full flex-shrink-0"
+                    onClick={() => {
+                      navigator.clipboard.writeText(profile.wallet_address || "");
+                      toast({ title: "Đã copy địa chỉ ví" });
+                    }}
+                  >
+                    <Copy className="w-3.5 h-3.5 text-primary" />
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Right: Action Buttons - hidden when banned */}
