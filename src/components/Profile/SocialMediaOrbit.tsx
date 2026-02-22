@@ -295,7 +295,7 @@ export const SocialMediaOrbit = ({
               }}
             >
               {displayUrl ? (
-                <OrbitImage src={displayUrl} alt={platform.label} color={platform.color} />
+                <OrbitImage src={displayUrl} alt={platform.label} color={platform.color} fallbackSrc={defaultAvatarMap[platform.key]} FallbackIcon={Icon} />
               ) : (
                 <Icon className="w-4 h-4 md:w-5 md:h-5" style={{ color: platform.color }} />
               )}
@@ -431,11 +431,20 @@ export const SocialMediaOrbit = ({
 };
 
 // Sub-component for orbit images with fallback
-const OrbitImage = ({ src, alt, color }: { src: string; alt: string; color: string }) => {
-  const [error, setError] = useState(false);
-  
-  if (error) {
-    return (
+const OrbitImage = ({ src, alt, color, fallbackSrc, FallbackIcon }: { 
+  src: string; 
+  alt: string; 
+  color: string;
+  fallbackSrc?: string;
+  FallbackIcon?: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
+}) => {
+  // 'primary' = showing src, 'fallback' = showing fallbackSrc, 'icon' = showing FallbackIcon
+  const [stage, setStage] = useState<'primary' | 'fallback' | 'icon'>('primary');
+
+  if (stage === 'icon' || (stage === 'fallback' && !fallbackSrc)) {
+    return FallbackIcon ? (
+      <FallbackIcon className="w-4 h-4 md:w-5 md:h-5" style={{ color }} />
+    ) : (
       <div
         className="w-full h-full flex items-center justify-center text-[10px] font-bold"
         style={{ color }}
@@ -445,12 +454,30 @@ const OrbitImage = ({ src, alt, color }: { src: string; alt: string; color: stri
     );
   }
 
+  if (stage === 'fallback' && fallbackSrc) {
+    return (
+      <img
+        src={fallbackSrc}
+        alt={alt}
+        className="w-full h-full object-cover"
+        onError={() => setStage('icon')}
+        loading="lazy"
+      />
+    );
+  }
+
   return (
     <img
       src={src}
       alt={alt}
       className="w-full h-full object-cover"
-      onError={() => setError(true)}
+      onError={() => {
+        if (fallbackSrc && fallbackSrc !== src) {
+          setStage('fallback');
+        } else {
+          setStage('icon');
+        }
+      }}
       loading="lazy"
     />
   );
