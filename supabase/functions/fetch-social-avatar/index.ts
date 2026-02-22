@@ -167,6 +167,15 @@ async function fetchFacebookAvatar(url: string): Promise<string | null> {
     console.log(`[facebook] unavatar.io failed:`, e.message);
   }
 
+  // Strategy 3: Scrape Facebook profile page for og:image
+  for (const ua of USER_AGENTS) {
+    const result = await scrapeOgAndAvatar(url, ua);
+    if (result) {
+      console.log(`[facebook] og:image scrape success`);
+      return result;
+    }
+  }
+
   return null;
 }
 
@@ -265,6 +274,7 @@ async function fetchAvatarForPlatform(platform: string, url: string): Promise<st
       case "youtube":
         return await fetchYoutubeAvatar(url);
       case "funprofile":
+      case "funplay":
         return await fetchFunProfileAvatar(url);
       case "angelai":
         return await fetchAngelAiAvatar(url);
