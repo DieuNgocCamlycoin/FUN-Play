@@ -654,42 +654,27 @@ export default function ProfileSettings() {
                   Liên kết mạng xã hội
                 </h3>
                 <div className="space-y-3">
-                  <div>
-                    <Label htmlFor="funplayUrl">Fun Profile</Label>
-                    <Input id="funplayUrl" type="url" placeholder="https://play.fun.rich/@username" value={funplayUrl} onChange={(e) => setFunplayUrl(e.target.value)} className="mt-1" />
-                  </div>
-                  <div>
-                    <Label htmlFor="angelaiUrl">Angel AI</Label>
-                    <Input id="angelaiUrl" type="url" placeholder="https://angel.ai/profile" value={angelaiUrl} onChange={(e) => setAngelaiUrl(e.target.value)} className="mt-1" />
-                  </div>
-                  <div>
-                    <Label htmlFor="facebookUrl">Facebook</Label>
-                    <Input id="facebookUrl" type="url" placeholder="https://facebook.com/username" value={facebookUrl} onChange={(e) => setFacebookUrl(e.target.value)} className="mt-1" />
-                  </div>
-                  <div>
-                    <Label htmlFor="youtubeUrl">YouTube</Label>
-                    <Input id="youtubeUrl" type="url" placeholder="https://youtube.com/@channel" value={youtubeUrl} onChange={(e) => setYoutubeUrl(e.target.value)} className="mt-1" />
-                  </div>
-                  <div>
-                    <Label htmlFor="twitterUrl">X / Twitter</Label>
-                    <Input id="twitterUrl" type="url" placeholder="https://x.com/username" value={twitterUrl} onChange={(e) => setTwitterUrl(e.target.value)} className="mt-1" />
-                  </div>
-                  <div>
-                    <Label htmlFor="telegramUrl">Telegram</Label>
-                    <Input id="telegramUrl" type="url" placeholder="https://t.me/username" value={telegramUrl} onChange={(e) => setTelegramUrl(e.target.value)} className="mt-1" />
-                  </div>
-                  <div>
-                    <Label htmlFor="tiktokUrl">TikTok</Label>
-                    <Input id="tiktokUrl" type="url" placeholder="https://tiktok.com/@username" value={tiktokUrl} onChange={(e) => setTiktokUrl(e.target.value)} className="mt-1" />
-                  </div>
-                  <div>
-                    <Label htmlFor="linkedinUrl">LinkedIn</Label>
-                    <Input id="linkedinUrl" type="url" placeholder="https://linkedin.com/in/username" value={linkedinUrl} onChange={(e) => setLinkedinUrl(e.target.value)} className="mt-1" />
-                  </div>
-                  <div>
-                    <Label htmlFor="zaloUrl">Zalo</Label>
-                    <Input id="zaloUrl" type="url" placeholder="https://zalo.me/username" value={zaloUrl} onChange={(e) => setZaloUrl(e.target.value)} className="mt-1" />
-                  </div>
+                  {[
+                    { id: "funplayUrl", label: "Fun Profile", placeholder: "https://play.fun.rich/@username", value: funplayUrl, setter: setFunplayUrl },
+                    { id: "angelaiUrl", label: "Angel AI", placeholder: "https://angel.ai/profile", value: angelaiUrl, setter: setAngelaiUrl },
+                    { id: "facebookUrl", label: "Facebook", placeholder: "https://facebook.com/username", value: facebookUrl, setter: setFacebookUrl },
+                    { id: "youtubeUrl", label: "YouTube", placeholder: "https://youtube.com/@channel", value: youtubeUrl, setter: setYoutubeUrl },
+                    { id: "twitterUrl", label: "X / Twitter", placeholder: "https://x.com/username", value: twitterUrl, setter: setTwitterUrl },
+                    { id: "telegramUrl", label: "Telegram", placeholder: "https://t.me/username", value: telegramUrl, setter: setTelegramUrl },
+                    { id: "tiktokUrl", label: "TikTok", placeholder: "https://tiktok.com/@username", value: tiktokUrl, setter: setTiktokUrl },
+                    { id: "linkedinUrl", label: "LinkedIn", placeholder: "https://linkedin.com/in/username", value: linkedinUrl, setter: setLinkedinUrl },
+                    { id: "zaloUrl", label: "Zalo", placeholder: "https://zalo.me/username", value: zaloUrl, setter: setZaloUrl },
+                  ].map((field) => (
+                    <div key={field.id}>
+                      <Label htmlFor={field.id}>{field.label}</Label>
+                      <div className="relative mt-1">
+                        <Input id={field.id} type="text" placeholder={field.placeholder} value={field.value} onChange={(e) => field.setter(e.target.value)} className="pr-10" />
+                        {field.value && /^https?:\/\/.+/.test(field.value) && (
+                          <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500 h-5 w-5" />
+                        )}
+                      </div>
+                    </div>
+                  ))}
                   <p className="text-xs text-muted-foreground">Các link sẽ hiển thị quanh avatar trên trang cá nhân của bạn (tối đa 9 nền tảng)</p>
                 </div>
               </div>
