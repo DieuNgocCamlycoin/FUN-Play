@@ -1,35 +1,22 @@
 
 
-## 3 thay đổi cần thực hiện
+## Thiết kế lại hiển thị mã ví trên trang cá nhân
 
-### 1. Tăng kích thước viên kim cương gấp đôi
+### Mô tả
 
-**File: `src/components/Profile/DiamondBadge.tsx`**
+Theo hình tham chiếu, mã ví cần được hiển thị dạng badge/chip nổi bật với viền bo tròn, icon copy rõ ràng, nằm ngay dưới username - thay vì kiểu text nhỏ mờ hiện tại.
 
-- Kích thước hiện tại: `w-[42px] h-[42px] md:w-12 md:h-12` (42px / 48px)
-- Kích thước mới: `w-[84px] h-[84px] md:w-24 md:h-24` (84px / 96px)
-- Điều chỉnh vị trí top cho phù hợp: `-top-14 md:-top-16` (thay vì `-top-8 md:-top-10`)
+### Thay đổi
 
-### 2. Hình mặc định cho Facebook
+**File: `src/components/Profile/ProfileInfo.tsx` (dòng 127-146)**
 
-Upload hình Facebook icon vào `public/images/facebook-default.png` và thêm vào `defaultAvatarMap` trong `SocialMediaOrbit.tsx`:
-```
-facebook: '/images/facebook-default.png'
-```
+Thay thế phần hiển thị wallet hiện tại bằng thiết kế mới:
 
-### 3. Hình mặc định cho X / Twitter
+- **Chip/badge** với nền `bg-muted/60` hoặc `bg-card`, viền `border border-primary/30`, bo tròn `rounded-full`
+- **Icon ví** (Wallet) bên trái, kích thước lớn hơn (`w-4 h-4`), màu primary
+- **Địa chỉ ví** font mono, cỡ chữ `text-sm` (tăng từ `text-xs`), màu `text-foreground` (thay vì muted)
+- **Nút copy** bên phải, có hover effect rõ ràng, icon `Copy` lớn hơn (`w-4 h-4`)
+- **Padding** thoáng hơn: `px-4 py-2`
+- Toàn bộ chip có `hover:border-primary/50` transition
 
-Upload hình X icon vào `public/images/twitter-default.png` và thêm vào `defaultAvatarMap`:
-```
-twitter: '/images/twitter-default.png'
-```
-
-### Chi tiết kỹ thuật
-
-**Files cần sửa:**
-- `src/components/Profile/DiamondBadge.tsx` -- thay đổi kích thước và vị trí
-- `src/components/Profile/SocialMediaOrbit.tsx` -- thêm 2 entry vào `defaultAvatarMap` (dòng 244-247)
-
-**Files cần tạo (copy từ upload):**
-- `public/images/facebook-default.png`
-- `public/images/twitter-default.png`
+Kết quả: mã ví nổi bật, dễ đọc, dễ copy - giống style trong hình tham chiếu.
