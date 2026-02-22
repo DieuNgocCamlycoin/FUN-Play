@@ -157,7 +157,7 @@ export function usePublicSuspendedList() {
     bannedUsers,
     blacklistedWallets,
     mergedEntries,
-    totalCount: bannedUsers.length + blacklistedWallets.length,
+    totalCount: bannedUsers.length,
     isLoading: bannedUsersQuery.isLoading || blacklistedWalletsQuery.isLoading || historicalWalletsQuery.isLoading || claimedQuery.isLoading,
   };
 }
