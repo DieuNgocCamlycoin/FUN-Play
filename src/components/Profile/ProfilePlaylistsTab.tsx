@@ -40,10 +40,7 @@ export const ProfilePlaylistsTab = ({ userId, isOwnProfile }: ProfilePlaylistsTa
           name,
           description,
           is_public,
-          playlist_videos(
-            count,
-            videos(thumbnail_url)
-          )
+          playlist_videos(video_id, videos(thumbnail_url))
         `)
         .eq("user_id", userId)
         .order("updated_at", { ascending: false });
@@ -61,7 +58,7 @@ export const ProfilePlaylistsTab = ({ userId, isOwnProfile }: ProfilePlaylistsTa
         name: p.name,
         description: p.description,
         is_public: p.is_public,
-        video_count: p.playlist_videos?.[0]?.count || 0,
+        video_count: p.playlist_videos?.length || 0,
         thumbnail_url: p.playlist_videos?.[0]?.videos?.thumbnail_url,
       }));
 
