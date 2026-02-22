@@ -267,7 +267,8 @@ export const SocialMediaOrbit = ({
           const rad = (angle * Math.PI) / 180;
           const x = Math.cos(rad) * 58;
           const y = Math.sin(rad) * 58;
-          const avatarUrl = socialAvatars?.[platform.key];
+          const rawAvatar = socialAvatars?.[platform.key];
+          const avatarUrl = rawAvatar && rawAvatar.trim().length > 0 ? rawAvatar : null;
           const defaultAvatarMap: Record<string, string> = {
             funplay: '/images/FUN_Profile.png',
             angelai: '/images/Angel_AI.png',
