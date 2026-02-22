@@ -126,21 +126,21 @@ export const ProfileInfo = ({
 
           {/* Wallet/Fun-ID */}
           {profile.wallet_address && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Wallet className="w-3.5 h-3.5" />
-              <span className="font-mono truncate max-w-[200px]">
+            <div className="inline-flex items-center gap-2.5 px-4 py-2 bg-muted/60 border border-primary/30 rounded-full hover:border-primary/50 transition-colors duration-200">
+              <Wallet className="w-4 h-4 text-primary flex-shrink-0" />
+              <span className="font-mono text-sm text-foreground truncate max-w-[200px]">
                 {profile.wallet_address.slice(0, 6)}...{profile.wallet_address.slice(-4)}
               </span>
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6"
+                className="h-7 w-7 hover:bg-primary/10 rounded-full flex-shrink-0"
                 onClick={() => {
                   navigator.clipboard.writeText(profile.wallet_address || "");
                   toast({ title: "Đã copy địa chỉ ví" });
                 }}
               >
-                <Copy className="w-3 h-3" />
+                <Copy className="w-4 h-4 text-primary" />
               </Button>
             </div>
           )}
