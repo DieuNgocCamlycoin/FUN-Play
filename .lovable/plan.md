@@ -1,30 +1,39 @@
 
 
-## Thay đổi cần thực hiện
+## Sửa lỗi trang cá nhân chớp/load lại liên tục
 
-### 1. Giảm kích thước viên kim cương xuống 3/4
+### Nguyên nhân gốc
 
-**File: `src/components/Profile/DiamondBadge.tsx` (dòng 43-49)**
+Vòng lặp vô hạn xảy ra theo chuỗi:
 
-- Kích thước hiện tại: `w-[84px] h-[84px] md:w-24 md:h-24` (84px / 96px)
-- Kích thước mới: `w-[63px] h-[63px] md:w-[72px] md:h-[72px]` (63px / 72px)
-- Điều chỉnh vị trí: `-top-10 md:-top-12` (thay vì `-top-14 md:-top-16`)
+1. `SocialMediaOrbit` mount, phát hiện thiếu avatar MXH, gọi edge function `fetch-social-avatar`
+2. Khi xong, gọi `onProfileUpdate()` -- chính là `fetchChannelAndProfile` trong Channel.tsx
+3. `fetchChannelAndProfile` gọi `setLoading(true)` (dòng 177) -- hiển thị spinner "Đang tải..."
+4. Spinner **unmount** toàn bộ `SocialMediaOrbit`, xóa biến `fetchTriggered.current`
+5. Khi load xong, `SocialMediaOrbit` **mount lại** với `fetchTriggered.current = false`
+6. Quay lại bước 1 -- lặp vô tận!
 
-### 2. Tooltip hiển thị tên MXH + link thu gọn nằm ngang
+### Giải pháp
 
-**File: `src/components/Profile/SocialMediaOrbit.tsx` (dòng 275-280)**
+**File: `src/pages/Channel.tsx`** (dòng 175-177)
 
-Thay thế TooltipContent hiện tại (tên trên, link dưới) bằng layout nằm ngang:
-- Tên mạng xã hội (bold) + link thu gọn nằm cùng 1 dòng, cách nhau bằng khoảng trắng
-- Logic thu gọn link:
-  - `https://www.facebook.com/...` -> `facebook.com/...`
-  - `https://t.me/...` -> `t.me/...`
-- Giống hình tham chiếu: "Facebook" rồi "www.facebook.com/le.kha.nhi..." hoặc "Telegram" rồi "t.me/LeKhaNhi"
+Tách biệt lần load đầu tiên (hiện spinner) và lần refresh sau đó (không hiện spinner):
 
-### Tóm tắt
+- Thêm biến `initialLoadDone` dùng `useRef` để biết đã load xong lần đầu chưa
+- Lần đầu: `setLoading(true)` bình thường
+- Các lần sau (do `onProfileUpdate` gọi lại): **không gọi** `setLoading(true)`, chỉ cập nhật dữ liệu profile/channel mà không unmount component
 
-| File | Dòng | Thay đổi |
-|---|---|---|
-| `DiamondBadge.tsx` | 43-49 | Giảm size 3/4, chỉnh vị trí top |
-| `SocialMediaOrbit.tsx` | 275-280 | Tooltip nằm ngang: tên + link thu gọn |
+```text
+Trước:
+  fetchChannelAndProfile() -> setLoading(true) -> unmount tất cả -> mount lại -> loop
+
+Sau:
+  fetchChannelAndProfile() -> chỉ setLoading(true) lần đầu -> các lần sau giữ UI ổn định
+```
+
+### Chi tiết kỹ thuật
+
+| File | Thay doi |
+|---|---|
+| `src/pages/Channel.tsx` | Thêm `useRef(false)` cho `initialLoadDone`, chỉ `setLoading(true)` khi chưa load lần đầu |
 
