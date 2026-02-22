@@ -1,11 +1,5 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Facebook, Youtube, Send, Linkedin, Plus, Check, X } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import {
   Popover,
   PopoverContent,
@@ -131,7 +125,6 @@ export const SocialMediaOrbit = ({
     const platformsWithUrlButNoAvatar: Record<string, string> = {};
     for (const p of activePlatforms) {
       if (urls[p.key] && !socialAvatars?.[p.key]) {
-        // Skip funplay and angelai as they have default images
         if (p.key === "funplay" || p.key === "angelai") continue;
         platformsWithUrlButNoAvatar[p.key] = urls[p.key]!;
       }
@@ -154,15 +147,46 @@ export const SocialMediaOrbit = ({
       });
   }, [userId]);
 
+  // Custom tooltip state
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
+  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
+  const iconRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const rafRef = useRef<number>(0);
 
-  // Distribute evenly across 360°, starting from 12h (270°)
+  // RAF loop to track icon position for tooltip
+  const updateTooltipPosition = useCallback(() => {
+    if (!activeTooltip || !wrapperRef.current) {
+      rafRef.current = 0;
+      return;
+    }
+    const iconEl = iconRefs.current[activeTooltip];
+    if (!iconEl) {
+      rafRef.current = 0;
+      return;
+    }
+    const wrapperRect = wrapperRef.current.getBoundingClientRect();
+    const iconRect = iconEl.getBoundingClientRect();
+    const x = iconRect.left + iconRect.width / 2 - wrapperRect.left;
+    const y = iconRect.top - wrapperRect.top;
+    setTooltipPos({ x, y });
+    rafRef.current = requestAnimationFrame(updateTooltipPosition);
+  }, [activeTooltip]);
+
+  useEffect(() => {
+    if (activeTooltip) {
+      rafRef.current = requestAnimationFrame(updateTooltipPosition);
+    }
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, [activeTooltip, updateTooltipPosition]);
+
   const allOrbitItems = [...activePlatforms];
   const showAddButton = isOwnProfile && missingPlatforms.length > 0;
 
   const count = allOrbitItems.length + (showAddButton ? 1 : 0);
   if (count === 0 && !showAddButton) return null;
-  // If no active platforms but we have add button, still render
   if (count === 0) return null;
 
   const step = 360 / count;
@@ -196,7 +220,6 @@ export const SocialMediaOrbit = ({
 
       if (error) throw error;
 
-      // Trigger avatar fetch for the new platform
       try {
         await supabase.functions.invoke("fetch-social-avatar", {
           body: {
@@ -228,174 +251,182 @@ export const SocialMediaOrbit = ({
     }
   };
 
-
+  // Find active tooltip platform data
+  const activeTooltipPlatform = activeTooltip ? platforms.find(p => p.key === activeTooltip) : null;
 
   return (
-    <TooltipProvider delayDuration={0}>
-      <div className="absolute inset-0">
-        {/* Spinning orbit container */}
-        <div
-          className="absolute inset-0 orbit-container animate-[orbit-spin_25s_linear_infinite]"
-          style={{ transformOrigin: "center center" }}
-        >
-          {allOrbitItems.map((platform, index) => {
-            const Icon = platform.icon;
-            const angle = baseAngle + step * index;
-            const rad = (angle * Math.PI) / 180;
-            const x = Math.cos(rad) * 58;
-            const y = Math.sin(rad) * 58;
-            const avatarUrl = socialAvatars?.[platform.key];
-            const defaultAvatarMap: Record<string, string> = {
-              funplay: '/images/FUN_Profile.png',
-              angelai: '/images/Angel_AI.png',
-              facebook: '/images/facebook-default.png',
-              twitter: '/images/twitter-default.png',
-            };
-            const displayUrl = avatarUrl || defaultAvatarMap[platform.key] || null;
+    <div className="absolute inset-0" ref={wrapperRef}>
+      {/* Spinning orbit container */}
+      <div
+        className="absolute inset-0 orbit-container animate-[orbit-spin_25s_linear_infinite]"
+        style={{ transformOrigin: "center center" }}
+      >
+        {allOrbitItems.map((platform, index) => {
+          const Icon = platform.icon;
+          const angle = baseAngle + step * index;
+          const rad = (angle * Math.PI) / 180;
+          const x = Math.cos(rad) * 58;
+          const y = Math.sin(rad) * 58;
+          const avatarUrl = socialAvatars?.[platform.key];
+          const defaultAvatarMap: Record<string, string> = {
+            funplay: '/images/FUN_Profile.png',
+            angelai: '/images/Angel_AI.png',
+            facebook: '/images/facebook-default.png',
+            twitter: '/images/twitter-default.png',
+          };
+          const displayUrl = avatarUrl || defaultAvatarMap[platform.key] || null;
 
-            return (
-              <Tooltip key={platform.key} open={activeTooltip === platform.key} onOpenChange={(open) => setActiveTooltip(open ? platform.key : null)}>
-                <TooltipTrigger asChild>
-                  <a
-                    href={urls[platform.key]!}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onMouseEnter={() => setActiveTooltip(platform.key)}
-                    onMouseLeave={() => setActiveTooltip(null)}
-                    className="absolute z-20 flex items-center justify-center w-9 h-9 md:w-11 md:h-11 rounded-full shadow-lg transition-transform hover:scale-[1.3] cursor-pointer overflow-hidden bg-background/80 dark:bg-background/60 orbit-item animate-[orbit-counter-spin_25s_linear_infinite]"
-                    style={{
-                      border: "3px solid #00E7FF",
-                      left: `calc(50% + ${x}%)`,
-                      top: `calc(50% + ${y}%)`,
-                      transform: "translate(-50%, -50%)",
-                      boxShadow: "0 0 8px #00E7FF40",
-                    }}
-                  >
-                    {displayUrl ? (
-                      <OrbitImage src={displayUrl} alt={platform.label} color={platform.color} />
-                    ) : (
-                      <Icon className="w-4 h-4 md:w-5 md:h-5" style={{ color: platform.color }} />
-                    )}
-                  </a>
-                </TooltipTrigger>
-                <TooltipContent side="top" className="bg-transparent border-none shadow-none p-0">
-                  <div className="flex flex-col items-center gap-1">
-                    <div
-                      className="px-3 py-1.5 text-white font-bold text-center text-xs rounded-md shadow-lg w-fit whitespace-nowrap"
-                      style={{ backgroundColor: platform.key === 'tiktok' ? '#000000' : platform.color }}
-                    >
-                      {platform.label}
-                    </div>
-                    <div className="px-3 py-1.5 bg-white rounded-md shadow-lg">
-                      <span className="text-[#2563EB] text-[11px] whitespace-nowrap">
-                        {(urls[platform.key] || "").replace(/^https?:\/\/(www\.)?/, "")}
-                      </span>
-                    </div>
-                  </div>
-                </TooltipContent>
-              </Tooltip>
-            );
-          })}
-        </div>
-
-        {/* Fixed "+" button at 10 o'clock position - outside orbit, does not spin */}
-        {showAddButton && (
-          <Popover open={addOpen} onOpenChange={(open) => {
-            setAddOpen(open);
-            if (!open) {
-              setSelectedPlatform(null);
-              setUrlInput("");
-              setUrlError("");
-            }
-          }}>
-            <PopoverTrigger asChild>
-              <button
-                className="absolute z-30 flex items-center justify-center w-9 h-9 md:w-11 md:h-11 rounded-full shadow-lg transition-all hover:scale-[1.3] cursor-pointer"
-                style={{
-                  background: "linear-gradient(135deg, #22d3ee, #3b82f6)",
-                  left: "calc(50% - 50.2%)",
-                  top: "calc(50% - 29%)",
-                  transform: "translate(-50%, -50%)",
-                  boxShadow: "0 0 12px rgba(34, 211, 238, 0.5), 0 0 24px rgba(59, 130, 246, 0.3)",
-                  border: "2px solid rgba(255,255,255,0.3)",
-                }}
-              >
-                <Plus className="w-4 h-4 md:w-5 md:h-5 text-white" />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent
-              side="bottom"
-              align="center"
-              className="w-72 p-3 z-50"
-              onClick={(e) => e.stopPropagation()}
+          return (
+            <a
+              key={platform.key}
+              ref={(el) => { iconRefs.current[platform.key] = el; }}
+              href={urls[platform.key]!}
+              target="_blank"
+              rel="noopener noreferrer"
+              onMouseEnter={() => setActiveTooltip(platform.key)}
+              onMouseLeave={() => setActiveTooltip(null)}
+              className="absolute z-20 flex items-center justify-center w-9 h-9 md:w-11 md:h-11 rounded-full shadow-lg transition-transform hover:scale-[1.3] cursor-pointer overflow-hidden bg-background/80 dark:bg-background/60 orbit-item animate-[orbit-counter-spin_25s_linear_infinite]"
+              style={{
+                border: "3px solid #00E7FF",
+                left: `calc(50% + ${x}%)`,
+                top: `calc(50% + ${y}%)`,
+                transform: "translate(-50%, -50%)",
+                boxShadow: "0 0 8px #00E7FF40",
+              }}
             >
-              {!selectedPlatform ? (
-                <div>
-                  <p className="text-xs font-semibold text-foreground mb-2">Thêm mạng xã hội</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {missingPlatforms.map((p) => {
-                      const Icon = p.icon;
-                      return (
-                        <button
-                          key={p.key}
-                          onClick={() => setSelectedPlatform(p.key)}
-                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium border border-border bg-background hover:bg-accent transition-colors"
-                        >
-                          <Icon className="w-3.5 h-3.5" style={{ color: p.color }} />
-                          {p.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+              {displayUrl ? (
+                <OrbitImage src={displayUrl} alt={platform.label} color={platform.color} />
               ) : (
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <button
-                      onClick={() => {
-                        setSelectedPlatform(null);
-                        setUrlInput("");
-                        setUrlError("");
-                      }}
-                      className="text-muted-foreground hover:text-foreground"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                    <p className="text-xs font-semibold text-foreground">
-                      {platforms.find(p => p.key === selectedPlatform)?.label}
-                    </p>
-                  </div>
-                  <div className="flex gap-1.5">
-                    <Input
-                      value={urlInput}
-                      onChange={(e) => {
-                        setUrlInput(e.target.value);
-                        setUrlError("");
-                      }}
-                      placeholder="https://..."
-                      className="text-xs h-8"
-                      autoFocus
-                      onKeyDown={(e) => e.key === "Enter" && handleSave()}
-                    />
-                    <Button
-                      size="sm"
-                      onClick={handleSave}
-                      disabled={!urlInput || saving}
-                      className="h-8 px-2 bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-500 hover:to-blue-600 text-white border-0"
-                    >
-                      <Check className="w-4 h-4" />
-                    </Button>
-                  </div>
-                  {urlError && (
-                    <p className="text-[10px] text-destructive mt-1">{urlError}</p>
-                  )}
-                </div>
+                <Icon className="w-4 h-4 md:w-5 md:h-5" style={{ color: platform.color }} />
               )}
-            </PopoverContent>
-          </Popover>
-        )}
+            </a>
+          );
+        })}
       </div>
-    </TooltipProvider>
+
+      {/* Custom tooltip - rendered OUTSIDE orbit container, always horizontal */}
+      {activeTooltip && activeTooltipPlatform && tooltipPos && (
+        <div
+          className="absolute z-50 pointer-events-none"
+          style={{
+            left: tooltipPos.x,
+            top: tooltipPos.y - 8,
+            transform: "translate(-50%, -100%)",
+          }}
+        >
+          <div className="flex flex-col items-center gap-1">
+            <div
+              className="px-3 py-1.5 text-white font-bold text-center text-xs rounded-md shadow-lg w-fit whitespace-nowrap"
+              style={{ backgroundColor: activeTooltipPlatform.key === 'tiktok' ? '#000000' : activeTooltipPlatform.color }}
+            >
+              {activeTooltipPlatform.label}
+            </div>
+            <div className="px-3 py-1.5 bg-white rounded-md shadow-lg">
+              <span className="text-[#2563EB] text-[11px] whitespace-nowrap">
+                {(urls[activeTooltip] || "").replace(/^https?:\/\/(www\.)?/, "")}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Fixed "+" button at 10 o'clock position - outside orbit, does not spin */}
+      {showAddButton && (
+        <Popover open={addOpen} onOpenChange={(open) => {
+          setAddOpen(open);
+          if (!open) {
+            setSelectedPlatform(null);
+            setUrlInput("");
+            setUrlError("");
+          }
+        }}>
+          <PopoverTrigger asChild>
+            <button
+              className="absolute z-30 flex items-center justify-center w-9 h-9 md:w-11 md:h-11 rounded-full shadow-lg transition-all hover:scale-[1.3] cursor-pointer"
+              style={{
+                background: "linear-gradient(135deg, #22d3ee, #3b82f6)",
+                left: "calc(50% - 50.2%)",
+                top: "calc(50% - 29%)",
+                transform: "translate(-50%, -50%)",
+                boxShadow: "0 0 12px rgba(34, 211, 238, 0.5), 0 0 24px rgba(59, 130, 246, 0.3)",
+                border: "2px solid rgba(255,255,255,0.3)",
+              }}
+            >
+              <Plus className="w-4 h-4 md:w-5 md:h-5 text-white" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent
+            side="bottom"
+            align="center"
+            className="w-72 p-3 z-50"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {!selectedPlatform ? (
+              <div>
+                <p className="text-xs font-semibold text-foreground mb-2">Thêm mạng xã hội</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {missingPlatforms.map((p) => {
+                    const Icon = p.icon;
+                    return (
+                      <button
+                        key={p.key}
+                        onClick={() => setSelectedPlatform(p.key)}
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium border border-border bg-background hover:bg-accent transition-colors"
+                      >
+                        <Icon className="w-3.5 h-3.5" style={{ color: p.color }} />
+                        {p.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <button
+                    onClick={() => {
+                      setSelectedPlatform(null);
+                      setUrlInput("");
+                      setUrlError("");
+                    }}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                  <p className="text-xs font-semibold text-foreground">
+                    {platforms.find(p => p.key === selectedPlatform)?.label}
+                  </p>
+                </div>
+                <div className="flex gap-1.5">
+                  <Input
+                    value={urlInput}
+                    onChange={(e) => {
+                      setUrlInput(e.target.value);
+                      setUrlError("");
+                    }}
+                    placeholder="https://..."
+                    className="text-xs h-8"
+                    autoFocus
+                    onKeyDown={(e) => e.key === "Enter" && handleSave()}
+                  />
+                  <Button
+                    size="sm"
+                    onClick={handleSave}
+                    disabled={!urlInput || saving}
+                    className="h-8 px-2 bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-500 hover:to-blue-600 text-white border-0"
+                  >
+                    <Check className="w-4 h-4" />
+                  </Button>
+                </div>
+                {urlError && (
+                  <p className="text-[10px] text-destructive mt-1">{urlError}</p>
+                )}
+              </div>
+            )}
+          </PopoverContent>
+        </Popover>
+      )}
+    </div>
   );
 };
 
