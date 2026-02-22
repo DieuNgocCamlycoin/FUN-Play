@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Heart, Loader2, Play, Shuffle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatViews, formatTimestamp } from "@/lib/formatters";
+import { useBannedUserIds } from "@/hooks/useBannedUserIds";
 
 interface Video {
   id: string;
@@ -36,6 +37,7 @@ const LikedVideos = () => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
+  const bannedIds = useBannedUserIds();
   const navigate = useNavigate();
   const { goToVideo } = useVideoNavigation();
   const { createSession } = useVideoPlayback();
@@ -85,13 +87,15 @@ const LikedVideos = () => {
           profilesData?.map(p => [p.id, { wallet_address: p.wallet_address, avatar_url: p.avatar_url }]) || []
         );
 
-        const videosWithProfiles = videosData.map(video => ({
-          ...video,
-          profiles: {
-            wallet_address: profilesMap.get(video.user_id)?.wallet_address || null,
-            avatar_url: profilesMap.get(video.user_id)?.avatar_url || null,
-          },
-        })) as Video[];
+        const videosWithProfiles = videosData
+          .filter(video => !bannedIds.has(video.user_id))
+          .map(video => ({
+            ...video,
+            profiles: {
+              wallet_address: profilesMap.get(video.user_id)?.wallet_address || null,
+              avatar_url: profilesMap.get(video.user_id)?.avatar_url || null,
+            },
+          })) as Video[];
 
         setVideos(videosWithProfiles);
       } else {
