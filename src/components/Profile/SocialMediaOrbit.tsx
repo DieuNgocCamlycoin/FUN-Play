@@ -108,6 +108,12 @@ export const SocialMediaOrbit = ({
           const x = Math.cos(rad) * 58;
           const y = Math.sin(rad) * 58;
           const avatarUrl = socialAvatars?.[platform.key];
+          // Default images for funplay and angelai when avatar fetch fails
+          const defaultAvatarMap: Record<string, string> = {
+            funplay: '/images/FUN_Profile.png',
+            angelai: '/images/Angel_AI.png',
+          };
+          const displayUrl = avatarUrl || defaultAvatarMap[platform.key] || null;
 
           return (
             <Tooltip key={platform.key}>
@@ -125,8 +131,8 @@ export const SocialMediaOrbit = ({
                     boxShadow: "0 0 8px #00E7FF40",
                   }}
                 >
-                  {avatarUrl ? (
-                    <OrbitImage src={avatarUrl} alt={platform.label} color={platform.color} />
+                  {displayUrl ? (
+                    <OrbitImage src={displayUrl} alt={platform.label} color={platform.color} />
                   ) : (
                     <Icon className="w-4 h-4 md:w-5 md:h-5" style={{ color: platform.color }} />
                   )}
