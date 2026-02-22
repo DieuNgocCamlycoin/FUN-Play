@@ -28,11 +28,20 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Parse forceRefresh from request body
+    const body = await req.json().catch(() => ({}));
+    const forceRefresh = body?.forceRefresh === true;
+    const offset = typeof body?.offset === "number" ? body.offset : 0;
+    const batchSize = typeof body?.batchSize === "number" ? body.batchSize : 50;
+
+    console.log(`[batch] forceRefresh=${forceRefresh}, offset=${offset}, batchSize=${batchSize}`);
+
     // Fetch profiles that have at least one social URL
     const { data: profiles, error } = await supabase
       .from("profiles")
       .select("id, facebook_url, youtube_url, twitter_url, telegram_url, tiktok_url, linkedin_url, zalo_url, funplay_url, angelai_url, social_avatars")
-      .limit(500);
+      .order("created_at", { ascending: true })
+      .range(offset, offset + batchSize - 1);
 
     if (error) throw error;
 
@@ -42,16 +51,28 @@ Deno.serve(async (req) => {
     for (const profile of (profiles || [])) {
       const existingAvatars = (profile.social_avatars as Record<string, string | null>) || {};
       
-      // Find platforms with URLs but missing avatars
-      const missingPlatforms: Record<string, string> = {};
+      const platformsToFetch: Record<string, string> = {};
+
       for (const { key, field } of socialFields) {
         const url = (profile as any)[field];
-        if (url && !existingAvatars[key]) {
-          missingPlatforms[key] = url;
+        if (!url) continue;
+
+        const existingAvatar = existingAvatars[key];
+
+        // Detect manual uploads (R2 storage URLs) - always protect these
+        const isManual = existingAvatar && (
+          existingAvatar.includes("social-avatars/") ||
+          existingAvatar.includes("r2.dev")
+        );
+
+        if (isManual) continue;
+
+        if (forceRefresh || !existingAvatar) {
+          platformsToFetch[key] = url;
         }
       }
 
-      if (Object.keys(missingPlatforms).length === 0) {
+      if (Object.keys(platformsToFetch).length === 0) {
         skipped++;
         continue;
       }
@@ -67,11 +88,11 @@ Deno.serve(async (req) => {
           },
           body: JSON.stringify({
             userId: profile.id,
-            platforms: missingPlatforms,
+            platforms: platformsToFetch,
           }),
         });
         processed++;
-        console.log(`[batch] Processed ${profile.id}: ${Object.keys(missingPlatforms).join(", ")}`);
+        console.log(`[batch] Processed ${profile.id}: ${Object.keys(platformsToFetch).join(", ")}`);
       } catch (e) {
         console.error(`[batch] Failed for ${profile.id}:`, e.message);
       }
@@ -81,7 +102,13 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, processed, skipped, total: profiles?.length || 0 }),
+      JSON.stringify({ 
+        success: true, processed, skipped, 
+        total: profiles?.length || 0,
+        offset,
+        nextOffset: (profiles?.length || 0) === batchSize ? offset + batchSize : null,
+        hasMore: (profiles?.length || 0) === batchSize,
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
