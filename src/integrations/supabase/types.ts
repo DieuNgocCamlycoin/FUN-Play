@@ -405,6 +405,44 @@ export type Database = {
           },
         ]
       }
+      channel_reports: {
+        Row: {
+          channel_id: string
+          created_at: string
+          detail: string | null
+          id: string
+          reason: string
+          reporter_id: string
+          status: string
+        }
+        Insert: {
+          channel_id: string
+          created_at?: string
+          detail?: string | null
+          id?: string
+          reason: string
+          reporter_id: string
+          status?: string
+        }
+        Update: {
+          channel_id?: string
+          created_at?: string
+          detail?: string | null
+          id?: string
+          reason?: string
+          reporter_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_reports_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       channels: {
         Row: {
           banner_url: string | null
@@ -413,6 +451,7 @@ export type Database = {
           id: string
           is_verified: boolean | null
           name: string
+          report_count: number | null
           subscriber_count: number | null
           updated_at: string
           user_id: string
@@ -424,6 +463,7 @@ export type Database = {
           id?: string
           is_verified?: boolean | null
           name: string
+          report_count?: number | null
           subscriber_count?: number | null
           updated_at?: string
           user_id: string
@@ -435,6 +475,7 @@ export type Database = {
           id?: string
           is_verified?: boolean | null
           name?: string
+          report_count?: number | null
           subscriber_count?: number | null
           updated_at?: string
           user_id?: string
@@ -2211,6 +2252,7 @@ export type Database = {
       video_reports: {
         Row: {
           created_at: string
+          detail: string | null
           id: string
           reason: string
           reporter_id: string
@@ -2219,6 +2261,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          detail?: string | null
           id?: string
           reason?: string
           reporter_id: string
@@ -2227,6 +2270,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          detail?: string | null
           id?: string
           reason?: string
           reporter_id?: string
