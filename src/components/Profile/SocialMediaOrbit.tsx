@@ -185,7 +185,7 @@ export const SocialMediaOrbit = ({
   const allOrbitItems = [...activePlatforms];
   const showAddButton = isOwnProfile && missingPlatforms.length > 0;
 
-  const count = allOrbitItems.length + (showAddButton ? 1 : 0);
+  const count = allOrbitItems.length;
   if (count === 0 && !showAddButton) return null;
   if (count === 0) return null;
 

@@ -269,21 +269,29 @@ async function fetchTiktokAvatar(url: string): Promise<string | null> {
   if (!username) return null;
   const cleanUsername = username.replace(/^@/, "");
 
-  // Strategy 1: TikTok oembed endpoint
-  try {
-    const oembedUrl = `https://www.tiktok.com/oembed?url=https://www.tiktok.com/@${cleanUsername}`;
-    const res = await fetchWithTimeout(oembedUrl, {
-      headers: { "User-Agent": USER_AGENTS[0] },
-    }, 6000);
-    if (res.ok) {
-      const data = await res.json();
-      if (data?.thumbnail_url && !isJunkImage(data.thumbnail_url)) {
-        console.log(`[tiktok] oembed success for ${cleanUsername}`);
-        return data.thumbnail_url;
+  // Strategy 1: TikTok user detail API (returns actual profile avatar)
+  for (const ua of USER_AGENTS) {
+    try {
+      const apiUrl = `https://www.tiktok.com/api/user/detail/?uniqueId=${cleanUsername}`;
+      const res = await fetchWithTimeout(apiUrl, {
+        headers: {
+          "User-Agent": ua,
+          "Accept": "application/json",
+        },
+      }, 8000);
+      if (res.ok) {
+        const data = await res.json();
+        const avatar = data?.userInfo?.user?.avatarLarger
+          || data?.userInfo?.user?.avatarMedium
+          || data?.userInfo?.user?.avatarThumb;
+        if (avatar && !isJunkImage(avatar)) {
+          console.log(`[tiktok] user detail API success for ${cleanUsername}`);
+          return avatar;
+        }
       }
+    } catch (e) {
+      console.log(`[tiktok] user detail API failed for ${cleanUsername}:`, e.message);
     }
-  } catch (e) {
-    console.log(`[tiktok] oembed failed for ${cleanUsername}:`, e.message);
   }
 
   // Strategy 2: unavatar.io
@@ -330,6 +338,7 @@ async function fetchAvatarForPlatform(platform: string, url: string): Promise<st
         return await fetchTiktokAvatar(url);
       default:
         return await fetchGenericAvatar(platform, url);
+    }
   } catch (e) {
     console.error(`[fetch-avatar] Unexpected error for ${platform}:`, e.message);
     return null;
