@@ -63,7 +63,7 @@ const ZaloIcon = ({ className }: { className?: string }) => (
 );
 
 const platforms = [
-  { key: "funplay", icon: FunProfileIcon, color: "#00E7FF", label: "Fun Profile", dbField: "funplay_url" },
+  { key: "funplay", icon: FunProfileIcon, color: "#22C55E", label: "Fun Profile", dbField: "funplay_url" },
   { key: "angelai", icon: AngelAIIcon, color: "#FFD700", label: "Angel AI", dbField: "angelai_url" },
   { key: "facebook", icon: Facebook, color: "#1877F2", label: "Facebook", dbField: "facebook_url" },
   { key: "youtube", icon: Youtube, color: "#FF0000", label: "YouTube", dbField: "youtube_url" },
@@ -272,16 +272,16 @@ export const SocialMediaOrbit = ({
                     )}
                   </a>
                 </TooltipTrigger>
-                <TooltipContent side="top" className="bg-transparent border-none shadow-none p-0">
-                  <div className="overflow-hidden rounded-md shadow-lg min-w-[120px]">
+                <TooltipContent side="top" className="bg-transparent border-none shadow-none p-0 animate-[orbit-tooltip-counter-spin_25s_linear_infinite]">
+                  <div className="flex flex-col items-center gap-1">
                     <div
-                      className="px-3 py-1.5 text-white font-bold text-center text-xs"
+                      className="px-3 py-1.5 text-white font-bold text-center text-xs rounded-md shadow-lg w-fit whitespace-nowrap"
                       style={{ backgroundColor: platform.key === 'tiktok' ? '#000000' : platform.color }}
                     >
                       {platform.label}
                     </div>
-                    <div className="px-3 py-1.5 bg-white text-center">
-                      <span className="text-[#2563EB] text-[11px]">
+                    <div className="px-3 py-1.5 bg-white rounded-md shadow-lg">
+                      <span className="text-[#2563EB] text-[11px] whitespace-nowrap">
                         {(urls[platform.key] || "").replace(/^https?:\/\/(www\.)?/, "")}
                       </span>
                     </div>
