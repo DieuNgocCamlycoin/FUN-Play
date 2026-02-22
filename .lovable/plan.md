@@ -1,86 +1,50 @@
 
 
-## Kế hoạch chi tiết: Sửa lỗi ví biến mất + Thêm cảnh báo khớp/không khớp ví
+## Sửa mapping "Không công khai" và đồng bộ visibility
 
-### Vấn đề hiện tại
-Khi bạn nhập địa chỉ ví bằng tay vào ô "Địa chỉ ví (BSC)" trong trang Cài đặt và bấm Lưu, địa chỉ bị xóa sau vài giây. Nguyên nhân: hệ thống tự động (dòng 521 trong `useWalletConnection.ts`) thấy "không có ví Web3 nào kết nối" nên xóa luôn địa chỉ trong database.
+### Vấn đề
+- `CreatePlaylistModal` hỗ trợ 3 chế độ: Công khai (`true`), Không công khai (`null`), Riêng tư (`false`)
+- `StudioPlaylists` chỉ có 2 chế độ: Công khai và Riêng tư, và coi `null` (Không công khai) = Công khai --> sai
 
----
+### Giải pháp
+Sửa **1 file duy nhất**: `src/components/Studio/StudioPlaylists.tsx`
 
-### Việc 1: Không xóa ví nhập tay nữa
+Không cần thay đổi database hay `CreatePlaylistModal` -- chúng đã hoạt động đúng.
 
-**File: `src/hooks/useWalletConnection.ts`**
+### Chi tiết thay đổi
 
-- Thêm biến `wasWeb3ConnectedRef = useRef(false)` ở đầu hook
-- Khi ví Web3 kết nối thành công (dòng 503-508), đặt `wasWeb3ConnectedRef.current = true`
-- Sửa đoạn xử lý ngắt kết nối (dòng 515-522):
+**1. Thêm icon `Link2` vào import** (dòng 10)
+- Thêm `Link2` để dùng cho trạng thái "Không công khai"
 
-```text
-// TRƯỚC (dòng 515-522):
-} else {
-  setAddress('');
-  setIsConnected(false);
-  setWalletType('unknown');
-  setChainId(undefined);
-  setBnbBalance('0');
-  await clearWalletFromDb();   // <-- luôn xóa -> LỖI
-}
+**2. Sửa state `isPublic`** (dòng 49)
+- Đổi từ `boolean` sang `"public" | "unlisted" | "private"` để hỗ trợ 3 trạng thái
+- Mặc định: `"public"`
 
-// SAU:
-} else {
-  setAddress('');
-  setIsConnected(false);
-  setWalletType('unknown');
-  setChainId(undefined);
-  setBnbBalance('0');
-  if (wasWeb3ConnectedRef.current) {   // chỉ xóa nếu trước đó có kết nối Web3 thật
-    await clearWalletFromDb();
-    wasWeb3ConnectedRef.current = false;
-  }
-}
-```
+**3. Sửa `handleOpenDialog`** (dòng 95-108)
+- Khi mở dialog chỉnh sửa, đọc `is_public` từ playlist:
+  - `true` --> `"public"`
+  - `null` --> `"unlisted"`  
+  - `false` --> `"private"`
 
----
+**4. Sửa `handleSave`** (dòng 126-147)
+- Map ngược visibility sang `is_public`:
+  - `"public"` --> `true`
+  - `"unlisted"` --> `null`
+  - `"private"` --> `false`
 
-### Việc 2: Lưu ví Web3 kết nối gần nhất
+**5. Sửa `handleToggleVisibility`** (dòng 197-220)
+- Thay vì toggle 2 trạng thái, xoay vòng 3 trạng thái: public --> unlisted --> private --> public
+- Toast message hiển thị đúng trạng thái mới
 
-**File: `src/hooks/useWalletConnection.ts`**
+**6. Sửa phần hiển thị visibility trong danh sách** (dòng 283-294)
+- Thêm trường hợp `is_public === null`: hiện icon Link2 + "Không công khai" (màu vàng/cam)
+- `true`: Globe + "Công khai" (xanh)
+- `false`: Lock + "Riêng tư" (xám)
 
-- Khi ví Web3 kết nối thành công (dòng 503-508), thêm:
-  ```
-  localStorage.setItem('last_connected_wallet', account.address);
-  ```
-- Thêm vào return (dòng 529-548):
-  ```
-  lastConnectedWallet: localStorage.getItem('last_connected_wallet') || ''
-  ```
-- Cập nhật interface `UseWalletConnectionReturn` (dòng 28-49) thêm `lastConnectedWallet: string`
+**7. Sửa nút toggle visibility** (dòng 321)
+- Icon thay đổi theo 3 trạng thái thay vì 2
 
----
-
-### Việc 3: Hiện cảnh báo khớp/không khớp ví
-
-**File: `src/pages/ProfileSettings.tsx`**
-
-Ngay dưới ô input "Địa chỉ ví (BSC)" (sau dòng 588), thêm phần hiển thị trạng thái:
-
-- Lấy `address` (ví đang kết nối) và `lastConnectedWallet` (ví kết nối gần nhất) từ `useWalletContext()`
-- So sánh địa chỉ nhập tay với ví tham chiếu (ưu tiên ví đang kết nối, nếu không có thì dùng ví gần nhất)
-- Hiển thị 3 trường hợp:
-
-| Trường hợp | Hiển thị | Màu |
-|---|---|---|
-| Ví nhập tay **giống** ví đang/đã kết nối | "Khớp với ví đang kết nối" + icon Check | Xanh lá |
-| Ví nhập tay **khác** ví đang/đã kết nối | "Không khớp với ví kết nối. Hãy kiểm tra lại" + icon AlertTriangle | Vàng/cam |
-| Chưa từng kết nối ví Web3 nào | "Kết nối ví Web3 để xác minh địa chỉ" + icon Info | Xám |
-| Ô input trống | Không hiện gì | - |
-
----
-
-### Tóm tắt
-- **2 file cần sửa**: `useWalletConnection.ts` và `ProfileSettings.tsx`
-- Sửa bug ví nhập tay bị xóa
-- Lưu ví Web3 gần nhất vào localStorage
-- Hiện cảnh báo trực quan dưới ô nhập ví
-- Không ảnh hưởng gì đến hiển thị ví ở trang cá nhân, tặng quà, hay admin
+**8. Sửa Select trong dialog tạo/sửa** (dòng 375-383)
+- Thêm option "Không công khai - Ai có link đều xem được"
+- Đổi value/onChange để dùng 3 giá trị
 
