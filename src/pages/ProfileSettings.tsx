@@ -655,8 +655,7 @@ export default function ProfileSettings() {
               {(() => {
                 const socialPlatforms = [
                   { id: "funplayUrl", label: "Fun Profile", placeholder: "https://fun.rich/username", value: funplayUrl, setter: setFunplayUrl, icon: Globe, patterns: ["https://fun.rich/"], dbField: "funplay_url" },
-                  { id: "funPlayUrl", label: "FUN Play", placeholder: "https://play.fun.rich/@username", value: funplayUrl, setter: setFunplayUrl, icon: Gamepad2, patterns: ["https://play.fun.rich/"], dbField: "funplay_url" },
-                  { id: "angelaiUrl", label: "Angel AI", placeholder: "https://angel.ai/profile", value: angelaiUrl, setter: setAngelaiUrl, icon: Bot, patterns: ["https://angel.ai/"], dbField: "angelai_url" },
+                  { id: "angelaiUrl", label: "Angel AI", placeholder: "https://angel.fun.rich/username", value: angelaiUrl, setter: setAngelaiUrl, icon: Bot, patterns: ["https://angel.fun.rich/"], dbField: "angelai_url" },
                   { id: "facebookUrl", label: "Facebook", placeholder: "https://www.facebook.com/username", value: facebookUrl, setter: setFacebookUrl, icon: Facebook, patterns: ["https://www.facebook.com/", "https://facebook.com/"], dbField: "facebook_url" },
                   { id: "youtubeUrl", label: "YouTube", placeholder: "https://www.youtube.com/@channel", value: youtubeUrl, setter: setYoutubeUrl, icon: Youtube, patterns: ["https://www.youtube.com/", "https://youtube.com/"], dbField: "youtube_url" },
                   { id: "twitterUrl", label: "X / Twitter", placeholder: "https://x.com/username", value: twitterUrl, setter: setTwitterUrl, icon: Twitter, patterns: ["https://x.com/", "https://twitter.com/"], dbField: "twitter_url" },
