@@ -1,59 +1,53 @@
 
 
-## Thiết kế lại giao diện Mạng xã hội + Validation link theo nền tảng (đã chỉnh sửa)
+## Sửa lỗi lấy avatar mạng xã hội cho Fun Profile, Facebook, Angel AI và YouTube
 
-### Tổng quan
+### Nguyên nhân
 
-Thay đổi giao diện mục "Liên kết mạng xã hội" theo mẫu tham khảo (dạng card + chip) và thêm validation URL theo từng nền tảng cụ thể.
+Edge function `fetch-social-avatar` đang dùng 2 phương pháp lấy avatar:
+1. **unavatar.io proxy** -- chỉ hỗ trợ 6 nền tảng (facebook, twitter, youtube, telegram, tiktok, linkedin). Nhưng thực tế Facebook chặn scraping nên unavatar.io thường trả về lỗi.
+2. **og:image scraping** (fallback) -- fetch HTML từ URL rồi tìm thẻ `og:image`. Nhưng Facebook yêu cầu đăng nhập, Fun Profile và Angel AI có thể không có thẻ og:image.
 
-### Quy tắc validation URL theo nền tảng (đã sửa)
+Kết quả: 4 nền tảng (Fun Profile, Facebook, Angel AI, YouTube) đều trả về null -> chỉ hiện icon thay vì avatar thật.
 
-| Nen tang     | URL phai bat dau bang                                  |
+### Giải pháp
+
+Cải thiện edge function `fetch-social-avatar` bằng cách thêm **chiến lược lấy avatar riêng cho từng nền tảng**:
+
+| Nen tang     | Chien luoc moi                                         |
 |-------------|--------------------------------------------------------|
-| Fun Profile | `https://fun.rich/`                                    |
-| FUN Play    | `https://play.fun.rich/`                               |
-| Angel AI    | `https://angel.ai/`                                    |
-| Facebook    | `https://www.facebook.com/` hoac `https://facebook.com/` |
-| YouTube     | `https://www.youtube.com/` hoac `https://youtube.com/` |
-| X / Twitter | `https://x.com/` hoac `https://twitter.com/`          |
-| Telegram    | `https://t.me/`                                        |
-| TikTok      | `https://www.tiktok.com/` hoac `https://tiktok.com/`  |
-| LinkedIn    | `https://www.linkedin.com/` hoac `https://linkedin.com/` |
-| Zalo        | `https://zalo.me/`                                     |
-
-**Luu y:** Fun Profile chi chap nhan `https://fun.rich/...`, con `https://play.fun.rich/...` la link cua FUN Play (mot nen tang khac).
-
-### Giao dien moi
-
-**Phan 1 -- Link da them (card list):**
-- Tieu de: "Mang xa hoi (n/9)"
-- Moi link hien thi dang card: icon nen tang + ten (in dam) + URL (cat ngan) + nut X xoa
-- Card co vien, bo goc, nen toi nhe
-
-**Phan 2 -- Them mang xa hoi:**
-- Cac nen tang chua co link hien thi dang chip (icon + ten, bo tron)
-- Bam chip -> hien o input voi placeholder tuong ung + nut "+" de them
-- Neu URL khong hop le (khong khop pattern cua nen tang): hien canh bao do, khong cho them
-- Neu hop le: them thanh cong, chip bien mat, card xuat hien o phan 1
+| Facebook    | Dung Graph API: `https://graph.facebook.com/{id}/picture?type=large` (lay ID tu URL), hoac fallback dung `unavatar.io/facebook/{username}` |
+| YouTube     | Parse dung YouTube handle/channel, dung `unavatar.io/youtube/{handle}` (bo ky tu @) |
+| Fun Profile | Fetch trang `fun.rich/{username}`, tim avatar trong HTML (og:image hoac img tag co class avatar) |
+| Angel AI    | Tuong tu Fun Profile: fetch va tim og:image, hoac fallback ve icon |
 
 ### Chi tiet ky thuat
 
-**File: `src/pages/ProfileSettings.tsx`**
+**File: `supabase/functions/fetch-social-avatar/index.ts`**
 
-1. Mang `socialPlatforms` voi truong `patterns` cho moi nen tang:
-   - Fun Profile: `["https://fun.rich/"]` (KHONG bao gom play.fun.rich)
-   - FUN Play: `["https://play.fun.rich/"]`
-   - Cac nen tang khac nhu bang tren
+1. **Cai thien `extractUsername`** cho YouTube: xu ly cac dinh dang URL khac nhau (`/@handle`, `/channel/ID`, `/c/name`) -- loai bo ky tu `@` dau tien
 
-2. Them state moi: `selectedPlatform`, `tempUrl`, `urlError`
+2. **Them Facebook Graph API fallback**: Khi unavatar.io that bai, thu dung `https://graph.facebook.com/{username}/picture?type=large&redirect=false` (API cong khai, khong can token cho anh dai dien cong khai)
 
-3. Ham validate: kiem tra `tempUrl` co bat dau bang it nhat 1 pattern trong `patterns` khong
+3. **Them chien luoc cho Fun Profile va Angel AI**: Ngoai og:image, con tim cac pattern HTML pho bien:
+   - `<img` tag co class chua "avatar", "profile"
+   - `<link rel="icon"` type image (chi dung khi kich thuoc lon)
 
-4. Ham them link: neu hop le -> goi setter, reset state; neu khong -> set urlError voi thong bao cu the (vi du: "Link Facebook phai bat dau bang https://www.facebook.com/")
+4. **Them timeout rieng cho tung platform** va log chi tiet hon de debug
 
-5. Icon mapping dung Lucide: Facebook, Youtube, Twitter, MessageCircle (Telegram), Music (TikTok), Linkedin, Phone (Zalo), Globe (Fun Profile), Bot (Angel AI), Gamepad2 (FUN Play)
+5. **Them retry logic**: Neu lan dau that bai, thu lai 1 lan voi User-Agent khac
 
-6. Dau tick xanh CheckCircle2 hien thi tren card da them thanh cong
+### Luong xu ly moi
 
-Chi thay doi 1 file: `src/pages/ProfileSettings.tsx`
+```
+Platform URL -> extractUsername (cai thien)
+  |
+  v
+[Facebook?] -> Graph API picture -> unavatar.io -> og:image
+[YouTube?]  -> unavatar.io (bo @) -> og:image  
+[Fun Profile / Angel AI?] -> og:image -> HTML avatar scan
+[Khac?]     -> unavatar.io -> og:image (giu nguyen)
+```
+
+Chi thay doi 1 file: `supabase/functions/fetch-social-avatar/index.ts`
 
