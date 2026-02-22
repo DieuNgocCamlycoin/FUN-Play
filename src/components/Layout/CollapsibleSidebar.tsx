@@ -88,7 +88,16 @@ const manageItems: NavItem[] = [
 export const CollapsibleSidebar = ({ isExpanded }: CollapsibleSidebarProps) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [sectionsOpen, setSectionsOpen] = useState(true);
+  const [openSections, setOpenSections] = useState({
+    nav: true,
+    library: true,
+    rewards: true,
+    manage: true,
+  });
+
+  const toggleSection = (key: string) => {
+    setOpenSections(prev => ({ ...prev, [key]: !prev[key as keyof typeof prev] }));
+  };
 
   const handleNavigation = (href: string) => {
     navigate(href);
@@ -175,52 +184,93 @@ export const CollapsibleSidebar = ({ isExpanded }: CollapsibleSidebarProps) => {
 
             {/* Collapsible sections */}
             {isExpanded ? (
-              <Collapsible open={sectionsOpen} onOpenChange={setSectionsOpen}>
-                <CollapsibleTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    className="w-full justify-between px-4 py-2 text-xs text-muted-foreground hover:bg-muted/50"
-                  >
-                    <span>Điều hướng</span>
-                    {sectionsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                  </Button>
-                </CollapsibleTrigger>
-                <CollapsibleContent className="animate-in slide-in-from-top-2 duration-200">
-                  {/* Main navigation */}
-                  <div className="px-2 py-2">
-                    {mainNavItems.map((item) => (
-                      <NavButton key={item.label} item={item} />
-                    ))}
-                  </div>
+              <>
+                {/* Điều hướng */}
+                <Collapsible open={openSections.nav} onOpenChange={() => toggleSection('nav')}>
+                  <CollapsibleTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      className="w-full justify-between px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:bg-muted/50"
+                    >
+                      <span>Điều hướng</span>
+                      {openSections.nav ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="animate-in slide-in-from-top-2 duration-200">
+                    <div className="px-2 py-1">
+                      {mainNavItems.map((item) => (
+                        <NavButton key={item.label} item={item} />
+                      ))}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
 
-                  <div className="h-px bg-border mx-2 my-2" />
+                <div className="h-px bg-border mx-2 my-1" />
 
-                  {/* Library section */}
-                  <div className="px-2 py-2">
-                    {libraryItems.map((item) => (
-                      <NavButton key={item.label} item={item} />
-                    ))}
-                  </div>
+                {/* Thư viện */}
+                <Collapsible open={openSections.library} onOpenChange={() => toggleSection('library')}>
+                  <CollapsibleTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      className="w-full justify-between px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:bg-muted/50"
+                    >
+                      <span>Thư viện</span>
+                      {openSections.library ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="animate-in slide-in-from-top-2 duration-200">
+                    <div className="px-2 py-1">
+                      {libraryItems.map((item) => (
+                        <NavButton key={item.label} item={item} />
+                      ))}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
 
-                  <div className="h-px bg-border mx-2 my-2" />
+                <div className="h-px bg-border mx-2 my-1" />
 
-                  {/* Rewards section */}
-                  <div className="px-2 py-2">
-                    {rewardItems.map((item) => (
-                      <NavButton key={item.label} item={item} />
-                    ))}
-                  </div>
+                {/* Phần thưởng */}
+                <Collapsible open={openSections.rewards} onOpenChange={() => toggleSection('rewards')}>
+                  <CollapsibleTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      className="w-full justify-between px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:bg-muted/50"
+                    >
+                      <span>Phần thưởng</span>
+                      {openSections.rewards ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="animate-in slide-in-from-top-2 duration-200">
+                    <div className="px-2 py-1">
+                      {rewardItems.map((item) => (
+                        <NavButton key={item.label} item={item} />
+                      ))}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
 
-                  <div className="h-px bg-border mx-2 my-2" />
+                <div className="h-px bg-border mx-2 my-1" />
 
-                  {/* Manage section */}
-                  <div className="px-2 py-2">
-                    {manageItems.map((item) => (
-                      <NavButton key={item.label} item={item} />
-                    ))}
-                  </div>
-                </CollapsibleContent>
-              </Collapsible>
+                {/* Quản lý */}
+                <Collapsible open={openSections.manage} onOpenChange={() => toggleSection('manage')}>
+                  <CollapsibleTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      className="w-full justify-between px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:bg-muted/50"
+                    >
+                      <span>Quản lý</span>
+                      {openSections.manage ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="animate-in slide-in-from-top-2 duration-200">
+                    <div className="px-2 py-1">
+                      {manageItems.map((item) => (
+                        <NavButton key={item.label} item={item} />
+                      ))}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              </>
             ) : (
               /* Mini mode - just show main icons */
               <div className="px-2 py-2 space-y-1">
