@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Facebook, Youtube, Send, Linkedin, Plus, Check, X } from "lucide-react";
 import {
   Tooltip,
@@ -107,6 +107,7 @@ export const SocialMediaOrbit = ({
   const [urlInput, setUrlInput] = useState("");
   const [saving, setSaving] = useState(false);
   const [urlError, setUrlError] = useState("");
+  const fetchTriggered = useRef(false);
 
   const urls: Record<string, string | null | undefined> = {
     angelai: angelaiUrl,
@@ -122,6 +123,36 @@ export const SocialMediaOrbit = ({
 
   const activePlatforms = platforms.filter((p) => urls[p.key]);
   const missingPlatforms = platforms.filter((p) => !urls[p.key]);
+
+  // Auto-trigger fetch for missing social avatars
+  useEffect(() => {
+    if (!userId || fetchTriggered.current) return;
+
+    const platformsWithUrlButNoAvatar: Record<string, string> = {};
+    for (const p of activePlatforms) {
+      if (urls[p.key] && !socialAvatars?.[p.key]) {
+        // Skip funplay and angelai as they have default images
+        if (p.key === "funplay" || p.key === "angelai") continue;
+        platformsWithUrlButNoAvatar[p.key] = urls[p.key]!;
+      }
+    }
+
+    if (Object.keys(platformsWithUrlButNoAvatar).length === 0) return;
+
+    fetchTriggered.current = true;
+    console.log("[SocialMediaOrbit] Auto-fetching missing avatars for:", Object.keys(platformsWithUrlButNoAvatar));
+
+    supabase.functions
+      .invoke("fetch-social-avatar", {
+        body: { userId, platforms: platformsWithUrlButNoAvatar },
+      })
+      .then(() => {
+        onProfileUpdate?.();
+      })
+      .catch((e) => {
+        console.log("Auto-fetch avatars failed (non-critical):", e);
+      });
+  }, [userId]);
 
   // Distribute evenly across 360°, starting from 12h (270°)
   const allOrbitItems = [...activePlatforms];
