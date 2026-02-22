@@ -1,39 +1,51 @@
 
 
-## Cập nhật trang Danh sách đình chỉ (/suspended)
+## Thêm nút tác vụ Admin trên trang cá nhân user
 
-### 1. Sticky header bao gồm cả hàng tiêu đề bảng
+### Mô tả
 
-Hiện tại chỉ phần tiêu đề + search được sticky. Cần thêm sticky cho `TableHeader` (hàng "#, Người dùng, Ví liên kết...").
+Thêm một nút hành động dành riêng cho Admin khi truy cập trang cá nhân (Channel page) của bất kỳ user nào. Nút này chỉ hiển thị với admin/owner, cho phép thực hiện 2 tác vụ chính: **Suspend (ban) user** và **Gửi cảnh báo** (warning notification).
 
-**Cách làm**: 
-- Giữ nguyên sticky cho phần tiêu đề + search (top-[64px])
-- Thêm `sticky top-[calc(64px+<header_height>)] z-10 bg-background` cho `TableHeader`
-- Dùng `overflow-visible` cho Table wrapper để sticky hoạt động trong scroll chính của trang
+### Giao diện
 
-**File**: `src/pages/SuspendedUsers.tsx`
-- Dòng 117: Thêm `wrapperClassName="overflow-visible border border-border rounded-lg"` (thay vì chỉ border)
-- Dòng 118: Thêm className sticky cho `TableHeader`: `"bg-background sticky top-[200px] z-[9]"` (tính toán offset = 64px navbar + ~136px header section)
-
-### 2. Thêm cột "Tổng Claimed"
-
-Hiển thị tổng số tiền user đã rút thành công (claim_requests với status = 'success').
-
-**File**: `src/hooks/usePublicSuspendedList.ts`
-- Thêm query mới lấy tổng claimed từ `claim_requests` (status = 'success'), group by user_id
-- Bảng `claim_requests` có RLS cho phép public xem claims có tx_hash + status = success
-- Merge dữ liệu vào `SuspendedEntry` với field mới `total_claimed: number`
-
-**File**: `src/pages/SuspendedUsers.tsx`
-- Thêm `TableHead` mới "Tổng claimed" sau cột "Tổng thưởng" (hidden md:table-cell)
-- Thêm `TableCell` tương ứng trong `SuspendedRow` hiển thị số CAMLY đã claimed
+- Nút biểu tượng Shield (khiên) với màu đỏ/destructive, hiển thị ở khu vực action buttons (bên phải, cùng hàng với Theo dõi, Tặng & Thưởng, Chia sẻ)
+- Chỉ hiển thị khi người đang xem là admin hoặc owner (kiểm tra qua RPC `has_role`)
+- Khi nhấn, mở DropdownMenu với 2 tùy chọn:
+  - **Suspend tài khoản**: Mở AlertDialog xác nhận, có ô nhập lý do, gọi RPC `ban_user_permanently`
+  - **Gửi cảnh báo**: Mở Dialog nhập nội dung cảnh báo, insert vào bảng `notifications` với `type = 'warning'`
 
 ### Chi tiết kỹ thuật
 
+**File mới**: `src/components/Admin/AdminChannelActions.tsx`
+- Component nhận props: `targetUserId`, `targetUsername`, `targetDisplayName`
+- Sử dụng `useAuth()` để lấy user hiện tại
+- Gọi `supabase.rpc("has_role", { _user_id: user.id, _role: "admin" })` để kiểm tra quyền admin
+- Nếu không phải admin -> return null (không render gì)
+- Nếu là admin -> render nút Shield + DropdownMenu
+- Tác vụ Suspend: gọi `supabase.rpc("ban_user_permanently", { p_admin_id, p_user_id, p_reason })` (dùng lại RPC đã có)
+- Tác vụ Cảnh báo: gọi `supabase.from("notifications").insert({ user_id: targetUserId, type: "warning", title: "Cảnh báo từ quản trị viên", message: nội dung, actor_id: user.id })`
+
+**File sửa**: `src/pages/Channel.tsx`
+- Import `AdminChannelActions`
+- Thêm component vào khu vực action buttons (sau nút Share, trước khi đóng div)
+- Truyền props: `targetUserId={profile.id}`, `targetUsername={profile.username}`, `targetDisplayName={profile.display_name}`
+
+**File sửa**: `src/components/Profile/ProfileInfo.tsx`
+- Thêm prop `targetUserId` vào ProfileInfoProps
+- Render `AdminChannelActions` trong phần action buttons
+
 | File | Thay đổi |
 |---|---|
-| `src/hooks/usePublicSuspendedList.ts` | Thêm query `claim_requests` (status=success, group by user_id), thêm field `total_claimed` vào `SuspendedEntry`, merge vào `mergedEntries` |
-| `src/pages/SuspendedUsers.tsx` dòng 117-118 | Table wrapper overflow-visible, TableHeader sticky |
-| `src/pages/SuspendedUsers.tsx` dòng 125-126 | Thêm TableHead "Tổng claimed" |
-| `src/pages/SuspendedUsers.tsx` dòng 282-286 | Thêm TableCell hiển thị total_claimed |
+| `src/components/Admin/AdminChannelActions.tsx` | Tạo mới - component nút admin với dropdown Suspend + Cảnh báo |
+| `src/components/Profile/ProfileInfo.tsx` | Thêm render AdminChannelActions trong action buttons |
+| `src/pages/Channel.tsx` | Truyền thêm prop cho ProfileInfo |
+
+### Luồng hoạt động
+
+1. Admin truy cập trang `/@username` của bất kỳ user nào
+2. Component `AdminChannelActions` tự kiểm tra quyền admin qua RPC
+3. Nếu là admin -> hiển thị nút Shield màu đỏ
+4. Admin nhấn nút -> chọn "Suspend" hoặc "Gửi cảnh báo"
+5. Với Suspend: nhập lý do -> xác nhận -> gọi RPC ban -> toast thông báo
+6. Với Cảnh báo: nhập nội dung -> gửi -> insert notification -> toast thông báo
 
