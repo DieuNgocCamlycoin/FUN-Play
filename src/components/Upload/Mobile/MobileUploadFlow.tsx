@@ -24,6 +24,7 @@ import { DescriptionEditor } from "./SubPages/DescriptionEditor";
 import { ThumbnailPicker } from "./SubPages/ThumbnailPicker";
 import { MobileUploadSuccess } from "./MobileUploadSuccess";
 import { MobileUploadProgress } from "./MobileUploadProgress";
+import { PlaylistSelector } from "../PlaylistSelector";
 
 interface MobileUploadFlowProps {
   open: boolean;
@@ -40,6 +41,7 @@ type MobileUploadStep =
   | "sub-visibility"
   | "sub-description"
   | "sub-thumbnail"
+  | "sub-playlist"
   | "gate-checking"
   | "gate-avatar"
   | "gate-blocked"
@@ -50,6 +52,7 @@ export interface VideoMetadata {
   title: string;
   description: string;
   visibility: "public" | "unlisted" | "private";
+  playlistIds: string[];
 }
 
 const CONTENT_TYPES = [
@@ -85,6 +88,7 @@ export function MobileUploadFlow({ open, onOpenChange }: MobileUploadFlowProps) 
     title: "",
     description: "",
     visibility: "public",
+    playlistIds: [],
   });
 
   // Thumbnail
@@ -140,7 +144,7 @@ export function MobileUploadFlow({ open, onOpenChange }: MobileUploadFlowProps) 
     setVideoPreviewUrl(null);
     setVideoDuration(0);
     setIsShort(false);
-    setMetadata({ title: "", description: "", visibility: "public" });
+    setMetadata({ title: "", description: "", visibility: "public", playlistIds: [] });
     setThumbnailBlob(null);
     setThumbnailPreview(null);
     setUploadProgress(0);
@@ -300,6 +304,7 @@ export function MobileUploadFlow({ open, onOpenChange }: MobileUploadFlowProps) 
           duration: videoDuration,
           channelId,
           approvalStatus: result.approvalStatus,
+          playlistIds: metadata.playlistIds,
         },
         thumbnailBlob,
         thumbnailPreview
@@ -347,6 +352,8 @@ export function MobileUploadFlow({ open, onOpenChange }: MobileUploadFlowProps) 
         return "Thêm nội dung mô tả";
       case "sub-thumbnail":
         return "Chọn thumbnail";
+      case "sub-playlist":
+        return "Danh sách phát";
       case "gate-checking":
         return "Angel AI đang kiểm tra...";
       case "gate-avatar":
@@ -470,6 +477,7 @@ export function MobileUploadFlow({ open, onOpenChange }: MobileUploadFlowProps) 
                   onEditVisibility={() => navigateTo("sub-visibility")}
                   onEditDescription={() => navigateTo("sub-description")}
                   onEditThumbnail={() => navigateTo("sub-thumbnail")}
+                  onEditPlaylist={() => navigateTo("sub-playlist")}
                   onTitleChange={(title) => setMetadata((prev) => ({ ...prev, title }))}
                   onUpload={handleUpload}
                 />
@@ -493,6 +501,16 @@ export function MobileUploadFlow({ open, onOpenChange }: MobileUploadFlowProps) 
                   onChange={(description) => setMetadata((prev) => ({ ...prev, description }))}
                   onSave={navigateBack}
                 />
+              )}
+
+              {/* Sub-page: Playlist */}
+              {currentStep === "sub-playlist" && (
+                <div className="p-4">
+                  <PlaylistSelector
+                    selectedIds={metadata.playlistIds}
+                    onChange={(ids) => setMetadata((prev) => ({ ...prev, playlistIds: ids }))}
+                  />
+                </div>
               )}
 
               {/* Sub-page: Thumbnail */}

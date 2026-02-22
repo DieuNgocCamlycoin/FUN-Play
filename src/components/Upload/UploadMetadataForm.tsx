@@ -13,6 +13,7 @@ import { vi } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { validateVideoTitle, TITLE_PPLP_TEXT, validateVideoDescription, getHashtagHint, MAX_DESCRIPTION_LENGTH, DESCRIPTION_PLACEHOLDER } from "@/lib/videoUploadValidation";
+import { PlaylistSelector } from "./PlaylistSelector";
 
 export interface VideoMetadata {
   title: string;
@@ -20,6 +21,7 @@ export interface VideoMetadata {
   tags: string[];
   visibility: "public" | "private" | "unlisted" | "scheduled";
   scheduledAt: Date | null;
+  playlistIds: string[];
 }
 
 interface UploadMetadataFormProps {
@@ -271,6 +273,14 @@ export function UploadMetadataForm({ metadata, onChange, onNext, onBack }: Uploa
             ))}
           </div>
         </div>
+      </div>
+
+      {/* Playlist Selector */}
+      <div className="space-y-3">
+        <PlaylistSelector
+          selectedIds={metadata.playlistIds || []}
+          onChange={(ids) => onChange({ ...metadata, playlistIds: ids })}
+        />
       </div>
 
       {/* Visibility - Clickable label */}
