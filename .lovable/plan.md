@@ -1,25 +1,59 @@
 
 
-## Sửa lỗi và thêm dấu tick cho mục Liên kết mạng xã hội
+## Thiết kế lại giao diện Mạng xã hội + Validation link theo nền tảng (đã chỉnh sửa)
 
-### Nguyên nhân lỗi không thể lưu link
+### Tổng quan
 
-Tất cả 9 ô nhập link đang dùng `type="url"`, khiến trình duyệt tự động chặn gửi form nếu link không đúng định dạng URL chuẩn (ví dụ thiếu `https://`). Lỗi này xảy ra "âm thầm" -- bấm Lưu nhưng không có phản hồi gì.
+Thay đổi giao diện mục "Liên kết mạng xã hội" theo mẫu tham khảo (dạng card + chip) và thêm validation URL theo từng nền tảng cụ thể.
 
-### Giải pháp
+### Quy tắc validation URL theo nền tảng (đã sửa)
+
+| Nen tang     | URL phai bat dau bang                                  |
+|-------------|--------------------------------------------------------|
+| Fun Profile | `https://fun.rich/`                                    |
+| FUN Play    | `https://play.fun.rich/`                               |
+| Angel AI    | `https://angel.ai/`                                    |
+| Facebook    | `https://www.facebook.com/` hoac `https://facebook.com/` |
+| YouTube     | `https://www.youtube.com/` hoac `https://youtube.com/` |
+| X / Twitter | `https://x.com/` hoac `https://twitter.com/`          |
+| Telegram    | `https://t.me/`                                        |
+| TikTok      | `https://www.tiktok.com/` hoac `https://tiktok.com/`  |
+| LinkedIn    | `https://www.linkedin.com/` hoac `https://linkedin.com/` |
+| Zalo        | `https://zalo.me/`                                     |
+
+**Luu y:** Fun Profile chi chap nhan `https://fun.rich/...`, con `https://play.fun.rich/...` la link cua FUN Play (mot nen tang khac).
+
+### Giao dien moi
+
+**Phan 1 -- Link da them (card list):**
+- Tieu de: "Mang xa hoi (n/9)"
+- Moi link hien thi dang card: icon nen tang + ten (in dam) + URL (cat ngan) + nut X xoa
+- Card co vien, bo goc, nen toi nhe
+
+**Phan 2 -- Them mang xa hoi:**
+- Cac nen tang chua co link hien thi dang chip (icon + ten, bo tron)
+- Bam chip -> hien o input voi placeholder tuong ung + nut "+" de them
+- Neu URL khong hop le (khong khop pattern cua nen tang): hien canh bao do, khong cho them
+- Neu hop le: them thanh cong, chip bien mat, card xuat hien o phan 1
+
+### Chi tiet ky thuat
 
 **File: `src/pages/ProfileSettings.tsx`**
 
-1. **Sửa lỗi**: Đổi `type="url"` thành `type="text"` cho tất cả 9 ô nhập link mạng xã hội, tránh trình duyệt chặn form.
+1. Mang `socialPlatforms` voi truong `patterns` cho moi nen tang:
+   - Fun Profile: `["https://fun.rich/"]` (KHONG bao gom play.fun.rich)
+   - FUN Play: `["https://play.fun.rich/"]`
+   - Cac nen tang khac nhu bang tren
 
-2. **Thêm dấu tick**: Mỗi ô nhập link sẽ hiển thị:
-   - Dấu tick xanh (CheckCircle) bên phải khi đã nhập link hợp lệ (bắt đầu bằng `http://` hoặc `https://`)
-   - Không hiển thị gì khi ô trống hoặc link chưa hợp lệ
+2. Them state moi: `selectedPlatform`, `tempUrl`, `urlError`
 
-### Chi tiết kỹ thuật
+3. Ham validate: kiem tra `tempUrl` co bat dau bang it nhat 1 pattern trong `patterns` khong
 
-- Thay `type="url"` -> `type="text"` trên 9 Input (lines 659-691)
-- Bọc mỗi Input trong `div relative`, thêm icon `CheckCircle` từ lucide-react với class `absolute right-3 top-1/2 -translate-y-1/2 text-green-500` khi giá trị bắt đầu bằng `https://` hoặc `http://`
-- Import thêm `CheckCircle` từ lucide-react (nếu chưa có)
+4. Ham them link: neu hop le -> goi setter, reset state; neu khong -> set urlError voi thong bao cu the (vi du: "Link Facebook phai bat dau bang https://www.facebook.com/")
 
-Chỉ thay đổi 1 file duy nhất.
+5. Icon mapping dung Lucide: Facebook, Youtube, Twitter, MessageCircle (Telegram), Music (TikTok), Linkedin, Phone (Zalo), Globe (Fun Profile), Bot (Angel AI), Gamepad2 (FUN Play)
+
+6. Dau tick xanh CheckCircle2 hien thi tren card da them thanh cong
+
+Chi thay doi 1 file: `src/pages/ProfileSettings.tsx`
+
