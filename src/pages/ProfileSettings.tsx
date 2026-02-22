@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Save, Play, Pause, Lock, ShieldCheck, Loader2, CheckCircle2, XCircle, AtSign } from "lucide-react";
+import { ArrowLeft, Save, Play, Pause, Lock, ShieldCheck, Loader2, CheckCircle2, XCircle, AtSign, Facebook, Youtube, Twitter, MessageCircle, Music, Linkedin, Phone, Globe, Bot, Gamepad2, Plus, X } from "lucide-react";
 import { MainLayout } from "@/components/Layout/MainLayout";
 import { DragDropImageUpload } from "@/components/Profile/DragDropImageUpload";
 import { ProfileCompletionIndicator } from "@/components/Profile/ProfileCompletionIndicator";
@@ -47,6 +47,9 @@ export default function ProfileSettings() {
   const [tiktokUrl, setTiktokUrl] = useState("");
   const [linkedinUrl, setLinkedinUrl] = useState("");
   const [zaloUrl, setZaloUrl] = useState("");
+  const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
+  const [tempUrl, setTempUrl] = useState("");
+  const [urlError, setUrlError] = useState("");
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const musicFileInputRef = useRef<HTMLInputElement | null>(null);
   const usernameDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -649,35 +652,134 @@ export default function ProfileSettings() {
               </div>
 
               {/* Social Media Links */}
-              <div className="border-t border-border pt-6 mt-6">
-                <h3 className="text-lg font-semibold text-foreground mb-4">
-                  Liên kết mạng xã hội
-                </h3>
-                <div className="space-y-3">
-                  {[
-                    { id: "funplayUrl", label: "Fun Profile", placeholder: "https://play.fun.rich/@username", value: funplayUrl, setter: setFunplayUrl },
-                    { id: "angelaiUrl", label: "Angel AI", placeholder: "https://angel.ai/profile", value: angelaiUrl, setter: setAngelaiUrl },
-                    { id: "facebookUrl", label: "Facebook", placeholder: "https://facebook.com/username", value: facebookUrl, setter: setFacebookUrl },
-                    { id: "youtubeUrl", label: "YouTube", placeholder: "https://youtube.com/@channel", value: youtubeUrl, setter: setYoutubeUrl },
-                    { id: "twitterUrl", label: "X / Twitter", placeholder: "https://x.com/username", value: twitterUrl, setter: setTwitterUrl },
-                    { id: "telegramUrl", label: "Telegram", placeholder: "https://t.me/username", value: telegramUrl, setter: setTelegramUrl },
-                    { id: "tiktokUrl", label: "TikTok", placeholder: "https://tiktok.com/@username", value: tiktokUrl, setter: setTiktokUrl },
-                    { id: "linkedinUrl", label: "LinkedIn", placeholder: "https://linkedin.com/in/username", value: linkedinUrl, setter: setLinkedinUrl },
-                    { id: "zaloUrl", label: "Zalo", placeholder: "https://zalo.me/username", value: zaloUrl, setter: setZaloUrl },
-                  ].map((field) => (
-                    <div key={field.id}>
-                      <Label htmlFor={field.id}>{field.label}</Label>
-                      <div className="relative mt-1">
-                        <Input id={field.id} type="text" placeholder={field.placeholder} value={field.value} onChange={(e) => field.setter(e.target.value)} className="pr-10" />
-                        {field.value && /^https?:\/\/.+/.test(field.value) && (
-                          <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500 h-5 w-5" />
+              {(() => {
+                const socialPlatforms = [
+                  { id: "funplayUrl", label: "Fun Profile", placeholder: "https://fun.rich/username", value: funplayUrl, setter: setFunplayUrl, icon: Globe, patterns: ["https://fun.rich/"], dbField: "funplay_url" },
+                  { id: "funPlayUrl", label: "FUN Play", placeholder: "https://play.fun.rich/@username", value: funplayUrl, setter: setFunplayUrl, icon: Gamepad2, patterns: ["https://play.fun.rich/"], dbField: "funplay_url" },
+                  { id: "angelaiUrl", label: "Angel AI", placeholder: "https://angel.ai/profile", value: angelaiUrl, setter: setAngelaiUrl, icon: Bot, patterns: ["https://angel.ai/"], dbField: "angelai_url" },
+                  { id: "facebookUrl", label: "Facebook", placeholder: "https://www.facebook.com/username", value: facebookUrl, setter: setFacebookUrl, icon: Facebook, patterns: ["https://www.facebook.com/", "https://facebook.com/"], dbField: "facebook_url" },
+                  { id: "youtubeUrl", label: "YouTube", placeholder: "https://www.youtube.com/@channel", value: youtubeUrl, setter: setYoutubeUrl, icon: Youtube, patterns: ["https://www.youtube.com/", "https://youtube.com/"], dbField: "youtube_url" },
+                  { id: "twitterUrl", label: "X / Twitter", placeholder: "https://x.com/username", value: twitterUrl, setter: setTwitterUrl, icon: Twitter, patterns: ["https://x.com/", "https://twitter.com/"], dbField: "twitter_url" },
+                  { id: "telegramUrl", label: "Telegram", placeholder: "https://t.me/username", value: telegramUrl, setter: setTelegramUrl, icon: MessageCircle, patterns: ["https://t.me/"], dbField: "telegram_url" },
+                  { id: "tiktokUrl", label: "TikTok", placeholder: "https://www.tiktok.com/@username", value: tiktokUrl, setter: setTiktokUrl, icon: Music, patterns: ["https://www.tiktok.com/", "https://tiktok.com/"], dbField: "tiktok_url" },
+                  { id: "linkedinUrl", label: "LinkedIn", placeholder: "https://www.linkedin.com/in/username", value: linkedinUrl, setter: setLinkedinUrl, icon: Linkedin, patterns: ["https://www.linkedin.com/", "https://linkedin.com/"], dbField: "linkedin_url" },
+                  { id: "zaloUrl", label: "Zalo", placeholder: "https://zalo.me/username", value: zaloUrl, setter: setZaloUrl, icon: Phone, patterns: ["https://zalo.me/"], dbField: "zalo_url" },
+                ];
+
+                const addedPlatforms = socialPlatforms.filter(p => p.value && p.value.trim() !== "");
+                const availablePlatforms = socialPlatforms.filter(p => !p.value || p.value.trim() === "");
+                const selectedPlatformData = socialPlatforms.find(p => p.id === selectedPlatform);
+
+                const handleAddLink = () => {
+                  if (!selectedPlatformData || !tempUrl.trim()) return;
+                  const isValid = selectedPlatformData.patterns.some(pattern => tempUrl.startsWith(pattern));
+                  if (!isValid) {
+                    setUrlError(`Link ${selectedPlatformData.label} phải bắt đầu bằng ${selectedPlatformData.patterns.join(" hoặc ")}`);
+                    return;
+                  }
+                  selectedPlatformData.setter(tempUrl.trim());
+                  setSelectedPlatform(null);
+                  setTempUrl("");
+                  setUrlError("");
+                };
+
+                return (
+                  <div className="border-t border-border pt-6 mt-6">
+                    <h3 className="text-lg font-semibold text-foreground mb-4">
+                      Mạng xã hội ({addedPlatforms.length}/{socialPlatforms.length})
+                    </h3>
+
+                    {/* Added links as cards */}
+                    {addedPlatforms.length > 0 && (
+                      <div className="space-y-2 mb-4">
+                        {addedPlatforms.map((platform) => {
+                          const IconComp = platform.icon;
+                          return (
+                            <div key={platform.id} className="flex items-center gap-3 p-3 rounded-lg border border-border bg-muted/30">
+                              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10">
+                                <IconComp className="h-4 w-4 text-primary" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-medium text-sm text-foreground">{platform.label}</span>
+                                  <CheckCircle2 className="h-3.5 w-3.5 text-green-500 flex-shrink-0" />
+                                </div>
+                                <p className="text-xs text-muted-foreground truncate">{platform.value}</p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => { platform.setter(""); }}
+                                className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Available platforms as chips */}
+                    {availablePlatforms.length > 0 && (
+                      <div>
+                        <p className="text-sm text-muted-foreground mb-2">Thêm mạng xã hội</p>
+                        <div className="flex flex-wrap gap-2 mb-3">
+                          {availablePlatforms.map((platform) => {
+                            const IconComp = platform.icon;
+                            const isSelected = selectedPlatform === platform.id;
+                            return (
+                              <button
+                                key={platform.id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedPlatform(isSelected ? null : platform.id);
+                                  setTempUrl("");
+                                  setUrlError("");
+                                }}
+                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                                  isSelected
+                                    ? "border-primary bg-primary/10 text-primary"
+                                    : "border-border bg-muted/50 text-muted-foreground hover:border-primary/50 hover:text-foreground"
+                                }`}
+                              >
+                                <IconComp className="h-3.5 w-3.5" />
+                                {platform.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {/* Input for selected platform */}
+                        {selectedPlatformData && (
+                          <div className="space-y-1.5">
+                            <div className="flex gap-2">
+                              <Input
+                                type="url"
+                                placeholder={selectedPlatformData.placeholder}
+                                value={tempUrl}
+                                onChange={(e) => { setTempUrl(e.target.value); setUrlError(""); }}
+                                className="flex-1"
+                                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddLink(); } }}
+                              />
+                              <Button
+                                type="button"
+                                size="icon"
+                                onClick={handleAddLink}
+                                className="shrink-0"
+                              >
+                                <Plus className="h-4 w-4" />
+                              </Button>
+                            </div>
+                            {urlError && (
+                              <p className="text-xs text-destructive">{urlError}</p>
+                            )}
+                          </div>
                         )}
                       </div>
-                    </div>
-                  ))}
-                  <p className="text-xs text-muted-foreground">Các link sẽ hiển thị quanh avatar trên trang cá nhân của bạn (tối đa 9 nền tảng)</p>
-                </div>
-              </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               <div className="border-t border-border pt-6 mt-6">
                 <h3 className="text-lg font-semibold text-foreground mb-4">
