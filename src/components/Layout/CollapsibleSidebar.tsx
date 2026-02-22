@@ -89,10 +89,11 @@ export const CollapsibleSidebar = ({ isExpanded }: CollapsibleSidebarProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [openSections, setOpenSections] = useState({
+    ecosystem: true,
     nav: true,
-    library: true,
-    rewards: true,
-    manage: true,
+    library: false,
+    rewards: false,
+    manage: false,
   });
 
   const toggleSection = (key: string) => {
@@ -170,16 +171,30 @@ export const CollapsibleSidebar = ({ isExpanded }: CollapsibleSidebarProps) => {
       >
         <ScrollArea className="h-full">
           <div className="py-2">
-            {/* FUN ECOSYSTEM - Always visible */}
+            {/* FUN ECOSYSTEM */}
             <div className="px-2 py-2 border-b border-border mb-2">
-              {isExpanded && (
-                <p className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  FUN ECOSYSTEM
-                </p>
+              {isExpanded ? (
+                <Collapsible open={openSections.ecosystem} onOpenChange={() => toggleSection('ecosystem')}>
+                  <CollapsibleTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      className="w-full justify-between px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:bg-muted/50"
+                    >
+                      <span>FUN ECOSYSTEM</span>
+                      {openSections.ecosystem ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="animate-in slide-in-from-top-2 duration-200">
+                    {funPlatformItems.map((item) => (
+                      <NavButton key={item.label} item={item} />
+                    ))}
+                  </CollapsibleContent>
+                </Collapsible>
+              ) : (
+                funPlatformItems.map((item) => (
+                  <NavButton key={item.label} item={item} compact />
+                ))
               )}
-              {funPlatformItems.map((item) => (
-                <NavButton key={item.label} item={item} compact={!isExpanded} />
-              ))}
             </div>
 
             {/* Collapsible sections */}
