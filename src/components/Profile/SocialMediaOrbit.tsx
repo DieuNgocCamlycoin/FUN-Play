@@ -1,11 +1,20 @@
 import { useState } from "react";
-import { Facebook, Youtube, Send, Linkedin } from "lucide-react";
+import { Facebook, Youtube, Send, Linkedin, Plus, Check, X } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface SocialMediaOrbitProps {
   angelaiUrl?: string | null;
@@ -18,6 +27,9 @@ interface SocialMediaOrbitProps {
   linkedinUrl?: string | null;
   zaloUrl?: string | null;
   socialAvatars?: Record<string, string | null> | null;
+  isOwnProfile?: boolean;
+  userId?: string;
+  onProfileUpdate?: () => void;
 }
 
 const XIcon = ({ className }: { className?: string }) => (
@@ -51,16 +63,28 @@ const ZaloIcon = ({ className }: { className?: string }) => (
 );
 
 const platforms = [
-  { key: "funplay", icon: FunProfileIcon, color: "#00E7FF", label: "Fun Profile" },
-  { key: "angelai", icon: AngelAIIcon, color: "#FFD700", label: "Angel AI" },
-  { key: "facebook", icon: Facebook, color: "#1877F2", label: "Facebook" },
-  { key: "youtube", icon: Youtube, color: "#FF0000", label: "YouTube" },
-  { key: "twitter", icon: XIcon, color: "#1DA1F2", label: "X / Twitter" },
-  { key: "telegram", icon: Send, color: "#0088cc", label: "Telegram" },
-  { key: "tiktok", icon: TikTokIcon, color: "#69C9D0", label: "TikTok" },
-  { key: "linkedin", icon: Linkedin, color: "#0A66C2", label: "LinkedIn" },
-  { key: "zalo", icon: ZaloIcon, color: "#0068FF", label: "Zalo" },
+  { key: "funplay", icon: FunProfileIcon, color: "#00E7FF", label: "Fun Profile", dbField: "funplay_url" },
+  { key: "angelai", icon: AngelAIIcon, color: "#FFD700", label: "Angel AI", dbField: "angelai_url" },
+  { key: "facebook", icon: Facebook, color: "#1877F2", label: "Facebook", dbField: "facebook_url" },
+  { key: "youtube", icon: Youtube, color: "#FF0000", label: "YouTube", dbField: "youtube_url" },
+  { key: "twitter", icon: XIcon, color: "#1DA1F2", label: "X / Twitter", dbField: "twitter_url" },
+  { key: "telegram", icon: Send, color: "#0088cc", label: "Telegram", dbField: "telegram_url" },
+  { key: "tiktok", icon: TikTokIcon, color: "#69C9D0", label: "TikTok", dbField: "tiktok_url" },
+  { key: "linkedin", icon: Linkedin, color: "#0A66C2", label: "LinkedIn", dbField: "linkedin_url" },
+  { key: "zalo", icon: ZaloIcon, color: "#0068FF", label: "Zalo", dbField: "zalo_url" },
 ] as const;
+
+const URL_PATTERNS: Record<string, RegExp> = {
+  facebook: /^https:\/\/(www\.)?facebook\.com\/.+/i,
+  youtube: /^https:\/\/(www\.)?youtube\.com\/.+/i,
+  twitter: /^https:\/\/(www\.)?(twitter\.com|x\.com)\/.+/i,
+  tiktok: /^https:\/\/(www\.)?tiktok\.com\/@.+/i,
+  telegram: /^https:\/\/(t\.me|telegram\.me)\/.+/i,
+  linkedin: /^https:\/\/(www\.)?linkedin\.com\/(in|company)\/.+/i,
+  zalo: /^https:\/\/(zalo\.me|chat\.zalo\.me)\/.+/i,
+  funplay: /^https:\/\/fun\.rich\/.+/i,
+  angelai: /^https:\/\/angel\.fun\.rich\/.+/i,
+};
 
 export const SocialMediaOrbit = ({
   angelaiUrl,
@@ -73,7 +97,17 @@ export const SocialMediaOrbit = ({
   linkedinUrl,
   zaloUrl,
   socialAvatars,
+  isOwnProfile,
+  userId,
+  onProfileUpdate,
 }: SocialMediaOrbitProps) => {
+  const { toast } = useToast();
+  const [addOpen, setAddOpen] = useState(false);
+  const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
+  const [urlInput, setUrlInput] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [urlError, setUrlError] = useState("");
+
   const urls: Record<string, string | null | undefined> = {
     angelai: angelaiUrl,
     funplay: funplayUrl,
@@ -87,13 +121,79 @@ export const SocialMediaOrbit = ({
   };
 
   const activePlatforms = platforms.filter((p) => urls[p.key]);
-  if (activePlatforms.length === 0) return null;
+  const missingPlatforms = platforms.filter((p) => !urls[p.key]);
 
   // Distribute evenly across 360°, starting from 12h (270°)
-  const count = activePlatforms.length;
+  const allOrbitItems = [...activePlatforms];
+  const showAddButton = isOwnProfile && missingPlatforms.length > 0;
+
+  const count = allOrbitItems.length + (showAddButton ? 1 : 0);
+  if (count === 0 && !showAddButton) return null;
+  // If no active platforms but we have add button, still render
+  if (count === 0) return null;
+
   const step = 360 / count;
-  // 1 item: top (270°). 2 items: symmetric across vertical axis. 3+: offset half-step from 12h to avoid diamond badge
   const baseAngle = count === 1 ? 270 : (count === 2 ? 225 : 270 + step / 2);
+
+  const validateUrl = (platform: string, url: string) => {
+    const pattern = URL_PATTERNS[platform];
+    if (!pattern) return url.startsWith("https://");
+    return pattern.test(url);
+  };
+
+  const handleSave = async () => {
+    if (!selectedPlatform || !urlInput || !userId) return;
+
+    if (!validateUrl(selectedPlatform, urlInput)) {
+      setUrlError("URL không hợp lệ cho nền tảng này");
+      return;
+    }
+
+    setSaving(true);
+    setUrlError("");
+
+    try {
+      const platformConfig = platforms.find(p => p.key === selectedPlatform);
+      if (!platformConfig) return;
+
+      const { error } = await supabase
+        .from("profiles")
+        .update({ [platformConfig.dbField]: urlInput })
+        .eq("id", userId);
+
+      if (error) throw error;
+
+      // Trigger avatar fetch for the new platform
+      try {
+        await supabase.functions.invoke("fetch-social-avatar", {
+          body: {
+            userId,
+            platforms: { [selectedPlatform]: urlInput },
+          },
+        });
+      } catch (e) {
+        console.log("Avatar fetch failed (non-critical):", e);
+      }
+
+      toast({
+        title: "Đã thêm liên kết! 🎉",
+        description: `${platformConfig.label} đã được thêm vào hồ sơ`,
+      });
+
+      setAddOpen(false);
+      setSelectedPlatform(null);
+      setUrlInput("");
+      onProfileUpdate?.();
+    } catch (error: any) {
+      toast({
+        title: "Lỗi",
+        description: error.message || "Không thể lưu liên kết",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -101,14 +201,13 @@ export const SocialMediaOrbit = ({
         className="absolute inset-0 orbit-container animate-[orbit-spin_25s_linear_infinite]"
         style={{ transformOrigin: "center center" }}
       >
-        {activePlatforms.map((platform, index) => {
+        {allOrbitItems.map((platform, index) => {
           const Icon = platform.icon;
           const angle = baseAngle + step * index;
           const rad = (angle * Math.PI) / 180;
           const x = Math.cos(rad) * 58;
           const y = Math.sin(rad) * 58;
           const avatarUrl = socialAvatars?.[platform.key];
-          // Default images for funplay and angelai when avatar fetch fails
           const defaultAvatarMap: Record<string, string> = {
             funplay: '/images/FUN_Profile.png',
             angelai: '/images/Angel_AI.png',
@@ -147,6 +246,111 @@ export const SocialMediaOrbit = ({
             </Tooltip>
           );
         })}
+
+        {/* Add "+" button for own profile */}
+        {showAddButton && (() => {
+          const addIndex = allOrbitItems.length;
+          const angle = baseAngle + step * addIndex;
+          const rad = (angle * Math.PI) / 180;
+          const x = Math.cos(rad) * 58;
+          const y = Math.sin(rad) * 58;
+
+          return (
+            <Popover open={addOpen} onOpenChange={(open) => {
+              setAddOpen(open);
+              if (!open) {
+                setSelectedPlatform(null);
+                setUrlInput("");
+                setUrlError("");
+              }
+            }}>
+              <PopoverTrigger asChild>
+                <button
+                  className="absolute z-20 flex items-center justify-center w-9 h-9 md:w-11 md:h-11 rounded-full shadow-lg transition-all hover:scale-[1.3] cursor-pointer orbit-item animate-[orbit-counter-spin_25s_linear_infinite]"
+                  style={{
+                    background: "linear-gradient(135deg, #22d3ee, #3b82f6)",
+                    left: `calc(50% + ${x}%)`,
+                    top: `calc(50% + ${y}%)`,
+                    transform: "translate(-50%, -50%)",
+                    boxShadow: "0 0 12px rgba(34, 211, 238, 0.5), 0 0 24px rgba(59, 130, 246, 0.3)",
+                    border: "2px solid rgba(255,255,255,0.3)",
+                  }}
+                >
+                  <Plus className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                side="bottom"
+                align="center"
+                className="w-72 p-3 z-50"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {!selectedPlatform ? (
+                  <div>
+                    <p className="text-xs font-semibold text-foreground mb-2">Thêm mạng xã hội</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {missingPlatforms.map((p) => {
+                        const Icon = p.icon;
+                        return (
+                          <button
+                            key={p.key}
+                            onClick={() => setSelectedPlatform(p.key)}
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium border border-border bg-background hover:bg-accent transition-colors"
+                          >
+                            <Icon className="w-3.5 h-3.5" style={{ color: p.color }} />
+                            {p.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <button
+                        onClick={() => {
+                          setSelectedPlatform(null);
+                          setUrlInput("");
+                          setUrlError("");
+                        }}
+                        className="text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                      <p className="text-xs font-semibold text-foreground">
+                        {platforms.find(p => p.key === selectedPlatform)?.label}
+                      </p>
+                    </div>
+                    <div className="flex gap-1.5">
+                      <Input
+                        value={urlInput}
+                        onChange={(e) => {
+                          setUrlInput(e.target.value);
+                          setUrlError("");
+                        }}
+                        placeholder="https://..."
+                        className="text-xs h-8"
+                        autoFocus
+                        onKeyDown={(e) => e.key === "Enter" && handleSave()}
+                      />
+                      <Button
+                        size="sm"
+                        onClick={handleSave}
+                        disabled={!urlInput || saving}
+                        className="h-8 px-2 bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-500 hover:to-blue-600 text-white border-0"
+                      >
+                        <Check className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    {urlError && (
+                      <p className="text-[10px] text-destructive mt-1">{urlError}</p>
+                    )}
+                  </div>
+                )}
+              </PopoverContent>
+            </Popover>
+          );
+        })()}
       </div>
     </TooltipProvider>
   );

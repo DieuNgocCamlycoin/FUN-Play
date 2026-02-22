@@ -262,6 +262,54 @@ async function fetchGenericAvatar(platform: string, url: string): Promise<string
   return await scrapeOgAndAvatar(url, USER_AGENTS[0]);
 }
 
+// ========== TikTok-specific strategy ==========
+
+async function fetchTiktokAvatar(url: string): Promise<string | null> {
+  const username = extractUsername(url, "tiktok");
+  if (!username) return null;
+  const cleanUsername = username.replace(/^@/, "");
+
+  // Strategy 1: TikTok oembed endpoint
+  try {
+    const oembedUrl = `https://www.tiktok.com/oembed?url=https://www.tiktok.com/@${cleanUsername}`;
+    const res = await fetchWithTimeout(oembedUrl, {
+      headers: { "User-Agent": USER_AGENTS[0] },
+    }, 6000);
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.thumbnail_url && !isJunkImage(data.thumbnail_url)) {
+        console.log(`[tiktok] oembed success for ${cleanUsername}`);
+        return data.thumbnail_url;
+      }
+    }
+  } catch (e) {
+    console.log(`[tiktok] oembed failed for ${cleanUsername}:`, e.message);
+  }
+
+  // Strategy 2: unavatar.io
+  try {
+    const unavatarUrl = `https://unavatar.io/tiktok/${cleanUsername}`;
+    const res = await fetchWithTimeout(unavatarUrl, { method: "HEAD", redirect: "follow" }, 5000);
+    if (res.ok && (res.headers.get("content-type") || "").startsWith("image/")) {
+      console.log(`[tiktok] unavatar.io success for ${cleanUsername}`);
+      return unavatarUrl;
+    }
+  } catch (e) {
+    console.log(`[tiktok] unavatar.io failed:`, e.message);
+  }
+
+  // Strategy 3: Scrape TikTok profile page for og:image
+  for (const ua of USER_AGENTS) {
+    const result = await scrapeOgAndAvatar(`https://www.tiktok.com/@${cleanUsername}`, ua);
+    if (result) {
+      console.log(`[tiktok] og:image scrape success`);
+      return result;
+    }
+  }
+
+  return null;
+}
+
 // ========== Main dispatcher ==========
 
 async function fetchAvatarForPlatform(platform: string, url: string): Promise<string | null> {
@@ -278,9 +326,10 @@ async function fetchAvatarForPlatform(platform: string, url: string): Promise<st
         return await fetchFunProfileAvatar(url);
       case "angelai":
         return await fetchAngelAiAvatar(url);
+      case "tiktok":
+        return await fetchTiktokAvatar(url);
       default:
         return await fetchGenericAvatar(platform, url);
-    }
   } catch (e) {
     console.error(`[fetch-avatar] Unexpected error for ${platform}:`, e.message);
     return null;
