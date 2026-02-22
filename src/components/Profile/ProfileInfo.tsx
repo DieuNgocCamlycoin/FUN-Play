@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Gift, UserPlus, UserCheck, Share2, Copy, Settings, Wallet } from "lucide-react";
+import { AdminChannelActions } from "@/components/Admin/AdminChannelActions";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { EnhancedDonateModal } from "@/components/Donate/EnhancedDonateModal";
@@ -224,6 +225,13 @@ export const ProfileInfo = ({
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+
+            {/* Admin Actions */}
+            <AdminChannelActions
+              targetUserId={profile.id}
+              targetUsername={profile.username}
+              targetDisplayName={profile.display_name}
+            />
           </div>
         )}
       </div>
