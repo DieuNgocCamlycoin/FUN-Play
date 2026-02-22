@@ -1,39 +1,42 @@
 
+## Cập nhật hiển thị avatar mặc định cho tất cả user
 
-## Cập nhật Avatar mặc định cho các mạng xã hội
+### Vấn đề hiện tại
 
-### Thay đổi
+Hiện tại, logic hiển thị avatar trên orbit đã đúng về mặt code:
+- Nếu `socialAvatars[platform]` có giá trị -> hiển thị avatar đó
+- Nếu không -> hiển thị default từ `defaultAvatarMap`
+- Nếu không có default -> hiển thị icon SVG
 
-Thay thế toàn bộ avatar mặc định cũ bằng 5 hình mới và cập nhật code để hiển thị đúng khi user thêm link cho nền tảng tương ứng.
+Tuy nhiên, có trường hợp `socialAvatars` trong database chứa URL lỗi/rỗng từ quá trình auto-fetch thất bại, khiến avatar mặc định không được hiển thị. Ngoài ra, auto-fetch bỏ qua `funplay` và `angelai` nhưng không tự gán default avatar cho chúng trong database.
 
-### 1. Thay thế/Thêm file ảnh trong `public/images/`
+### Giải pháp
 
-| File | Hành động |
+Thay đổi logic `displayUrl` để ưu tiên hiển thị đúng:
+
+1. Nếu `socialAvatars[platform]` có giá trị hợp lệ (không rỗng, không null) -> dùng avatar đó
+2. Nếu platform có trong `defaultAvatarMap` -> luôn dùng default làm fallback (đã có qua `OrbitImage fallbackSrc`)
+3. Nếu `socialAvatars` chứa URL rỗng hoặc không hợp lệ -> bỏ qua, dùng default
+
+### File thay đổi
+
+| File | Thay đổi |
 |---|---|
-| `public/images/FUN_Profile.png` | Thay bằng hình 1 (FUN Profile Web3) |
-| `public/images/Angel_AI.png` | Thay bằng hình 2 (Angel AI mới) |
-| `public/images/facebook-default.png` | Thay bằng hình 3 (Facebook icon tròn xanh) |
-| `public/images/zalo-default.png` | Tạo mới từ hình 4 (Zalo logo tròn) |
-| `public/images/linkedin-default.png` | Tạo mới từ hình 5 (LinkedIn icon) |
+| `src/components/Profile/SocialMediaOrbit.tsx` | Cập nhật logic `displayUrl` (dòng 270-278) để lọc bỏ avatar URL rỗng/không hợp lệ, đảm bảo default luôn hiển thị khi cần |
 
-### 2. Cập nhật `defaultAvatarMap` trong `SocialMediaOrbit.tsx`
+### Chi tiết kỹ thuật
 
-Thêm Zalo và LinkedIn vào danh sách default avatar (dòng 271-276):
+Tại dòng 270-278, thay đổi:
 
 ```typescript
-const defaultAvatarMap: Record<string, string> = {
-  funplay: '/images/FUN_Profile.png',
-  angelai: '/images/Angel_AI.png',
-  facebook: '/images/facebook-default.png',
-  zalo: '/images/zalo-default.png',
-  linkedin: '/images/linkedin-default.png',
-  twitter: '/images/twitter-default.png',
-};
+const avatarUrl = socialAvatars?.[platform.key];
 ```
 
-Xoa bo Twitter khoi danh sach default (vi user khong yeu cau giu Twitter default).
+Thành:
 
-### Ket qua
+```typescript
+const rawAvatar = socialAvatars?.[platform.key];
+const avatarUrl = rawAvatar && rawAvatar.trim().length > 0 ? rawAvatar : null;
+```
 
-Khi user them link cho FUN Profile, Angel AI, Facebook, Zalo, hoac LinkedIn, avatar mac dinh tuong ung se hien thi ngay tren Social Orbit cho den khi user upload avatar rieng hoac he thong auto-fetch duoc avatar tu mang xa hoi do.
-
+Điều này đảm bảo nếu `social_avatars` chứa chuỗi rỗng `""` hoặc chỉ khoảng trắng, hệ thống sẽ bỏ qua và hiển thị default avatar thay vì ảnh lỗi. Kết hợp với `OrbitImage` đã có fallback chain (primary -> fallbackSrc -> icon), avatar mặc định sẽ luôn hiển thị đúng cho tất cả user trên mọi nền tảng có default.
