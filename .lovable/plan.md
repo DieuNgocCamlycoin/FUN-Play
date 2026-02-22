@@ -1,54 +1,39 @@
 
 
-## Sửa lỗi avatar mạng xã hội + Thêm ảnh mặc định
+## Sửa lỗi không hiển thị playlist sau khi tạo
 
-### Vấn đề phát hiện
+### Nguyên nhân gốc
 
-**1. Facebook avatar không lấy được:**
-- Facebook Graph API (`graph.facebook.com/{username}/picture`) yêu cầu access token từ năm 2024, không còn hoạt động public
-- `unavatar.io/facebook` cũng thường thất bại do Facebook chặn scraping
-- Giải pháp: Thêm chiến lược thứ 3 - scrape trực tiếp trang Facebook profile để lấy og:image
+Trong `ProfilePlaylistsTab.tsx`, query Supabase sử dụng cú pháp không hợp lệ:
 
-**2. Key không khớp giữa frontend và edge function:**
-- ProfileSettings gửi key `funplay` nhưng edge function dùng `case "funprofile"` --> không bao giờ match, rơi vào `default`
-- Cần đồng bộ key thành `funprofile` hoặc `funplay` (sửa edge function cho khớp với frontend)
+```
+playlist_videos(count, videos(thumbnail_url))
+```
 
-**3. Thiếu ảnh mặc định cho FUN Profile và Angel AI:**
-- Khi scraping thất bại, hiện tại trả về `null` --> hiện icon SVG thay vì ảnh
-- Cần dùng ảnh mặc định được cung cấp (hình 2 cho FUN Profile, hình 3 cho Angel AI)
+Supabase không cho phép kết hợp `count` (aggregate) với `videos(thumbnail_url)` (join) trong cùng một relation. Query này lỗi thầm lặng, rơi vào `catch` block và không cập nhật state `playlists` --> luôn hiển thị "Chưa có Playlist".
 
----
+### Giải pháp
 
-### Việc 1: Copy ảnh mặc định vào project
+Sửa file `src/components/Profile/ProfilePlaylistsTab.tsx`:
 
-- Copy `user-uploads://FUN_Profile.png` vào `public/images/FUN_Profile.png`
-- Copy `user-uploads://Angel_AI.png` vào `public/images/Angel_AI.png`
+**1. Tách query thành 2 phần** (dòng 36-66):
+- Query chính: lấy `id, name, description, is_public` từ `playlists`
+- Lấy video count và thumbnail riêng, hoặc dùng 2 subselect riêng biệt
 
-### Việc 2: Sửa edge function `fetch-social-avatar/index.ts`
+Cụ thể, đổi select thành:
+```
+id, name, description, is_public, playlist_videos(video_id, videos(thumbnail_url))
+```
+Sau đó tính `video_count` bằng `p.playlist_videos?.length || 0` thay vì dùng `count`.
 
-**a. Sửa key mapping (dòng 267):**
-- Thêm `case "funplay":` cùng với `case "funprofile":` để cả 2 key đều gọi `fetchFunProfileAvatar`
+**2. Cập nhật processing** (dòng 59-66):
+```typescript
+video_count: p.playlist_videos?.length || 0,
+thumbnail_url: p.playlist_videos?.[0]?.videos?.thumbnail_url,
+```
 
-**b. Cải thiện Facebook avatar (dòng 139-171):**
-- Thêm Strategy 3: Scrape trực tiếp trang Facebook profile để lấy og:image (vì Graph API và unavatar.io đều thất bại)
-- Thử cả 2 User-Agent để tăng khả năng thành công
-
-### Việc 3: Sửa `SocialMediaOrbit.tsx` - Dùng ảnh mặc định
-
-**Dòng 128-132:** Khi `avatarUrl` là `null` (fetch thất bại), thay vì hiện icon SVG, kiểm tra nếu platform là `funplay` hoặc `angelai` thì dùng ảnh mặc định:
-
-| Platform | Avatar mặc định |
-|---|---|
-| `funplay` (Fun Profile) | `/images/FUN_Profile.png` |
-| `angelai` (Angel AI) | `/images/Angel_AI.png` |
-| Các platform khác | Giữ icon SVG như cũ |
-
-### Tóm tắt file cần sửa
+### Tóm tắt
 
 | File | Thay đổi |
 |---|---|
-| `public/images/FUN_Profile.png` | Copy ảnh mới |
-| `public/images/Angel_AI.png` | Copy ảnh mới |
-| `supabase/functions/fetch-social-avatar/index.ts` | Sửa key mapping + cải thiện Facebook scraping |
-| `src/components/Profile/SocialMediaOrbit.tsx` | Thêm ảnh mặc định cho FUN Profile và Angel AI |
-
+| `src/components/Profile/ProfilePlaylistsTab.tsx` | Sửa query select: bỏ `count`, dùng `video_id` + đếm bằng `.length` |
