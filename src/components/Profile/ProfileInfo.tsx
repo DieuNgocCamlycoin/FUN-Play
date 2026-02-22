@@ -126,7 +126,7 @@ export const ProfileInfo = ({
           )}
 
           {/* Wallet + Profile Link */}
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-nowrap items-center gap-2 overflow-x-auto">
             {profile.wallet_address && (
               <div className="inline-flex items-center gap-2.5 px-4 py-2 bg-muted/60 border border-primary/30 rounded-full hover:border-primary/50 transition-colors duration-200">
                 <Wallet className="w-4 h-4 text-primary flex-shrink-0" />
