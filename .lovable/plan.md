@@ -1,26 +1,64 @@
 
 
-## Thay viên kim cương SVG bằng hình ảnh thật
+## Triển khai tính năng upload avatar thủ công cho mạng xã hội
 
-### Thay đổi
+### Tổng quan
+Thêm nút upload avatar (icon Camera) bên cạnh mỗi link mạng xã hội đã thêm trong trang Settings. Người dùng có thể paste URL ảnh hoặc upload file ảnh. Avatar thủ công sẽ được ưu tiên và không bị edge function ghi đè.
 
-**File 1: `public/images/diamond-badge.png`**
-- Copy hình `user-uploads://Viên_kim_cương_xanh_hoàn_hảo.png` vào đây
+### Thay đổi chi tiết
 
-**File 2: `src/components/Profile/DiamondBadge.tsx`**
-- Thay toàn bộ SVG (dòng 43-87) bằng thẻ `<img src="/images/diamond-badge.png">`
-- Kích thước: `w-[42px] h-[42px]` mobile, `md:w-12 md:h-12` desktop (giữ nguyên kích thước hiện tại)
-- Giữ nguyên logic glow theo lightScore (filter drop-shadow vẫn hoạt động trên img)
-- Thêm CSS filter theo cấp độ:
-  - **Banned** (gray): `filter: grayscale(1) opacity(0.5)` -- viên kim cương xám mờ
-  - **High risk** (black): `filter: brightness(0.3)` -- viên kim cương tối đen
-  - **Các cấp khác**: giữ nguyên hình gốc + glow effect tương ứng (hình đã là kim cương xanh đẹp, phù hợp mọi cấp)
-- Bỏ sparkle overlay (div diamond-sparkle-ray) vì hình ảnh thật đã có hiệu ứng sẵn
+**File 1: `src/pages/ProfileSettings.tsx`**
 
-### Tóm tắt
+1. Thêm state mới:
+   - `socialAvatars`: `Record<string, string | null>` - load từ database khi fetch profile
+   - `avatarUploadPlatform`: `string | null` - platform đang mở dialog upload avatar
+   - `tempAvatarUrl`: `string` - URL ảnh tạm khi paste
+   - `isUploadingSocialAvatar`: `boolean` - trạng thái đang upload
+
+2. Khi fetch profile (trong `useEffect`), đọc thêm field `social_avatars` từ database và set vào state `socialAvatars`
+
+3. Trong phần hiển thị social link cards (dòng 730-756), thêm:
+   - Thumbnail avatar nhỏ (nếu có) bên trái icon platform
+   - Nút Camera icon bên cạnh nút X (xóa link)
+   - Khi nhấn Camera: mở Dialog cho phép:
+     - Paste URL ảnh đại diện
+     - Hoặc upload file ảnh (dùng `useR2Upload` với folder `social-avatars`)
+   - Preview ảnh trong dialog trước khi confirm
+
+4. Khi save profile (`handleSave`):
+   - Lưu `socialAvatars` vào `profiles.social_avatars` cùng lúc với update profile
+   - Truyền thêm `manualAvatars` (danh sách platform đã set thủ công) cho edge function
+   - Edge function sẽ bỏ qua các platform đã có avatar thủ công
+
+5. Import thêm: `Camera` hoặc `ImagePlus` từ lucide-react, `Dialog` components
+
+**File 2: `supabase/functions/fetch-social-avatar/index.ts`**
+
+Sửa phần handler chính (dòng 290-345):
+- Nhận thêm field `manualAvatars` (mảng các platform key đã set thủ công) từ request body
+- Đọc `social_avatars` hiện tại từ database trước khi xử lý
+- Chỉ fetch avatar tự động cho các platform KHÔNG nằm trong `manualAvatars`
+- Khi lưu kết quả, merge với avatar hiện tại thay vì ghi đè hoàn toàn
+
+**File 3: `src/components/Profile/SocialMediaOrbit.tsx`**
+
+Không cần thay đổi - đã có logic fallback hiển thị avatar hoặc icon platform.
+
+### Luồng hoạt động
+
+```text
+User thêm link Facebook --> Nhấn icon Camera --> Dialog mở
+--> Paste URL ảnh hoặc Upload file --> Preview --> Confirm
+--> Avatar hiển thị trong card --> Save profile
+--> social_avatars.facebook = URL ảnh thủ công
+--> Edge function chạy background, bỏ qua Facebook (đã có avatar thủ công)
+--> Orbit hiển thị avatar Facebook từ social_avatars
+```
+
+### Tóm tắt file cần sửa
 
 | File | Thay đổi |
 |---|---|
-| `public/images/diamond-badge.png` | Copy hình kim cương mới |
-| `src/components/Profile/DiamondBadge.tsx` | Thay SVG bằng img, giữ glow + thêm filter cho banned/high-risk |
+| `src/pages/ProfileSettings.tsx` | Thêm dialog upload avatar, state, logic lưu |
+| `supabase/functions/fetch-social-avatar/index.ts` | Không ghi đè avatar thủ công |
 
