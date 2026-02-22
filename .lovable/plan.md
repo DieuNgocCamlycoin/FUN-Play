@@ -1,60 +1,29 @@
 
 
-## Triển khai 2 tính năng: Auto-fetch TikTok avatar + Nút "+" thêm mạng xã hội trên trang cá nhân
+## Cố định nút "+" tại vị trí 10h trên orbit
 
-### 1. Auto-fetch avatar TikTok
+### Vấn đề hiện tại
+Nút "+" đang nằm trong container orbit có animation `orbit-spin`, khiến nó xoay theo quỹ đạo cùng các icon mạng xã hội khác.
 
-**File: `supabase/functions/fetch-social-avatar/index.ts`**
-
-Thêm hàm `fetchTiktokAvatar` riêng biệt với các chiến lược:
-- **Strategy 1**: TikTok oembed endpoint (`https://www.tiktok.com/oembed?url=URL`) - trả về JSON có `thumbnail_url`
-- **Strategy 2**: unavatar.io (giữ lại làm fallback)
-- **Strategy 3**: Scrape trang TikTok lấy `og:image` với User-Agent phù hợp
-
-Thêm case `"tiktok"` vào switch `fetchAvatarForPlatform` thay vì dùng `fetchGenericAvatar`.
-
----
-
-### 2. Nút "+" thêm mạng xã hội trên orbit (màu xanh blue)
-
-**File: `src/components/Profile/ProfileHeader.tsx`**
-- Thêm prop `isOwnProfile` và `onProfileUpdate` (callback refetch)
-- Truyền xuống `SocialMediaOrbit`
-
-**File: `src/pages/Channel.tsx`**
-- Truyền `isOwnProfile` và `fetchChannelAndProfile` vào `ProfileHeader`
+### Giải pháp
 
 **File: `src/components/Profile/SocialMediaOrbit.tsx`**
-- Nhận thêm props: `isOwnProfile`, `userId`, `onProfileUpdate`
-- Khi `isOwnProfile === true`: hiển thị nút "+" tròn trên orbit
-  - Màu: **xanh blue** gradient `from-cyan-400 to-blue-500` (tương ứng viên kim cương `cosmic-cyan`)
-  - Glow effect xanh blue
-- Khi nhấn "+": mở Popover hiển thị:
-  - Danh sách các nền tảng chưa thêm (dạng chip với icon)
-  - Khi chọn 1 nền tảng: hiện input nhập URL + nút xác nhận
-  - Validation URL theo pattern của từng nền tảng (giống `ProfileSettings.tsx`)
-- Khi xác nhận:
-  - Gọi Supabase update field tương ứng (ví dụ `facebook_url`) vào bảng `profiles`
-  - Gọi edge function `fetch-social-avatar` cho platform vừa thêm
-  - Trigger `onProfileUpdate` để refetch profile, orbit cập nhật ngay
 
-### Luồng hoạt động
+Di chuyển nút "+" (cùng Popover) ra ngoài div `.orbit-container` (div có animation xoay), đặt nó là phần tử anh em (sibling) với vị trí cố định tại 10 o'clock.
 
-```text
-User xem trang cá nhân --> Thấy nút "+" xanh blue trên orbit
---> Nhấn "+" --> Popover hiện các nền tảng chưa thêm
---> Chọn "Facebook" --> Hiện input URL
---> Nhập link --> Validate --> Nhấn xác nhận
---> Lưu facebook_url vào profiles --> Orbit cập nhật ngay
---> Edge function chạy background fetch avatar
-```
+Cụ thể:
+1. Wrap toàn bộ return trong một `<>` fragment
+2. Giữ nguyên div orbit chứa các icon mạng xã hội (có animation xoay)
+3. Đặt nút "+" ra ngoài div orbit, sử dụng `position: absolute` với tọa độ cố định tại vị trí 10h:
+   - `left: calc(50% - 50.2%)`
+   - `top: calc(50% - 29%)`
+   - Bỏ class `orbit-item` và `animate-[orbit-counter-spin_...]` vì nút không còn xoay
+4. Bọc fragment trong một div `relative` để cả orbit và nút "+" cùng tham chiếu
 
-### Tóm tắt file cần sửa
+### Chi tiết kỹ thuật
 
-| File | Thay đổi |
-|---|---|
-| `supabase/functions/fetch-social-avatar/index.ts` | Thêm `fetchTiktokAvatar`, thêm case tiktok vào switch |
-| `src/components/Profile/SocialMediaOrbit.tsx` | Thêm nút "+" xanh blue, popover chọn nền tảng, input URL, logic lưu |
-| `src/components/Profile/ProfileHeader.tsx` | Thêm prop `isOwnProfile`, `onProfileUpdate`, truyền xuống orbit |
-| `src/pages/Channel.tsx` | Truyền `isOwnProfile`, `fetchChannelAndProfile` vào `ProfileHeader` |
+- Góc 10h tương ứng 210 deg trong hệ tọa độ code hiện tại
+- `cos(210deg) * 58 = -50.2`, `sin(210deg) * 58 = -29` (hướng trên-trái)
+- Nút "+" sẽ đứng yên trong khi các icon khác vẫn xoay bình thường
+- Popover và toàn bộ logic thêm link giữ nguyên, không thay đổi
 
