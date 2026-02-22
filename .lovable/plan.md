@@ -1,45 +1,41 @@
 
 
-## Ẩn video/bài viết của user bị suspend khỏi mọi feed công khai
+## Khắc phục tooltip mạng xã hội bị xoay theo orbit
 
-### Mô tả
-Video và bài viết của user bị suspend (banned) sẽ không còn xuất hiện trong Home feed, Search, Shorts, Subscriptions, Liked Videos, Meditate, gợi ý tìm kiếm, và đề xuất video. Nội dung chỉ còn hiển thị duy nhất trên kênh cá nhân của user đó.
+### Vấn đề
+Tooltip (tên nền tảng + link) hiển thị trên các icon mạng xã hội bị xoay theo animation orbit thay vì nằm ngang cố định. Nguyên nhân: Tooltip trigger nằm bên trong container có `animate-[orbit-spin_25s_linear_infinite]`, khiến vị trí anchor liên tục thay đổi, gây tooltip nhấp nháy hoặc xoay theo.
 
-### Cách tiếp cận
+### Giải pháp
+Thay thế Radix Tooltip bằng tooltip tùy chỉnh được render bên ngoài orbit container, sử dụng vị trí tuyệt đối tính toán từ góc orbit hiện tại. Tooltip sẽ hoàn toàn tĩnh, nằm ngang, không bị ảnh hưởng bởi animation.
 
-Tạo một hook chung `useBannedUserIds` để cache danh sách user_id bị banned, sau đó dùng nó để lọc kết quả ở phía client trong mỗi trang feed. Cách này tránh sửa nhiều query phức tạp và tập trung logic lọc vào một nơi.
+### Chi tiết thay đổi
 
-### Các file cần thay đổi
+**File: `src/components/Profile/SocialMediaOrbit.tsx`**
+
+1. Loại bỏ Radix Tooltip imports (giữ lại TooltipProvider nếu cần cho các phần khác)
+2. Thay thế `<Tooltip>` / `<TooltipTrigger>` / `<TooltipContent>` bằng:
+   - Các icon orbit giữ nguyên `onMouseEnter`/`onMouseLeave` để set `activeTooltip`
+   - Tooltip content được render **bên ngoài** div `.orbit-container` (ngang hàng với nó), sử dụng CSS position tuyệt đối
+3. Tính toán vị trí tooltip dựa trên góc orbit hiện tại:
+   - Dùng `useRef` + `requestAnimationFrame` để theo dõi góc xoay thực tế của orbit container
+   - Hoặc đơn giản hơn: dùng `getComputedStyle` / `getBoundingClientRect` trên icon element để lấy vị trí thực
+4. Tooltip hiển thị phía trên icon, nằm ngang cố định, với cấu trúc 2 phần (tên nền tảng + link) giống thiết kế hiện tại
+
+**Cách tiếp cận cụ thể:**
+- Mỗi icon orbit gán `ref` callback hoặc `data-platform` attribute
+- Khi `activeTooltip` thay đổi, dùng `getBoundingClientRect()` của icon element (đã bao gồm mọi transform) để đặt tooltip ở vị trí chính xác phía trên
+- Tooltip được render ở level cao nhất (ngoài orbit container), với `position: fixed` hoặc `position: absolute` relative to inset-0 wrapper
+- Dùng `useEffect` + `requestAnimationFrame` loop để cập nhật vị trí tooltip liên tục khi orbit xoay (đảm bảo tooltip bám theo icon nhưng không xoay)
+
+### Thiết kế tooltip giữ nguyên
+- Phần trên: tên nền tảng (chữ trắng trên nền màu thương hiệu, bo tròn)
+- Phần dưới: link (chữ xanh trên nền trắng, bo tròn)
+- Khoảng cách nhỏ giữa hai phần
+- Không xoay, luôn nằm ngang
+
+### File thay đổi
 
 | File | Thay đổi |
 |---|---|
-| `src/hooks/useBannedUserIds.ts` | **Tạo mới** - Hook cache danh sách banned user IDs, query `profiles` where `banned = true`, chỉ lấy `id`, cache 5 phút |
-| `src/pages/Index.tsx` | Import hook, lọc `videos.filter(v => !bannedIds.has(v.user_id))` sau khi fetch |
-| `src/pages/Search.tsx` | Lọc kết quả search video, loại bỏ video từ banned users |
-| `src/pages/Shorts.tsx` | Lọc shorts, loại bỏ video từ banned users |
-| `src/pages/Subscriptions.tsx` | Lọc video subscriptions, loại bỏ video từ banned users |
-| `src/pages/LikedVideos.tsx` | Lọc liked videos, loại bỏ video từ banned users |
-| `src/pages/Meditate.tsx` | Lọc meditation videos, loại bỏ video từ banned users |
-| `src/hooks/useSearchSuggestions.ts` | Lọc gợi ý tìm kiếm, loại bỏ video từ banned users |
-| `src/contexts/VideoPlaybackContext.tsx` | Lọc video đề xuất, loại bỏ video từ banned users |
+| `src/components/Profile/SocialMediaOrbit.tsx` | Thay Radix Tooltip bằng custom tooltip render ngoài orbit, dùng RAF + getBoundingClientRect để tracking vị trí |
 
-### Chi tiết kỹ thuật
-
-**Hook `useBannedUserIds`**:
-- Sử dụng `useQuery` với `queryKey: ["banned-user-ids"]`
-- Query: `supabase.from("profiles").select("id").eq("banned", true)`
-- Return: `Set<string>` chứa các user_id bị banned
-- `staleTime: 5 * 60 * 1000` (cache 5 phút)
-- Có thể dùng trực tiếp trong component hoặc truyền vào async function
-
-**Đối với các trang dùng `useQuery`** (Shorts): lọc trong queryFn trước khi return.
-
-**Đối với các trang dùng state** (Index, Search, LikedVideos, Meditate, Subscriptions): fetch banned IDs rồi filter trước khi setState.
-
-**Đối với VideoPlaybackContext**: fetch banned IDs và filter candidates trước khi build danh sách đề xuất.
-
-**Đối với useSearchSuggestions**: fetch banned IDs và filter video suggestions trước khi hiển thị.
-
-### Lưu ý
-- `ProfileVideosTab.tsx` (kênh cá nhân) sẽ KHÔNG bị lọc - đây là nơi duy nhất vẫn hiển thị nội dung của user bị suspend
-- Admin tabs cũng KHÔNG bị ảnh hưởng
