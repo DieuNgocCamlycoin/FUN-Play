@@ -1,39 +1,26 @@
 
 
-## Sửa lỗi không hiển thị playlist sau khi tạo
+## Thay viên kim cương SVG bằng hình ảnh thật
 
-### Nguyên nhân gốc
+### Thay đổi
 
-Trong `ProfilePlaylistsTab.tsx`, query Supabase sử dụng cú pháp không hợp lệ:
+**File 1: `public/images/diamond-badge.png`**
+- Copy hình `user-uploads://Viên_kim_cương_xanh_hoàn_hảo.png` vào đây
 
-```
-playlist_videos(count, videos(thumbnail_url))
-```
-
-Supabase không cho phép kết hợp `count` (aggregate) với `videos(thumbnail_url)` (join) trong cùng một relation. Query này lỗi thầm lặng, rơi vào `catch` block và không cập nhật state `playlists` --> luôn hiển thị "Chưa có Playlist".
-
-### Giải pháp
-
-Sửa file `src/components/Profile/ProfilePlaylistsTab.tsx`:
-
-**1. Tách query thành 2 phần** (dòng 36-66):
-- Query chính: lấy `id, name, description, is_public` từ `playlists`
-- Lấy video count và thumbnail riêng, hoặc dùng 2 subselect riêng biệt
-
-Cụ thể, đổi select thành:
-```
-id, name, description, is_public, playlist_videos(video_id, videos(thumbnail_url))
-```
-Sau đó tính `video_count` bằng `p.playlist_videos?.length || 0` thay vì dùng `count`.
-
-**2. Cập nhật processing** (dòng 59-66):
-```typescript
-video_count: p.playlist_videos?.length || 0,
-thumbnail_url: p.playlist_videos?.[0]?.videos?.thumbnail_url,
-```
+**File 2: `src/components/Profile/DiamondBadge.tsx`**
+- Thay toàn bộ SVG (dòng 43-87) bằng thẻ `<img src="/images/diamond-badge.png">`
+- Kích thước: `w-[42px] h-[42px]` mobile, `md:w-12 md:h-12` desktop (giữ nguyên kích thước hiện tại)
+- Giữ nguyên logic glow theo lightScore (filter drop-shadow vẫn hoạt động trên img)
+- Thêm CSS filter theo cấp độ:
+  - **Banned** (gray): `filter: grayscale(1) opacity(0.5)` -- viên kim cương xám mờ
+  - **High risk** (black): `filter: brightness(0.3)` -- viên kim cương tối đen
+  - **Các cấp khác**: giữ nguyên hình gốc + glow effect tương ứng (hình đã là kim cương xanh đẹp, phù hợp mọi cấp)
+- Bỏ sparkle overlay (div diamond-sparkle-ray) vì hình ảnh thật đã có hiệu ứng sẵn
 
 ### Tóm tắt
 
 | File | Thay đổi |
 |---|---|
-| `src/components/Profile/ProfilePlaylistsTab.tsx` | Sửa query select: bỏ `count`, dùng `video_id` + đếm bằng `.length` |
+| `public/images/diamond-badge.png` | Copy hình kim cương mới |
+| `src/components/Profile/DiamondBadge.tsx` | Thay SVG bằng img, giữ glow + thêm filter cho banned/high-risk |
+
