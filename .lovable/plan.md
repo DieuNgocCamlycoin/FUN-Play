@@ -1,43 +1,25 @@
 
 
-## Cập nhật Tooltip MXH trên Orbit
+## Sửa 2 lỗi Tooltip trên Orbit
 
-### 4 thay đổi cần thực hiện
+### Lỗi 1: Tooltip cũ không ẩn khi rê sang icon khác (chồng chéo + chớp tắt)
 
-**1. Tooltip không xoay theo orbit (luôn nằm ngang)**
+Hiện tại mỗi `<Tooltip>` là uncontrolled (không có state quản lý). Khi hover sang icon khác, tooltip cũ không tự đóng.
 
-Tooltip hiện tại nằm trong container đang xoay nên bị xoay theo. Sẽ thêm class `animate-[orbit-counter-spin_25s_linear_infinite]` vào `TooltipContent` (không cần translate vì tooltip tự định vị) hoặc dùng CSS riêng để counter-rotate tooltip.
+**Giải pháp**: Thêm state `activeTooltip` (lưu key của platform đang hover). Mỗi `<Tooltip>` sẽ controlled bằng `open={activeTooltip === platform.key}` và `onOpenChange` sẽ set/clear state này. Chỉ 1 tooltip hiển thị tại 1 thời điểm.
 
-Cụ thể: Thêm 1 keyframe mới `orbit-tooltip-counter-spin` trong `src/index.css` chỉ xoay ngược (không translate), và áp dụng cho TooltipContent.
+### Lỗi 2: Tooltip xoay tròn quanh trục chính mình
 
-**2. Tách khoảng cách giữa nền tên MXH và nền link**
+Nguyên nhân: Class `animate-[orbit-tooltip-counter-spin_25s_linear_infinite]` đang áp dụng cho `TooltipContent`. Radix tooltip render qua **portal** (nằm ngoài DOM của orbit), nên nó không bị xoay theo orbit. Việc thêm counter-spin lại khiến nó tự xoay vòng.
 
-Thay vì bọc cả 2 trong 1 div `overflow-hidden rounded-md`, sẽ tách thành 2 div riêng biệt, mỗi div tự bo tròn (`rounded-md`), cách nhau bằng `gap-1` trong flex container.
-
-**3. Chiều ngang nền tên MXH vừa với text**
-
-Bỏ `min-w-[120px]`, dùng `w-fit` và `whitespace-nowrap` để nền chỉ rộng vừa đủ tên MXH. Cả 2 phần (tên + link) sẽ nằm trong `flex flex-col items-center gap-1` để căn giữa nhưng mỗi phần có chiều rộng riêng.
-
-**4. Đổi màu Fun Profile sang xanh green**
-
-Đổi `color` của `funplay` từ `#00E7FF` (cyan) sang `#22C55E` (green-500).
-
----
+**Giải pháp**: Xóa class `animate-[orbit-tooltip-counter-spin_25s_linear_infinite]` khỏi `TooltipContent`. Tooltip sẽ tự động nằm ngang vì nó render ngoài container xoay.
 
 ### Chi tiết kỹ thuật
 
-| File | Thay đổi |
-|---|---|
-| `src/index.css` | Thêm `@keyframes orbit-tooltip-counter-spin` (chỉ rotate, không translate) |
-| `src/components/Profile/SocialMediaOrbit.tsx` dòng 66 | Đổi `color: "#00E7FF"` thành `color: "#22C55E"` cho funplay |
-| `src/components/Profile/SocialMediaOrbit.tsx` dòng 275-288 | Tooltip: tách 2 phần ra bằng gap, bỏ min-w, thêm counter-spin animation |
+| File | Dòng | Thay đổi |
+|---|---|---|
+| `SocialMediaOrbit.tsx` | ~230 | Thêm `const [activeTooltip, setActiveTooltip] = useState<string \| null>(null)` |
+| `SocialMediaOrbit.tsx` | 253 | `<Tooltip>` -> `<Tooltip open={activeTooltip === platform.key} onOpenChange={(open) => setActiveTooltip(open ? platform.key : null)}>` |
+| `SocialMediaOrbit.tsx` | 255-273 | Thêm `onMouseEnter={() => setActiveTooltip(platform.key)}` và `onMouseLeave={() => setActiveTooltip(null)}` cho thẻ `<a>` |
+| `SocialMediaOrbit.tsx` | 275 | Xóa `animate-[orbit-tooltip-counter-spin_25s_linear_infinite]` khỏi className của `TooltipContent` |
 
-### Kết quả mong đợi
-
-```text
-        Fun Profile          (chữ trắng, nền xanh green, bo tròn, vừa text)
-            ↕ gap nhỏ
-   fun.rich/angelkhanhi       (chữ xanh blue, nền trắng, bo tròn)
-```
-
-Tooltip luôn nằm ngang bất kể vị trí trên orbit.
