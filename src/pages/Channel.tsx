@@ -382,6 +382,8 @@ export default function Channel() {
           suspiciousScore={profile.suspicious_score ?? 0}
           banned={profile.banned ?? false}
           violationLevel={profile.violation_level ?? 0}
+          isOwnProfile={isOwnProfile}
+          onProfileUpdate={fetchChannelAndProfile}
         />
 
         {/* Suspended Banner */}

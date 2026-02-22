@@ -29,9 +29,11 @@ interface ProfileHeaderProps {
   suspiciousScore?: number;
   banned?: boolean;
   violationLevel?: number;
+  isOwnProfile?: boolean;
+  onProfileUpdate?: () => void;
 }
 
-export const ProfileHeader = ({ profile, channel, lightScore = 0, suspiciousScore = 0, banned, violationLevel }: ProfileHeaderProps) => {
+export const ProfileHeader = ({ profile, channel, lightScore = 0, suspiciousScore = 0, banned, violationLevel, isOwnProfile, onProfileUpdate }: ProfileHeaderProps) => {
   const displayName = profile.display_name || profile.username || "User";
 
   return (
@@ -100,6 +102,9 @@ export const ProfileHeader = ({ profile, channel, lightScore = 0, suspiciousScor
                 linkedinUrl={profile.linkedin_url}
                 zaloUrl={profile.zalo_url}
                 socialAvatars={profile.social_avatars}
+                isOwnProfile={isOwnProfile}
+                userId={profile.id}
+                onProfileUpdate={onProfileUpdate}
               />
             )}
           </div>
