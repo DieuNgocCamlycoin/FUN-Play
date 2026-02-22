@@ -36,16 +36,16 @@ export const DiamondBadge = ({ lightScore, suspiciousScore, banned, violationLev
 
   return (
     <div
-      className="absolute z-30 left-1/2 -translate-x-1/2 -top-5 md:-top-6"
+      className="absolute z-30 left-1/2 -translate-x-1/2 -top-8 md:-top-10"
       style={{ filter: glow }}
     >
       <div className="relative diamond-sparkle-container">
         <svg
-          width="28"
-          height="28"
+          width="42"
+          height="42"
           viewBox="0 0 32 32"
           fill="none"
-          className="md:w-8 md:h-8"
+          className="md:w-12 md:h-12"
         >
           {/* Diamond shape */}
           <path
