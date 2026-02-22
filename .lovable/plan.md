@@ -1,29 +1,24 @@
 
 
-## Cố định nút "+" tại vị trí 10h trên orbit
+## Bỏ gạch ngang và grayscale trên trang /suspended
 
 ### Vấn đề hiện tại
-Nút "+" đang nằm trong container orbit có animation `orbit-spin`, khiến nó xoay theo quỹ đạo cùng các icon mạng xã hội khác.
+Trên trang Danh sách đình chỉ (`/suspended`), tên người dùng bị gạch ngang (`line-through`) và avatar bị làm mờ trắng đen (`opacity-40 grayscale`). Theo yêu cầu, cần hiển thị bình thường như ảnh tham chiếu.
 
-### Giải pháp
+### Thay đổi
 
-**File: `src/components/Profile/SocialMediaOrbit.tsx`**
+**File: `src/pages/SuspendedUsers.tsx`**
 
-Di chuyển nút "+" (cùng Popover) ra ngoài div `.orbit-container` (div có animation xoay), đặt nó là phần tử anh em (sibling) với vị trí cố định tại 10 o'clock.
+1. **Dòng 170**: Bỏ `opacity-40 grayscale` khỏi class Avatar
+   - Trước: `<Avatar className="h-9 w-9 opacity-40 grayscale shrink-0">`
+   - Sau: `<Avatar className="h-9 w-9 shrink-0">`
 
-Cụ thể:
-1. Wrap toàn bộ return trong một `<>` fragment
-2. Giữ nguyên div orbit chứa các icon mạng xã hội (có animation xoay)
-3. Đặt nút "+" ra ngoài div orbit, sử dụng `position: absolute` với tọa độ cố định tại vị trí 10h:
-   - `left: calc(50% - 50.2%)`
-   - `top: calc(50% - 29%)`
-   - Bỏ class `orbit-item` và `animate-[orbit-counter-spin_...]` vì nút không còn xoay
-4. Bọc fragment trong một div `relative` để cả orbit và nút "+" cùng tham chiếu
+2. **Dòng 179**: Bỏ `line-through decoration-destructive/50` khỏi tên orphan
+   - Trước: `className="font-medium text-sm text-foreground line-through decoration-destructive/50 truncate"`
+   - Sau: `className="font-medium text-sm text-foreground truncate"`
 
-### Chi tiết kỹ thuật
+3. **Dòng 184**: Bỏ `line-through decoration-destructive/50` khỏi tên user
+   - Trước: `className="font-medium text-sm text-foreground line-through decoration-destructive/50 truncate group-hover:underline group-hover:text-primary transition-colors"`
+   - Sau: `className="font-medium text-sm text-foreground truncate group-hover:underline group-hover:text-primary transition-colors"`
 
-- Góc 10h tương ứng 210 deg trong hệ tọa độ code hiện tại
-- `cos(210deg) * 58 = -50.2`, `sin(210deg) * 58 = -29` (hướng trên-trái)
-- Nút "+" sẽ đứng yên trong khi các icon khác vẫn xoay bình thường
-- Popover và toàn bộ logic thêm link giữ nguyên, không thay đổi
-
+Chỉ thay đổi hiển thị, không ảnh hưởng logic hay dữ liệu.
