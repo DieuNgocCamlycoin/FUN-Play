@@ -34,6 +34,7 @@ interface UseWalletConnectionReturn {
   isLoading: boolean;
   isInitialized: boolean;
   bnbBalance: string;
+  lastConnectedWallet: string;
   // Wallet change dialog
   showWalletChangeDialog: boolean;
   walletChangeDetails: WalletChangeDetails | null;
@@ -67,6 +68,9 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
   const previousWalletTypeRef = useRef<WalletType>('unknown');
   const hasFetchedDbWalletRef = useRef(false);
   
+  // Track if Web3 was ever connected in this session (to avoid clearing manually-entered wallets)
+  const wasWeb3ConnectedRef = useRef(false);
+
   // Stable refs to prevent effect re-runs
   const { user } = useAuth();
   const { toast } = useToast();
@@ -462,6 +466,8 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
             
             await saveWalletToDb(account.address, type);
             await fetchBalance(account.address);
+            wasWeb3ConnectedRef.current = true;
+            localStorage.setItem('last_connected_wallet', account.address);
             
             if (account.chainId !== BSC_CHAIN_ID) {
               switchToBSCRef.current();
@@ -506,20 +512,25 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
             setWalletType(type);
             
             await saveWalletToDb(account.address, type);
-            await fetchBalance(account.address);
-            
-            if (account.chainId !== BSC_CHAIN_ID) {
-              switchToBSCRef.current();
-            }
-          }
-        } else {
-          setAddress('');
-          setIsConnected(false);
-          setWalletType('unknown');
-          setChainId(undefined);
-          setBnbBalance('0');
-          await clearWalletFromDb();
-        }
+             await fetchBalance(account.address);
+             wasWeb3ConnectedRef.current = true;
+             localStorage.setItem('last_connected_wallet', account.address);
+             
+             if (account.chainId !== BSC_CHAIN_ID) {
+               switchToBSCRef.current();
+             }
+           }
+         } else {
+           setAddress('');
+           setIsConnected(false);
+           setWalletType('unknown');
+           setChainId(undefined);
+           setBnbBalance('0');
+           if (wasWeb3ConnectedRef.current) {
+             await clearWalletFromDb();
+             wasWeb3ConnectedRef.current = false;
+           }
+         }
       },
     });
 
@@ -535,6 +546,7 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
     isLoading,
     isInitialized,
     bnbBalance,
+    lastConnectedWallet: localStorage.getItem('last_connected_wallet') || '',
     showWalletChangeDialog,
     walletChangeDetails,
     isProcessingWalletChange,
