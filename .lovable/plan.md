@@ -1,46 +1,35 @@
 
 
-## Sửa lỗi avatar orbit không hiển thị trên trang cá nhân người khác
+## 3 thay đổi cần thực hiện
 
-### Nguyên nhân gốc
+### 1. Tăng kích thước viên kim cương gấp đôi
 
-Trường `social_avatars` trong bảng `profiles` chưa có dữ liệu cho các user đã có link mạng xã hội từ trước. Edge function `fetch-social-avatar` chỉ được gọi khi thêm link mới qua nút "+", nên user cũ không có avatar được fetch.
+**File: `src/components/Profile/DiamondBadge.tsx`**
 
-### Giải pháp
+- Kích thước hiện tại: `w-[42px] h-[42px] md:w-12 md:h-12` (42px / 48px)
+- Kích thước mới: `w-[84px] h-[84px] md:w-24 md:h-24` (84px / 96px)
+- Điều chỉnh vị trí top cho phù hợp: `-top-14 md:-top-16` (thay vì `-top-8 md:-top-10`)
 
-**1. Tạo edge function mới: `supabase/functions/batch-fetch-social-avatars/index.ts`**
+### 2. Hình mặc định cho Facebook
 
-Edge function chạy 1 lần (hoặc theo lịch) để quét tất cả profiles có social URLs nhưng chưa có `social_avatars`, rồi gọi `fetch-social-avatar` cho từng user.
-
-**2. Cập nhật `src/components/Profile/SocialMediaOrbit.tsx`**
-
-Thêm logic auto-trigger: khi component render và phát hiện user có social URLs nhưng `socialAvatars` trống/thiếu, tự động gọi `fetch-social-avatar` edge function (chỉ 1 lần, throttled) để fetch avatar. Điều này đảm bảo khi bất kỳ ai xem một profile, avatar sẽ được fetch nếu chưa có.
-
-Logic cụ thể:
-- So sánh `activePlatforms` với keys có trong `socialAvatars`
-- Nếu có platform active mà chưa có avatar -> gọi edge function
-- Dùng `useEffect` với dependency là `userId` để chỉ chạy 1 lần per profile view
-- Sau khi fetch xong, gọi `onProfileUpdate` để refresh
-
-**3. Về nút "+"**
-
-Nút "+" chỉ hiển thị trên trang cá nhân của chính mình (isOwnProfile = true). Đây là hành vi đúng vì bạn không thể chỉnh sửa profile người khác. Không cần thay đổi logic này.
-
-### Tóm tắt file cần sửa/tạo
-
-| File | Thay đổi |
-|---|---|
-| `supabase/functions/batch-fetch-social-avatars/index.ts` | Tạo mới - batch fetch avatars cho tất cả users |
-| `src/components/Profile/SocialMediaOrbit.tsx` | Thêm auto-trigger fetch avatar khi thiếu |
-
-### Luồng hoạt động sau cập nhật
-
-```text
-User A xem profile User B
---> SocialMediaOrbit render
---> Phát hiện User B có facebook_url nhưng social_avatars.facebook = null
---> Tự động gọi fetch-social-avatar cho User B
---> Avatar được lưu vào DB
---> Component refresh, hiển thị avatar đúng
---> Lần sau xem lại, avatar đã có sẵn
+Upload hình Facebook icon vào `public/images/facebook-default.png` và thêm vào `defaultAvatarMap` trong `SocialMediaOrbit.tsx`:
 ```
+facebook: '/images/facebook-default.png'
+```
+
+### 3. Hình mặc định cho X / Twitter
+
+Upload hình X icon vào `public/images/twitter-default.png` và thêm vào `defaultAvatarMap`:
+```
+twitter: '/images/twitter-default.png'
+```
+
+### Chi tiết kỹ thuật
+
+**Files cần sửa:**
+- `src/components/Profile/DiamondBadge.tsx` -- thay đổi kích thước và vị trí
+- `src/components/Profile/SocialMediaOrbit.tsx` -- thêm 2 entry vào `defaultAvatarMap` (dòng 244-247)
+
+**Files cần tạo (copy từ upload):**
+- `public/images/facebook-default.png`
+- `public/images/twitter-default.png`
