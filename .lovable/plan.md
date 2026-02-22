@@ -1,64 +1,60 @@
 
 
-## Triển khai tính năng upload avatar thủ công cho mạng xã hội
+## Triển khai 2 tính năng: Auto-fetch TikTok avatar + Nút "+" thêm mạng xã hội trên trang cá nhân
 
-### Tổng quan
-Thêm nút upload avatar (icon Camera) bên cạnh mỗi link mạng xã hội đã thêm trong trang Settings. Người dùng có thể paste URL ảnh hoặc upload file ảnh. Avatar thủ công sẽ được ưu tiên và không bị edge function ghi đè.
+### 1. Auto-fetch avatar TikTok
 
-### Thay đổi chi tiết
+**File: `supabase/functions/fetch-social-avatar/index.ts`**
 
-**File 1: `src/pages/ProfileSettings.tsx`**
+Thêm hàm `fetchTiktokAvatar` riêng biệt với các chiến lược:
+- **Strategy 1**: TikTok oembed endpoint (`https://www.tiktok.com/oembed?url=URL`) - trả về JSON có `thumbnail_url`
+- **Strategy 2**: unavatar.io (giữ lại làm fallback)
+- **Strategy 3**: Scrape trang TikTok lấy `og:image` với User-Agent phù hợp
 
-1. Thêm state mới:
-   - `socialAvatars`: `Record<string, string | null>` - load từ database khi fetch profile
-   - `avatarUploadPlatform`: `string | null` - platform đang mở dialog upload avatar
-   - `tempAvatarUrl`: `string` - URL ảnh tạm khi paste
-   - `isUploadingSocialAvatar`: `boolean` - trạng thái đang upload
+Thêm case `"tiktok"` vào switch `fetchAvatarForPlatform` thay vì dùng `fetchGenericAvatar`.
 
-2. Khi fetch profile (trong `useEffect`), đọc thêm field `social_avatars` từ database và set vào state `socialAvatars`
+---
 
-3. Trong phần hiển thị social link cards (dòng 730-756), thêm:
-   - Thumbnail avatar nhỏ (nếu có) bên trái icon platform
-   - Nút Camera icon bên cạnh nút X (xóa link)
-   - Khi nhấn Camera: mở Dialog cho phép:
-     - Paste URL ảnh đại diện
-     - Hoặc upload file ảnh (dùng `useR2Upload` với folder `social-avatars`)
-   - Preview ảnh trong dialog trước khi confirm
+### 2. Nút "+" thêm mạng xã hội trên orbit (màu xanh blue)
 
-4. Khi save profile (`handleSave`):
-   - Lưu `socialAvatars` vào `profiles.social_avatars` cùng lúc với update profile
-   - Truyền thêm `manualAvatars` (danh sách platform đã set thủ công) cho edge function
-   - Edge function sẽ bỏ qua các platform đã có avatar thủ công
+**File: `src/components/Profile/ProfileHeader.tsx`**
+- Thêm prop `isOwnProfile` và `onProfileUpdate` (callback refetch)
+- Truyền xuống `SocialMediaOrbit`
 
-5. Import thêm: `Camera` hoặc `ImagePlus` từ lucide-react, `Dialog` components
+**File: `src/pages/Channel.tsx`**
+- Truyền `isOwnProfile` và `fetchChannelAndProfile` vào `ProfileHeader`
 
-**File 2: `supabase/functions/fetch-social-avatar/index.ts`**
-
-Sửa phần handler chính (dòng 290-345):
-- Nhận thêm field `manualAvatars` (mảng các platform key đã set thủ công) từ request body
-- Đọc `social_avatars` hiện tại từ database trước khi xử lý
-- Chỉ fetch avatar tự động cho các platform KHÔNG nằm trong `manualAvatars`
-- Khi lưu kết quả, merge với avatar hiện tại thay vì ghi đè hoàn toàn
-
-**File 3: `src/components/Profile/SocialMediaOrbit.tsx`**
-
-Không cần thay đổi - đã có logic fallback hiển thị avatar hoặc icon platform.
+**File: `src/components/Profile/SocialMediaOrbit.tsx`**
+- Nhận thêm props: `isOwnProfile`, `userId`, `onProfileUpdate`
+- Khi `isOwnProfile === true`: hiển thị nút "+" tròn trên orbit
+  - Màu: **xanh blue** gradient `from-cyan-400 to-blue-500` (tương ứng viên kim cương `cosmic-cyan`)
+  - Glow effect xanh blue
+- Khi nhấn "+": mở Popover hiển thị:
+  - Danh sách các nền tảng chưa thêm (dạng chip với icon)
+  - Khi chọn 1 nền tảng: hiện input nhập URL + nút xác nhận
+  - Validation URL theo pattern của từng nền tảng (giống `ProfileSettings.tsx`)
+- Khi xác nhận:
+  - Gọi Supabase update field tương ứng (ví dụ `facebook_url`) vào bảng `profiles`
+  - Gọi edge function `fetch-social-avatar` cho platform vừa thêm
+  - Trigger `onProfileUpdate` để refetch profile, orbit cập nhật ngay
 
 ### Luồng hoạt động
 
 ```text
-User thêm link Facebook --> Nhấn icon Camera --> Dialog mở
---> Paste URL ảnh hoặc Upload file --> Preview --> Confirm
---> Avatar hiển thị trong card --> Save profile
---> social_avatars.facebook = URL ảnh thủ công
---> Edge function chạy background, bỏ qua Facebook (đã có avatar thủ công)
---> Orbit hiển thị avatar Facebook từ social_avatars
+User xem trang cá nhân --> Thấy nút "+" xanh blue trên orbit
+--> Nhấn "+" --> Popover hiện các nền tảng chưa thêm
+--> Chọn "Facebook" --> Hiện input URL
+--> Nhập link --> Validate --> Nhấn xác nhận
+--> Lưu facebook_url vào profiles --> Orbit cập nhật ngay
+--> Edge function chạy background fetch avatar
 ```
 
 ### Tóm tắt file cần sửa
 
 | File | Thay đổi |
 |---|---|
-| `src/pages/ProfileSettings.tsx` | Thêm dialog upload avatar, state, logic lưu |
-| `supabase/functions/fetch-social-avatar/index.ts` | Không ghi đè avatar thủ công |
+| `supabase/functions/fetch-social-avatar/index.ts` | Thêm `fetchTiktokAvatar`, thêm case tiktok vào switch |
+| `src/components/Profile/SocialMediaOrbit.tsx` | Thêm nút "+" xanh blue, popover chọn nền tảng, input URL, logic lưu |
+| `src/components/Profile/ProfileHeader.tsx` | Thêm prop `isOwnProfile`, `onProfileUpdate`, truyền xuống orbit |
+| `src/pages/Channel.tsx` | Truyền `isOwnProfile`, `fetchChannelAndProfile` vào `ProfileHeader` |
 
