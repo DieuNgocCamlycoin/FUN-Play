@@ -114,8 +114,8 @@ const SuspendedUsers = () => {
             <p>Không tìm thấy kết quả nào.</p>
           </div>
         ) : (
-          <Table wrapperClassName="border border-border rounded-lg">
-            <TableHeader className="bg-background">
+          <Table wrapperClassName="overflow-visible border border-border rounded-lg">
+            <TableHeader className="bg-background sticky top-[200px] z-[9]">
               <TableRow className="hover:bg-transparent">
                 <TableHead className="w-12 hidden md:table-cell">#</TableHead>
                 <TableHead>Người dùng</TableHead>
@@ -123,6 +123,7 @@ const SuspendedUsers = () => {
                 <TableHead className="hidden sm:table-cell">Lý do</TableHead>
                 <TableHead className="hidden sm:table-cell">Mức độ</TableHead>
                 <TableHead className="hidden md:table-cell">Tổng thưởng</TableHead>
+                <TableHead className="hidden md:table-cell">Tổng claimed</TableHead>
                 <TableHead className="hidden md:table-cell">Ngày đình chỉ</TableHead>
               </TableRow>
             </TableHeader>
@@ -282,6 +283,13 @@ function SuspendedRow({ entry, index }: { entry: SuspendedEntry; index: number }
       <TableCell className="hidden md:table-cell text-xs text-muted-foreground">
         {entry.total_camly_rewards > 0
           ? `${entry.total_camly_rewards.toLocaleString()} CAMLY`
+          : "—"}
+      </TableCell>
+
+      {/* Total claimed */}
+      <TableCell className="hidden md:table-cell text-xs text-muted-foreground">
+        {entry.total_claimed > 0
+          ? `${entry.total_claimed.toLocaleString()} CAMLY`
           : "—"}
       </TableCell>
 

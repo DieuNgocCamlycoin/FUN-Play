@@ -37,6 +37,7 @@ export interface SuspendedEntry {
   banned_at: string | null;
   violation_level: number | null;
   total_camly_rewards: number;
+  total_claimed: number;
   wallets: BlacklistedWallet[];
   historical_wallets: HistoricalWallet[];
 }
@@ -75,10 +76,27 @@ export function usePublicSuspendedList() {
     refetchInterval: 2 * 60 * 1000,
   });
 
+  const claimedQuery = useQuery({
+    queryKey: ["public-suspended-claimed-totals"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("claim_requests")
+        .select("user_id, amount")
+        .eq("status", "success");
+      if (error) throw error;
+      const totals = new Map<string, number>();
+      for (const row of data || []) {
+        totals.set(row.user_id, (totals.get(row.user_id) || 0) + Number(row.amount));
+      }
+      return totals;
+    },
+    refetchInterval: 2 * 60 * 1000,
+  });
+
   const bannedUsers = bannedUsersQuery.data || [];
   const blacklistedWallets = blacklistedWalletsQuery.data || [];
   const historicalWallets = historicalWalletsQuery.data || [];
-
+  const claimedTotals = claimedQuery.data || new Map<string, number>();
   const mergedEntries = useMemo<SuspendedEntry[]>(() => {
     const walletsByUser = new Map<string, BlacklistedWallet[]>();
     const orphanWallets: BlacklistedWallet[] = [];
@@ -111,6 +129,7 @@ export function usePublicSuspendedList() {
       banned_at: u.banned_at,
       violation_level: u.violation_level,
       total_camly_rewards: u.total_camly_rewards ?? 0,
+      total_claimed: claimedTotals.get(u.user_id) || 0,
       wallets: walletsByUser.get(u.user_id) || [],
       historical_wallets: histByUser.get(u.user_id) || [],
     }));
@@ -125,19 +144,20 @@ export function usePublicSuspendedList() {
         banned_at: w.created_at,
         violation_level: null,
         total_camly_rewards: 0,
+        total_claimed: 0,
         wallets: [w],
         historical_wallets: [],
       });
     }
 
     return entries;
-  }, [bannedUsers, blacklistedWallets, historicalWallets]);
+  }, [bannedUsers, blacklistedWallets, historicalWallets, claimedTotals]);
 
   return {
     bannedUsers,
     blacklistedWallets,
     mergedEntries,
     totalCount: bannedUsers.length + blacklistedWallets.length,
-    isLoading: bannedUsersQuery.isLoading || blacklistedWalletsQuery.isLoading || historicalWalletsQuery.isLoading,
+    isLoading: bannedUsersQuery.isLoading || blacklistedWalletsQuery.isLoading || historicalWalletsQuery.isLoading || claimedQuery.isLoading,
   };
 }
