@@ -1,23 +1,20 @@
 
 
-## Ghim cố định thanh danh mục (CategoryChips) trên Trang Chủ
+## Sửa lỗi CategoryChips không ghim cố định trên Desktop
 
-### Vấn đề hiện tại
+### Nguyên nhân
 
-Thanh danh mục đã có `sticky` nhưng giá trị `top` trên mobile không đúng. Trên mobile, nội dung cuộn bên trong một div riêng (`overflow-y-auto` ở line 358), nên `top` cần là `0` thay vì `calc(safe-area + 3.5rem)`.
+Ở file `src/pages/Index.tsx` (line 321), div gốc của trang có class `overflow-hidden`. Thuộc tính CSS `sticky` sẽ **không hoạt động** khi bất kỳ phần tử cha nào có `overflow: hidden/auto/scroll`.
 
 ### Giải pháp
 
-**File: `src/components/Layout/CategoryChips.tsx` (line 24)**
+**File: `src/pages/Index.tsx` (line 321)**
 
-Sửa class của div ngoài cùng:
-- Mobile: `top-0` (vì scroll container nằm bên trong div đã trừ header rồi)
-- Desktop: giữ `lg:top-14` (scroll toàn trang, cần trừ header)
+Thay `overflow-hidden` thành `overflow-x-hidden` để chỉ ẩn tràn ngang (vẫn giữ mục đích ban đầu) mà không ảnh hưởng đến `sticky` theo chiều dọc.
 
 ```
-Trước: sticky top-[calc(env(safe-area-inset-top,0px)+3.5rem)] lg:top-14
-Sau:   sticky top-0 lg:top-14
+Trước: min-h-screen bg-background relative overflow-hidden
+Sau:   min-h-screen bg-background relative overflow-x-hidden
 ```
 
-Chỉ thay đổi 1 dòng duy nhất trong 1 file.
-
+Chỉ thay đổi 1 class trong 1 file duy nhất.
