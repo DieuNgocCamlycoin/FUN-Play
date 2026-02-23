@@ -62,7 +62,7 @@ export function validateVideoTitle(title: string): { ok: boolean; reason?: strin
 
 export const MIN_VIDEO_DURATION = 60; // seconds
 export const MIN_DESCRIPTION_LENGTH = 50; // characters
-export const MAX_DESCRIPTION_LENGTH = 500; // characters
+export const MAX_DESCRIPTION_LENGTH = 1000; // characters
 
 export const DESCRIPTION_PLACEHOLDER = "Hãy chia sẻ cảm hứng của bạn về video này (tối thiểu 50 ký tự)...";
 
