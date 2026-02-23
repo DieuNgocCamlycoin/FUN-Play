@@ -87,8 +87,8 @@ export function validateVideoDescription(description: string): { ok: boolean; re
     return { ok: false, reason: "Mô tả phải chứa ít nhất một chữ cái có nghĩa" };
   }
 
-  // Block 3+ consecutive identical characters (spam)
-  if (/(.)\1{2,}/i.test(trimmed)) {
+  // Block 15+ consecutive identical letters (spam), allow punctuation/emoji repeats
+  if (/([a-zA-ZÀ-ỹ])\1{14,}/iu.test(trimmed)) {
     return { ok: false, reason: "Vui lòng không sử dụng ký tự lặp lại liên tiếp trong mô tả" };
   }
 
