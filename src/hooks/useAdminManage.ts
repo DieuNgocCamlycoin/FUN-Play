@@ -411,6 +411,25 @@ export const useAdminManage = () => {
     }
   };
 
+  const deleteUser = async (userId: string) => {
+    if (!user) return false;
+    setActionLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("delete-user-account", {
+        body: { user_id: userId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      await fetchUsers(true);
+      return true;
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      return false;
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   return {
     users,
     loading,
@@ -429,6 +448,7 @@ export const useAdminManage = () => {
     toggleVerified,
     freezeRewards,
     wipeAllRewards,
+    deleteUser,
     refetch: fetchUsers,
   };
 };

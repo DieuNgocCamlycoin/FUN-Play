@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Shield, Ban, AlertTriangle, ShieldCheck, ShieldOff } from "lucide-react";
+import { Shield, Ban, AlertTriangle, ShieldCheck, ShieldOff, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
@@ -9,6 +9,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -50,6 +51,7 @@ export const AdminChannelActions = ({
   // Dialogs
   const [suspendOpen, setSuspendOpen] = useState(false);
   const [warningOpen, setWarningOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [suspendReason, setSuspendReason] = useState("");
   const [warningMessage, setWarningMessage] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
@@ -219,6 +221,14 @@ export const AdminChannelActions = ({
               </>
             )}
           </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            className="text-destructive focus:text-destructive"
+            onClick={() => setDeleteOpen(true)}
+          >
+            <Trash2 className="w-4 h-4 mr-2" />
+            Xóa tài khoản vĩnh viễn
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -279,6 +289,57 @@ export const AdminChannelActions = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Account AlertDialog */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive">🗑️ Xóa vĩnh viễn tài khoản @{targetUsername}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong className="text-destructive">CẢNH BÁO: Hành động này KHÔNG THỂ hoàn tác!</strong>
+              <br /><br />
+              Tất cả dữ liệu của <strong>{displayLabel}</strong> sẽ bị xóa vĩnh viễn bao gồm:
+              videos, comments, rewards, wallet history, playlists, và tài khoản đăng nhập.
+              <br /><br />
+              Email sẽ được giải phóng — người dùng có thể đăng ký lại bằng email đó.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={actionLoading}>Hủy</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (!user) return;
+                setActionLoading(true);
+                try {
+                  const { data, error } = await supabase.functions.invoke("delete-user-account", {
+                    body: { user_id: targetUserId },
+                  });
+                  if (error) throw error;
+                  if (data?.error) throw new Error(data.error);
+                  toast({
+                    title: "Đã xóa tài khoản",
+                    description: `Tài khoản @${targetUsername} đã bị xóa vĩnh viễn.`,
+                  });
+                  setDeleteOpen(false);
+                  window.location.href = "/";
+                } catch (err: any) {
+                  toast({
+                    title: "Lỗi",
+                    description: err.message || "Không thể xóa tài khoản",
+                    variant: "destructive",
+                  });
+                } finally {
+                  setActionLoading(false);
+                }
+              }}
+              disabled={actionLoading}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {actionLoading ? "Đang xóa..." : "Xác nhận xóa vĩnh viễn"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };
