@@ -3,7 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { useAdminManage } from "@/hooks/useAdminManage";
 import { useAuth } from "@/hooks/useAuth";
-import { Users, UserCheck, Ban, Trash2, RefreshCw } from "lucide-react";
+import { Users, UserCheck, Ban, Trash2, RefreshCw, ShieldCheck } from "lucide-react";
 import { checkAdminRateLimit } from "@/lib/adminRateLimit";
 
 import AllUsersTab from "./AllUsersTab";
@@ -58,6 +58,9 @@ export function UsersManagementTab() {
           <TabsTrigger value="quick-delete" className="gap-1 text-xs">
             <Trash2 className="w-3 h-3" /> Xóa Nhanh
           </TabsTrigger>
+          <TabsTrigger value="verified" className="gap-1 text-xs">
+            <ShieldCheck className="w-3 h-3" /> Đã Xác Minh ({users.filter(u => u.avatar_verified).length})
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="all">
@@ -98,6 +101,18 @@ export function UsersManagementTab() {
             onBan={banUser}
             getSuspicionScore={getSuspicionScore}
             loading={actionLoading}
+          />
+        </TabsContent>
+
+        <TabsContent value="verified">
+          <AllUsersTab
+            users={users.filter(u => u.avatar_verified)}
+            onBan={banUser}
+            onUnban={unbanUser}
+            onToggleVerified={toggleVerified}
+            onFreezeRewards={freezeRewards}
+            onWipeRewards={wipeAllRewards}
+            actionLoading={actionLoading}
           />
         </TabsContent>
       </Tabs>

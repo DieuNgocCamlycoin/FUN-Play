@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Shield, Ban, AlertTriangle } from "lucide-react";
+import { Shield, Ban, AlertTriangle, ShieldCheck, ShieldOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
@@ -45,6 +45,7 @@ export const AdminChannelActions = ({
   const { toast } = useToast();
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [channelVerified, setChannelVerified] = useState(false);
 
   // Dialogs
   const [suspendOpen, setSuspendOpen] = useState(false);
@@ -76,6 +77,20 @@ export const AdminChannelActions = ({
     };
     checkAdmin();
   }, [user, targetUserId]);
+
+  // Fetch channel verified status
+  useEffect(() => {
+    if (!isAdmin) return;
+    const fetchVerified = async () => {
+      const { data } = await supabase
+        .from("channels")
+        .select("is_verified")
+        .eq("user_id", targetUserId)
+        .maybeSingle();
+      setChannelVerified(data?.is_verified === true);
+    };
+    fetchVerified();
+  }, [isAdmin, targetUserId]);
 
   if (loading || !isAdmin) return null;
 
@@ -139,6 +154,31 @@ export const AdminChannelActions = ({
     }
   };
 
+  const handleToggleVerified = async () => {
+    if (!user) return;
+    setActionLoading(true);
+    try {
+      const { error } = await supabase.rpc("toggle_user_avatar_verified" as any, {
+        p_admin_id: user.id,
+        p_user_id: targetUserId,
+      });
+      if (error) throw error;
+      toast({
+        title: channelVerified ? "Đã gỡ tick xanh" : "Đã cấp tick xanh",
+        description: `Tài khoản @${targetUsername} ${channelVerified ? "đã bị gỡ" : "đã được cấp"} tick xanh.`,
+      });
+      setChannelVerified(!channelVerified);
+    } catch (err: any) {
+      toast({
+        title: "Lỗi",
+        description: err.message || "Không thể thay đổi trạng thái xác minh",
+        variant: "destructive",
+      });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   return (
     <>
       <DropdownMenu>
@@ -162,6 +202,22 @@ export const AdminChannelActions = ({
           <DropdownMenuItem onClick={() => setWarningOpen(true)}>
             <AlertTriangle className="w-4 h-4 mr-2" />
             Gửi cảnh báo
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={handleToggleVerified}
+            disabled={actionLoading}
+          >
+            {channelVerified ? (
+              <>
+                <ShieldOff className="w-4 h-4 mr-2" />
+                Gỡ tick xanh
+              </>
+            ) : (
+              <>
+                <ShieldCheck className="w-4 h-4 mr-2 text-blue-500" />
+                Cấp tick xanh
+              </>
+            )}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
