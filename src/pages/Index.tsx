@@ -47,6 +47,7 @@ interface Video {
   profiles: {
     wallet_address: string | null;
     avatar_url: string | null;
+    display_name: string | null;
   };
 }
 
@@ -162,16 +163,17 @@ const Index = () => {
         const userIds = [...new Set(data.map(v => v.user_id))];
         const { data: profilesData } = await supabase
           .from("profiles")
-          .select("id, wallet_address, avatar_url")
+          .select("id, wallet_address, avatar_url, display_name")
           .in("id", userIds);
 
-        const profilesMap = new Map(profilesData?.map(p => [p.id, { wallet_address: p.wallet_address, avatar_url: p.avatar_url }]) || []);
+        const profilesMap = new Map(profilesData?.map(p => [p.id, { wallet_address: p.wallet_address, avatar_url: p.avatar_url, display_name: p.display_name }]) || []);
 
         const videosWithProfiles = data.map(video => ({
           ...video,
           profiles: {
             wallet_address: profilesMap.get(video.user_id)?.wallet_address || null,
             avatar_url: profilesMap.get(video.user_id)?.avatar_url || null,
+            display_name: profilesMap.get(video.user_id)?.display_name || null,
           },
         }));
 
@@ -235,6 +237,7 @@ const Index = () => {
                     profiles: {
                       wallet_address: payload.new.wallet_address,
                       avatar_url: payload.new.avatar_url,
+                      display_name: payload.new.display_name,
                     }
                   }
                 : video
@@ -419,7 +422,7 @@ const Index = () => {
                       channelId={video.channels?.id}
                       thumbnail={video.thumbnail_url || undefined}
                       title={video.title}
-                      channel={video.channels?.name || "Kênh chưa xác định"}
+                      channel={video.channels?.name || video.profiles?.display_name || "Kênh chưa xác định"}
                       avatarUrl={video.profiles?.avatar_url || undefined}
                       duration={video.duration}
                       isVerified={video.channels?.is_verified}
