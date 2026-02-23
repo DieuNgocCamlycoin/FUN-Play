@@ -1,68 +1,47 @@
 
 
-## Thêm Tab "Đã Xác Minh" và nút Cấp/Gỡ tick xanh trên trang Profile
+## Hiển thị Social Orbit mặc định khi user chưa có link mạng xã hội
 
-### 1. Tab "Đã Xác Minh" trong Admin Panel (Quản Lý Users)
+### Vấn đề hiện tại
+Khi user chưa liên kết bất kỳ mạng xã hội nào, component `SocialMediaOrbit` trả về `null` (không hiển thị gì). Theo yêu cầu, cần hiển thị đầy đủ các vòng tròn nhỏ với hình mặc định của từng nền tảng.
 
-**File: `src/components/Admin/tabs/UsersManagementTab.tsx`**
+### Thay đổi
 
-Thêm tab mới "Đã Xác Minh" vào `TabsList`, lọc users có `avatar_verified === true` và truyền vào `AllUsersTab` (tái sử dụng component hiện có):
+**File: `src/components/Profile/SocialMediaOrbit.tsx`**
 
-```typescript
-<TabsTrigger value="verified" className="gap-1 text-xs">
-  <ShieldCheck className="w-3 h-3" /> Đã Xác Minh ({users.filter(u => u.avatar_verified).length})
-</TabsTrigger>
+1. **Hiển thị tất cả 9 nền tảng khi chưa có link nào**
+   - Xóa điều kiện `if (count === 0) return null` (dòng 189-190)
+   - Thay vì chỉ hiển thị `activePlatforms`, khi không có platform nào active thì hiển thị toàn bộ 9 platforms với hình mặc định
 
-<TabsContent value="verified">
-  <AllUsersTab
-    users={users.filter(u => u.avatar_verified)}
-    onBan={banUser}
-    onUnban={unbanUser}
-    onToggleVerified={toggleVerified}
-    onFreezeRewards={freezeRewards}
-    onWipeRewards={wipeAllRewards}
-    actionLoading={actionLoading}
-  />
-</TabsContent>
-```
+2. **Vòng tròn chưa có link: viền nét đứt (dashed border)**
+   - Theo hình tham khảo, các vòng tròn chưa liên kết có viền nét đứt thay vì viền liền
+   - Style: `border: 3px dashed #999` thay vì `border: 3px solid #00E7FF`
 
-Tái sử dụng hoàn toàn `AllUsersTab` (đã có sẵn search, export CSV, dropdown actions) -- không cần tạo component mới.
+3. **Hình đại diện mặc định cho tất cả nền tảng**
+   - Mở rộng `defaultAvatarMap` để bao phủ thêm các nền tảng chưa có ảnh mặc định (YouTube, TikTok, Telegram, X/Twitter)
+   - Nền tảng nào chưa có ảnh mặc định sẽ hiển thị icon SVG tương ứng (giữ nguyên logic fallback hiện tại)
 
-### 2. Nút Cấp/Gỡ tick xanh trên trang Profile (dành cho Admin)
+4. **Tooltip khi hover vào vòng tròn chưa có link**
+   - Hàng 1: Tên mạng xã hội (giữ nguyên style hiện tại)
+   - Hàng 2: "Nhấp vào để thêm link" (thay vì hiển thị URL)
 
-**File: `src/components/Admin/AdminChannelActions.tsx`**
-
-Thêm nút "Cấp tick xanh" / "Gỡ tick xanh" vào dropdown menu hiện tại (cùng chỗ với Suspend và Gửi cảnh báo). Cần:
-
-- Thêm props `isVerified` (boolean) vào `AdminChannelActionsProps`
-- Fetch trạng thái `is_verified` từ bảng `channels` khi component mount
-- Gọi RPC `toggle_user_avatar_verified` khi admin click
-- Hiển thị menu item với icon `ShieldCheck` (cấp) hoặc `ShieldOff` (gỡ)
-
-**File: `src/components/Profile/ProfileInfo.tsx`**
-
-Không cần thay đổi -- `AdminChannelActions` sẽ tự quản lý state nội bộ.
+5. **Click vào vòng tròn chưa có link: mở Popover thêm link**
+   - Thay vì dùng thẻ `<a>` (link ra ngoài), sử dụng `Popover` cho các platform chưa có URL
+   - Popover hiển thị: tên nền tảng, mô tả "Nhập link trang cá nhân của bạn (có thể bỏ qua)", ô nhập URL, nút "Xóa" và "Lưu" (giống hình 3 tham khảo)
+   - Chỉ áp dụng cho chủ profile (`isOwnProfile`); với người xem khác, vòng tròn chưa có link chỉ hiển thị tooltip
 
 ### Chi tiết kỹ thuật
 
-**AdminChannelActions.tsx** -- thêm vào dropdown:
-- State mới: `channelVerified` (boolean), fetch từ `channels` table theo `targetUserId`
-- Handler `handleToggleVerified`: gọi `supabase.rpc("toggle_user_avatar_verified", { p_admin_id, p_user_id })`, sau khi thanh cong reload trang
-- Menu item mới giua "Gửi cảnh báo" va separator:
+- Logic orbit items: `allOrbitItems = activePlatforms.length > 0 ? activePlatforms : platforms` (hiển thị tất cả khi chưa có link nào)
+- Mỗi orbit item kiểm tra `urls[platform.key]` để quyết định:
+  - Có link: render `<a>` với viền solid cyan, tooltip hiển thị URL
+  - Chưa có link + isOwnProfile: render button với `Popover`, viền dashed xám
+  - Chưa có link + không phải owner: render div với viền dashed xám, chỉ có tooltip
+- Popover khi click (hình 3): tái sử dụng logic `handleSave` hiện có, UI gồm header (icon + tên), input URL, 2 nút "Xóa" (reset) và "Lưu" (save)
 
-```typescript
-<DropdownMenuItem onClick={handleToggleVerified} disabled={actionLoading}>
-  {channelVerified 
-    ? <><ShieldOff className="w-4 h-4 mr-2" /> Gỡ tick xanh</>
-    : <><ShieldCheck className="w-4 h-4 mr-2 text-blue-500" /> Cấp tick xanh</>
-  }
-</DropdownMenuItem>
-```
+### Tổng kết
 
-### Tong ket cac file thay doi
-
-| File | Thay doi |
+| File | Thay đổi |
 |------|---------|
-| `src/components/Admin/tabs/UsersManagementTab.tsx` | Them tab "Da Xac Minh" |
-| `src/components/Admin/AdminChannelActions.tsx` | Them nut cap/go tick xanh vao dropdown |
+| `src/components/Profile/SocialMediaOrbit.tsx` | Hiển thị orbit mặc định, viền dashed, tooltip "nhấp để thêm link", popover thêm link trực tiếp |
 
