@@ -3,9 +3,27 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ListMusic, Plus, Play, Lock } from "lucide-react";
+import { ListMusic, Plus, Play, Lock, MoreVertical, Pencil, Trash2 } from "lucide-react";
 import { CreatePlaylistModal } from "@/components/Playlist/CreatePlaylistModal";
+import { EditPlaylistModal } from "@/components/Playlist/EditPlaylistModal";
 import { motion } from "framer-motion";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
 
 interface ProfilePlaylistsTabProps {
   userId: string;
@@ -23,9 +41,12 @@ interface Playlist {
 
 export const ProfilePlaylistsTab = ({ userId, isOwnProfile }: ProfilePlaylistsTabProps) => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [loading, setLoading] = useState(true);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [editingPlaylist, setEditingPlaylist] = useState<Playlist | null>(null);
+  const [deletePlaylistId, setDeletePlaylistId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchPlaylists();
@@ -45,7 +66,6 @@ export const ProfilePlaylistsTab = ({ userId, isOwnProfile }: ProfilePlaylistsTa
         .eq("user_id", userId)
         .order("updated_at", { ascending: false });
 
-      // Only show public playlists for other users
       if (!isOwnProfile) {
         query = query.eq("is_public", true);
       }
@@ -70,6 +90,29 @@ export const ProfilePlaylistsTab = ({ userId, isOwnProfile }: ProfilePlaylistsTa
     }
   };
 
+  const handleDeletePlaylist = async () => {
+    if (!deletePlaylistId) return;
+    try {
+      const { error } = await supabase
+        .from("playlists")
+        .delete()
+        .eq("id", deletePlaylistId);
+      if (error) throw error;
+
+      setPlaylists((prev) => prev.filter((p) => p.id !== deletePlaylistId));
+      toast({ title: "Đã xóa playlist thành công" });
+    } catch (error: any) {
+      console.error("Error deleting playlist:", error);
+      toast({
+        title: "Lỗi",
+        description: error.message || "Không thể xóa playlist",
+        variant: "destructive",
+      });
+    } finally {
+      setDeletePlaylistId(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -86,7 +129,6 @@ export const ProfilePlaylistsTab = ({ userId, isOwnProfile }: ProfilePlaylistsTa
 
   return (
     <div className="space-y-6">
-      {/* Create Playlist Button (own profile) */}
       {isOwnProfile && (
         <Button
           onClick={() => setCreateModalOpen(true)}
@@ -108,7 +150,7 @@ export const ProfilePlaylistsTab = ({ userId, isOwnProfile }: ProfilePlaylistsTa
               transition={{ delay: index * 0.05 }}
             >
               <Card
-                className="overflow-hidden cursor-pointer group hover:border-[hsl(var(--cosmic-cyan))]/50 transition-all duration-300"
+                className="overflow-hidden cursor-pointer group hover:border-[hsl(var(--cosmic-cyan))]/50 transition-all duration-300 relative"
                 onClick={() => navigate(`/playlist/${playlist.id}`)}
               >
                 {/* Thumbnail */}
@@ -145,6 +187,43 @@ export const ProfilePlaylistsTab = ({ userId, isOwnProfile }: ProfilePlaylistsTa
                     <div className="absolute top-2 left-2 px-2 py-1 bg-black/70 rounded text-xs text-white flex items-center gap-1">
                       <Lock className="w-3 h-3" />
                       Riêng tư
+                    </div>
+                  )}
+
+                  {/* 3-dot Menu (owner only, show on hover) */}
+                  {isOwnProfile && (
+                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            className="w-8 h-8 rounded-full bg-black/70 hover:bg-black/90 flex items-center justify-center transition-colors"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <MoreVertical className="w-4 h-4 text-white" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="bg-popover z-50">
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingPlaylist(playlist);
+                            }}
+                          >
+                            <Pencil className="w-4 h-4 mr-2" />
+                            Sửa playlist
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeletePlaylistId(playlist.id);
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Xóa playlist
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   )}
                 </div>
@@ -193,6 +272,42 @@ export const ProfilePlaylistsTab = ({ userId, isOwnProfile }: ProfilePlaylistsTa
         onOpenChange={setCreateModalOpen}
         onCreated={fetchPlaylists}
       />
+
+      {/* Edit Playlist Modal */}
+      {editingPlaylist && (
+        <EditPlaylistModal
+          open={!!editingPlaylist}
+          onOpenChange={(open) => { if (!open) setEditingPlaylist(null); }}
+          playlist={{
+            id: editingPlaylist.id,
+            name: editingPlaylist.name,
+            description: editingPlaylist.description,
+            is_public: editingPlaylist.is_public,
+          }}
+          onUpdated={fetchPlaylists}
+        />
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deletePlaylistId} onOpenChange={(open) => { if (!open) setDeletePlaylistId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xóa playlist?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Hành động này không thể hoàn tác. Playlist và tất cả liên kết video trong đó sẽ bị xóa vĩnh viễn.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeletePlaylist}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Xóa
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
