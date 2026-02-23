@@ -1,19 +1,25 @@
 
 
-## Cập nhật ảnh mặc định cho YouTube
+## Sửa nút "Báo cáo" trong VideoCard
 
-### Thay đổi
+### Vấn đề
 
-**File: `public/images/youtube-default.png`**
-- Copy ảnh YouTube icon (nền đỏ, nút play trắng) mà bạn vừa gửi vào `public/images/youtube-default.png`
-- Ảnh này đã được tham chiếu sẵn trong `defaultAvatarMap` của `SocialMediaOrbit.tsx` (dòng 89), nên không cần sửa code
-- Khi auto-fetch avatar YouTube thất bại, hệ thống sẽ tự động hiển thị ảnh này
+Nút "Báo cáo" trong menu dropdown của VideoCard (trang profile, trang chủ...) chỉ hiện toast "Đã báo cáo" ngay lập tức mà **không lưu vào database** và **không cho chọn lý do**. Trong khi đó, component `ReportSpamButton` đã có sẵn dialog đầy đủ với 6 lý do + ô nhập chi tiết, nhưng chưa được dùng ở VideoCard.
 
-### Tổng kết
+### Giải pháp
+
+Thay thế nút báo cáo giả trong `VideoCard.tsx` bằng component `ReportSpamButton` có sẵn -- giống cách đã dùng trong trang Watch và VideoActionsBar.
+
+### Chi tiết kỹ thuật
+
+**File: `src/components/Video/VideoCard.tsx`**
+
+1. Import `ReportSpamButton` component
+2. Thay dòng 320-323 (DropdownMenuItem fake) bằng `ReportSpamButton` được wrap trong `DropdownMenuItem asChild`, truyền `videoId` vào
+
+Kết quả: Khi bấm "Báo cáo", sẽ mở dialog cho chọn lý do (spam, trùng lặp, chất lượng thấp, vi phạm cộng đồng, nội dung có hại, thông tin sai lệch) + ô nhập chi tiết, rồi mới gửi báo cáo thực sự vào database.
 
 | File | Thay đổi |
 |------|---------|
-| `public/images/youtube-default.png` | Thay thế bằng ảnh YouTube icon do bạn cung cấp |
-
-Không cần sửa code -- chỉ cần đặt đúng file ảnh vào đúng đường dẫn.
+| `src/components/Video/VideoCard.tsx` | Import ReportSpamButton, thay nút báo cáo giả bằng component thật |
 
