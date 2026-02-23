@@ -29,6 +29,7 @@ interface Video {
   profiles: {
     wallet_address: string | null;
     avatar_url: string | null;
+    display_name: string | null;
   };
 }
 
@@ -80,11 +81,11 @@ const LikedVideos = () => {
         const userIds = [...new Set(videosData.map(v => v.user_id))];
         const { data: profilesData } = await supabase
           .from("profiles")
-          .select("id, wallet_address, avatar_url")
+          .select("id, wallet_address, avatar_url, display_name")
           .in("id", userIds);
 
         const profilesMap = new Map(
-          profilesData?.map(p => [p.id, { wallet_address: p.wallet_address, avatar_url: p.avatar_url }]) || []
+          profilesData?.map(p => [p.id, { wallet_address: p.wallet_address, avatar_url: p.avatar_url, display_name: p.display_name }]) || []
         );
 
         const videosWithProfiles = videosData
@@ -94,6 +95,7 @@ const LikedVideos = () => {
             profiles: {
               wallet_address: profilesMap.get(video.user_id)?.wallet_address || null,
               avatar_url: profilesMap.get(video.user_id)?.avatar_url || null,
+              display_name: profilesMap.get(video.user_id)?.display_name || null,
             },
           })) as Video[];
 
@@ -235,7 +237,7 @@ const LikedVideos = () => {
                 videoId={video.id}
                 title={video.title}
                 thumbnail={video.thumbnail_url || undefined}
-                channel={video.channels?.name || "Kênh chưa xác định"}
+                channel={video.channels?.name || video.profiles?.display_name || "Kênh chưa xác định"}
                 channelId={video.channels?.id}
                 views={formatViews(video.view_count)}
                 timestamp={formatTimestamp(video.created_at)}
