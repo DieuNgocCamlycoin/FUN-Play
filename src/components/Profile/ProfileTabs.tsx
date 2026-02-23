@@ -3,7 +3,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProfilePostsTab } from "./ProfilePostsTab";
 import { ProfileVideosTab } from "./ProfileVideosTab";
 import { ProfilePlaylistsTab } from "./ProfilePlaylistsTab";
-import { FileText, Video, Zap, Radio, ListMusic, Info, Calendar, Eye } from "lucide-react";
+import { FileText, Video, Zap, Radio, ListMusic, Info, Calendar, Eye, Flag } from "lucide-react";
+import { ReportChannelButton } from "@/components/Channel/ReportChannelButton";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -12,9 +13,10 @@ interface ProfileTabsProps {
   channelId?: string;
   isOwnProfile: boolean;
   banned?: boolean;
+  showReportButton?: boolean;
 }
 
-export const ProfileTabs = ({ userId, channelId, isOwnProfile, banned }: ProfileTabsProps) => {
+export const ProfileTabs = ({ userId, channelId, isOwnProfile, banned, showReportButton }: ProfileTabsProps) => {
   const [activeTab, setActiveTab] = useState("videos");
 
   const [aboutData, setAboutData] = useState<{
@@ -96,6 +98,9 @@ export const ProfileTabs = ({ userId, channelId, isOwnProfile, banned }: Profile
                 </TabsTrigger>
               );
             })}
+            {showReportButton && channelId && (
+              <ReportChannelButton channelId={channelId} variant="tab" />
+            )}
           </TabsList>
         </div>
 

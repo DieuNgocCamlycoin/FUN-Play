@@ -405,19 +405,13 @@ export default function Channel() {
             banned={profile.banned ?? false}
           />
 
-          {/* Report Channel Button - only for other users' channels */}
-          {!isOwnProfile && channel && (
-            <div className="mt-2">
-              <ReportChannelButton channelId={channel.id} />
-            </div>
-          )}
-
           {/* Tabs Content */}
           <ProfileTabs
             userId={profile.id}
             channelId={channel?.id}
             isOwnProfile={isOwnProfile}
             banned={profile.banned ?? false}
+            showReportButton={!isOwnProfile}
           />
         </div>
       </div>
