@@ -33,11 +33,12 @@ interface AllUsersTabProps {
   onToggleVerified: (userId: string) => Promise<boolean | false>;
   onFreezeRewards: (userId: string) => Promise<boolean>;
   onWipeRewards: (userId: string) => Promise<boolean>;
+  onDeleteUser?: (userId: string) => Promise<boolean>;
   actionLoading: boolean;
 }
 
 const AllUsersTab = ({
-  users, onBan, onUnban, onToggleVerified, onFreezeRewards, onWipeRewards, actionLoading,
+  users, onBan, onUnban, onToggleVerified, onFreezeRewards, onWipeRewards, onDeleteUser, actionLoading,
 }: AllUsersTabProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -114,6 +115,12 @@ const AllUsersTab = ({
       case "wipe":
         success = await onWipeRewards(userId);
         if (success) toast.success(`Đã xóa tất cả phần thưởng của ${userName}`);
+        break;
+      case "delete":
+        if (onDeleteUser) {
+          success = await onDeleteUser(userId);
+          if (success) toast.success(`Đã xóa vĩnh viễn tài khoản ${userName}`);
+        }
         break;
     }
     setConfirmAction(null);
@@ -324,6 +331,18 @@ const AllUsersTab = ({
                                       <Ban className="w-4 h-4 mr-2" /> Ban user
                                     </DropdownMenuItem>
                                   )}
+                                  {onDeleteUser && (
+                                    <>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem
+                                        disabled={actionLoading}
+                                        className="text-destructive focus:text-destructive"
+                                        onClick={() => setConfirmAction({ type: "delete", userId: user.id, userName: user.display_name || user.username })}
+                                      >
+                                        <Trash2 className="w-4 h-4 mr-2" /> Xóa tài khoản vĩnh viễn
+                                      </DropdownMenuItem>
+                                    </>
+                                  )}
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </TableCell>
@@ -363,19 +382,21 @@ const AllUsersTab = ({
               {confirmAction?.type === "unban" && "Xác nhận Unban User"}
               {confirmAction?.type === "freeze" && "Xác nhận Treo Thưởng"}
               {confirmAction?.type === "wipe" && "Xác nhận Xóa Tất Cả Phần Thưởng"}
+              {confirmAction?.type === "delete" && "🗑️ Xóa Vĩnh Viễn Tài Khoản"}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {confirmAction?.type === "ban" && `Bạn có chắc muốn ban "${confirmAction.userName}"? User sẽ không thể truy cập nền tảng.`}
               {confirmAction?.type === "unban" && `Bạn có chắc muốn unban "${confirmAction?.userName}"?`}
               {confirmAction?.type === "freeze" && `Treo thưởng sẽ đặt pending rewards của "${confirmAction?.userName}" về 0.`}
               {confirmAction?.type === "wipe" && `Hành động này sẽ XÓA TẤT CẢ phần thưởng (total, pending, approved) của "${confirmAction?.userName}". Không thể hoàn tác!`}
+              {confirmAction?.type === "delete" && `⚠️ CẢNH BÁO: Tất cả dữ liệu của "${confirmAction?.userName}" sẽ bị XÓA VĨNH VIỄN (videos, comments, rewards, wallet...). Email sẽ được giải phóng. KHÔNG THỂ HOÀN TÁC!`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Hủy</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmAction}
-              className={confirmAction?.type === "wipe" || confirmAction?.type === "ban" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
+              className={confirmAction?.type === "wipe" || confirmAction?.type === "ban" || confirmAction?.type === "delete" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
             >
               Xác nhận
             </AlertDialogAction>

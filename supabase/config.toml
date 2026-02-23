@@ -126,3 +126,6 @@ verify_jwt = false
 
 [functions.batch-fetch-social-avatars]
 verify_jwt = false
+
+[functions.delete-user-account]
+verify_jwt = false

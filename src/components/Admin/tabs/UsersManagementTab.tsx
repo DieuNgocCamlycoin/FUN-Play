@@ -22,6 +22,7 @@ export function UsersManagementTab() {
     toggleVerified,
     freezeRewards,
     wipeAllRewards,
+    deleteUser,
     refetch,
   } = useAdminManage();
   const { user } = useAuth();
@@ -71,6 +72,7 @@ export function UsersManagementTab() {
             onToggleVerified={toggleVerified}
             onFreezeRewards={freezeRewards}
             onWipeRewards={wipeAllRewards}
+            onDeleteUser={deleteUser}
             actionLoading={actionLoading}
           />
         </TabsContent>
@@ -83,6 +85,7 @@ export function UsersManagementTab() {
             onToggleVerified={toggleVerified}
             onFreezeRewards={freezeRewards}
             onWipeRewards={wipeAllRewards}
+            onDeleteUser={deleteUser}
             actionLoading={actionLoading}
           />
         </TabsContent>
@@ -112,6 +115,7 @@ export function UsersManagementTab() {
             onToggleVerified={toggleVerified}
             onFreezeRewards={freezeRewards}
             onWipeRewards={wipeAllRewards}
+            onDeleteUser={deleteUser}
             actionLoading={actionLoading}
           />
         </TabsContent>
