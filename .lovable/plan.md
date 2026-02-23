@@ -1,25 +1,29 @@
 
 
-## Sửa nút "Báo cáo" trong VideoCard
+## Sửa lỗi hiển thị chồng: Dropdown + Dialog báo cáo
 
 ### Vấn đề
 
-Nút "Báo cáo" trong menu dropdown của VideoCard (trang profile, trang chủ...) chỉ hiện toast "Đã báo cáo" ngay lập tức mà **không lưu vào database** và **không cho chọn lý do**. Trong khi đó, component `ReportSpamButton` đã có sẵn dialog đầy đủ với 6 lý do + ô nhập chi tiết, nhưng chưa được dùng ở VideoCard.
+Khi bấm "Báo cáo" trong menu dropdown, dialog báo cáo mở ra nhưng dropdown **không đóng lại**, khiến 2 thành phần hiển thị chồng lên nhau.
+
+Nguyên nhân: `onSelect={(e) => e.preventDefault()}` ngăn dropdown đóng khi click.
 
 ### Giải pháp
 
-Thay thế nút báo cáo giả trong `VideoCard.tsx` bằng component `ReportSpamButton` có sẵn -- giống cách đã dùng trong trang Watch và VideoActionsBar.
+Thay đổi cách tích hợp: thay vì nhúng `ReportSpamButton` trực tiếp vào dropdown (gây xung đột), sẽ dùng cách tương tự các nút khác (Chia sẻ, Lưu playlist) -- bấm menu item sẽ đóng dropdown, rồi mở dialog báo cáo riêng biệt.
 
 ### Chi tiết kỹ thuật
 
 **File: `src/components/Video/VideoCard.tsx`**
 
-1. Import `ReportSpamButton` component
-2. Thay dòng 320-323 (DropdownMenuItem fake) bằng `ReportSpamButton` được wrap trong `DropdownMenuItem asChild`, truyền `videoId` vào
+1. Thêm state `reportDialogOpen` để quản lý dialog báo cáo
+2. Thay `DropdownMenuItem asChild` + `ReportSpamButton` bằng `DropdownMenuItem` thường với `onClick` set state mở dialog
+3. Đặt `ReportSpamButton` (hoặc dialog từ nó) bên ngoài dropdown, điều khiển bằng state -- tương tự `ShareModal`
 
-Kết quả: Khi bấm "Báo cáo", sẽ mở dialog cho chọn lý do (spam, trùng lặp, chất lượng thấp, vi phạm cộng đồng, nội dung có hại, thông tin sai lệch) + ô nhập chi tiết, rồi mới gửi báo cáo thực sự vào database.
+Cách khác đơn giản hơn: tách phần Dialog ra khỏi `ReportSpamButton`, thêm prop `open`/`onOpenChange` để component cha kiểm soát. Hoặc đơn giản hơn nữa: đặt `ReportSpamButton` ra ngoài dropdown hoàn toàn và chỉ dùng DropdownMenuItem để trigger mở dialog.
 
 | File | Thay đổi |
 |------|---------|
-| `src/components/Video/VideoCard.tsx` | Import ReportSpamButton, thay nút báo cáo giả bằng component thật |
+| `src/components/Video/VideoCard.tsx` | Chuyển ReportSpamButton ra ngoài DropdownMenu, dùng state để mở dialog sau khi dropdown đóng |
+| `src/components/Video/ReportSpamButton.tsx` | Thêm prop `open`/`onOpenChange` để component cha có thể điều khiển dialog từ bên ngoài |
 
