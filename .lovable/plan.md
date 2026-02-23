@@ -1,29 +1,24 @@
 
 
-## Sửa lỗi hiển thị chồng: Dropdown + Dialog báo cáo
+## Thêm "Lịch sử báo cáo" vào Sidebar
 
-### Vấn đề
+### Thay đổi
 
-Khi bấm "Báo cáo" trong menu dropdown, dialog báo cáo mở ra nhưng dropdown **không đóng lại**, khiến 2 thành phần hiển thị chồng lên nhau.
-
-Nguyên nhân: `onSelect={(e) => e.preventDefault()}` ngăn dropdown đóng khi click.
-
-### Giải pháp
-
-Thay đổi cách tích hợp: thay vì nhúng `ReportSpamButton` trực tiếp vào dropdown (gây xung đột), sẽ dùng cách tương tự các nút khác (Chia sẻ, Lưu playlist) -- bấm menu item sẽ đóng dropdown, rồi mở dialog báo cáo riêng biệt.
+Thêm mục **"Lịch sử báo cáo"** với icon `Flag` vào nhóm **Thư viện** trong `CollapsibleSidebar.tsx`, vì nhóm này chứa các mục liên quan đến nội dung cá nhân của user (Thư viện, Lịch sử, Video đã thích...).
 
 ### Chi tiết kỹ thuật
 
-**File: `src/components/Video/VideoCard.tsx`**
+**File: `src/components/Layout/CollapsibleSidebar.tsx`**
 
-1. Thêm state `reportDialogOpen` để quản lý dialog báo cáo
-2. Thay `DropdownMenuItem asChild` + `ReportSpamButton` bằng `DropdownMenuItem` thường với `onClick` set state mở dialog
-3. Đặt `ReportSpamButton` (hoặc dialog từ nó) bên ngoài dropdown, điều khiển bằng state -- tương tự `ShareModal`
+1. Thêm import `Flag` từ `lucide-react` (dòng 2)
+2. Thêm item mới vào mảng `libraryItems` (sau dòng 63):
+   ```
+   { icon: Flag, label: "Lịch sử báo cáo", href: "/my-reports" }
+   ```
 
-Cách khác đơn giản hơn: tách phần Dialog ra khỏi `ReportSpamButton`, thêm prop `open`/`onOpenChange` để component cha kiểm soát. Hoặc đơn giản hơn nữa: đặt `ReportSpamButton` ra ngoài dropdown hoàn toàn và chỉ dùng DropdownMenuItem để trigger mở dialog.
+Không cần thay đổi file nào khác -- route `/my-reports` đã tồn tại trong `App.tsx`.
 
 | File | Thay đổi |
 |------|---------|
-| `src/components/Video/VideoCard.tsx` | Chuyển ReportSpamButton ra ngoài DropdownMenu, dùng state để mở dialog sau khi dropdown đóng |
-| `src/components/Video/ReportSpamButton.tsx` | Thêm prop `open`/`onOpenChange` để component cha có thể điều khiển dialog từ bên ngoài |
+| `src/components/Layout/CollapsibleSidebar.tsx` | Import Flag, thêm "Lịch sử báo cáo" vào libraryItems |
 
