@@ -1,25 +1,28 @@
 
 
-## Di chuyển "Báo cáo kênh" sang bên phải tab "Giới thiệu"
+## Thêm thao tác Xóa & Sửa tên playlist trong tab Playlist (giống YouTube)
+
+### Mục tiêu
+Thêm menu 3 chấm (MoreVertical) trên mỗi playlist card trong tab Playlist của trang kênh, cho phép chủ sở hữu sửa tên và xóa playlist ngay tại chỗ.
 
 ### Thay đổi
 
-Chuyển nút "Báo cáo kênh" từ vị trí hiện tại (phía trên tabs, đứng riêng) vào trong thanh tab, đặt ngay bên phải của tab "Giới thiệu".
-
-### File thay đổi
-
-| File | Thay đổi |
+| File | Nội dung |
 |---|---|
-| `src/pages/Channel.tsx` | Xoa block ReportChannelButton (dong 408-413), truyen `channelId` va `isOwnProfile` da co san cho `ProfileTabs` |
-| `src/components/Profile/ProfileTabs.tsx` | Them prop `showReportButton`, them tab "Bao cao kenh" (icon: Flag) sau "Gioi thieu" khi `!isOwnProfile && channelId`, tab nay khong chuyen noi dung ma mo dialog bao cao |
+| `src/components/Profile/ProfilePlaylistsTab.tsx` | Thêm DropdownMenu với 2 hành động "Sửa" và "Xóa" trên mỗi playlist card (chỉ hiện khi `isOwnProfile`). Tích hợp `EditPlaylistModal` và `AlertDialog` xác nhận xóa. |
 
-### Chi tiet ky thuat
+### Chi tiết kỹ thuật
 
-1. **Channel.tsx**: Xoa dong 408-413 (block `ReportChannelButton` dung rieng)
+1. **Menu 3 chấm trên mỗi card**: Thêm icon `MoreVertical` ở góc trên bên phải mỗi playlist card, chỉ hiển thị khi hover (giống YouTube). Menu gồm:
+   - **Sửa playlist** (icon Pencil): Mở `EditPlaylistModal` đã có sẵn tại `src/components/Playlist/EditPlaylistModal.tsx`
+   - **Xóa playlist** (icon Trash2, màu đỏ): Hiện AlertDialog xác nhận, sau đó gọi `supabase.from("playlists").delete().eq("id", playlistId)`
 
-2. **ProfileTabs.tsx**:
-   - Them props: `showReportButton?: boolean`
-   - Import `ReportChannelButton` va `Flag` icon
-   - Them 1 tab trigger nua sau "Gioi thieu" voi label "Bao cao kenh" va icon Flag, chi hien khi `showReportButton && channelId` co gia tri
-   - Khi click tab nay, mo dialog bao cao kenh (su dung `ReportChannelButton` ben trong `TabsContent`)
+2. **Import thêm**: `MoreVertical`, `Pencil`, `Trash2` từ lucide-react; `DropdownMenu` components; `AlertDialog` components; `EditPlaylistModal`
 
+3. **State mới**:
+   - `editingPlaylist`: playlist đang sửa (hoặc null)
+   - `deletePlaylistId`: id playlist đang xác nhận xóa (hoặc null)
+
+4. **Xóa playlist**: Gọi supabase delete, sau đó cập nhật state local bằng `setPlaylists(prev => prev.filter(...))` và hiển thị toast thành công.
+
+5. **Click vào menu không navigate**: Dùng `e.stopPropagation()` trên DropdownMenuTrigger để tránh click xuyên qua card navigate đến trang playlist detail.
