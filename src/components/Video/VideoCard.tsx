@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ShareModal } from "./ShareModal";
 import { AddToPlaylistModal } from "@/components/Playlist/AddToPlaylistModal";
 import { WatchLaterButton } from "./WatchLaterButton";
+import { ReportSpamButton } from "./ReportSpamButton";
 import { LazyImage } from "@/components/ui/LazyImage";
 import { useHapticFeedback } from "@/hooks/useHapticFeedback";
 import { useWatchLater } from "@/hooks/useWatchLater";
@@ -317,9 +318,8 @@ export const VideoCard = ({
               <EyeOff className="mr-2 h-4 w-4" />
               Không quan tâm
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => { lightTap(); toast({ title: "Đã báo cáo", description: "Cảm ơn bạn đã phản hồi" }); }}>
-              <Flag className="mr-2 h-4 w-4" />
-              Báo cáo
+            <DropdownMenuItem asChild onSelect={(e) => e.preventDefault()}>
+              <ReportSpamButton videoId={videoId || ""} className="w-full justify-start px-2 py-1.5 h-auto font-normal" />
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
