@@ -294,7 +294,7 @@ export const ProfilePlaylistsTab = ({ userId, isOwnProfile }: ProfilePlaylistsTa
           <AlertDialogHeader>
             <AlertDialogTitle>Xóa playlist?</AlertDialogTitle>
             <AlertDialogDescription>
-              Hành động này không thể hoàn tác. Playlist và tất cả liên kết video trong đó sẽ bị xóa vĩnh viễn.
+              Hành động này không thể hoàn tác. Playlist sẽ bị xóa, nhưng các video trong đó vẫn được giữ nguyên.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
