@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Home, Zap, Users, Library, History, Video, Clock, ThumbsUp, Wallet, ListVideo, FileText, Tv, Trophy, Coins, UserPlus, Image, Sparkles, Music, ExternalLink, ChevronDown, ChevronUp, Award, Globe, ShieldBan } from "lucide-react";
+import { Home, Zap, Users, Library, History, Video, Clock, ThumbsUp, Wallet, ListVideo, FileText, Tv, Trophy, Coins, UserPlus, Image, Sparkles, Music, ExternalLink, ChevronDown, ChevronUp, Award, Globe, ShieldBan, Flag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -60,6 +60,7 @@ const libraryItems: NavItem[] = [
   { icon: Clock, label: "Xem sau", href: "/watch-later" },
   { icon: ThumbsUp, label: "Video đã thích", href: "/liked" },
   { icon: Image, label: "Bộ sưu tập NFT", href: "/nft-gallery" },
+  { icon: Flag, label: "Lịch sử báo cáo", href: "/my-reports" },
 ];
 
 const rewardItems: NavItem[] = [
