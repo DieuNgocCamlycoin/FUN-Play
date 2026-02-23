@@ -18,6 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 interface ReportChannelButtonProps {
   channelId: string;
   className?: string;
+  variant?: "default" | "tab";
 }
 
 const REPORT_REASONS = [
@@ -28,7 +29,7 @@ const REPORT_REASONS = [
   { value: "community_violation", label: "Vi phạm quy tắc cộng đồng" },
 ];
 
-export function ReportChannelButton({ channelId, className }: ReportChannelButtonProps) {
+export function ReportChannelButton({ channelId, className, variant = "default" }: ReportChannelButtonProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
@@ -75,15 +76,16 @@ export function ReportChannelButton({ channelId, className }: ReportChannelButto
 
   return (
     <>
-      <Button
-        variant="ghost"
-        size="sm"
-        className={className}
+      <button
+        className={variant === "tab"
+          ? `relative flex items-center gap-2 px-4 py-2.5 rounded-lg font-semibold transition-all duration-300 bg-white/80 text-red-500 hover:text-red-600 hover:bg-red-50 border border-red-200/50 hover:border-red-300 ${className || ""}`
+          : className || ""
+        }
         onClick={() => setOpen(true)}
       >
-        <Flag className="w-4 h-4 mr-1" />
-        Báo cáo kênh
-      </Button>
+        <Flag className="w-4 h-4" />
+        <span className="hidden sm:inline">Báo cáo kênh</span>
+      </button>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-sm">
