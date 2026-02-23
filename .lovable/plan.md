@@ -1,28 +1,29 @@
 
 
-## Thêm thao tác Xóa & Sửa tên playlist trong tab Playlist (giống YouTube)
-
-### Mục tiêu
-Thêm menu 3 chấm (MoreVertical) trên mỗi playlist card trong tab Playlist của trang kênh, cho phép chủ sở hữu sửa tên và xóa playlist ngay tại chỗ.
+## Giảm kích thước pill mã ví và link profile
 
 ### Thay đổi
 
+Giảm padding, font size và kích thước icon/button bên trong 2 pill (mã ví + link profile) để chúng gọn hơn, không chiếm quá nhiều diện tích so với các mục khác.
+
+### File thay đổi
+
 | File | Nội dung |
 |---|---|
-| `src/components/Profile/ProfilePlaylistsTab.tsx` | Thêm DropdownMenu với 2 hành động "Sửa" và "Xóa" trên mỗi playlist card (chỉ hiện khi `isOwnProfile`). Tích hợp `EditPlaylistModal` và `AlertDialog` xác nhận xóa. |
+| `src/components/Profile/ProfileInfo.tsx` | Giảm kích thước 2 pill ở dòng 131 và 149 |
 
 ### Chi tiết kỹ thuật
 
-1. **Menu 3 chấm trên mỗi card**: Thêm icon `MoreVertical` ở góc trên bên phải mỗi playlist card, chỉ hiển thị khi hover (giống YouTube). Menu gồm:
-   - **Sửa playlist** (icon Pencil): Mở `EditPlaylistModal` đã có sẵn tại `src/components/Playlist/EditPlaylistModal.tsx`
-   - **Xóa playlist** (icon Trash2, màu đỏ): Hiện AlertDialog xác nhận, sau đó gọi `supabase.from("playlists").delete().eq("id", playlistId)`
+Thay đổi class CSS cho cả 2 pill (wallet address và profile link):
 
-2. **Import thêm**: `MoreVertical`, `Pencil`, `Trash2` từ lucide-react; `DropdownMenu` components; `AlertDialog` components; `EditPlaylistModal`
+| Thuộc tính | Hiện tại | Sau khi sửa |
+|---|---|---|
+| Padding pill | `px-4 py-2` | `px-3 py-1` |
+| Icon size (Wallet, Link) | `w-4 h-4` | `w-3.5 h-3.5` |
+| Font size text | `text-sm` | `text-xs` |
+| Gap trong pill | `gap-2.5` | `gap-2` |
+| Copy button size | `h-7 w-7` | `h-5 w-5` |
+| Copy icon size | `w-4 h-4` | `w-3 h-3` |
 
-3. **State mới**:
-   - `editingPlaylist`: playlist đang sửa (hoặc null)
-   - `deletePlaylistId`: id playlist đang xác nhận xóa (hoặc null)
+Tổng cộng giảm chiều cao pill từ khoảng 40px xuống còn khoảng 28-30px, phù hợp hơn với các thành phần khác trên trang.
 
-4. **Xóa playlist**: Gọi supabase delete, sau đó cập nhật state local bằng `setPlaylists(prev => prev.filter(...))` và hiển thị toast thành công.
-
-5. **Click vào menu không navigate**: Dùng `e.stopPropagation()` trên DropdownMenuTrigger để tránh click xuyên qua card navigate đến trang playlist detail.
