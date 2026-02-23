@@ -18,6 +18,9 @@ import { useToast } from "@/hooks/use-toast";
 interface ReportSpamButtonProps {
   videoId: string;
   className?: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  triggerless?: boolean;
 }
 
 const REPORT_REASONS = [
@@ -29,13 +32,16 @@ const REPORT_REASONS = [
   { value: "misinformation", label: "Thông tin sai lệch" },
 ];
 
-export function ReportSpamButton({ videoId, className }: ReportSpamButtonProps) {
+export function ReportSpamButton({ videoId, className, open: controlledOpen, onOpenChange, triggerless }: ReportSpamButtonProps) {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
   const [reason, setReason] = useState("spam");
   const [detail, setDetail] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+  const setOpen = isControlled ? (onOpenChange || (() => {})) : setInternalOpen;
   const debounceRef = useRef(false);
 
   const handleReport = async () => {
@@ -76,15 +82,17 @@ export function ReportSpamButton({ videoId, className }: ReportSpamButtonProps) 
 
   return (
     <>
-      <Button
-        variant="ghost"
-        size="sm"
-        className={className}
-        onClick={() => setOpen(true)}
-      >
-        <Flag className="w-4 h-4 mr-1" />
-        Báo cáo
-      </Button>
+      {!triggerless && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className={className}
+          onClick={() => setOpen(true)}
+        >
+          <Flag className="w-4 h-4 mr-1" />
+          Báo cáo
+        </Button>
+      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-sm">

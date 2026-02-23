@@ -69,6 +69,7 @@ export const VideoCard = ({
   const { toggleWatchLater } = useWatchLater();
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [playlistModalOpen, setPlaylistModalOpen] = useState(false);
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const videoPreviewRef = useRef<HTMLVideoElement | null>(null);
@@ -318,8 +319,9 @@ export const VideoCard = ({
               <EyeOff className="mr-2 h-4 w-4" />
               Không quan tâm
             </DropdownMenuItem>
-            <DropdownMenuItem asChild onSelect={(e) => e.preventDefault()}>
-              <ReportSpamButton videoId={videoId || ""} className="w-full justify-start px-2 py-1.5 h-auto font-normal" />
+            <DropdownMenuItem onClick={() => { lightTap(); setReportDialogOpen(true); }}>
+              <Flag className="mr-2 h-4 w-4" />
+              Báo cáo
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -334,6 +336,13 @@ export const VideoCard = ({
         thumbnailUrl={thumbnail}
         channelName={channel}
         userId={user?.id}
+      />
+
+      <ReportSpamButton
+        videoId={videoId || ""}
+        triggerless
+        open={reportDialogOpen}
+        onOpenChange={setReportDialogOpen}
       />
 
       {videoId && (
