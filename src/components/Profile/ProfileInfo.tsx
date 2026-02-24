@@ -169,20 +169,22 @@ export const ProfileInfo = ({
         {/* Right: Action Buttons - hidden when banned */}
         {!banned && (
           <div className="flex items-center gap-2 lg:gap-3 pl-36 md:pl-44 lg:pl-0">
-            {/* Donate Button - Premium Metallic Gold Style - ALWAYS VISIBLE */}
-            <Button
-              onClick={() => setDonateModalOpen(true)}
-              className="relative overflow-hidden bg-[linear-gradient(90deg,#F9E37A_0%,#FFD700_20%,#FFEC8B_40%,#FFF8DC_50%,#FFEC8B_60%,#FFD700_80%,#F9E37A_100%)] text-[#8B6914] font-bold px-5 py-2.5 rounded-full shadow-[inset_0_1px_2px_rgba(255,255,255,0.6),0_0_25px_rgba(255,215,0,0.6),0_0_50px_rgba(255,215,0,0.3)] hover:shadow-[inset_0_1px_3px_rgba(255,255,255,0.8),0_0_40px_rgba(255,215,0,0.8),0_0_80px_rgba(255,215,0,0.4)] border border-[#DAA520]/70 transition-all duration-300 hover:scale-105 animate-luxury-pulse"
-            >
-              <span className="relative z-10 flex items-center gap-2">
-                <Gift className="w-4 h-4" />
-                Tặng & Thưởng
-              </span>
-              {/* Glossy highlight */}
-              <div className="absolute inset-x-0 top-0 h-[45%] bg-gradient-to-b from-white/40 via-white/20 to-transparent rounded-t-full pointer-events-none" />
-              {/* Mirror shimmer effect - continuous */}
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-mirror-shimmer" />
-            </Button>
+            {/* Donate Button - Premium Metallic Gold Style - hidden for own profile */}
+            {!isOwnProfile && (
+              <Button
+                onClick={() => setDonateModalOpen(true)}
+                className="relative overflow-hidden bg-[linear-gradient(90deg,#F9E37A_0%,#FFD700_20%,#FFEC8B_40%,#FFF8DC_50%,#FFEC8B_60%,#FFD700_80%,#F9E37A_100%)] text-[#8B6914] font-bold px-5 py-2.5 rounded-full shadow-[inset_0_1px_2px_rgba(255,255,255,0.6),0_0_25px_rgba(255,215,0,0.6),0_0_50px_rgba(255,215,0,0.3)] hover:shadow-[inset_0_1px_3px_rgba(255,255,255,0.8),0_0_40px_rgba(255,215,0,0.8),0_0_80px_rgba(255,215,0,0.4)] border border-[#DAA520]/70 transition-all duration-300 hover:scale-105 animate-luxury-pulse"
+              >
+                <span className="relative z-10 flex items-center gap-2">
+                  <Gift className="w-4 h-4" />
+                  Tặng & Thưởng
+                </span>
+                {/* Glossy highlight */}
+                <div className="absolute inset-x-0 top-0 h-[45%] bg-gradient-to-b from-white/40 via-white/20 to-transparent rounded-t-full pointer-events-none" />
+                {/* Mirror shimmer effect - continuous */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-mirror-shimmer" />
+              </Button>
+            )}
 
             {/* Subscribe Button */}
             {!isOwnProfile && (

@@ -12,6 +12,7 @@ interface MiniProfileCardProps {
   channelName: string;
   subscriberCount: number;
   onSubscribeChange?: () => void;
+  isOwnChannel?: boolean;
 }
 
 export const MiniProfileCard = ({
@@ -19,6 +20,7 @@ export const MiniProfileCard = ({
   channelName,
   subscriberCount,
   onSubscribeChange,
+  isOwnChannel = false,
 }: MiniProfileCardProps) => {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -115,17 +117,19 @@ export const MiniProfileCard = ({
           </p>
         </div>
       </div>
-      <Button
-        onClick={handleSubscribe}
-        disabled={loading}
-        className={`w-full rounded-full ${
-          isSubscribed
-            ? "bg-muted hover:bg-muted/80 text-foreground"
-            : "bg-gradient-to-r from-cosmic-sapphire to-cosmic-cyan hover:from-cosmic-sapphire/90 hover:to-cosmic-cyan/90 text-foreground shadow-[0_0_30px_rgba(0,255,255,0.5)]"
-        }`}
-      >
-        {isSubscribed ? "Đã đăng ký" : "Đăng ký"}
-      </Button>
+      {!isOwnChannel && (
+        <Button
+          onClick={handleSubscribe}
+          disabled={loading}
+          className={`w-full rounded-full ${
+            isSubscribed
+              ? "bg-muted hover:bg-muted/80 text-foreground"
+              : "bg-gradient-to-r from-cosmic-sapphire to-cosmic-cyan hover:from-cosmic-sapphire/90 hover:to-cosmic-cyan/90 text-foreground shadow-[0_0_30px_rgba(0,255,255,0.5)]"
+          }`}
+        >
+          {isSubscribed ? "Đã đăng ký" : "Đăng ký"}
+        </Button>
+      )}
     </Card>
   );
 };
