@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Volume2, VolumeX, Music, X } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { useMusic } from "@/contexts/MusicContext";
+import { requestPlayback, onPauseRequest } from "@/lib/mediaSessionManager";
 
 interface BackgroundMusicPlayerProps {
   musicUrl: string | null;
@@ -25,10 +26,20 @@ export const BackgroundMusicPlayer = ({ musicUrl, autoPlay = true, onClose }: Ba
     return () => setPageMusicActive(false);
   }, [musicUrl, setPageMusicActive]);
 
+  // Listen for pause requests from other media sources
+  useEffect(() => {
+    return onPauseRequest("background-music", () => {
+      if (audioRef.current && !audioRef.current.paused) {
+        audioRef.current.pause();
+      }
+    });
+  }, []);
+
   useEffect(() => {
     if (musicUrl && audioRef.current) {
       audioRef.current.volume = volume / 100;
       if (autoPlay) {
+        requestPlayback("background-music");
         audioRef.current.play().catch(console.error);
       }
     }
@@ -46,6 +57,7 @@ export const BackgroundMusicPlayer = ({ musicUrl, autoPlay = true, onClose }: Ba
     if (isPlaying) {
       audioRef.current.pause();
     } else {
+      requestPlayback("background-music");
       audioRef.current.play().catch(console.error);
     }
   };

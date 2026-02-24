@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from "react";
+import { requestPlayback, onPauseRequest } from "@/lib/mediaSessionManager";
 
 export interface Track {
   id: string;
@@ -139,11 +140,21 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   }, [currentIndex, queue, repeatMode, shuffleEnabled, playedIndices]);
 
+  // Listen for pause requests from other media sources
+  useEffect(() => {
+    return onPauseRequest("music", () => {
+      if (audioRef.current && !audioRef.current.paused) {
+        audioRef.current.pause();
+      }
+    });
+  }, []);
+
   // Auto-play when track changes
   useEffect(() => {
     if (currentTrack && audioRef.current) {
       audioRef.current.src = currentTrack.video_url;
       audioRef.current.volume = volume;
+      requestPlayback("music");
       audioRef.current.play().catch(console.error);
     }
   }, [currentTrack]);
@@ -173,6 +184,7 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       if (isPlaying) {
         audioRef.current.pause();
       } else {
+        requestPlayback("music");
         audioRef.current.play().catch(console.error);
       }
     }
