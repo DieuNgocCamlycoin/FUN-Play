@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { slugify } from "./slugify";
+import { lookupSlugHistory } from "./slugGovernance";
 import { useNavigate } from "react-router-dom";
 import { useCallback } from "react";
 
@@ -87,6 +88,17 @@ export async function getVideoPath(videoId: string, queryParams?: string): Promi
 
   // Fallback: legacy URL (WatchLegacyRedirect will handle)
   return `/watch/${videoId}${queryParams || ''}`;
+}
+
+/**
+ * Resolve a slug that might be old/changed.
+ * Returns the current slug if found in history, or null if not found.
+ */
+export async function resolveSlugRedirect(
+  username: string,
+  slug: string
+): Promise<{ currentSlug: string; videoId: string } | null> {
+  return lookupSlugHistory(username, slug);
 }
 
 /**

@@ -10,6 +10,7 @@ interface DynamicMetaProps {
   siteName?: string;
   keywords?: string;
   author?: string;
+  canonicalUrl?: string;
 }
 
 /**
@@ -29,6 +30,7 @@ export const DynamicMeta = ({
   siteName = "FUN Play",
   keywords,
   author,
+  canonicalUrl,
 }: DynamicMetaProps) => {
   useEffect(() => {
     // Update document title
@@ -90,6 +92,19 @@ export const DynamicMeta = ({
     updateMetaTag("twitter:image", image, true);
     updateMetaTag("twitter:site", "@FunPlay", true);
 
+    // Update canonical link
+    if (canonicalUrl) {
+      let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement;
+      if (canonical) {
+        canonical.href = canonicalUrl;
+      } else {
+        canonical = document.createElement("link");
+        canonical.rel = "canonical";
+        canonical.href = canonicalUrl;
+        document.head.appendChild(canonical);
+      }
+    }
+
     // Cleanup on unmount - restore defaults
     return () => {
       document.title = "FUN Play: Web3 AI Social";
@@ -97,8 +112,11 @@ export const DynamicMeta = ({
       updateMetaTag("og:description", "The place where every soul turns value into digital assets forever – Rich Rich Rich");
       updateMetaTag("og:image", "https://play.fun.rich/images/funplay-og-image.jpg");
       updateMetaTag("og:type", "website");
+      // Remove canonical on unmount
+      const canon = document.querySelector('link[rel="canonical"]');
+      if (canon) canon.remove();
     };
-  }, [title, description, image, url, type, audio, siteName, keywords, author]);
+  }, [title, description, image, url, type, audio, siteName, keywords, author, canonicalUrl]);
 
   return null;
 };
