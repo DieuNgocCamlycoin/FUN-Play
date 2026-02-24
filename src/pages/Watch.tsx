@@ -25,6 +25,7 @@ import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { DynamicMeta } from "@/components/SEO/DynamicMeta";
 import { setGlobalVideoState, setGlobalPlayingState } from "@/components/Video/GlobalVideoPlayer";
+import { requestPlayback } from "@/lib/mediaSessionManager";
 import { MobileWatchView } from "@/components/Video/Mobile/MobileWatchView";
 import { VideoCommentList } from "@/components/Video/Comments/VideoCommentList";
 import { AddToPlaylistModal } from "@/components/Playlist/AddToPlaylistModal";
@@ -342,10 +343,15 @@ export default function Watch({ videoIdProp }: { videoIdProp?: string }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Dừng tất cả nguồn phát khác khi mở trang Watch
+  useEffect(() => {
+    window.dispatchEvent(new Event('stopGlobalPlayback'));
+    requestPlayback("video");
+  }, [id]);
+
   // Listen for global player closed event to stop local playback reference
   useEffect(() => {
     const handleGlobalPlayerClosed = () => {
-      // Global player was closed, clear any related state if needed
       console.log('Global player closed');
     };
 

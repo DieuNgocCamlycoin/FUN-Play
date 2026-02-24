@@ -26,6 +26,16 @@ export const BackgroundMusicPlayer = ({ musicUrl, autoPlay = true, onClose }: Ba
     return () => setPageMusicActive(false);
   }, [musicUrl, setPageMusicActive]);
 
+  // Cleanup: dừng phát và xoá src khi component unmount
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = '';
+      }
+    };
+  }, []);
+
   // Listen for pause requests from other media sources
   useEffect(() => {
     return onPauseRequest("background-music", () => {
