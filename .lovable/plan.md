@@ -1,26 +1,36 @@
 
-## Điều chỉnh bộ lọc spam mô tả video
 
-### Thay đổi
+## Cập nhật link chia sẻ video: `play.fun.rich/username/ten_bai_thien`
 
-Sửa regex chặn ký tự lặp trong hàm `validateVideoDescription` (dòng 91) từ chặn **3+ ký tự lặp bất kỳ** sang chỉ chặn **15+ chữ cái lặp liên tiếp**, cho phép dấu ba chấm, emoji, dấu câu lặp bình thường.
+### Mục tiêu
+- Khi user bấm chia sẻ, link copy sẽ là: `https://play.fun.rich/angelkhanhi/co-che-su-song-trong-co-the-nguoi`
+- Link cũ dạng `/username/video/slug` vẫn hoạt động (không bị hỏng)
 
-### Chi tiết kỹ thuật
+### Thay đổi theo file
 
-**File: `src/lib/videoUploadValidation.ts`**
+#### 1. `src/lib/shareUtils.ts`
+- Đổi `PRODUCTION_URL` sang `https://play.fun.rich`
+- Hàm `getVideoShareUrl`: trả về `/${username}/${slug}` (bỏ `/video/`)
 
-Dòng 90-93: Thay regex `(.)\1{2,}` bằng regex chỉ bắt chữ cái lặp 15+ lần:
+#### 2. `src/lib/slugify.ts`
+- Hàm `getVideoShareUrl`: trả về `/${username}/${slug}` (bỏ `/video/`)
 
-```
-// Trước:
-if (/(.)\1{2,}/i.test(trimmed))
+#### 3. `src/components/Video/ShareModal.tsx`
+- Cập nhật format URL share và prerender URL, bỏ `/video/`
 
-// Sau:
-if (/([a-zA-ZÀ-ỹ])\1{14,}/iu.test(trimmed))
-```
+#### 4. `src/App.tsx`
+- Thêm route `/:username/:slug` trỏ đến `VideoBySlug`
+- Giữ route cũ `/:username/video/:slug` để link cũ vẫn hoạt động
 
-Giải thích: `\1{14,}` nghĩa là ký tự đầu + 14 lần lặp = 15 lần tổng cộng. Chỉ áp dụng cho chữ cái (Latin + Vietnamese), bỏ qua dấu câu và emoji.
+### Kết quả
+- Nút chia sẻ -> hiển thị `https://play.fun.rich/username/slug`
+- Truy cập `play.fun.rich/username/slug` -> xem video
+- Truy cập `play.fun.rich/username/video/slug` -> vẫn xem video (backward compatible)
 
 | File | Thay đổi |
 |------|---------|
-| `src/lib/videoUploadValidation.ts` | Dòng 91: đổi regex spam từ `(.)\1{2,}` sang `([a-zA-ZÀ-ỹ])\1{14,}` |
+| `src/lib/shareUtils.ts` | Đổi PRODUCTION_URL, bỏ `/video/` |
+| `src/lib/slugify.ts` | Bỏ `/video/` trong getVideoShareUrl |
+| `src/components/Video/ShareModal.tsx` | Cập nhật URL format |
+| `src/App.tsx` | Thêm route `/:username/:slug` |
+
