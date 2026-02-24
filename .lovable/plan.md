@@ -1,36 +1,38 @@
 
-
-## Thay nút "Đăng ký" bằng "Chỉnh sửa video" khi xem video của chính mình
+## Kết hợp: Ẩn "Tặng & Thưởng" và "Đăng ký" khi xem kênh/video của chính mình
 
 ### Mục tiêu
-Khi user đang xem video do chính mình upload, thay nút "Đăng ký" bằng nút "Chỉnh sửa video" (giống YouTube). Bấm vào sẽ chuyển đến trang chỉnh sửa video.
+Khi người dùng xem video hoặc trang hồ sơ của chính mình, ẩn các nút không phù hợp:
+- Ẩn nút **"Thưởng & Tặng"** (không tự tặng cho mình)
+- Ẩn nút **"Đăng ký"** trong popup rê chuột vào tên kênh (không tự đăng ký kênh mình)
 
-### Thay đổi
+### Thay đổi theo file
 
-#### 1. Desktop - `src/pages/Watch.tsx`
-- Thêm biến `isOwnVideo = user?.id === video.user_id`
-- Tại khu vực nút "Đăng ký" (dòng 733-743): nếu `isOwnVideo` thì hiển thị nút "Chỉnh sửa video" với icon Edit, bấm vào navigate đến `/edit-video/{videoId}`
-- Nếu không phải video của mình thì giữ nguyên nút "Đăng ký" như cũ
+#### 1. `src/pages/Watch.tsx` (Giao diện máy tính)
+- **Dòng 809-827**: Bọc nút "Thưởng & Tặng" trong điều kiện `{user?.id !== video.user_id && (...)}` để ẩn khi xem video của mình
+- **Dòng 722-730**: Truyền thêm prop `isOwnChannel={user?.id === video.user_id}` vào `MiniProfileCard`
 
-#### 2. Mobile - `src/components/Video/Mobile/VideoActionsBar.tsx`
-- Thêm prop `isOwnVideo` vào interface `VideoActionsBarProps`
-- Thêm prop `onEdit` callback
-- Tại khu vực nút Subscribe/Bell (dòng 144-192): nếu `isOwnVideo` thì hiển thị nút "Chỉnh sửa" thay vì "Đăng ký"
+#### 2. `src/components/Video/MiniProfileCard.tsx` (Popup rê chuột)
+- Thêm prop `isOwnChannel?: boolean` vào interface
+- **Dòng 118-128**: Nếu `isOwnChannel === true` thì ẩn nút "Đăng ký" ở cuối card
 
-#### 3. Mobile - `src/components/Video/Mobile/MobileWatchView.tsx`
-- Truyền thêm prop `isOwnVideo` và `onEdit` xuống `VideoActionsBar`
+#### 3. `src/components/Profile/ProfileInfo.tsx` (Trang hồ sơ)
+- **Dòng 172-185**: Bọc nút "Tặng & Thưởng" trong điều kiện `{!isOwnProfile && (...)}` để ẩn khi xem hồ sơ của chính mình
 
-### Chi tiet ky thuat
+#### 4. `src/components/Video/Mobile/VideoActionsBar.tsx` (Giao diện di động)
+- **Dòng 265-282**: Bọc nút "Tặng" trong điều kiện `{!isOwnVideo && (...)}` để ẩn khi xem video của mình trên điện thoại
 
-| File | Thay doi |
+### Kết quả mong đợi
+- Xem video của mình: chỉ thấy "Chỉnh sửa video", "Chia sẻ", "Lưu" — không có "Tặng & Thưởng", không có "Đăng ký"
+- Rê chuột vào tên kênh của mình: popup chỉ hiện tên và số người đăng ký, không có nút "Đăng ký"
+- Xem hồ sơ của mình: không có nút "Tặng & Thưởng", không có nút "Đăng ký"
+- Xem video/hồ sơ người khác: vẫn hiển thị đầy đủ như cũ
+
+### Chi tiết kỹ thuật
+
+| Tệp | Thay đổi |
 |------|---------|
-| `src/pages/Watch.tsx` | Them `isOwnVideo`, conditional render nut Edit thay Subscribe |
-| `src/components/Video/Mobile/VideoActionsBar.tsx` | Them prop `isOwnVideo`, `onEdit`, render nut chinh sua |
-| `src/components/Video/Mobile/MobileWatchView.tsx` | Truyen `isOwnVideo`, `onEdit` xuong VideoActionsBar |
-
-### Nut "Chinh sua video"
-- Icon: Pencil/Edit (tu lucide-react)
-- Text: "Chinh sua video"
-- Style: tuong tu nut Subscribe nhung dung mau khac (outline hoac muted)
-- Click: navigate den `/edit-video/{videoId}`
-
+| `src/pages/Watch.tsx` | Ẩn nút "Thưởng & Tặng" + truyền `isOwnChannel` vào `MiniProfileCard` |
+| `src/components/Video/MiniProfileCard.tsx` | Thêm prop `isOwnChannel`, ẩn nút đăng ký |
+| `src/components/Profile/ProfileInfo.tsx` | Bọc nút "Tặng & Thưởng" trong `!isOwnProfile` |
+| `src/components/Video/Mobile/VideoActionsBar.tsx` | Bọc nút "Tặng" trong `!isOwnVideo` |
