@@ -91,19 +91,17 @@ serve(async (req: Request) => {
     console.log("[prerender] path:", path);
 
     const baseUrl = "https://official-funplay.lovable.app";
-    const siteUrl = "https://play.fun.rich";
     const defaultMeta: MetaData = {
       title: "FUN Play: Web3 AI Social",
       description: "The place where every soul turns value into digital assets forever – Rich Rich Rich",
       image: `${baseUrl}/images/funplay-og-image.jpg`,
-      url: `${siteUrl}${path}`,
+      url: `${baseUrl}${path}`,
       type: "website",
     };
 
-    // Parse path to determine content type
+    // Parse path
     let type: string | null = null;
     let id: string | null = null;
-    let slugLookup: { username: string; slug: string } | null = null;
 
     if (path.startsWith("/ai-music/")) {
       type = "ai-music";
@@ -117,16 +115,9 @@ serve(async (req: Request) => {
     } else if (path.startsWith("/channel/")) {
       type = "channel";
       id = path.replace("/channel/", "").split("?")[0];
-    } else {
-      // Check for /{username}/{slug} format (video share URLs)
-      const segments = path.replace(/^\//, "").split("/").filter(Boolean);
-      if (segments.length === 2) {
-        slugLookup = { username: segments[0], slug: segments[1] };
-        type = "video-by-slug";
-      }
     }
 
-    if (!type || (!id && !slugLookup)) {
+    if (!type || !id) {
       console.log("[prerender] no type/id, returning default");
       const html = buildHtml(defaultMeta);
       return new Response(html, {
@@ -202,29 +193,9 @@ serve(async (req: Request) => {
       } else {
         console.log("[prerender] channel error:", error?.message);
       }
-    } else if (type === "video-by-slug" && slugLookup) {
-      console.log("[prerender] fetching video by slug:", slugLookup.username, slugLookup.slug);
-      const { data, error } = await supabase
-        .from("videos")
-        .select("id, title, description, video_url, thumbnail_url, view_count, duration, channels(name)")
-        .eq("slug", slugLookup.slug)
-        .single();
-
-      if (!error && data) {
-        const ch = Array.isArray(data.channels) ? data.channels[0] : data.channels;
-        const channelName = ch?.name || "FUN Play";
-        meta.title = `${data.title} - ${channelName}`;
-        meta.image = data.thumbnail_url || meta.image;
-        meta.type = "video.other";
-        meta.video = data.video_url;
-        meta.description = data.description || `📺 Xem "${data.title}" trên FUN Play. ${data.view_count || 0} lượt xem.`;
-        console.log("[prerender] found video by slug:", data.title);
-      } else {
-        console.log("[prerender] slug lookup error:", error?.message);
-      }
     }
 
-    meta.url = `${siteUrl}${path}`;
+    meta.url = `${baseUrl}${path}`;
     const html = buildHtml(meta);
 
     return new Response(html, {

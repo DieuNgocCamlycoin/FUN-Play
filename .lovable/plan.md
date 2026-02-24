@@ -1,44 +1,87 @@
 
 
-## Sửa lỗi: Link chia sẻ video luôn hiển thị thumbnail đúng
+## Khắc phục: Video Player và Music Player không chạy đồng thời (giống YouTube)
 
-### Nguyên nhân gốc
+### Vấn đề hiện tại
+Hai hệ thống phát media hoạt động hoàn toàn **độc lập**:
+1. **Music Player** (`MusicPlayerContext` + `EnhancedMusicPlayer`) - phát nhạc qua thẻ `<audio>`
+2. **Video Player** (`EnhancedVideoPlayer` trên trang Watch + `GlobalVideoPlayer` khi rời trang Watch) - phát video qua thẻ `<video>`
 
-Khi người dùng **copy link** (nút "Copy") trong ShareModal, link được copy là `https://play.fun.rich/username/slug` -- đây là link SPA. Khi dán vào Telegram/Facebook, crawler truy cập trực tiếp domain `play.fun.rich` và nhận được file `index.html` tĩnh với OG image mặc định (logo FUN Play).
+Khi cả hai cùng phát, âm thanh bị chồng lên nhau. YouTube chỉ cho phép một nguồn phát tại một thời điểm.
 
-Chỉ khi bấm nút share riêng (Telegram, Facebook...) thì link prerender mới được sử dụng.
+### Giải pháp: Cơ chế "loại trừ lẫn nhau" (Mutual Exclusion)
 
-### Giải pháp
+Tạo một hệ thống event đơn giản để khi một player bắt đầu phát, nó sẽ tự động tạm dừng player còn lại.
 
-Thay đổi link được **copy vào clipboard** và **hiển thị** trong ShareModal thành link prerender (edge function) cho nội dung video/music. Edge function này đã có sẵn logic:
-- Bot/crawler: nhận HTML với đúng OG tags (thumbnail, title, description)
-- Người dùng thường: tự động redirect về `play.fun.rich/...` qua JavaScript
+### Chi tiết kỹ thuật
 
-Nhờ vậy, dù paste link ở đâu, preview đều hiển thị đúng thumbnail.
+**1. File mới: `src/lib/mediaSessionManager.ts`**
 
-### Thay đổi kỹ thuật
+Tạo một module quản lý phiên phát media toàn cục:
+- Khi một player muốn phát, nó gọi `requestPlayback("video")` hoặc `requestPlayback("music")`
+- Module phát sự kiện `mediaPauseRequest` để yêu cầu player khác dừng lại
+- Đơn giản, không phụ thuộc React context
 
-**File: `src/components/Video/ShareModal.tsx`**
+```typescript
+// Khi video bắt đầu phát → gửi event yêu cầu music dừng
+// Khi music bắt đầu phát → gửi event yêu cầu video dừng
+type MediaSource = "video" | "music" | "global-video";
 
-1. Thay đổi `handleCopyLink` để copy `prerenderUrl` thay vì `shareUrl` cho video/music/ai-music
-2. Thay đổi phần hiển thị link trong giao diện (input box) để hiện `shareUrl` thân thiện nhưng copy `prerenderUrl`
-3. Giữ nguyên `shareUrl` dạng `play.fun.rich/...` cho `og:url` (Telegram sẽ hiển thị domain đẹp)
+export function requestPlayback(source: MediaSource) {
+  window.dispatchEvent(new CustomEvent("mediaPauseRequest", { detail: { except: source } }));
+}
+```
 
-Cụ thể:
-- `handleCopyLink`: copy `prerenderUrl` thay vì `shareUrl`
-- Phần input hiển thị: vẫn hiển thị `shareUrl` (đẹp, ngắn gọn) nhưng khi copy thì dùng `prerenderUrl`
-- Native Share API: dùng `prerenderUrl`
-- Các nút share platform: giữ nguyên (đã dùng `prerenderUrl`)
+**2. File sửa: `src/contexts/MusicPlayerContext.tsx`**
 
-### Kết quả mong đợi
+- Khi `playTrack` / `playQueue` / `togglePlay` (play) được gọi → gọi `requestPlayback("music")`
+- Lắng nghe event `mediaPauseRequest`: nếu `except !== "music"` → tự động pause
 
-| Hành động | Trước | Sau |
-|-----------|-------|-----|
-| Copy link + paste vào Telegram | Hiện logo FUN Play mặc định | Hiện thumbnail + title đúng của video |
-| Bấm nút share Telegram | Hiện thumbnail đúng | Giữ nguyên, vẫn đúng |
-| Người dùng click link | Mở trang video | Vẫn mở trang video (redirect tự động) |
+**3. File sửa: `src/components/Video/GlobalVideoPlayer.tsx`**
+
+- Khi video bắt đầu phát → gọi `requestPlayback("global-video")`
+- Lắng nghe event `mediaPauseRequest`: nếu `except !== "global-video"` → tự động pause
+
+**4. File sửa: `src/components/Video/EnhancedVideoPlayer.tsx`**
+
+- Khi video trên trang Watch bắt đầu phát → gọi `requestPlayback("video")`
+- Lắng nghe event `mediaPauseRequest`: nếu `except !== "video"` → tự động pause
+
+**5. File sửa: `src/components/BackgroundMusicPlayer.tsx`**
+
+- Khi nhạc nền bắt đầu phát → gọi `requestPlayback("music")`
+- Lắng nghe event `mediaPauseRequest` → tự động pause
+
+### Luồng hoạt động
+
+```text
+Người dùng đang nghe nhạc (EnhancedMusicPlayer)
+  → Mở trang Watch để xem video
+  → EnhancedVideoPlayer gọi requestPlayback("video")
+  → Event "mediaPauseRequest" được phát với except="video"
+  → MusicPlayerContext nhận event → pause nhạc
+  → Chỉ còn video phát
+
+Người dùng đang xem video (trang Watch)
+  → Bấm phát một bài nhạc
+  → MusicPlayerContext gọi requestPlayback("music")
+  → Event "mediaPauseRequest" được phát với except="music"
+  → EnhancedVideoPlayer nhận event → pause video
+  → Chỉ còn nhạc phát
+```
+
+### Tổng hợp thay đổi
 
 | Tệp | Thay đổi |
 |------|---------|
-| `src/components/Video/ShareModal.tsx` | Copy link và Native Share dùng `prerenderUrl` thay vì `shareUrl` |
+| `src/lib/mediaSessionManager.ts` | **Tạo mới** - Module quản lý phiên phát media |
+| `src/contexts/MusicPlayerContext.tsx` | Thêm `requestPlayback("music")` khi phát + lắng nghe pause event |
+| `src/components/Video/EnhancedVideoPlayer.tsx` | Thêm `requestPlayback("video")` khi phát + lắng nghe pause event |
+| `src/components/Video/GlobalVideoPlayer.tsx` | Thêm `requestPlayback("global-video")` khi phát + lắng nghe pause event |
+| `src/components/BackgroundMusicPlayer.tsx` | Thêm `requestPlayback("music")` khi phát + lắng nghe pause event |
+
+### Kết quả mong đợi
+- Tại bất kỳ thời điểm nào, chỉ có **một nguồn phát** hoạt động
+- Chuyển qua lại giữa video và nhạc mượt mà, không bị chồng âm thanh
+- Hoạt động giống YouTube: mở video → nhạc tự dừng, phát nhạc → video tự dừng
 

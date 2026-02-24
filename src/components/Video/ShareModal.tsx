@@ -143,8 +143,7 @@ export const ShareModal = ({
   const copyToClipboard = sharedCopyToClipboard;
 
   const handleCopyLink = async () => {
-    const urlToCopy = (contentType === 'video' || contentType === 'music' || contentType === 'ai-music') ? prerenderUrl : shareUrl;
-    const success = await copyToClipboard(urlToCopy);
+    const success = await copyToClipboard(shareUrl);
     if (success) {
       setCopiedLink(true);
       setShowCopySuccess(true);
@@ -169,7 +168,7 @@ export const ShareModal = ({
         await navigator.share({
           title: title,
           text: `Xem ${getContentTypeLabel()} "${title}" trên FUN Play`,
-          url: (contentType === 'video' || contentType === 'music' || contentType === 'ai-music') ? prerenderUrl : shareUrl,
+          url: shareUrl,
         });
         toast({
           title: "Chia sẻ thành công!",
@@ -178,7 +177,7 @@ export const ShareModal = ({
       } catch (err) {
         if ((err as Error).name === 'AbortError') return;
         // Silent fallback: copy link when blocked (iframe/preview)
-        const success = await copyToClipboard((contentType === 'video' || contentType === 'music' || contentType === 'ai-music') ? prerenderUrl : shareUrl);
+        const success = await copyToClipboard(shareUrl);
         if (success) {
           setCopiedLink(true);
           setTimeout(() => setCopiedLink(false), 2000);
