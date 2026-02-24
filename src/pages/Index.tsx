@@ -11,7 +11,7 @@ import { MobileHonoboardCard } from "@/components/Layout/MobileHonoboardCard";
 import { CategoryChips } from "@/components/Layout/CategoryChips";
 import { VideoCard } from "@/components/Video/VideoCard";
 import { ContinueWatching } from "@/components/Video/ContinueWatching";
-import { BackgroundMusicPlayer } from "@/components/BackgroundMusicPlayer";
+// import { BackgroundMusicPlayer } from "@/components/BackgroundMusicPlayer";
 import { PullToRefreshIndicator } from "@/components/Layout/PullToRefreshIndicator";
 import { HonobarDetailModal } from "@/components/Layout/HonobarDetailModal";
 import { ProfileNudgeBanner } from "@/components/Profile/ProfileNudgeBanner";
@@ -81,7 +81,7 @@ const Index = () => {
   const [showHonobarDetail, setShowHonobarDetail] = useState(false);
   const [videos, setVideos] = useState<Video[]>([]);
   const [loadingVideos, setLoadingVideos] = useState(true);
-  const [currentMusicUrl, setCurrentMusicUrl] = useState<string | null>(null);
+  // const [currentMusicUrl, setCurrentMusicUrl] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState("Tất cả");
   const [visibleCount, setVisibleCount] = useState(VIDEOS_PER_PAGE);
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -474,13 +474,13 @@ const Index = () => {
       {/* Right sidebar - Honor Board (desktop only) - FIXED POSITION */}
       <HonoboardRightSidebar />
 
-      {/* Background Music Player */}
-      {user && (
+      {/* Background Music Player - Tạm tắt, bỏ comment để mở lại */}
+      {/* {user && (
         <BackgroundMusicPlayer 
           musicUrl={currentMusicUrl} 
           autoPlay={true}
         />
-      )}
+      )} */}
 
       {/* Scroll-to-Top Button */}
       <AnimatePresence>
