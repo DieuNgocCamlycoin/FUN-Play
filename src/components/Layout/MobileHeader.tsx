@@ -131,7 +131,7 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
             </div>
           </div>
 
-          {/* Right - Action Icons */}
+          {/* Right - Action Icons (limited on mobile) */}
           <div className="flex items-center gap-0 shrink-0">
             {/* Search */}
             <ToolbarIconButton
@@ -139,42 +139,6 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
               ariaLabel="Tìm kiếm"
             >
               <Search className="h-5 w-5 text-foreground" />
-            </ToolbarIconButton>
-
-            {/* Gift / Donate */}
-            <ToolbarIconButton
-              onClick={() => navigate("/wallet")}
-              ariaLabel="Tặng & Thưởng"
-            >
-              <img 
-                src="/images/icon-gift-holographic.png" 
-                alt="Tặng & Thưởng" 
-                className="h-6 w-6 object-contain drop-shadow-md"
-              />
-            </ToolbarIconButton>
-
-            {/* Mint FUN Money */}
-            <ToolbarIconButton
-              onClick={() => navigate("/fun-money")}
-              ariaLabel="Mint FUN Money"
-            >
-              <img 
-                src="/images/fun-money-coin.png" 
-                alt="FUN Money" 
-                className="h-6 w-6 object-contain drop-shadow-md"
-              />
-            </ToolbarIconButton>
-
-            {/* FUN Wallet */}
-            <ToolbarIconButton
-              onClick={() => navigate("/wallet")}
-              ariaLabel="FUN Wallet"
-            >
-              <img 
-                src="/images/fun-play-wallet-icon.png" 
-                alt="FUN Wallet" 
-                className="h-6 w-6 object-contain drop-shadow-md"
-              />
             </ToolbarIconButton>
 
             {/* Notifications */}

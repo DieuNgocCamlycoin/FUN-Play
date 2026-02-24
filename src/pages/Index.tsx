@@ -8,8 +8,6 @@ import { MobileHeader } from "@/components/Layout/MobileHeader";
 import { MobileBottomNav } from "@/components/Layout/MobileBottomNav";
 import { MobileDrawer } from "@/components/Layout/MobileDrawer";
 import { MobileHonoboardCard } from "@/components/Layout/MobileHonoboardCard";
-import { MobileTopRankingCard } from "@/components/Layout/MobileTopRankingCard";
-import { MobileTopSponsorsCard } from "@/components/Layout/MobileTopSponsorsCard";
 import { CategoryChips } from "@/components/Layout/CategoryChips";
 import { VideoCard } from "@/components/Video/VideoCard";
 import { ContinueWatching } from "@/components/Video/ContinueWatching";
@@ -394,11 +392,9 @@ const Index = () => {
         <CategoryChips selected={selectedCategory} onSelect={setSelectedCategory} sidebarExpanded={isSidebarExpanded} />
         <div className="mt-[44px] h-[calc(100vh-3.5rem-44px-44px)] overflow-y-auto lg:mt-[44px] lg:h-auto lg:overflow-visible">
           
-          {/* Mobile 3-Card Layout */}
-          <div className="lg:hidden px-4 mb-4 space-y-3">
+          {/* Mobile Compact Honor Strip - collapsible */}
+          <div className="lg:hidden px-4 mb-3">
             <MobileHonoboardCard onClick={() => setShowHonobarDetail(true)} />
-            <MobileTopRankingCard />
-            <MobileTopSponsorsCard />
           </div>
 
           {/* Profile Nudge Banner */}
@@ -410,7 +406,7 @@ const Index = () => {
             />
           )}
 
-          {!user && (
+          {!user && !isMobile && (
             <div className="glass-card mx-4 mt-4 rounded-xl border border-cosmic-magenta/50 p-4 shadow-[0_0_50px_rgba(217,0,255,0.5)]">
               <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
                 <p className="text-foreground font-medium text-center sm:text-left">
