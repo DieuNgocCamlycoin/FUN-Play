@@ -312,7 +312,11 @@ const Index = () => {
     .filter((video) => !bannedIds.has(video.user_id))
     .filter((video) => {
       if (selectedCategory === "Tất cả") return true;
-      if (selectedCategory === "Xu hướng") return true;
+      if (selectedCategory === "Xu hướng") {
+        const fiveDaysAgo = new Date();
+        fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+        return new Date(video.created_at) >= fiveDaysAgo;
+      }
       if (selectedCategory === "Mới tải lên gần đây") {
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
