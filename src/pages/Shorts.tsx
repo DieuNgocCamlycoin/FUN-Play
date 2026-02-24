@@ -224,7 +224,7 @@ const ShortsVideoItem = ({
               isDisliked ? "fill-blue-400 text-blue-400" : "text-white"
             )} />
           </div>
-          <span className="text-white text-[10px] mt-1">Không thích</span>
+          <span className="text-white text-[10px] mt-1 sr-only">Không thích</span>
         </button>
 
         {/* Comment */}
@@ -248,7 +248,7 @@ const ShortsVideoItem = ({
           <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur flex items-center justify-center">
             <Share2 className="w-7 h-7 text-white" />
           </div>
-          <span className="text-white text-[10px] mt-1">Chia sẻ</span>
+          <span className="text-white text-[10px] mt-1 sr-only">Chia sẻ</span>
         </button>
 
         {/* Save / Bookmark */}
