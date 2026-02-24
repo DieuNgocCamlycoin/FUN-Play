@@ -60,9 +60,13 @@ export const GlobalVideoPlayer = () => {
     return true;
   })();
 
-  // Hide player when on the same video's watch page
+  // Hide player when on the same video's watch page - PAUSE trước khi ẩn
   useEffect(() => {
     if (isOnWatchPage) {
+      // DỪNG video TRƯỚC khi ẩn - tránh âm thanh chạy ngầm
+      if (videoRef.current && !videoRef.current.paused) {
+        videoRef.current.pause();
+      }
       setIsVisible(false);
     } else if (globalVideoState) {
       setIsVisible(true);
@@ -157,8 +161,8 @@ export const GlobalVideoPlayer = () => {
     }
     video.volume = volume;
 
-    // Auto-play if was playing
-    if (globalIsPlaying) {
+    // Auto-play if was playing - chỉ khi KHÔNG ở trang Watch
+    if (globalIsPlaying && !isOnWatchPage) {
       video.play().catch(console.error);
     }
 
