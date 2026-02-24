@@ -2,6 +2,7 @@ import { useRef, useEffect, useState, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { isVideoWatchPage } from "@/lib/videoNavigation";
 import { useMiniPlayer } from "@/contexts/MiniPlayerContext";
+import { requestPlayback, onPauseRequest } from "@/lib/mediaSessionManager";
 import { Button } from "@/components/ui/button";
 import { Play, Pause, X, Maximize2, Volume2, VolumeX } from "lucide-react";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
@@ -29,8 +30,27 @@ export function GlobalMiniPlayer() {
   const isOnWatchPage = isVideoWatchPage(location.pathname);
   const shouldHide = isOnWatchPage;
 
+  // Lắng nghe yêu cầu dừng từ nguồn khác
+  useEffect(() => {
+    return onPauseRequest("video", () => {
+      const video = videoRef.current;
+      if (video && !video.paused) {
+        video.pause();
+        setIsPlaying(false);
+      }
+    });
+  }, [setIsPlaying]);
+
+  // Pause video trước khi ẩn trên trang Watch
+  useEffect(() => {
+    if (shouldHide && videoRef.current && !videoRef.current.paused) {
+      videoRef.current.pause();
+    }
+  }, [shouldHide]);
+
   // Reliable autoplay: try unmuted first, fallback to muted + prompt
   const attemptPlay = useCallback(async (video: HTMLVideoElement) => {
+    requestPlayback("video");
     video.muted = false;
     try {
       await video.play();
