@@ -38,16 +38,16 @@ export function isNameAppropriate(name: string): { ok: boolean; reason?: string 
     return { ok: true };
   }
 
-  const normalized = removeDiacritics(name.toLowerCase().trim());
+  const lower = name.toLowerCase().trim();
 
   for (const word of OFFENSIVE_WORDS) {
-    const normalizedWord = removeDiacritics(word.toLowerCase());
-    const escaped = normalizedWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const regex = new RegExp(`(^|[^a-z])${escaped}([^a-z]|$)`, 'i');
-    if (regex.test(normalized)) {
+    const lowerWord = word.toLowerCase();
+    const escaped = lowerWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`(^|[^a-zàáảãạăắằẳẵặâấầẩẫậèéẻẽẹêếềểễệìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵđ])${escaped}([^a-zàáảãạăắằẳẵặâấầẩẫậèéẻẽẹêếềểễệìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵđ]|$)`, 'i');
+    if (regex.test(lower)) {
       return {
         ok: false,
-        reason: `Tên chứa từ ngữ không phù hợp. Vui lòng chọn tên khác.`,
+        reason: "Tên chứa từ ngữ không phù hợp. Vui lòng chọn tên khác.",
       };
     }
   }
