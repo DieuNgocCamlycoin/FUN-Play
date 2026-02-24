@@ -1,70 +1,158 @@
 
-Mình đã khoanh đúng nguyên nhân gây lỗi “bấm phát được ~1 giây rồi tự dừng”.
 
-## Chẩn đoán nhanh
+# Kế hoạch Triển khai: Sửa Slug Tiếng Việt + Slug History (301 Redirect)
 
-- Triệu chứng user báo: video phát được 1s rồi pause.
-- Mình đã đối chiếu các file liên quan:
-  - `src/components/Video/EnhancedVideoPlayer.tsx`
-  - `src/components/Video/GlobalVideoPlayer.tsx`
-  - `src/contexts/MusicPlayerContext.tsx`
-  - `src/components/BackgroundMusicPlayer.tsx`
-  - `src/pages/Watch.tsx`
-- Điểm lỗi nằm ở **`src/pages/Watch.tsx`**, không phải ở `togglePlay` của player nữa.
+## Tổng quan
 
-## Nguyên nhân gốc (root cause)
+Triển khai đồng thời 2 phần:
+1. **Sửa lỗi slug tiếng Việt** - Thay thế phương pháp `translate()` bị lệch bằng Unicode NFD normalization, tăng giới hạn từ 80 lên 150 ký tự
+2. **Slug History** - Tạo bảng lưu slug cũ, tự động redirect 301 khi slug thay đổi
 
-Trong `Watch.tsx` có effect “Enable global playback when navigating away”:
+## Bằng chứng lỗi hiện tại
 
-- Effect này có dependency: `[video, isPlaying, currentTime, duration]`
-- Vì `currentTime` cập nhật liên tục khi video đang chạy, React sẽ:
-  1) chạy cleanup effect cũ
-  2) rồi chạy effect mới
-- Cleanup hiện tại lại dispatch:
-  - `startGlobalPlayback`
-  - bên `GlobalVideoPlayer` nhận event và gọi `requestPlayback("global-video")`
-  - event này gửi yêu cầu pause tất cả source khác, bao gồm `EnhancedVideoPlayer` (`source = "video"`)
+Dữ liệu thực từ database cho thấy lỗi rõ ràng:
 
-Kết quả: video trang Watch vừa play được 1 nhịp timeupdate thì bị source global yêu cầu pause, đúng pattern “1 giây là dừng”.
+| Tiêu đề | Slug hiện tại (sai) | Slug đúng |
+|---------|---------------------|-----------|
+| "THIỀN CHỮA LÀNH" | `thien-chua-ldnh` | `thien-chua-lanh` |
+| "ĐÓN GIÁNG SINH TRONG NHÀ CHA" | `yon-giang-sinh-trong-nhd-cha` | `don-giang-sinh-trong-nha-cha` |
+| "Trái Đất" | `trai-yat` | `trai-dat` |
+| "dẫn Thiền" | bị cắt cụt | `dan-thien` |
 
-## Do I know what the issue is?
+Nguyên nhân: Chuỗi `translate()` trong PostgreSQL bị lệch vị trí ký tự, khiến "Đ" -> "y", "Ạ" -> sai, v.v.
 
-**Yes.** Lỗi là do cleanup của `useEffect` trong `Watch.tsx` đang bị kích hoạt lặp theo dependency thay vì chỉ khi rời trang/unmount.
+---
 
-## Kế hoạch sửa
+## Các bước triển khai
 
-### 1) Sửa effect global playback trong `Watch.tsx` để chỉ chạy khi unmount/rời Watch thật sự
-- Chuyển sang pattern:
-  - 1 effect cập nhật `refs` chứa giá trị mới nhất: `video`, `isPlaying`, `currentTime`, `duration`
-  - 1 effect cleanup với dependency tối thiểu (hoặc `[]`) để cleanup chỉ chạy khi unmount
-- Trong cleanup:
-  - chỉ dispatch `startGlobalPlayback` nếu snapshot hợp lệ:
-    - có `video`
-    - `isPlaying === true`
-    - `currentTime > 0`
-- Tránh cleanup chạy lại mỗi lần `currentTime` đổi.
+### Bước 1: Nâng cấp `src/lib/slugify.ts`
 
-### 2) Thêm guard điều kiện route trước khi phát global player
-- Trước khi dispatch `startGlobalPlayback`, kiểm tra đang rời khỏi trang watch (không phải re-render nội bộ).
-- Mục tiêu: không bật GlobalVideoPlayer khi vẫn đang ở chính trang watch.
+Thay thế toàn bộ VIETNAMESE_MAP bằng thuật toán NFD normalization:
+- Xử lý riêng "đ" -> "d", "Đ" -> "D" (vì NFD không tách được)
+- Dùng `text.normalize('NFD')` + regex loại bỏ combining marks
+- Tăng giới hạn từ 80 lên 150 ký tự
+- Cắt tại ranh giới từ (dấu `-` cuối cùng trước vị trí 150)
+- Thêm fallback cho title rỗng: `untitled-` + 4 ký tự random
+- Thêm hàm `generateUniqueSlug(userId, title)` với logic chống trùng
 
-### 3) Giữ nguyên cơ chế Mutual Exclusion hiện tại
-- `mediaSessionManager.ts` không cần đổi kiến trúc.
-- Logic pause chéo video/music hiện tại đúng; lỗi đến từ trigger sai thời điểm ở Watch page.
+### Bước 2: Database Migration
 
-### 4) Kiểm tra hồi quy (regression checks)
-Sau khi sửa sẽ test đủ các flow:
-1. Mở watch page → bấm play: video phải chạy liên tục, không tự pause sau 1s.
-2. Khi video đang phát, bật music player: video pause đúng.
-3. Khi music đang phát, bấm play video: music pause đúng.
-4. Rời watch page khi video đang phát: global player xuất hiện và tiếp tục từ đúng thời điểm.
-5. Quay lại watch page: không tạo vòng pause qua lại giữa watch/global.
+Một migration SQL duy nhất thực hiện:
 
-## Files sẽ chỉnh
-- `src/pages/Watch.tsx` (trọng tâm, sửa lifecycle effect gây pause sau 1 giây)
+**2a. Tạo bảng `video_slug_history`**
+- Cột: `id`, `video_id` (FK -> videos), `old_slug`, `user_id`, `created_at`
+- Index: `(user_id, old_slug)` cho lookup nhanh
+- RLS: Public SELECT (cần cho redirect), owner INSERT
 
-## Rủi ro & cách kiểm soát
-- Rủi ro: mất tính năng continue-play khi rời trang.
-- Kiểm soát: dùng ref snapshot + cleanup unmount-only + test đầy đủ 5 luồng phía trên.
+**2b. Sửa hàm `generate_video_slug()`**
+- Thay `translate()` bằng `unaccent()` extension (nếu có) hoặc dùng chuỗi translate đã kiểm chứng kỹ
+- Tăng giới hạn từ 80 lên 150
+- Thêm logic: khi UPDATE slug, tự động INSERT slug cũ vào `video_slug_history`
 
-Sau khi bạn approve plan này, mình sẽ sửa ngay đúng file `Watch.tsx` để dứt điểm lỗi “play 1s rồi dừng”.
+**2c. Tái tạo slug cho tất cả video hiện có**
+- Lưu slug cũ vào `video_slug_history` trước khi cập nhật
+- Tạo lại slug bằng thuật toán mới đã sửa
+- Giữ logic chống trùng `-2`, `-3`
+
+### Bước 3: Tạo `src/lib/slugGovernance.ts`
+
+File mới chứa:
+- `updateVideoSlug(videoId, newTitle, userId)` - governance logic khi đổi title
+- Kiểm tra slug cũ vs mới, lưu vào history, rate limit (tối đa 5 lần/ngày)
+
+### Bước 4: Cập nhật routing - Redirect slug cũ
+
+Cập nhật `src/lib/videoNavigation.ts`:
+- Khi lookup `/:username/video/:slug` không tìm thấy -> query `video_slug_history`
+- Nếu tìm thấy slug cũ -> trả về path mới để component thực hiện redirect
+
+### Bước 5: Cập nhật `DynamicMeta.tsx`
+
+- Thêm prop `canonicalUrl`
+- Tự động tạo/cập nhật `<link rel="canonical">` trong `<head>`
+
+### Bước 6: Cập nhật `public/robots.txt`
+
+Thêm Disallow cho các route nội bộ: `/api/`, `/auth`, `/settings`, `/admin`, `/studio`, `/upload`, v.v.
+
+### Bước 7: Bổ sung reserved usernames
+
+Thêm vào `RESERVED_WORDS` trong `nameFilter.ts`: `api`, `sitemap`, `robots`, `favicon`, `static`, `feed`, `explore`, `trending`, `live`, `help`, `support`, `about`, `terms`, `privacy`, `contact`, `login`, `signup`
+
+---
+
+## Chi tiết kỹ thuật
+
+### Thuật toán slugify mới (client-side)
+
+```text
+function slugify(text):
+  1. text = text.replace(/đ/g, 'd').replace(/Đ/g, 'D')
+  2. text = text.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  3. text = text.toLowerCase()
+  4. text = text.replace(/[^a-z0-9]+/g, '-')
+  5. text = text.replace(/^-+|-+$/g, '')
+  6. if text.length > 150:
+     - tìm vị trí dấu '-' cuối cùng trước 150
+     - cắt tại đó
+  7. if text rỗng: return 'untitled-' + random4chars
+  8. return text
+```
+
+### Schema bảng `video_slug_history`
+
+```text
+video_slug_history
+  - id: UUID (PK)
+  - video_id: UUID (FK -> videos, ON DELETE CASCADE)
+  - user_id: UUID (NOT NULL)
+  - old_slug: TEXT (NOT NULL)
+  - created_at: TIMESTAMPTZ (DEFAULT now())
+
+Indexes:
+  - UNIQUE (user_id, old_slug)
+
+RLS:
+  - SELECT: public (true) - cần cho redirect
+  - INSERT: auth.uid() = user_id
+```
+
+### Flow redirect slug cũ
+
+```text
+User truy cập: /:username/video/:slug
+  |
+  v
+Query videos WHERE user_id = X AND slug = Y
+  |
+  +-- Tìm thấy --> Hiển thị video
+  |
+  +-- Không tìm thấy --> Query video_slug_history WHERE user_id = X AND old_slug = Y
+        |
+        +-- Tìm thấy --> Lấy video mới --> Navigate (replace) đến slug mới
+        |
+        +-- Không tìm thấy --> 404
+```
+
+---
+
+## Các file thay đổi
+
+| File | Hành động |
+|------|-----------|
+| `src/lib/slugify.ts` | Viết lại hoàn toàn |
+| `src/lib/slugGovernance.ts` | Tạo mới |
+| `src/lib/videoNavigation.ts` | Thêm slug history lookup |
+| `src/lib/nameFilter.ts` | Thêm reserved words |
+| `src/components/SEO/DynamicMeta.tsx` | Thêm canonical tag |
+| `public/robots.txt` | Cập nhật Disallow rules |
+| Migration SQL | Tạo bảng + sửa trigger + tái tạo slug |
+
+---
+
+## Lưu ý quan trọng
+
+- Sau khi tái tạo slug, tất cả slug cũ (sai) sẽ được lưu vào `video_slug_history`, nên **link cũ vẫn hoạt động** nhờ redirect 301
+- Quá trình tái tạo có thể mất vài giây nếu có nhiều video
+- Client-side `slugify.ts` và DB trigger sẽ dùng cùng thuật toán để đảm bảo nhất quán
+
