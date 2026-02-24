@@ -43,6 +43,7 @@ interface MobileWatchViewProps {
   onShare: () => void;
   onVideoEnd: () => void;
   channelAvatarUrl?: string | null;
+  isOwnVideo?: boolean;
 }
 
 export function MobileWatchView({
@@ -56,6 +57,7 @@ export function MobileWatchView({
   onShare,
   onVideoEnd,
   channelAvatarUrl,
+  isOwnVideo = false,
 }: MobileWatchViewProps) {
   const navigate = useNavigate();
   const { goToVideo } = useVideoNavigation();
@@ -193,6 +195,8 @@ export function MobileWatchView({
           videoTitle={video.title}
           videoId={video.id}
           isVerified={video.channels.is_verified}
+          isOwnVideo={isOwnVideo}
+          onEdit={() => navigate(`/edit-video/${video.id}`)}
         />
 
         {/* Comments Card */}
