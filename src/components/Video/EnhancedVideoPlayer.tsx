@@ -195,7 +195,6 @@ export function EnhancedVideoPlayer({
       const video = videoRef.current;
       if (video && !video.paused) {
         video.pause();
-        setIsPlaying(false);
       }
     });
   }, []);
@@ -206,10 +205,14 @@ export function EnhancedVideoPlayer({
     if (!video || !settings.autoplay) return;
 
     const playVideo = async () => {
+      if (video.readyState < 2) {
+        await new Promise<void>(resolve => {
+          video.addEventListener('canplay', () => resolve(), { once: true });
+        });
+      }
       try {
         requestPlayback("video");
         await video.play();
-        setIsPlaying(true);
       } catch (e) {
         console.log("Autoplay prevented:", e);
       }
@@ -373,19 +376,22 @@ export function EnhancedVideoPlayer({
   };
 
   // Control functions
-  const togglePlay = () => {
+  const togglePlay = async () => {
     const video = videoRef.current;
     if (!video) return;
 
-    if (isPlaying) {
+    if (video.paused) {
+      try {
+        requestPlayback("video");
+        setShowEndScreen(false);
+        await video.play();
+      } catch (e) {
+        console.log("Play failed:", e);
+      }
+    } else {
       video.pause();
       updateProgress(video.currentTime * 1000);
-    } else {
-      requestPlayback("video");
-      video.play();
-      setShowEndScreen(false);
     }
-    setIsPlaying(!isPlaying);
   };
 
   const seekTo = (time: number) => {
