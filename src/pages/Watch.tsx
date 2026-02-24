@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { ThumbsUp, ThumbsDown, Share2, MoreHorizontal, Gift, Bookmark, EyeOff } from "lucide-react";
+import { ThumbsUp, ThumbsDown, Share2, MoreHorizontal, Gift, Bookmark, EyeOff, Pencil } from "lucide-react";
 import { ReportSpamButton } from "@/components/Video/ReportSpamButton";
 import { EnhancedDonateModal } from "@/components/Donate/EnhancedDonateModal";
 import { ShareModal } from "@/components/Video/ShareModal";
@@ -573,6 +573,7 @@ export default function Watch({ videoIdProp }: { videoIdProp?: string }) {
           onShare={() => setShareModalOpen(true)}
           onVideoEnd={handleVideoEnd}
           channelAvatarUrl={channelAvatarUrl}
+          isOwnVideo={user?.id === video.user_id}
         />
         <ShareModal
           isOpen={shareModalOpen}
@@ -730,17 +731,29 @@ export default function Watch({ videoIdProp }: { videoIdProp?: string }) {
                       </div>
                     )}
                   </div>
-                  <Button
-                    onClick={handleSubscribe}
-                    size="sm"
-                    className={`rounded-full ml-1 ${
-                      isSubscribed
-                        ? "bg-muted hover:bg-muted/80 text-foreground !shadow-none !border-0"
-                        : "bg-gradient-to-r from-cosmic-sapphire to-cosmic-cyan hover:from-cosmic-sapphire/90 hover:to-cosmic-cyan/90 text-foreground shadow-[0_0_20px_rgba(0,255,255,0.4)] !border-0"
-                    }`}
-                  >
-                    {isSubscribed ? "Đã đăng ký" : "Đăng ký"}
-                  </Button>
+                  {user?.id === video.user_id ? (
+                    <Button
+                      onClick={() => navigate(`/edit-video/${video.id}`)}
+                      size="sm"
+                      variant="outline"
+                      className="rounded-full ml-1 gap-1.5"
+                    >
+                      <Pencil className="h-4 w-4" />
+                      Chỉnh sửa video
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={handleSubscribe}
+                      size="sm"
+                      className={`rounded-full ml-1 ${
+                        isSubscribed
+                          ? "bg-muted hover:bg-muted/80 text-foreground !shadow-none !border-0"
+                          : "bg-gradient-to-r from-cosmic-sapphire to-cosmic-cyan hover:from-cosmic-sapphire/90 hover:to-cosmic-cyan/90 text-foreground shadow-[0_0_20px_rgba(0,255,255,0.4)] !border-0"
+                      }`}
+                    >
+                      {isSubscribed ? "Đã đăng ký" : "Đăng ký"}
+                    </Button>
+                  )}
                 </div>
 
                 {/* Right: Action buttons — clean, no gradient */}

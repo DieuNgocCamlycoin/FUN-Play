@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ThumbsUp, ThumbsDown, Download, Loader2, Bookmark, Bell, BellRing, BellOff, ChevronDown, Share2, Gift } from "lucide-react";
+import { ThumbsUp, ThumbsDown, Download, Loader2, Bookmark, Bell, BellRing, BellOff, ChevronDown, Share2, Gift, Pencil } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -37,6 +37,8 @@ interface VideoActionsBarProps {
   videoTitle: string;
   videoId: string;
   isVerified?: boolean;
+  isOwnVideo?: boolean;
+  onEdit?: () => void;
 }
 
 export function VideoActionsBar({
@@ -56,6 +58,8 @@ export function VideoActionsBar({
   videoTitle,
   videoId,
   isVerified,
+  isOwnVideo = false,
+  onEdit,
 }: VideoActionsBarProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -141,8 +145,18 @@ export function VideoActionsBar({
             </p>
           </div>
 
-          {/* Subscribe/Bell button - Logic mới */}
-          {isSubscribed ? (
+          {/* Subscribe/Bell/Edit button */}
+          {isOwnVideo ? (
+            <Button
+              onClick={() => { lightTap(); onEdit?.(); }}
+              size="sm"
+              variant="outline"
+              className="rounded-full px-4 h-9 font-semibold shrink-0 gap-1.5"
+            >
+              <Pencil className="h-4 w-4" />
+              Chỉnh sửa
+            </Button>
+          ) : isSubscribed ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
