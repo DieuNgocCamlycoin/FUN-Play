@@ -35,6 +35,8 @@ interface Video {
   thumbnail_url: string | null;
   video_url: string;
   view_count: number | null;
+  like_count: number | null;
+  comment_count: number | null;
   duration: number | null;
   category: string | null;
   created_at: string;
@@ -50,6 +52,28 @@ interface Video {
     display_name: string | null;
   };
 }
+
+const calculateTrendingScore = (video: Video): number => {
+  const views = video.view_count || 0;
+  const likes = video.like_count || 0;
+  const comments = video.comment_count || 0;
+
+  const interactionScore = views * 1.0 + likes * 3.0 + comments * 5.0;
+
+  const now = Date.now();
+  const createdAt = new Date(video.created_at).getTime();
+  const hoursAgo = (now - createdAt) / (1000 * 60 * 60);
+
+  let timeMultiplier: number;
+  if (hoursAgo <= 24) timeMultiplier = 5.0;
+  else if (hoursAgo <= 72) timeMultiplier = 3.0;
+  else if (hoursAgo <= 168) timeMultiplier = 2.0;
+  else if (hoursAgo <= 336) timeMultiplier = 1.5;
+  else if (hoursAgo <= 720) timeMultiplier = 1.0;
+  else timeMultiplier = 0.5;
+
+  return interactionScore * timeMultiplier;
+};
 
 const VIDEOS_PER_PAGE = 24;
 
@@ -133,6 +157,8 @@ const Index = () => {
           thumbnail_url,
           video_url,
           view_count,
+          like_count,
+          comment_count,
           duration,
           category,
           created_at,
@@ -256,7 +282,7 @@ const Index = () => {
           setVideos(prevVideos => 
             prevVideos.map(video => 
               video.id === payload.new.id
-                ? { ...video, view_count: payload.new.view_count }
+                ? { ...video, view_count: payload.new.view_count, like_count: payload.new.like_count, comment_count: payload.new.comment_count }
                 : video
             )
           );
@@ -306,7 +332,7 @@ const Index = () => {
       return cats.includes(video.category || "");
     })
     .sort((a, b) => {
-      if (selectedCategory === "Xu hướng") return (b.view_count || 0) - (a.view_count || 0);
+      if (selectedCategory === "Xu hướng") return calculateTrendingScore(b) - calculateTrendingScore(a);
       if (selectedCategory === "Đề xuất mới") return Math.random() - 0.5;
       return 0;
     });
