@@ -1,158 +1,134 @@
 
-
-# Kế hoạch Triển khai: Sửa Slug Tiếng Việt + Slug History (301 Redirect)
+# Phân tích UI/UX Mobile - FUN Play
 
 ## Tổng quan
 
-Triển khai đồng thời 2 phần:
-1. **Sửa lỗi slug tiếng Việt** - Thay thế phương pháp `translate()` bị lệch bằng Unicode NFD normalization, tăng giới hạn từ 80 lên 150 ký tự
-2. **Slug History** - Tạo bảng lưu slug cũ, tự động redirect 301 khi slug thay đổi
-
-## Bằng chứng lỗi hiện tại
-
-Dữ liệu thực từ database cho thấy lỗi rõ ràng:
-
-| Tiêu đề | Slug hiện tại (sai) | Slug đúng |
-|---------|---------------------|-----------|
-| "THIỀN CHỮA LÀNH" | `thien-chua-ldnh` | `thien-chua-lanh` |
-| "ĐÓN GIÁNG SINH TRONG NHÀ CHA" | `yon-giang-sinh-trong-nhd-cha` | `don-giang-sinh-trong-nha-cha` |
-| "Trái Đất" | `trai-yat` | `trai-dat` |
-| "dẫn Thiền" | bị cắt cụt | `dan-thien` |
-
-Nguyên nhân: Chuỗi `translate()` trong PostgreSQL bị lệch vị trí ký tự, khiến "Đ" -> "y", "Ạ" -> sai, v.v.
+Sau khi kiểm tra toàn bộ nền tảng trên viewport 390x844 (iPhone 14), dưới đây là phân tích chi tiết từng trang.
 
 ---
 
-## Các bước triển khai
+## 1. Trang Chủ (/)
 
-### Bước 1: Nâng cấp `src/lib/slugify.ts`
+### Điểm tốt
+- Bottom navigation rõ ràng, 5 tab chuẩn YouTube-style
+- Category chips (Tất cả, Xu hướng, Âm nhạc, Thiền) cố định phía trên, cuộn mượt
+- Video cards hiển thị thumbnail + tiêu đề + kênh + thời lượng đầy đủ
+- Header bar với logo, search, avatar story bubbles trông sống động
 
-Thay thế toàn bộ VIETNAMESE_MAP bằng thuật toán NFD normalization:
-- Xử lý riêng "đ" -> "d", "Đ" -> "D" (vì NFD không tách được)
-- Dùng `text.normalize('NFD')` + regex loại bỏ combining marks
-- Tăng giới hạn từ 80 lên 150 ký tự
-- Cắt tại ranh giới từ (dấu `-` cuối cùng trước vị trí 150)
-- Thêm fallback cho title rỗng: `untitled-` + 4 ký tự random
-- Thêm hàm `generateUniqueSlug(userId, title)` với logic chống trùng
-
-### Bước 2: Database Migration
-
-Một migration SQL duy nhất thực hiện:
-
-**2a. Tạo bảng `video_slug_history`**
-- Cột: `id`, `video_id` (FK -> videos), `old_slug`, `user_id`, `created_at`
-- Index: `(user_id, old_slug)` cho lookup nhanh
-- RLS: Public SELECT (cần cho redirect), owner INSERT
-
-**2b. Sửa hàm `generate_video_slug()`**
-- Thay `translate()` bằng `unaccent()` extension (nếu có) hoặc dùng chuỗi translate đã kiểm chứng kỹ
-- Tăng giới hạn từ 80 lên 150
-- Thêm logic: khi UPDATE slug, tự động INSERT slug cũ vào `video_slug_history`
-
-**2c. Tái tạo slug cho tất cả video hiện có**
-- Lưu slug cũ vào `video_slug_history` trước khi cập nhật
-- Tạo lại slug bằng thuật toán mới đã sửa
-- Giữ logic chống trùng `-2`, `-3`
-
-### Bước 3: Tạo `src/lib/slugGovernance.ts`
-
-File mới chứa:
-- `updateVideoSlug(videoId, newTitle, userId)` - governance logic khi đổi title
-- Kiểm tra slug cũ vs mới, lưu vào history, rate limit (tối đa 5 lần/ngày)
-
-### Bước 4: Cập nhật routing - Redirect slug cũ
-
-Cập nhật `src/lib/videoNavigation.ts`:
-- Khi lookup `/:username/video/:slug` không tìm thấy -> query `video_slug_history`
-- Nếu tìm thấy slug cũ -> trả về path mới để component thực hiện redirect
-
-### Bước 5: Cập nhật `DynamicMeta.tsx`
-
-- Thêm prop `canonicalUrl`
-- Tự động tạo/cập nhật `<link rel="canonical">` trong `<head>`
-
-### Bước 6: Cập nhật `public/robots.txt`
-
-Thêm Disallow cho các route nội bộ: `/api/`, `/auth`, `/settings`, `/admin`, `/studio`, `/upload`, v.v.
-
-### Bước 7: Bổ sung reserved usernames
-
-Thêm vào `RESERVED_WORDS` trong `nameFilter.ts`: `api`, `sitemap`, `robots`, `favicon`, `static`, `feed`, `explore`, `trending`, `live`, `help`, `support`, `about`, `terms`, `privacy`, `contact`, `login`, `signup`
+### Vấn đề phát hiện
+- **Header quá chật**: Logo FUN Play + search icon + 6-7 avatar bubbles + nút "Đăng nhập" chen nhau trên 390px, avatar bị cắt mép phải
+- **Honor Board / Top Ranking / Top Sponsors chiếm quá nhiều không gian**: 3 widget này chiếm hơn 50% màn hình đầu tiên, đẩy video content xuống rất xa. Người dùng phải cuộn nhiều mới thấy video đầu tiên
+- **CTA "Tham gia FUN Play"**: Banner đăng ký/đăng nhập xuất hiện ngay giữa feed dù user đã đăng nhập, gây thừa và chiếm diện tích
+- **Top Sponsors**: Ảnh avatar đang hiển thị dạng skeleton loading (chấm xám) thay vì ảnh thật trong một số lần tải
 
 ---
 
-## Chi tiết kỹ thuật
+## 2. Shorts (/shorts)
 
-### Thuật toán slugify mới (client-side)
+### Điểm tốt
+- Full-screen immersive, đúng chuẩn TikTok/YouTube Shorts
+- Action buttons (like, dislike, comment, share, bookmark) bên phải dễ thao tác
+- Subtitle overlay hiển thị rõ ràng
+- Pagination indicator (1/43) ở góc trên bên phải
 
-```text
-function slugify(text):
-  1. text = text.replace(/đ/g, 'd').replace(/Đ/g, 'D')
-  2. text = text.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-  3. text = text.toLowerCase()
-  4. text = text.replace(/[^a-z0-9]+/g, '-')
-  5. text = text.replace(/^-+|-+$/g, '')
-  6. if text.length > 150:
-     - tìm vị trí dấu '-' cuối cùng trước 150
-     - cắt tại đó
-  7. if text rỗng: return 'untitled-' + random4chars
-  8. return text
-```
-
-### Schema bảng `video_slug_history`
-
-```text
-video_slug_history
-  - id: UUID (PK)
-  - video_id: UUID (FK -> videos, ON DELETE CASCADE)
-  - user_id: UUID (NOT NULL)
-  - old_slug: TEXT (NOT NULL)
-  - created_at: TIMESTAMPTZ (DEFAULT now())
-
-Indexes:
-  - UNIQUE (user_id, old_slug)
-
-RLS:
-  - SELECT: public (true) - cần cho redirect
-  - INSERT: auth.uid() = user_id
-```
-
-### Flow redirect slug cũ
-
-```text
-User truy cập: /:username/video/:slug
-  |
-  v
-Query videos WHERE user_id = X AND slug = Y
-  |
-  +-- Tìm thấy --> Hiển thị video
-  |
-  +-- Không tìm thấy --> Query video_slug_history WHERE user_id = X AND old_slug = Y
-        |
-        +-- Tìm thấy --> Lấy video mới --> Navigate (replace) đến slug mới
-        |
-        +-- Không tìm thấy --> 404
-```
+### Vấn đề phát hiện
+- **Nút "Không thích" hiển thị text dài**: Label "Không thích" bị tràn ra ngoài, nên chỉ dùng icon
+- **Nút "Chia sẻ" bị che**: Text "Chia" bị cắt, chỉ thấy một phần
+- **Bottom nav ẩn đi** nhưng không có gesture indicator rõ ràng để quay lại
 
 ---
 
-## Các file thay đổi
+## 3. Profile (/profile)
 
-| File | Hành động |
-|------|-----------|
-| `src/lib/slugify.ts` | Viết lại hoàn toàn |
-| `src/lib/slugGovernance.ts` | Tạo mới |
-| `src/lib/videoNavigation.ts` | Thêm slug history lookup |
-| `src/lib/nameFilter.ts` | Thêm reserved words |
-| `src/components/SEO/DynamicMeta.tsx` | Thêm canonical tag |
-| `public/robots.txt` | Cập nhật Disallow rules |
-| Migration SQL | Tạo bảng + sửa trigger + tái tạo slug |
+### Điểm tốt
+- Layout sạch sẽ, YouTube-style với avatar + tên + stats
+- "Xem kênh" link rõ ràng
+- Carousel "Video đã xem" hoạt động tốt
+- Playlists section gọn gàng
+
+### Vấn đề phát hiện
+- **Avatar không có viền hologram** như mô tả trong design spec (5D Identity), chỉ hiển thị ảnh tròn đơn giản
+- **Khoảng cách giữa các section** hơi lớn, gây cảm giác trống
 
 ---
 
-## Lưu ý quan trọng
+## 4. Đăng ký (/subscriptions)
 
-- Sau khi tái tạo slug, tất cả slug cũ (sai) sẽ được lưu vào `video_slug_history`, nên **link cũ vẫn hoạt động** nhờ redirect 301
-- Quá trình tái tạo có thể mất vài giây nếu có nhiều video
-- Client-side `slugify.ts` và DB trigger sẽ dùng cùng thuật toán để đảm bảo nhất quán
+### Điểm tốt
+- Hiển thị rõ danh sách kênh đã đăng ký với video mới nhất
+- "19 kênh" counter hữu ích
+- 3-dot menu cho từng kênh
 
+### Vấn đề phát hiện
+- **Nút back (<-)** xuất hiện dù đây là tab chính trên bottom nav, không nhất quán
+- **"Chưa có video nào"** cho FUN TREASURY chiếm space không cần thiết, nên thu gọn hoặc ẩn kênh không có video mới
+
+---
+
+## 5. Video Detail Page
+
+### Điểm tốt
+- Video player chiếm đúng chiều rộng màn hình
+- Tiêu đề, view count, thời gian hiển thị rõ
+- Action bar (Like, Dislike, Chia sẻ, Tặng, Bookmark) đầy đủ
+- Nút "Tặng" nổi bật với gradient
+- Comments section gọn gàng
+- "Tiếp theo" với tabs (Tất cả, Cùng kênh, Liên quan) rất tốt
+
+### Vấn đề phát hiện
+- **Loading chậm**: Khi mở video, màn hình trắng hoàn toàn ~4 giây trước khi hiển thị, không có skeleton/placeholder
+- **Bottom nav biến mất** trên trang video nhưng không có cách rõ ràng để quay lại
+
+---
+
+## 6. Sidebar Menu (Hamburger)
+
+### Điểm tốt
+- Thông tin user (tên, email) rõ ràng
+- Honor Board stats hiển thị compact
+- FUN Ecosystem links (Profile, Farm, Planet) nổi bật
+- Navigation items đầy đủ
+
+### Vấn đề phát hiện
+- **Không có overlay tối phía sau**: Menu mở mà background không bị dim, dễ nhầm lẫn
+- **Honor Board trong sidebar**: Thiếu icon "Video" (hiển thị 0) khiến layout trống
+
+---
+
+## 7. Vấn đề chung (Cross-cutting)
+
+| # | Vấn đề | Mức độ | Mô tả |
+|---|--------|--------|-------|
+| 1 | Video feed bị đẩy xuống quá xa | Cao | Honor Board + Ranking + Sponsors + CTA chiếm 100% viewport đầu tiên, user phải cuộn nhiều mới thấy video |
+| 2 | Loading states thiếu skeleton | Cao | Video detail page hiển thị màn trắng 4s, không có skeleton placeholder |
+| 3 | Header avatar tràn | Trung bình | Trên 390px, avatar bubbles + nút đăng nhập bị chen chúc |
+| 4 | CTA thừa cho user đã login | Trung bình | Banner "Tham gia FUN Play" vẫn hiển thị khi đã đăng nhập |
+| 5 | Shorts action labels bị cắt | Thấp | "Không thích" và "Chia sẻ" tràn text |
+| 6 | Manifest CORS error | Thấp | PWA manifest bị lỗi CORS, ảnh hưởng PWA install |
+
+---
+
+## Đề xuất cải thiện (ưu tiên)
+
+### Ưu tiên 1: Tối ưu Trang Chủ Mobile
+- Thu gọn hoặc ẩn Honor Board/Ranking/Sponsors trên mobile (có thể dùng collapsible hoặc chuyển sang tab riêng)
+- Ẩn CTA "Tham gia" khi user đã đăng nhập
+- Giới hạn avatar bubbles trên header tối đa 4-5 cái
+
+### Ưu tiên 2: Loading & Performance
+- Thêm skeleton loading cho trang video detail
+- Lazy load các widget phụ (Ranking, Sponsors)
+
+### Ưu tiên 3: Shorts UX
+- Chỉ dùng icon cho action buttons, bỏ text labels dài
+- Thêm swipe gesture indicator
+
+### Ưu tiên 4: Nhất quán Navigation
+- Bỏ nút back trên trang /subscriptions (vì đây là tab chính)
+- Thêm transition animation khi chuyển tab
+
+---
+
+## Kết luận
+
+Nền tảng mobile của FUN Play đã có nền tảng tốt với layout YouTube-style quen thuộc. Vấn đề lớn nhất là **Trang Chủ bị quá tải bởi các widget phụ**, đẩy nội dung video chính xuống quá xa. Cải thiện điều này sẽ tăng đáng kể trải nghiệm người dùng mobile.
