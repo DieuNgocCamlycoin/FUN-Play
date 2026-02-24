@@ -1,60 +1,87 @@
 
 
-## Sửa bộ lọc từ ngữ: Bỏ cơ chế loại dấu (removeDiacritics)
+## Khắc phục: Video Player và Music Player không chạy đồng thời (giống YouTube)
 
-### Vấn đề
-Việc bỏ dấu tiếng Việt trước khi so khớp gây ra nhiều **dương tính giả** — ví dụ "dẫn" bị nhầm thành "đần", "dì" bị nhầm thành "đĩ", v.v.
+### Vấn đề hiện tại
+Hai hệ thống phát media hoạt động hoàn toàn **độc lập**:
+1. **Music Player** (`MusicPlayerContext` + `EnhancedMusicPlayer`) - phát nhạc qua thẻ `<audio>`
+2. **Video Player** (`EnhancedVideoPlayer` trên trang Watch + `GlobalVideoPlayer` khi rời trang Watch) - phát video qua thẻ `<video>`
 
-### Giải pháp
-So khớp trực tiếp trên chuỗi gốc (có dấu), không bỏ dấu nữa. Danh sách từ cấm đã bao gồm cả dạng có dấu và không dấu (ví dụ: "đĩ" và "di me", "đụ" và "du ma") nên vẫn chặn được các trường hợp cần thiết.
+Khi cả hai cùng phát, âm thanh bị chồng lên nhau. YouTube chỉ cho phép một nguồn phát tại một thời điểm.
 
-### Thay đổi kỹ thuật
+### Giải pháp: Cơ chế "loại trừ lẫn nhau" (Mutual Exclusion)
 
-**File: `src/lib/nameFilter.ts`**
+Tạo một hệ thống event đơn giản để khi một player bắt đầu phát, nó sẽ tự động tạm dừng player còn lại.
 
-Cập nhật hàm `isNameAppropriate` (dòng 36-56):
-- Bỏ gọi `removeDiacritics` trên cả input lẫn từ cấm
-- So khớp trực tiếp trên chuỗi gốc (lowercase)
-- Mở rộng regex word boundary để hỗ trợ ký tự tiếng Việt có dấu
+### Chi tiết kỹ thuật
+
+**1. File mới: `src/lib/mediaSessionManager.ts`**
+
+Tạo một module quản lý phiên phát media toàn cục:
+- Khi một player muốn phát, nó gọi `requestPlayback("video")` hoặc `requestPlayback("music")`
+- Module phát sự kiện `mediaPauseRequest` để yêu cầu player khác dừng lại
+- Đơn giản, không phụ thuộc React context
 
 ```typescript
-export function isNameAppropriate(name: string): { ok: boolean; reason?: string } {
-  if (!name || name.trim().length === 0) {
-    return { ok: true };
-  }
+// Khi video bắt đầu phát → gửi event yêu cầu music dừng
+// Khi music bắt đầu phát → gửi event yêu cầu video dừng
+type MediaSource = "video" | "music" | "global-video";
 
-  const lower = name.toLowerCase().trim();
-
-  for (const word of OFFENSIVE_WORDS) {
-    const lowerWord = word.toLowerCase();
-    const escaped = lowerWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const regex = new RegExp(`(^|[^a-zàáảãạăắằẳẵặâấầẩẫậèéẻẽẹêếềểễệìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵđ])${escaped}([^a-zàáảãạăắằẳẵặâấầẩẫậèéẻẽẹêếềểễệìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵđ]|$)`, 'i');
-    if (regex.test(lower)) {
-      return {
-        ok: false,
-        reason: "Tên chứa từ ngữ không phù hợp. Vui lòng chọn tên khác.",
-      };
-    }
-  }
-
-  return { ok: true };
+export function requestPlayback(source: MediaSource) {
+  window.dispatchEvent(new CustomEvent("mediaPauseRequest", { detail: { except: source } }));
 }
 ```
 
-Hàm `removeDiacritics` vẫn giữ lại trong file (không xóa) phòng trường hợp cần dùng ở nơi khác, nhưng không còn được gọi trong `isNameAppropriate`.
+**2. File sửa: `src/contexts/MusicPlayerContext.tsx`**
 
-### Kết quả
+- Khi `playTrack` / `playQueue` / `togglePlay` (play) được gọi → gọi `requestPlayback("music")`
+- Lắng nghe event `mediaPauseRequest`: nếu `except !== "music"` → tự động pause
 
-| Input | Trước (bỏ dấu) | Sau (giữ dấu) |
-|-------|----------------|---------------|
-| "dẫn thiên" | Bị chặn (nhầm "đần") | Cho phép |
-| "dì hai" | Bị chặn (nhầm "đĩ") | Cho phép |
-| "thằng đần" | Bị chặn | Vẫn bị chặn |
-| "con đĩ" | Bị chặn | Vẫn bị chặn |
-| "fuck you" | Bị chặn | Vẫn bị chặn |
-| "dit me" | Bị chặn | Vẫn bị chặn (có trong danh sách) |
+**3. File sửa: `src/components/Video/GlobalVideoPlayer.tsx`**
+
+- Khi video bắt đầu phát → gọi `requestPlayback("global-video")`
+- Lắng nghe event `mediaPauseRequest`: nếu `except !== "global-video"` → tự động pause
+
+**4. File sửa: `src/components/Video/EnhancedVideoPlayer.tsx`**
+
+- Khi video trên trang Watch bắt đầu phát → gọi `requestPlayback("video")`
+- Lắng nghe event `mediaPauseRequest`: nếu `except !== "video"` → tự động pause
+
+**5. File sửa: `src/components/BackgroundMusicPlayer.tsx`**
+
+- Khi nhạc nền bắt đầu phát → gọi `requestPlayback("music")`
+- Lắng nghe event `mediaPauseRequest` → tự động pause
+
+### Luồng hoạt động
+
+```text
+Người dùng đang nghe nhạc (EnhancedMusicPlayer)
+  → Mở trang Watch để xem video
+  → EnhancedVideoPlayer gọi requestPlayback("video")
+  → Event "mediaPauseRequest" được phát với except="video"
+  → MusicPlayerContext nhận event → pause nhạc
+  → Chỉ còn video phát
+
+Người dùng đang xem video (trang Watch)
+  → Bấm phát một bài nhạc
+  → MusicPlayerContext gọi requestPlayback("music")
+  → Event "mediaPauseRequest" được phát với except="music"
+  → EnhancedVideoPlayer nhận event → pause video
+  → Chỉ còn nhạc phát
+```
+
+### Tổng hợp thay đổi
 
 | Tệp | Thay đổi |
 |------|---------|
-| `src/lib/nameFilter.ts` | Bỏ `removeDiacritics` khỏi hàm `isNameAppropriate`, so khớp trực tiếp trên chuỗi gốc |
+| `src/lib/mediaSessionManager.ts` | **Tạo mới** - Module quản lý phiên phát media |
+| `src/contexts/MusicPlayerContext.tsx` | Thêm `requestPlayback("music")` khi phát + lắng nghe pause event |
+| `src/components/Video/EnhancedVideoPlayer.tsx` | Thêm `requestPlayback("video")` khi phát + lắng nghe pause event |
+| `src/components/Video/GlobalVideoPlayer.tsx` | Thêm `requestPlayback("global-video")` khi phát + lắng nghe pause event |
+| `src/components/BackgroundMusicPlayer.tsx` | Thêm `requestPlayback("music")` khi phát + lắng nghe pause event |
+
+### Kết quả mong đợi
+- Tại bất kỳ thời điểm nào, chỉ có **một nguồn phát** hoạt động
+- Chuyển qua lại giữa video và nhạc mượt mà, không bị chồng âm thanh
+- Hoạt động giống YouTube: mở video → nhạc tự dừng, phát nhạc → video tự dừng
 
