@@ -1,118 +1,81 @@
 
 
-# Sửa lỗi: 2 luồng âm thanh chạy đồng thời khi mở video
+# Sửa lỗi còn lại: GlobalMiniPlayer + BackgroundMusicPlayer
 
-## Nguyên nhân gốc
+## Vấn đề phát hiện
 
-Hệ thống có **5 nguồn phát media độc lập**, mỗi nguồn có thẻ `<video>` hoặc `<audio>` riêng biệt:
+### Lỗi 1: GlobalMiniPlayer không tham gia mediaSessionManager (Cao)
 
-| Nguồn | Thẻ phát | Vị trí |
-|-------|----------|--------|
-| EnhancedVideoPlayer | `<video>` (trang Watch) | Watch.tsx |
-| GlobalVideoPlayer | `<video>` (ẩn, chỉ phát âm thanh) | App.tsx (toàn cục) |
-| GlobalMiniPlayer | `<video>` (mini overlay) | App.tsx (toàn cục) |
-| BackgroundMusicPlayer | `<audio>` (nhạc nền) | Index.tsx |
-| MusicPlayerContext | `<audio>` (nhạc duyệt) | App.tsx (toàn cục) |
+`GlobalMiniPlayer` có thẻ `<video>` phát âm thanh độc lập nhưng **hoàn toàn không tích hợp** với hệ thống loại trừ lẫn nhau (`mediaSessionManager`):
+- Không gọi `requestPlayback()` khi bắt đầu phát
+- Không lắng nghe `onPauseRequest()` để dừng khi nguồn khác phát
 
-### Lỗi 1: GlobalVideoPlayer không dừng phát khi vào trang Watch
+Hậu quả: MiniPlayer có thể phát đồng thời với EnhancedVideoPlayer, GlobalVideoPlayer, BackgroundMusicPlayer hoặc MusicPlayer.
 
-- Khi `isOnWatchPage = true`, component chỉ gọi `setIsVisible(false)` rồi `return null` (dòng 64-70, 244)
-- Nhưng **không gọi `videoRef.current.pause()`** trước khi ẩn
-- Effect ở dòng 118-172 có thể **tự động phát video** (dòng 161-163) trước khi component bị unmount
-- Kết quả: âm thanh từ GlobalVideoPlayer tiếp tục chạy ngầm 1-2 giây, hoặc trong trường hợp URL matching thất bại, nó **không bao giờ dừng**
+### Lỗi 2: GlobalMiniPlayer không pause trước khi ẩn (Cao)
 
-### Lỗi 2: Trang Watch không gửi tín hiệu dừng khi mở
+Khi người dùng vào trang Watch (`shouldHide = true`), component chỉ `return null` mà không gọi `videoRef.current.pause()` trước. Video element có thể tiếp tục phát âm thanh ngầm trước khi React unmount hoàn tất.
 
-- Trang Watch **không bao giờ dispatch** sự kiện `stopGlobalPlayback` khi mount
-- Nó chỉ dispatch `startGlobalPlayback` khi **rời đi** (unmount)
-- Vì vậy GlobalVideoPlayer không nhận được lệnh dừng khi người dùng mở video mới
+### Lỗi 3: BackgroundMusicPlayer UI không đồng bộ (Thấp)
 
-### Lỗi 3: BackgroundMusicPlayer không dọn dẹp khi chuyển trang
-
-- `BackgroundMusicPlayer` mount trên trang Index với `autoPlay={true}`
-- Khi người dùng chuyển sang trang Watch, component unmount nhưng **không có cleanup pause** cho thẻ `<audio>`
-- Nếu React giữ cache component, âm thanh có thể tiếp tục phát
-
-### Lỗi 4: Hệ thống "loại trừ lẫn nhau" có lỗ hổng
-
-- `mediaSessionManager` chỉ gửi sự kiện `mediaPauseRequest` để thông báo các nguồn khác dừng lại
-- Nhưng nếu 2 nguồn gọi `requestPlayback` gần như đồng thời (ví dụ khi chuyển trang), cả 2 đều tự cho mình là nguồn được phép phát
+Hàm `onPauseRequest` chỉ gọi `pause()` trên audio element nhưng không gọi `setIsPlaying(false)`. Mặc dù event `onPause` trên thẻ `<audio>` sẽ đồng bộ lại, nhưng trong trường hợp race condition, icon Play/Pause có thể hiển thị sai.
 
 ---
 
 ## Giải pháp
 
-### Thay đổi 1: GlobalVideoPlayer - Dừng phát trước khi ẩn
+### Thay đổi 1: GlobalMiniPlayer - Tích hợp mediaSessionManager
 
-**Tệp:** `src/components/Video/GlobalVideoPlayer.tsx`
+**Tệp:** `src/components/Video/GlobalMiniPlayer.tsx`
 
-Sửa effect tại dòng 64-70 để gọi `pause()` **ngay lập tức** khi phát hiện đang ở trang Watch:
+- Import `requestPlayback` và `onPauseRequest` từ `mediaSessionManager`
+- Thêm `useEffect` lắng nghe `onPauseRequest("video")` để tự động dừng khi nguồn khác phát
+- Gọi `requestPlayback("video")` trong hàm `attemptPlay` trước khi phát
+- Thêm logic pause video **trước khi** return null khi `shouldHide = true`
 
 ```typescript
+// Thêm import
+import { requestPlayback, onPauseRequest } from "@/lib/mediaSessionManager";
+
+// Lắng nghe yêu cầu dừng từ nguồn khác
 useEffect(() => {
-  if (isOnWatchPage) {
-    // DỪNG video TRƯỚC khi ẩn - tránh âm thanh chạy ngầm
-    if (videoRef.current && !videoRef.current.paused) {
-      videoRef.current.pause();
+  return onPauseRequest("video", () => {
+    const video = videoRef.current;
+    if (video && !video.paused) {
+      video.pause();
+      setIsPlaying(false);
     }
-    setIsVisible(false);
-  } else if (globalVideoState) {
-    setIsVisible(true);
+  });
+}, [setIsPlaying]);
+
+// Pause video trước khi ẩn trên trang Watch
+useEffect(() => {
+  if (shouldHide && videoRef.current && !videoRef.current.paused) {
+    videoRef.current.pause();
   }
-}, [location.pathname, isOnWatchPage]);
-```
+}, [shouldHide]);
 
-Thêm guard vào auto-play tại dòng 161-163:
-
-```typescript
-if (globalIsPlaying && !isOnWatchPage) {
-  video.play().catch(console.error);
-}
-```
-
-### Thay đổi 2: Trang Watch - Gửi tín hiệu dừng khi mở
-
-**Tệp:** `src/pages/Watch.tsx`
-
-Thêm effect mới để dispatch `stopGlobalPlayback` ngay khi trang Watch mount, đảm bảo mọi nguồn phát khác đều dừng:
-
-```typescript
-// Dừng tất cả nguồn phát khác khi mở trang Watch
-useEffect(() => {
-  window.dispatchEvent(new Event('stopGlobalPlayback'));
-  requestPlayback("video"); // Yêu cầu độc quyền cho video chính
-}, [id]); // Chạy lại khi chuyển sang video khác
-```
-
-### Thay đổi 3: BackgroundMusicPlayer - Dọn dẹp khi unmount
-
-**Tệp:** `src/components/BackgroundMusicPlayer.tsx`
-
-Thêm cleanup effect để dừng phát và xoá nguồn âm thanh khi component bị gỡ:
-
-```typescript
-useEffect(() => {
-  return () => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.src = '';
-    }
-  };
+// Trong attemptPlay, thêm requestPlayback trước khi play
+const attemptPlay = useCallback(async (video: HTMLVideoElement) => {
+  requestPlayback("video");
+  video.muted = false;
+  // ... phần còn lại giữ nguyên
 }, []);
 ```
 
+### Thay đổi 2: BackgroundMusicPlayer - Đồng bộ UI state
+
+**Tệp:** `src/components/BackgroundMusicPlayer.tsx`
+
+Không cần sửa vì thẻ `<audio>` đã có `onPause={() => setIsPlaying(false)}` ở dòng 135, sẽ tự đồng bộ khi `audioRef.current.pause()` được gọi. Lỗi này rủi ro thấp.
+
 ---
 
-## Tóm tắt thay đổi
+## Tóm tắt
 
-| Tệp | Nội dung thay đổi |
-|------|-------------------|
-| `src/components/Video/GlobalVideoPlayer.tsx` | Gọi `pause()` trước khi ẩn; thêm guard `!isOnWatchPage` vào auto-play |
-| `src/pages/Watch.tsx` | Dispatch `stopGlobalPlayback` + `requestPlayback("video")` khi mount |
-| `src/components/BackgroundMusicPlayer.tsx` | Thêm cleanup pause + xoá src khi unmount |
+| Tệp | Thay đổi |
+|------|----------|
+| `src/components/Video/GlobalMiniPlayer.tsx` | Tích hợp `requestPlayback` + `onPauseRequest`; pause trước khi ẩn trên trang Watch |
 
-## Kết quả mong đợi
+Chỉ cần sửa **1 tệp** duy nhất. Sau khi sửa, toàn bộ 5 nguồn phát media đều tham gia hệ thống loại trừ lẫn nhau, đảm bảo chỉ 1 nguồn âm thanh phát tại bất kỳ thời điểm nào.
 
-- Chỉ **duy nhất 1 nguồn âm thanh** phát tại bất kỳ thời điểm nào
-- Khi mở trang Watch: GlobalVideoPlayer + BackgroundMusicPlayer + MusicPlayer đều bị dừng
-- Khi pause video trên Watch: im lặng hoàn toàn, không có âm thanh nền
