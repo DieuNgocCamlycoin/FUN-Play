@@ -11,6 +11,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { VideoPlaceholder } from "./VideoPlaceholder";
 import { cn } from "@/lib/utils";
 import { isVideoWatchPage, extractVideoIdFromPath } from "@/lib/videoNavigation";
+import { requestPlayback, onPauseRequest } from "@/lib/mediaSessionManager";
 
 interface GlobalVideoState {
   videoId: string;
@@ -85,6 +86,7 @@ export const GlobalVideoPlayer = () => {
       setVideoState(event.detail);
       setIsPlaying(true);
       setIsVisible(true);
+      requestPlayback("global-video");
     };
 
     const handleStopGlobalPlayback = () => {
@@ -177,6 +179,18 @@ export const GlobalVideoPlayer = () => {
     }
   }, [volume]);
 
+  // Listen for pause requests from other media sources
+  useEffect(() => {
+    return onPauseRequest("global-video", () => {
+      const video = videoRef.current;
+      if (video && !video.paused) {
+        video.pause();
+        setIsPlaying(false);
+        globalIsPlaying = false;
+      }
+    });
+  }, []);
+
   const togglePlay = useCallback(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -184,6 +198,7 @@ export const GlobalVideoPlayer = () => {
     if (isPlaying) {
       video.pause();
     } else {
+      requestPlayback("global-video");
       video.play().catch(console.error);
     }
   }, [isPlaying]);

@@ -10,6 +10,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { requestPlayback, onPauseRequest } from "@/lib/mediaSessionManager";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -188,6 +189,17 @@ export function EnhancedVideoPlayer({
     }
   }, [settings.playbackSpeed]);
 
+  // Listen for pause requests from other media sources
+  useEffect(() => {
+    return onPauseRequest("video", () => {
+      const video = videoRef.current;
+      if (video && !video.paused) {
+        video.pause();
+        setIsPlaying(false);
+      }
+    });
+  }, []);
+
   // Auto-play on load
   useEffect(() => {
     const video = videoRef.current;
@@ -195,6 +207,7 @@ export function EnhancedVideoPlayer({
 
     const playVideo = async () => {
       try {
+        requestPlayback("video");
         await video.play();
         setIsPlaying(true);
       } catch (e) {
@@ -368,6 +381,7 @@ export function EnhancedVideoPlayer({
       video.pause();
       updateProgress(video.currentTime * 1000);
     } else {
+      requestPlayback("video");
       video.play();
       setShowEndScreen(false);
     }
