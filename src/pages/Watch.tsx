@@ -312,31 +312,35 @@ export default function Watch({ videoIdProp }: { videoIdProp?: string }) {
     }
   }, [video?.id, id]);
 
-  // Enable global playback when navigating away while video is playing
+  // Refs to snapshot latest values for unmount-only cleanup
+  const globalPlaybackRef = useRef({ video, isPlaying, currentTime, duration });
   useEffect(() => {
-    // When component unmounts (navigating away), dispatch event to start global playback
+    globalPlaybackRef.current = { video, isPlaying, currentTime, duration };
+  }, [video, isPlaying, currentTime, duration]);
+
+  // Enable global playback ONLY when truly unmounting (navigating away)
+  useEffect(() => {
     return () => {
-      if (video && isPlaying && currentTime > 0) {
+      const { video: v, isPlaying: playing, currentTime: ct, duration: dur } = globalPlaybackRef.current;
+      if (v && playing && ct > 0) {
         const globalState = {
-          videoId: video.id,
-          videoUrl: video.video_url,
-          title: video.title,
-          thumbnailUrl: video.thumbnail_url,
-          channelName: video.channels.name,
-          channelId: video.channels.id,
-          currentTime: currentTime,
-          duration: duration,
+          videoId: v.id,
+          videoUrl: v.video_url,
+          title: v.title,
+          thumbnailUrl: v.thumbnail_url,
+          channelName: v.channels.name,
+          channelId: v.channels.id,
+          currentTime: ct,
+          duration: dur,
         };
         
-        // Set global state directly for faster access
         setGlobalVideoState(globalState);
         setGlobalPlayingState(true);
-        
-        // Also dispatch event for the GlobalVideoPlayer component
         window.dispatchEvent(new CustomEvent('startGlobalPlayback', { detail: globalState }));
       }
     };
-  }, [video, isPlaying, currentTime, duration]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Listen for global player closed event to stop local playback reference
   useEffect(() => {
