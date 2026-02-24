@@ -12,3 +12,37 @@ Allow: /
 
 User-agent: *
 Allow: /
+
+# Block internal routes from all crawlers
+User-agent: *
+Disallow: /api/
+Disallow: /auth
+Disallow: /settings
+Disallow: /admin
+Disallow: /studio
+Disallow: /upload
+Disallow: /create-post
+Disallow: /your-videos
+Disallow: /manage-posts
+Disallow: /manage-playlists
+Disallow: /manage-channel
+Disallow: /user-dashboard
+Disallow: /reward-history
+Disallow: /referral
+Disallow: /nft-gallery
+Disallow: /fun-wallet
+Disallow: /fun-money
+Disallow: /create-music
+Disallow: /install
+Disallow: /watch-later
+Disallow: /history
+Disallow: /notifications
+Disallow: /messages
+Disallow: /transactions
+Disallow: /edit-video
+Disallow: /edit-post
+Disallow: /preview-celebration
+Disallow: /downloads
+Disallow: /my-ai-music
+
+Sitemap: https://play.fun.rich/sitemap.xml

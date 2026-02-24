@@ -125,6 +125,10 @@ const RESERVED_WORDS: string[] = [
   "receipt", "messages", "search", "notifications", "transactions",
   "preview-celebration", "users", "c", "u", "user", "v",
   "edit-video", "edit-post", "playlist", "video",
+  // SEO & infrastructure reserved
+  "api", "sitemap", "robots", "favicon", "static", "feed",
+  "explore", "trending", "live", "help", "support", "about",
+  "terms", "privacy", "contact", "login", "signup",
 ];
 
 export function validateUsernameFormat(username: string): { ok: boolean; reason?: string } {

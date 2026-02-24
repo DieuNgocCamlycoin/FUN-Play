@@ -1,47 +1,51 @@
 /**
- * Vietnamese-aware slug generator
- * Converts titles to clean, SEO-friendly URL slugs
+ * Vietnamese-aware slug generator using Unicode NFD normalization.
+ * Converts titles to clean, SEO-friendly URL slugs.
+ * 
+ * Algorithm:
+ * 1. Replace đ/Đ explicitly (NFD cannot decompose these)
+ * 2. NFD normalize + strip combining marks (diacritics)
+ * 3. Lowercase, replace non-alphanumeric with hyphens
+ * 4. Truncate to 150 chars at word boundary
+ * 5. Fallback for empty results
  */
 
-const VIETNAMESE_MAP: Record<string, string> = {
-  'à': 'a', 'á': 'a', 'ả': 'a', 'ã': 'a', 'ạ': 'a',
-  'ă': 'a', 'ắ': 'a', 'ằ': 'a', 'ẳ': 'a', 'ẵ': 'a', 'ặ': 'a',
-  'â': 'a', 'ấ': 'a', 'ầ': 'a', 'ẩ': 'a', 'ẫ': 'a', 'ậ': 'a',
-  'è': 'e', 'é': 'e', 'ẻ': 'e', 'ẽ': 'e', 'ẹ': 'e',
-  'ê': 'e', 'ế': 'e', 'ề': 'e', 'ể': 'e', 'ễ': 'e', 'ệ': 'e',
-  'ì': 'i', 'í': 'i', 'ỉ': 'i', 'ĩ': 'i', 'ị': 'i',
-  'ò': 'o', 'ó': 'o', 'ỏ': 'o', 'õ': 'o', 'ọ': 'o',
-  'ô': 'o', 'ố': 'o', 'ồ': 'o', 'ổ': 'o', 'ỗ': 'o', 'ộ': 'o',
-  'ơ': 'o', 'ớ': 'o', 'ờ': 'o', 'ở': 'o', 'ỡ': 'o', 'ợ': 'o',
-  'ù': 'u', 'ú': 'u', 'ủ': 'u', 'ũ': 'u', 'ụ': 'u',
-  'ư': 'u', 'ứ': 'u', 'ừ': 'u', 'ử': 'u', 'ữ': 'u', 'ự': 'u',
-  'ỳ': 'y', 'ý': 'y', 'ỷ': 'y', 'ỹ': 'y', 'ỵ': 'y',
-  'đ': 'd',
-  'À': 'A', 'Á': 'A', 'Ả': 'A', 'Ã': 'A', 'Ạ': 'A',
-  'Ă': 'A', 'Ắ': 'A', 'Ằ': 'A', 'Ẳ': 'A', 'Ẵ': 'A', 'Ặ': 'A',
-  'Â': 'A', 'Ấ': 'A', 'Ầ': 'A', 'Ẩ': 'A', 'Ẫ': 'A', 'Ậ': 'A',
-  'È': 'E', 'É': 'E', 'Ẻ': 'E', 'Ẽ': 'E', 'Ẹ': 'E',
-  'Ê': 'E', 'Ế': 'E', 'Ề': 'E', 'Ể': 'E', 'Ễ': 'E', 'Ệ': 'E',
-  'Ì': 'I', 'Í': 'I', 'Ỉ': 'I', 'Ĩ': 'I', 'Ị': 'I',
-  'Ò': 'O', 'Ó': 'O', 'Ỏ': 'O', 'Õ': 'O', 'Ọ': 'O',
-  'Ô': 'O', 'Ố': 'O', 'Ồ': 'O', 'Ổ': 'O', 'Ỗ': 'O', 'Ộ': 'O',
-  'Ơ': 'O', 'Ớ': 'O', 'Ờ': 'O', 'Ở': 'O', 'Ỡ': 'O', 'Ợ': 'O',
-  'Ù': 'U', 'Ú': 'U', 'Ủ': 'U', 'Ũ': 'U', 'Ụ': 'U',
-  'Ư': 'U', 'Ứ': 'U', 'Ừ': 'U', 'Ử': 'U', 'Ữ': 'U', 'Ự': 'U',
-  'Ỳ': 'Y', 'Ý': 'Y', 'Ỷ': 'Y', 'Ỹ': 'Y', 'Ỵ': 'Y',
-  'Đ': 'D',
-};
+const MAX_SLUG_LENGTH = 150;
 
 export function slugify(text: string): string {
-  let result = '';
-  for (const char of text) {
-    result += VIETNAMESE_MAP[char] || char;
+  if (!text || text.trim().length === 0) {
+    return 'untitled-' + Math.random().toString(36).substring(2, 6);
   }
-  return result
+
+  let result = text
+    // Step 1: Handle đ/Đ explicitly (NFD cannot decompose these)
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    // Step 2: NFD normalize + strip combining marks
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    // Step 3: Lowercase
     .toLowerCase()
+    // Step 4: Replace non-alphanumeric with hyphens
     .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .substring(0, 80);
+    // Step 5: Trim leading/trailing hyphens
+    .replace(/^-+|-+$/g, '');
+
+  // Step 6: Truncate at word boundary
+  if (result.length > MAX_SLUG_LENGTH) {
+    result = result.substring(0, MAX_SLUG_LENGTH);
+    const lastHyphen = result.lastIndexOf('-');
+    if (lastHyphen > 0) {
+      result = result.substring(0, lastHyphen);
+    }
+  }
+
+  // Step 7: Fallback for empty result
+  if (!result) {
+    return 'untitled-' + Math.random().toString(36).substring(2, 6);
+  }
+
+  return result;
 }
 
 /**
