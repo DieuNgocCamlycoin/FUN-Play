@@ -1,36 +1,36 @@
 
 
-## Cập nhật link chia sẻ video: `play.fun.rich/username/ten_bai_thien`
+## Thay nút "Đăng ký" bằng "Chỉnh sửa video" khi xem video của chính mình
 
 ### Mục tiêu
-- Khi user bấm chia sẻ, link copy sẽ là: `https://play.fun.rich/angelkhanhi/co-che-su-song-trong-co-the-nguoi`
-- Link cũ dạng `/username/video/slug` vẫn hoạt động (không bị hỏng)
+Khi user đang xem video do chính mình upload, thay nút "Đăng ký" bằng nút "Chỉnh sửa video" (giống YouTube). Bấm vào sẽ chuyển đến trang chỉnh sửa video.
 
-### Thay đổi theo file
+### Thay đổi
 
-#### 1. `src/lib/shareUtils.ts`
-- Đổi `PRODUCTION_URL` sang `https://play.fun.rich`
-- Hàm `getVideoShareUrl`: trả về `/${username}/${slug}` (bỏ `/video/`)
+#### 1. Desktop - `src/pages/Watch.tsx`
+- Thêm biến `isOwnVideo = user?.id === video.user_id`
+- Tại khu vực nút "Đăng ký" (dòng 733-743): nếu `isOwnVideo` thì hiển thị nút "Chỉnh sửa video" với icon Edit, bấm vào navigate đến `/edit-video/{videoId}`
+- Nếu không phải video của mình thì giữ nguyên nút "Đăng ký" như cũ
 
-#### 2. `src/lib/slugify.ts`
-- Hàm `getVideoShareUrl`: trả về `/${username}/${slug}` (bỏ `/video/`)
+#### 2. Mobile - `src/components/Video/Mobile/VideoActionsBar.tsx`
+- Thêm prop `isOwnVideo` vào interface `VideoActionsBarProps`
+- Thêm prop `onEdit` callback
+- Tại khu vực nút Subscribe/Bell (dòng 144-192): nếu `isOwnVideo` thì hiển thị nút "Chỉnh sửa" thay vì "Đăng ký"
 
-#### 3. `src/components/Video/ShareModal.tsx`
-- Cập nhật format URL share và prerender URL, bỏ `/video/`
+#### 3. Mobile - `src/components/Video/Mobile/MobileWatchView.tsx`
+- Truyền thêm prop `isOwnVideo` và `onEdit` xuống `VideoActionsBar`
 
-#### 4. `src/App.tsx`
-- Thêm route `/:username/:slug` trỏ đến `VideoBySlug`
-- Giữ route cũ `/:username/video/:slug` để link cũ vẫn hoạt động
+### Chi tiet ky thuat
 
-### Kết quả
-- Nút chia sẻ -> hiển thị `https://play.fun.rich/username/slug`
-- Truy cập `play.fun.rich/username/slug` -> xem video
-- Truy cập `play.fun.rich/username/video/slug` -> vẫn xem video (backward compatible)
-
-| File | Thay đổi |
+| File | Thay doi |
 |------|---------|
-| `src/lib/shareUtils.ts` | Đổi PRODUCTION_URL, bỏ `/video/` |
-| `src/lib/slugify.ts` | Bỏ `/video/` trong getVideoShareUrl |
-| `src/components/Video/ShareModal.tsx` | Cập nhật URL format |
-| `src/App.tsx` | Thêm route `/:username/:slug` |
+| `src/pages/Watch.tsx` | Them `isOwnVideo`, conditional render nut Edit thay Subscribe |
+| `src/components/Video/Mobile/VideoActionsBar.tsx` | Them prop `isOwnVideo`, `onEdit`, render nut chinh sua |
+| `src/components/Video/Mobile/MobileWatchView.tsx` | Truyen `isOwnVideo`, `onEdit` xuong VideoActionsBar |
+
+### Nut "Chinh sua video"
+- Icon: Pencil/Edit (tu lucide-react)
+- Text: "Chinh sua video"
+- Style: tuong tu nut Subscribe nhung dung mau khac (outline hoac muted)
+- Click: navigate den `/edit-video/{videoId}`
 
