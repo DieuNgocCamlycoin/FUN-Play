@@ -8,7 +8,7 @@ import { ProfileInfo } from "@/components/Profile/ProfileInfo";
 import { ProfileTabs } from "@/components/Profile/ProfileTabs";
 import { SuspendedBanner } from "@/components/Profile/SuspendedBanner";
 import { DonationCelebration } from "@/components/Profile/DonationCelebration";
-import { BackgroundMusicPlayer } from "@/components/BackgroundMusicPlayer";
+// import { BackgroundMusicPlayer } from "@/components/BackgroundMusicPlayer";
 import { useToast } from "@/hooks/use-toast";
 import { AuthRequiredDialog } from "@/components/Auth/AuthRequiredDialog";
 import { BackButton } from "@/components/ui/back-button";
@@ -363,10 +363,10 @@ export default function Channel() {
 
   return (
     <MainLayout className="pt-0">
-      {/* Background Music */}
-      {profile.music_enabled && profile.background_music_url && (
+      {/* Background Music - Tạm tắt, bỏ comment để mở lại */}
+      {/* {profile.music_enabled && profile.background_music_url && (
         <BackgroundMusicPlayer musicUrl={profile.background_music_url} />
-      )}
+      )} */}
 
       {/* Donation Celebration */}
       {showCelebration && celebrationData && (
