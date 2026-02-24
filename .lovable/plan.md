@@ -1,134 +1,118 @@
 
-# Phân tích UI/UX Mobile - FUN Play
 
-## Tổng quan
+# Sửa lỗi: 2 luồng âm thanh chạy đồng thời khi mở video
 
-Sau khi kiểm tra toàn bộ nền tảng trên viewport 390x844 (iPhone 14), dưới đây là phân tích chi tiết từng trang.
+## Nguyên nhân gốc
 
----
+Hệ thống có **5 nguồn phát media độc lập**, mỗi nguồn có thẻ `<video>` hoặc `<audio>` riêng biệt:
 
-## 1. Trang Chủ (/)
+| Nguồn | Thẻ phát | Vị trí |
+|-------|----------|--------|
+| EnhancedVideoPlayer | `<video>` (trang Watch) | Watch.tsx |
+| GlobalVideoPlayer | `<video>` (ẩn, chỉ phát âm thanh) | App.tsx (toàn cục) |
+| GlobalMiniPlayer | `<video>` (mini overlay) | App.tsx (toàn cục) |
+| BackgroundMusicPlayer | `<audio>` (nhạc nền) | Index.tsx |
+| MusicPlayerContext | `<audio>` (nhạc duyệt) | App.tsx (toàn cục) |
 
-### Điểm tốt
-- Bottom navigation rõ ràng, 5 tab chuẩn YouTube-style
-- Category chips (Tất cả, Xu hướng, Âm nhạc, Thiền) cố định phía trên, cuộn mượt
-- Video cards hiển thị thumbnail + tiêu đề + kênh + thời lượng đầy đủ
-- Header bar với logo, search, avatar story bubbles trông sống động
+### Lỗi 1: GlobalVideoPlayer không dừng phát khi vào trang Watch
 
-### Vấn đề phát hiện
-- **Header quá chật**: Logo FUN Play + search icon + 6-7 avatar bubbles + nút "Đăng nhập" chen nhau trên 390px, avatar bị cắt mép phải
-- **Honor Board / Top Ranking / Top Sponsors chiếm quá nhiều không gian**: 3 widget này chiếm hơn 50% màn hình đầu tiên, đẩy video content xuống rất xa. Người dùng phải cuộn nhiều mới thấy video đầu tiên
-- **CTA "Tham gia FUN Play"**: Banner đăng ký/đăng nhập xuất hiện ngay giữa feed dù user đã đăng nhập, gây thừa và chiếm diện tích
-- **Top Sponsors**: Ảnh avatar đang hiển thị dạng skeleton loading (chấm xám) thay vì ảnh thật trong một số lần tải
+- Khi `isOnWatchPage = true`, component chỉ gọi `setIsVisible(false)` rồi `return null` (dòng 64-70, 244)
+- Nhưng **không gọi `videoRef.current.pause()`** trước khi ẩn
+- Effect ở dòng 118-172 có thể **tự động phát video** (dòng 161-163) trước khi component bị unmount
+- Kết quả: âm thanh từ GlobalVideoPlayer tiếp tục chạy ngầm 1-2 giây, hoặc trong trường hợp URL matching thất bại, nó **không bao giờ dừng**
 
----
+### Lỗi 2: Trang Watch không gửi tín hiệu dừng khi mở
 
-## 2. Shorts (/shorts)
+- Trang Watch **không bao giờ dispatch** sự kiện `stopGlobalPlayback` khi mount
+- Nó chỉ dispatch `startGlobalPlayback` khi **rời đi** (unmount)
+- Vì vậy GlobalVideoPlayer không nhận được lệnh dừng khi người dùng mở video mới
 
-### Điểm tốt
-- Full-screen immersive, đúng chuẩn TikTok/YouTube Shorts
-- Action buttons (like, dislike, comment, share, bookmark) bên phải dễ thao tác
-- Subtitle overlay hiển thị rõ ràng
-- Pagination indicator (1/43) ở góc trên bên phải
+### Lỗi 3: BackgroundMusicPlayer không dọn dẹp khi chuyển trang
 
-### Vấn đề phát hiện
-- **Nút "Không thích" hiển thị text dài**: Label "Không thích" bị tràn ra ngoài, nên chỉ dùng icon
-- **Nút "Chia sẻ" bị che**: Text "Chia" bị cắt, chỉ thấy một phần
-- **Bottom nav ẩn đi** nhưng không có gesture indicator rõ ràng để quay lại
+- `BackgroundMusicPlayer` mount trên trang Index với `autoPlay={true}`
+- Khi người dùng chuyển sang trang Watch, component unmount nhưng **không có cleanup pause** cho thẻ `<audio>`
+- Nếu React giữ cache component, âm thanh có thể tiếp tục phát
 
----
+### Lỗi 4: Hệ thống "loại trừ lẫn nhau" có lỗ hổng
 
-## 3. Profile (/profile)
-
-### Điểm tốt
-- Layout sạch sẽ, YouTube-style với avatar + tên + stats
-- "Xem kênh" link rõ ràng
-- Carousel "Video đã xem" hoạt động tốt
-- Playlists section gọn gàng
-
-### Vấn đề phát hiện
-- **Avatar không có viền hologram** như mô tả trong design spec (5D Identity), chỉ hiển thị ảnh tròn đơn giản
-- **Khoảng cách giữa các section** hơi lớn, gây cảm giác trống
+- `mediaSessionManager` chỉ gửi sự kiện `mediaPauseRequest` để thông báo các nguồn khác dừng lại
+- Nhưng nếu 2 nguồn gọi `requestPlayback` gần như đồng thời (ví dụ khi chuyển trang), cả 2 đều tự cho mình là nguồn được phép phát
 
 ---
 
-## 4. Đăng ký (/subscriptions)
+## Giải pháp
 
-### Điểm tốt
-- Hiển thị rõ danh sách kênh đã đăng ký với video mới nhất
-- "19 kênh" counter hữu ích
-- 3-dot menu cho từng kênh
+### Thay đổi 1: GlobalVideoPlayer - Dừng phát trước khi ẩn
 
-### Vấn đề phát hiện
-- **Nút back (<-)** xuất hiện dù đây là tab chính trên bottom nav, không nhất quán
-- **"Chưa có video nào"** cho FUN TREASURY chiếm space không cần thiết, nên thu gọn hoặc ẩn kênh không có video mới
+**Tệp:** `src/components/Video/GlobalVideoPlayer.tsx`
 
----
+Sửa effect tại dòng 64-70 để gọi `pause()` **ngay lập tức** khi phát hiện đang ở trang Watch:
 
-## 5. Video Detail Page
+```typescript
+useEffect(() => {
+  if (isOnWatchPage) {
+    // DỪNG video TRƯỚC khi ẩn - tránh âm thanh chạy ngầm
+    if (videoRef.current && !videoRef.current.paused) {
+      videoRef.current.pause();
+    }
+    setIsVisible(false);
+  } else if (globalVideoState) {
+    setIsVisible(true);
+  }
+}, [location.pathname, isOnWatchPage]);
+```
 
-### Điểm tốt
-- Video player chiếm đúng chiều rộng màn hình
-- Tiêu đề, view count, thời gian hiển thị rõ
-- Action bar (Like, Dislike, Chia sẻ, Tặng, Bookmark) đầy đủ
-- Nút "Tặng" nổi bật với gradient
-- Comments section gọn gàng
-- "Tiếp theo" với tabs (Tất cả, Cùng kênh, Liên quan) rất tốt
+Thêm guard vào auto-play tại dòng 161-163:
 
-### Vấn đề phát hiện
-- **Loading chậm**: Khi mở video, màn hình trắng hoàn toàn ~4 giây trước khi hiển thị, không có skeleton/placeholder
-- **Bottom nav biến mất** trên trang video nhưng không có cách rõ ràng để quay lại
+```typescript
+if (globalIsPlaying && !isOnWatchPage) {
+  video.play().catch(console.error);
+}
+```
 
----
+### Thay đổi 2: Trang Watch - Gửi tín hiệu dừng khi mở
 
-## 6. Sidebar Menu (Hamburger)
+**Tệp:** `src/pages/Watch.tsx`
 
-### Điểm tốt
-- Thông tin user (tên, email) rõ ràng
-- Honor Board stats hiển thị compact
-- FUN Ecosystem links (Profile, Farm, Planet) nổi bật
-- Navigation items đầy đủ
+Thêm effect mới để dispatch `stopGlobalPlayback` ngay khi trang Watch mount, đảm bảo mọi nguồn phát khác đều dừng:
 
-### Vấn đề phát hiện
-- **Không có overlay tối phía sau**: Menu mở mà background không bị dim, dễ nhầm lẫn
-- **Honor Board trong sidebar**: Thiếu icon "Video" (hiển thị 0) khiến layout trống
+```typescript
+// Dừng tất cả nguồn phát khác khi mở trang Watch
+useEffect(() => {
+  window.dispatchEvent(new Event('stopGlobalPlayback'));
+  requestPlayback("video"); // Yêu cầu độc quyền cho video chính
+}, [id]); // Chạy lại khi chuyển sang video khác
+```
 
----
+### Thay đổi 3: BackgroundMusicPlayer - Dọn dẹp khi unmount
 
-## 7. Vấn đề chung (Cross-cutting)
+**Tệp:** `src/components/BackgroundMusicPlayer.tsx`
 
-| # | Vấn đề | Mức độ | Mô tả |
-|---|--------|--------|-------|
-| 1 | Video feed bị đẩy xuống quá xa | Cao | Honor Board + Ranking + Sponsors + CTA chiếm 100% viewport đầu tiên, user phải cuộn nhiều mới thấy video |
-| 2 | Loading states thiếu skeleton | Cao | Video detail page hiển thị màn trắng 4s, không có skeleton placeholder |
-| 3 | Header avatar tràn | Trung bình | Trên 390px, avatar bubbles + nút đăng nhập bị chen chúc |
-| 4 | CTA thừa cho user đã login | Trung bình | Banner "Tham gia FUN Play" vẫn hiển thị khi đã đăng nhập |
-| 5 | Shorts action labels bị cắt | Thấp | "Không thích" và "Chia sẻ" tràn text |
-| 6 | Manifest CORS error | Thấp | PWA manifest bị lỗi CORS, ảnh hưởng PWA install |
+Thêm cleanup effect để dừng phát và xoá nguồn âm thanh khi component bị gỡ:
 
----
-
-## Đề xuất cải thiện (ưu tiên)
-
-### Ưu tiên 1: Tối ưu Trang Chủ Mobile
-- Thu gọn hoặc ẩn Honor Board/Ranking/Sponsors trên mobile (có thể dùng collapsible hoặc chuyển sang tab riêng)
-- Ẩn CTA "Tham gia" khi user đã đăng nhập
-- Giới hạn avatar bubbles trên header tối đa 4-5 cái
-
-### Ưu tiên 2: Loading & Performance
-- Thêm skeleton loading cho trang video detail
-- Lazy load các widget phụ (Ranking, Sponsors)
-
-### Ưu tiên 3: Shorts UX
-- Chỉ dùng icon cho action buttons, bỏ text labels dài
-- Thêm swipe gesture indicator
-
-### Ưu tiên 4: Nhất quán Navigation
-- Bỏ nút back trên trang /subscriptions (vì đây là tab chính)
-- Thêm transition animation khi chuyển tab
+```typescript
+useEffect(() => {
+  return () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = '';
+    }
+  };
+}, []);
+```
 
 ---
 
-## Kết luận
+## Tóm tắt thay đổi
 
-Nền tảng mobile của FUN Play đã có nền tảng tốt với layout YouTube-style quen thuộc. Vấn đề lớn nhất là **Trang Chủ bị quá tải bởi các widget phụ**, đẩy nội dung video chính xuống quá xa. Cải thiện điều này sẽ tăng đáng kể trải nghiệm người dùng mobile.
+| Tệp | Nội dung thay đổi |
+|------|-------------------|
+| `src/components/Video/GlobalVideoPlayer.tsx` | Gọi `pause()` trước khi ẩn; thêm guard `!isOnWatchPage` vào auto-play |
+| `src/pages/Watch.tsx` | Dispatch `stopGlobalPlayback` + `requestPlayback("video")` khi mount |
+| `src/components/BackgroundMusicPlayer.tsx` | Thêm cleanup pause + xoá src khi unmount |
+
+## Kết quả mong đợi
+
+- Chỉ **duy nhất 1 nguồn âm thanh** phát tại bất kỳ thời điểm nào
+- Khi mở trang Watch: GlobalVideoPlayer + BackgroundMusicPlayer + MusicPlayer đều bị dừng
+- Khi pause video trên Watch: im lặng hoàn toàn, không có âm thanh nền
