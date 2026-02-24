@@ -48,5 +48,5 @@ export function slugify(text: string): string {
  * Generate a video share URL using username + slug format
  */
 export function getVideoShareUrl(username: string, slug: string): string {
-  return `/${username}/video/${slug}`;
+  return `/${username}/${slug}`;
 }

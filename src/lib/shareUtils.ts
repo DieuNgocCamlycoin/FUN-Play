@@ -1,4 +1,4 @@
-export const PRODUCTION_URL = 'https://official-funplay.lovable.app';
+export const PRODUCTION_URL = 'https://play.fun.rich';
 
 export function getShareUrl(path: string): string {
   return `${PRODUCTION_URL}${path}`;
@@ -9,7 +9,7 @@ export function getShareUrl(path: string): string {
  * Format: /c/username/video/slug
  */
 export function getVideoShareUrl(username: string, slug: string): string {
-  return `${PRODUCTION_URL}/${username}/video/${slug}`;
+  return `${PRODUCTION_URL}/${username}/${slug}`;
 }
 
 export async function copyToClipboard(text: string): Promise<boolean> {

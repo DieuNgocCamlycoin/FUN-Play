@@ -92,7 +92,7 @@ export const ShareModal = ({
     switch (contentType) {
       case 'video':
         if (username && slug) {
-          return `${baseUrl}/${username}/video/${slug}`;
+          return `${baseUrl}/${username}/${slug}`;
         }
         return `${baseUrl}/watch/${id}`;
       case 'music':
@@ -112,7 +112,7 @@ export const ShareModal = ({
   const getPrerenderUrl = () => {
     let path: string;
     if (contentType === 'video' && username && slug) {
-      path = `/${username}/video/${slug}`;
+      path = `/${username}/${slug}`;
     } else if (contentType === 'video') {
       path = `/watch/${id}`;
     } else if (contentType === 'music') {
