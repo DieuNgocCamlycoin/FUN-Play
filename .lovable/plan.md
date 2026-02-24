@@ -1,72 +1,70 @@
 
+Mình đã khoanh đúng nguyên nhân gây lỗi “bấm phát được ~1 giây rồi tự dừng”.
 
-## Khắc phục lỗi video không phát được
+## Chẩn đoán nhanh
 
-### Nguyên nhân gốc
+- Triệu chứng user báo: video phát được 1s rồi pause.
+- Mình đã đối chiếu các file liên quan:
+  - `src/components/Video/EnhancedVideoPlayer.tsx`
+  - `src/components/Video/GlobalVideoPlayer.tsx`
+  - `src/contexts/MusicPlayerContext.tsx`
+  - `src/components/BackgroundMusicPlayer.tsx`
+  - `src/pages/Watch.tsx`
+- Điểm lỗi nằm ở **`src/pages/Watch.tsx`**, không phải ở `togglePlay` của player nữa.
 
-Sau khi thêm Media Session Manager, hàm `togglePlay` trong `EnhancedVideoPlayer.tsx` có xung đột trạng thái:
+## Nguyên nhân gốc (root cause)
 
-```text
-togglePlay() gọi:
-  1. requestPlayback("video")  -- dispatch event
-  2. video.play()              -- async, không await
-  3. setIsPlaying(!isPlaying)  -- set true ngay lập tức
+Trong `Watch.tsx` có effect “Enable global playback when navigating away”:
 
-Đồng thời, video element có:
-  onPlay  → setIsPlaying(true)   -- có thể bị ghi đè
-  onPause → setIsPlaying(false)  -- nếu play thất bại
-```
+- Effect này có dependency: `[video, isPlaying, currentTime, duration]`
+- Vì `currentTime` cập nhật liên tục khi video đang chạy, React sẽ:
+  1) chạy cleanup effect cũ
+  2) rồi chạy effect mới
+- Cleanup hiện tại lại dispatch:
+  - `startGlobalPlayback`
+  - bên `GlobalVideoPlayer` nhận event và gọi `requestPlayback("global-video")`
+  - event này gửi yêu cầu pause tất cả source khác, bao gồm `EnhancedVideoPlayer` (`source = "video"`)
 
-Nếu `video.play()` thất bại (browser policy, chưa load xong, hoặc bị pause bởi nguồn khác), `onPause` sẽ set `isPlaying = false` nhưng `setIsPlaying(!isPlaying)` đã set `true` trước đó, gây mất đồng bộ giữa state React và trạng thái thực của video element.
+Kết quả: video trang Watch vừa play được 1 nhịp timeupdate thì bị source global yêu cầu pause, đúng pattern “1 giây là dừng”.
 
-### Giải pháp
+## Do I know what the issue is?
 
-**1. File: `src/components/Video/EnhancedVideoPlayer.tsx`**
+**Yes.** Lỗi là do cleanup của `useEffect` trong `Watch.tsx` đang bị kích hoạt lặp theo dependency thay vì chỉ khi rời trang/unmount.
 
-**a) Sửa hàm `togglePlay` (dòng 376-389):**
-- Bỏ `setIsPlaying(!isPlaying)` thủ công
-- Để trạng thái được điều khiển hoàn toàn bởi native events `onPlay`/`onPause` trên video element
-- Await `video.play()` và xử lý lỗi
+## Kế hoạch sửa
 
-```typescript
-const togglePlay = async () => {
-  const video = videoRef.current;
-  if (!video) return;
+### 1) Sửa effect global playback trong `Watch.tsx` để chỉ chạy khi unmount/rời Watch thật sự
+- Chuyển sang pattern:
+  - 1 effect cập nhật `refs` chứa giá trị mới nhất: `video`, `isPlaying`, `currentTime`, `duration`
+  - 1 effect cleanup với dependency tối thiểu (hoặc `[]`) để cleanup chỉ chạy khi unmount
+- Trong cleanup:
+  - chỉ dispatch `startGlobalPlayback` nếu snapshot hợp lệ:
+    - có `video`
+    - `isPlaying === true`
+    - `currentTime > 0`
+- Tránh cleanup chạy lại mỗi lần `currentTime` đổi.
 
-  if (video.paused) {
-    try {
-      requestPlayback("video");
-      await video.play();
-      // isPlaying sẽ được set true bởi onPlay event
-    } catch (e) {
-      console.log("Play failed:", e);
-    }
-  } else {
-    video.pause();
-    updateProgress(video.currentTime * 1000);
-    // isPlaying sẽ được set false bởi onPause event
-  }
-};
-```
+### 2) Thêm guard điều kiện route trước khi phát global player
+- Trước khi dispatch `startGlobalPlayback`, kiểm tra đang rời khỏi trang watch (không phải re-render nội bộ).
+- Mục tiêu: không bật GlobalVideoPlayer khi vẫn đang ở chính trang watch.
 
-Thay đổi quan trọng:
-- Dùng `video.paused` thay vì state `isPlaying` để kiểm tra - đảm bảo luôn đồng bộ với video element thực tế
-- Await `video.play()` và bắt lỗi
-- Bỏ `setIsPlaying()` thủ công, để native events xử lý
+### 3) Giữ nguyên cơ chế Mutual Exclusion hiện tại
+- `mediaSessionManager.ts` không cần đổi kiến trúc.
+- Logic pause chéo video/music hiện tại đúng; lỗi đến từ trigger sai thời điểm ở Watch page.
 
-**b) Sửa autoplay effect (dòng 203-219):**
-- Thêm kiểm tra video đã sẵn sàng (readyState) trước khi play
+### 4) Kiểm tra hồi quy (regression checks)
+Sau khi sửa sẽ test đủ các flow:
+1. Mở watch page → bấm play: video phải chạy liên tục, không tự pause sau 1s.
+2. Khi video đang phát, bật music player: video pause đúng.
+3. Khi music đang phát, bấm play video: music pause đúng.
+4. Rời watch page khi video đang phát: global player xuất hiện và tiếp tục từ đúng thời điểm.
+5. Quay lại watch page: không tạo vòng pause qua lại giữa watch/global.
 
-**c) Sửa click zone togglePlay (dòng 680-683):**
-- Đã gọi `togglePlay()` đúng rồi, không cần sửa
+## Files sẽ chỉnh
+- `src/pages/Watch.tsx` (trọng tâm, sửa lifecycle effect gây pause sau 1 giây)
 
-### Tổng hợp
+## Rủi ro & cách kiểm soát
+- Rủi ro: mất tính năng continue-play khi rời trang.
+- Kiểm soát: dùng ref snapshot + cleanup unmount-only + test đầy đủ 5 luồng phía trên.
 
-| Tệp | Thay đổi |
-|------|---------|
-| `src/components/Video/EnhancedVideoPlayer.tsx` | Sửa `togglePlay` dùng `video.paused` thay `isPlaying`, await `video.play()`, bỏ manual `setIsPlaying` |
-
-### Kết quả mong đợi
-- Video phát được khi bấm nút Play hoặc click vào vùng video
-- Trạng thái play/pause luôn đồng bộ giữa UI và video element
-- Không còn xung đột state giữa manual set và native events
+Sau khi bạn approve plan này, mình sẽ sửa ngay đúng file `Watch.tsx` để dứt điểm lỗi “play 1s rồi dừng”.
