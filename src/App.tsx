@@ -24,7 +24,7 @@ const LegacyCRedirect = () => {
 };
 const LegacyCVideoRedirect = () => {
   const { username, slug } = useParams();
-  return <Navigate to={`/${username}/video/${slug}`} replace />;
+  return <Navigate to={`/${username}/${slug}`} replace />;
 };
 
 // Legacy /watch/:id redirect - fetches video data and redirects to clean URL
@@ -244,6 +244,7 @@ function AppContent() {
             <Route path="/@:username" element={<LegacyUsernameRedirect />} />
             {/* Dynamic profile & video routes - MUST be last before catch-all */}
             <Route path="/:username/video/:slug" element={<VideoBySlug />} />
+            <Route path="/:username/:slug" element={<VideoBySlug />} />
             <Route path="/:username" element={<Channel />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
