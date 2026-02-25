@@ -29,6 +29,18 @@ const VideoBySlug = () => {
         .maybeSingle();
 
       if (!profile) {
+        // Tra cứu previous_username để chuyển hướng (người dùng đã đổi tên)
+        const { data: oldProfile } = await supabase
+          .from("profiles")
+          .select("username")
+          .eq("previous_username", username)
+          .maybeSingle();
+
+        if (oldProfile?.username) {
+          navigate(`/${oldProfile.username}/video/${slug}`, { replace: true });
+          return;
+        }
+
         setNotFound(true);
         setLoading(false);
         return;
