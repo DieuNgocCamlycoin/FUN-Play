@@ -13,6 +13,8 @@ import { useToast } from "@/hooks/use-toast";
 import { AuthRequiredDialog } from "@/components/Auth/AuthRequiredDialog";
 import { BackButton } from "@/components/ui/back-button";
 import { ReportChannelButton } from "@/components/Channel/ReportChannelButton";
+import { DynamicMeta } from "@/components/SEO/DynamicMeta";
+import { ChannelJsonLd } from "@/components/SEO/ChannelJsonLd";
 
 interface ProfileData {
   id: string;
@@ -363,6 +365,31 @@ export default function Channel() {
 
   return (
     <MainLayout className="pt-0">
+      {/* SEO: Dynamic Meta + JSON-LD */}
+      <DynamicMeta
+        title={`${profile.display_name || profile.username} - FUN Play`}
+        description={profile.bio || `Trang kênh của ${profile.display_name || profile.username} trên FUN Play`}
+        image={profile.avatar_url || undefined}
+        url={`https://play.fun.rich/${profile.username}`}
+        type="profile"
+        canonicalUrl={`https://play.fun.rich/${profile.username}`}
+      />
+      <ChannelJsonLd
+        name={profile.display_name || profile.username}
+        username={profile.username}
+        description={profile.bio}
+        avatarUrl={profile.avatar_url}
+        subscriberCount={channel?.subscriber_count || 0}
+        socialLinks={{
+          facebook: profile.facebook_url,
+          youtube: profile.youtube_url,
+          twitter: profile.twitter_url,
+          tiktok: profile.tiktok_url,
+          telegram: profile.telegram_url,
+          linkedin: profile.linkedin_url,
+        }}
+      />
+
       {/* Background Music - Tạm tắt, bỏ comment để mở lại */}
       {/* {profile.music_enabled && profile.background_music_url && (
         <BackgroundMusicPlayer musicUrl={profile.background_music_url} />

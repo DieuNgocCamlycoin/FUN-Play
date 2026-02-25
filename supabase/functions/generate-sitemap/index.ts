@@ -7,6 +7,8 @@ const corsHeaders = {
 };
 
 const SITE_URL = "https://play.fun.rich";
+const VIDEOS_PER_PAGE = 1000;
+const PROFILES_PER_PAGE = 1000;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -20,23 +22,49 @@ Deno.serve(async (req) => {
     );
 
     const url = new URL(req.url);
-    const type = url.searchParams.get("type"); // index, videos, profiles, static
+    const type = url.searchParams.get("type");
+    const page = parseInt(url.searchParams.get("page") || "1", 10);
 
-    // Nếu là sitemap index hoặc không có type
+    const xmlHeaders = {
+      ...corsHeaders,
+      "Content-Type": "application/xml; charset=utf-8",
+      "Cache-Control": "public, max-age=3600, s-maxage=3600",
+    };
+
+    // Sitemap index
     if (!type || type === "index") {
+      // Đếm tổng số video để tạo phân trang
+      const { count: videoCount } = await supabase
+        .from("videos")
+        .select("id", { count: "exact", head: true })
+        .eq("is_public", true)
+        .eq("is_hidden", false)
+        .not("slug", "is", null);
+
+      const totalVideoPages = Math.max(1, Math.ceil((videoCount || 0) / VIDEOS_PER_PAGE));
+
+      // Đếm tổng số profiles
+      const { count: profileCount } = await supabase
+        .from("profiles")
+        .select("id", { count: "exact", head: true })
+        .not("username", "like", "user_%");
+
+      const totalProfilePages = Math.max(1, Math.ceil((profileCount || 0) / PROFILES_PER_PAGE));
+
+      const functionUrl = url.origin + url.pathname;
+
+      let sitemaps = `  <sitemap><loc>${functionUrl}?type=static</loc></sitemap>\n`;
+      for (let i = 1; i <= totalVideoPages; i++) {
+        sitemaps += `  <sitemap><loc>${functionUrl}?type=videos&page=${i}</loc></sitemap>\n`;
+      }
+      for (let i = 1; i <= totalProfilePages; i++) {
+        sitemaps += `  <sitemap><loc>${functionUrl}?type=profiles&page=${i}</loc></sitemap>\n`;
+      }
+
       const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <sitemap><loc>${SITE_URL}/sitemap-static.xml</loc></sitemap>
-  <sitemap><loc>${SITE_URL}/sitemap-videos.xml</loc></sitemap>
-  <sitemap><loc>${SITE_URL}/sitemap-profiles.xml</loc></sitemap>
-</sitemapindex>`;
-      return new Response(xml, {
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/xml; charset=utf-8",
-          "Cache-Control": "public, max-age=3600, s-maxage=3600",
-        },
-      });
+${sitemaps}</sitemapindex>`;
+      return new Response(xml, { headers: xmlHeaders });
     }
 
     // Trang tĩnh
@@ -67,16 +95,14 @@ Deno.serve(async (req) => {
 ${entries}
 </urlset>`;
       return new Response(xml, {
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/xml; charset=utf-8",
-          "Cache-Control": "public, max-age=86400, s-maxage=86400",
-        },
+        headers: { ...xmlHeaders, "Cache-Control": "public, max-age=86400, s-maxage=86400" },
       });
     }
 
-    // Video sitemap
+    // Video sitemap (phân trang)
     if (type === "videos") {
+      const offset = (page - 1) * VIDEOS_PER_PAGE;
+
       const { data: videos } = await supabase
         .from("videos")
         .select("slug, user_id, updated_at, thumbnail_url, title, description, duration")
@@ -84,18 +110,12 @@ ${entries}
         .eq("is_hidden", false)
         .not("slug", "is", null)
         .order("created_at", { ascending: false })
-        .limit(1000);
+        .range(offset, offset + VIDEOS_PER_PAGE - 1);
 
       if (!videos || videos.length === 0) {
         return new Response(
           `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>`,
-          {
-            headers: {
-              ...corsHeaders,
-              "Content-Type": "application/xml; charset=utf-8",
-              "Cache-Control": "public, max-age=3600",
-            },
-          }
+          { headers: xmlHeaders }
         );
       }
 
@@ -131,23 +151,19 @@ ${entries}
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${entries}
 </urlset>`;
-      return new Response(xml, {
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/xml; charset=utf-8",
-          "Cache-Control": "public, max-age=3600, s-maxage=3600",
-        },
-      });
+      return new Response(xml, { headers: xmlHeaders });
     }
 
-    // Profile sitemap
+    // Profile sitemap (phân trang)
     if (type === "profiles") {
+      const offset = (page - 1) * PROFILES_PER_PAGE;
+
       const { data: profilesWithVideos } = await supabase
         .from("profiles")
         .select("username, updated_at")
         .not("username", "like", "user_%")
         .order("updated_at", { ascending: false })
-        .limit(1000);
+        .range(offset, offset + PROFILES_PER_PAGE - 1);
 
       const entries = (profilesWithVideos || [])
         .map((p) => {
@@ -167,13 +183,7 @@ ${entries}
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${entries}
 </urlset>`;
-      return new Response(xml, {
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/xml; charset=utf-8",
-          "Cache-Control": "public, max-age=3600, s-maxage=3600",
-        },
-      });
+      return new Response(xml, { headers: xmlHeaders });
     }
 
     return new Response("Invalid type parameter", { status: 400, headers: corsHeaders });

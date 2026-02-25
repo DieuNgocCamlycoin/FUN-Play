@@ -277,6 +277,7 @@ export default function MusicDetail() {
         url={shareUrl}
         type="music.song"
         audio={track.video_url}
+        canonicalUrl={`https://play.fun.rich/music/${track.id}`}
       />
 
       <MainLayout className="pt-2">

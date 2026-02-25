@@ -583,12 +583,13 @@ export default function Watch({ videoIdProp }: { videoIdProp?: string }) {
   if (isMobile) {
     return (
       <>
-        <DynamicMeta
+      <DynamicMeta
           title={`${video.title} - ${video.channels?.name || "FUN Play"}`}
           description={video.description || `Xem video "${video.title}" trên FUN Play - Web3 Video Platform`}
           image={video.thumbnail_url || "https://lovable.dev/opengraph-image-p98pqg.png"}
           url={shareUrl}
           type="video.other"
+          canonicalUrl={channelUsername && video.slug ? `https://play.fun.rich/${channelUsername}/video/${video.slug}` : undefined}
         />
         <VideoJsonLd
           title={video.title}
@@ -657,6 +658,7 @@ export default function Watch({ videoIdProp }: { videoIdProp?: string }) {
         image={video.thumbnail_url || "https://lovable.dev/opengraph-image-p98pqg.png"}
         url={shareUrl}
         type="video.other"
+        canonicalUrl={channelUsername && video.slug ? `https://play.fun.rich/${channelUsername}/video/${video.slug}` : undefined}
       />
       <VideoJsonLd
         title={video.title}
