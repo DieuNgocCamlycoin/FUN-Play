@@ -66,7 +66,10 @@ export const PostCard = ({ post, onUpdate }: PostCardProps) => {
   };
 
   const handleShare = () => {
-    const postUrl = `${window.location.origin}/post/${post.id}`;
+    const username = post.profiles?.username;
+    const postUrl = username && (post as any).slug
+      ? `https://play.fun.rich/${username}/post/${(post as any).slug}`
+      : `${window.location.origin}/post/${post.id}`;
     navigator.clipboard.writeText(postUrl);
     toast({
       title: "Đã copy link! ✨",
@@ -161,14 +164,30 @@ export const PostCard = ({ post, onUpdate }: PostCardProps) => {
                   src={url}
                   alt={`Post image ${index + 1}`}
                   className="w-full h-full object-cover hover:scale-105 transition-transform cursor-pointer"
-                  onClick={() => navigate(`/post/${post.id}`)}
+                  onClick={() => {
+                    const username = post.profiles?.username;
+                    const slug = (post as any).slug;
+                    if (username && slug) {
+                      navigate(`/${username}/post/${slug}`);
+                    } else {
+                      navigate(`/post/${post.id}`);
+                    }
+                  }}
                   loading="lazy"
                 />
                 {/* Show "+X" overlay for more images */}
                 {index === 5 && images.length > 6 && (
                   <div 
                     className="absolute inset-0 bg-black/60 flex items-center justify-center cursor-pointer"
-                    onClick={() => navigate(`/post/${post.id}`)}
+                    onClick={() => {
+                      const username = post.profiles?.username;
+                      const slug = (post as any).slug;
+                      if (username && slug) {
+                        navigate(`/${username}/post/${slug}`);
+                      } else {
+                        navigate(`/post/${post.id}`);
+                      }
+                    }}
                   >
                     <span className="text-white text-2xl font-bold">
                       +{images.length - 6}
@@ -215,7 +234,15 @@ export const PostCard = ({ post, onUpdate }: PostCardProps) => {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => navigate(`/post/${post.id}`)}
+          onClick={() => {
+            const username = post.profiles?.username;
+            const slug = (post as any).slug;
+            if (username && slug) {
+              navigate(`/${username}/post/${slug}`);
+            } else {
+              navigate(`/post/${post.id}`);
+            }
+          }}
           className="gap-2 text-muted-foreground"
         >
           <MessageSquare className="w-4 h-4" />

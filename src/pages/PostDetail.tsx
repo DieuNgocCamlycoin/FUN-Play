@@ -11,7 +11,9 @@ import { formatDistanceToNow } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { motion } from 'framer-motion';
 import { toast } from '@/hooks/use-toast';
-import { getShareUrl, copyToClipboard } from '@/lib/shareUtils';
+import { getPostShareUrl } from '@/lib/postNavigation';
+import { copyToClipboard, getShareUrl } from '@/lib/shareUtils';
+import { PostJsonLd } from '@/components/SEO/PostJsonLd';
 
 interface PostProfile {
   id: string;
@@ -30,13 +32,20 @@ interface Post {
   like_count: number;
   comment_count: number;
   created_at: string;
+  updated_at: string;
   user_id: string;
   channel_id: string;
+  slug: string | null;
   profile?: PostProfile;
 }
 
-const PostDetail: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+interface PostDetailProps {
+  postIdProp?: string;
+}
+
+const PostDetail: React.FC<PostDetailProps> = ({ postIdProp }) => {
+  const { id: paramId } = useParams<{ id: string }>();
+  const id = postIdProp || paramId;
   const navigate = useNavigate();
   const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
@@ -47,7 +56,6 @@ const PostDetail: React.FC = () => {
       if (!id) return;
 
       try {
-        // Fetch post
         const { data: postData, error: postError } = await supabase
           .from('posts')
           .select('*')
@@ -56,7 +64,6 @@ const PostDetail: React.FC = () => {
 
         if (postError) throw postError;
 
-        // Fetch author profile
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('id, username, display_name, avatar_url')
@@ -88,7 +95,11 @@ const PostDetail: React.FC = () => {
   }, [id]);
 
   const handleShare = async () => {
-    const url = getShareUrl(`/post/${id}`);
+    const username = post?.profile?.username;
+    const slug = post?.slug;
+    const url = username && slug
+      ? getPostShareUrl(username, slug)
+      : getShareUrl(`/post/${id}`);
     
     if (navigator.share) {
       try {
@@ -150,9 +161,25 @@ const PostDetail: React.FC = () => {
 
   const authorName = post.profile?.display_name || post.profile?.username || 'Người dùng';
   const authorAvatar = post.profile?.avatar_url;
+  const headline = post.content.replace(/[\n\r]+/g, ' ').slice(0, 80);
+  const firstImage = post.images?.[0] || post.image_url || post.gif_url;
 
   return (
     <MainLayout>
+      {/* SEO: JSON-LD structured data */}
+      {post.profile?.username && post.slug && (
+        <PostJsonLd
+          headline={headline}
+          authorName={authorName}
+          authorUsername={post.profile.username}
+          datePublished={post.created_at}
+          dateModified={post.updated_at}
+          imageUrl={firstImage}
+          slug={post.slug}
+          description={post.content.slice(0, 160)}
+        />
+      )}
+
       <div className="max-w-2xl mx-auto p-4">
         {/* Back button */}
         <Button
@@ -173,7 +200,7 @@ const PostDetail: React.FC = () => {
           {/* Author info */}
           <div className="p-4 border-b border-border/50">
             <div className="flex items-center gap-3">
-              <Link to={`/channel/${post.channel_id}`}>
+              <Link to={`/${post.profile?.username || post.channel_id}`}>
                 <Avatar className="h-12 w-12">
                   <AvatarImage src={authorAvatar || undefined} alt={authorName} />
                   <AvatarFallback className="bg-primary/20 text-primary">
@@ -183,7 +210,7 @@ const PostDetail: React.FC = () => {
               </Link>
               <div className="flex-1 min-w-0">
                 <Link 
-                  to={`/channel/${post.channel_id}`}
+                  to={`/${post.profile?.username || post.channel_id}`}
                   className="font-semibold hover:text-primary transition-colors"
                 >
                   {authorName}

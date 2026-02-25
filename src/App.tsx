@@ -93,6 +93,8 @@ const MusicDetail = lazy(() => import("./pages/MusicDetail"));
 const BrowseMusic = lazy(() => import("./pages/BrowseMusic"));
 const PlatformDocs = lazy(() => import("./pages/PlatformDocs"));
 const PostDetail = lazy(() => import("./pages/PostDetail"));
+const PostBySlug = lazy(() => import("./pages/PostBySlug"));
+const PostLegacyRedirect = lazy(() => import("./pages/PostLegacyRedirect"));
 const VideoRedirect = lazy(() => import("./pages/VideoRedirect"));
 const VideoBySlug = lazy(() => import("./pages/VideoBySlug"));
 const YourVideosMobile = lazy(() => import("./pages/YourVideosMobile"));
@@ -216,7 +218,7 @@ function AppContent() {
             <Route path="/camly-price" element={<CAMLYPrice />} />
             <Route path="/v/:id" element={<VideoRedirect />} />
             <Route path="/liked" element={<LikedVideos />} />
-            <Route path="/post/:id" element={<PostDetail />} />
+            <Route path="/post/:id" element={<PostLegacyRedirect />} />
             <Route path="/docs/platform" element={<PlatformDocs />} />
             <Route path="/your-videos-mobile" element={<YourVideosMobile />} />
             <Route path="/downloads" element={<DownloadedVideos />} />
@@ -242,7 +244,8 @@ function AppContent() {
             <Route path="/c/:username/video/:slug" element={<LegacyCVideoRedirect />} />
             <Route path="/c/:username" element={<LegacyCRedirect />} />
             <Route path="/@:username" element={<LegacyUsernameRedirect />} />
-            {/* Dynamic profile & video routes - MUST be last before catch-all */}
+            {/* Dynamic profile & video & post routes - MUST be last before catch-all */}
+            <Route path="/:username/post/:slug" element={<PostBySlug />} />
             <Route path="/:username/video/:slug" element={<VideoBySlug />} />
             <Route path="/:username/:slug" element={<VideoBySlug />} />
             <Route path="/:username" element={<Channel />} />
