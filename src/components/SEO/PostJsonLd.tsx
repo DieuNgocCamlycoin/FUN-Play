@@ -27,7 +27,7 @@ export const PostJsonLd: React.FC<PostJsonLdProps> = ({
 
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "SocialMediaPosting",
+    "@type": "Article",
     headline: headline.slice(0, 110),
     description: description || headline,
     url,
