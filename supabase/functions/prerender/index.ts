@@ -7,6 +7,49 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+// ── Username → user_id cache (in-memory, TTL 10 min) ──
+const usernameCache = new Map<string, { userId: string; expiresAt: number }>();
+const CACHE_TTL = 10 * 60 * 1000;
+
+async function resolveUsername(
+  supabase: ReturnType<typeof createClient>,
+  username: string
+): Promise<{ userId: string; currentUsername: string } | null> {
+  const now = Date.now();
+  const cached = usernameCache.get(username);
+  if (cached && cached.expiresAt > now) {
+    return { userId: cached.userId, currentUsername: username };
+  }
+
+  // Direct lookup
+  const { data } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("username", username)
+    .single();
+
+  if (data) {
+    usernameCache.set(username, { userId: data.id, expiresAt: now + CACHE_TTL });
+    return { userId: data.id, currentUsername: username };
+  }
+
+  // Fallback: previous_username
+  const { data: prev } = await supabase
+    .from("profiles")
+    .select("id, username")
+    .eq("previous_username", username)
+    .single();
+
+  if (prev) {
+    usernameCache.set(prev.username, { userId: prev.id, expiresAt: now + CACHE_TTL });
+    return { userId: prev.id, currentUsername: prev.username };
+  }
+
+  return null;
+}
+
+// ── Helpers ──
+
 function escapeHtml(text: string): string {
   return text
     .replace(/&/g, "&amp;")
@@ -80,6 +123,26 @@ function buildHtml(meta: MetaData): string {
 </html>`;
 }
 
+function buildRedirectHtml(newUrl: string): string {
+  return `<!DOCTYPE html>
+<html><head>
+<meta http-equiv="refresh" content="0;url=${newUrl}">
+<link rel="canonical" href="${newUrl}">
+<title>Redirecting...</title>
+</head><body><p>Redirecting to <a href="${newUrl}">${newUrl}</a></p></body></html>`;
+}
+
+// ── Reserved paths that should NOT be treated as username ──
+const RESERVED_PATHS = new Set([
+  "watch", "channel", "music", "ai-music", "upload", "login", "register",
+  "auth", "admin", "settings", "search", "explore", "trending", "feed",
+  "notifications", "messages", "wallet", "rewards", "bounty", "meditation",
+  "playlists", "shorts", "about", "terms", "privacy", "help", "api",
+  "community", "angel", "leaderboard", "ranking",
+]);
+
+// ── Main handler ──
+
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -99,9 +162,11 @@ serve(async (req: Request) => {
       type: "website",
     };
 
-    // Parse path
+    // ── Parse path: legacy patterns first, then clean URLs ──
     let type: string | null = null;
     let id: string | null = null;
+    let username: string | null = null;
+    let slug: string | null = null;
 
     if (path.startsWith("/ai-music/")) {
       type = "ai-music";
@@ -115,12 +180,30 @@ serve(async (req: Request) => {
     } else if (path.startsWith("/channel/")) {
       type = "channel";
       id = path.replace("/channel/", "").split("?")[0];
+    } else {
+      // Clean URL patterns: /:username/video/:slug, /:username/post/:slug, /:username/:slug, /:username
+      const segments = path.split("/").filter(Boolean);
+      if (segments.length >= 1 && !RESERVED_PATHS.has(segments[0])) {
+        username = segments[0];
+        if (segments.length >= 3 && segments[1] === "video") {
+          type = "video-by-slug";
+          slug = segments[2];
+        } else if (segments.length >= 3 && segments[1] === "post") {
+          type = "post-by-slug";
+          slug = segments[2];
+        } else if (segments.length === 2) {
+          // /:username/:slug → default to video
+          type = "video-by-slug";
+          slug = segments[1];
+        } else if (segments.length === 1) {
+          type = "channel-by-username";
+        }
+      }
     }
 
-    if (!type || !id) {
-      console.log("[prerender] no type/id, returning default");
-      const html = buildHtml(defaultMeta);
-      return new Response(html, {
+    if (!type) {
+      console.log("[prerender] no type matched, returning default");
+      return new Response(buildHtml(defaultMeta), {
         headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8", "Cache-Control": "public, max-age=3600" },
       });
     }
@@ -131,7 +214,8 @@ serve(async (req: Request) => {
 
     const meta = { ...defaultMeta };
 
-    if (type === "ai-music") {
+    // ── Legacy: ai-music by ID ──
+    if (type === "ai-music" && id) {
       console.log("[prerender] fetching ai-music:", id);
       const { data, error } = await supabase
         .from("ai_generated_music")
@@ -146,10 +230,10 @@ serve(async (req: Request) => {
         meta.type = "music.song";
         meta.audio = data.audio_url || "";
         console.log("[prerender] found ai-music:", data.title);
-      } else {
-        console.log("[prerender] ai-music error:", error?.message);
       }
-    } else if (type === "music" || type === "video") {
+    }
+    // ── Legacy: video/music by ID ──
+    else if ((type === "music" || type === "video") && id) {
       console.log("[prerender] fetching", type, ":", id);
       const { data, error } = await supabase
         .from("videos")
@@ -172,11 +256,10 @@ serve(async (req: Request) => {
           meta.video = data.video_url;
           meta.description = data.description || `📺 Xem "${data.title}" trên FUN Play. ${data.view_count || 0} lượt xem.`;
         }
-        console.log("[prerender] found:", data.title);
-      } else {
-        console.log("[prerender] error:", error?.message);
       }
-    } else if (type === "channel") {
+    }
+    // ── Legacy: channel by ID ──
+    else if (type === "channel" && id) {
       console.log("[prerender] fetching channel:", id);
       const { data, error } = await supabase
         .from("channels")
@@ -189,13 +272,163 @@ serve(async (req: Request) => {
         meta.description = data.description || `📺 Kênh ${data.name} trên FUN Play với ${data.subscriber_count || 0} người đăng ký.`;
         meta.image = data.banner_url || meta.image;
         meta.type = "profile";
-        console.log("[prerender] found channel:", data.name);
+      }
+    }
+    // ── NEW: video by slug ──
+    else if (type === "video-by-slug" && username && slug) {
+      console.log("[prerender] resolving video-by-slug:", username, slug);
+      const resolved = await resolveUsername(supabase, username);
+
+      if (resolved) {
+        // If username changed, redirect to canonical URL
+        if (resolved.currentUsername !== username) {
+          const newUrl = `${baseUrl}/${resolved.currentUsername}/${slug}`;
+          console.log("[prerender] username redirect →", newUrl);
+          return new Response(buildRedirectHtml(newUrl), {
+            status: 301,
+            headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8", "Location": newUrl },
+          });
+        }
+
+        // Query video by user_id + slug
+        const { data: video } = await supabase
+          .from("videos")
+          .select("id, title, description, video_url, thumbnail_url, view_count, slug, channels(name)")
+          .eq("user_id", resolved.userId)
+          .eq("slug", slug)
+          .single();
+
+        if (video) {
+          const ch = Array.isArray(video.channels) ? video.channels[0] : video.channels;
+          const channelName = ch?.name || "FUN Play";
+          meta.title = `${video.title} - ${channelName}`;
+          meta.description = video.description || `📺 Xem "${video.title}" trên FUN Play. ${video.view_count || 0} lượt xem.`;
+          meta.image = video.thumbnail_url || meta.image;
+          meta.type = "video.other";
+          meta.video = video.video_url;
+          meta.url = `${baseUrl}/${username}/${video.slug || slug}`;
+          console.log("[prerender] found video by slug:", video.title);
+        } else {
+          // Fallback: check video_slug_history
+          const { data: history } = await supabase
+            .from("video_slug_history")
+            .select("video_id, videos(slug, user_id)")
+            .eq("old_slug", slug)
+            .eq("user_id", resolved.userId)
+            .limit(1)
+            .single();
+
+          if (history) {
+            const vid = Array.isArray(history.videos) ? history.videos[0] : history.videos;
+            if (vid?.slug) {
+              const newUrl = `${baseUrl}/${username}/${vid.slug}`;
+              console.log("[prerender] slug redirect →", newUrl);
+              return new Response(buildRedirectHtml(newUrl), {
+                status: 301,
+                headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8", "Location": newUrl },
+              });
+            }
+          }
+          console.log("[prerender] video not found for slug:", slug);
+        }
       } else {
-        console.log("[prerender] channel error:", error?.message);
+        console.log("[prerender] username not found:", username);
+      }
+    }
+    // ── NEW: post by slug ──
+    else if (type === "post-by-slug" && username && slug) {
+      console.log("[prerender] resolving post-by-slug:", username, slug);
+      const resolved = await resolveUsername(supabase, username);
+
+      if (resolved) {
+        if (resolved.currentUsername !== username) {
+          const newUrl = `${baseUrl}/${resolved.currentUsername}/post/${slug}`;
+          console.log("[prerender] username redirect →", newUrl);
+          return new Response(buildRedirectHtml(newUrl), {
+            status: 301,
+            headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8", "Location": newUrl },
+          });
+        }
+
+        const { data: post } = await supabase
+          .from("posts")
+          .select("id, content, image_url, images, slug, like_count, comment_count")
+          .eq("user_id", resolved.userId)
+          .eq("slug", slug)
+          .single();
+
+        if (post) {
+          const headline = (post.content || "").split("\n")[0].slice(0, 70);
+          meta.title = `${headline || "Bài đăng"} | FUN Play`;
+          meta.description = (post.content || "").slice(0, 160);
+          const firstImage = post.images?.[0] || post.image_url;
+          if (firstImage) meta.image = firstImage;
+          meta.url = `${baseUrl}/${username}/post/${post.slug || slug}`;
+          meta.type = "article";
+          console.log("[prerender] found post by slug:", headline);
+        } else {
+          // Fallback: check post_slug_history
+          const { data: history } = await supabase
+            .from("post_slug_history")
+            .select("post_id, posts(slug, user_id)")
+            .eq("old_slug", slug)
+            .eq("user_id", resolved.userId)
+            .limit(1)
+            .single();
+
+          if (history) {
+            const p = Array.isArray(history.posts) ? history.posts[0] : history.posts;
+            if (p?.slug) {
+              const newUrl = `${baseUrl}/${username}/post/${p.slug}`;
+              console.log("[prerender] post slug redirect →", newUrl);
+              return new Response(buildRedirectHtml(newUrl), {
+                status: 301,
+                headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8", "Location": newUrl },
+              });
+            }
+          }
+          console.log("[prerender] post not found for slug:", slug);
+        }
+      }
+    }
+    // ── NEW: channel by username ──
+    else if (type === "channel-by-username" && username) {
+      console.log("[prerender] resolving channel-by-username:", username);
+      const resolved = await resolveUsername(supabase, username);
+
+      if (resolved) {
+        if (resolved.currentUsername !== username) {
+          const newUrl = `${baseUrl}/${resolved.currentUsername}`;
+          console.log("[prerender] username redirect →", newUrl);
+          return new Response(buildRedirectHtml(newUrl), {
+            status: 301,
+            headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8", "Location": newUrl },
+          });
+        }
+
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("display_name, username, avatar_url, bio")
+          .eq("id", resolved.userId)
+          .single();
+
+        const { data: channel } = await supabase
+          .from("channels")
+          .select("name, description, banner_url, subscriber_count")
+          .eq("user_id", resolved.userId)
+          .single();
+
+        const displayName = profile?.display_name || channel?.name || username;
+        meta.title = `${displayName} - FUN Play`;
+        meta.description = channel?.description || profile?.bio || `📺 Kênh ${displayName} trên FUN Play với ${channel?.subscriber_count || 0} người đăng ký.`;
+        meta.image = channel?.banner_url || profile?.avatar_url || meta.image;
+        meta.type = "profile";
+        meta.url = `${baseUrl}/${username}`;
+        console.log("[prerender] found channel-by-username:", displayName);
       }
     }
 
-    meta.url = `${baseUrl}${path}`;
+    meta.url = meta.url || `${baseUrl}${path}`;
     const html = buildHtml(meta);
 
     return new Response(html, {
