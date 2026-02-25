@@ -59,7 +59,7 @@ import { RecoveryModeGuard } from './components/Auth/RecoveryModeGuard';
 import { BannedScreen } from './components/BannedScreen';
 import { useAuth } from './hooks/useAuth';
 import { Skeleton } from "./components/ui/skeleton";
-import { ValentineMusicButton } from './components/ValentineMusicButton';
+// import { ValentineMusicButton } from './components/ValentineMusicButton';
 import { ProfileOnboardingModal } from './components/Onboarding/ProfileOnboardingModal';
 
 // Lazy loaded pages - Less frequently used
@@ -252,7 +252,7 @@ function AppContent() {
       </RecoveryModeGuard>
       <ProfileOnboardingModal />
       <GlobalMiniPlayer />
-      <ValentineMusicButton />
+      {/* <ValentineMusicButton /> */}
       <BackgroundUploadIndicator />
       <Toaster />
       <Sonner />
