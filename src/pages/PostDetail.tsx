@@ -14,6 +14,7 @@ import { toast } from '@/hooks/use-toast';
 import { getPostShareUrl } from '@/lib/postNavigation';
 import { copyToClipboard, getShareUrl } from '@/lib/shareUtils';
 import { PostJsonLd } from '@/components/SEO/PostJsonLd';
+import { DynamicMeta } from '@/components/SEO/DynamicMeta';
 
 interface PostProfile {
   id: string;
@@ -168,16 +169,27 @@ const PostDetail: React.FC<PostDetailProps> = ({ postIdProp }) => {
     <MainLayout>
       {/* SEO: JSON-LD structured data */}
       {post.profile?.username && post.slug && (
-        <PostJsonLd
-          headline={headline}
-          authorName={authorName}
-          authorUsername={post.profile.username}
-          datePublished={post.created_at}
-          dateModified={post.updated_at}
-          imageUrl={firstImage}
-          slug={post.slug}
-          description={post.content.slice(0, 160)}
-        />
+        <>
+          <PostJsonLd
+            headline={headline}
+            authorName={authorName}
+            authorUsername={post.profile.username}
+            datePublished={post.created_at}
+            dateModified={post.updated_at}
+            imageUrl={firstImage}
+            slug={post.slug}
+            description={post.content.slice(0, 160)}
+          />
+          <DynamicMeta
+            title={`${headline} | FUN Play`}
+            description={post.content.slice(0, 160)}
+            image={firstImage || undefined}
+            url={`https://play.fun.rich/${post.profile.username}/post/${post.slug}`}
+            canonicalUrl={`https://play.fun.rich/${post.profile.username}/post/${post.slug}`}
+            author={authorName}
+            siteName="FUN Play"
+          />
+        </>
       )}
 
       <div className="max-w-2xl mx-auto p-4">
