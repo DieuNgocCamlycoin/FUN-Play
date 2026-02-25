@@ -1,103 +1,221 @@
 
 
-# Kế hoạch tổng rà soát: Quản trị URL và SEO (Bài 0 – Bài 9)
+# Triển khai URL sạch cho Bài đăng (Posts)
 
-## Tổng kết hiện trạng
-
-### Đã hoàn thành 100%
-
-| Hạng mục | Tệp/Vị trí | Trạng thái |
-|----------|-------------|------------|
-| Bộ máy slugify (tiếng Việt, NFD, 150 ký tự) | `src/lib/slugify.ts` | Hoàn thành |
-| Quản trị slug phía client (giới hạn 5 lần/ngày, chống trùng) | `src/lib/slugGovernance.ts` | Hoàn thành |
-| Bảng `video_slug_history` | Cơ sở dữ liệu | Hoàn thành |
-| DB Trigger `trg_generate_video_slug` gắn vào bảng `videos` | Cơ sở dữ liệu | Hoàn thành |
-| DB Trigger `trg_validate_video_title` gắn vào bảng `videos` | Cơ sở dữ liệu | Hoàn thành |
-| Điều hướng video qua slug (`/:username/video/:slug`) | `src/pages/VideoBySlug.tsx`, `src/lib/videoNavigation.ts` | Hoàn thành |
-| Chuyển hướng 301 slug cũ (tra cứu `video_slug_history`) | `src/pages/VideoBySlug.tsx` dòng 46-51 | Hoàn thành |
-| Chuyển hướng legacy `/watch/:id` → URL sạch | `src/pages/WatchLegacyRedirect.tsx` | Hoàn thành |
-| Lưu giữ `previous_username` khi đổi username | DB trigger `save_previous_username` | Hoàn thành |
-| Chuyển hướng username cũ → username mới | `src/pages/Channel.tsx` (tra cứu `previous_username`) | Hoàn thành |
-| Danh sách username hạn chế (50+ từ khoá) | `src/lib/nameFilter.ts` | Hoàn thành |
-| Bộ lọc tên không phù hợp (tiếng Việt + Anh) | `src/lib/nameFilter.ts` | Hoàn thành |
-| Xác thực chất lượng tên hiển thị | `src/lib/nameFilter.ts` (`validateDisplayName`) | Hoàn thành |
-| DynamicMeta (OG tags, Twitter Card) | `src/components/SEO/DynamicMeta.tsx` | Hoàn thành |
-| JSON-LD VideoObject | `src/components/SEO/VideoJsonLd.tsx` | Hoàn thành |
-| Tích hợp VideoJsonLd vào Watch (desktop + mobile) | `src/pages/Watch.tsx` | Hoàn thành |
-| DynamicMeta cho trang nhạc | `src/pages/MusicDetail.tsx`, `src/pages/BrowseMusic.tsx` | Hoàn thành |
-| `robots.txt` chặn route nội bộ | `public/robots.txt` | Hoàn thành |
-| Edge Function sitemap động (index, static, videos, profiles) | `supabase/functions/generate-sitemap/index.ts` | Hoàn thành |
-| `robots.txt` trỏ đúng sitemap URL | `public/robots.txt` dòng 48 | Hoàn thành |
-| Cache-Control headers cho sitemap | Edge Function (max-age=3600) | Hoàn thành |
+**Mục tiêu**: Chuyển từ `play.fun.rich/post/{uuid}` sang `play.fun.rich/{username}/post/{slug}`
 
 ---
 
-## Các hạng mục cần cải thiện / bổ sung
+## Tổng quan thay đổi
 
-Sau khi rà soát kỹ, tôi nhận thấy một số điểm có thể nâng cấp thêm:
-
-### 1. Thêm `canonicalUrl` cho trang Watch (Mức ưu tiên: Trung bình)
-
-**Vấn đề**: `DynamicMeta` hỗ trợ prop `canonicalUrl` nhưng trang `Watch.tsx` chưa truyền giá trị này. Thẻ `<link rel="canonical">` giúp Google xác định URL chính thức, tránh nội dung trùng lặp.
-
-**Giải pháp**: Truyền `canonicalUrl` vào `DynamicMeta` trong `Watch.tsx` với giá trị `https://play.fun.rich/{username}/video/{slug}`.
-
-**Tệp thay đổi**: `src/pages/Watch.tsx` — thêm prop `canonicalUrl` vào cả 2 vị trí render `DynamicMeta` (desktop + mobile).
-
----
-
-### 2. Thêm `canonicalUrl` cho trang MusicDetail (Mức ưu tiên: Thấp)
-
-**Vấn đề**: Tương tự, `MusicDetail.tsx` dùng `DynamicMeta` nhưng chưa truyền `canonicalUrl`.
-
-**Giải pháp**: Truyền `canonicalUrl` cho trang nhạc chi tiết.
-
-**Tệp thay đổi**: `src/pages/MusicDetail.tsx`
+| # | Hạng mục | Loại | File |
+|---|----------|------|------|
+| 1 | Thêm cột `slug` + backfill + unique index | DB Migration | SQL |
+| 2 | Tạo bảng `post_slug_history` + RLS | DB Migration | SQL |
+| 3 | Tạo trigger `trg_generate_post_slug` | DB Migration | SQL |
+| 4 | Tạo `postNavigation.ts` | Code mới | `src/lib/postNavigation.ts` |
+| 5 | Tạo `PostBySlug.tsx` | Code mới | `src/pages/PostBySlug.tsx` |
+| 6 | Tạo `PostLegacyRedirect.tsx` | Code mới | `src/pages/PostLegacyRedirect.tsx` |
+| 7 | Tạo `PostJsonLd.tsx` + cập nhật `PostDetail.tsx` | Code mới + sửa | `src/components/SEO/PostJsonLd.tsx`, `src/pages/PostDetail.tsx` |
+| 8 | Cập nhật routing + sitemap + share links | Sửa | `src/App.tsx`, `generate-sitemap/index.ts`, `PostCard.tsx`, `PostReactions.tsx`, v.v. |
 
 ---
 
-### 3. Thêm JSON-LD cho trang kênh/hồ sơ — schema Person (Mức ưu tiên: Trung bình)
+## Chi tiết kỹ thuật
 
-**Vấn đề**: Hiện chỉ có JSON-LD `VideoObject` cho video. Trang kênh (Channel) chưa có dữ liệu cấu trúc. Google có thể hiển thị Knowledge Panel nếu có schema `Person`.
+### Bước 1-3: Database Migration (1 file SQL)
 
-**Giải pháp**: Tạo component `ChannelJsonLd` với schema `Person` (tên, hình ảnh, mô tả, liên kết mạng xã hội). Tích hợp vào `Channel.tsx`.
+```sql
+-- 1. Thêm cột slug vào bảng posts
+ALTER TABLE public.posts ADD COLUMN slug TEXT;
 
-**Tệp mới**: `src/components/SEO/ChannelJsonLd.tsx`
-**Tệp thay đổi**: `src/pages/Channel.tsx`
+-- 2. Backfill slug cho posts hiện có (từ 80 ký tự đầu content)
+UPDATE public.posts SET slug = 
+  regexp_replace(
+    regexp_replace(
+      lower(
+        regexp_replace(
+          normalize(
+            replace(replace(left(regexp_replace(content, '[^\w\s]', '', 'g'), 80), 'đ', 'd'), 'Đ', 'D'),
+            NFD
+          ),
+          '[\u0300-\u036f]', '', 'g'
+        )
+      ),
+      '[^a-z0-9]+', '-', 'g'
+    ),
+    '^-+|-+$', '', 'g'
+  )
+WHERE slug IS NULL;
+
+-- Fallback cho slug rỗng
+UPDATE public.posts SET slug = 'post-' || substr(id::text, 1, 8) 
+WHERE slug IS NULL OR slug = '';
+
+-- 3. Xử lý trùng lặp slug trong cùng user
+-- (Sử dụng window function để thêm hậu tố)
+
+-- 4. Unique index
+CREATE UNIQUE INDEX idx_posts_user_slug ON public.posts(user_id, slug);
+
+-- 5. Bảng lịch sử slug
+CREATE TABLE public.post_slug_history (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  post_id UUID NOT NULL REFERENCES public.posts(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL,
+  old_slug TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(user_id, old_slug)
+);
+
+CREATE INDEX idx_post_slug_history_lookup 
+  ON public.post_slug_history(user_id, old_slug);
+
+-- 6. RLS
+ALTER TABLE public.post_slug_history ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Post slug history readable by everyone"
+  ON public.post_slug_history FOR SELECT USING (true);
+
+-- 7. Trigger tạo slug tự động
+CREATE OR REPLACE FUNCTION generate_post_slug()
+RETURNS TRIGGER AS $$
+DECLARE
+  base_slug TEXT;
+  final_slug TEXT;
+  counter INTEGER := 1;
+  old_slug_val TEXT;
+  content_title TEXT;
+BEGIN
+  -- Lưu slug cũ nếu đang UPDATE
+  IF TG_OP = 'UPDATE' AND OLD.slug IS NOT NULL AND OLD.slug != '' THEN
+    old_slug_val := OLD.slug;
+  END IF;
+
+  -- Giữ nguyên slug nếu INSERT có sẵn slug
+  IF TG_OP = 'INSERT' AND NEW.slug IS NOT NULL AND NEW.slug != '' THEN
+    RETURN NEW;
+  END IF;
+
+  -- Không đổi slug nếu content không thay đổi
+  IF TG_OP = 'UPDATE' AND (NEW.content = OLD.content) AND NEW.slug IS NOT NULL THEN
+    RETURN NEW;
+  END IF;
+
+  -- Lấy 80 ký tự đầu content làm "title"
+  content_title := left(regexp_replace(NEW.content, E'[\\n\\r]+', ' ', 'g'), 80);
+
+  -- Tạo slug (giống generate_video_slug)
+  base_slug := replace(replace(content_title, 'đ', 'd'), 'Đ', 'D');
+  base_slug := normalize(base_slug, NFD);
+  base_slug := regexp_replace(base_slug, '[\u0300-\u036f]', '', 'g');
+  base_slug := lower(base_slug);
+  base_slug := regexp_replace(base_slug, '[^a-z0-9]+', '-', 'g');
+  base_slug := regexp_replace(base_slug, '^-+|-+$', '', 'g');
+
+  IF length(base_slug) > 150 THEN
+    base_slug := left(base_slug, 150);
+    IF position('-' in base_slug) > 0 THEN
+      base_slug := left(base_slug, length(base_slug) - position('-' in reverse(base_slug)));
+    END IF;
+  END IF;
+
+  IF base_slug = '' OR base_slug IS NULL THEN
+    base_slug := 'post-' || substr(gen_random_uuid()::text, 1, 4);
+  END IF;
+
+  -- Chống trùng lặp
+  final_slug := base_slug;
+  WHILE EXISTS (
+    SELECT 1 FROM public.posts 
+    WHERE user_id = NEW.user_id AND slug = final_slug AND id != NEW.id
+  ) LOOP
+    final_slug := base_slug || '-' || counter;
+    counter := counter + 1;
+  END LOOP;
+
+  NEW.slug := final_slug;
+
+  -- Lưu slug cũ vào lịch sử
+  IF old_slug_val IS NOT NULL AND old_slug_val != final_slug THEN
+    INSERT INTO public.post_slug_history (post_id, user_id, old_slug)
+    VALUES (NEW.id, NEW.user_id, old_slug_val)
+    ON CONFLICT (user_id, old_slug) DO NOTHING;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_generate_post_slug
+  BEFORE INSERT OR UPDATE OF content ON public.posts
+  FOR EACH ROW EXECUTE FUNCTION generate_post_slug();
+```
+
+### Bước 4: `src/lib/postNavigation.ts`
+
+Tạo file mới, tương tự `videoNavigation.ts`:
+- `buildPostPath(username, slug)` -> `/{username}/post/{slug}`
+- `getPostPath(postId)` -> async, tra cứu DB lấy username + slug
+- `resolvePostSlugRedirect(username, slug)` -> tra cứu `post_slug_history`
+- `usePostNavigation()` hook cho navigation
+- `getPostShareUrl(username, slug)` -> `https://play.fun.rich/{username}/post/{slug}`
+
+### Bước 5: `src/pages/PostBySlug.tsx`
+
+Tạo trang mới, tương tự `VideoBySlug.tsx`:
+- Nhận params `/:username/post/:slug`
+- Tra cứu profile theo username -> tìm post theo `user_id + slug`
+- Nếu không thấy: tra cứu `post_slug_history` -> chuyển hướng 301
+- Nếu vẫn không thấy: hiển thị NotFound
+- Render `PostDetail` inline (truyền `postIdProp`)
+
+### Bước 6: `src/pages/PostLegacyRedirect.tsx`
+
+Tạo trang redirect cho URL cũ `/post/:id`:
+- Tra cứu post by UUID -> lấy username + slug
+- Chuyển hướng 301 sang `/{username}/post/{slug}`
+- Hiển thị NotFound nếu không tìm thấy
+
+### Bước 7: SEO Components
+
+**`src/components/SEO/PostJsonLd.tsx`** (mới):
+- Schema type: `Article` hoặc `SocialMediaPosting`
+- Bao gồm: `headline` (80 ký tự đầu content), `author`, `datePublished`, `image`, `url`
+
+**`src/pages/PostDetail.tsx`** (cập nhật):
+- Thêm prop `postIdProp?: string` (để PostBySlug truyền ID)
+- Sử dụng `postIdProp || id` từ useParams
+- Tích hợp `DynamicMeta` với `canonicalUrl`
+- Tích hợp `PostJsonLd`
+- Cập nhật link chia sẻ sang URL sạch
+
+### Bước 8: Routing & Sitemap
+
+**`src/App.tsx`**:
+- Thêm lazy import `PostBySlug` và `PostLegacyRedirect`
+- Thêm route `/:username/post/:slug` -> `PostBySlug` (trước các dynamic routes cuối)
+- Đổi `/post/:id` -> `PostLegacyRedirect` (thay vì `PostDetail` trực tiếp)
+
+**`supabase/functions/generate-sitemap/index.ts`**:
+- Thêm biến `POSTS_PER_PAGE = 1000`
+- Thêm đếm posts vào sitemap index
+- Thêm section `type=posts` với phân trang
+- Truy vấn posts có slug, join username
+
+**Cập nhật share links** trong:
+- `src/components/Profile/PostCard.tsx` — đổi `/post/${post.id}` sang `/{username}/post/{slug}`
+- `src/components/Post/PostReactions.tsx` — tương tự
+- `src/pages/YourVideosMobile.tsx` — tương tự
+- `src/pages/Receipt.tsx` — tương tự
 
 ---
 
-### 4. Sitemap phân trang cho video vượt quá 1.000 bản ghi (Mức ưu tiên: Thấp)
+## Thứ tự thực hiện
 
-**Vấn đề**: Edge Function `generate-sitemap` hiện giới hạn 1.000 video. Khi nền tảng phát triển, các video ngoài giới hạn sẽ không được lập chỉ mục.
-
-**Giải pháp**: Hỗ trợ tham số `page` trong sitemap video (ví dụ: `?type=videos&page=1`, `?type=videos&page=2`). Sitemap index tự động liệt kê tất cả các trang.
-
-**Tệp thay đổi**: `supabase/functions/generate-sitemap/index.ts`
-
----
-
-### 5. Thêm `canonicalUrl` và `DynamicMeta` cho trang Channel (Mức ưu tiên: Trung bình)
-
-**Vấn đề**: Cần xác nhận trang Channel đã có `DynamicMeta` với đầy đủ OG tags hay chưa. Nếu chưa, cần bổ sung để khi chia sẻ link kênh lên mạng xã hội sẽ hiển thị đẹp.
-
-**Tệp thay đổi**: `src/pages/Channel.tsx`
-
----
-
-## Thứ tự thực hiện đề xuất
-
-| Bước | Hạng mục | Mức độ |
-|------|----------|--------|
-| 1 | Thêm `canonicalUrl` cho Watch.tsx | Nhanh (thêm 1 prop) |
-| 2 | Thêm `DynamicMeta` + `canonicalUrl` cho Channel.tsx | Trung bình |
-| 3 | Tạo `ChannelJsonLd` (schema Person) | Trung bình |
-| 4 | Thêm `canonicalUrl` cho MusicDetail.tsx | Nhanh |
-| 5 | Sitemap phân trang (khi số video vượt 1.000) | Nâng cao, có thể làm sau |
-
----
-
-## Kết luận
-
-Hệ thống URL và SEO theo tài liệu Bài 0 – Bài 9 đã hoàn thành khoảng **90%**. Các hạng mục còn lại chủ yếu là bổ sung thẻ `canonical`, JSON-LD cho trang kênh, và chuẩn bị sitemap phân trang cho tương lai. Tất cả đều là cải tiến tối ưu hoá, không ảnh hưởng đến chức năng hiện tại.
+1. Chạy DB Migration (bước 1-3) - phải chờ hoàn tất trước
+2. Tạo song song: `postNavigation.ts`, `PostJsonLd.tsx` (bước 4, 7a)
+3. Tạo song song: `PostBySlug.tsx`, `PostLegacyRedirect.tsx` (bước 5, 6)
+4. Cập nhật `PostDetail.tsx` + thêm `postIdProp` (bước 7b)
+5. Cập nhật `App.tsx` routing + sitemap + share links (bước 8)
+6. Deploy Edge Function `generate-sitemap`
 
