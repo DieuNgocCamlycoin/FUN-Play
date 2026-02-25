@@ -9,6 +9,7 @@ const corsHeaders = {
 const SITE_URL = "https://play.fun.rich";
 const VIDEOS_PER_PAGE = 1000;
 const PROFILES_PER_PAGE = 1000;
+const POSTS_PER_PAGE = 1000;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -33,7 +34,6 @@ Deno.serve(async (req) => {
 
     // Sitemap index
     if (!type || type === "index") {
-      // Đếm tổng số video để tạo phân trang
       const { count: videoCount } = await supabase
         .from("videos")
         .select("id", { count: "exact", head: true })
@@ -43,13 +43,20 @@ Deno.serve(async (req) => {
 
       const totalVideoPages = Math.max(1, Math.ceil((videoCount || 0) / VIDEOS_PER_PAGE));
 
-      // Đếm tổng số profiles
       const { count: profileCount } = await supabase
         .from("profiles")
         .select("id", { count: "exact", head: true })
         .not("username", "like", "user_%");
 
       const totalProfilePages = Math.max(1, Math.ceil((profileCount || 0) / PROFILES_PER_PAGE));
+
+      const { count: postCount } = await supabase
+        .from("posts")
+        .select("id", { count: "exact", head: true })
+        .eq("is_public", true)
+        .not("slug", "is", null);
+
+      const totalPostPages = Math.max(1, Math.ceil((postCount || 0) / POSTS_PER_PAGE));
 
       const functionUrl = url.origin + url.pathname;
 
@@ -60,6 +67,9 @@ Deno.serve(async (req) => {
       for (let i = 1; i <= totalProfilePages; i++) {
         sitemaps += `  <sitemap><loc>${functionUrl}?type=profiles&page=${i}</loc></sitemap>\n`;
       }
+      for (let i = 1; i <= totalPostPages; i++) {
+        sitemaps += `  <sitemap><loc>${functionUrl}?type=posts&page=${i}</loc></sitemap>\n`;
+      }
 
       const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -67,7 +77,7 @@ ${sitemaps}</sitemapindex>`;
       return new Response(xml, { headers: xmlHeaders });
     }
 
-    // Trang tĩnh
+    // Static pages
     if (type === "static") {
       const staticPages = [
         { loc: "/", priority: "1.0", changefreq: "daily" },
@@ -99,7 +109,7 @@ ${entries}
       });
     }
 
-    // Video sitemap (phân trang)
+    // Video sitemap
     if (type === "videos") {
       const offset = (page - 1) * VIDEOS_PER_PAGE;
 
@@ -119,7 +129,6 @@ ${entries}
         );
       }
 
-      // Lấy username cho từng user_id
       const userIds = [...new Set(videos.map((v) => v.user_id))];
       const { data: profiles } = await supabase
         .from("profiles")
@@ -154,7 +163,60 @@ ${entries}
       return new Response(xml, { headers: xmlHeaders });
     }
 
-    // Profile sitemap (phân trang)
+    // Posts sitemap
+    if (type === "posts") {
+      const offset = (page - 1) * POSTS_PER_PAGE;
+
+      const { data: posts } = await supabase
+        .from("posts")
+        .select("slug, user_id, updated_at")
+        .eq("is_public", true)
+        .not("slug", "is", null)
+        .order("created_at", { ascending: false })
+        .range(offset, offset + POSTS_PER_PAGE - 1);
+
+      if (!posts || posts.length === 0) {
+        return new Response(
+          `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>`,
+          { headers: xmlHeaders }
+        );
+      }
+
+      const userIds = [...new Set(posts.map((p) => p.user_id))];
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, username")
+        .in("id", userIds);
+
+      const usernameMap = new Map(
+        (profiles || []).map((p) => [p.id, p.username])
+      );
+
+      const entries = posts
+        .map((p) => {
+          const username = usernameMap.get(p.user_id);
+          if (!username || !p.slug) return "";
+          const lastmod = p.updated_at
+            ? new Date(p.updated_at).toISOString().split("T")[0]
+            : "";
+          return `  <url>
+    <loc>${SITE_URL}/${username}/post/${p.slug}</loc>
+    ${lastmod ? `<lastmod>${lastmod}</lastmod>` : ""}
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>`;
+        })
+        .filter(Boolean)
+        .join("\n");
+
+      const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${entries}
+</urlset>`;
+      return new Response(xml, { headers: xmlHeaders });
+    }
+
+    // Profile sitemap
     if (type === "profiles") {
       const offset = (page - 1) * PROFILES_PER_PAGE;
 

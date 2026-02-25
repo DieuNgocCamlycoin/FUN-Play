@@ -1518,6 +1518,38 @@ export type Database = {
           },
         ]
       }
+      post_slug_history: {
+        Row: {
+          created_at: string | null
+          id: string
+          old_slug: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          old_slug: string
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          old_slug?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_slug_history_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       posts: {
         Row: {
           channel_id: string
@@ -1532,6 +1564,7 @@ export type Database = {
           is_public: boolean | null
           like_count: number | null
           post_type: string | null
+          slug: string | null
           updated_at: string
           user_id: string
         }
@@ -1548,6 +1581,7 @@ export type Database = {
           is_public?: boolean | null
           like_count?: number | null
           post_type?: string | null
+          slug?: string | null
           updated_at?: string
           user_id: string
         }
@@ -1564,6 +1598,7 @@ export type Database = {
           is_public?: boolean | null
           like_count?: number | null
           post_type?: string | null
+          slug?: string | null
           updated_at?: string
           user_id?: string
         }
