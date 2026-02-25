@@ -1,12 +1,14 @@
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState, lazy, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { resolveSlugRedirect } from "@/lib/videoNavigation";
 import NotFound from "./NotFound";
 
 const Watch = lazy(() => import("./Watch"));
 
 const VideoBySlug = () => {
   const { username, slug } = useParams<{ username: string; slug: string }>();
+  const navigate = useNavigate();
   const [videoId, setVideoId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -41,6 +43,12 @@ const VideoBySlug = () => {
         .maybeSingle();
 
       if (!video) {
+        // Slug cũ — tra cứu lịch sử và chuyển hướng 301
+        const redirect = await resolveSlugRedirect(username, slug);
+        if (redirect) {
+          navigate(`/${username}/video/${redirect.currentSlug}`, { replace: true });
+          return;
+        }
         setNotFound(true);
         setLoading(false);
         return;
@@ -51,7 +59,7 @@ const VideoBySlug = () => {
     };
 
     resolve();
-  }, [username, slug]);
+  }, [username, slug, navigate]);
 
   if (loading) {
     return (

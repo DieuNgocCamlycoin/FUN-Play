@@ -24,6 +24,7 @@ import MiniPlayer from "@/components/Video/MiniPlayer";
 import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { DynamicMeta } from "@/components/SEO/DynamicMeta";
+import { VideoJsonLd } from "@/components/SEO/VideoJsonLd";
 import { setGlobalVideoState, setGlobalPlayingState } from "@/components/Video/GlobalVideoPlayer";
 import { requestPlayback } from "@/lib/mediaSessionManager";
 import { MobileWatchView } from "@/components/Video/Mobile/MobileWatchView";
@@ -589,6 +590,18 @@ export default function Watch({ videoIdProp }: { videoIdProp?: string }) {
           url={shareUrl}
           type="video.other"
         />
+        <VideoJsonLd
+          title={video.title}
+          description={video.description || ""}
+          thumbnailUrl={video.thumbnail_url}
+          uploadDate={video.created_at}
+          duration={video.duration}
+          contentUrl={video.video_url}
+          channelName={video.channels?.name || "FUN Play"}
+          viewCount={video.view_count || 0}
+          likeCount={video.like_count || 0}
+          url={shareUrl}
+        />
         <MobileWatchView
           video={video}
           isSubscribed={isSubscribed}
@@ -644,6 +657,18 @@ export default function Watch({ videoIdProp }: { videoIdProp?: string }) {
         image={video.thumbnail_url || "https://lovable.dev/opengraph-image-p98pqg.png"}
         url={shareUrl}
         type="video.other"
+      />
+      <VideoJsonLd
+        title={video.title}
+        description={video.description || ""}
+        thumbnailUrl={video.thumbnail_url}
+        uploadDate={video.created_at}
+        duration={video.duration}
+        contentUrl={video.video_url}
+        channelName={video.channels?.name || "FUN Play"}
+        viewCount={video.view_count || 0}
+        likeCount={video.like_count || 0}
+        url={shareUrl}
       />
 
       <div className="min-h-screen bg-background">

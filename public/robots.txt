@@ -45,4 +45,4 @@ Disallow: /preview-celebration
 Disallow: /downloads
 Disallow: /my-ai-music
 
-Sitemap: https://play.fun.rich/sitemap.xml
+Sitemap: https://fzgjmvxtgrlwrluxdwjq.supabase.co/functions/v1/generate-sitemap
