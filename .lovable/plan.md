@@ -1,19 +1,31 @@
 
+# Bổ sung DynamicMeta cho PostDetail.tsx
 
-# Cập nhật PostJsonLd sang type Article
+## Mục tiêu
+Thêm component `DynamicMeta` vào trang `PostDetail.tsx` để trang có đầy đủ thẻ Open Graph, Twitter Card và canonical URL khi hiển thị bài đăng -- hoàn thiện yêu cầu cuối cùng của Bài 7.
 
 ## Thay đổi
 
-Sửa một dòng duy nhất trong `src/components/SEO/PostJsonLd.tsx`: đổi `"@type": "SocialMediaPosting"` thành `"@type": "Article"` để chuẩn hóa theo yêu cầu Bài 7.
+**File**: `src/pages/PostDetail.tsx`
 
-## Chi tiết kỹ thuật
+1. **Import**: Thêm `DynamicMeta` từ `@/components/SEO/DynamicMeta`
 
-| Tệp | Dòng | Trước | Sau |
-|------|------|-------|-----|
-| `src/components/SEO/PostJsonLd.tsx` | 33 | `"@type": "SocialMediaPosting"` | `"@type": "Article"` |
+2. **Render**: Thêm `<DynamicMeta>` ngay cạnh `<PostJsonLd>` (bên trong khối `{post.profile?.username && post.slug && (...)}`), với các props:
+   - `title`: `"{headline} | FUN Play"`
+   - `description`: 160 ký tự đầu của nội dung bài
+   - `image`: Ảnh đầu tiên của bài (nếu có), fallback về ảnh mặc định
+   - `url`: URL công khai dạng `https://play.fun.rich/{username}/post/{slug}`
+   - `type`: `"website"`
+   - `canonicalUrl`: Giống `url` -- URL sạch không có query string
+   - `author`: Tên tác giả
+   - `siteName`: `"FUN Play"`
 
-## Lưu ý
+## Kết quả
 
-- `Article` là schema type được Google Search khuyến nghị cho nội dung bài viết, hỗ trợ rich results tốt hơn `SocialMediaPosting`
-- Không ảnh hưởng đến các trường dữ liệu khác vì `SocialMediaPosting` kế thừa từ `Article` — tất cả thuộc tính hiện tại đều hợp lệ với `Article`
+Sau khi triển khai, trang PostDetail sẽ tự động cập nhật:
+- `document.title`
+- Thẻ `og:title`, `og:description`, `og:image`, `og:url`
+- Thẻ `twitter:card`, `twitter:title`, `twitter:description`, `twitter:image`
+- Thẻ `<link rel="canonical">`
 
+Hoàn thiện 100% yêu cầu Meta tags của Bài 7.
