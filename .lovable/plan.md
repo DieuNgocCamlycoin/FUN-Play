@@ -1,21 +1,14 @@
 
 
-# Tắt và ẩn tính năng phát nhạc nền
+# Tắt ValentineMusicButton trong App.tsx
 
-## Nội dung thay đổi
+## Thay đổi
 
-Tạm vô hiệu hoá (comment out) toàn bộ phần liên quan đến `BackgroundMusicPlayer` ở **2 trang** đang sử dụng, để khi cần mở lại chỉ cần bỏ comment.
+### Tệp: `src/App.tsx`
+- **Dòng 62**: Comment out import `ValentineMusicButton`
+- **Dòng 255**: Comment out render `<ValentineMusicButton />`
 
-### Tệp 1: `src/pages/Index.tsx`
-- Comment out import `BackgroundMusicPlayer`
-- Comment out state `currentMusicUrl` (nếu có)
-- Comment out phần render `<BackgroundMusicPlayer />` (dòng 477-484)
+Giữ nguyên file `ValentineMusicButton.tsx`, chỉ comment out để khi cần mở lại chỉ cần bỏ comment.
 
-### Tệp 2: `src/pages/Channel.tsx`
-- Comment out import `BackgroundMusicPlayer`
-- Comment out phần render `<BackgroundMusicPlayer />` (dòng 366-369)
-
-## Lưu ý
-- Không xoá code, chỉ comment out để dễ dàng kích hoạt lại sau
-- File `BackgroundMusicPlayer.tsx` giữ nguyên, không chỉnh sửa
+Sau khi thực hiện, toàn bộ nhạc nền trên nền tảng sẽ biến mất hoàn toàn (cả `BackgroundMusicPlayer` lẫn `ValentineMusicButton` đều đã được vô hiệu hóa).
 
