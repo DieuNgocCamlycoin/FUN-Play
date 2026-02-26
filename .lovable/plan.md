@@ -1,37 +1,47 @@
 
 
-## Sửa lỗi video không phát được trên điện thoại
+## Sửa lỗi: Nút Play/Pause không hoạt động trên điện thoại
 
 ### Nguyên nhân gốc
 
-Trong file `YouTubeMobilePlayer.tsx`, component sử dụng `motion.div` với cả hai prop `drag="y"` và `onClick={handleTap}` cùng lúc (dòng 419-430). Trên điện thoại, Framer Motion xử lý sự kiện chạm (touch) để phục vụ tính năng kéo (drag), điều này gây xung đột với `onClick` — Framer Motion có thể "nuốt" sự kiện touch trước khi `onClick` kịp kích hoạt.
+Trong `YouTubeMobilePlayer.tsx`, container `motion.div` (dòng 425-438) sử dụng `onTap` của Framer Motion. Trên điện thoại, Framer Motion chiếm quyền xử lý sự kiện chạm (touch), khiến `onClick` trên nút Play/Pause bên trong (dòng 614-626) **không được kích hoạt** hoặc bị trình duyệt coi là **không phải hành động của người dùng** (non-user gesture), dẫn đến `video.play()` bị từ chối.
 
-Ngoài ra, autoplay (`video.play()`) thường bị trình duyệt mobile chặn (do chính sách autoplay), nhưng lỗi này bị bắt im lặng (`.catch(() => {})`), khiến người dùng thấy màn hình đen mà không có cách nào bấm phát video.
+Chuỗi lỗi:
+1. Người dùng chạm vào nút Play
+2. Framer Motion bắt sự kiện touch trước → kích hoạt `onTap` trên container → ẩn controls
+3. `onClick` trên nút Play hoặc không fire, hoặc fire nhưng `video.play()` bị browser từ chối vì không còn là "user gesture"
+4. Video không phát lại được
 
 ### Giải pháp
 
 **File thay đổi:** `src/components/Video/YouTubeMobilePlayer.tsx`
 
-#### 1. Thay `onClick` bằng `onTap` của Framer Motion
-- Framer Motion cung cấp prop `onTap` được thiết kế để phân biệt giữa chạm nhẹ (tap) và kéo (drag)
-- Đổi `onClick={handleTap}` thành `onTap={handleTap}` trên `motion.div` container (dòng 430)
-- Cập nhật kiểu tham số của hàm `handleTap` cho tương thích với `onTap`
+#### 1. Chuyển nút Play/Pause sang dùng `onPointerUp` thay vì `onClick`
+- `onPointerUp` fire trước khi Framer Motion xử lý `onTap`, đảm bảo nút bấm luôn được ghi nhận
+- Giữ `e.stopPropagation()` để ngăn `onTap` cha fire theo
 
-#### 2. Xử lý autoplay thất bại — hiện nút Play lớn
-- Thêm state `autoplayFailed` để theo dõi khi trình duyệt chặn autoplay
-- Cập nhật `useEffect` autoplay (dòng 304-308) để set `autoplayFailed = true` khi `.play()` bị reject
-- Hiển thị overlay nút Play lớn khi autoplay thất bại, cho phép người dùng bấm thủ công để phát video
+#### 2. Thêm kiểm tra target trong `handleTap`
+- Trong hàm `handleTap`, kiểm tra nếu sự kiện đến từ một nút bấm (`button`, `svg`, `path`) thì bỏ qua, không toggle controls
+- Điều này ngăn `handleTap` chạy đồng thời với nút Play/Pause
 
-#### 3. Đảm bảo nút Play/Pause trong controls không bị chặn
-- Thêm `onPointerDown` với `e.stopPropagation()` cho nút Play/Pause trung tâm để sự kiện không bị Framer Motion chặn
+#### 3. Thêm `.catch()` cho `video.play()` trong `togglePlay`
+- Bắt lỗi khi browser từ chối phát video, set `autoplayFailed = true` để hiện overlay Play lớn làm phương án dự phòng
 
 ### Chi tiết kỹ thuật
 
 ```text
-Luồng xử lý mới:
-  Tải video → Thử autoplay
-    ├── Thành công → Phát bình thường
-    └── Thất bại → Hiện overlay nút Play lớn
-                     └── Người dùng bấm → Phát video + ẩn overlay
+Trước khi sửa:
+  Chạm nút Play → Framer onTap chiếm quyền → onClick không fire → Video không phát
+
+Sau khi sửa:
+  Chạm nút Play → onPointerUp fire ngay → video.play() OK
+                 → handleTap kiểm tra target → bỏ qua (không ẩn controls)
+                 → Nếu play() thất bại → hiện overlay Play lớn
 ```
+
+Thay đổi cụ thể:
+- Hàm `togglePlay`: thêm `.catch()` xử lý lỗi, set `autoplayFailed = true`
+- Hàm `handleTap`: thêm kiểm tra `event.target` có phải nút bấm không
+- Nút Play/Pause trung tâm: đổi `onClick` thành `onPointerUp` 
+- Các nút Previous/Next: cũng đổi sang `onPointerUp` cho nhất quán
 
