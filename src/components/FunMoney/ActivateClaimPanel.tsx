@@ -207,11 +207,11 @@ export function ActivateClaimPanel() {
         <CardContent className="p-6 text-center space-y-4">
           <h3 className="font-bold text-lg">Activate & Claim FUN</h3>
           <p className="text-sm text-muted-foreground">
-            Bấm để đọc dữ liệu on-chain từ ví của bạn
+            Bấm để bắt đầu Activate & Claim FUN tokens từ ví của bạn
           </p>
-          <Button onClick={handleConnect} variant="outline" className="gap-2">
+          <Button onClick={handleConnect} className="gap-2 bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-black font-bold">
             <Zap className="w-4 h-4" />
-            Đọc dữ liệu on-chain
+            Activate & Claim
           </Button>
         </CardContent>
       </Card>
