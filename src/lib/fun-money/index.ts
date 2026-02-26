@@ -37,7 +37,8 @@ export {
   decodeRevertError,
   type MintDebugBundle,
   createDebugBundle,
-  formatDebugBundle
+  formatDebugBundle,
+  CONTRACT_ACTION
 } from './contract-helpers';
 
 // Contract Source Reference
