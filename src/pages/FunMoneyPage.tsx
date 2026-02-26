@@ -16,8 +16,10 @@ import {
   ExternalLink,
   Info,
   Zap,
-  RefreshCw
+  RefreshCw,
+  Plus
 } from 'lucide-react';
+import { addFunTokenToWallet } from '@/lib/fun-money/add-token-to-wallet';
 import { useAuth } from '@/hooks/useAuth';
 import { useMintRequest } from '@/hooks/useFunMoneyMintRequest';
 import { useFunMoneyWallet } from '@/hooks/useFunMoneyWallet';
@@ -292,17 +294,28 @@ export default function FunMoney() {
                       <p className="text-xs text-muted-foreground">BSC Testnet</p>
                     </div>
                   </div>
-                  <Button variant="outline" size="sm" asChild>
-                    <a
-                      href="https://testnet.bscscan.com/address/0x39A1b047D5d143f8874888cfa1d30Fb2AE6F0CD6"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="gap-2"
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      variant="default" 
+                      size="sm" 
+                      className="gap-2 bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600 text-white"
+                      onClick={addFunTokenToWallet}
                     >
-                      <ExternalLink className="w-4 h-4" />
-                      View Contract
-                    </a>
-                  </Button>
+                      <Plus className="w-4 h-4" />
+                      Thêm FUN vào ví
+                    </Button>
+                    <Button variant="outline" size="sm" asChild>
+                      <a
+                        href="https://testnet.bscscan.com/address/0x39A1b047D5d143f8874888cfa1d30Fb2AE6F0CD6"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="gap-2"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        View Contract
+                      </a>
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
