@@ -88,8 +88,8 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
     clearSearch();
   };
 
-  const handleChannelClick = (channelId: string) => {
-    navigate(`/${channelId}`);
+  const handleChannelClick = (channelId: string, username?: string | null) => {
+    navigate(`/${username || channelId}`);
     clearSearch();
   };
 
@@ -163,7 +163,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
             {suggestedChannels.map((ch) => (
               <button
                 key={ch.id}
-                onMouseDown={(e) => { e.preventDefault(); handleChannelClick(ch.id); }}
+                onMouseDown={(e) => { e.preventDefault(); handleChannelClick(ch.id, ch.username); }}
                 className="w-full px-4 py-3 text-left hover:bg-accent flex items-center gap-3 transition-colors"
               >
                 {ch.avatar_url ? (
