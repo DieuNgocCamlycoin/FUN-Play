@@ -194,7 +194,7 @@ const steps = [
   {
     id: 'step-7',
     number: 'G',
-    title: 'Claim - Nhận FUN về ví',
+    title: 'Claim - Nhận FUN Money về ví',
     icon: ArrowDownToLine,
     color: 'text-emerald-500',
     bgColor: 'bg-emerald-500/10',
@@ -208,13 +208,13 @@ const steps = [
             <li>Bấm nút <strong>"🎁 Claim"</strong></li>
             <li>Xác nhận giao dịch trong ví (trả phí gas bằng tBNB)</li>
             <li>Token chuyển sang trạng thái <Badge variant="outline" className="text-emerald-500 border-emerald-500/30 text-xs">FLOWING ✨</Badge></li>
-            <li>🎉 <strong>FUN token đã nằm trong ví của bạn!</strong></li>
+            <li>🎉 <strong>FUN Money đã nằm trong ví của bạn!</strong></li>
           </ul>
         </div>
         <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3">
           <p className="text-sm flex items-start gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-            <span>Sau khi Claim xong, bạn có thể thấy FUN trong ví MetaMask bằng cách bấm <strong>"Thêm FUN vào ví"</strong> ở mục Tổng Quan.</span>
+            <span>Sau khi Claim xong, bạn có thể thấy FUN Money trong ví MetaMask bằng cách bấm <strong>"Thêm FUN vào ví"</strong> ở mục Tổng Quan.</span>
           </p>
         </div>
       </div>
@@ -289,7 +289,7 @@ export function ClaimGuide() {
               { label: 'Admin duyệt', color: 'bg-amber-500' },
               { label: 'Activate', color: 'bg-yellow-500' },
               { label: 'Claim', color: 'bg-emerald-500' },
-              { label: 'FUN trong ví! 🎉', color: 'bg-primary' },
+              { label: 'FUN Money trong ví! 🎉', color: 'bg-primary' },
             ].map((item, i) => (
               <div key={i} className="flex items-center gap-1.5">
                 <span className={`px-2.5 py-1 rounded-full text-white ${item.color}`}>
