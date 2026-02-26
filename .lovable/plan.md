@@ -1,58 +1,92 @@
 
 
-## Chẩn đoán vấn đề
+## Kiểm Tra Toàn Bộ Quy Trình Mint FUN Money — Đánh Giá End-to-End
 
-Nút MINT trên trang cá nhân không hoạt động vì **hai hệ thống ví hoạt động độc lập**:
+Sau khi đọc toàn bộ mã nguồn liên quan, dưới đây là đánh giá chi tiết từng bước trong quy trình mint.
 
-- **Hệ thống chính** (wagmi/Reown AppKit): `useWalletConnection` → `useWalletConnectionWithRetry` → `WalletContext`. Đây là hệ thống người dùng thực tế sử dụng để kết nối ví.
-- **Hệ thống FUN Money** (`useFunMoneyWallet`): Truy cập trực tiếp `window.ethereum` (chỉ hoạt động với MetaMask). Khi người dùng kết nối ví qua AppKit, hook này không nhận diện được → `isWalletConnected = false` → nút hiển thị "Kết Nối Ví" thay vì "MINT NOW".
+---
 
-## Kế hoạch sửa lỗi
+### Bước 1: Kết Nối Ví (User)
 
-### Bước 1: Cập nhật `useFunMoneyWallet` để lấy trạng thái từ wagmi
+**Trạng thái: ✅ Đã sửa xong**
 
-Viết lại `src/hooks/useFunMoneyWallet.ts` để:
-- Import `useWalletContext` từ `WalletContext` làm nguồn chính cho `isConnected`, `address`, `chainId`
-- Tạo `provider`/`signer` từ `window.ethereum` (vẫn cần cho EIP-712 signing) nhưng **chỉ khi đã xác nhận kết nối qua wagmi**
-- Hàm `connect()` gọi `connectWithRetry()` từ `WalletContext` thay vì gọi trực tiếp `eth_requestAccounts`
-- Giữ `switchToBscTestnet()` hoạt động bình thường
-- BSC Testnet chain ID = 97, nhưng hệ thống chính dùng BSC Mainnet (chain ID = 56). Cần xử lý logic `isCorrectChain` phù hợp
+- `useFunMoneyWallet` giờ bridge từ `WalletContext` (wagmi/AppKit) — không còn phụ thuộc trực tiếp vào `window.ethereum` cho trạng thái kết nối.
+- `MintableCard` hiển thị nút "Kết Nối Ví" → gọi `connect()` → mở AppKit modal chuẩn.
+- Khi ví đã kết nối nhưng sai chain → hiện nút "Chuyển sang BSC Testnet" (chain 97).
 
-### Bước 2: Cập nhật `MintableCard` 
+**Vấn đề tiềm ẩn:**  
+- `switchToBscTestnet()` vẫn dùng `window.ethereum` trực tiếp. Nếu user kết nối qua WalletConnect (không có `window.ethereum`), nút chuyển chain sẽ thất bại im lặng. Nên dùng `switchChain` từ wagmi thay thế.
 
-- Nút "Kết Nối Ví" gọi `connect()` từ hook đã cập nhật (sẽ mở AppKit modal)
-- Khi ví đã kết nối nhưng sai chain → hiển thị nút "Chuyển sang BSC Testnet" thay vì chặn hoàn toàn
+---
 
-### Bước 3: Cập nhật `FunMoneyPage`
+### Bước 2: Bấm MINT NOW (User)
 
-- Thay `useFunMoneyWallet()` bằng `useWalletContext()` cho các thông tin hiển thị trạng thái ví
-- Hoặc giữ `useFunMoneyWallet()` vì nó đã được cập nhật ở bước 1
+**Trạng thái: ✅ Logic đúng**
 
-## Chi tiết kỹ thuật
+- `MintableCard.handleMint()` kiểm tra: `isWalletConnected`, `isCorrectChain`, `activity.canMint`
+- Gọi `submitAutoRequest()` với dữ liệu từ `useLightActivity`
+- Insert vào bảng `mint_requests` với `status: 'pending'`
+- Cập nhật `last_fun_mint_at` trên profile
 
-Cấu trúc hook mới `useFunMoneyWallet`:
+**Điều kiện canMint** (từ `useLightActivity`):
+- Light Score ≥ 60
+- Tổng activities ≥ 10
+- Không có pending request
+- Mintable FUN ≥ 1
+- Cooldown 24h từ lần mint cuối
+- Integrity score > 0
 
+---
+
+### Bước 3: Admin Duyệt & Mint On-Chain
+
+**Trạng thái: ⚠️ Có 1 vấn đề cần sửa**
+
+Quy trình admin trong `FunMoneyApprovalTab`:
+1. Admin kết nối ví Attester (`0x02D5...9a0D`)
+2. Chọn request → "Duyệt & Mint Ngay" 
+3. `handleApproveAndMint()`: approve DB → `handleMint()` → validate → EIP-712 sign → `lockWithPPLP()` → save tx hash
+
+**Vấn đề quan trọng ở `handleMint` (dòng 178-179):**
 ```typescript
-// Lấy trạng thái từ WalletContext (wagmi)
-const walletCtx = useWalletContext();
+const signer = await getSigner(); // ← Lấy signer từ window.ethereum
+const provider = new BrowserProvider((window as any).ethereum); // ← Tạo thêm 1 provider nữa
+```
+Hàm `getSigner()` đã tạo provider từ `window.ethereum` rồi, nhưng dòng 179 lại tạo thêm một `BrowserProvider` mới **chỉ để truyền vào `validateBeforeMint`**. Điều này:
+- Thừa (đã có provider trong `getSigner`)
+- Sẽ crash nếu admin dùng WalletConnect (không có `window.ethereum`)
 
-// Derive state
-const isConnected = walletCtx.isConnected;
-const address = walletCtx.address;
-const chainId = walletCtx.chainId;
-const isCorrectChain = chainId === 97; // BSC Testnet
+---
 
-// Tạo ethers signer khi cần (cho EIP-712)
-const getSigner = async () => {
-  const ethereum = window.ethereum;
-  if (!ethereum) throw new Error('Không tìm thấy ví');
-  const provider = new BrowserProvider(ethereum);
-  return provider.getSigner();
-};
+### Kế Hoạch Sửa
 
-// Connect = mở AppKit modal
-const connect = () => walletCtx.connectWithRetry();
+#### 1. Sửa `switchToBscTestnet` trong `useFunMoneyWallet.ts`
+Dùng `switchChain` từ wagmi thay vì `window.ethereum` trực tiếp, đảm bảo hoạt động trên mọi loại ví (MetaMask, WalletConnect, Trust Wallet...).
+
+#### 2. Sửa `handleMint` trong `FunMoneyApprovalTab.tsx`
+Thay `new BrowserProvider((window as any).ethereum)` bằng provider lấy từ `getSigner()`. Cụ thể:
+- `getSigner()` trả về signer, dùng `signer.provider` cho validation
+- Hoặc refactor `useFunMoneyWallet` để expose `getProvider()` riêng
+
+#### 3. Kiểm tra `getMyRequests` thiếu filter user_id
+Trong `useFunMoneyMintRequest.ts` dòng 197-225, hàm `getMyRequests` **không filter theo user_id** — nó sẽ trả về tất cả mint requests trong hệ thống (nếu RLS không chặn). Cần thêm `.eq('user_id', user.id)` hoặc xác nhận RLS trên bảng `mint_requests` đã filter đúng.
+
+---
+
+### Chi Tiết Kỹ Thuật
+
+**File 1: `src/hooks/useFunMoneyWallet.ts`**
+- Import `useSwitchChain` từ wagmi
+- Thay `switchToBscTestnet` từ `window.ethereum.request` sang `switchChain({ chainId: 97 })`
+- Fallback `wallet_addEthereumChain` nếu chain chưa được thêm
+
+**File 2: `src/components/Admin/tabs/FunMoneyApprovalTab.tsx`**  
+- Dòng 177-179: Lấy provider từ signer thay vì tạo mới từ `window.ethereum`
+```typescript
+const signer = await getSigner();
+const provider = signer.provider as BrowserProvider;
 ```
 
-Lưu ý: Hệ thống chính đang cấu hình cho BSC Mainnet (chain 56), nhưng FUN Money cần BSC Testnet (chain 97). Cần giữ nguyên logic `switchToBscTestnet` để người dùng chuyển chain sau khi kết nối.
+**File 3: `src/hooks/useFunMoneyMintRequest.ts`**
+- Dòng 202-211: Thêm filter `.eq('user_id', user.id)` vào `getMyRequests`
 
