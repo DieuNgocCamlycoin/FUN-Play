@@ -140,8 +140,8 @@ export function FunMoneyApprovalTab() {
   }, [requests, profileCache, activeTab]);
 
   const filteredRequests = requests.filter(r => {
-    // Hide banned users' requests from pending tab
-    if (activeTab === 'pending' && profileCache[r.user_id]?.banned) return false;
+    // Hide banned users' requests from all tabs
+    if (profileCache[r.user_id]?.banned) return false;
     if (!debouncedSearch) return true;
     const q = debouncedSearch.toLowerCase();
     return r.platform_id.toLowerCase().includes(q) ||
