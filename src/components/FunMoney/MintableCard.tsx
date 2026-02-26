@@ -46,7 +46,7 @@ export function MintableCard({ activity, loading, onMintSuccess }: MintableCardP
     switchToBscTestnet
   } = useFunMoneyWallet();
   
-  const { submitAutoRequest, loading: submitLoading } = useAutoMintRequest();
+  const { submitAutoRequest, loading: submitLoading, error: mintError } = useAutoMintRequest();
 
   const [isSwitching, setIsSwitching] = useState(false);
 
@@ -75,7 +75,7 @@ export function MintableCard({ activity, loading, onMintSuccess }: MintableCardP
       setIsSwitching(true);
       try {
         await switchToBscTestnet();
-        toast.success('✅ Đã tự động chuyển sang BSC Testnet');
+        toast.info('✅ Đã chuyển mạng, đang gửi yêu cầu mint...');
       } catch {
         toast.error('Không thể chuyển mạng. Vui lòng chuyển thủ công.');
         setIsSwitching(false);
@@ -97,10 +97,16 @@ export function MintableCard({ activity, loading, onMintSuccess }: MintableCardP
       });
 
       if (result) {
-        toast.success('🎉 Mint request đã được tạo!', {
-          description: 'Đang chờ Admin duyệt'
+        toast.success('🎉 Yêu cầu Mint đã được gửi!', {
+          description: `${activity.mintableFun} FUN • Request #${result.id.slice(0, 8)}. Admin sẽ duyệt và mint on-chain cho bạn.`,
+          duration: 8000
         });
         onMintSuccess?.();
+      } else {
+        toast.error('❌ Gửi yêu cầu mint thất bại', {
+          description: mintError || 'Vui lòng thử lại sau hoặc liên hệ Admin.',
+          duration: 6000
+        });
       }
     } catch (err: any) {
       toast.error('Lỗi khi tạo mint request', {
