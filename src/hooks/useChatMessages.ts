@@ -6,7 +6,7 @@ export interface ChatMessage {
   id: string;
   chatId: string;
   senderId: string;
-  messageType: "text" | "donation" | "system";
+  messageType: "text" | "donation" | "system" | "image";
   content: string | null;
   donationTransactionId: string | null;
   deepLink: string | null;
@@ -74,7 +74,7 @@ export const useChatMessages = (chatId: string | undefined) => {
         id: msg.id,
         chatId: msg.chat_id,
         senderId: msg.sender_id,
-        messageType: msg.message_type as "text" | "donation" | "system",
+        messageType: msg.message_type as "text" | "donation" | "system" | "image",
         content: msg.content,
         donationTransactionId: msg.donation_transaction_id,
         deepLink: msg.deep_link,
@@ -95,16 +95,21 @@ export const useChatMessages = (chatId: string | undefined) => {
   }, [chatId, user?.id]);
 
   const sendMessage = useCallback(
-    async (content: string): Promise<boolean> => {
-      if (!chatId || !user?.id || !content.trim()) return false;
+    async (content: string, imageUrl?: string): Promise<boolean> => {
+      if (!chatId || !user?.id || (!content.trim() && !imageUrl)) return false;
+
+      const messageType = imageUrl ? "image" : "text";
+      const finalContent = imageUrl
+        ? JSON.stringify({ text: content.trim(), imageUrl })
+        : content.trim();
 
       const tempId = `temp-${Date.now()}`;
       const tempMessage: ChatMessage = {
         id: tempId,
         chatId,
         senderId: user.id,
-        messageType: "text",
-        content: content.trim(),
+        messageType: messageType as any,
+        content: finalContent,
         donationTransactionId: null,
         deepLink: null,
         createdAt: new Date(),
@@ -128,8 +133,8 @@ export const useChatMessages = (chatId: string | undefined) => {
           .insert({
             chat_id: chatId,
             sender_id: user.id,
-            message_type: "text",
-            content: content.trim(),
+            message_type: messageType,
+            content: finalContent,
           })
           .select()
           .single();
