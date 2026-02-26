@@ -33,7 +33,7 @@ export const sendDonation = async ({
   }
 
   // If sending FUN Money, switch to BSC Testnet first using wagmi (works on mobile + desktop)
-  const FUN_MONEY_CONTRACT = "0x1aa8DE8B1E4465C6d729E8564893f8EF823a5ff2";
+  const FUN_MONEY_CONTRACT = "0x39A1b047D5d143f8874888cfa1d30Fb2AE6F0CD6";
   const isFunToken = tokenAddress.toLowerCase() === FUN_MONEY_CONTRACT.toLowerCase();
 
   // Determine target chain based on token

@@ -11,7 +11,7 @@ import { Contract, BrowserProvider, keccak256, toUtf8Bytes } from 'ethers';
  * Default FUN Money contract address on BSC Testnet
  * Update this after deploying to mainnet
  */
-export const DEFAULT_CONTRACT_ADDRESS = '0x1aa8DE8B1E4465C6d729E8564893f8EF823a5ff2';
+export const DEFAULT_CONTRACT_ADDRESS = '0x39A1b047D5d143f8874888cfa1d30Fb2AE6F0CD6';
 
 /**
  * Storage key for custom contract address
@@ -72,15 +72,14 @@ export const BSC_MAINNET_CONFIG = {
 // ===== CONTRACT ABI =====
 
 /**
- * FUN Money Constitution v2.0 ABI
+ * FUN Money Production v1.2.1 ABI
+ * Deployed at: 0x39A1b047D5d143f8874888cfa1d30Fb2AE6F0CD6 (BSC Testnet)
  * 
  * CRITICAL NOTES:
  * - lockWithPPLP takes `string action` (NOT bytes32 hash!)
  * - Contract hashes the action string internally
  * - Nonce is read from recipient address, not signer
- * - 4 Pool structure (Community, Platform, Recycle, Guardian)
- * - Token State Machine: LOCKED → ACTIVATED → FLOWING → RECYCLE
- * - Anti-Hoarding: recycleInactive() returns dormant FUN to Community Pool
+ * - EIP-712 domain version: "1.2.1"
  */
 export const FUN_MONEY_ABI = [
   // ===== READ FUNCTIONS - Basic ERC20 =====
@@ -100,28 +99,17 @@ export const FUN_MONEY_ABI = [
   'function epochs(bytes32) view returns (uint64 start, uint256 minted)',
   'function actions(bytes32) view returns (bool allowed, uint32 version, bool deprecated)',
   'function guardianGov() view returns (address)',
-  'function alloc(address) view returns (uint256 locked, uint256 activated)',
-
-  // ===== READ FUNCTIONS - 4 Pool Structure (Constitution v2.0, Chương VI) =====
   'function communityPool() view returns (address)',
-  'function platformPool() view returns (address)',
-  'function recyclePool() view returns (address)',
-  'function guardianPool() view returns (address)',
+  'function alloc(address) view returns (uint256 locked, uint256 activated)',
   
-  // ===== READ FUNCTIONS - Recycle / Anti-Hoarding (Chương V) =====
-  'function lastActivity(address user) view returns (uint256)',
-  'function gracePeriod() view returns (uint256)',
-  'function decayRateBps() view returns (uint256)',
-  'function maxDecayBps() view returns (uint256)',
-  
-  // ===== READ FUNCTIONS - Guardian Timelock (Chương VII-VIII) =====
-  'function timelockDelay() view returns (uint256)',
-  'function pendingAction(bytes32 actionId) view returns (uint256 executeAfter, bool executed)',
+  // ===== READ FUNCTIONS - Transparency Getters =====
+  'function totalLocked(address[] users) view returns (uint256)',
+  'function totalActivated(address[] users) view returns (uint256)',
   
   // ===== WRITE FUNCTIONS =====
   
   /**
-   * Core minting function — Constitution v2.0 Chương III (PPLP)
+   * Core minting function
    * @param user - Recipient address (NOT signer!)
    * @param action - Action string (e.g., "CONTENT_CREATE")
    * @param amount - Amount in atomic units (18 decimals)
@@ -131,41 +119,35 @@ export const FUN_MONEY_ABI = [
   'function lockWithPPLP(address user, string action, uint256 amount, bytes32 evidenceHash, bytes[] sigs) external',
   
   /**
-   * Activate locked tokens: LOCKED → ACTIVATED (Chương IV)
+   * Activate locked tokens (User signs)
+   * Moves tokens from LOCKED to ACTIVATED state
    */
   'function activate(uint256 amount) external',
   
   /**
-   * Claim activated tokens: ACTIVATED → FLOWING (Chương IV)
+   * Claim activated tokens (User signs)
+   * Moves tokens from ACTIVATED to FLOWING (ERC20 balance)
    */
   'function claim(uint256 amount) external',
   
-  /**
-   * Recycle inactive balance: FLOWING → RECYCLE → Community Pool (Chương V)
-   * Anyone can call this for any address after grace period
-   * "FUN không sinh ra để ngủ yên. FUN sinh ra để chảy như Ánh Sáng."
-   */
-  'function recycleInactive(address user) external',
-  
-  /**
-   * Guardian: queue a timelock action (Chương VII)
-   */
-  'function queueGuardianAction(bytes32 actionId, bytes calldata data) external',
-  
-  /**
-   * Guardian: execute a queued timelock action (Chương VII)
-   */
-  'function executeGuardianAction(bytes32 actionId) external',
+  // ===== GOVERNANCE FUNCTIONS =====
+  'function govRegisterAction(string name, uint32 version) external',
+  'function govDeprecateAction(string name, uint32 newVersion) external',
+  'function govPauseTransitions(bool paused) external',
+  'function govSetAttester(address attester, bool allowed) external',
+  'function govSetAttesterThreshold(uint256 newThreshold) external',
+  'function govRecycleExcessToCommunity(uint256 amount) external',
   
   // ===== EVENTS =====
   'event Transfer(address indexed from, address indexed to, uint256 value)',
   'event Approval(address indexed owner, address indexed spender, uint256 value)',
   'event PureLoveAccepted(address indexed user, bytes32 indexed action, uint256 amount, uint32 version)',
-  'event Activated(address indexed user, uint256 amount)',
-  'event Claimed(address indexed user, uint256 amount)',
-  'event Recycled(address indexed user, uint256 amount, uint256 inactiveDays)',
-  'event GuardianActionQueued(bytes32 indexed actionId, uint256 executeAfter)',
-  'event GuardianActionExecuted(bytes32 indexed actionId)'
+  'event ActionRegistered(bytes32 indexed action, uint32 version)',
+  'event ActionDeprecated(bytes32 indexed action, uint32 oldVersion, uint32 newVersion)',
+  'event AttesterUpdated(address indexed attester, bool allowed)',
+  'event AttesterThresholdUpdated(uint256 oldThreshold, uint256 newThreshold)',
+  'event TransitionsPaused(bool paused)',
+  'event ExcessRecycled(uint256 amount)'
 ];
 
 // ===== HELPER FUNCTIONS =====
@@ -303,50 +285,24 @@ export async function claimTokens(provider: BrowserProvider, amount: bigint): Pr
   return receipt.hash;
 }
 
-// ===== RECYCLE / ANTI-HOARDING FUNCTIONS (Constitution v2.0, Chương V) =====
+// ===== GOVERNANCE FUNCTIONS =====
 
 /**
- * Get last activity timestamp for an address
+ * Recycle excess tokens from contract to Community Pool (Governance only)
  */
-export async function getLastActivity(provider: BrowserProvider, address: string): Promise<bigint> {
-  const contract = getContract(provider);
-  return await contract.lastActivity(address);
-}
-
-/**
- * Recycle inactive balance back to Community Pool
- * Anyone can call this for any address after grace period expires
- * "FUN không sinh ra để ngủ yên. FUN sinh ra để chảy như Ánh Sáng."
- */
-export async function recycleInactive(provider: BrowserProvider, userAddress: string): Promise<string> {
+export async function recycleExcessToCommunity(provider: BrowserProvider, amount: bigint): Promise<string> {
   const contract = await getContractWithSigner(provider);
-  const tx = await contract.recycleInactive(userAddress);
+  const tx = await contract.govRecycleExcessToCommunity(amount);
   const receipt = await tx.wait();
   return receipt.hash;
 }
 
 /**
- * Get all 4 pool addresses from contract
+ * Get Community Pool address from contract
  */
-export async function getPoolAddresses(provider: BrowserProvider): Promise<{
-  communityPool: string;
-  platformPool: string;
-  recyclePool: string;
-  guardianPool: string;
-}> {
+export async function getCommunityPoolAddress(provider: BrowserProvider): Promise<string> {
   const contract = getContract(provider);
-  const [community, platform, recycle, guardian] = await Promise.all([
-    contract.communityPool(),
-    contract.platformPool(),
-    contract.recyclePool(),
-    contract.guardianPool()
-  ]);
-  return {
-    communityPool: community,
-    platformPool: platform,
-    recyclePool: recycle,
-    guardianPool: guardian
-  };
+  return await contract.communityPool();
 }
 
 // ===== IMPORTANT ADDRESSES =====
