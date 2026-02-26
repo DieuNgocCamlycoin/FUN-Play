@@ -142,7 +142,9 @@ export function YouTubeMobilePlayer({
     if (isPlaying) {
       video.pause();
     } else {
-      video.play();
+      video.play().catch(() => {
+        setAutoplayFailed(true);
+      });
     }
   };
 
@@ -177,6 +179,10 @@ export function YouTubeMobilePlayer({
   const handleTap = (event: MouseEvent | TouchEvent | PointerEvent, info?: any) => {
     const e = event as any;
     if (isDragging) return;
+    
+    // Skip if tap originated from a control button/icon
+    const target = e.target as HTMLElement;
+    if (target?.closest('button') || target?.tagName === 'svg' || target?.tagName === 'path') return;
     
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -601,7 +607,7 @@ export function YouTubeMobilePlayer({
             <Button
               variant="ghost"
               size="icon"
-              onClick={(e) => { e.stopPropagation(); onPrevious?.(); }}
+              onPointerUp={(e) => { e.stopPropagation(); onPrevious?.(); }}
               disabled={!hasPrevious}
               className={cn(
                 "h-14 w-14 text-white hover:bg-white/20 rounded-full",
@@ -615,7 +621,7 @@ export function YouTubeMobilePlayer({
               variant="ghost"
               size="icon"
               onPointerDown={(e) => e.stopPropagation()}
-              onClick={(e) => { e.stopPropagation(); togglePlay(); setAutoplayFailed(false); }}
+              onPointerUp={(e) => { e.stopPropagation(); togglePlay(); setAutoplayFailed(false); }}
               className="h-18 w-18 text-white bg-black/30 hover:bg-black/50 rounded-full"
             >
               {isPlaying ? (
@@ -628,7 +634,7 @@ export function YouTubeMobilePlayer({
             <Button
               variant="ghost"
               size="icon"
-              onClick={(e) => { e.stopPropagation(); onNext?.(); }}
+              onPointerUp={(e) => { e.stopPropagation(); onNext?.(); }}
               disabled={!hasNext}
               className={cn(
                 "h-14 w-14 text-white hover:bg-white/20 rounded-full",
