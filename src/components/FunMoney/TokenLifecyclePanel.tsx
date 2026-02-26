@@ -266,6 +266,17 @@ export function TokenLifecyclePanel({
           ))}
         </div>
 
+        {/* tBNB Gas Fee Notice */}
+        <div className="mb-4 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20 flex items-start gap-2">
+          <Zap className="w-4 h-4 text-yellow-500 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <p className="text-xs font-medium text-yellow-600 dark:text-yellow-400">⛽ Phí gas cho Activate &amp; Claim</p>
+            <p className="text-xs text-muted-foreground">
+              Admin mint FUN cho bạn (không tốn phí). Sau đó, bạn cần <strong className="text-foreground">tBNB</strong> trong ví để thực hiện <strong className="text-foreground">Activate</strong> và <strong className="text-foreground">Claim</strong> FUN về ví cá nhân.
+            </p>
+          </div>
+        </div>
+
         {/* Detailed Stats Section */}
         {showDetailedStats && (
           <div className="pt-4 border-t border-border/50">

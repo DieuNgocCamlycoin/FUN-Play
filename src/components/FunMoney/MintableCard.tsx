@@ -108,6 +108,13 @@ export function MintableCard({ activity, loading, onMintSuccess }: MintableCardP
           description: `${activity.mintableFun} FUN • Request #${result.id.slice(0, 8)}. Admin sẽ duyệt và mint on-chain cho bạn.`,
           duration: 8000
         });
+        // Show tBNB gas fee notice
+        setTimeout(() => {
+          toast.info('⛽ Lưu ý về phí gas', {
+            description: 'Sau khi Admin mint xong, bạn cần có tBNB trong ví để thực hiện Activate và Claim FUN về ví. Hãy chuẩn bị sẵn tBNB trên BSC Testnet nhé!',
+            duration: 12000
+          });
+        }, 2000);
         onMintSuccess?.();
       } else {
         toast.error('❌ Gửi yêu cầu mint thất bại', {
@@ -179,6 +186,10 @@ export function MintableCard({ activity, loading, onMintSuccess }: MintableCardP
           </div>
           <p className="text-xs text-muted-foreground">
             Token trên BSC Testnet — chưa có giá thị trường
+          </p>
+          <p className="text-xs text-yellow-500/80 mt-1 flex items-center justify-center gap-1">
+            <AlertCircle className="w-3 h-3" />
+            Cần tBNB để trả phí gas khi Activate &amp; Claim
           </p>
         </div>
 
