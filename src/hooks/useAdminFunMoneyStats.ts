@@ -33,6 +33,8 @@ export interface FunMoneySystemStats {
   totalPotential: number;
   userCount: number;
   requestCount: number;
+  activeUserCount: number;
+  totalActiveUsers: number;
   actionBreakdown: ActionBreakdown[];
   statusBreakdown: StatusBreakdown[];
   topHolders: TopHolder[];
