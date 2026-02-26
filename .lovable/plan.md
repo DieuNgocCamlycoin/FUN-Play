@@ -1,28 +1,37 @@
 
 
-## Vấn đề
+## Sửa lỗi video không phát được trên điện thoại
 
-Khi user bấm MINT NOW, hàm `submitAutoRequest` bắt lỗi nội bộ và trả về `null` thay vì throw error. Trong `handleMint`, chỉ có nhánh `if (result)` hiển thị toast thành công — nếu `result` là `null` (lỗi), **không có toast nào được hiển thị**. Nhánh `catch` không bao giờ chạy vì lỗi đã bị nuốt bên trong hook.
+### Nguyên nhân gốc
 
-Ngoài ra, sau khi mint thành công, thông báo hiện tại quá ngắn gọn ("Đang chờ Admin duyệt") — user không biết phải làm gì tiếp.
+Trong file `YouTubeMobilePlayer.tsx`, component sử dụng `motion.div` với cả hai prop `drag="y"` và `onClick={handleTap}` cùng lúc (dòng 419-430). Trên điện thoại, Framer Motion xử lý sự kiện chạm (touch) để phục vụ tính năng kéo (drag), điều này gây xung đột với `onClick` — Framer Motion có thể "nuốt" sự kiện touch trước khi `onClick` kịp kích hoạt.
 
-## Kế hoạch sửa
+Ngoài ra, autoplay (`video.play()`) thường bị trình duyệt mobile chặn (do chính sách autoplay), nhưng lỗi này bị bắt im lặng (`.catch(() => {})`), khiến người dùng thấy màn hình đen mà không có cách nào bấm phát video.
 
-### File: `src/components/FunMoney/MintableCard.tsx`
+### Giải pháp
 
-1. **Thêm nhánh `else` khi `result` là null** — hiển thị toast error rõ ràng với thông tin lỗi từ hook (`error` state từ `useAutoMintRequest`)
-2. **Cải thiện toast thành công** — thêm mô tả chi tiết hơn về các bước tiếp theo (Admin sẽ duyệt, sau đó token được mint on-chain)
-3. **Hiển thị toast kết quả sau chuyển mạng** — thêm thông báo "Đã chuyển mạng thành công, đang gửi yêu cầu mint..." để user biết quá trình đang tiếp tục
-4. **Thêm trạng thái hiển thị trên nút** — khi đang gửi request sau chuyển mạng, nút hiện "Đang gửi yêu cầu..." thay vì im lặng
+**File thay đổi:** `src/components/Video/YouTubeMobilePlayer.tsx`
 
-### File: `src/hooks/useFunMoneyMintRequest.ts`
+#### 1. Thay `onClick` bằng `onTap` của Framer Motion
+- Framer Motion cung cấp prop `onTap` được thiết kế để phân biệt giữa chạm nhẹ (tap) và kéo (drag)
+- Đổi `onClick={handleTap}` thành `onTap={handleTap}` trên `motion.div` container (dòng 430)
+- Cập nhật kiểu tham số của hàm `handleTap` cho tương thích với `onTap`
 
-5. **Export `error` state từ `useAutoMintRequest`** — đã có sẵn, chỉ cần sử dụng trong component
+#### 2. Xử lý autoplay thất bại — hiện nút Play lớn
+- Thêm state `autoplayFailed` để theo dõi khi trình duyệt chặn autoplay
+- Cập nhật `useEffect` autoplay (dòng 304-308) để set `autoplayFailed = true` khi `.play()` bị reject
+- Hiển thị overlay nút Play lớn khi autoplay thất bại, cho phép người dùng bấm thủ công để phát video
 
-### Chi tiết thay đổi chính trong `MintableCard.tsx`
+#### 3. Đảm bảo nút Play/Pause trong controls không bị chặn
+- Thêm `onPointerDown` với `e.stopPropagation()` cho nút Play/Pause trung tâm để sự kiện không bị Framer Motion chặn
 
-- Destructure thêm `error: mintError` từ `useAutoMintRequest()`
-- Dòng 99-108: Thêm nhánh else hiển thị `toast.error` với `mintError` hoặc message mặc định
-- Dòng 100-102: Nâng cấp toast thành công với `duration: 8000` và description chi tiết hơn: số FUN đã gửi, ID request, hướng dẫn bước tiếp theo
-- Dòng 74-85: Sau khi switch chain thành công, thêm `toast.info('Đang gửi yêu cầu mint...')` trước khi tiếp tục flow
+### Chi tiết kỹ thuật
+
+```text
+Luồng xử lý mới:
+  Tải video → Thử autoplay
+    ├── Thành công → Phát bình thường
+    └── Thất bại → Hiện overlay nút Play lớn
+                     └── Người dùng bấm → Phát video + ẩn overlay
+```
 
