@@ -1,91 +1,105 @@
 
 
-# Kế Hoạch Triển Khai THE 5D WHITEPAPER – FUN MONEY
+# Kế Hoạch Tích Hợp FUN MONEY CONSTITUTION v2.0
 
 ## Tổng Quan
-Triển khai 3 phần song song: (1) Trang Whitepaper công khai riêng biệt, (2) Tab whitepaper trong Platform Docs, (3) Cập nhật PPLP Engine theo triết lý whitepaper.
+
+Bản Constitution v2.0 là phiên bản hợp nhất (Unified Charter) dành cho cả AI Agent, Smart Contract, Guardian Logic và Nhân loại. So với Whitepaper v0.1 đã triển khai, bản v2.0 bổ sung nhiều nội dung mới quan trọng:
+
+- **Chương I-II**: Lời Khai Sinh & Định Danh Cốt Lõi (mới)
+- **Chương III**: PPLP v2 — thêm 5 điều kiện bắt buộc rõ ràng
+- **Chương IV**: 4 trạng thái vòng đời (Locked → Activated → Flowing → Recycle) — rõ ràng hơn, thêm trạng thái Recycle
+- **Chương V**: Luật Không Tích Trữ — mạnh hơn ("không cảnh báo, không ngoại lệ")
+- **Chương VI**: 4 Pool — mô tả chi tiết hơn (≈99% cho Community Pool)
+- **Chương VII**: Vai trò AI Agent — "Guardian of Flow"
+- **Chương VIII**: Vai trò Guardian Con Người (Bé Ly / CamLy Duong) — chưa có trong v0.1
+
+## Các Thay Đổi Cần Thực Hiện
+
+### 1. Tạo trang Constitution riêng (`/constitution`)
+
+**File mới: `src/pages/Constitution.tsx`**
+
+Trang công khai, thiết kế tương tự `/whitepaper` nhưng mang tính "luật pháp" hơn:
+- Header: "FUN MONEY CONSTITUTION – VERSION 2.0" + phụ đề "Law of Light Economy – Executable Soul"
+- Badge: "Unified Charter for AI Agent & Smart Contract"
+- Sidebar mục lục 8 chương (I → VIII)
+- Nội dung đầy đủ toàn bộ 8 chương từ bản Constitution v2.0
+- Thiết kế: Tông tím-vàng sang trọng hơn whitepaper, các điều luật dùng `border-l` highlight
+- Các điều khoản "❌ Không tồn tại" và "⚠️ Khi không chắc chắn" dùng card cảnh báo đặc biệt
+- CTA cuối trang: liên kết đến `/whitepaper` (Whitepaper gốc) và `/fun-money` (Mint FUN)
+
+**File sửa: `src/App.tsx`** — Thêm route `/constitution` lazy load
+
+### 2. Cập nhật Whitepaper hiện có
+
+**File sửa: `src/pages/Whitepaper.tsx`**
+- Cập nhật version từ "v0.1" thành "v0.1 → v2.0"
+- Thêm banner/link ở đầu trang: "📜 Xem FUN Money Constitution v2.0 — Bản hợp nhất cho AI Agent & Smart Contract" → dẫn đến `/constitution`
+
+### 3. Cập nhật PPLP Engine theo Constitution v2.0
+
+**File sửa: `src/lib/fun-money/pplp-engine.ts`**
+
+3a. **Thêm PPLP Validation v2** — 5 điều kiện bắt buộc từ Chương III:
+- Thêm interface `PPLPValidation` với 5 trường boolean:
+  - `hasRealAction` — Có hành vi thực
+  - `hasRealValue` — Tạo ra giá trị thật
+  - `hasPositiveImpact` — Tác động tích cực
+  - `noExploitation` — Không khai thác/thao túng/Ego
+  - `charterCompliant` — Phù hợp Master Charter
+- Thêm hàm `validatePPLP(validation: PPLPValidation): boolean` — trả về `false` nếu thiếu bất kỳ điều kiện nào
+- Tích hợp vào `scoreAction()`: gọi `validatePPLP` trước khi tính toán, nếu thất bại → REJECT ngay
+
+3b. **Thêm trạng thái Recycle vào vòng đời**:
+- Mở rộng `MintDecision` thêm `'RECYCLE'`
+- Thêm type `FunMoneyState = 'LOCKED' | 'ACTIVATED' | 'FLOWING' | 'RECYCLE'`
+- Thêm comment ghi rõ: "FUN Money không burn – không tiêu hủy. Mọi FUN chỉ đổi trạng thái và nơi cư trú"
+
+3c. **Cập nhật metadata**:
+- Thêm `CONSTITUTION_VERSION = 'v2.0'` vào `pool-system.ts`
+- Thêm `GUARDIAN_ROLE` constant mô tả vai trò AI Agent
+
+### 4. Thêm module Constitution Constants
+
+**File mới: `src/lib/fun-money/constitution.ts`**
+
+Module chứa các hằng số và quy tắc từ Constitution v2.0, dùng cho cả AI Agent và UI:
+- `CONSTITUTION_VERSION = 'v2.0'`
+- `CORE_IDENTITY`: 4 định danh cốt lõi FUN Money (Chương II)
+- `PPLP_REQUIREMENTS`: 5 điều kiện bắt buộc (Chương III)
+- `TOKEN_LIFECYCLE`: 4 trạng thái vòng đời (Chương IV)
+- `AI_AGENT_ROLE`: Quy tắc cho AI Agent (Chương VII)
+- `GUARDIAN_RULES`: Quy tắc cho Guardian Con Người (Chương VIII)
+- `FORBIDDEN_POOLS`: Danh sách Pool không tồn tại (Team, Investor)
+- Export qua `index.ts`
+
+### 5. Cập nhật Platform Docs
+
+**File sửa: `src/pages/PlatformDocs.tsx`**
+- Cập nhật tab "Whitepaper 5D" thêm link đến Constitution v2.0
+- Hoặc thêm mục "Constitution v2.0" trong tab đó
 
 ---
 
-## Phần 1: Tạo Trang Whitepaper Riêng (`/whitepaper`)
+## Cấu Trúc File
 
-### File mới: `src/pages/Whitepaper.tsx`
-- Trang công khai (không cần đăng nhập), thiết kế sang trọng phù hợp với đối tượng toàn cầu, nhà đầu tư, tổ chức
-- **Header**: Gradient tím-xanh, tiêu đề "THE 5D WHITEPAPER – FUN MONEY", phụ đề "Money of Light for a Conscious Civilization"
-- **Mục lục bên trái** (sticky sidebar trên desktop): 11 mục từ "Lời Mở Đầu" đến "Activation Mantra", click scroll tới section tương ứng
-- **Nội dung**: Toàn bộ 11 chương whitepaper, mỗi chương là một section với typography đẹp, có divider giữa các chương
-- **Song ngữ**: Giữ nguyên nội dung gốc (chủ yếu tiếng Việt + phần tiếng Anh ở Mantra)
-- **Responsive**: Trên mobile sidebar chuyển thành dropdown menu mục lục
-- **CTA cuối trang**: Nút dẫn đến `/fun-money` (Mint FUN) và `/platform-docs` (Tài liệu kỹ thuật)
-
-### File sửa: `src/App.tsx`
-- Thêm route `/whitepaper` → lazy load `Whitepaper.tsx`
-
----
-
-## Phần 2: Thêm Tab Whitepaper vào Platform Docs
-
-### File sửa: `src/pages/PlatformDocs.tsx`
-- Thêm tab mới "Whitepaper 5D" (icon: `BookOpen`) vào `TabsList` (dòng 100-125)
-- Nội dung tab: Tóm tắt rút gọn 11 chương (mỗi chương 2-3 câu chính), kèm nút "Đọc đầy đủ → /whitepaper"
-- Bao gồm: 4 Pool cốt lõi, Luật Không Tích Trữ, FUN Ecosystem, CAMLY & FUN cộng sinh
-
----
-
-## Phần 3: Cập Nhật PPLP Engine
-
-### File sửa: `src/lib/fun-money/pplp-engine.ts`
-
-Whitepaper đề cập một số khái niệm chưa có trong engine hiện tại:
-
-**3a. Thêm hệ thống 4 Pool (cấu hình)**
-- Thêm `POOL_ALLOCATION` constant:
-  - `communityPool: 0.40` (40%)
-  - `platformActivation: 0.30` (30%)
-  - `recyclePool: 0.20` (20%)
-  - `guardianPool: 0.10` (10%)
-- Thêm type `PoolAllocation` và hàm `calculatePoolDistribution(mintAmount)` trả về phần chia cho mỗi pool
-
-**3b. Thêm Luật Không Tích Trữ (Anti-Hoarding / Inactivity Decay)**
-- Thêm `INACTIVITY_CONFIG`:
-  - `gracePeriodDays: 90` (90 ngày không dùng)
-  - `decayRatePerDay: 0.001` (0.1%/ngày sau grace period)
-  - `maxDecayPercent: 0.50` (tối đa mất 50%)
-  - `recycleDestination: 'communityPool'`
-- Thêm hàm `calculateInactivityDecay(balanceAtomic, inactiveDays)` trả về số FUN quay về Community Pool
-- Thêm interface `InactivityDecayResult`
-
-**3c. Thêm FUN Ecosystem platforms vào BASE_REWARDS**
-- Thêm `FUN_PLANET`, `FUN_PLAY` (video platform hiện tại) vào `BASE_REWARDS`
-- Thêm các action type: `WATCH_VIDEO`, `LIKE_VIDEO`, `COMMENT`, `SHARE`, `UPLOAD_VIDEO`
-
-**3d. Thêm metadata whitepaper version**
-- Export `WHITEPAPER_VERSION = 'v0.1-5D'`
-- Export `PROTOCOL_NAME = 'Proof of Pure Love Protocol'`
-
----
-
-## Chi Tiết Kỹ Thuật
-
-### Cấu trúc file mới/sửa:
 ```text
 src/
 ├── pages/
-│   ├── Whitepaper.tsx          ← MỚI (trang công khai)
-│   └── PlatformDocs.tsx        ← SỬA (thêm tab)
+│   ├── Constitution.tsx         ← MỚI (trang công khai /constitution)
+│   ├── Whitepaper.tsx           ← SỬA (thêm link đến Constitution)
+│   └── PlatformDocs.tsx         ← SỬA (thêm link Constitution)
 ├── lib/fun-money/
-│   └── pplp-engine.ts          ← SỬA (thêm pools, decay, ecosystem)
-└── App.tsx                     ← SỬA (thêm route)
+│   ├── constitution.ts          ← MỚI (hằng số & quy tắc v2.0)
+│   ├── pplp-engine.ts           ← SỬA (thêm PPLP Validation v2, trạng thái Recycle)
+│   ├── pool-system.ts           ← SỬA (thêm CONSTITUTION_VERSION)
+│   └── index.ts                 ← SỬA (export constitution.ts)
+└── App.tsx                      ← SỬA (thêm route /constitution)
 ```
 
-### Không cần thay đổi database
-- Pool allocation và inactivity decay hiện chỉ là logic tính toán phía client
-- Khi triển khai on-chain thực tế, sẽ cần smart contract và cron job riêng
-
-### Thiết kế trang Whitepaper:
-- Background: `bg-background` với gradient overlay nhẹ
-- Typography: prose-lg cho nội dung, font-bold cho heading
-- Section divider: Gradient line `from-cyan-400 via-purple-500 to-pink-500`
-- Emoji giữ nguyên như bản gốc để tạo cảm xúc
-- Card đặc biệt cho "Activation Mantra" cuối trang với background gradient
+## Lưu Ý Quan Trọng
+- Không cần thay đổi database — Constitution là logic và nội dung phía client
+- Smart contract hiện tại đã hỗ trợ 3 trạng thái (Locked, Activated, Flowing); trạng thái Recycle sẽ cần nâng cấp contract trong tương lai
+- Bản Constitution v2.0 chưa hoàn chỉnh trong tin nhắn (cắt ở Chương VIII) — sẽ triển khai phần đã nhận được, phần còn lại bổ sung sau
 
