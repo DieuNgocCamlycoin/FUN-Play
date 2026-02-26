@@ -99,7 +99,7 @@ const Whitepaper = () => {
           )}
           <BookOpen className="h-5 w-5 text-primary" />
           <span className="font-bold text-sm md:text-base truncate">THE 5D WHITEPAPER – FUN MONEY</span>
-          <span className="ml-auto text-xs text-muted-foreground hidden sm:block">v0.1</span>
+          <span className="ml-auto text-xs text-muted-foreground hidden sm:block">v0.1 → v2.0</span>
         </div>
       </header>
 
@@ -125,6 +125,12 @@ const Whitepaper = () => {
             <p className="text-lg md:text-xl text-muted-foreground mt-3">THE 5D WHITEPAPER</p>
             <p className="text-base text-muted-foreground/80 mt-1 italic">Money of Light for a Conscious Civilization</p>
           </div>
+
+          {/* Constitution v2.0 Banner */}
+          <Link to="/constitution" className="block mb-10 p-4 rounded-xl border border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 transition-colors text-center">
+            <p className="text-sm font-medium text-foreground">📜 Xem FUN Money Constitution v2.0</p>
+            <p className="text-xs text-muted-foreground mt-1">Bản hợp nhất cho AI Agent & Smart Contract →</p>
+          </Link>
 
           {/* Sections */}
           <section id="intro">

@@ -9,6 +9,9 @@ export * from './pplp-engine';
 // Pool System & Inactivity Decay (5D Whitepaper)
 export * from './pool-system';
 
+// Constitution v2.0 — Unified Charter
+export * from './constitution';
+
 // Web3 Configuration
 export * from './web3-config';
 
