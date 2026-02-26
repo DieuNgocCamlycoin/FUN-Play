@@ -18,6 +18,7 @@ import WalletAbuseTab from "@/components/Admin/tabs/WalletAbuseTab";
 import { UserStatsTab } from "@/components/Admin/tabs/UserStatsTab";
 import { WalletDetectiveTab } from "@/components/Admin/tabs/WalletDetectiveTab";
 import { ReportsManagementTab } from "@/components/Admin/tabs/ReportsManagementTab";
+import { FunMoneyStatsTab } from "@/components/Admin/tabs/FunMoneyStatsTab";
 import { useAdminManage } from "@/hooks/useAdminManage";
 
 export default function UnifiedAdminDashboard() {
@@ -134,6 +135,8 @@ export default function UnifiedAdminDashboard() {
         return <WalletDetectiveTab />;
       case "reports":
         return <ReportsManagementTab />;
+      case "fun-money-stats":
+        return <FunMoneyStatsTab />;
       default:
         return <OverviewTab />;
     }
@@ -162,6 +165,7 @@ export default function UnifiedAdminDashboard() {
               {currentSection === "user-stats" && "Thống Kê Users"}
               {currentSection === "wallet-detective" && "Wallet Detective"}
               {currentSection === "reports" && "Quản Lý Báo Cáo"}
+              {currentSection === "fun-money-stats" && "Thống Kê FUN Money"}
             </h1>
             <p className="text-muted-foreground mt-1">
               {currentSection === "overview" && "Thống kê toàn nền tảng FUN Play"}
@@ -175,6 +179,7 @@ export default function UnifiedAdminDashboard() {
               {currentSection === "user-stats" && "Danh sách users với đầy đủ thống kê hoạt động, CAMLY, FUN Money, Donations"}
               {currentSection === "wallet-detective" && "Truy vết ví: tìm tất cả users liên quan qua giao dịch on-chain"}
               {currentSection === "reports" && "Xem xét và xử lý báo cáo video, kênh từ cộng đồng"}
+              {currentSection === "fun-money-stats" && "Biểu đồ breakdown FUN Money theo action, status, top holders và trend 30 ngày"}
             </p>
           </div>
         </div>
