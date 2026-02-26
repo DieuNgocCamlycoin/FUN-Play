@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS auto_mint_fun_enabled boolean DEFAULT true;

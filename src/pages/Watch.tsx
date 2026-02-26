@@ -15,6 +15,7 @@ import { ShareModal } from "@/components/Video/ShareModal";
 import { MiniProfileCard } from "@/components/Video/MiniProfileCard";
 
 import { useAutoReward } from "@/hooks/useAutoReward";
+import { useAutoMintFun } from "@/hooks/useAutoMintFun";
 import { RewardNotification } from "@/components/Rewards/RewardNotification";
 import { AuthRequiredDialog } from "@/components/Auth/AuthRequiredDialog";
 import { useVideoPlayback } from "@/contexts/VideoPlaybackContext";
@@ -97,6 +98,9 @@ export default function Watch({ videoIdProp }: { videoIdProp?: string }) {
   const { goToVideo } = useVideoNavigation();
   const { createSession, nextVideo, previousVideo, isAutoplayEnabled, session, getUpNext } = useVideoPlayback();
   const { awardCommentReward, awardLikeReward } = useAutoReward();
+  
+  // Auto-mint FUN for each action
+  useAutoMintFun(user?.id);
 
   // Listen for CAMLY reward events and show toast notification
   useEffect(() => {

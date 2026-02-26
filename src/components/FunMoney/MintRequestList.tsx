@@ -30,12 +30,18 @@ interface MintRequestListProps {
   className?: string;
 }
 
-const FILTERS = [
+const STATUS_FILTERS = [
   { value: 'all', label: 'Tất cả', icon: FileText },
   { value: 'pending', label: 'Đang chờ', icon: Clock },
   { value: 'approved', label: 'Đã duyệt', icon: CheckCircle },
   { value: 'minted', label: 'Đã mint', icon: Coins },
   { value: 'rejected', label: 'Từ chối', icon: XCircle }
+];
+
+const PLATFORM_FILTERS = [
+  { value: 'all', label: 'Tất cả' },
+  { value: 'FUN_PLAY', label: 'FUN Play' },
+  { value: 'FUN_PROFILE', label: 'FUN Profile' }
 ];
 
 export function MintRequestList({ 
@@ -46,10 +52,13 @@ export function MintRequestList({
   className 
 }: MintRequestListProps) {
   const [filter, setFilter] = useState('all');
+  const [platformFilter, setPlatformFilter] = useState('all');
 
-  const filteredRequests = requests.filter(r => 
-    filter === 'all' || r.status === filter
-  );
+  const filteredRequests = requests.filter(r => {
+    const statusMatch = filter === 'all' || r.status === filter;
+    const platformMatch = platformFilter === 'all' || r.platform_id === platformFilter;
+    return statusMatch && platformMatch;
+  });
 
   const counts = {
     all: requests.length,
@@ -79,9 +88,24 @@ export function MintRequestList({
           )}
         </div>
 
-        {/* Filters */}
+        {/* Platform Filters */}
         <div className="flex gap-2 mt-3 overflow-x-auto scrollbar-hide flex-nowrap pb-1">
-          {FILTERS.map(({ value, label, icon: Icon }) => (
+          {PLATFORM_FILTERS.map(({ value, label }) => (
+            <Button
+              key={value}
+              variant={platformFilter === value ? "default" : "outline"}
+              size="sm"
+              onClick={() => setPlatformFilter(value)}
+              className="whitespace-nowrap text-xs"
+            >
+              {label}
+            </Button>
+          ))}
+        </div>
+
+        {/* Status Filters */}
+        <div className="flex gap-2 mt-2 overflow-x-auto scrollbar-hide flex-nowrap pb-1">
+          {STATUS_FILTERS.map(({ value, label, icon: Icon }) => (
             <Button
               key={value}
               variant={filter === value ? "default" : "outline"}
