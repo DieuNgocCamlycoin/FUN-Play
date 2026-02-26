@@ -42,7 +42,6 @@ export interface LightActivity {
   integrityScore: number;
   mintableFun: string;
   mintableFunAtomic: string;
-  mintableFunUsd: string;
   canMint: boolean;
   mintBlockReason?: string;
   accountAgeDays: number;
@@ -64,7 +63,6 @@ export interface UseLightActivityReturn {
 const CAMLY_TO_FUN_RATE = 0.01;
 const MIN_LIGHT_SCORE = 60;
 const MIN_ACTIVITIES = 10;
-const FUN_PRICE_USD = 0.10;
 const MINT_COOLDOWN_HOURS = 24;
 
 // ===== HELPER FUNCTIONS =====
@@ -118,7 +116,7 @@ function calculateMintableFun(
   lightScore: number,
   integrityScore: number,
   unityMultiplier: number
-): { atomic: string; formatted: string; usd: string } {
+): { atomic: string; formatted: string } {
   const baseFun = totalCamly * CAMLY_TO_FUN_RATE;
   const multiplier = (lightScore / 100) * integrityScore * unityMultiplier;
   const finalFun = baseFun * multiplier;
@@ -126,8 +124,7 @@ function calculateMintableFun(
   
   return {
     atomic: atomicBigInt.toString(),
-    formatted: finalFun.toFixed(2),
-    usd: (finalFun * FUN_PRICE_USD).toFixed(2)
+    formatted: finalFun.toFixed(2)
   };
 }
 
@@ -284,7 +281,6 @@ export function useLightActivity(userId: string | undefined): UseLightActivityRe
         integrityScore,
         mintableFun: mintable.formatted,
         mintableFunAtomic: mintable.atomic,
-        mintableFunUsd: mintable.usd,
         canMint,
         mintBlockReason,
         accountAgeDays,

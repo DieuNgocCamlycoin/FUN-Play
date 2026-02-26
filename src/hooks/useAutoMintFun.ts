@@ -108,6 +108,8 @@ export function useAutoMintFun(userId: string | undefined) {
         pillarScores: pillars,
         unitySignals,
         antiSybilScore: 1 - (profile.suspicious_score || 0) / 10,
+        qualityMultiplier: 1.0,
+        impactMultiplier: 1.0,
       });
 
       if (result) {
