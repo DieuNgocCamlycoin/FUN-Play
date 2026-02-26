@@ -1,93 +1,74 @@
 
 
-# Fix Toan Bo Gia Tri FUN Money Ve Dung Cong Thuc Moi Nhat
+# Tao Trang Admin Thong Ke FUN Money Toan He Thong
 
-## Phan Tich Hien Trang
+## Tong Quan
 
-### Van de chinh: `calculateMintableFun` dung cong thuc sai
+Tao tab admin moi "FUN Money Stats" trong Admin Dashboard, hien thi thong ke toan he thong ve FUN Money voi bieu do breakdown theo action type, top users, va tong FUN da mint vs tiem nang.
 
-Trong `src/hooks/useLightActivity.ts`, ham `calculateMintableFun` hien tinh:
+## Thay Doi
 
-```text
-mintableFUN = totalCamly × 0.01 × (lightScore/100) × integrityScore × unityMultiplier
-```
+### 1. Tao RPC function moi: `get_fun_money_system_stats`
 
-Day la cong thuc cu, **khong** dung BASE_REWARDS cua tung action. Ket qua hien tai cho 1 user co 237,744 CAMLY la 23,774 FUN — con so khong hop ly.
+Tao database function (security definer, chi admin) de tinh toan phia server:
 
-### Cong thuc dung (theo BASE_REWARDS):
+- **Tong FUN da mint** (tu `mint_requests` WHERE status != 'rejected')
+- **Tong FUN tiem nang** (tu `reward_transactions`: views×10 + likes×5 + comments×15 + shares×20 + uploads×100)
+- **Breakdown theo action type**: So luong va tong FUN cho moi action (UPLOAD_VIDEO, WATCH_VIDEO, LIKE_VIDEO, COMMENT, SHARE)
+- **So user da mint FUN** (distinct user_id tu mint_requests)
+- **Top 10 FUN holders** (user co nhieu FUN mint nhat, kem display_name, avatar)
+- **Breakdown theo status** (pending, approved, minted, rejected, failed)
+- **Mint requests theo ngay** (30 ngay gan nhat)
 
-```text
-mintableFUN = views×10 + likes×5 + comments×15 + shares×20 + uploads×100
-             - FUN da mint (tu mint_requests)
-```
+### 2. Tao hook: `src/hooks/useAdminFunMoneyStats.ts`
 
-Moi action co gia tri FUN co dinh, khong nhan them Q/I multiplier (Q=1.0, I=1.0).
+Hook goi RPC `get_fun_money_system_stats` va tra ve du lieu da typed.
 
-### Du lieu hien tai trong DB:
+### 3. Tao component: `src/components/Admin/tabs/FunMoneyStatsTab.tsx`
 
-- Chi co **1 mint request** (LIGHT_ACTIVITY, 23,774 FUN, status=approved)
-- Chua co FUN_PLAY mint request nao
-- Mint request nay da dung Q=1.0, I=1.0 nhung `base_reward_atomic` = gia tri CAMLY-to-FUN cu, khong phai BASE_REWARDS
+Giao dien gom:
 
----
+**Stat Cards (4 cards):**
+- Tong FUN Da Mint (tu mint_requests)
+- Tong FUN Tiem Nang (tu reward_transactions × BASE_REWARDS)
+- So User Co FUN
+- So Mint Requests
 
-## Ke Hoach Thuc Hien
+**Bieu do 1: Pie/Donut Chart - Breakdown theo Action Type**
+- Hien thi % FUN tiem nang theo UPLOAD (100), COMMENT (15), VIEW (10), LIKE (5), SHARE (20)
 
-### 1. Cap nhat `calculateMintableFun` trong `useLightActivity.ts`
+**Bieu do 2: Bar Chart - FUN Da Mint vs Tiem Nang**
+- So sanh FUN da mint va FUN chua mint cho moi action type
 
-Thay doi cong thuc tu CAMLY conversion sang BASE_REWARDS:
+**Bieu do 3: Line/Area Chart - Mint Requests theo ngay (30 ngay)**
+- Trend mint FUN Money qua thoi gian
 
-```text
-Cu:  totalCamly × 0.01 × multipliers
-Moi: (views×10 + likes×5 + comments×15 + shares×20 + uploads×100) - funDaMinted
-```
+**Bang: Top 10 FUN Holders**
+- Avatar, Display Name, Tong FUN, So requests, Action types
 
-Ham se nhan `activityCounts` va `alreadyMintedFun` thay vi `totalCamly`.
+**Bieu do 4: Donut - Breakdown theo Status**
+- pending/approved/minted/rejected/failed
 
-Can them query tong FUN da mint tu `mint_requests` (status != 'rejected') cho user.
+### 4. Cap nhat Admin Layout
 
-### 2. Recalculate mint request cu trong DB
+- Them `"fun-money-stats"` vao `AdminSection` type
+- Them nav item moi voi icon `BarChart3` hoac `PieChart`
+- Cap nhat `UnifiedAdminDashboard.tsx` de render `FunMoneyStatsTab`
 
-Tao database migration de cap nhat mint request hien co:
-- Tinh lai `calculated_amount_atomic` va `calculated_amount_formatted` dua tren activity counts thuc te cua user tai thoi diem do
-- Hoac dat trang thai `recalculated` de admin review lai
-
-### 3. Dam bao Q=1.0, I=1.0 cho LIGHT_ACTIVITY path
-
-Trong `useAutoMintRequest` (dong 319-320), da co `multiplier_q: 1.0` va `multiplier_i: 1.0` — dung roi, khong can sua.
-
-### 4. Cap nhat ActivitySummary UI — hien thi FUN theo action
-
-Them cot "FUN Reward" vao bang Activity Summary de user thay ro gia tri FUN cho moi loai action:
-
-```text
-Views: 1,234  → 12,340 FUN
-Likes: 567    → 2,835 FUN
-Comments: 89  → 1,335 FUN
-Shares: 23    → 460 FUN
-Uploads: 5    → 500 FUN
----
-Total Mintable: 17,470 FUN
-Da Mint: 0 FUN
-Con lai: 17,470 FUN
-```
-
----
-
-## Tong Ket Thay Doi
+## Files thay doi
 
 | File | Thay doi |
 |------|---------|
-| `src/hooks/useLightActivity.ts` | Thay `calculateMintableFun` dung BASE_REWARDS; them query `mint_requests` de tru FUN da mint |
-| `src/components/FunMoney/ActivitySummary.tsx` | Them hien thi FUN reward cho moi loai action |
-| `src/components/FunMoney/MintableCard.tsx` | Hien thi breakdown nhanh: Total / Da Mint / Con lai |
-| Database migration | Recalculate mint request cu cho dung cong thuc moi |
+| Database migration | Tao RPC `get_fun_money_system_stats` |
+| `src/hooks/useAdminFunMoneyStats.ts` | Hook moi goi RPC |
+| `src/components/Admin/tabs/FunMoneyStatsTab.tsx` | Component moi voi 4 stat cards + 4 bieu do + bang top users |
+| `src/components/Admin/UnifiedAdminLayout.tsx` | Them section `fun-money-stats` vao type va nav |
+| `src/pages/UnifiedAdminDashboard.tsx` | Them case render `FunMoneyStatsTab` |
 
-## Ket qua mong doi
+## Ky thuat
 
-- Mintable FUN = tong cac hoat dong × BASE_REWARDS (khong dung CAMLY conversion)
-- WATCH_VIDEO = 10 FUN, LIKE_VIDEO = 5 FUN, COMMENT = 15 FUN, SHARE = 20 FUN, UPLOAD_VIDEO = 100 FUN
-- Q=1.0, I=1.0 ap dung 100% — khong nhan them multiplier
-- User thay ro breakdown FUN cho tung loai hoat dong
-- Mint request cu duoc cap nhat lai dung gia tri
+- Su dung `recharts` (da cai dat) cho tat ca bieu do: PieChart, BarChart, AreaChart
+- Su dung Supabase RPC de tranh gioi han 1000 dong
+- BASE_REWARDS: VIEW=10, LIKE=5, COMMENT=15, SHARE=20, UPLOAD=100
+- Chi admin moi truy cap duoc (has_role check trong RPC)
 
