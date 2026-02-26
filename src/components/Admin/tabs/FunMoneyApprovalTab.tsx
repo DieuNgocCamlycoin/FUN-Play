@@ -34,6 +34,7 @@ import { useAdminMintRequest } from '@/hooks/useAdminMintRequest';
 import { useFunMoneyWallet } from '@/hooks/useFunMoneyWallet';
 import { formatFunAmount } from '@/lib/fun-money/pplp-engine';
 import { validateBeforeMint, mintFunMoney } from '@/lib/fun-money/contract-helpers';
+import { KNOWN_ADDRESSES } from '@/lib/fun-money/web3-config';
 import { cn } from '@/lib/utils';
 import type { MintRequest } from '@/hooks/useFunMoneyMintRequest';
 
@@ -89,6 +90,9 @@ export function FunMoneyApprovalTab() {
     provider
   } = useFunMoneyWallet();
 
+  // Check if connected wallet is the registered attester
+  const isAttesterWallet = adminAddress?.toLowerCase() === KNOWN_ADDRESSES.angelAiAttester.toLowerCase();
+
   // Fetch data on tab change
   useEffect(() => {
     if (activeTab === 'pending') {
@@ -135,6 +139,28 @@ export function FunMoneyApprovalTab() {
     } else {
       toast.error('Không thể từ chối yêu cầu');
     }
+  };
+
+  // Handle approve + mint in one step (for pending requests)
+  const handleApproveAndMint = async (request: MintRequest) => {
+    if (!isConnected || !signer || !provider || !adminAddress) {
+      toast.error('Vui lòng kết nối ví Attester trước');
+      return;
+    }
+    if (!isAttesterWallet) {
+      toast.error(`Ví hiện tại không phải Attester. Cần kết nối: ${KNOWN_ADDRESSES.angelAiAttester.slice(0, 10)}...`);
+      return;
+    }
+
+    // First approve
+    const approved = await approveRequest(request.id, 'Approved & minted by admin');
+    if (!approved) {
+      toast.error('Không thể duyệt yêu cầu');
+      return;
+    }
+
+    // Then mint
+    await handleMint({ ...request, status: 'approved' });
   };
 
   // Handle mint (EIP-712 signing + on-chain)
@@ -248,20 +274,29 @@ export function FunMoneyApprovalTab() {
               <div className="flex items-center gap-3">
                 <div className={cn(
                   "p-2 rounded-lg",
-                  isConnected ? "bg-green-500/20" : "bg-red-500/20"
+                  isConnected && isAttesterWallet ? "bg-green-500/20" : isConnected ? "bg-yellow-500/20" : "bg-red-500/20"
                 )}>
                   <Wallet className={cn(
                     "w-5 h-5",
-                    isConnected ? "text-green-500" : "text-red-500"
+                    isConnected && isAttesterWallet ? "text-green-500" : isConnected ? "text-yellow-500" : "text-red-500"
                   )} />
                 </div>
                 <div>
                   <p className="text-sm font-medium">
-                    {isConnected ? 'Ví đã kết nối' : 'Ví chưa kết nối'}
+                    {isConnected 
+                      ? isAttesterWallet 
+                        ? '✅ Attester Wallet Connected' 
+                        : '⚠️ Ví không phải Attester'
+                      : 'Ví chưa kết nối'}
                   </p>
                   {adminAddress && (
                     <p className="text-xs text-muted-foreground font-mono">
                       {adminAddress.slice(0, 6)}...{adminAddress.slice(-4)}
+                      {!isAttesterWallet && isConnected && (
+                        <span className="text-yellow-500 ml-2">
+                          (Cần: {KNOWN_ADDRESSES.angelAiAttester.slice(0, 6)}...{KNOWN_ADDRESSES.angelAiAttester.slice(-4)})
+                        </span>
+                      )}
                     </p>
                   )}
                 </div>
@@ -365,12 +400,14 @@ export function FunMoneyApprovalTab() {
               <RequestDetailPanel
                 request={selectedRequest}
                 isConnected={isConnected}
+                isAttesterWallet={isAttesterWallet}
                 isMinting={isMinting}
                 rejectReason={rejectReason}
                 onRejectReasonChange={setRejectReason}
                 onApprove={() => handleApprove(selectedRequest)}
                 onReject={() => handleReject(selectedRequest)}
                 onMint={() => handleMint(selectedRequest)}
+                onApproveAndMint={() => handleApproveAndMint(selectedRequest)}
                 onCopy={copyToClipboard}
               />
             ) : (
@@ -465,22 +502,26 @@ function RequestCard({
 function RequestDetailPanel({
   request,
   isConnected,
+  isAttesterWallet,
   isMinting,
   rejectReason,
   onRejectReasonChange,
   onApprove,
   onReject,
   onMint,
+  onApproveAndMint,
   onCopy
 }: {
   request: MintRequest;
   isConnected: boolean;
+  isAttesterWallet: boolean;
   isMinting: boolean;
   rejectReason: string;
   onRejectReasonChange: (value: string) => void;
   onApprove: () => void;
   onReject: () => void;
   onMint: () => void;
+  onApproveAndMint: () => void;
   onCopy: (text: string) => void;
 }) {
   const pillarScores = request.pillar_scores as { S: number; T: number; H: number; C: number; U: number };
@@ -637,12 +678,34 @@ function RequestDetailPanel({
         {/* Actions */}
         {request.status === 'pending' && (
           <div className="space-y-3 pt-4 border-t">
+            {/* Approve + Mint in one step */}
+            {isConnected && isAttesterWallet && (
+              <Button 
+                className="w-full gap-2 bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600 text-white" 
+                onClick={onApproveAndMint}
+                disabled={isMinting}
+              >
+                {isMinting ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    Đang duyệt & mint...
+                  </>
+                ) : (
+                  <>
+                    <Zap className="w-4 h-4" />
+                    ⚡ Duyệt & Mint Ngay
+                  </>
+                )}
+              </Button>
+            )}
+
             <Button 
+              variant="outline"
               className="w-full gap-2" 
               onClick={onApprove}
             >
               <CheckCircle className="w-4 h-4" />
-              Duyệt yêu cầu
+              Chỉ Duyệt (mint sau)
             </Button>
             
             <div className="space-y-2">
@@ -668,9 +731,9 @@ function RequestDetailPanel({
         {request.status === 'approved' && (
           <div className="pt-4 border-t">
             <Button 
-              className="w-full gap-2 bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600" 
+              className="w-full gap-2 bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600 text-white" 
               onClick={onMint}
-              disabled={!isConnected || isMinting}
+              disabled={!isConnected || !isAttesterWallet || isMinting}
             >
               {isMinting ? (
                 <>
@@ -686,7 +749,12 @@ function RequestDetailPanel({
             </Button>
             {!isConnected && (
               <p className="text-xs text-center text-muted-foreground mt-2">
-                Kết nối ví để mint
+                Kết nối ví Attester để mint
+              </p>
+            )}
+            {isConnected && !isAttesterWallet && (
+              <p className="text-xs text-center text-yellow-500 mt-2">
+                ⚠️ Cần kết nối ví Attester: {KNOWN_ADDRESSES.angelAiAttester.slice(0, 10)}...
               </p>
             )}
           </div>
