@@ -49,6 +49,10 @@ export interface LightActivity {
   hasPendingRequest: boolean;
   lastMintAt: string | null;
   funMintedByAction: Record<string, { count: number; totalFun: string }>;
+  // NEW: BASE_REWARDS breakdown
+  funBreakdown: Record<string, number>;
+  totalFunReward: number;
+  alreadyMintedFun: number;
 }
 
 export interface UseLightActivityReturn {
@@ -60,10 +64,18 @@ export interface UseLightActivityReturn {
 
 // ===== CONSTANTS =====
 
-const CAMLY_TO_FUN_RATE = 0.01;
 const MIN_LIGHT_SCORE = 60;
 const MIN_ACTIVITIES = 10;
 const MINT_COOLDOWN_HOURS = 24;
+
+// BASE_REWARDS per action (FUN, not atomic)
+const BASE_REWARDS_FUN: Record<string, number> = {
+  views: 10,
+  likes: 5,
+  comments: 15,
+  shares: 20,
+  uploads: 100
+};
 
 // ===== HELPER FUNCTIONS =====
 
@@ -112,19 +124,25 @@ function deriveUnitySignals(counts: ActivityCounts): Partial<UnitySignals> {
 }
 
 function calculateMintableFun(
-  totalCamly: number,
-  lightScore: number,
-  integrityScore: number,
-  unityMultiplier: number
-): { atomic: string; formatted: string } {
-  const baseFun = totalCamly * CAMLY_TO_FUN_RATE;
-  const multiplier = (lightScore / 100) * integrityScore * unityMultiplier;
-  const finalFun = baseFun * multiplier;
-  const atomicBigInt = BigInt(Math.floor(finalFun * 1e18));
+  activityCounts: ActivityCounts,
+  alreadyMintedFun: number
+): { atomic: string; formatted: string; totalReward: number; breakdown: Record<string, number> } {
+  const breakdown: Record<string, number> = {
+    views: activityCounts.views * BASE_REWARDS_FUN.views,
+    likes: activityCounts.likes * BASE_REWARDS_FUN.likes,
+    comments: activityCounts.comments * BASE_REWARDS_FUN.comments,
+    shares: activityCounts.shares * BASE_REWARDS_FUN.shares,
+    uploads: activityCounts.uploads * BASE_REWARDS_FUN.uploads
+  };
+  const totalReward = Object.values(breakdown).reduce((sum, v) => sum + v, 0);
+  const mintable = Math.max(0, totalReward - alreadyMintedFun);
+  const atomicBigInt = BigInt(Math.floor(mintable)) * BigInt(1e18);
   
   return {
     atomic: atomicBigInt.toString(),
-    formatted: finalFun.toFixed(2)
+    formatted: mintable.toFixed(2),
+    totalReward,
+    breakdown
   };
 }
 
@@ -150,7 +168,8 @@ export function useLightActivity(userId: string | undefined): UseLightActivityRe
         profileResult,
         activitySummaryResult,
         pendingRequestResult,
-        funPlayRequestsResult
+        funPlayRequestsResult,
+        mintedFunResult
       ] = await Promise.all([
         supabase
           .from('profiles')
@@ -173,7 +192,14 @@ export function useLightActivity(userId: string | undefined): UseLightActivityRe
           .from('mint_requests')
           .select('action_type, calculated_amount_formatted, status')
           .eq('user_id', userId)
-          .eq('platform_id', 'FUN_PLAY')
+          .eq('platform_id', 'FUN_PLAY'),
+
+        // Total FUN already minted (all platforms, non-rejected)
+        (supabase as any)
+          .from('mint_requests')
+          .select('calculated_amount_formatted, status')
+          .eq('user_id', userId)
+          .neq('status', 'rejected')
       ]);
 
       if (profileResult.error) throw profileResult.error;
@@ -198,6 +224,16 @@ export function useLightActivity(userId: string | undefined): UseLightActivityRe
         const current = parseFloat(funMintedByAction[req.action_type].totalFun);
         const add = parseFloat((req.calculated_amount_formatted || '0').replace(' FUN', ''));
         funMintedByAction[req.action_type].totalFun = (current + add).toFixed(2);
+      }
+
+      // Calculate total FUN already minted (non-rejected)
+      const allMintRequests = (mintedFunResult.data || []) as Array<{
+        calculated_amount_formatted: string;
+        status: string;
+      }>;
+      let alreadyMintedFun = 0;
+      for (const req of allMintRequests) {
+        alreadyMintedFun += parseFloat((req.calculated_amount_formatted || '0').replace(' FUN', ''));
       }
 
       // Parse activity summary from RPC
@@ -235,7 +271,7 @@ export function useLightActivity(userId: string | undefined): UseLightActivityRe
       const unityMultiplier = calculateUnityMultiplier(unityScore, unitySignals);
 
       // Calculate mintable FUN
-      const mintable = calculateMintableFun(totalCamly, lightScore, integrityScore, unityMultiplier);
+      const mintable = calculateMintableFun(activityCounts, alreadyMintedFun);
 
       // Determine if user can mint (with cooldown enforcement)
       let canMint = true;
@@ -287,7 +323,10 @@ export function useLightActivity(userId: string | undefined): UseLightActivityRe
         isVerified,
         hasPendingRequest,
         lastMintAt: profile.last_fun_mint_at,
-        funMintedByAction
+        funMintedByAction,
+        funBreakdown: mintable.breakdown,
+        totalFunReward: mintable.totalReward,
+        alreadyMintedFun
       });
 
     } catch (err: any) {
