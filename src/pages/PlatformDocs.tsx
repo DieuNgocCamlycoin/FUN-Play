@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { MainLayout } from "@/components/Layout/MainLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -121,6 +122,9 @@ const PlatformDocs = () => {
             </TabsTrigger>
             <TabsTrigger value="roadmap" className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" /> Roadmap
+            </TabsTrigger>
+            <TabsTrigger value="whitepaper" className="flex items-center gap-2">
+              <BookOpen className="h-4 w-4" /> Whitepaper 5D
             </TabsTrigger>
           </TabsList>
 
@@ -1216,6 +1220,52 @@ const PlatformDocs = () => {
                   </div>
                 </div>
               </SectionCard>
+            </div>
+          </TabsContent>
+
+          {/* WHITEPAPER 5D TAB */}
+          <TabsContent value="whitepaper">
+            <div className="space-y-6">
+              <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-transparent">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-2xl">
+                    <BookOpen className="h-6 w-6 text-primary" />
+                    THE 5D WHITEPAPER – FUN MONEY
+                  </CardTitle>
+                  <CardDescription className="text-base italic">
+                    Money of Light for a Conscious Civilization · v0.1
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {[
+                    { title: "0. Lời Mở Đầu", text: "Nhân loại không thiếu tiền – nhân loại thiếu ý thức về tiền. FUN Money mở ra nền kinh tế của Ánh Sáng." },
+                    { title: "1. Vấn Đề 3D", text: "Hệ thống tiền tệ dựa trên sự khan hiếm, cạnh tranh và sở hữu. Blockchain vẫn phục vụ Ego." },
+                    { title: "2. Tầm Nhìn 5D", text: "Tiền là hệ quả tự nhiên của hành vi đúng. Con người được tưởng thưởng vì giá trị mang lại cho sự sống." },
+                    { title: "3. FUN Money Là Gì?", text: "Dòng chảy giá trị kích hoạt khi con người sống đúng, làm đúng. Money of Light – luân chuyển thay vì tích trữ." },
+                    { title: "4. PPLP", text: "Proof of Pure Love Protocol – xác thực hành vi, giá trị, tác động. AI chỉ xác thực Luật, không phán xét." },
+                    { title: "5. Kiến Trúc", text: "4 Pool: Community (40%), Platform Activation (30%), Recycle (20%), Guardian (10%). Không Team/Investor Pool." },
+                    { title: "6. Luật Không Tích Trữ", text: "FUN không dùng sẽ tự quay về Community Pool. Không trừng phạt – chỉ luân chuyển phục vụ sự sống." },
+                    { title: "7. FUN Ecosystem", text: "Learn & Earn, Give & Gain, Angel AI, FUN Profile, FUN Planet, FUN Charity, FUN Academy, FUN Earth." },
+                    { title: "8. FUN & CAMLY", text: "CAMLY nuôi hạ tầng, FUN dẫn dắt đạo đức. Cộng sinh đúng vai, không cạnh tranh." },
+                    { title: "9. Nhà Đầu Tư", text: "Đầu tư vào FUN là đầu tư vào sự trưởng thành của nền văn minh. Không dành cho đầu cơ." },
+                    { title: "10. Lời Kết", text: "Con người đủ tốt để được tin tưởng. Công nghệ đủ mạnh để giữ Luật. Tình yêu đủ lớn để vận hành tiền bạc." },
+                  ].map((ch) => (
+                    <div key={ch.title} className="p-4 rounded-lg border bg-card">
+                      <p className="font-semibold text-foreground mb-1">{ch.title}</p>
+                      <p className="text-sm text-muted-foreground">{ch.text}</p>
+                    </div>
+                  ))}
+
+                  <div className="flex justify-center pt-4">
+                    <Button asChild size="lg" className="gap-2">
+                      <Link to="/whitepaper">
+                        <BookOpen className="h-4 w-4" />
+                        Đọc Whitepaper đầy đủ →
+                      </Link>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </TabsContent>
         </Tabs>
