@@ -1,105 +1,112 @@
 
 
-# Kế Hoạch Tích Hợp FUN MONEY CONSTITUTION v2.0
+# Baao Cao Phan Tich Tac Dong He Thong Mint FUN Money Sau Cap Nhat
 
-## Tổng Quan
+## 1. Trang Thai Hien Tai — Tong Ket
 
-Bản Constitution v2.0 là phiên bản hợp nhất (Unified Charter) dành cho cả AI Agent, Smart Contract, Guardian Logic và Nhân loại. So với Whitepaper v0.1 đã triển khai, bản v2.0 bổ sung nhiều nội dung mới quan trọng:
-
-- **Chương I-II**: Lời Khai Sinh & Định Danh Cốt Lõi (mới)
-- **Chương III**: PPLP v2 — thêm 5 điều kiện bắt buộc rõ ràng
-- **Chương IV**: 4 trạng thái vòng đời (Locked → Activated → Flowing → Recycle) — rõ ràng hơn, thêm trạng thái Recycle
-- **Chương V**: Luật Không Tích Trữ — mạnh hơn ("không cảnh báo, không ngoại lệ")
-- **Chương VI**: 4 Pool — mô tả chi tiết hơn (≈99% cho Community Pool)
-- **Chương VII**: Vai trò AI Agent — "Guardian of Flow"
-- **Chương VIII**: Vai trò Guardian Con Người (Bé Ly / CamLy Duong) — chưa có trong v0.1
-
-## Các Thay Đổi Cần Thực Hiện
-
-### 1. Tạo trang Constitution riêng (`/constitution`)
-
-**File mới: `src/pages/Constitution.tsx`**
-
-Trang công khai, thiết kế tương tự `/whitepaper` nhưng mang tính "luật pháp" hơn:
-- Header: "FUN MONEY CONSTITUTION – VERSION 2.0" + phụ đề "Law of Light Economy – Executable Soul"
-- Badge: "Unified Charter for AI Agent & Smart Contract"
-- Sidebar mục lục 8 chương (I → VIII)
-- Nội dung đầy đủ toàn bộ 8 chương từ bản Constitution v2.0
-- Thiết kế: Tông tím-vàng sang trọng hơn whitepaper, các điều luật dùng `border-l` highlight
-- Các điều khoản "❌ Không tồn tại" và "⚠️ Khi không chắc chắn" dùng card cảnh báo đặc biệt
-- CTA cuối trang: liên kết đến `/whitepaper` (Whitepaper gốc) và `/fun-money` (Mint FUN)
-
-**File sửa: `src/App.tsx`** — Thêm route `/constitution` lazy load
-
-### 2. Cập nhật Whitepaper hiện có
-
-**File sửa: `src/pages/Whitepaper.tsx`**
-- Cập nhật version từ "v0.1" thành "v0.1 → v2.0"
-- Thêm banner/link ở đầu trang: "📜 Xem FUN Money Constitution v2.0 — Bản hợp nhất cho AI Agent & Smart Contract" → dẫn đến `/constitution`
-
-### 3. Cập nhật PPLP Engine theo Constitution v2.0
-
-**File sửa: `src/lib/fun-money/pplp-engine.ts`**
-
-3a. **Thêm PPLP Validation v2** — 5 điều kiện bắt buộc từ Chương III:
-- Thêm interface `PPLPValidation` với 5 trường boolean:
-  - `hasRealAction` — Có hành vi thực
-  - `hasRealValue` — Tạo ra giá trị thật
-  - `hasPositiveImpact` — Tác động tích cực
-  - `noExploitation` — Không khai thác/thao túng/Ego
-  - `charterCompliant` — Phù hợp Master Charter
-- Thêm hàm `validatePPLP(validation: PPLPValidation): boolean` — trả về `false` nếu thiếu bất kỳ điều kiện nào
-- Tích hợp vào `scoreAction()`: gọi `validatePPLP` trước khi tính toán, nếu thất bại → REJECT ngay
-
-3b. **Thêm trạng thái Recycle vào vòng đời**:
-- Mở rộng `MintDecision` thêm `'RECYCLE'`
-- Thêm type `FunMoneyState = 'LOCKED' | 'ACTIVATED' | 'FLOWING' | 'RECYCLE'`
-- Thêm comment ghi rõ: "FUN Money không burn – không tiêu hủy. Mọi FUN chỉ đổi trạng thái và nơi cư trú"
-
-3c. **Cập nhật metadata**:
-- Thêm `CONSTITUTION_VERSION = 'v2.0'` vào `pool-system.ts`
-- Thêm `GUARDIAN_ROLE` constant mô tả vai trò AI Agent
-
-### 4. Thêm module Constitution Constants
-
-**File mới: `src/lib/fun-money/constitution.ts`**
-
-Module chứa các hằng số và quy tắc từ Constitution v2.0, dùng cho cả AI Agent và UI:
-- `CONSTITUTION_VERSION = 'v2.0'`
-- `CORE_IDENTITY`: 4 định danh cốt lõi FUN Money (Chương II)
-- `PPLP_REQUIREMENTS`: 5 điều kiện bắt buộc (Chương III)
-- `TOKEN_LIFECYCLE`: 4 trạng thái vòng đời (Chương IV)
-- `AI_AGENT_ROLE`: Quy tắc cho AI Agent (Chương VII)
-- `GUARDIAN_RULES`: Quy tắc cho Guardian Con Người (Chương VIII)
-- `FORBIDDEN_POOLS`: Danh sách Pool không tồn tại (Team, Investor)
-- Export qua `index.ts`
-
-### 5. Cập nhật Platform Docs
-
-**File sửa: `src/pages/PlatformDocs.tsx`**
-- Cập nhật tab "Whitepaper 5D" thêm link đến Constitution v2.0
-- Hoặc thêm mục "Constitution v2.0" trong tab đó
+Sau cac ban cap nhat gan day, he thong mint FUN Money da duoc chuyen doi hoan toan sang contract moi **`0x39A1b047D5d143f8874888cfa1d30Fb2AE6F0CD6`** (v1.2.1 FINAL, BSC Testnet). Khong con bat ky tham chieu nao den contract cu `0x1aa8...`.
 
 ---
 
-## Cấu Trúc File
+## 2. Kiem Tra Dong Bo Dia Chi Contract
+
+| File | Dia chi | Dung? |
+|------|---------|-------|
+| `src/lib/fun-money/web3-config.ts` (DEFAULT_CONTRACT_ADDRESS) | `0x39A1...0CD6` | OK |
+| `src/config/tokens.ts` (FUN_MONEY_ADDRESS) | `0x39A1...0CD6` | OK |
+| `src/lib/donation.ts` (FUN_MONEY_CONTRACT) | `0x39A1...0CD6` | OK |
+| `src/lib/fun-money/contracts/contract-info.ts` (deployedAddress) | `0x39A1...0CD6` | OK |
+| `src/lib/fun-money/contracts/FUNMoney-v1.2.1-final.sol` | `0x39A1...0CD6` | OK |
+
+**Ket luan**: Tat ca 5 file da dong bo chinh xac. Khong con dia chi cu.
+
+---
+
+## 3. ABI va Contract Interface — Phan Tich Chi Tiet
+
+### 3a. Cac ham da khop voi contract v1.2.1:
+- `lockWithPPLP(address user, string action, uint256 amount, bytes32 evidenceHash, bytes[] sigs)` — Tham so `action` la **string** (khong phai bytes32). Contract tu hash noi bo. **DUNG**.
+- `activate(uint256 amount)` — LOCKED -> ACTIVATED. **DUNG**.
+- `claim(uint256 amount)` — ACTIVATED -> FLOWING. **DUNG**.
+- `nonces(address)` — Doc nonce cua **recipient** (khong phai signer). **DUNG**.
+- `alloc(address)` — Tra ve `locked` va `activated`. **DUNG**.
+- Cac ham governance: `govRegisterAction`, `govSetAttester`, `govRecycleExcessToCommunity`... **DUNG**.
+
+### 3b. EIP-712 Domain:
+- Name: `"FUN Money"`, Version: `"1.2.1"`, Chain ID: `97`, Verifying Contract: `getContractAddress()` — **KHOP** voi contract.
+
+### 3c. Van de tiem an:
+- **Khong co van de nghiem trong**. ABI, EIP-712, va flow mint deu khop voi v1.2.1.
+
+---
+
+## 4. Luong Mint End-to-End
 
 ```text
-src/
-├── pages/
-│   ├── Constitution.tsx         ← MỚI (trang công khai /constitution)
-│   ├── Whitepaper.tsx           ← SỬA (thêm link đến Constitution)
-│   └── PlatformDocs.tsx         ← SỬA (thêm link Constitution)
-├── lib/fun-money/
-│   ├── constitution.ts          ← MỚI (hằng số & quy tắc v2.0)
-│   ├── pplp-engine.ts           ← SỬA (thêm PPLP Validation v2, trạng thái Recycle)
-│   ├── pool-system.ts           ← SỬA (thêm CONSTITUTION_VERSION)
-│   └── index.ts                 ← SỬA (export constitution.ts)
-└── App.tsx                      ← SỬA (thêm route /constitution)
+User Action → PPLP Engine (scoreAction) → EIP-712 Sign → lockWithPPLP on-chain
+                  │                              │                    │
+                  ▼                              ▼                    ▼
+          PPLP v2.0 check              Domain v1.2.1           Contract v1.2.1
+          (5 dieu kien)              nonce = recipient       action = string
+          Pool allocation             chainId = 97
 ```
 
-## Lưu Ý Quan Trọng
-- Không cần thay đổi database — Constitution là logic và nội dung phía client
-- Smart contract hiện tại đã hỗ trợ 3 trạng thái (Locked, Activated, Flowing); trạng thái Recycle sẽ cần nâng cấp contract trong tương lai
-- Bản Constitution v2.0 chưa hoàn chỉnh trong tin nhắn (cắt ở Chương VIII) — sẽ triển khai phần đã nhận được, phần còn lại bổ sung sau
+### Cac buoc da duoc dam bao:
+1. **PPLP Validation v2.0** (constitution.ts) — 5 dieu kien bat buoc duoc kiem tra truoc khi tinh toan
+2. **Light Score** (pplp-engine.ts) — Tinh diem tu 5 tru cot, ap dung multipliers
+3. **Pre-mint Validation** (contract-helpers.ts) — Kiem tra network, contract, attester, action, threshold
+4. **EIP-712 Signing** (eip712-signer.ts) — Ky va xac minh off-chain truoc khi gui
+5. **On-chain Execution** — `lockWithPPLP` voi signature array
+
+---
+
+## 5. Nhung Diem MANH Sau Cap Nhat
+
+| # | Diem manh | Chi tiet |
+|---|-----------|---------|
+| 1 | Contract dong bo 100% | Tat ca 5 file deu tro den `0x39A1...0CD6` |
+| 2 | ABI chinh xac v1.2.1 | `lockWithPPLP` nhan string action, khong phai bytes32 |
+| 3 | EIP-712 version khop | `"1.2.1"` — khop voi contract deployed |
+| 4 | PPLP v2.0 tich hop | 5 dieu kien bat buoc duoc kiem tra truoc khi mint |
+| 5 | Pool System ro rang | 4 Pool (40/30/20/10) + Anti-Hoarding logic |
+| 6 | Debug Bundle day du | Cung cap toan bo thong tin de trace loi mint |
+| 7 | Chain switching tu dong | Donation.ts tu dong chuyen sang BSC Testnet (97) cho FUN |
+
+---
+
+## 6. Nhung Diem CAN LUU Y / RUI RO
+
+| # | Van de | Muc do | Giai thich |
+|---|--------|--------|-----------|
+| 1 | **Pool allocation chi o client** | Trung binh | `calculatePoolDistribution()` tinh toan 4 pool nhung chua tuong tac on-chain. Contract v1.2.1 chi co `communityPool()` getter, khong co `platformPool` hay `recyclePool` on-chain. Day chi la logic mo phong. |
+| 2 | **Anti-Hoarding chi o client** | Trung binh | `calculateInactivityDecay()` tinh toan decay nhung khong co mechanism on-chain de tu dong recycle. Can smart contract upgrade hoac cron job. |
+| 3 | **Trang thai RECYCLE chua on-chain** | Thap | `FunMoneyLifecycleState` co 4 trang thai nhung contract v1.2.1 chi ho tro 3 (Locked/Activated/Flowing). Recycle can contract upgrade. |
+| 4 | **localStorage override** | Thap | `getContractAddress()` cho phep override qua localStorage. Neu user set sai dia chi, mint se that bai. Day la tinh nang debug, khong anh huong production. |
+| 5 | **Testnet vs Mainnet** | Luu y | FUN Money dang tren BSC **Testnet** (chain 97). Khi chuyen mainnet can cap nhat: chainId, RPC, explorer URLs, va EIP-712 domain chainId. |
+| 6 | **`require` dong trong scoreAction** | Thap | Dong 278 dung `require('./constitution')` — co the gay van de voi bundler. Nen chuyen sang import tinh o dau file. |
+
+---
+
+## 7. Ma Tran Tuong Thich
+
+| Thanh phan | Constitution v2.0 | Contract v1.2.1 | Trang thai |
+|------------|-------------------|-----------------|-----------|
+| 4 Pool Structure | Co (client) | Chi co communityPool | **Chua dong bo** |
+| PPLP 5 dieu kien | Co (pplp-engine) | Khong co on-chain | **Chi client** |
+| Lifecycle 4 trang thai | Co (type) | 3 trang thai | **Thieu RECYCLE on-chain** |
+| Anti-Hoarding | Co (pool-system) | Khong co | **Chi client** |
+| Guardian Timelock | Co (tai lieu) | Khong co | **Chua trien khai** |
+| EIP-712 Signing | Khop | Khop | **DONG BO** |
+| lockWithPPLP | Khop | Khop | **DONG BO** |
+| activate/claim | Khop | Khop | **DONG BO** |
+
+---
+
+## 8. Ket Luan
+
+**He thong mint FUN Money hien tai HOAT DONG DUNG** voi contract `0x39A1...0CD6` (v1.2.1). Tat ca cac file da dong bo dia chi, ABI khop chinh xac, va EIP-712 domain dung version `"1.2.1"`.
+
+Cac tinh nang Constitution v2.0 (4 Pool, Anti-Hoarding, RECYCLE, Guardian Timelock) hien chi ton tai o **lop logic client** va **tai lieu**. Chung khong anh huong den viec mint on-chain nhung cung chua duoc thuc thi on-chain. Khi nang cap smart contract len phien ban moi, can dong bo lai ABI va SDK.
+
+**Khong can thay doi gi ngay luc nay** — he thong da san sang mint.
 
