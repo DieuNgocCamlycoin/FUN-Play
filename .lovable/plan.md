@@ -1,68 +1,58 @@
 
 
-# Báo Cáo Kiểm Tra Số Liệu FUN Money
+## Chẩn đoán vấn đề
 
-## Dữ liệu thực tế từ hệ thống
+Nút MINT trên trang cá nhân không hoạt động vì **hai hệ thống ví hoạt động độc lập**:
 
-| Chỉ số | Giá trị |
-|--------|---------|
-| Tổng user (profiles) | **806** |
-| User có reward transactions | **720** |
-| Tổng reward transactions | **15,439** |
-| User đã tạo mint request | **1** |
-| Tổng mint requests | **1** (status: approved, chưa minted) |
+- **Hệ thống chính** (wagmi/Reown AppKit): `useWalletConnection` → `useWalletConnectionWithRetry` → `WalletContext`. Đây là hệ thống người dùng thực tế sử dụng để kết nối ví.
+- **Hệ thống FUN Money** (`useFunMoneyWallet`): Truy cập trực tiếp `window.ethereum` (chỉ hoạt động với MetaMask). Khi người dùng kết nối ví qua AppKit, hook này không nhận diện được → `isWalletConnected = false` → nút hiển thị "Kết Nối Ví" thay vì "MINT NOW".
 
-## FUN Tiềm Năng theo Action
+## Kế hoạch sửa lỗi
 
-| Action | Số lượt | FUN Tiềm Năng |
-|--------|---------|---------------|
-| UPLOAD (×100) | 626 | 62,600 |
-| COMMENT (×15) | 3,730 | 55,950 |
-| LIKE (×5) | 8,034 | 40,170 |
-| VIEW (×10) | 2,176 | 21,760 |
-| SHARE (×20) | 25 | 500 |
-| OTHER (×0) | 848 | 0 |
-| **Tổng** | **15,439** | **180,980** |
+### Bước 1: Cập nhật `useFunMoneyWallet` để lấy trạng thái từ wagmi
 
-## Giải thích chênh lệch
+Viết lại `src/hooks/useFunMoneyWallet.ts` để:
+- Import `useWalletContext` từ `WalletContext` làm nguồn chính cho `isConnected`, `address`, `chainId`
+- Tạo `provider`/`signer` từ `window.ethereum` (vẫn cần cho EIP-712 signing) nhưng **chỉ khi đã xác nhận kết nối qua wagmi**
+- Hàm `connect()` gọi `connectWithRetry()` từ `WalletContext` thay vì gọi trực tiếp `eth_requestAccounts`
+- Giữ `switchToBscTestnet()` hoạt động bình thường
+- BSC Testnet chain ID = 97, nhưng hệ thống chính dùng BSC Mainnet (chain ID = 56). Cần xử lý logic `isCorrectChain` phù hợp
 
-### 1. Tổng FUN Tiềm Năng: 190,710 vs 180,980
+### Bước 2: Cập nhật `MintableCard` 
 
-Chênh lệch **9,730 FUN**. Nguyên nhân: Có **848 reward transactions** thuộc nhóm "OTHER" mà RPC gán FUN = 0, nhưng thực tế bao gồm:
+- Nút "Kết Nối Ví" gọi `connect()` từ hook đã cập nhật (sẽ mở AppKit modal)
+- Khi ví đã kết nối nhưng sai chain → hiển thị nút "Chuyển sang BSC Testnet" thay vì chặn hoàn toàn
 
-| Reward Type | Số lượt | FUN hiện tại |
-|-------------|---------|-------------|
-| SIGNUP | 728 | 0 (chưa có hệ số) |
-| FIRST_UPLOAD | 99 | 0 (chưa có hệ số) |
-| WALLET_CONNECT | 20 | 0 (chưa có hệ số) |
-| BOUNTY | 1 | 0 (chưa có hệ số) |
+### Bước 3: Cập nhật `FunMoneyPage`
 
-Con số **190,710** có thể đến từ một phiên bản trước của RPC hoặc một cách tính khác gán hệ số cho SIGNUP/FIRST_UPLOAD. Ví dụ nếu SIGNUP = 10 FUN và FIRST_UPLOAD = 10 FUN thì: 180,980 + 7,280 + 990 = **189,250** -- gần với 190,710.
+- Thay `useFunMoneyWallet()` bằng `useWalletContext()` cho các thông tin hiển thị trạng thái ví
+- Hoặc giữ `useFunMoneyWallet()` vì nó đã được cập nhật ở bước 1
 
-### 2. Chỉ 1 user đã mint, 1,010 FUN
+## Chi tiết kỹ thuật
 
-Hoàn toàn chính xác. Chỉ có đúng 1 mint request trong hệ thống:
-- **User**: `767ada5c-...` 
-- **Amount**: 1,010.00 FUN
-- **Status**: `approved` (chưa thực sự minted on-chain)
-- **Ngày**: 2026-02-10
+Cấu trúc hook mới `useFunMoneyWallet`:
 
-### 3. 720 user vs 806 profiles
+```typescript
+// Lấy trạng thái từ WalletContext (wagmi)
+const walletCtx = useWalletContext();
 
-- 806 tài khoản đã tạo profile
-- 720 user có ít nhất 1 reward transaction (view/like/comment/upload...)
-- 86 user đã đăng ký nhưng chưa thực hiện hành động nào được ghi nhận reward
+// Derive state
+const isConnected = walletCtx.isConnected;
+const address = walletCtx.address;
+const chainId = walletCtx.chainId;
+const isCorrectChain = chainId === 97; // BSC Testnet
 
-## Đề xuất cải thiện
+// Tạo ethers signer khi cần (cho EIP-712)
+const getSigner = async () => {
+  const ethereum = window.ethereum;
+  if (!ethereum) throw new Error('Không tìm thấy ví');
+  const provider = new BrowserProvider(ethereum);
+  return provider.getSigner();
+};
 
-Nếu muốn FUN Tiềm Năng bao gồm cả SIGNUP, FIRST_UPLOAD, WALLET_CONNECT, BOUNTY, cần cập nhật RPC thêm hệ số cho các reward_type này. Ví dụ:
-
-```text
-SIGNUP      → 10 FUN
-FIRST_UPLOAD → 10 FUN  
-WALLET_CONNECT → 5 FUN
-BOUNTY      → (theo reward_amount thực tế)
+// Connect = mở AppKit modal
+const connect = () => walletCtx.connectWithRetry();
 ```
 
-Hiện tại RPC chỉ tính 5 action chính (VIEW, LIKE, COMMENT, SHARE, UPLOAD) và bỏ qua các loại khác, dẫn đến con số thấp hơn thực tế nếu có hệ thống reward cho SIGNUP.
+Lưu ý: Hệ thống chính đang cấu hình cho BSC Mainnet (chain 56), nhưng FUN Money cần BSC Testnet (chain 97). Cần giữ nguyên logic `switchToBscTestnet` để người dùng chuyển chain sau khi kết nối.
 
