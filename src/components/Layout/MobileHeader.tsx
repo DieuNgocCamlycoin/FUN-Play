@@ -93,8 +93,8 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
     clearSearch();
   };
 
-  const handleChannelClick = (channelId: string) => {
-    navigate(`/${channelId}`);
+  const handleChannelClick = (channelId: string, username?: string | null) => {
+    navigate(`/${username || channelId}`);
     setIsSearchOpen(false);
     clearSearch();
   };
@@ -276,7 +276,7 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
                 {suggestedChannels.map((ch) => (
                   <button
                     key={ch.id}
-                    onMouseDown={(e) => { e.preventDefault(); handleChannelClick(ch.id); }}
+                    onMouseDown={(e) => { e.preventDefault(); handleChannelClick(ch.id, ch.username); }}
                     className="flex items-center gap-3 w-full px-4 min-h-[48px] hover:bg-muted/60 active:bg-muted transition-colors text-left"
                   >
                     {ch.avatar_url ? (

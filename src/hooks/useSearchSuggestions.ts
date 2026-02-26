@@ -13,6 +13,7 @@ export interface ChannelSuggestion {
   name: string;
   avatar_url: string | null;
   subscriber_count: number | null;
+  username: string | null;
 }
 
 interface UseSearchSuggestionsResult {
@@ -84,15 +85,19 @@ export function useSearchSuggestions(debounceMs = 300): UseSearchSuggestionsResu
           const userIds = channelData.map((c) => c.user_id);
           const { data: profiles } = await supabase
             .from("profiles")
-            .select("id, avatar_url")
+            .select("id, avatar_url, username")
             .in("id", userIds);
-          const avatarMap = new Map(profiles?.map((p) => [p.id, p.avatar_url]) || []);
-          chans = channelData.map((c) => ({
-            id: c.id,
-            name: c.name,
-            subscriber_count: c.subscriber_count,
-            avatar_url: avatarMap.get(c.user_id) || null,
-          }));
+          const profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
+          chans = channelData.map((c) => {
+            const prof = profileMap.get(c.user_id);
+            return {
+              id: c.id,
+              name: c.name,
+              subscriber_count: c.subscriber_count,
+              avatar_url: prof?.avatar_url || null,
+              username: prof?.username || null,
+            };
+          });
         }
         setChannels(chans);
 
