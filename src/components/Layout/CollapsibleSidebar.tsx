@@ -1,11 +1,13 @@
-import { useState } from "react";
-import { Home, Zap, Users, Library, History, Video, Clock, ThumbsUp, Wallet, ListVideo, FileText, Tv, Trophy, Coins, UserPlus, Image, Sparkles, Music, ExternalLink, ChevronDown, ChevronUp, Award, Globe, ShieldBan, Flag } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Home, Zap, Users, Library, History, Video, Clock, ThumbsUp, Wallet, ListVideo, FileText, Tv, Trophy, Coins, UserPlus, Image, Sparkles, Music, ExternalLink, ChevronDown, ChevronUp, Award, Globe, ShieldBan, Flag, Shield, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 interface CollapsibleSidebarProps {
   isExpanded: boolean;
@@ -86,16 +88,36 @@ const manageItems: NavItem[] = [
   { icon: Wallet, label: "Ví", href: "/wallet" },
 ];
 
+const adminItems: NavItem[] = [
+  { icon: Shield, label: "Admin Dashboard", href: "/admin" },
+  { icon: BarChart3, label: "FUN Money Stats", href: "/admin?section=fun-money-stats" },
+];
+
 export const CollapsibleSidebar = ({ isExpanded }: CollapsibleSidebarProps) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
+  const [isAdmin, setIsAdmin] = useState(false);
   const [openSections, setOpenSections] = useState({
     ecosystem: true,
     nav: true,
     library: false,
     rewards: false,
     manage: false,
+    admin: false,
   });
+
+  useEffect(() => {
+    const checkAdmin = async () => {
+      if (!user) { setIsAdmin(false); return; }
+      const [{ data: adminData }, { data: ownerData }] = await Promise.all([
+        supabase.rpc("has_role", { _user_id: user.id, _role: "admin" }),
+        supabase.rpc("is_owner", { _user_id: user.id }),
+      ]);
+      setIsAdmin(adminData === true || ownerData === true);
+    };
+    checkAdmin();
+  }, [user]);
 
   const toggleSection = (key: string) => {
     setOpenSections(prev => ({ ...prev, [key]: !prev[key as keyof typeof prev] }));
@@ -114,7 +136,11 @@ export const CollapsibleSidebar = ({ isExpanded }: CollapsibleSidebarProps) => {
   };
 
   const NavButton = ({ item, compact = false }: { item: NavItem; compact?: boolean }) => {
-    const isActive = !item.external && location.pathname === item.href;
+    const isActive = !item.external && (
+      item.href.includes('?') 
+        ? location.pathname + location.search === item.href
+        : location.pathname === item.href
+    );
     
     const button = (
       <Button
@@ -286,6 +312,31 @@ export const CollapsibleSidebar = ({ isExpanded }: CollapsibleSidebarProps) => {
                     </div>
                   </CollapsibleContent>
                 </Collapsible>
+
+                {/* Admin - chỉ hiển thị cho admin */}
+                {isAdmin && (
+                  <>
+                    <div className="h-px bg-border mx-2 my-1" />
+                    <Collapsible open={openSections.admin} onOpenChange={() => toggleSection('admin')}>
+                      <CollapsibleTrigger asChild>
+                        <Button 
+                          variant="ghost" 
+                          className="w-full justify-between px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:bg-muted/50"
+                        >
+                          <span>🛡️ Admin</span>
+                          {openSections.admin ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                        </Button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="animate-in slide-in-from-top-2 duration-200">
+                        <div className="px-2 py-1">
+                          {adminItems.map((item) => (
+                            <NavButton key={item.label} item={item} />
+                          ))}
+                        </div>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  </>
+                )}
               </>
             ) : (
               /* Mini mode - just show main icons */
