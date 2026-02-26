@@ -455,20 +455,34 @@ export function ActivateClaimPanel() {
               </div>
             )}
 
-            {/* View on BSCScan */}
-            {address && (
-              <div className="text-center">
-                <a
-                  href={`${BSC_TESTNET_CONFIG.explorerAddressUrl(address)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs text-blue-400 hover:underline"
-                >
-                  <ExternalLink className="w-3 h-3" />
-                  Xem ví trên BSCScan
-                </a>
-              </div>
-            )}
+            {/* Action Links */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              {(hasLocked || hasActivated || !hasAnyTokens) && (
+                <Button variant="outline" size="sm" asChild className="gap-2 border-yellow-500/40 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-500/10">
+                  <a
+                    href="https://www.bnbchain.org/en/testnet-faucet"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Fuel className="w-4 h-4" />
+                    Nhận tBNB miễn phí
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </Button>
+              )}
+              {address && (
+                <Button variant="ghost" size="sm" asChild className="gap-2 text-xs text-muted-foreground">
+                  <a
+                    href={`${BSC_TESTNET_CONFIG.explorerAddressUrl(address)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    Xem ví trên BSCScan
+                  </a>
+                </Button>
+              )}
+            </div>
           </div>
         )}
       </CardContent>
