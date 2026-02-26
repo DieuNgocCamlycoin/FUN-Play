@@ -75,6 +75,7 @@ export function FunMoneyApprovalTab() {
   const [isBatchProcessing, setIsBatchProcessing] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
   const [actionToRegister, setActionToRegister] = useState('LIGHT_ACTIVITY');
+  const [isRegisteringAll, setIsRegisteringAll] = useState(false);
   const [profileCache, setProfileCache] = useState<Record<string, { display_name: string | null; avatar_url: string | null; username: string; banned?: boolean }>>({});
 
   useEffect(() => {
@@ -298,6 +299,26 @@ export function FunMoneyApprovalTab() {
     fetchPendingRequests();
   };
 
+  // All action types that need govRegisterAction
+  const ALL_ACTIONS = [
+    // FUN_PLAY
+    'WATCH_VIDEO', 'LIKE_VIDEO', 'COMMENT', 'SHARE', 'UPLOAD_VIDEO', 'SIGNUP', 'WALLET_CONNECT', 'CREATE_POST',
+    // ANGEL_AI
+    'AI_REVIEW_HELPFUL', 'FRAUD_REPORT_VALID', 'MODERATION_HELP', 'MODEL_IMPROVEMENT',
+    // FUN_PROFILE
+    'CONTENT_CREATE', 'CONTENT_REVIEW', 'MENTOR_HELP', 'COMMUNITY_BUILD',
+    // FUN_CHARITY
+    'DONATE', 'VOLUNTEER', 'CAMPAIGN_DELIVERY_PROOF', 'IMPACT_REPORT',
+    // FUN_EARTH
+    'TREE_PLANT', 'CLEANUP_EVENT', 'PARTNER_VERIFIED_REPORT',
+    // FUN_ACADEMY
+    'LEARN_COMPLETE', 'PROJECT_SUBMIT', 'PEER_REVIEW',
+    // FUN_PLANET
+    'COMMUNITY_ACTION', 'SOCIAL_IMPACT', 'SUSTAINABILITY_REPORT',
+    // Special
+    'LIGHT_ACTIVITY',
+  ];
+
   const handleRegisterAction = async () => {
     if (!isConnected || !actionToRegister.trim()) return;
     setIsRegistering(true);
@@ -313,6 +334,47 @@ export function FunMoneyApprovalTab() {
       toast.error(`Lỗi: ${err.reason || err.message?.slice(0, 100)}`);
     } finally {
       setIsRegistering(false);
+    }
+  };
+
+
+  const handleRegisterAllActions = async () => {
+    if (!isConnected) return;
+    setIsRegisteringAll(true);
+    let success = 0;
+    let skipped = 0;
+    let failed = 0;
+
+    try {
+      const signer = await getSigner();
+      const { Contract } = await import('ethers');
+      const { getContractAddress, FUN_MONEY_ABI } = await import('@/lib/fun-money/web3-config');
+      const contract = new Contract(getContractAddress(), FUN_MONEY_ABI, signer);
+
+      for (const action of ALL_ACTIONS) {
+        try {
+          toast.info(`⏳ Đăng ký ${action} (${success + skipped + failed + 1}/${ALL_ACTIONS.length})...`);
+          const tx = await contract.govRegisterAction(action, 1);
+          await tx.wait();
+          success++;
+          toast.success(`✅ ${action} đã đăng ký! (${success}/${ALL_ACTIONS.length})`);
+        } catch (err: any) {
+          const msg = err.reason || err.message || '';
+          if (msg.includes('already') || msg.includes('registered') || msg.includes('ACTION_EXISTS')) {
+            skipped++;
+            toast.info(`⏭️ ${action} đã tồn tại, bỏ qua.`);
+          } else {
+            failed++;
+            toast.error(`❌ ${action}: ${msg.slice(0, 80)}`);
+          }
+        }
+      }
+
+      toast.success(`🎉 Hoàn tất: ${success} đăng ký, ${skipped} đã tồn tại, ${failed} lỗi`);
+    } catch (err: any) {
+      toast.error(`Lỗi kết nối: ${err.reason || err.message?.slice(0, 100)}`);
+    } finally {
+      setIsRegisteringAll(false);
     }
   };
 
@@ -375,6 +437,16 @@ export function FunMoneyApprovalTab() {
             <Button size="sm" className="h-8 gap-1" onClick={handleRegisterAction} disabled={isRegistering}>
               {isRegistering ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />}
               Register
+            </Button>
+            <Button 
+              size="sm" 
+              variant="outline"
+              className="h-8 gap-1 text-xs border-primary/30" 
+              onClick={handleRegisterAllActions} 
+              disabled={isRegisteringAll}
+            >
+              {isRegisteringAll ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Shield className="w-3 h-3" />}
+              Register All ({ALL_ACTIONS.length})
             </Button>
           </div>
         )}
