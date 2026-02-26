@@ -19,6 +19,13 @@ import {
   createEvidenceHash
 } from './eip712-signer';
 
+/**
+ * Action chung duy nhất trên smart contract.
+ * Tất cả các hành động (WATCH_VIDEO, LIKE_VIDEO, COMMENT...) đều dùng chung action này khi gọi contract.
+ * Phân biệt loại hành động chỉ ở tầng database (mint_requests.action_type).
+ */
+export const CONTRACT_ACTION = 'FUN_REWARD';
+
 // ===== VALIDATION TYPES =====
 
 export interface ValidationDetail {
@@ -178,10 +185,10 @@ export async function validateBeforeMint(
       });
     }
 
-    // 6. Check action registered
+    // 6. Check action registered (always CONTRACT_ACTION)
     let actionExists = false;
     try {
-      const actionHash = createActionHash(actionType);
+      const actionHash = createActionHash(CONTRACT_ACTION);
       const actionInfo = await contract.actions(actionHash);
       actionExists = actionInfo[0] === true;
       const actionVersion = Number(actionInfo[1] || 0);
@@ -191,12 +198,12 @@ export async function validateBeforeMint(
         label: 'Action Registered',
         labelVi: 'Action đã đăng ký',
         passed: actionExists,
-        value: actionExists ? `${actionType} (v${actionVersion})` : 'Not Found',
-        hint: !actionExists ? `Action "${actionType}" not registered. Use govRegisterAction() to register.` : undefined,
+        value: actionExists ? `${CONTRACT_ACTION} (v${actionVersion})` : 'Not Found',
+        hint: !actionExists ? `Action "${CONTRACT_ACTION}" not registered. Use govRegisterAction("${CONTRACT_ACTION}", 1) to register.` : undefined,
         status: actionExists ? 'success' : 'error'
       });
       if (!actionExists) {
-        issues.push(`Action "${actionType}" not registered on contract`);
+        issues.push(`Action "${CONTRACT_ACTION}" not registered on contract`);
       }
     } catch {
       details.push({
@@ -252,7 +259,7 @@ export async function validateBeforeMint(
 export async function mintFunMoney(
   signer: JsonRpcSigner,
   recipientAddress: string,
-  actionType: string,
+  actionType: string, // kept for logging/evidence, NOT sent to contract
   amount: bigint,
   evidenceData: object
 ): Promise<string> {
@@ -263,12 +270,12 @@ export async function mintFunMoney(
   // 1. Get nonce for RECIPIENT (not signer!)
   const nonce = await contract.nonces(recipientAddress);
 
-  // 2. Prepare signing data
+  // 2. Prepare signing data — always use CONTRACT_ACTION for on-chain
   const { pplpData, evidenceHash } = preparePPLPData({
     recipientAddress,
-    actionType,
+    actionType: CONTRACT_ACTION, // single action on contract
     amount,
-    evidenceData,
+    evidenceData: { ...evidenceData as Record<string, unknown>, originalAction: actionType },
     nonce
   });
 
@@ -288,7 +295,7 @@ export async function mintFunMoney(
   try {
     await contract.lockWithPPLP.estimateGas(
       recipientAddress,
-      actionType,
+      CONTRACT_ACTION,  // single action on contract
       amount,
       evidenceHash,
       [signature]
@@ -302,7 +309,7 @@ export async function mintFunMoney(
   // 6. Execute transaction
   const tx = await contract.lockWithPPLP(
     recipientAddress,
-    actionType,      // STRING, not hash!
+    CONTRACT_ACTION,  // single action on contract
     amount,
     evidenceHash,
     [signature]      // ARRAY!
