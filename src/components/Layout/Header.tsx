@@ -1,6 +1,7 @@
 import { Search, Video, Bell, Menu, User as UserIcon, LogOut, Settings, Radio, SquarePen, Plus, FileVideo, List, Music, Shield, Crown, MessageCircle, Users } from "lucide-react";
 import funplayLogo from "@/assets/funplay-logo.jpg";
 import { useState, useEffect, useRef } from "react";
+import { AngelChat } from "@/components/Mascot/AngelChat";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
@@ -60,6 +61,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
   const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
+  const [isAngelChatOpen, setIsAngelChatOpen] = useState(false);
 
   // Check admin/owner role
   useEffect(() => {
@@ -255,7 +257,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => window.open("https://angel.fun.rich", "_blank")}
+                onClick={() => setIsAngelChatOpen(true)}
                 className="relative rounded-full overflow-hidden h-11 w-11 hover:scale-110 transition-transform p-0"
               >
                 <img 
@@ -357,6 +359,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
       </div>
       
       <UploadWizard open={uploadModalOpen} onOpenChange={setUploadModalOpen} />
+      <AngelChat isOpen={isAngelChatOpen} onClose={() => setIsAngelChatOpen(false)} />
     </header>
   );
 };
