@@ -294,7 +294,7 @@ export default function FunMoney() {
                   </div>
                   <Button variant="outline" size="sm" asChild>
                     <a
-                      href="https://testnet.bscscan.com/address/0x1aa8BF20E0b6aE9e5C0b36e7bF8C8Faab015ff2"
+                      href="https://testnet.bscscan.com/address/0x39A1b047D5d143f8874888cfa1d30Fb2AE6F0CD6"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="gap-2"
