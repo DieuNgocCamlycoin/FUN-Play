@@ -46,6 +46,7 @@ const CreatePost = () => {
       if (image) { const result = await uploadToR2(image); if (result) imageUrl = result.publicUrl; }
       const { error: insertError } = await supabase.from("posts").insert({ user_id: user.id, channel_id: channels.id, content, image_url: imageUrl });
       if (insertError) throw insertError;
+      window.dispatchEvent(new CustomEvent("camly-reward", { detail: { type: "CREATE_POST", amount: 30, autoApproved: false } }));
       toast({ title: "Thành công", description: "Bài đăng đã được tạo!" });
       navigate("/");
     } catch (error: any) {

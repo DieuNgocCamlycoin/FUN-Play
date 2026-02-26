@@ -196,6 +196,11 @@ export const ProfilePostsTab = ({ userId, isOwnProfile }: ProfilePostsTabProps) 
 
       if (error) throw error;
 
+      // Dispatch camly-reward event for FUN mint
+      window.dispatchEvent(new CustomEvent("camly-reward", {
+        detail: { type: "CREATE_POST", amount: 30, autoApproved: false }
+      }));
+
       toast({
         title: "Đã đăng bài! ✨",
         description: "Lan tỏa ánh sáng yêu thương...",

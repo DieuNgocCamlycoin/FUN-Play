@@ -11,7 +11,10 @@ import {
   Share2, 
   Upload, 
   Coins,
-  TrendingUp
+  TrendingUp,
+  UserPlus,
+  Wallet,
+  PenSquare
 } from 'lucide-react';
 import type { LightActivity } from '@/hooks/useLightActivity';
 
