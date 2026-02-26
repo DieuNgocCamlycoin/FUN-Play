@@ -73,8 +73,7 @@ export function FunMoneyApprovalTab() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [isMinting, setIsMinting] = useState(false);
   const [isBatchProcessing, setIsBatchProcessing] = useState(false);
-  const [isRegistering, setIsRegistering] = useState(false);
-  const [actionToRegister] = useState(CONTRACT_ACTION);
+  
   const [profileCache, setProfileCache] = useState<Record<string, { display_name: string | null; avatar_url: string | null; username: string; banned?: boolean }>>({});
 
   useEffect(() => {
@@ -298,28 +297,7 @@ export function FunMoneyApprovalTab() {
     fetchPendingRequests();
   };
 
-  const handleRegisterAction = async () => {
-    if (!isConnected) return;
-    setIsRegistering(true);
-    try {
-      const signer = await getSigner();
-      const { Contract } = await import('ethers');
-      const { getContractAddress, FUN_MONEY_ABI } = await import('@/lib/fun-money/web3-config');
-      const contract = new Contract(getContractAddress(), FUN_MONEY_ABI, signer);
-      const tx = await contract.govRegisterAction(CONTRACT_ACTION, 1);
-      await tx.wait();
-      toast.success(`✅ Action "${CONTRACT_ACTION}" đã đăng ký thành công!`);
-    } catch (err: any) {
-      const msg = err.reason || err.message || '';
-      if (msg.includes('already') || msg.includes('registered') || msg.includes('ACTION_EXISTS')) {
-        toast.info(`⏭️ Action "${CONTRACT_ACTION}" đã tồn tại trên contract.`);
-      } else {
-        toast.error(`Lỗi: ${msg.slice(0, 100)}`);
-      }
-    } finally {
-      setIsRegistering(false);
-    }
-  };
+  
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -367,15 +345,11 @@ export function FunMoneyApprovalTab() {
           )}
         </div>
 
-        {/* Register Action (compact) */}
-        {isConnected && (
+        {/* Attester info */}
+        {isConnected && isAttesterWallet && (
           <div className="flex items-center gap-1 ml-auto">
-            <Shield className="w-4 h-4 text-muted-foreground" />
-            <span className="text-xs font-mono text-muted-foreground">{CONTRACT_ACTION}</span>
-            <Button size="sm" className="h-8 gap-1" onClick={handleRegisterAction} disabled={isRegistering}>
-              {isRegistering ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />}
-              Register Action
-            </Button>
+            <Shield className="w-4 h-4 text-green-500" />
+            <span className="text-xs font-mono text-muted-foreground">Attester • {CONTRACT_ACTION}</span>
           </div>
         )}
       </div>
