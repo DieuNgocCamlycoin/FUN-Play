@@ -62,6 +62,8 @@ export function FunMoneyApprovalTab() {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [isMinting, setIsMinting] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [actionToRegister, setActionToRegister] = useState('LIGHT_ACTIVITY');
 
   // Debounce search 500ms
   useEffect(() => {
@@ -228,6 +230,46 @@ export function FunMoneyApprovalTab() {
     }
   };
 
+  // Handle register action on contract
+  const handleRegisterAction = async () => {
+    if (!isConnected || !signer || !provider) {
+      toast.error('Vui lòng kết nối ví trước');
+      return;
+    }
+    if (!actionToRegister.trim()) {
+      toast.error('Nhập tên action');
+      return;
+    }
+
+    setIsRegistering(true);
+    try {
+      const { Contract } = await import('ethers');
+      const { getContractAddress, FUN_MONEY_ABI } = await import('@/lib/fun-money/web3-config');
+      const contract = new Contract(getContractAddress(), FUN_MONEY_ABI, signer);
+      
+      const tx = await contract.govRegisterAction(actionToRegister.trim(), 1);
+      const receipt = await tx.wait();
+      
+      toast.success(`✅ Action "${actionToRegister}" đã đăng ký!`, {
+        description: (
+          <a 
+            href={`https://testnet.bscscan.com/tx/${receipt.hash}`}
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-xs text-blue-400 hover:underline"
+          >
+            Xem trên BSCScan →
+          </a>
+        )
+      });
+    } catch (err: any) {
+      console.error('Register action error:', err);
+      toast.error(`Lỗi: ${err.reason || err.message?.slice(0, 100)}`);
+    } finally {
+      setIsRegistering(false);
+    }
+  };
+
   // Copy to clipboard
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -311,7 +353,44 @@ export function FunMoneyApprovalTab() {
         </Card>
       </div>
 
-      {/* Main Content */}
+      {/* Register Action Card */}
+      {isConnected && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+              <div className="flex items-center gap-2 shrink-0">
+                <Shield className="w-5 h-5 text-primary" />
+                <span className="text-sm font-medium">Register Action on Contract</span>
+              </div>
+              <div className="flex flex-1 gap-2 w-full sm:w-auto">
+                <Input
+                  value={actionToRegister}
+                  onChange={(e) => setActionToRegister(e.target.value)}
+                  placeholder="e.g. LIGHT_ACTIVITY"
+                  className="flex-1 font-mono text-sm"
+                />
+                <Button
+                  onClick={handleRegisterAction}
+                  disabled={isRegistering || !actionToRegister.trim()}
+                  size="sm"
+                  className="gap-1 shrink-0"
+                >
+                  {isRegistering ? (
+                    <><RefreshCw className="w-4 h-4 animate-spin" /> Đang ký...</>
+                  ) : (
+                    <><Zap className="w-4 h-4" /> Register</>
+                  )}
+                </Button>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Gọi <code className="bg-muted px-1 rounded">govRegisterAction()</code> trên contract. 
+              Cần ví Governance để thực hiện.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Request List */}
         <Card className="lg:col-span-2">
