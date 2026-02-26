@@ -11,7 +11,8 @@ import {
   BookOpen, Code, Database, Wallet, Sparkles, Users, Video, 
   Music, Shield, Server, Globe, ChevronDown, Copy, Check,
   Zap, Heart, MessageSquare, Upload, Eye, Gift, Bot, Coins,
-  Smartphone, Cloud, Lock, TrendingUp, FileCode, Layers
+  Smartphone, Cloud, Lock, TrendingUp, FileCode, Layers,
+  Scale
 } from "lucide-react";
 import { toast } from "sonner";
 import { BackButton } from "@/components/ui/back-button";
@@ -1256,11 +1257,28 @@ const PlatformDocs = () => {
                     </div>
                   ))}
 
-                  <div className="flex justify-center pt-4">
+                  <div className="p-4 rounded-lg border border-amber-500/30 bg-amber-500/5 mt-4">
+                    <p className="font-semibold text-foreground flex items-center gap-2">
+                      <Scale className="h-4 w-4 text-amber-500" />
+                      Constitution v2.0
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Bản hợp nhất (Unified Charter) cho AI Agent, Smart Contract, Guardian Logic và Nhân loại.
+                      Bao gồm PPLP v2 với 5 điều kiện bắt buộc, 4 trạng thái vòng đời, và vai trò AI Agent.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap justify-center gap-3 pt-4">
                     <Button asChild size="lg" className="gap-2">
                       <Link to="/whitepaper">
                         <BookOpen className="h-4 w-4" />
-                        Đọc Whitepaper đầy đủ →
+                        Whitepaper v0.1 →
+                      </Link>
+                    </Button>
+                    <Button asChild size="lg" variant="outline" className="gap-2">
+                      <Link to="/constitution">
+                        <Scale className="h-4 w-4" />
+                        Constitution v2.0 →
                       </Link>
                     </Button>
                   </div>

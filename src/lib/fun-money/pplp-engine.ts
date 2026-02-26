@@ -30,7 +30,13 @@ export interface Multipliers {
   Ux: number; // Unity (0.5 - 2.5)
 }
 
-export type MintDecision = 'AUTHORIZE' | 'REJECT' | 'REVIEW_HOLD';
+export type MintDecision = 'AUTHORIZE' | 'REJECT' | 'REVIEW_HOLD' | 'RECYCLE';
+
+/**
+ * FUN Money không burn – không tiêu hủy.
+ * Mọi FUN chỉ đổi trạng thái và nơi cư trú.
+ */
+export type FunMoneyLifecycleState = 'LOCKED' | 'ACTIVATED' | 'FLOWING' | 'RECYCLE';
 
 export interface ScoringResult {
   lightScore: number;
@@ -258,12 +264,33 @@ export interface ScoringInput {
   baseRewardAtomic: string;
   qualityMultiplier?: number;
   impactMultiplier?: number;
+  /** PPLP v2.0 validation — nếu cung cấp, sẽ kiểm tra 5 điều kiện bắt buộc trước khi tính toán */
+  pplpValidation?: import('./constitution').PPLPValidation;
 }
 
 /**
  * Full scoring pipeline
+ * Constitution v2.0: kiểm tra PPLP Validation trước khi tính toán
  */
 export function scoreAction(input: ScoringInput): ScoringResult {
+  // PPLP v2.0 — 5 điều kiện bắt buộc (Chương III Constitution v2.0)
+  if (input.pplpValidation) {
+    const { validatePPLP } = require('./constitution') as typeof import('./constitution');
+    const { valid, failedConditions } = validatePPLP(input.pplpValidation);
+    if (!valid) {
+      return {
+        lightScore: 0,
+        unityScore: 0,
+        multipliers: { Q: 0, I: 0, K: 0, Ux: 0 },
+        baseRewardAtomic: input.baseRewardAtomic,
+        calculatedAmountAtomic: '0',
+        calculatedAmountFormatted: '0 FUN',
+        decision: 'REJECT',
+        reasonCodes: failedConditions.map(c => `PPLP_FAILED:${c}`),
+      };
+    }
+  }
+
   // Calculate scores
   const lightScore = calculateLightScore(input.pillarScores);
   const unityScore = calculateUnityScore(input.unitySignals);

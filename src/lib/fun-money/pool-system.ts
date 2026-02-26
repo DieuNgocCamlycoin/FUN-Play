@@ -5,7 +5,11 @@
 
 // ===== METADATA =====
 export const WHITEPAPER_VERSION = 'v0.1-5D';
+export const CONSTITUTION_VERSION = 'v2.0';
 export const PROTOCOL_NAME = 'Proof of Pure Love Protocol';
+
+/** AI Agent Role — Guardian of Flow (Constitution v2.0, Chương VII) */
+export const GUARDIAN_ROLE = 'Guardian of Flow – Người Gác Dòng Chảy' as const;
 
 // ===== POOL ALLOCATION =====
 
