@@ -1,89 +1,43 @@
 
-# Triển khai cache username→user_id trong Edge Function prerender
 
-## Vấn đề hiện tại
+# Thêm fallback avatar cho og:image trong Edge Function prerender
 
-Edge Function `prerender` chỉ xử lý các URL cũ (`/watch/:id`, `/channel/:id`, `/music/:id`). Trong khi đó, `ShareModal` đã gửi clean URL dạng `/:username/:slug` cho video — nhưng prerender không parse được, dẫn đến trả về meta mặc định thay vì meta riêng của nội dung.
+## Tổng quan
+Khi chia sẻ link mà nội dung không có thumbnail/ảnh, hệ thống sẽ dùng avatar của tác giả thay vì ảnh mặc định FUN Play. Thay đổi chỉ ảnh hưởng logic chọn ảnh, **không** thay đổi cấu trúc URL hay bất kỳ tính năng nào khác.
 
-## Giải pháp
+## Chuỗi fallback ảnh
 
-Cập nhật `supabase/functions/prerender/index.ts` để:
-
-1. **Nhận diện clean URL patterns mới**:
-   - `/:username/video/:slug` hoặc `/:username/:slug` (video)
-   - `/:username/post/:slug` (bài đăng)
-   - `/:username` (trang profile/channel)
-
-2. **Cache username to user_id** bằng in-memory Map (module-level) với TTL 10 phút — tránh query `profiles` mỗi lần request:
-   ```text
-   Map<username, { user_id, expires_at }>
-   ```
-
-3. **Resolve nội dung qua slug** thay vì ID:
-   - Video: query `videos` theo `(user_id, slug)`, fallback check `video_slug_history`
-   - Post: query `posts` theo `(user_id, slug)`, fallback check `post_slug_history`
-   - Profile: query `profiles` + `channels` theo username
-
-4. **Hỗ trợ 301 redirect cho slug cũ**: Nếu tìm thấy trong `*_slug_history`, trả về HTML với `<meta http-equiv="refresh">` trỏ đến slug mới.
-
-## Chi tiết kỹ thuật
-
-### File thay đổi: `supabase/functions/prerender/index.ts`
-
-**A. Thêm cache module-level:**
-```typescript
-const usernameCache = new Map<string, { userId: string; expiresAt: number }>();
-const CACHE_TTL = 10 * 60 * 1000; // 10 phút
-
-async function resolveUsername(supabase, username: string): Promise<string | null> {
-  const cached = usernameCache.get(username);
-  if (cached && cached.expiresAt > Date.now()) return cached.userId;
-
-  const { data } = await supabase
-    .from("profiles")
-    .select("id")
-    .eq("username", username)
-    .single();
-
-  if (data) {
-    usernameCache.set(username, { userId: data.id, expiresAt: Date.now() + CACHE_TTL });
-    return data.id;
-  }
-
-  // Fallback: previous_username
-  const { data: prev } = await supabase
-    .from("profiles")
-    .select("id, username")
-    .eq("previous_username", username)
-    .single();
-
-  if (prev) {
-    usernameCache.set(username, { userId: prev.id, expiresAt: Date.now() + CACHE_TTL });
-    return prev.id;
-  }
-  return null;
-}
+```text
+og:image = thumbnail/ảnh nội dung → avatar tác giả → ảnh mặc định FUN Play
 ```
 
-**B. Mở rộng path parsing** để nhận diện các pattern mới bên cạnh các pattern cũ (giữ nguyên backward compatibility):
+## Chi tiết thay đổi
 
-| Pattern | Type | Resolve |
-|---------|------|---------|
-| `/:username/video/:slug` | video-by-slug | username + slug |
-| `/:username/post/:slug` | post-by-slug | username + slug |
-| `/:username/:slug` | video-by-slug (fallback) | username + slug |
-| `/:username` | channel-by-username | username |
+**File duy nhất**: `supabase/functions/prerender/index.ts`
 
-**C. Thêm logic query cho các type mới:**
-- **video-by-slug**: `videos` WHERE `user_id` + `slug`, fallback `video_slug_history`
-- **post-by-slug**: `posts` WHERE `user_id` + `slug`, fallback `post_slug_history`
-- **channel-by-username**: `profiles` JOIN `channels` WHERE `username`
+### 1. Legacy video/music by ID (dòng 236-259)
+- Sau khi query video, thêm 1 query phụ lấy `avatar_url` từ `profiles` theo `video.user_id`
+- Thay `meta.image = data.thumbnail_url || meta.image` thành `meta.image = data.thumbnail_url || avatarUrl || meta.image`
+- Cần thêm `user_id` vào select của video query
 
-**D. Giữ nguyên** tất cả logic cũ (`/watch/:id`, `/music/:id`, `/ai-music/:id`, `/channel/:id`) để không ảnh hưởng link đã chia sẻ trước đó.
+### 2. Video by slug (dòng 294-309)
+- Đã có `resolved.userId` sẵn, chỉ cần query `profiles.avatar_url` theo userId
+- Thay `meta.image = video.thumbnail_url || meta.image` thành `meta.image = video.thumbnail_url || avatarUrl || meta.image`
+
+### 3. Post by slug (dòng 353-367)
+- Tương tự, dùng `resolved.userId` để lấy `avatar_url`
+- Thay logic chọn ảnh: `firstImage || avatarUrl || meta.image`
+
+### 4. AI Music (dòng 218-233)
+- Thêm query `profiles.avatar_url` theo `data.user_id`
+- Fallback: `thumbnail_url || avatarUrl || meta.image`
+
+### Cách tối ưu
+Với video-by-slug và post-by-slug, `resolveUsername` đã resolve `userId` rồi nên chỉ cần 1 query thêm cho avatar. Với legacy routes, cần query thêm avatar sau khi có video data (dùng `user_id` từ video).
 
 ## Kết quả
+- Link video không có thumbnail -> hiện avatar tác giả trên MXH
+- Link bài đăng không có ảnh -> hiện avatar tác giả
+- Link có thumbnail/ảnh -> giữ nguyên như cũ
+- Backward compatible 100%, không thay đổi URL
 
-- Link chia sẻ dạng `/:username/video/:slug` sẽ hiển thị đúng thumbnail, title, description trên mạng xã hội
-- Giảm số lần query database nhờ cache username (10 phút TTL)
-- Hỗ trợ redirect khi slug/username đã thay đổi
-- Backward compatible 100% với link cũ
