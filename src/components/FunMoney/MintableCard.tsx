@@ -42,7 +42,8 @@ export function MintableCard({ activity, loading, onMintSuccess }: MintableCardP
     isConnected: isWalletConnected, 
     address, 
     connect,
-    isCorrectChain 
+    isCorrectChain,
+    switchToBscTestnet
   } = useFunMoneyWallet();
   
   const { submitAutoRequest, loading: submitLoading } = useAutoMintRequest();
@@ -212,6 +213,15 @@ export function MintableCard({ activity, loading, onMintSuccess }: MintableCardP
           >
             <Wallet className="w-5 h-5" />
             Kết Nối Ví
+          </Button>
+        ) : !isCorrectChain ? (
+          <Button
+            onClick={switchToBscTestnet}
+            size="lg"
+            className="w-full h-14 text-lg font-bold gap-2 bg-yellow-500/20 text-yellow-600 border border-yellow-500/50 hover:bg-yellow-500/30"
+          >
+            <AlertCircle className="w-5 h-5" />
+            Chuyển sang BSC Testnet
           </Button>
         ) : (
           <TooltipProvider>
