@@ -39,3 +39,6 @@ export {
   createDebugBundle,
   formatDebugBundle
 } from './contract-helpers';
+
+// Contract Source Reference
+export { CONSTITUTION_V2_CONTRACT_INFO } from './contracts/contract-info';
