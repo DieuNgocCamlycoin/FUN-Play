@@ -6,6 +6,9 @@
 // PPLP Scoring Engine
 export * from './pplp-engine';
 
+// Pool System & Inactivity Decay (5D Whitepaper)
+export * from './pool-system';
+
 // Web3 Configuration
 export * from './web3-config';
 
