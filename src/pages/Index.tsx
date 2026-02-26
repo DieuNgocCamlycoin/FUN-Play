@@ -306,6 +306,7 @@ const Index = () => {
   };
 
   // Filter and sort videos
+  const channelVideoCount = new Map<string, number>();
   const filteredVideos = videos
     .filter((video) => !bannedIds.has(video.user_id))
     .filter((video) => {
@@ -337,6 +338,15 @@ const Index = () => {
       if (selectedCategory === "Xu hướng") return calculateTrendingScore(b) - calculateTrendingScore(a);
       if (selectedCategory === "Đề xuất mới") return Math.random() - 0.5;
       return 0;
+    })
+    .filter((video) => {
+      if (selectedCategory !== "Xu hướng") return true;
+      const channelId = Array.isArray(video.channels) ? video.channels[0]?.id : (video.channels as any)?.id;
+      if (!channelId) return true;
+      const count = channelVideoCount.get(channelId) || 0;
+      if (count >= 3) return false;
+      channelVideoCount.set(channelId, count + 1);
+      return true;
     });
 
   const visibleVideos = filteredVideos.slice(0, visibleCount);
