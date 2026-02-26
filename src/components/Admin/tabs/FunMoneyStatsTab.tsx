@@ -89,8 +89,8 @@ export function FunMoneyStatsTab() {
       {/* Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard icon={Coins} label="Tổng FUN Đã Mint" value={stats.totalMinted.toLocaleString()} color="text-primary" />
-        <StatCard icon={TrendingUp} label="Tổng FUN Tiềm Năng" value={stats.totalPotential.toLocaleString()} sub={`${mintRate}% đã mint`} color="text-emerald-500" />
-        <StatCard icon={Users} label="Users Đã Mint" value={stats.userCount.toString()} color="text-blue-500" />
+        <StatCard icon={TrendingUp} label="Tổng FUN Tiềm Năng" value={stats.totalPotential.toLocaleString()} sub={`${mintRate}% đã mint · từ ${stats.activeUserCount || 0} users hoạt động`} color="text-emerald-500" />
+        <StatCard icon={Users} label="Users Đã Mint" value={stats.userCount.toString()} sub={`Tổng active: ${stats.totalActiveUsers || 0}`} color="text-blue-500" />
         <StatCard icon={FileText} label="Mint Requests" value={stats.requestCount.toString()} color="text-amber-500" />
       </div>
 
