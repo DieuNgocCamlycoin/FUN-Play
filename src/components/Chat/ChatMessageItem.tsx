@@ -60,7 +60,20 @@ export const ChatMessageItem = ({
     );
   }
 
-  // Text message
+  // Parse image message content
+  const parseImageContent = () => {
+    if (message.messageType !== "image") return null;
+    try {
+      const parsed = JSON.parse(message.content || "{}");
+      return { text: parsed.text || "", imageUrl: parsed.imageUrl || "" };
+    } catch {
+      return null;
+    }
+  };
+
+  const imageData = parseImageContent();
+
+  // Text or image message
   return (
     <div
       className={cn(
@@ -85,15 +98,45 @@ export const ChatMessageItem = ({
         {/* Bubble */}
         <div
           className={cn(
-            "max-w-[280px] px-4 py-2.5 break-words",
+            "max-w-[280px] break-words",
+            imageData ? "rounded-2xl overflow-hidden" : "px-4 py-2.5",
             isMe
-              ? "bg-gradient-to-br from-purple-500 via-pink-500 to-purple-600 text-white rounded-2xl rounded-br-sm"
-              : "bg-muted text-foreground rounded-2xl rounded-bl-sm",
-            message.isPending && "opacity-70",
+              ? imageData
+                ? "rounded-br-sm"
+                : "bg-gradient-to-br from-purple-500 via-pink-500 to-purple-600 text-white rounded-2xl rounded-br-sm"
+              : imageData
+                ? "rounded-bl-sm"
+                : "bg-muted text-foreground rounded-2xl rounded-bl-sm",
+            !imageData && message.isPending && "opacity-70",
             message.isError && "border-2 border-destructive"
           )}
         >
-          <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+          {imageData ? (
+            <div className={cn(
+              "border rounded-2xl overflow-hidden",
+              isMe ? "rounded-br-sm" : "rounded-bl-sm",
+              message.isPending && "opacity-70"
+            )}>
+              <img
+                src={imageData.imageUrl}
+                alt="Hình ảnh"
+                className="w-full max-h-60 object-cover cursor-pointer"
+                onClick={() => window.open(imageData.imageUrl, "_blank")}
+              />
+              {imageData.text && (
+                <div className={cn(
+                  "px-3 py-2 text-sm",
+                  isMe
+                    ? "bg-gradient-to-br from-purple-500 via-pink-500 to-purple-600 text-white"
+                    : "bg-muted text-foreground"
+                )}>
+                  <p className="whitespace-pre-wrap">{imageData.text}</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+          )}
         </div>
 
         {/* Time + status */}
