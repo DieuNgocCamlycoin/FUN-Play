@@ -1,28 +1,25 @@
 
+# Mở Angel AI dạng overlay từ Header (không mở trang mới)
 
-# Giới hạn tối đa 3 video mỗi channel trong mục "Xu hướng"
-
-## Vấn đề
-Hiện tại, mục "Xu hướng" sắp xếp video theo trending score nhưng không giới hạn số video của mỗi channel. Một channel có nhiều video hot có thể chiếm hết danh sách.
+## Tình trạng hiện tại
+- Nút Angel AI trên Header đang gọi `window.open("https://angel.fun.rich", "_blank")` -> mở tab mới
+- Component `AngelChat` (overlay chat) đã có sẵn và đang được dùng bởi mascot (AngelMascot, MobileAngelMascot)
+- `AngelChat` gọi edge function `angel-ai-proxy`, edge function này đã proxy request đến backend `angel.fun.rich` làm nguồn AI chính
 
 ## Giải pháp
-Thêm logic lọc sau khi sort: duyệt qua danh sách đã sắp xếp theo trending score, đếm số video mỗi channel, chỉ giữ tối đa 3 video/channel.
+Thay đổi nút Angel AI trên Header để toggle mở/đóng component `AngelChat` overlay ngay trong trang, thay vì mở tab mới.
 
 ## Chi tiết thay đổi
 
-**File**: `src/pages/Index.tsx` (dòng 309-340)
+**File**: `src/components/Layout/Header.tsx`
 
-Sau bước `.sort()`, khi `selectedCategory === "Xu hướng"`, áp dụng thêm bước lọc giới hạn channel:
+1. Import component `AngelChat` từ `@/components/Mascot/AngelChat`
+2. Thêm state `isAngelChatOpen` để quản lý trạng thái mở/đóng
+3. Thay `onClick={() => window.open("https://angel.fun.rich", "_blank")}` thành `onClick={() => setIsAngelChatOpen(true)}`
+4. Render component `AngelChat` với props `isOpen` và `onClose`
 
-```text
-Logic hiện tại:
-  filter (5 ngày) -> sort (trending score) -> hiển thị
-
-Logic mới:
-  filter (5 ngày) -> sort (trending score) -> giới hạn 3 video/channel -> hiển thị
-```
-
-Cụ thể: Sau khi sort xong, nếu đang ở tab "Xu hướng", duyệt qua mảng kết quả, dùng một Map đếm số video theo `channels.id`. Nếu channel đã có 3 video thì bỏ qua video đó. Giữ nguyên thứ tự trending score.
-
-- Logic tính trending score giữ nguyên 100%
-- Các category khác không bị ảnh hưởng
+## Kết quả
+- Nhấn nút Angel AI trên Header -> mở cửa sổ chat overlay ngay trong trang
+- Vẫn sử dụng AI backend từ angel.fun.rich (qua edge function angel-ai-proxy)
+- Trải nghiệm liền mạch, không rời khỏi FUN Play
+- Lịch sử chat vẫn được lưu cho user đã đăng nhập
