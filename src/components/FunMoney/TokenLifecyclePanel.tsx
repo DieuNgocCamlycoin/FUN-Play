@@ -8,7 +8,8 @@ import React, { useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Lock, Zap, Waves, ArrowRight, RefreshCw, ExternalLink, Star, Users } from 'lucide-react';
+import { Lock, Zap, Waves, ArrowRight, RefreshCw, ExternalLink, Star, Users, Plus } from 'lucide-react';
+import { addFunTokenToWallet } from '@/lib/fun-money/add-token-to-wallet';
 import { cn } from '@/lib/utils';
 import type { MintRequest } from '@/hooks/useFunMoneyMintRequest';
 import { formatFunAmount } from '@/lib/fun-money/pplp-engine';
@@ -302,8 +303,17 @@ export function TokenLifecyclePanel({
             </div>
 
             {/* Actions Row */}
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex gap-2">
+                <Button 
+                  variant="default" 
+                  size="sm" 
+                  className="gap-1.5 bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600 text-white"
+                  onClick={addFunTokenToWallet}
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Thêm FUN vào ví
+                </Button>
                 {onViewAll && (
                   <Button variant="outline" size="sm" onClick={onViewAll}>
                     Xem tất cả
