@@ -48,6 +48,20 @@ export function MintableCard({ activity, loading, onMintSuccess }: MintableCardP
   
   const { submitAutoRequest, loading: submitLoading } = useAutoMintRequest();
 
+  const [isSwitching, setIsSwitching] = useState(false);
+
+  const handleSwitchChain = async () => {
+    setIsSwitching(true);
+    try {
+      await switchToBscTestnet();
+      toast.success('✅ Đã chuyển sang BSC Testnet');
+    } catch {
+      toast.error('Không thể chuyển mạng');
+    } finally {
+      setIsSwitching(false);
+    }
+  };
+
   const handleMint = async () => {
     if (!activity || !activity.canMint) return;
     
@@ -56,9 +70,18 @@ export function MintableCard({ activity, loading, onMintSuccess }: MintableCardP
       return;
     }
     
+    // Tự động chuyển mạng nếu sai chain
     if (!isCorrectChain) {
-      toast.error('Vui lòng chuyển sang BSC Testnet');
-      return;
+      setIsSwitching(true);
+      try {
+        await switchToBscTestnet();
+        toast.success('✅ Đã tự động chuyển sang BSC Testnet');
+      } catch {
+        toast.error('Không thể chuyển mạng. Vui lòng chuyển thủ công.');
+        setIsSwitching(false);
+        return;
+      }
+      setIsSwitching(false);
     }
 
     setIsMinting(true);
@@ -216,12 +239,17 @@ export function MintableCard({ activity, loading, onMintSuccess }: MintableCardP
           </Button>
         ) : !isCorrectChain ? (
           <Button
-            onClick={switchToBscTestnet}
+            onClick={handleSwitchChain}
+            disabled={isSwitching}
             size="lg"
             className="w-full h-14 text-lg font-bold gap-2 bg-yellow-500/20 text-yellow-600 border border-yellow-500/50 hover:bg-yellow-500/30"
           >
-            <AlertCircle className="w-5 h-5" />
-            Chuyển sang BSC Testnet
+            {isSwitching ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <AlertCircle className="w-5 h-5" />
+            )}
+            {isSwitching ? 'Đang chuyển mạng...' : 'Chuyển sang BSC Testnet'}
           </Button>
         ) : (
           <TooltipProvider>
