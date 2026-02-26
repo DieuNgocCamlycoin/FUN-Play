@@ -161,19 +161,19 @@ export function ActivateClaimPanel() {
   if (!isConnected) {
     return (
       <Card className="overflow-hidden border-border/50">
-        <CardContent className="p-6 text-center space-y-4">
+        <CardContent className="p-4 sm:p-6 text-center space-y-3 sm:space-y-4">
           <div className="flex justify-center">
-            <div className="p-4 rounded-full bg-muted/50">
-              <Wallet className="w-8 h-8 text-muted-foreground" />
+            <div className="p-3 sm:p-4 rounded-full bg-muted/50">
+              <Wallet className="w-7 h-7 sm:w-8 sm:h-8 text-muted-foreground" />
             </div>
           </div>
           <div>
-            <h3 className="font-bold text-lg">Activate & Claim FUN</h3>
-            <p className="text-sm text-muted-foreground mt-1">
-              Kết nối ví để xem và nhận FUN tokens đã được Admin mint cho bạn
+            <h3 className="font-bold text-base sm:text-lg">Activate & Claim FUN</h3>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+              Kết nối ví để xem và nhận FUN tokens
             </p>
           </div>
-          <Button onClick={handleConnect} className="gap-2">
+          <Button onClick={handleConnect} className="gap-2 w-full sm:w-auto h-11 sm:h-10 rounded-xl sm:rounded-md active:scale-[0.98] transition-transform">
             <Wallet className="w-4 h-4" />
             Kết nối ví
           </Button>
@@ -186,13 +186,13 @@ export function ActivateClaimPanel() {
   if (!isCorrectChain) {
     return (
       <Card className="overflow-hidden border-yellow-500/30">
-        <CardContent className="p-6 text-center space-y-4">
-          <AlertCircle className="w-8 h-8 text-yellow-500 mx-auto" />
+        <CardContent className="p-4 sm:p-6 text-center space-y-3 sm:space-y-4">
+          <AlertCircle className="w-7 h-7 sm:w-8 sm:h-8 text-yellow-500 mx-auto" />
           <div>
-            <h3 className="font-bold">Sai mạng</h3>
-            <p className="text-sm text-muted-foreground">Vui lòng chuyển sang BSC Testnet</p>
+            <h3 className="font-bold text-base sm:text-lg">Sai mạng</h3>
+            <p className="text-xs sm:text-sm text-muted-foreground">Vui lòng chuyển sang BSC Testnet</p>
           </div>
-          <Button onClick={() => switchToBscTestnet()} variant="outline" className="gap-2 border-yellow-500/50">
+          <Button onClick={() => switchToBscTestnet()} variant="outline" className="gap-2 w-full sm:w-auto h-11 sm:h-10 border-yellow-500/50 rounded-xl sm:rounded-md active:scale-[0.98] transition-transform">
             Chuyển sang BSC Testnet
           </Button>
         </CardContent>
@@ -204,13 +204,13 @@ export function ActivateClaimPanel() {
   if (!provider && !loading) {
     return (
       <Card className="overflow-hidden border-border/50">
-        <CardContent className="p-6 text-center space-y-4">
-          <h3 className="font-bold text-lg">Activate & Claim FUN</h3>
-          <p className="text-sm text-muted-foreground">
-            Bấm để bắt đầu Activate & Claim FUN tokens từ ví của bạn
+        <CardContent className="p-4 sm:p-6 text-center space-y-3 sm:space-y-4">
+          <h3 className="font-bold text-base sm:text-lg">Activate & Claim FUN</h3>
+          <p className="text-xs sm:text-sm text-muted-foreground">
+            Bấm để bắt đầu nhận FUN tokens về ví
           </p>
-          <Button onClick={handleConnect} className="gap-2 bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-black font-bold">
-            <Zap className="w-4 h-4" />
+          <Button onClick={handleConnect} className="gap-2 w-full sm:w-auto h-12 sm:h-10 rounded-xl sm:rounded-md bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-black font-bold active:scale-[0.98] transition-transform">
+            <Zap className="w-5 h-5" />
             Activate & Claim
           </Button>
         </CardContent>
@@ -220,16 +220,16 @@ export function ActivateClaimPanel() {
 
   return (
     <Card className="overflow-hidden border-border/50 bg-gradient-to-br from-background via-background to-muted/20">
-      <CardContent className="p-6 space-y-5">
+      <CardContent className="p-4 sm:p-6 space-y-4 sm:space-y-5">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <div className="relative">
-              <img src={FUN_COIN_LOGO} alt="FUN" className="w-10 h-10 rounded-full" />
+              <img src={FUN_COIN_LOGO} alt="FUN" className="w-8 h-8 sm:w-10 sm:h-10 rounded-full" />
             </div>
             <div>
-              <h3 className="font-bold text-lg">Activate & Claim</h3>
-              <p className="text-xs text-muted-foreground">
+              <h3 className="font-bold text-base sm:text-lg">Activate & Claim</h3>
+              <p className="text-[11px] sm:text-xs text-muted-foreground">
                 Nhận FUN tokens về ví của bạn
               </p>
             </div>
@@ -239,10 +239,10 @@ export function ActivateClaimPanel() {
             size="sm"
             onClick={refresh}
             disabled={loading}
-            className="text-xs gap-1"
+            className="text-xs gap-1 h-8 px-2 sm:px-3"
           >
             {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />}
-            Làm mới
+            <span className="hidden sm:inline">Làm mới</span>
           </Button>
         </div>
 
@@ -268,45 +268,45 @@ export function ActivateClaimPanel() {
             <div className="space-y-3">
               {/* LOCKED */}
               <div className={cn(
-                "flex items-center justify-between p-4 rounded-xl border transition-all",
+                "flex items-center justify-between p-3 sm:p-4 rounded-xl border transition-all",
                 hasLocked
                   ? "bg-yellow-500/10 border-yellow-500/30 shadow-[0_0_15px_rgba(234,179,8,0.15)]"
                   : "bg-muted/30 border-border/50"
               )}>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 sm:gap-3">
                   <div className={cn(
-                    "p-2 rounded-full",
+                    "p-1.5 sm:p-2 rounded-full",
                     hasLocked ? "bg-yellow-500/20" : "bg-muted"
                   )}>
-                    <Lock className={cn("w-5 h-5", hasLocked ? "text-yellow-500" : "text-muted-foreground")} />
+                    <Lock className={cn("w-4 h-4 sm:w-5 sm:h-5", hasLocked ? "text-yellow-500" : "text-muted-foreground")} />
                   </div>
                   <div>
-                    <p className={cn("font-bold text-sm", hasLocked ? "text-yellow-500" : "text-muted-foreground")}>
+                    <p className={cn("font-bold text-xs sm:text-sm", hasLocked ? "text-yellow-500" : "text-muted-foreground")}>
                       LOCKED
                     </p>
-                    <p className="text-xs text-muted-foreground">Admin đã mint, chờ activate</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">Chờ activate</p>
                   </div>
                 </div>
                 <div className="text-right">
                   <p className={cn(
-                    "font-black text-xl",
+                    "font-black text-lg sm:text-xl",
                     hasLocked ? "text-yellow-500" : "text-muted-foreground"
                   )}>
                     {formatFunAmount(allocation.locked.toString())}
                   </p>
-                  <p className="text-xs text-muted-foreground">FUN</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground">FUN</p>
                 </div>
               </div>
 
               {/* Activate Button */}
               {hasLocked && (
-                <div className="flex flex-col items-center gap-2">
+                <div className="flex flex-col items-center gap-1.5 sm:gap-2">
                   <ArrowDown className="w-4 h-4 text-muted-foreground" />
                   <Button
                     onClick={handleActivate}
                     disabled={isActivating}
                     className={cn(
-                      "w-full h-12 gap-2 font-bold text-base",
+                      "w-full h-12 sm:h-14 gap-2 font-bold text-sm sm:text-base rounded-xl active:scale-[0.98] transition-transform",
                       "bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-black"
                     )}
                   >
@@ -322,7 +322,7 @@ export function ActivateClaimPanel() {
                       </>
                     )}
                   </Button>
-                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground flex items-center gap-1">
                     <Fuel className="w-3 h-3" />
                     Cần tBNB để trả phí gas
                   </p>
@@ -331,45 +331,45 @@ export function ActivateClaimPanel() {
 
               {/* ACTIVATED */}
               <div className={cn(
-                "flex items-center justify-between p-4 rounded-xl border transition-all",
+                "flex items-center justify-between p-3 sm:p-4 rounded-xl border transition-all",
                 hasActivated
                   ? "bg-blue-500/10 border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.15)]"
                   : "bg-muted/30 border-border/50"
               )}>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 sm:gap-3">
                   <div className={cn(
-                    "p-2 rounded-full",
+                    "p-1.5 sm:p-2 rounded-full",
                     hasActivated ? "bg-blue-500/20" : "bg-muted"
                   )}>
-                    <Zap className={cn("w-5 h-5", hasActivated ? "text-blue-500" : "text-muted-foreground")} />
+                    <Zap className={cn("w-4 h-4 sm:w-5 sm:h-5", hasActivated ? "text-blue-500" : "text-muted-foreground")} />
                   </div>
                   <div>
-                    <p className={cn("font-bold text-sm", hasActivated ? "text-blue-500" : "text-muted-foreground")}>
+                    <p className={cn("font-bold text-xs sm:text-sm", hasActivated ? "text-blue-500" : "text-muted-foreground")}>
                       ACTIVATED
                     </p>
-                    <p className="text-xs text-muted-foreground">Sẵn sàng claim về ví</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">Sẵn sàng claim</p>
                   </div>
                 </div>
                 <div className="text-right">
                   <p className={cn(
-                    "font-black text-xl",
+                    "font-black text-lg sm:text-xl",
                     hasActivated ? "text-blue-500" : "text-muted-foreground"
                   )}>
                     {formatFunAmount(allocation.activated.toString())}
                   </p>
-                  <p className="text-xs text-muted-foreground">FUN</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground">FUN</p>
                 </div>
               </div>
 
               {/* Claim Button */}
               {hasActivated && (
-                <div className="flex flex-col items-center gap-2">
+                <div className="flex flex-col items-center gap-1.5 sm:gap-2">
                   <ArrowDown className="w-4 h-4 text-muted-foreground" />
                   <Button
                     onClick={handleClaim}
                     disabled={isClaiming}
                     className={cn(
-                      "w-full h-12 gap-2 font-bold text-base",
+                      "w-full h-12 sm:h-14 gap-2 font-bold text-sm sm:text-base rounded-xl active:scale-[0.98] transition-transform",
                       "bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white"
                     )}
                   >
@@ -385,7 +385,7 @@ export function ActivateClaimPanel() {
                       </>
                     )}
                   </Button>
-                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground flex items-center gap-1">
                     <Fuel className="w-3 h-3" />
                     Cần tBNB để trả phí gas
                   </p>
@@ -394,33 +394,33 @@ export function ActivateClaimPanel() {
 
               {/* FLOWING */}
               <div className={cn(
-                "flex items-center justify-between p-4 rounded-xl border transition-all",
+                "flex items-center justify-between p-3 sm:p-4 rounded-xl border transition-all",
                 hasFlowing
                   ? "bg-green-500/10 border-green-500/30 shadow-[0_0_15px_rgba(34,197,94,0.15)]"
                   : "bg-muted/30 border-border/50"
               )}>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 sm:gap-3">
                   <div className={cn(
-                    "p-2 rounded-full",
+                    "p-1.5 sm:p-2 rounded-full",
                     hasFlowing ? "bg-green-500/20" : "bg-muted"
                   )}>
-                    <Waves className={cn("w-5 h-5", hasFlowing ? "text-green-500" : "text-muted-foreground")} />
+                    <Waves className={cn("w-4 h-4 sm:w-5 sm:h-5", hasFlowing ? "text-green-500" : "text-muted-foreground")} />
                   </div>
                   <div>
-                    <p className={cn("font-bold text-sm", hasFlowing ? "text-green-500" : "text-muted-foreground")}>
+                    <p className={cn("font-bold text-xs sm:text-sm", hasFlowing ? "text-green-500" : "text-muted-foreground")}>
                       FLOWING
                     </p>
-                    <p className="text-xs text-muted-foreground">Đã về ví (ERC-20)</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">Đã về ví (ERC-20)</p>
                   </div>
                 </div>
                 <div className="text-right">
                   <p className={cn(
-                    "font-black text-xl",
+                    "font-black text-lg sm:text-xl",
                     hasFlowing ? "text-green-500" : "text-muted-foreground"
                   )}>
                     {formatFunAmount(allocation.flowing.toString())}
                   </p>
-                  <p className="text-xs text-muted-foreground">FUN</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground">FUN</p>
                 </div>
               </div>
             </div>
@@ -456,9 +456,9 @@ export function ActivateClaimPanel() {
             )}
 
             {/* Action Links */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3">
               {(hasLocked || hasActivated || !hasAnyTokens) && (
-                <Button variant="outline" size="sm" asChild className="gap-2 border-yellow-500/40 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-500/10">
+                <Button variant="outline" size="sm" asChild className="w-full sm:w-auto gap-2 h-10 sm:h-9 border-yellow-500/40 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-500/10 rounded-xl sm:rounded-md">
                   <a
                     href="https://www.bnbchain.org/en/testnet-faucet"
                     target="_blank"
@@ -471,7 +471,7 @@ export function ActivateClaimPanel() {
                 </Button>
               )}
               {address && (
-                <Button variant="ghost" size="sm" asChild className="gap-2 text-xs text-muted-foreground">
+                <Button variant="ghost" size="sm" asChild className="w-full sm:w-auto gap-2 h-10 sm:h-9 text-xs text-muted-foreground rounded-xl sm:rounded-md">
                   <a
                     href={`${BSC_TESTNET_CONFIG.explorerAddressUrl(address)}`}
                     target="_blank"
