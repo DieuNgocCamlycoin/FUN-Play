@@ -75,7 +75,7 @@ export function FunMoneyApprovalTab() {
   const [isBatchProcessing, setIsBatchProcessing] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
   const [actionToRegister, setActionToRegister] = useState('LIGHT_ACTIVITY');
-  const [profileCache, setProfileCache] = useState<Record<string, { display_name: string | null; avatar_url: string | null; username: string }>>({});
+  const [profileCache, setProfileCache] = useState<Record<string, { display_name: string | null; avatar_url: string | null; username: string; banned?: boolean }>>({});
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchQuery), 500);
@@ -111,26 +111,44 @@ export function FunMoneyApprovalTab() {
     if (userIds.length === 0) return;
     supabase
       .from('profiles')
-      .select('id, display_name, avatar_url, username')
+      .select('id, display_name, avatar_url, username, banned')
       .in('id', userIds)
       .then(({ data }) => {
         if (data) {
           setProfileCache(prev => {
             const next = { ...prev };
-            data.forEach((p: any) => { next[p.id] = { display_name: p.display_name, avatar_url: p.avatar_url, username: p.username }; });
+            data.forEach((p: any) => { next[p.id] = { display_name: p.display_name, avatar_url: p.avatar_url, username: p.username, banned: p.banned || false }; });
             return next;
           });
         }
       });
   }, [requests]);
 
+  // Auto-reject mint requests from banned users
+  useEffect(() => {
+    if (activeTab !== 'pending') return;
+    const bannedPendingRequests = requests.filter(r => 
+      r.status === 'pending' && profileCache[r.user_id]?.banned === true
+    );
+    bannedPendingRequests.forEach(async (r) => {
+      await rejectRequest(r.id, 'Tự động từ chối: Tài khoản đã bị đình chỉ (banned)');
+      toast.info(`🚫 Tự động từ chối yêu cầu từ user bị ban: ${profileCache[r.user_id]?.display_name || r.user_wallet_address.slice(0, 10)}`);
+    });
+    if (bannedPendingRequests.length > 0) {
+      fetchPendingRequests();
+    }
+  }, [requests, profileCache, activeTab]);
+
   const filteredRequests = requests.filter(r => {
+    // Hide banned users' requests from pending tab
+    if (activeTab === 'pending' && profileCache[r.user_id]?.banned) return false;
     if (!debouncedSearch) return true;
     const q = debouncedSearch.toLowerCase();
     return r.platform_id.toLowerCase().includes(q) ||
       r.action_type.toLowerCase().includes(q) ||
       r.user_wallet_address.toLowerCase().includes(q) ||
-      r.id.toLowerCase().includes(q);
+      r.id.toLowerCase().includes(q) ||
+      (profileCache[r.user_id]?.display_name?.toLowerCase().includes(q) ?? false);
   });
 
   const toggleSelect = (id: string) => {
@@ -509,7 +527,7 @@ function RequestTableRow({
   isMinting: boolean;
   isBatchProcessing: boolean;
   rejectReason: string;
-  profile?: { display_name: string | null; avatar_url: string | null; username: string };
+  profile?: { display_name: string | null; avatar_url: string | null; username: string; banned?: boolean };
   onToggleExpand: () => void;
   onToggleSelect: () => void;
   onApprove: () => void;
