@@ -51,6 +51,7 @@ export function YouTubeMobilePlayer({
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [autoplayFailed, setAutoplayFailed] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -173,14 +174,15 @@ export function YouTubeMobilePlayer({
   };
 
   // Tap handler - single tap to toggle controls, double tap to skip
-  const handleTap = (e: React.MouseEvent | React.TouchEvent) => {
+  const handleTap = (event: MouseEvent | TouchEvent | PointerEvent, info?: any) => {
+    const e = event as any;
     if (isDragging) return;
     
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect) return;
 
-    const clientX = 'touches' in e ? e.changedTouches[0].clientX : e.clientX;
-    const x = clientX - rect.left;
+    const clientX = 'changedTouches' in e ? e.changedTouches?.[0]?.clientX : e.clientX;
+    const x = (clientX || 0) - rect.left;
     const isLeftHalf = x < rect.width / 2;
 
     tapCountRef.current += 1;
@@ -304,7 +306,13 @@ export function YouTubeMobilePlayer({
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-    video.play().then(() => setIsPlaying(true)).catch(() => {});
+    setAutoplayFailed(false);
+    video.play().then(() => {
+      setIsPlaying(true);
+      setAutoplayFailed(false);
+    }).catch(() => {
+      setAutoplayFailed(true);
+    });
   }, [videoUrl]);
 
   // Notify parent of state changes
@@ -427,7 +435,7 @@ export function YouTubeMobilePlayer({
           "relative bg-black overflow-hidden touch-none select-none",
           isFullscreen ? "fixed inset-0 z-[100]" : "aspect-video w-full"
         )}
-        onClick={handleTap}
+        onTap={handleTap}
       >
         {/* Video */}
         <video
@@ -470,6 +478,23 @@ export function YouTubeMobilePlayer({
           playsInline
           webkit-playsinline="true"
         />
+
+        {/* Autoplay failed overlay - hiện nút Play lớn cho mobile */}
+        {autoplayFailed && !isPlaying && (
+          <div 
+            className="absolute inset-0 z-40 flex items-center justify-center bg-black/40"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => { 
+              e.stopPropagation(); 
+              togglePlay(); 
+              setAutoplayFailed(false); 
+            }}
+          >
+            <div className="h-20 w-20 rounded-full bg-black/60 flex items-center justify-center backdrop-blur-sm">
+              <Play className="h-12 w-12 text-white ml-1" />
+            </div>
+          </div>
+        )}
 
         {/* Hidden canvas for ambient color sampling */}
         <canvas ref={canvasRef} className="hidden" width={4} height={4} />
@@ -589,7 +614,8 @@ export function YouTubeMobilePlayer({
             <Button
               variant="ghost"
               size="icon"
-              onClick={(e) => { e.stopPropagation(); togglePlay(); }}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => { e.stopPropagation(); togglePlay(); setAutoplayFailed(false); }}
               className="h-18 w-18 text-white bg-black/30 hover:bg-black/50 rounded-full"
             >
               {isPlaying ? (
