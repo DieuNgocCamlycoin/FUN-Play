@@ -4,13 +4,15 @@
  */
 
 export const CONSTITUTION_V2_CONTRACT_INFO = {
-  name: 'FUNMoney',
-  version: '2.0',
+  name: 'FUNMoneyProductionV1_2_1',
+  version: '1.2.1',
   standard: 'BEP-20 (ERC-20 compatible)',
   compiler: 'solidity ^0.8.20',
   license: 'MIT',
-  sourceFile: 'FUNMoney-v2.sol',
-  status: 'partial' as const, // 'partial' | 'complete' | 'audited' | 'deployed'
+  sourceFile: 'FUNMoney-v1.2.1-final.sol',
+  deployedAddress: '0x39A1b047D5d143f8874888cfa1d30Fb2AE6F0CD6',
+  chain: 'BSC Testnet (Chain ID: 97)',
+  status: 'deployed' as const,
 
   features: {
     fourPools: true,        // Community, Platform, Recycle, Guardian
