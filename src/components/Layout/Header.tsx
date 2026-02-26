@@ -8,6 +8,7 @@ import { WalletButton } from "@/components/Wallet/WalletButton";
 import { UploadWizard } from "@/components/Upload/UploadWizard";
 
 import { GlobalDonateButton } from "@/components/Donate/GlobalDonateButton";
+import { AngelChat } from "@/components/Mascot/AngelChat";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { useNavigate } from "react-router-dom";
@@ -56,6 +57,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
   const navigate = useNavigate();
   const { goToVideo } = useVideoNavigation();
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const { videos: suggestedVideos, channels: suggestedChannels, isOpen: showSuggestions, query: searchQuery, setQuery: setSearchQuery, open: openSuggestions, close: closeSuggestions, clear: clearSearch } = useSearchSuggestions();
   const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -255,7 +257,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => window.open("https://angel.fun.rich", "_blank")}
+                onClick={() => setIsChatOpen(true)}
                 className="relative rounded-full overflow-hidden h-11 w-11 hover:scale-110 transition-transform p-0"
               >
                 <img 
@@ -357,6 +359,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
       </div>
       
       <UploadWizard open={uploadModalOpen} onOpenChange={setUploadModalOpen} />
+      <AngelChat isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
     </header>
   );
 };
