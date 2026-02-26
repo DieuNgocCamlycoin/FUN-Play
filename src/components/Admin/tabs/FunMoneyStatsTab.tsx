@@ -16,6 +16,10 @@ const ACTION_COLORS: Record<string, string> = {
   VIEW: "hsl(47, 100%, 50%)",
   LIKE: "hsl(340, 82%, 52%)",
   SHARE: "hsl(199, 89%, 48%)",
+  SIGNUP: "hsl(120, 60%, 45%)",
+  FIRST_UPLOAD: "hsl(280, 60%, 55%)",
+  WALLET_CONNECT: "hsl(30, 90%, 50%)",
+  BOUNTY: "hsl(60, 80%, 45%)",
   OTHER: "hsl(0, 0%, 60%)",
 };
 
@@ -33,6 +37,10 @@ const ACTION_LABELS: Record<string, string> = {
   VIEW: "View (×10)",
   LIKE: "Like (×5)",
   SHARE: "Share (×20)",
+  SIGNUP: "Signup (×10)",
+  FIRST_UPLOAD: "First Upload (×10)",
+  WALLET_CONNECT: "Wallet Connect (×5)",
+  BOUNTY: "Bounty",
 };
 
 export function FunMoneyStatsTab() {
