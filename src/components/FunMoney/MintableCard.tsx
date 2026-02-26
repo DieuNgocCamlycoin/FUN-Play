@@ -139,8 +139,8 @@ export function MintableCard({ activity, loading, onMintSuccess }: MintableCardP
             </span>
             <span className="text-xl sm:text-2xl font-bold text-muted-foreground">FUN</span>
           </div>
-          <p className="text-muted-foreground">
-            ≈ ${activity.mintableFunUsd} USD
+          <p className="text-xs text-muted-foreground">
+            Token trên BSC Testnet — chưa có giá thị trường
           </p>
         </div>
 

@@ -33,6 +33,8 @@ export interface MintRequestInput {
   pillarScores: PillarScores;
   unitySignals: Partial<UnitySignals>;
   antiSybilScore?: number;
+  qualityMultiplier?: number;
+  impactMultiplier?: number;
 }
 
 // Auto mint input (1-click from light activity)
@@ -128,7 +130,9 @@ export function useMintRequest(): UseMintRequestReturn {
         pillarScores: input.pillarScores,
         unitySignals: input.unitySignals,
         antiSybilScore: input.antiSybilScore ?? 0.9,
-        baseRewardAtomic
+        baseRewardAtomic,
+        qualityMultiplier: input.qualityMultiplier,
+        impactMultiplier: input.impactMultiplier
       });
 
       // 4. Create hashes
