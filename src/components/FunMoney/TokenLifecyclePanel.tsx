@@ -319,7 +319,7 @@ export function TokenLifecyclePanel({
               
               {stats.txCount > 0 && (
                 <a
-                  href="https://testnet.bscscan.com/token/0x1aa8BF20E0b6aE9e5C0b36e7bF8C8Faab015ff2"
+                  href="https://testnet.bscscan.com/token/0x39A1b047D5d143f8874888cfa1d30Fb2AE6F0CD6"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-1 text-xs text-blue-400 hover:underline"
