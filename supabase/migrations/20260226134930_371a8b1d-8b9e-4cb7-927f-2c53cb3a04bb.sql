@@ -1,0 +1,184 @@
+
+CREATE OR REPLACE FUNCTION public.get_fun_money_system_stats()
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  result jsonb;
+  total_minted numeric;
+  total_potential numeric;
+  user_count integer;
+  request_count integer;
+  action_breakdown jsonb;
+  status_breakdown jsonb;
+  top_holders jsonb;
+  daily_mints jsonb;
+  active_user_count integer;
+  total_active_users integer;
+BEGIN
+  -- Admin check
+  IF NOT (has_role(auth.uid(), 'admin'::app_role) OR is_owner(auth.uid())) THEN
+    RAISE EXCEPTION 'Access denied';
+  END IF;
+
+  -- Total FUN minted (excluding rejected AND banned users)
+  SELECT COALESCE(SUM(CAST(REGEXP_REPLACE(calculated_amount_formatted, '[^0-9.]', '', 'g') AS numeric)), 0)
+  INTO total_minted
+  FROM mint_requests mr
+  JOIN profiles p ON p.id = mr.user_id
+  WHERE mr.status != 'rejected'
+    AND COALESCE(p.banned, false) = false;
+
+  -- Total potential FUN - ONLY from active (non-banned) users
+  SELECT COALESCE(SUM(
+    CASE 
+      WHEN rt.reward_type IN ('VIEW', 'WATCH_VIDEO') THEN 10
+      WHEN rt.reward_type IN ('LIKE', 'LIKE_VIDEO') THEN 5
+      WHEN rt.reward_type = 'COMMENT' THEN 15
+      WHEN rt.reward_type = 'SHARE' THEN 20
+      WHEN rt.reward_type IN ('UPLOAD', 'UPLOAD_VIDEO', 'SHORT_VIDEO_UPLOAD', 'LONG_VIDEO_UPLOAD') THEN 100
+      WHEN rt.reward_type = 'SIGNUP' THEN 10
+      WHEN rt.reward_type = 'FIRST_UPLOAD' THEN 10
+      WHEN rt.reward_type = 'WALLET_CONNECT' THEN 5
+      WHEN rt.reward_type = 'BOUNTY' THEN COALESCE(rt.amount, 0)
+      ELSE 0
+    END
+  ), 0)
+  INTO total_potential
+  FROM reward_transactions rt
+  JOIN profiles p ON p.id = rt.user_id
+  WHERE COALESCE(p.banned, false) = false;
+
+  -- Count active users with reward transactions
+  SELECT COUNT(DISTINCT rt.user_id)
+  INTO active_user_count
+  FROM reward_transactions rt
+  JOIN profiles p ON p.id = rt.user_id
+  WHERE COALESCE(p.banned, false) = false;
+
+  -- Total active users (non-banned profiles)
+  SELECT COUNT(*) INTO total_active_users FROM profiles WHERE COALESCE(banned, false) = false;
+
+  -- Distinct users who minted (excluding banned)
+  SELECT COUNT(DISTINCT mr.user_id) INTO user_count
+  FROM mint_requests mr
+  JOIN profiles p ON p.id = mr.user_id
+  WHERE mr.status != 'rejected'
+    AND COALESCE(p.banned, false) = false;
+
+  -- Total mint requests (excluding banned users)
+  SELECT COUNT(*) INTO request_count
+  FROM mint_requests mr
+  JOIN profiles p ON p.id = mr.user_id
+  WHERE COALESCE(p.banned, false) = false;
+
+  -- Breakdown by action type - ONLY active users
+  SELECT COALESCE(jsonb_agg(row_to_json(t)::jsonb), '[]'::jsonb)
+  INTO action_breakdown
+  FROM (
+    SELECT 
+      CASE 
+        WHEN rt.reward_type IN ('VIEW', 'WATCH_VIDEO') THEN 'VIEW'
+        WHEN rt.reward_type IN ('LIKE', 'LIKE_VIDEO') THEN 'LIKE'
+        WHEN rt.reward_type = 'COMMENT' THEN 'COMMENT'
+        WHEN rt.reward_type = 'SHARE' THEN 'SHARE'
+        WHEN rt.reward_type IN ('UPLOAD', 'UPLOAD_VIDEO', 'SHORT_VIDEO_UPLOAD', 'LONG_VIDEO_UPLOAD') THEN 'UPLOAD'
+        WHEN rt.reward_type = 'SIGNUP' THEN 'SIGNUP'
+        WHEN rt.reward_type = 'FIRST_UPLOAD' THEN 'FIRST_UPLOAD'
+        WHEN rt.reward_type = 'WALLET_CONNECT' THEN 'WALLET_CONNECT'
+        WHEN rt.reward_type = 'BOUNTY' THEN 'BOUNTY'
+        ELSE 'OTHER'
+      END AS action,
+      COUNT(*) AS action_count,
+      SUM(
+        CASE 
+          WHEN rt.reward_type IN ('VIEW', 'WATCH_VIDEO') THEN 10
+          WHEN rt.reward_type IN ('LIKE', 'LIKE_VIDEO') THEN 5
+          WHEN rt.reward_type = 'COMMENT' THEN 15
+          WHEN rt.reward_type = 'SHARE' THEN 20
+          WHEN rt.reward_type IN ('UPLOAD', 'UPLOAD_VIDEO', 'SHORT_VIDEO_UPLOAD', 'LONG_VIDEO_UPLOAD') THEN 100
+          WHEN rt.reward_type = 'SIGNUP' THEN 10
+          WHEN rt.reward_type = 'FIRST_UPLOAD' THEN 10
+          WHEN rt.reward_type = 'WALLET_CONNECT' THEN 5
+          WHEN rt.reward_type = 'BOUNTY' THEN COALESCE(rt.amount, 0)
+          ELSE 0
+        END
+      ) AS total_fun
+    FROM reward_transactions rt
+    JOIN profiles p ON p.id = rt.user_id
+    WHERE COALESCE(p.banned, false) = false
+    GROUP BY 1
+    ORDER BY total_fun DESC
+  ) t;
+
+  -- Breakdown by status (excluding banned users)
+  SELECT COALESCE(jsonb_agg(row_to_json(t)::jsonb), '[]'::jsonb)
+  INTO status_breakdown
+  FROM (
+    SELECT mr.status, COUNT(*) AS count,
+           COALESCE(SUM(CAST(REGEXP_REPLACE(mr.calculated_amount_formatted, '[^0-9.]', '', 'g') AS numeric)), 0) AS total_fun
+    FROM mint_requests mr
+    JOIN profiles p ON p.id = mr.user_id
+    WHERE COALESCE(p.banned, false) = false
+    GROUP BY mr.status
+    ORDER BY count DESC
+  ) t;
+
+  -- Top 10 FUN holders (excluding banned users)
+  SELECT COALESCE(jsonb_agg(row_to_json(t)::jsonb), '[]'::jsonb)
+  INTO top_holders
+  FROM (
+    SELECT 
+      mr.user_id,
+      p.display_name,
+      p.avatar_url,
+      SUM(CAST(REGEXP_REPLACE(mr.calculated_amount_formatted, '[^0-9.]', '', 'g') AS numeric)) AS total_fun,
+      COUNT(*) AS request_count,
+      array_agg(DISTINCT mr.action_type) AS action_types
+    FROM mint_requests mr
+    JOIN profiles p ON p.id = mr.user_id
+    WHERE mr.status != 'rejected'
+      AND COALESCE(p.banned, false) = false
+    GROUP BY mr.user_id, p.display_name, p.avatar_url
+    ORDER BY total_fun DESC
+    LIMIT 10
+  ) t;
+
+  -- Daily mints (last 30 days, excluding banned users)
+  SELECT COALESCE(jsonb_agg(row_to_json(t)::jsonb), '[]'::jsonb)
+  INTO daily_mints
+  FROM (
+    SELECT 
+      d.date::text AS date,
+      COALESCE(COUNT(mr.id), 0) AS request_count,
+      COALESCE(SUM(CAST(REGEXP_REPLACE(mr.calculated_amount_formatted, '[^0-9.]', '', 'g') AS numeric)), 0) AS total_fun
+    FROM generate_series(
+      CURRENT_DATE - INTERVAL '29 days',
+      CURRENT_DATE,
+      '1 day'
+    ) AS d(date)
+    LEFT JOIN mint_requests mr ON DATE(mr.created_at) = d.date AND mr.status != 'rejected'
+    LEFT JOIN profiles p ON p.id = mr.user_id
+    WHERE (mr.id IS NULL OR COALESCE(p.banned, false) = false)
+    GROUP BY d.date
+    ORDER BY d.date
+  ) t;
+
+  result := jsonb_build_object(
+    'totalMinted', total_minted,
+    'totalPotential', total_potential,
+    'userCount', user_count,
+    'requestCount', request_count,
+    'activeUserCount', active_user_count,
+    'totalActiveUsers', total_active_users,
+    'actionBreakdown', action_breakdown,
+    'statusBreakdown', status_breakdown,
+    'topHolders', top_holders,
+    'dailyMints', daily_mints
+  );
+
+  RETURN result;
+END;
+$$;
