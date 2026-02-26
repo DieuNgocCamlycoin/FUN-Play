@@ -123,6 +123,18 @@ function buildHtml(meta: MetaData): string {
 </html>`;
 }
 
+async function fetchAvatarUrl(
+  supabase: ReturnType<typeof createClient>,
+  userId: string
+): Promise<string | null> {
+  const { data } = await supabase
+    .from("profiles")
+    .select("avatar_url")
+    .eq("id", userId)
+    .single();
+  return data?.avatar_url || null;
+}
+
 function buildRedirectHtml(newUrl: string): string {
   return `<!DOCTYPE html>
 <html><head>
@@ -219,14 +231,15 @@ serve(async (req: Request) => {
       console.log("[prerender] fetching ai-music:", id);
       const { data, error } = await supabase
         .from("ai_generated_music")
-        .select("id, title, style, thumbnail_url, audio_url, play_count, lyrics")
+        .select("id, title, style, thumbnail_url, audio_url, play_count, lyrics, user_id")
         .eq("id", id)
         .single();
 
       if (!error && data) {
+        const avatarUrl = await fetchAvatarUrl(supabase, data.user_id);
         meta.title = `${data.title} - Fun Music AI`;
         meta.description = `🎵 Nghe bài hát AI "${data.title}" (${data.style || "Music"}) trên FUN Play. ${data.play_count || 0} lượt nghe.`;
-        meta.image = data.thumbnail_url || meta.image;
+        meta.image = data.thumbnail_url || avatarUrl || meta.image;
         meta.type = "music.song";
         meta.audio = data.audio_url || "";
         console.log("[prerender] found ai-music:", data.title);
@@ -237,15 +250,16 @@ serve(async (req: Request) => {
       console.log("[prerender] fetching", type, ":", id);
       const { data, error } = await supabase
         .from("videos")
-        .select("id, title, description, video_url, thumbnail_url, view_count, duration, channels(name)")
+        .select("id, title, description, video_url, thumbnail_url, view_count, duration, user_id, channels(name)")
         .eq("id", id)
         .single();
 
       if (!error && data) {
+        const avatarUrl = await fetchAvatarUrl(supabase, data.user_id);
         const ch = Array.isArray(data.channels) ? data.channels[0] : data.channels;
         const channelName = ch?.name || "FUN Play";
         meta.title = `${data.title} - ${channelName}`;
-        meta.image = data.thumbnail_url || meta.image;
+        meta.image = data.thumbnail_url || avatarUrl || meta.image;
 
         if (type === "music") {
           meta.type = "music.song";
@@ -299,11 +313,12 @@ serve(async (req: Request) => {
           .single();
 
         if (video) {
+          const avatarUrl = await fetchAvatarUrl(supabase, resolved.userId);
           const ch = Array.isArray(video.channels) ? video.channels[0] : video.channels;
           const channelName = ch?.name || "FUN Play";
           meta.title = `${video.title} - ${channelName}`;
           meta.description = video.description || `📺 Xem "${video.title}" trên FUN Play. ${video.view_count || 0} lượt xem.`;
-          meta.image = video.thumbnail_url || meta.image;
+          meta.image = video.thumbnail_url || avatarUrl || meta.image;
           meta.type = "video.other";
           meta.video = video.video_url;
           meta.url = `${baseUrl}/${username}/${video.slug || slug}`;
@@ -358,11 +373,12 @@ serve(async (req: Request) => {
           .single();
 
         if (post) {
+          const avatarUrl = await fetchAvatarUrl(supabase, resolved.userId);
           const headline = (post.content || "").split("\n")[0].slice(0, 70);
           meta.title = `${headline || "Bài đăng"} | FUN Play`;
           meta.description = (post.content || "").slice(0, 160);
           const firstImage = post.images?.[0] || post.image_url;
-          if (firstImage) meta.image = firstImage;
+          meta.image = firstImage || avatarUrl || meta.image;
           meta.url = `${baseUrl}/${username}/post/${post.slug || slug}`;
           meta.type = "article";
           console.log("[prerender] found post by slug:", headline);
