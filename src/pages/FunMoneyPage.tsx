@@ -314,6 +314,29 @@ export default function FunMoney() {
               <LightActivityBreakdown activity={activity} />
               <ActivitySummary activity={activity} />
             </div>
+
+            {/* FUN_PLAY Action Breakdown */}
+            {activity?.funMintedByAction && Object.keys(activity.funMintedByAction).length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Zap className="w-5 h-5 text-primary" />
+                    FUN Minted theo Action (FUN Play)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                    {Object.entries(activity.funMintedByAction).map(([action, data]) => (
+                      <div key={action} className="p-3 bg-muted rounded-lg text-center">
+                        <p className="text-xs text-muted-foreground mb-1">{action}</p>
+                        <p className="text-lg font-bold">{data.count}</p>
+                        <p className="text-xs text-primary">{data.totalFun} FUN</p>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           {/* History Tab */}

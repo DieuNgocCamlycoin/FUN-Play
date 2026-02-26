@@ -1623,6 +1623,7 @@ export type Database = {
         Row: {
           angelai_url: string | null
           approved_reward: number | null
+          auto_mint_fun_enabled: boolean | null
           avatar_url: string | null
           avatar_verified: boolean | null
           background_music_url: string | null
@@ -1672,6 +1673,7 @@ export type Database = {
         Insert: {
           angelai_url?: string | null
           approved_reward?: number | null
+          auto_mint_fun_enabled?: boolean | null
           avatar_url?: string | null
           avatar_verified?: boolean | null
           background_music_url?: string | null
@@ -1721,6 +1723,7 @@ export type Database = {
         Update: {
           angelai_url?: string | null
           approved_reward?: number | null
+          auto_mint_fun_enabled?: boolean | null
           avatar_url?: string | null
           avatar_verified?: boolean | null
           background_music_url?: string | null

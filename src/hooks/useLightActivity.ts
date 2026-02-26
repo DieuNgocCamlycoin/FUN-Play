@@ -49,6 +49,7 @@ export interface LightActivity {
   isVerified: boolean;
   hasPendingRequest: boolean;
   lastMintAt: string | null;
+  funMintedByAction: Record<string, { count: number; totalFun: string }>;
 }
 
 export interface UseLightActivityReturn {
@@ -151,7 +152,8 @@ export function useLightActivity(userId: string | undefined): UseLightActivityRe
       const [
         profileResult,
         activitySummaryResult,
-        pendingRequestResult
+        pendingRequestResult,
+        funPlayRequestsResult
       ] = await Promise.all([
         supabase
           .from('profiles')
@@ -167,7 +169,14 @@ export function useLightActivity(userId: string | undefined): UseLightActivityRe
           .select('id')
           .eq('user_id', userId)
           .eq('status', 'pending')
-          .limit(1)
+          .limit(1),
+
+        // FUN_PLAY mint requests breakdown
+        (supabase as any)
+          .from('mint_requests')
+          .select('action_type, calculated_amount_formatted, status')
+          .eq('user_id', userId)
+          .eq('platform_id', 'FUN_PLAY')
       ]);
 
       if (profileResult.error) throw profileResult.error;
@@ -176,6 +185,23 @@ export function useLightActivity(userId: string | undefined): UseLightActivityRe
       const profile = profileResult.data;
       const summary = activitySummaryResult.data as Record<string, number> | null;
       const hasPendingRequest = (pendingRequestResult.data?.length || 0) > 0;
+
+      // Build FUN minted by action breakdown
+      const funPlayRequests = (funPlayRequestsResult.data || []) as Array<{
+        action_type: string;
+        calculated_amount_formatted: string;
+        status: string;
+      }>;
+      const funMintedByAction: Record<string, { count: number; totalFun: string }> = {};
+      for (const req of funPlayRequests) {
+        if (!funMintedByAction[req.action_type]) {
+          funMintedByAction[req.action_type] = { count: 0, totalFun: '0' };
+        }
+        funMintedByAction[req.action_type].count++;
+        const current = parseFloat(funMintedByAction[req.action_type].totalFun);
+        const add = parseFloat((req.calculated_amount_formatted || '0').replace(' FUN', ''));
+        funMintedByAction[req.action_type].totalFun = (current + add).toFixed(2);
+      }
 
       // Parse activity summary from RPC
       const activityCounts: ActivityCounts = {
@@ -264,7 +290,8 @@ export function useLightActivity(userId: string | undefined): UseLightActivityRe
         accountAgeDays,
         isVerified,
         hasPendingRequest,
-        lastMintAt: profile.last_fun_mint_at
+        lastMintAt: profile.last_fun_mint_at,
+        funMintedByAction
       });
 
     } catch (err: any) {
