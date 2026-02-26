@@ -15,3 +15,6 @@ export { ActivitySummary } from './ActivitySummary';
 
 // Activate & Claim (on-chain user actions)
 export { ActivateClaimPanel } from './ActivateClaimPanel';
+
+// Guide
+export { ClaimGuide } from './ClaimGuide';

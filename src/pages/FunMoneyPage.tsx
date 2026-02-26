@@ -31,7 +31,8 @@ import {
   MintableCard,
   LightActivityBreakdown,
   ActivitySummary,
-  ActivateClaimPanel
+  ActivateClaimPanel,
+  ClaimGuide
 } from '@/components/FunMoney';
 import { cn } from '@/lib/utils';
 import { BackButton } from '@/components/ui/back-button';
@@ -175,6 +176,9 @@ export default function FunMoney() {
 
         {/* Activate & Claim Panel - User on-chain actions */}
         <ActivateClaimPanel />
+
+        {/* Hướng dẫn Claim FUN */}
+        <ClaimGuide />
 
         {/* Main Content */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
