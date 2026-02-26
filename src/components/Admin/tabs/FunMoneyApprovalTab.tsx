@@ -175,8 +175,7 @@ export function FunMoneyApprovalTab() {
 
     try {
       const signer = await getSigner();
-      const { BrowserProvider } = await import('ethers');
-      const provider = new BrowserProvider((window as any).ethereum);
+      const provider = signer.provider as import('ethers').BrowserProvider;
 
       // 1. Validate before minting
       const validation = await validateBeforeMint(

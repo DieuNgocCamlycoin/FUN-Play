@@ -199,10 +199,17 @@ export function useMintRequest(): UseMintRequestReturn {
     setError(null);
 
     try {
+      // Lấy user hiện tại để filter theo user_id
+      const { data: { user } } = await supabase.auth.getUser();
+      
       let query = (supabase as any)
         .from('mint_requests')
         .select('*')
         .order('created_at', { ascending: false });
+
+      if (user) {
+        query = query.eq('user_id', user.id);
+      }
 
       if (status) {
         query = query.eq('status', status);

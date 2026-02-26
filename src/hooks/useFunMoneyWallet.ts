@@ -9,6 +9,8 @@
 import { useState, useCallback, useMemo } from 'react';
 import { BrowserProvider, JsonRpcSigner } from 'ethers';
 import { useWalletContext } from '@/contexts/WalletContext';
+import { switchChain } from '@wagmi/core';
+import { wagmiConfig } from '@/lib/web3Config';
 
 // ===== BSC TESTNET CONFIG =====
 
@@ -93,31 +95,27 @@ export function useFunMoneyWallet(): UseFunMoneyWalletReturn {
     }
   }, [walletCtx.connectWithRetry]);
 
-  // Switch to BSC Testnet
+  // Switch to BSC Testnet - dùng wagmi switchChain thay vì window.ethereum
   const switchToBscTestnet = useCallback(async () => {
-    const ethereum = getEthereum();
-    if (!ethereum) {
-      setError('Không tìm thấy ví');
-      return;
-    }
-
+    setError(null);
     try {
-      await ethereum.request({
-        method: 'wallet_switchEthereumChain',
-        params: [{ chainId: BSC_TESTNET.chainId }]
-      });
+      await switchChain(wagmiConfig, { chainId: BSC_TESTNET_CHAIN_ID });
     } catch (err: any) {
-      if (err.code === 4902) {
+      // Nếu chain chưa được thêm, thử thêm qua window.ethereum (fallback)
+      const ethereum = getEthereum();
+      if (ethereum && (err.code === 4902 || err.message?.includes('Unrecognized chain'))) {
         try {
           await ethereum.request({
             method: 'wallet_addEthereumChain',
             params: [BSC_TESTNET]
           });
+          // Thử switch lại sau khi thêm
+          await switchChain(wagmiConfig, { chainId: BSC_TESTNET_CHAIN_ID });
         } catch (addErr) {
-          setError('Không thể thêm BSC Testnet');
+          setError('Không thể thêm BSC Testnet. Vui lòng thêm thủ công trong ví.');
         }
       } else {
-        setError('Không thể chuyển mạng');
+        setError('Không thể chuyển mạng: ' + (err.shortMessage || err.message || 'Lỗi không xác định'));
       }
     }
   }, []);
