@@ -110,13 +110,10 @@ export function MintableCard({ activity, loading, onMintSuccess }: MintableCardP
         });
         onMintSuccess?.();
       } else {
-        // mintError may not be available yet (async state), so use a timeout to read it
-        setTimeout(() => {
-          toast.error('❌ Gửi yêu cầu mint thất bại', {
-            description: mintError || 'Vui lòng thử lại sau hoặc liên hệ Admin.',
-            duration: 6000
-          });
-        }, 100);
+        toast.error('❌ Gửi yêu cầu mint thất bại', {
+          description: 'Vui lòng thử lại sau hoặc liên hệ Admin.',
+          duration: 6000
+        });
       }
     } catch (err: any) {
       console.error('[MintableCard] Unexpected error:', err);
