@@ -86,6 +86,13 @@ export function MintableCard({ activity, loading, onMintSuccess }: MintableCardP
 
     setIsMinting(true);
     try {
+      console.log('[MintableCard] Submitting auto mint request...', {
+        wallet: address,
+        lightScore: activity.lightScore,
+        mintableFun: activity.mintableFun,
+        mintableFunAtomic: activity.mintableFunAtomic
+      });
+
       const result = await submitAutoRequest({
         userWalletAddress: address!,
         pillars: activity.pillars,
@@ -103,12 +110,16 @@ export function MintableCard({ activity, loading, onMintSuccess }: MintableCardP
         });
         onMintSuccess?.();
       } else {
-        toast.error('❌ Gửi yêu cầu mint thất bại', {
-          description: mintError || 'Vui lòng thử lại sau hoặc liên hệ Admin.',
-          duration: 6000
-        });
+        // mintError may not be available yet (async state), so use a timeout to read it
+        setTimeout(() => {
+          toast.error('❌ Gửi yêu cầu mint thất bại', {
+            description: mintError || 'Vui lòng thử lại sau hoặc liên hệ Admin.',
+            duration: 6000
+          });
+        }, 100);
       }
     } catch (err: any) {
+      console.error('[MintableCard] Unexpected error:', err);
       toast.error('Lỗi khi tạo mint request', {
         description: err.message
       });

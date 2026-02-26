@@ -280,7 +280,7 @@ export function useAutoMintRequest(): UseAutoMintRequestReturn {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const submitAutoRequest = useCallback(async (input: AutoMintInput): Promise<{ id: string } | null> => {
+  const submitAutoRequest = useCallback(async (input: AutoMintInput): Promise<{ id: string; error?: string } | null> => {
     setLoading(true);
     setError(null);
 
@@ -288,7 +288,7 @@ export function useAutoMintRequest(): UseAutoMintRequestReturn {
       // 1. Get current user
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       if (authError || !user) {
-        throw new Error('You must be logged in to submit a request');
+        throw new Error('Bạn cần đăng nhập để gửi yêu cầu mint');
       }
 
       // 2. Calculate multipliers from provided data
@@ -336,6 +336,8 @@ export function useAutoMintRequest(): UseAutoMintRequestReturn {
         decision_reason: null
       };
 
+      console.log('[MintRequest] Inserting mint request...', { userId: user.id, wallet: input.userWalletAddress, amount: formatFunAmount(input.mintableFunAtomic) });
+
       const { data, error: insertError } = await (supabase as any)
         .from('mint_requests')
         .insert(insertData)
@@ -343,8 +345,11 @@ export function useAutoMintRequest(): UseAutoMintRequestReturn {
         .single();
 
       if (insertError) {
+        console.error('[MintRequest] Insert error:', insertError);
         throw new Error(insertError.message);
       }
+
+      console.log('[MintRequest] Success! Request ID:', data.id);
 
       // 6. Update last mint timestamp on profile
       await supabase
@@ -355,7 +360,9 @@ export function useAutoMintRequest(): UseAutoMintRequestReturn {
       return { id: data.id };
 
     } catch (err: any) {
-      setError(err.message || 'Gửi yêu cầu tự động thất bại');
+      const errorMsg = err.message || 'Gửi yêu cầu tự động thất bại';
+      console.error('[MintRequest] Error:', errorMsg);
+      setError(errorMsg);
       return null;
     } finally {
       setLoading(false);
