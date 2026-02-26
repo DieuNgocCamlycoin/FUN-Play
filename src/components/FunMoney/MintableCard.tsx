@@ -63,7 +63,18 @@ export function MintableCard({ activity, loading, onMintSuccess }: MintableCardP
   };
 
   const handleMint = async () => {
-    if (!activity || !activity.canMint) return;
+    if (!activity) {
+      toast.error('Không có dữ liệu hoạt động');
+      return;
+    }
+    
+    if (!activity.canMint) {
+      toast.error('Chưa đủ điều kiện mint', {
+        description: activity.mintBlockReason || 'Vui lòng kiểm tra lại điều kiện',
+        duration: 5000
+      });
+      return;
+    }
     
     if (!isWalletConnected) {
       toast.error('Vui lòng kết nối ví trước');
