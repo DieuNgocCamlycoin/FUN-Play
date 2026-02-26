@@ -520,6 +520,23 @@ export default function Watch({ videoIdProp }: { videoIdProp?: string }) {
 
         setHasLiked(false);
       } else {
+        // Remove dislike if exists first (unique constraint on user_id, video_id)
+        if (hasDisliked) {
+          await supabase
+            .from("likes")
+            .delete()
+            .eq("video_id", id)
+            .eq("user_id", user.id)
+            .eq("is_dislike", true);
+
+          await supabase
+            .from("videos")
+            .update({ dislike_count: Math.max(0, (video?.dislike_count || 1) - 1) })
+            .eq("id", id);
+
+          setHasDisliked(false);
+        }
+
         // Like
         await supabase.from("likes").insert({
           video_id: id,
