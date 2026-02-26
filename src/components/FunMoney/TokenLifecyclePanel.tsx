@@ -144,10 +144,10 @@ export function TokenLifecyclePanel({
               <div className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-400/30 to-amber-500/30 animate-pulse" />
             </div>
             <div>
-              <h3 className="text-lg font-bold bg-gradient-to-r from-yellow-500 via-amber-500 to-orange-500 bg-clip-text text-transparent">
+              <h3 className="text-xl font-bold bg-gradient-to-r from-yellow-500 via-amber-500 to-orange-500 bg-clip-text text-transparent">
                 Vòng đời Token
               </h3>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-base text-muted-foreground">
                 Trạng thái FUN tokens của bạn
               </p>
             </div>
@@ -237,20 +237,20 @@ export function TokenLifecyclePanel({
 
                 {/* Label */}
                 <div className="text-center mb-2">
-                  <p className={cn("font-bold text-sm", state.color)}>
+                <p className={cn("font-bold text-base", state.color)}>
                     {state.label}
                   </p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-sm text-muted-foreground">
                     {state.labelVi}
                   </p>
                 </div>
 
                 {/* Stats */}
                 <div className="text-center space-y-1">
-                  <p className={cn("text-3xl font-black", state.color)}>
+                  <p className={cn("text-4xl font-black", state.color)}>
                     {state.count}
                   </p>
-                  <p className="text-sm text-muted-foreground font-medium">
+                  <p className="text-base text-muted-foreground font-medium">
                     {formatFunAmount(state.totalAmount.toString())}
                   </p>
                 </div>
@@ -270,8 +270,8 @@ export function TokenLifecyclePanel({
         <div className="mb-4 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20 flex items-start gap-2">
           <Zap className="w-4 h-4 text-yellow-500 shrink-0 mt-0.5" />
           <div className="space-y-1">
-            <p className="text-xs font-medium text-yellow-600 dark:text-yellow-400">⛽ Phí gas cho Activate &amp; Claim</p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm font-medium text-yellow-600 dark:text-yellow-400">⛽ Phí gas cho Activate &amp; Claim</p>
+            <p className="text-sm text-muted-foreground">
               Admin mint FUN cho bạn (không tốn phí). Sau đó, bạn cần <strong className="text-foreground">tBNB</strong> trong ví để thực hiện <strong className="text-foreground">Activate</strong> và <strong className="text-foreground">Claim</strong> FUN về ví cá nhân.
             </p>
           </div>
@@ -285,9 +285,9 @@ export function TokenLifecyclePanel({
               <div className="text-center">
                 <div className="flex items-center justify-center gap-1.5 mb-1">
                   <img src={FUN_COIN_LOGO} alt="" className="w-4 h-4" />
-                  <span className="text-xs text-muted-foreground">Tổng giá trị</span>
+                  <span className="text-sm text-muted-foreground">Tổng giá trị</span>
                 </div>
-                <p className="font-bold text-lg bg-gradient-to-r from-yellow-500 to-amber-500 bg-clip-text text-transparent">
+                <p className="font-bold text-xl bg-gradient-to-r from-yellow-500 to-amber-500 bg-clip-text text-transparent">
                   {formatFunAmount(stats.totalAll.toString())}
                 </p>
               </div>
@@ -295,9 +295,9 @@ export function TokenLifecyclePanel({
               <div className="text-center">
                 <div className="flex items-center justify-center gap-1.5 mb-1">
                   <Star className="w-4 h-4 text-yellow-500" />
-                  <span className="text-xs text-muted-foreground">Điểm Ánh Sáng</span>
+                  <span className="text-sm text-muted-foreground">Điểm Ánh Sáng</span>
                 </div>
-                <p className="font-bold text-lg text-foreground">
+                <p className="font-bold text-xl text-foreground">
                   {stats.avgLightScore.toFixed(1)}
                 </p>
               </div>
@@ -305,9 +305,9 @@ export function TokenLifecyclePanel({
               <div className="text-center">
                 <div className="flex items-center justify-center gap-1.5 mb-1">
                   <Users className="w-4 h-4 text-blue-500" />
-                  <span className="text-xs text-muted-foreground">Điểm Đoàn Kết</span>
+                  <span className="text-sm text-muted-foreground">Điểm Đoàn Kết</span>
                 </div>
-                <p className="font-bold text-lg text-foreground">
+                <p className="font-bold text-xl text-foreground">
                   {stats.avgUnityScore.toFixed(1)}
                 </p>
               </div>
