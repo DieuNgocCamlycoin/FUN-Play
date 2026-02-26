@@ -62,6 +62,22 @@ import { Skeleton } from "./components/ui/skeleton";
 // import { ValentineMusicButton } from './components/ValentineMusicButton';
 import { ProfileOnboardingModal } from './components/Onboarding/ProfileOnboardingModal';
 
+// Auto-reload on chunk load failure (stale deploy)
+const lazyWithRetry = (importFn: () => Promise<any>) =>
+  lazy(() =>
+    importFn().catch((err) => {
+      // Only reload once to avoid infinite loops
+      const key = 'chunk_reload';
+      const lastReload = sessionStorage.getItem(key);
+      const now = Date.now();
+      if (!lastReload || now - Number(lastReload) > 10000) {
+        sessionStorage.setItem(key, String(now));
+        window.location.reload();
+      }
+      throw err;
+    })
+  );
+
 // Lazy loaded pages - Less frequently used
 const ProfileSettings = lazy(() => import("./pages/ProfileSettings"));
 
@@ -79,7 +95,7 @@ const Leaderboard = lazy(() => import("./pages/Leaderboard"));
 const RewardHistory = lazy(() => import("./pages/RewardHistory"));
 const Referral = lazy(() => import("./pages/Referral"));
 const UserDashboard = lazy(() => import("./pages/UserDashboard"));
-const UnifiedAdminDashboard = lazy(() => import("./pages/UnifiedAdminDashboard"));
+const UnifiedAdminDashboard = lazyWithRetry(() => import("./pages/UnifiedAdminDashboard"));
 const NFTGallery = lazy(() => import("./pages/NFTGallery"));
 const FunWallet = lazy(() => import("./pages/FunWallet"));
 const Meditate = lazy(() => import("./pages/Meditate"));
