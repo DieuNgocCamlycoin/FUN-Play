@@ -30,7 +30,8 @@ import {
   MintRequestList,
   MintableCard,
   LightActivityBreakdown,
-  ActivitySummary
+  ActivitySummary,
+  ActivateClaimPanel
 } from '@/components/FunMoney';
 import { cn } from '@/lib/utils';
 import { BackButton } from '@/components/ui/back-button';
@@ -170,8 +171,10 @@ export default function FunMoney() {
           onMintSuccess={handleMintSuccess}
         />
 
-        {/* Token Lifecycle Panel */}
         <TokenLifecyclePanel requests={myRequests} />
+
+        {/* Activate & Claim Panel - User on-chain actions */}
+        <ActivateClaimPanel />
 
         {/* Main Content */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>

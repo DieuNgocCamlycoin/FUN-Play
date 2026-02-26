@@ -12,3 +12,6 @@ export { MintRequestList } from './MintRequestList';
 export { MintableCard } from './MintableCard';
 export { LightActivityBreakdown } from './LightActivityBreakdown';
 export { ActivitySummary } from './ActivitySummary';
+
+// Activate & Claim (on-chain user actions)
+export { ActivateClaimPanel } from './ActivateClaimPanel';
