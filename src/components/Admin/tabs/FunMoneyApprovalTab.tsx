@@ -12,6 +12,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { supabase } from '@/integrations/supabase/client';
 import {
   Table,
   TableBody,
@@ -73,6 +75,7 @@ export function FunMoneyApprovalTab() {
   const [isBatchProcessing, setIsBatchProcessing] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
   const [actionToRegister, setActionToRegister] = useState('LIGHT_ACTIVITY');
+  const [profileCache, setProfileCache] = useState<Record<string, { display_name: string | null; avatar_url: string | null; username: string }>>({});
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchQuery), 500);
@@ -101,6 +104,25 @@ export function FunMoneyApprovalTab() {
     setSelectedIds(new Set());
     setExpandedId(null);
   }, [activeTab, fetchPendingRequests, fetchAllRequests]);
+
+  // Fetch profiles for all visible requests
+  useEffect(() => {
+    const userIds = [...new Set(requests.map(r => r.user_id))].filter(id => !profileCache[id]);
+    if (userIds.length === 0) return;
+    supabase
+      .from('profiles')
+      .select('id, display_name, avatar_url, username')
+      .in('id', userIds)
+      .then(({ data }) => {
+        if (data) {
+          setProfileCache(prev => {
+            const next = { ...prev };
+            data.forEach((p: any) => { next[p.id] = { display_name: p.display_name, avatar_url: p.avatar_url, username: p.username }; });
+            return next;
+          });
+        }
+      });
+  }, [requests]);
 
   const filteredRequests = requests.filter(r => {
     if (!debouncedSearch) return true;
@@ -450,6 +472,7 @@ export function FunMoneyApprovalTab() {
                     onApproveAndMint={() => handleApproveAndMint(request)}
                     onRejectReasonChange={setRejectReason}
                     onCopy={copyToClipboard}
+                    profile={profileCache[request.user_id]}
                   />
                 ))}
               </TableBody>
@@ -472,7 +495,7 @@ export function FunMoneyApprovalTab() {
 function RequestTableRow({
   request, isExpanded, isSelected, showCheckbox,
   isConnected, isAttesterWallet, isMinting, isBatchProcessing,
-  rejectReason,
+  rejectReason, profile,
   onToggleExpand, onToggleSelect,
   onApprove, onReject, onMint, onApproveAndMint,
   onRejectReasonChange, onCopy
@@ -486,6 +509,7 @@ function RequestTableRow({
   isMinting: boolean;
   isBatchProcessing: boolean;
   rejectReason: string;
+  profile?: { display_name: string | null; avatar_url: string | null; username: string };
   onToggleExpand: () => void;
   onToggleSelect: () => void;
   onApprove: () => void;
@@ -498,6 +522,8 @@ function RequestTableRow({
   const pillarScores = request.pillar_scores as { S: number; T: number; H: number; C: number; U: number };
   const unitySignals = request.unity_signals as Record<string, boolean> | null;
   const colSpan = showCheckbox ? 8 : 7;
+  const displayName = profile?.display_name || profile?.username || 'Unknown';
+  const walletShort = `${request.user_wallet_address.slice(0, 6)}...${request.user_wallet_address.slice(-4)}`;
 
   return (
     <>
@@ -512,11 +538,19 @@ function RequestTableRow({
           </TableCell>
         )}
         <TableCell onClick={onToggleExpand}>
-          <div className="flex flex-col">
-            <span className="font-mono text-xs">
-              {request.user_wallet_address.slice(0, 6)}...{request.user_wallet_address.slice(-4)}
-            </span>
-            <span className="text-[10px] text-muted-foreground">{request.id.slice(0, 8)}</span>
+          <div className="flex items-center gap-2.5">
+            <Avatar className="h-8 w-8 shrink-0">
+              {profile?.avatar_url ? (
+                <AvatarImage src={profile.avatar_url} alt={displayName} />
+              ) : null}
+              <AvatarFallback className="text-[10px] font-bold bg-primary/10 text-primary">
+                {displayName.slice(0, 2).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs font-semibold truncate max-w-[140px]">{displayName}</span>
+              <span className="font-mono text-[10px] text-muted-foreground">{walletShort}</span>
+            </div>
           </div>
         </TableCell>
         <TableCell onClick={onToggleExpand}>
