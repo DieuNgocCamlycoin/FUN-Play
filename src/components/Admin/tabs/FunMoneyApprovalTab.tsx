@@ -90,7 +90,8 @@ export function FunMoneyApprovalTab() {
 
   const {
     isConnected, address: adminAddress,
-    connect: connectWallet, getSigner
+    connect: connectWallet, getSigner,
+    isCorrectChain, switchToBscTestnet
   } = useFunMoneyWallet();
 
   const isAttesterWallet = adminAddress?.toLowerCase() === KNOWN_ADDRESSES.angelAiAttester.toLowerCase();
@@ -200,6 +201,13 @@ export function FunMoneyApprovalTab() {
     }
     setIsMinting(true);
     try {
+      // Auto-switch to BSC Testnet if needed
+      if (!isCorrectChain) {
+        toast.info('🔄 Đang chuyển sang BSC Testnet...');
+        await switchToBscTestnet();
+        // Wait a moment for chain switch to propagate
+        await new Promise(r => setTimeout(r, 1500));
+      }
       const signer = await getSigner();
       const provider = signer.provider as import('ethers').BrowserProvider;
       const validation = await validateBeforeMint(provider, adminAddress, request.action_type);
@@ -260,6 +268,12 @@ export function FunMoneyApprovalTab() {
   const handleBatchApproveAndMint = async () => {
     if (selectedIds.size === 0 || !isConnected || !isAttesterWallet || !adminAddress) return;
     setIsBatchProcessing(true);
+    // Auto-switch to BSC Testnet if needed
+    if (!isCorrectChain) {
+      toast.info('🔄 Đang chuyển sang BSC Testnet...');
+      await switchToBscTestnet();
+      await new Promise(r => setTimeout(r, 1500));
+    }
     let success = 0, fail = 0;
     for (const id of selectedIds) {
       const request = requests.find(r => r.id === id);
