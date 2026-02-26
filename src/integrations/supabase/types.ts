@@ -2855,6 +2855,7 @@ export type Database = {
         Returns: undefined
       }
       get_admin_dashboard_stats: { Args: never; Returns: Json }
+      get_fun_money_system_stats: { Args: never; Returns: Json }
       get_honobar_stats: { Args: never; Returns: Json }
       get_ip_abuse_clusters: {
         Args: { min_accounts?: number }
