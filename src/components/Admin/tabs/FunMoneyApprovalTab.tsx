@@ -88,8 +88,7 @@ export function FunMoneyApprovalTab() {
     isConnected, 
     address: adminAddress, 
     connect: connectWallet,
-    signer,
-    provider
+    getSigner
   } = useFunMoneyWallet();
 
   // Check if connected wallet is the registered attester
@@ -145,7 +144,7 @@ export function FunMoneyApprovalTab() {
 
   // Handle approve + mint in one step (for pending requests)
   const handleApproveAndMint = async (request: MintRequest) => {
-    if (!isConnected || !signer || !provider || !adminAddress) {
+    if (!isConnected || !adminAddress) {
       toast.error('Vui lòng kết nối ví Attester trước');
       return;
     }
@@ -167,7 +166,7 @@ export function FunMoneyApprovalTab() {
 
   // Handle mint (EIP-712 signing + on-chain)
   const handleMint = async (request: MintRequest) => {
-    if (!isConnected || !signer || !provider || !adminAddress) {
+    if (!isConnected || !adminAddress) {
       toast.error('Vui lòng kết nối ví trước');
       return;
     }
@@ -175,6 +174,10 @@ export function FunMoneyApprovalTab() {
     setIsMinting(true);
 
     try {
+      const signer = await getSigner();
+      const { BrowserProvider } = await import('ethers');
+      const provider = new BrowserProvider((window as any).ethereum);
+
       // 1. Validate before minting
       const validation = await validateBeforeMint(
         provider,
@@ -232,7 +235,7 @@ export function FunMoneyApprovalTab() {
 
   // Handle register action on contract
   const handleRegisterAction = async () => {
-    if (!isConnected || !signer || !provider) {
+    if (!isConnected) {
       toast.error('Vui lòng kết nối ví trước');
       return;
     }
@@ -243,6 +246,7 @@ export function FunMoneyApprovalTab() {
 
     setIsRegistering(true);
     try {
+      const signer = await getSigner();
       const { Contract } = await import('ethers');
       const { getContractAddress, FUN_MONEY_ABI } = await import('@/lib/fun-money/web3-config');
       const contract = new Contract(getContractAddress(), FUN_MONEY_ABI, signer);

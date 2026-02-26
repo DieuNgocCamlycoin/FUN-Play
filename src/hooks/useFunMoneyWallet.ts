@@ -1,18 +1,21 @@
 /**
  * FUN Money Wallet Hook (BSC Testnet)
- * SDK v1.0
+ * v2.0 - Bridge từ WalletContext (wagmi/AppKit)
  * 
- * Named useFunMoneyWallet to avoid conflict with existing useWallet hooks
+ * Lấy trạng thái kết nối từ hệ thống chính (wagmi) thay vì truy cập
+ * trực tiếp window.ethereum, đảm bảo tương thích với mọi loại ví.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { BrowserProvider, JsonRpcSigner } from 'ethers';
+import { useWalletContext } from '@/contexts/WalletContext';
 
 // ===== BSC TESTNET CONFIG =====
 
+const BSC_TESTNET_CHAIN_ID = 97;
+
 const BSC_TESTNET = {
   chainId: '0x61', // 97 in hex
-  chainIdNumber: 97,
   chainName: 'BNB Smart Chain Testnet',
   nativeCurrency: {
     name: 'tBNB',
@@ -25,16 +28,17 @@ const BSC_TESTNET = {
 
 // ===== TYPES =====
 
-interface WalletState {
+interface EthereumProvider {
+  request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
+}
+
+interface UseFunMoneyWalletReturn {
   isConnected: boolean;
   address: string | null;
   chainId: number | null;
   isCorrectChain: boolean;
   provider: BrowserProvider | null;
   signer: JsonRpcSigner | null;
-}
-
-interface UseFunMoneyWalletReturn extends WalletState {
   isConnecting: boolean;
   error: string | null;
   hasMetaMask: boolean;
@@ -42,30 +46,25 @@ interface UseFunMoneyWalletReturn extends WalletState {
   disconnect: () => void;
   switchToBscTestnet: () => Promise<void>;
   clearError: () => void;
-}
-
-// Ethereum provider type
-interface EthereumProvider {
-  request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
-  on: (event: string, handler: (...args: any[]) => void) => void;
-  removeListener: (event: string, handler: (...args: any[]) => void) => void;
+  getSigner: () => Promise<JsonRpcSigner>;
 }
 
 // ===== HOOK =====
 
 export function useFunMoneyWallet(): UseFunMoneyWalletReturn {
-  const [state, setState] = useState<WalletState>({
-    isConnected: false,
-    address: null,
-    chainId: null,
-    isCorrectChain: false,
-    provider: null,
-    signer: null
-  });
-  const [isConnecting, setIsConnecting] = useState(false);
+  const walletCtx = useWalletContext();
   const [error, setError] = useState<string | null>(null);
+  const [cachedProvider, setCachedProvider] = useState<BrowserProvider | null>(null);
+  const [cachedSigner, setCachedSigner] = useState<JsonRpcSigner | null>(null);
 
-  // Get ethereum provider
+  // Derive state from wagmi/AppKit context
+  const isConnected = walletCtx.isConnected;
+  const address = walletCtx.address || null;
+  const chainId = walletCtx.chainId ?? null;
+  const isCorrectChain = chainId === BSC_TESTNET_CHAIN_ID;
+
+  const hasMetaMask = typeof window !== 'undefined' && typeof (window as any).ethereum !== 'undefined';
+
   const getEthereum = (): EthereumProvider | undefined => {
     if (typeof window !== 'undefined') {
       return (window as any).ethereum;
@@ -73,82 +72,34 @@ export function useFunMoneyWallet(): UseFunMoneyWalletReturn {
     return undefined;
   };
 
-  // Check if MetaMask is installed
-  const hasMetaMask = typeof window !== 'undefined' && typeof (window as any).ethereum !== 'undefined';
-
-  // Initialize wallet from existing connection
-  const initializeWallet = useCallback(async () => {
+  // Get ethers signer from window.ethereum (needed for contract interactions)
+  const getSigner = useCallback(async (): Promise<JsonRpcSigner> => {
     const ethereum = getEthereum();
-    if (!ethereum) return;
-
-    try {
-      const provider = new BrowserProvider(ethereum as any);
-      const accounts = await provider.listAccounts();
-
-      if (accounts.length > 0) {
-        const signer = await provider.getSigner();
-        const address = await signer.getAddress();
-        const network = await provider.getNetwork();
-        const chainId = Number(network.chainId);
-
-        setState({
-          isConnected: true,
-          address,
-          chainId,
-          isCorrectChain: chainId === BSC_TESTNET.chainIdNumber,
-          provider,
-          signer
-        });
-      }
-    } catch (err) {
-      console.error('Failed to initialize wallet:', err);
-    }
+    if (!ethereum) throw new Error('Không tìm thấy ví (MetaMask)');
+    const provider = new BrowserProvider(ethereum as any);
+    const signer = await provider.getSigner();
+    setCachedProvider(provider);
+    setCachedSigner(signer);
+    return signer;
   }, []);
 
-  // Connect wallet
+  // Connect = mở AppKit modal qua WalletContext
   const connect = useCallback(async () => {
-    const ethereum = getEthereum();
-    if (!ethereum) {
-      setError('Please install MetaMask to continue');
-      return;
-    }
-
-    setIsConnecting(true);
     setError(null);
-
     try {
-      const provider = new BrowserProvider(ethereum as any);
-      await provider.send('eth_requestAccounts', []);
-
-      const signer = await provider.getSigner();
-      const address = await signer.getAddress();
-      const network = await provider.getNetwork();
-      const chainId = Number(network.chainId);
-
-      setState({
-        isConnected: true,
-        address,
-        chainId,
-        isCorrectChain: chainId === BSC_TESTNET.chainIdNumber,
-        provider,
-        signer
-      });
+      await walletCtx.connectWithRetry();
     } catch (err: any) {
-      if (err.code === 4001) {
-        setError('Connection rejected by user');
-      } else {
-        setError('Failed to connect wallet');
-      }
-      console.error('Connect error:', err);
-    } finally {
-      setIsConnecting(false);
+      setError(err.message || 'Không thể kết nối ví');
     }
-  }, []);
+  }, [walletCtx.connectWithRetry]);
 
   // Switch to BSC Testnet
   const switchToBscTestnet = useCallback(async () => {
     const ethereum = getEthereum();
-    if (!ethereum) return;
+    if (!ethereum) {
+      setError('Không tìm thấy ví');
+      return;
+    }
 
     try {
       await ethereum.request({
@@ -156,7 +107,6 @@ export function useFunMoneyWallet(): UseFunMoneyWalletReturn {
         params: [{ chainId: BSC_TESTNET.chainId }]
       });
     } catch (err: any) {
-      // Chain not added, try to add it
       if (err.code === 4902) {
         try {
           await ethereum.request({
@@ -164,70 +114,37 @@ export function useFunMoneyWallet(): UseFunMoneyWalletReturn {
             params: [BSC_TESTNET]
           });
         } catch (addErr) {
-          setError('Failed to add BSC Testnet');
-          console.error('Add chain error:', addErr);
+          setError('Không thể thêm BSC Testnet');
         }
       } else {
-        setError('Failed to switch network');
-        console.error('Switch chain error:', err);
+        setError('Không thể chuyển mạng');
       }
     }
   }, []);
 
-  // Disconnect (just clear state)
+  // Disconnect
   const disconnect = useCallback(() => {
-    setState({
-      isConnected: false,
-      address: null,
-      chainId: null,
-      isCorrectChain: false,
-      provider: null,
-      signer: null
-    });
-  }, []);
+    walletCtx.disconnectWallet();
+    setCachedProvider(null);
+    setCachedSigner(null);
+  }, [walletCtx.disconnectWallet]);
 
-  // Clear error
-  const clearError = useCallback(() => {
-    setError(null);
-  }, []);
-
-  // Listen for account/chain changes
-  useEffect(() => {
-    const ethereum = getEthereum();
-    if (!ethereum) return;
-
-    const handleAccountsChanged = (accounts: string[]) => {
-      if (accounts.length === 0) {
-        disconnect();
-      } else {
-        initializeWallet();
-      }
-    };
-
-    const handleChainChanged = () => {
-      initializeWallet();
-    };
-
-    ethereum.on('accountsChanged', handleAccountsChanged);
-    ethereum.on('chainChanged', handleChainChanged);
-
-    // Initialize on mount
-    initializeWallet();
-
-    return () => {
-      ethereum.removeListener('accountsChanged', handleAccountsChanged);
-      ethereum.removeListener('chainChanged', handleChainChanged);
-    };
-  }, [initializeWallet, disconnect]);
+  const clearError = useCallback(() => setError(null), []);
 
   return {
-    ...state,
-    isConnecting,
+    isConnected,
+    address,
+    chainId,
+    isCorrectChain,
+    provider: cachedProvider,
+    signer: cachedSigner,
+    isConnecting: walletCtx.isConnecting,
     error,
     hasMetaMask,
     connect,
     disconnect,
     switchToBscTestnet,
-    clearError
+    clearError,
+    getSigner
   };
 }
