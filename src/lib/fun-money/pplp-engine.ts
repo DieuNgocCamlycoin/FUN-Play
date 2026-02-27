@@ -266,6 +266,12 @@ export interface ScoringInput {
   impactMultiplier?: number;
   /** PPLP v2.0 validation — nếu cung cấp, sẽ kiểm tra 5 điều kiện bắt buộc trước khi tính toán */
   pplpValidation?: import('./constitution').PPLPValidation;
+  /** LS-Math v1.0: streak days for consistency multiplier */
+  streakDays?: number;
+  /** LS-Math v1.0: sequence bonus total for sequence multiplier */
+  sequenceBonus?: number;
+  /** LS-Math v1.0: risk score for integrity penalty (0-1) */
+  riskScore?: number;
 }
 
 /**
@@ -314,8 +320,17 @@ export function scoreAction(input: ScoringInput): ScoringResult {
     Ux
   };
   
-  // Calculate amount
-  const calculatedAmountAtomic = calculateMintAmount(input.baseRewardAtomic, multipliers);
+  // LS-Math v1.0: Apply consistency, sequence, and integrity multipliers
+  const mCons = calculateConsistencyMultiplier(input.streakDays ?? 0);
+  const mSeq = 1 + 0.5 * Math.tanh((input.sequenceBonus ?? 0) / 5);
+  const integrityPenalty = 1 - Math.min(0.5, 0.8 * (input.riskScore ?? 0));
+  const lsMathFactor = Math.round(mCons * mSeq * integrityPenalty * 10000) / 10000;
+
+  // Calculate amount with LS-Math factor applied
+  const baseAmountAtomic = calculateMintAmount(input.baseRewardAtomic, multipliers);
+  const baseAmount = BigInt(baseAmountAtomic);
+  const scaledAmount = baseAmount * BigInt(Math.floor(lsMathFactor * 10000)) / BigInt(10000);
+  const calculatedAmountAtomic = scaledAmount.toString();
   
   // Determine decision
   const { decision, reasons } = determineDecision(
