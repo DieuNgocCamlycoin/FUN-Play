@@ -94,9 +94,9 @@ export const ProfileInfo = ({
     >
       <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
         {/* Left: Name + Info */}
-        <div className="flex-1 pl-36 md:pl-44 lg:pl-52">
+        <div className="flex-1 items-center text-center md:items-start md:text-left md:pl-44 lg:pl-52">
           {/* Display Name with Rainbow Gradient */}
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-1 justify-center md:justify-start">
             <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-[#FF0000] via-[#FF7F00] via-[#FFFF00] via-[#00FF00] via-[#0000FF] via-[#4B0082] to-[#9400D3] bg-clip-text text-transparent animate-rainbow-shift bg-[length:200%_auto]">
               {displayName}
             </h1>
@@ -108,7 +108,7 @@ export const ProfileInfo = ({
           </div>
 
           {/* Username + Stats */}
-          <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground mb-2">
+          <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground mb-2 justify-center md:justify-start">
             <span className="font-medium">@{profile.username}</span>
             <span>•</span>
             <span>{formatViewsShort(subscriberCount)} người theo dõi</span>
@@ -120,13 +120,13 @@ export const ProfileInfo = ({
 
           {/* Bio */}
           {profile.bio && (
-            <p className="text-sm text-foreground/80 max-w-xl mb-3 whitespace-pre-wrap">
+            <p className="text-sm text-foreground/80 max-w-xl mb-3 whitespace-pre-wrap text-center md:text-left">
               {profile.bio}
             </p>
           )}
 
           {/* Wallet + Profile Link */}
-          <div className="flex flex-nowrap items-center gap-2 overflow-x-auto">
+          <div className="flex flex-nowrap items-center gap-2 overflow-x-auto justify-center md:justify-start">
             {profile.wallet_address && (
               <div className="inline-flex items-center gap-2 px-3 py-1 bg-muted/60 border border-primary/30 rounded-full hover:border-primary/50 transition-colors duration-200">
                 <Wallet className="w-3.5 h-3.5 text-primary flex-shrink-0" />
@@ -168,7 +168,7 @@ export const ProfileInfo = ({
 
         {/* Right: Action Buttons - hidden when banned */}
         {!banned && (
-          <div className="flex items-center gap-2 lg:gap-3 pl-36 md:pl-44 lg:pl-0">
+          <div className="flex items-center gap-2 lg:gap-3 justify-center md:justify-start md:pl-0">
             {/* Donate Button - Premium Metallic Gold Style - hidden for own profile */}
             {!isOwnProfile && (
               <Button
