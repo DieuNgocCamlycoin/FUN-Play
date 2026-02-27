@@ -66,7 +66,7 @@ const libraryItems: NavItem[] = [
 ];
 
 const rewardItems: NavItem[] = [
-  { icon: Trophy, label: "Bảng Xếp Hạng", href: "/leaderboard" },
+  { icon: Trophy, label: "Light Community", href: "/leaderboard" },
   { icon: Coins, label: "Lịch Sử Phần Thưởng", href: "/reward-history" },
   { icon: Globe, label: "Lịch Sử Giao Dịch", href: "/transactions" },
   { icon: ShieldBan, label: "Danh Sách Đình Chỉ", href: "/suspended" },
