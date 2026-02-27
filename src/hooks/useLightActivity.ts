@@ -53,6 +53,13 @@ export interface LightActivity {
   funBreakdown: Record<string, number>;
   totalFunReward: number;
   alreadyMintedFun: number;
+  // PPLP v2: Multipliers & Light Level
+  lightLevel: string;
+  reputationWeight: number;
+  consistencyMultiplier: number;
+  consistencyDays: number;
+  sequenceBonus: number;
+  rawScore: number;
 }
 
 export interface UseLightActivityReturn {
@@ -173,7 +180,7 @@ export function useLightActivity(userId: string | undefined): UseLightActivityRe
       ] = await Promise.all([
         supabase
           .from('profiles')
-          .select('created_at, avatar_verified, suspicious_score, last_fun_mint_at')
+          .select('created_at, avatar_verified, suspicious_score, last_fun_mint_at, light_score, light_score_details')
           .eq('id', userId)
           .single(),
         
@@ -280,9 +287,9 @@ export function useLightActivity(userId: string | undefined): UseLightActivityRe
       if (hasPendingRequest) {
         canMint = false;
         mintBlockReason = 'Bạn đã có request đang chờ duyệt';
-      } else if (lightScore < MIN_LIGHT_SCORE) {
+      } else if ((profile.light_score ?? lightScore) < MIN_LIGHT_SCORE) {
         canMint = false;
-        mintBlockReason = `Light Score (${lightScore}) phải >= ${MIN_LIGHT_SCORE}`;
+        mintBlockReason = `Light Score (${profile.light_score ?? lightScore}) phải >= ${MIN_LIGHT_SCORE}`;
       } else if (totalActivities < MIN_ACTIVITIES) {
         canMint = false;
         mintBlockReason = `Cần ít nhất ${MIN_ACTIVITIES} activities`;
@@ -302,6 +309,16 @@ export function useLightActivity(userId: string | undefined): UseLightActivityRe
         }
       }
 
+      // Extract server-side details if available
+      const serverDetails = profile.light_score_details as Record<string, any> | null;
+      const serverLightScore = profile.light_score ?? lightScore;
+      const serverLightLevel = serverDetails?.light_level || 'presence';
+      const serverRepWeight = Number(serverDetails?.reputation_weight || 1);
+      const serverConsistMult = Number(serverDetails?.consistency_multiplier || 1);
+      const serverConsistDays = Number(serverDetails?.consistency_days || 0);
+      const serverSeqBonus = Number(serverDetails?.sequence_bonus || 0);
+      const serverRawScore = Number(serverDetails?.raw_score || 0);
+
       setActivity({
         activityCounts,
         totalActivities,
@@ -312,7 +329,7 @@ export function useLightActivity(userId: string | undefined): UseLightActivityRe
         },
         pillars,
         unitySignals,
-        lightScore,
+        lightScore: serverLightScore,
         unityScore,
         integrityScore,
         mintableFun: mintable.formatted,
@@ -326,7 +343,13 @@ export function useLightActivity(userId: string | undefined): UseLightActivityRe
         funMintedByAction,
         funBreakdown: mintable.breakdown,
         totalFunReward: mintable.totalReward,
-        alreadyMintedFun
+        alreadyMintedFun,
+        lightLevel: serverLightLevel,
+        reputationWeight: serverRepWeight,
+        consistencyMultiplier: serverConsistMult,
+        consistencyDays: serverConsistDays,
+        sequenceBonus: serverSeqBonus,
+        rawScore: serverRawScore
       });
 
     } catch (err: any) {

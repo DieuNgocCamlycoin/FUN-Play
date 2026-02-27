@@ -29,6 +29,7 @@ interface ProfileData {
   background_music_url: string | null;
   music_enabled: boolean | null;
   light_score: number | null;
+  light_level: string | null;
   suspicious_score: number | null;
   banned: boolean | null;
   violation_level: number | null;

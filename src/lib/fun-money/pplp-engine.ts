@@ -418,6 +418,50 @@ export const BASE_REWARDS: Record<string, Record<string, string>> = {
   }
 };
 
+// ===== LIGHT LEVEL HELPERS =====
+
+const LIGHT_LEVELS: Record<string, { label: string; emoji: string }> = {
+  presence: { label: 'Light Presence', emoji: '🌱' },
+  contributor: { label: 'Light Contributor', emoji: '🌿' },
+  builder: { label: 'Light Builder', emoji: '🌳' },
+  guardian: { label: 'Light Guardian', emoji: '🛡️' },
+  architect: { label: 'Light Architect', emoji: '👑' },
+};
+
+export function getLightLevelLabel(level: string): string {
+  return LIGHT_LEVELS[level]?.label || 'Light Presence';
+}
+
+export function getLightLevelEmoji(level: string): string {
+  return LIGHT_LEVELS[level]?.emoji || '🌱';
+}
+
+export function calculateReputationWeight(
+  accountAgeDays: number,
+  suspiciousScore: number,
+  hasApprovedContent: boolean,
+  hasDonations: boolean
+): number {
+  let weight = 0.6;
+  if (accountAgeDays >= 365) weight = 1.0;
+  else if (accountAgeDays >= 180) weight = 0.9;
+  else if (accountAgeDays >= 90) weight = 0.8;
+  else if (accountAgeDays >= 30) weight = 0.7;
+
+  if (suspiciousScore === 0) weight += 0.1;
+  if (hasApprovedContent) weight += 0.1;
+  if (hasDonations) weight += 0.1;
+
+  return Math.min(weight, 1.3);
+}
+
+export function calculateConsistencyMultiplier(activeDays: number): number {
+  if (activeDays >= 90) return 1.6;
+  if (activeDays >= 30) return 1.3;
+  if (activeDays >= 7) return 1.1;
+  return 1.0;
+}
+
 /**
  * Get base reward for an action
  */
