@@ -338,9 +338,13 @@ export function YouTubeMobilePlayer({
       const dur = video.duration;
       if (!dur || dur <= 0) return;
 
-      if (accumulatedWatchTimeRef.current >= dur * 0.3) {
+      // Short video (≤180s): watch ≥90%; Long video (>180s): watch ≥300s
+      const isShort = dur <= 180;
+      const threshold = isShort ? dur * 0.9 : 300;
+
+      if (accumulatedWatchTimeRef.current >= threshold) {
         setViewRewarded(true);
-        console.log('[YTMobile Reward] 30% accumulated, awarding view reward');
+        console.log(`[YTMobile Reward] ${isShort ? 'Short' : 'Long'} video threshold reached, awarding`);
         const result = await awardViewReward(videoId, { actualWatchTime: accumulatedWatchTimeRef.current });
         if (result.success) {
           console.log('[YTMobile Reward] View reward awarded:', result.amount);

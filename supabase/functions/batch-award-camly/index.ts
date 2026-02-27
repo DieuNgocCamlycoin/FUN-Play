@@ -18,6 +18,13 @@ const DEFAULT_DAILY_LIMITS: Record<string, number> = {
   SHARE_COUNT: 10,
 };
 
+// New defaults for short/long video differentiation
+const DEFAULT_SHORT_VIDEO_VIEW_REWARD = 3000;
+const DEFAULT_LONG_VIDEO_VIEW_REWARD = 8000;
+const DEFAULT_SHORT_VIDEO_MIN_WATCH_PERCENT = 90;
+const DEFAULT_LONG_VIDEO_MIN_WATCH_SECONDS = 300;
+const DEFAULT_SHORT_VIDEO_MAX_DURATION = 180;
+
 const DAILY_TOTAL_CAP = 500000;
 
 interface BatchAction {
@@ -113,6 +120,11 @@ serve(async (req) => {
     // Load reward config
     let rewardAmounts = { ...DEFAULT_REWARD_AMOUNTS };
     let dailyLimits = { ...DEFAULT_DAILY_LIMITS };
+    let shortVideoViewReward = DEFAULT_SHORT_VIDEO_VIEW_REWARD;
+    let longVideoViewReward = DEFAULT_LONG_VIDEO_VIEW_REWARD;
+    let shortVideoMinWatchPercent = DEFAULT_SHORT_VIDEO_MIN_WATCH_PERCENT;
+    let longVideoMinWatchSeconds = DEFAULT_LONG_VIDEO_MIN_WATCH_SECONDS;
+    let shortVideoMaxDuration = DEFAULT_SHORT_VIDEO_MAX_DURATION;
     
     const { data: configData } = await adminSupabase
       .from("reward_config")
@@ -126,6 +138,11 @@ serve(async (req) => {
         else if (c.config_key === 'DAILY_VIEW_COUNT_LIMIT') dailyLimits.VIEW_COUNT = Number(c.config_value);
         else if (c.config_key === 'DAILY_LIKE_COUNT_LIMIT') dailyLimits.LIKE_COUNT = Number(c.config_value);
         else if (c.config_key === 'DAILY_SHARE_COUNT_LIMIT') dailyLimits.SHARE_COUNT = Number(c.config_value);
+        else if (c.config_key === 'SHORT_VIDEO_VIEW_REWARD') shortVideoViewReward = Number(c.config_value);
+        else if (c.config_key === 'LONG_VIDEO_VIEW_REWARD') longVideoViewReward = Number(c.config_value);
+        else if (c.config_key === 'SHORT_VIDEO_MIN_WATCH_PERCENT') shortVideoMinWatchPercent = Number(c.config_value);
+        else if (c.config_key === 'LONG_VIDEO_MIN_WATCH_SECONDS') longVideoMinWatchSeconds = Number(c.config_value);
+        else if (c.config_key === 'SHORT_VIDEO_MAX_DURATION') shortVideoMaxDuration = Number(c.config_value);
       }
     }
 
@@ -152,6 +169,8 @@ serve(async (req) => {
     let viewCount = limits.view_count || 0;
     let likeCount = limits.like_count || 0;
     let shareCount = limits.share_count || 0;
+    let shortVideoCount = limits.short_video_count || 0;
+    let longVideoCount = limits.long_video_count || 0;
     let viewEarned = limits.view_rewards_earned || 0;
     let likeEarned = limits.like_rewards_earned || 0;
     let shareEarned = limits.share_rewards_earned || 0;
@@ -168,8 +187,6 @@ serve(async (req) => {
         continue;
       }
 
-      const amount = rewardAmounts[type] || 0;
-
       // Check daily count limit
       if (type === 'VIEW' && viewCount >= dailyLimits.VIEW_COUNT) {
         results.push({ type, videoId, success: false, reason: 'Daily limit reached' });
@@ -182,6 +199,53 @@ serve(async (req) => {
       if (type === 'SHARE' && shareCount >= dailyLimits.SHARE_COUNT) {
         results.push({ type, videoId, success: false, reason: 'Daily limit reached' });
         continue;
+      }
+
+      // Determine reward amount — for VIEW, classify by video duration
+      let amount = rewardAmounts[type] || 0;
+      let videoCategory: 'short' | 'long' | null = null;
+
+      if (type === 'VIEW') {
+        // Fetch video duration for classification
+        const { data: videoData } = await adminSupabase
+          .from("videos")
+          .select("duration")
+          .eq("id", videoId)
+          .single();
+
+        const videoDuration = videoData?.duration || 0;
+
+        if (videoDuration > 0) {
+          const isShort = videoDuration <= shortVideoMaxDuration;
+          videoCategory = isShort ? 'short' : 'long';
+
+          // Determine required watch time
+          const requiredWatch = isShort
+            ? videoDuration * (shortVideoMinWatchPercent / 100)
+            : longVideoMinWatchSeconds;
+
+          // Validate watch time
+          if (actualWatchTime == null || actualWatchTime < requiredWatch) {
+            const watchPct = actualWatchTime != null ? Math.round((actualWatchTime / videoDuration) * 100) : 0;
+            console.log(`[batch] Rejected VIEW for ${videoId}: category=${videoCategory}, watchTime=${actualWatchTime ?? 0}s, required=${requiredWatch}s, duration=${videoDuration}s`);
+            
+            // Log the rejected view
+            await adminSupabase.from("view_logs").insert({
+              user_id: userId,
+              video_id: videoId,
+              watch_time_seconds: actualWatchTime ?? 0,
+              watch_percentage: watchPct,
+              video_duration_seconds: videoDuration,
+              is_valid: false,
+            });
+            
+            results.push({ type, videoId, success: false, reason: 'Insufficient watch time', videoCategory });
+            continue;
+          }
+
+          // Set reward amount based on category
+          amount = isShort ? shortVideoViewReward : longVideoViewReward;
+        }
       }
 
       // Check total daily cap
@@ -204,7 +268,7 @@ serve(async (req) => {
         continue;
       }
 
-      // VIEW: dedup check + actualWatchTime validation
+      // VIEW: dedup check
       if (type === 'VIEW') {
         const cutoff = new Date(Date.now() - 60000).toISOString();
         const { data: recentViews } = await adminSupabase
@@ -218,24 +282,6 @@ serve(async (req) => {
         if (recentViews && recentViews.length > 0) {
           results.push({ type, videoId, success: false, reason: 'Duplicate view' });
           continue;
-        }
-
-        // Server-side watch time validation
-        if (actualWatchTime != null) {
-          const { data: videoData } = await adminSupabase
-            .from("videos")
-            .select("duration")
-            .eq("id", videoId)
-            .single();
-
-          if (videoData?.duration && videoData.duration > 0) {
-            const required = videoData.duration * 0.3;
-            if (actualWatchTime < required) {
-              console.log(`[batch] Rejected VIEW for ${videoId}: watchTime=${actualWatchTime}s < required=${required}s`);
-              results.push({ type, videoId, success: false, reason: 'Insufficient watch time' });
-              continue;
-            }
-          }
         }
       }
 
@@ -271,14 +317,39 @@ serve(async (req) => {
         action_type: type,
       }, { onConflict: 'user_id,video_id,action_type', ignoreDuplicates: true });
 
+      // Log valid view with details
+      if (type === 'VIEW') {
+        const { data: vData } = await adminSupabase
+          .from("videos")
+          .select("duration")
+          .eq("id", videoId)
+          .single();
+        const vDuration = vData?.duration || 0;
+        const watchPct = vDuration > 0 ? Math.round(((actualWatchTime ?? 0) / vDuration) * 100) : 0;
+        
+        await adminSupabase.from("view_logs").insert({
+          user_id: userId,
+          video_id: videoId,
+          watch_time_seconds: actualWatchTime ?? 0,
+          watch_percentage: watchPct,
+          video_duration_seconds: vDuration,
+          is_valid: true,
+        });
+      }
+
       // Update counters
-      if (type === 'VIEW') { viewCount++; viewEarned += amount; }
+      if (type === 'VIEW') {
+        viewCount++;
+        viewEarned += amount;
+        if (videoCategory === 'short') shortVideoCount++;
+        else if (videoCategory === 'long') longVideoCount++;
+      }
       else if (type === 'LIKE') { likeCount++; likeEarned += amount; }
       else if (type === 'SHARE') { shareCount++; shareEarned += amount; }
       totalTodayEarned += amount;
       totalAwarded += amount;
 
-      results.push({ type, videoId, success: true, amount, autoApproved: canAutoApprove });
+      results.push({ type, videoId, success: true, amount, autoApproved: canAutoApprove, videoCategory });
     }
 
     // Update daily limits in one shot
@@ -288,6 +359,8 @@ serve(async (req) => {
         view_count: viewCount,
         like_count: likeCount,
         share_count: shareCount,
+        short_video_count: shortVideoCount,
+        long_video_count: longVideoCount,
         view_rewards_earned: viewEarned,
         like_rewards_earned: likeEarned,
         share_rewards_earned: shareEarned,
@@ -305,6 +378,8 @@ serve(async (req) => {
           view_count: viewCount,
           like_count: likeCount,
           share_count: shareCount,
+          short_video_count: shortVideoCount,
+          long_video_count: longVideoCount,
         },
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

@@ -40,9 +40,15 @@ const rewardItems: RewardItem[] = [
   },
   {
     icon: <Eye className="h-5 w-5" />,
-    title: 'Xem video',
-    amount: '10,000',
-    description: 'Video ngắn xem hết hoặc video dài xem 5 phút',
+    title: 'Xem video ngắn (≤3 phút)',
+    amount: '3,000',
+    description: 'Xem hết video (≥90% thời lượng)',
+  },
+  {
+    icon: <Eye className="h-5 w-5" />,
+    title: 'Xem video dài (>3 phút)',
+    amount: '8,000',
+    description: 'Xem tối thiểu 5 phút thực tế',
   },
   {
     icon: <MessageCircle className="h-5 w-5" />,
