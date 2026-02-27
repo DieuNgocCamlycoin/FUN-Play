@@ -438,30 +438,78 @@ export function getLightLevelEmoji(level: string): string {
   return LIGHT_LEVELS[level]?.emoji || '🌱';
 }
 
+/**
+ * LS-Math v1.0: Logarithmic reputation weight
+ * w = clip(0.5, 2.0, 1 + 0.25 * log(1 + R_u))
+ */
 export function calculateReputationWeight(
   accountAgeDays: number,
   suspiciousScore: number,
   hasApprovedContent: boolean,
   hasDonations: boolean
 ): number {
-  let weight = 0.6;
-  if (accountAgeDays >= 365) weight = 1.0;
-  else if (accountAgeDays >= 180) weight = 0.9;
-  else if (accountAgeDays >= 90) weight = 0.8;
-  else if (accountAgeDays >= 30) weight = 0.7;
+  // R_u based on account age in months + bonuses
+  let reputation = accountAgeDays / 30;
+  if (suspiciousScore === 0) reputation += 1;
+  if (hasApprovedContent) reputation += 1;
+  if (hasDonations) reputation += 1;
 
-  if (suspiciousScore === 0) weight += 0.1;
-  if (hasApprovedContent) weight += 0.1;
-  if (hasDonations) weight += 0.1;
-
-  return Math.min(weight, 1.3);
+  const raw = 1 + 0.25 * Math.log(1 + reputation);
+  return Math.max(0.5, Math.min(2.0, Math.round(raw * 100) / 100));
 }
 
+/**
+ * LS-Math v1.0: Exponential consistency multiplier
+ * M_cons = 1 + 0.6 * (1 - e^(-S/30))
+ */
 export function calculateConsistencyMultiplier(activeDays: number): number {
-  if (activeDays >= 90) return 1.6;
-  if (activeDays >= 30) return 1.3;
-  if (activeDays >= 7) return 1.1;
-  return 1.0;
+  return Math.round((1 + 0.6 * (1 - Math.exp(-activeDays / 30))) * 10000) / 10000;
+}
+
+/**
+ * LS-Math v1.0: Content Pillar Score
+ * C_u(t) = Σ ρ(type) * (P_c/10)^1.3
+ */
+export function calculateContentPillarScore(
+  pillarTotal: number,
+  contentTypeWeight: number = 1.0
+): number {
+  const h = Math.pow(Math.min(pillarTotal / 10, 1), 1.3);
+  return Math.round(contentTypeWeight * h * 10000) / 10000;
+}
+
+/**
+ * LS-Math v1.0: Action Base Score
+ * B_u(t) = Σ b_τ * g(x)
+ */
+export function calculateActionBaseScore(
+  events: { baseScore: number; qualityAdjustment?: number }[]
+): number {
+  let B = 0;
+  for (const e of events) {
+    const g = Math.max(0, Math.min(1.5, e.qualityAdjustment ?? 1.0));
+    B += e.baseScore * g;
+  }
+  return Math.round(B * 10000) / 10000;
+}
+
+/**
+ * LS-Math v1.0: Daily Light Score
+ * L = (0.4*B + 0.6*C) * M_cons * M_seq * Π
+ */
+export function calculateDailyLightScore(
+  actionBase: number,
+  contentScore: number,
+  streakDays: number,
+  sequenceBonus: number,
+  riskScore: number
+): { rawScore: number; finalScore: number } {
+  const rawScore = 0.4 * actionBase + 0.6 * contentScore;
+  const mCons = calculateConsistencyMultiplier(streakDays);
+  const mSeq = 1 + 0.5 * Math.tanh(sequenceBonus / 5);
+  const integrity = 1 - Math.min(0.5, 0.8 * riskScore);
+  const finalScore = Math.round(rawScore * mCons * mSeq * integrity * 10000) / 10000;
+  return { rawScore: Math.round(rawScore * 10000) / 10000, finalScore };
 }
 
 /**

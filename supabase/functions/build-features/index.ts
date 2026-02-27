@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
         counts[e.event_type] = (counts[e.event_type] || 0) + 1;
       }
 
-      // Get average pplp rating for this user's content on this date
+      // Get pplp ratings for this user's content on this date
       const { data: ratings } = await supabase
         .from("pplp_ratings")
         .select("pillar_truth, pillar_sustain, pillar_heal_love, pillar_life_service, pillar_unity_source, weight_applied")
@@ -74,9 +74,34 @@ Deno.serve(async (req) => {
         .lt("created_at", `${targetDate}T23:59:59Z`);
 
       let avgRatingWeighted = 0;
+      let contentPillarScore = 0;
+      const EPSILON = 1e-6;
+      const GAMMA = 1.3;
+
       if (ratings && ratings.length > 0) {
-        let totalWeightedScore = 0;
-        let totalWeight = 0;
+        // Section 4: Content Pillar Score — weighted average per pillar
+        const pillarKeys = ['pillar_truth', 'pillar_sustain', 'pillar_heal_love', 'pillar_life_service', 'pillar_unity_source'] as const;
+        let pillarTotal = 0;
+
+        for (const key of pillarKeys) {
+          let num = 0, den = 0;
+          for (const r of ratings) {
+            const w = r.weight_applied || 1;
+            num += w * (r[key] || 0);
+            den += w;
+          }
+          pillarTotal += num / (den + EPSILON);
+        }
+
+        // Section 6: h(P_c) = (P_c/10)^γ with content type weights
+        const contentCount = (counts["POST_CREATED"] || 0) * 1.0
+          + (counts["VIDEO_UPLOADED"] || 0) * 1.5
+          + (counts["COMMENT_CREATED"] || 0) * 0.4;
+        contentPillarScore = Math.pow(Math.min(pillarTotal / 10, 1), GAMMA) * contentCount;
+        contentPillarScore = Math.round(contentPillarScore * 10000) / 10000;
+
+        // Legacy avg for backward compat
+        let totalWeightedScore = 0, totalWeight = 0;
         for (const r of ratings) {
           const pillarSum = (r.pillar_truth || 0) + (r.pillar_sustain || 0) +
             (r.pillar_heal_love || 0) + (r.pillar_life_service || 0) +
@@ -142,6 +167,7 @@ Deno.serve(async (req) => {
           count_donations: counts["DONATION_MADE"] || 0,
           count_reports_valid: counts["REPORT_SUBMITTED"] || 0,
           avg_rating_weighted: Math.round(avgRatingWeighted * 100) / 100,
+          content_pillar_score: contentPillarScore,
           consistency_streak: consistencyStreak,
           sequence_count: seqCount || 0,
           anti_farm_risk: Math.round(antiFarmRisk * 100) / 100,
