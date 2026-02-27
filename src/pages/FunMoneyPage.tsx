@@ -309,7 +309,7 @@ export default function FunMoney() {
                       onClick={addFunTokenToWallet}
                     >
                       <Plus className="w-4 h-4" />
-                      Thêm FUN vào ví
+                      Thêm Contract FUN Money vào ví
                     </Button>
                     <Button variant="outline" size="sm" asChild>
                       <a

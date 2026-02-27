@@ -323,7 +323,7 @@ export function TokenLifecyclePanel({
                   onClick={addFunTokenToWallet}
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  Thêm FUN vào ví
+                  Thêm Contract FUN Money vào ví
                 </Button>
                 {onViewAll && (
                   <Button variant="outline" size="sm" onClick={onViewAll}>
