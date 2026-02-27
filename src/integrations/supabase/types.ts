@@ -1008,6 +1008,7 @@ export type Database = {
           avg_rating_weighted: number | null
           checkin_done: boolean | null
           consistency_streak: number | null
+          content_pillar_score: number | null
           count_comments: number | null
           count_donations: number | null
           count_help: number | null
@@ -1027,6 +1028,7 @@ export type Database = {
           avg_rating_weighted?: number | null
           checkin_done?: boolean | null
           consistency_streak?: number | null
+          content_pillar_score?: number | null
           count_comments?: number | null
           count_donations?: number | null
           count_help?: number | null
@@ -1046,6 +1048,7 @@ export type Database = {
           avg_rating_weighted?: number | null
           checkin_done?: boolean | null
           consistency_streak?: number | null
+          content_pillar_score?: number | null
           count_comments?: number | null
           count_donations?: number | null
           count_help?: number | null
