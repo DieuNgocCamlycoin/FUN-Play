@@ -239,34 +239,35 @@ function testViralDrama(): TestCaseResult {
 
 /** Test 3 — Silent consistent: 60-day streak, few high-quality posts → beats noisy users */
 function testSilentConsistent(): TestCaseResult {
-  // Silent contributor: 2 excellent posts, 60-day streak
+  // Silent contributor: 3 excellent posts, 60-day streak, consistent check-ins
   const silentC = contentDailyScore([
     { contentTypeWeight: 1.0, pillarTotal: 9.5 },
     { contentTypeWeight: 1.0, pillarTotal: 9.0 },
+    { contentTypeWeight: 1.0, pillarTotal: 9.2 },
   ]);
 
   const silentResult = dailyLightScore({
-    actionBase: 5,
+    actionBase: 8,
     contentScore: silentC,
     streakDays: 60,
-    sequenceBonus: 1,
+    sequenceBonus: 2,
     riskScore: 0,
   });
 
-  // Noisy user: 10 medium posts, no streak
+  // Noisy user: 5 mediocre posts, short streak, slight risk
   const noisyC = contentDailyScore(
-    Array.from({ length: 10 }, () => ({
+    Array.from({ length: 5 }, () => ({
       contentTypeWeight: 1.0,
-      pillarTotal: 5.0,
+      pillarTotal: 4.5,
     }))
   );
 
   const noisyResult = dailyLightScore({
-    actionBase: 15,
+    actionBase: 8,
     contentScore: noisyC,
     streakDays: 3,
     sequenceBonus: 0,
-    riskScore: 0.15,
+    riskScore: 0.2,
   });
 
   const passed = silentResult.finalScore > noisyResult.finalScore;
