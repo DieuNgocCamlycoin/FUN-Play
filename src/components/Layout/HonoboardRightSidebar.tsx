@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { HonorBoardCard } from "@/components/Layout/HonorBoardCard";
 import { TopRankingCard } from "@/components/Layout/TopRankingCard";
 import { TopSponsorsCard } from "@/components/Layout/TopSponsorsCard";
+import { DailyCheckinWidget } from "@/components/Dashboard/DailyCheckinWidget";
 
 interface HonoboardRightSidebarProps {
   className?: string;
@@ -26,6 +27,9 @@ export const HonoboardRightSidebar = ({ className }: HonoboardRightSidebarProps)
       <ScrollArea className="flex-1 px-2 py-3 overflow-x-hidden">
         {/* 3 Separate Cards stacked vertically */}
         <div className="space-y-2">
+          {/* 0. Daily Check-in Widget */}
+          <DailyCheckinWidget />
+
           {/* 1. Honor Board Card */}
           <HonorBoardCard stats={stats} loading={loading} />
 
