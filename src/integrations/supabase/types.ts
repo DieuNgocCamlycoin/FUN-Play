@@ -1064,6 +1064,57 @@ export type Database = {
         }
         Relationships: []
       }
+      light_score_ledger: {
+        Row: {
+          base_score: number
+          computed_at: string
+          consistency_multiplier: number
+          explain_ref: string | null
+          final_light_score: number
+          id: string
+          integrity_penalty: number
+          level: string
+          period: string
+          period_end: string
+          period_start: string
+          reputation_weight: number
+          sequence_multiplier: number
+          user_id: string
+        }
+        Insert: {
+          base_score?: number
+          computed_at?: string
+          consistency_multiplier?: number
+          explain_ref?: string | null
+          final_light_score?: number
+          id?: string
+          integrity_penalty?: number
+          level?: string
+          period: string
+          period_end: string
+          period_start: string
+          reputation_weight?: number
+          sequence_multiplier?: number
+          user_id: string
+        }
+        Update: {
+          base_score?: number
+          computed_at?: string
+          consistency_multiplier?: number
+          explain_ref?: string | null
+          final_light_score?: number
+          id?: string
+          integrity_penalty?: number
+          level?: string
+          period?: string
+          period_end?: string
+          period_start?: string
+          reputation_weight?: number
+          sequence_multiplier?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       likes: {
         Row: {
           comment_id: string | null
@@ -1655,6 +1706,102 @@ export type Database = {
           },
         ]
       }
+      pplp_events: {
+        Row: {
+          actor_user_id: string
+          context_id: string | null
+          created_at: string
+          event_id: string
+          event_type: Database["public"]["Enums"]["pplp_event_type"]
+          ingest_hash: string | null
+          occurred_at: string
+          payload_json: Json | null
+          risk_flags: string[] | null
+          scoring_tags: string[] | null
+          source: string | null
+          target_id: string | null
+          target_type: string | null
+        }
+        Insert: {
+          actor_user_id: string
+          context_id?: string | null
+          created_at?: string
+          event_id?: string
+          event_type: Database["public"]["Enums"]["pplp_event_type"]
+          ingest_hash?: string | null
+          occurred_at?: string
+          payload_json?: Json | null
+          risk_flags?: string[] | null
+          scoring_tags?: string[] | null
+          source?: string | null
+          target_id?: string | null
+          target_type?: string | null
+        }
+        Update: {
+          actor_user_id?: string
+          context_id?: string | null
+          created_at?: string
+          event_id?: string
+          event_type?: Database["public"]["Enums"]["pplp_event_type"]
+          ingest_hash?: string | null
+          occurred_at?: string
+          payload_json?: Json | null
+          risk_flags?: string[] | null
+          scoring_tags?: string[] | null
+          source?: string | null
+          target_id?: string | null
+          target_type?: string | null
+        }
+        Relationships: []
+      }
+      pplp_ratings: {
+        Row: {
+          author_user_id: string
+          comment: string | null
+          content_id: string
+          content_type: string
+          created_at: string
+          pillar_heal_love: number
+          pillar_life_service: number
+          pillar_sustain: number
+          pillar_truth: number
+          pillar_unity_source: number
+          rater_user_id: string
+          rating_id: string
+          weight_applied: number
+        }
+        Insert: {
+          author_user_id: string
+          comment?: string | null
+          content_id: string
+          content_type: string
+          created_at?: string
+          pillar_heal_love?: number
+          pillar_life_service?: number
+          pillar_sustain?: number
+          pillar_truth?: number
+          pillar_unity_source?: number
+          rater_user_id: string
+          rating_id?: string
+          weight_applied?: number
+        }
+        Update: {
+          author_user_id?: string
+          comment?: string | null
+          content_id?: string
+          content_type?: string
+          created_at?: string
+          pillar_heal_love?: number
+          pillar_life_service?: number
+          pillar_sustain?: number
+          pillar_truth?: number
+          pillar_unity_source?: number
+          rater_user_id?: string
+          rating_id?: string
+          weight_applied?: number
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           angelai_url: string | null
@@ -2141,6 +2288,111 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      score_explanations: {
+        Row: {
+          created_at: string
+          explain_ref: string
+          penalties_json: Json
+          scoring_version: string
+          top_contributors_json: Json
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          explain_ref?: string
+          penalties_json?: Json
+          scoring_version?: string
+          top_contributors_json?: Json
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          explain_ref?: string
+          penalties_json?: Json
+          scoring_version?: string
+          top_contributors_json?: Json
+          user_id?: string
+        }
+        Relationships: []
+      }
+      sequences: {
+        Row: {
+          created_at: string
+          end_at: string | null
+          evidence_event_ids: string[] | null
+          score_bonus: number
+          sequence_id: string
+          sequence_type: string
+          start_at: string
+          state: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          end_at?: string | null
+          evidence_event_ids?: string[] | null
+          score_bonus?: number
+          sequence_id?: string
+          sequence_type: string
+          start_at?: string
+          state?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          end_at?: string | null
+          evidence_event_ids?: string[] | null
+          score_bonus?: number
+          sequence_id?: string
+          sequence_type?: string
+          start_at?: string
+          state?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      signals_anti_farm: {
+        Row: {
+          created_at: string
+          evidence_json: Json | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          severity: number
+          signal_id: string
+          signal_type: string
+          status: string
+          user_id: string
+          window_end: string | null
+          window_start: string | null
+        }
+        Insert: {
+          created_at?: string
+          evidence_json?: Json | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          severity?: number
+          signal_id?: string
+          signal_type: string
+          status?: string
+          user_id: string
+          window_end?: string | null
+          window_start?: string | null
+        }
+        Update: {
+          created_at?: string
+          evidence_json?: Json | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          severity?: number
+          signal_id?: string
+          signal_type?: string
+          status?: string
+          user_id?: string
+          window_end?: string | null
+          window_start?: string | null
+        }
+        Relationships: []
       }
       subscriptions: {
         Row: {
@@ -3095,6 +3347,33 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "moderator" | "user" | "owner"
+      pplp_event_type:
+        | "LOGIN"
+        | "LIGHT_CHECKIN"
+        | "PROFILE_COMPLETED"
+        | "PPLP_ACCEPTED"
+        | "MANTRA_ACK"
+        | "POST_CREATED"
+        | "COMMENT_CREATED"
+        | "VIDEO_UPLOADED"
+        | "COURSE_PUBLISHED"
+        | "LIKE_GIVEN"
+        | "SHARE_GIVEN"
+        | "BOOKMARK_GIVEN"
+        | "HELP_NEWBIE"
+        | "ANSWER_QUESTION"
+        | "MENTOR_SESSION"
+        | "REPORT_SUBMITTED"
+        | "MEDIATION_JOINED"
+        | "RESOLUTION_ACCEPTED"
+        | "DONATION_MADE"
+        | "REWARD_SENT"
+        | "GOV_VOTE_CAST"
+        | "BUG_REPORTED"
+        | "PR_MERGED"
+        | "PROPOSAL_SUBMITTED"
+        | "ONCHAIN_TX_VERIFIED"
+        | "PPLP_RATING_SUBMITTED"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -3223,6 +3502,34 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "moderator", "user", "owner"],
+      pplp_event_type: [
+        "LOGIN",
+        "LIGHT_CHECKIN",
+        "PROFILE_COMPLETED",
+        "PPLP_ACCEPTED",
+        "MANTRA_ACK",
+        "POST_CREATED",
+        "COMMENT_CREATED",
+        "VIDEO_UPLOADED",
+        "COURSE_PUBLISHED",
+        "LIKE_GIVEN",
+        "SHARE_GIVEN",
+        "BOOKMARK_GIVEN",
+        "HELP_NEWBIE",
+        "ANSWER_QUESTION",
+        "MENTOR_SESSION",
+        "REPORT_SUBMITTED",
+        "MEDIATION_JOINED",
+        "RESOLUTION_ACCEPTED",
+        "DONATION_MADE",
+        "REWARD_SENT",
+        "GOV_VOTE_CAST",
+        "BUG_REPORTED",
+        "PR_MERGED",
+        "PROPOSAL_SUBMITTED",
+        "ONCHAIN_TX_VERIFIED",
+        "PPLP_RATING_SUBMITTED",
+      ],
     },
   },
 } as const
