@@ -1,80 +1,53 @@
 
+# PPLP Scoring & FUN Money Infrastructure — Roadmap
 
-## Plan: Scoring Rule Versioning, API Endpoints, Reason Codes & Transparency
+## Pipeline hoàn chỉnh
 
-This is a large infrastructure expansion covering 7 areas from the user's specification. I'll break it into focused implementation steps.
+| Component | Status | Ghi chú |
+|-----------|--------|---------|
+| Event Ingest (`ingest-pplp-event`) | ✅ Done | 26 loại event, append-only |
+| Feature Builder Cron | ✅ Done | `build-features` — tổng hợp features_user_day |
+| PPLP Rating UI | ✅ Done | `PPLPRatingModal` — 5 trụ × 0-2, tích hợp PostCard |
+| Client Event Hook | ✅ Done | `usePplpEventIngest` — hook gọi ingest từ client |
+| Sequence Detector | ✅ Done | `detect-sequences` — 4 loại chuỗi, cron 2:30 AM daily |
+| Mint Epoch Engine | ✅ Done | `mint-epoch-engine` — weekly epoch, cron 3:00 AM Monday |
+| Scoring Rule Versioning | ✅ Done | Bảng `scoring_rules`, V1.0 seeded, `rule_version` in ledger |
+| Reason Codes System | ✅ Done | `reason-codes.ts` — positive language, no negative terms |
+| Anti-Whale Cap | ✅ Done | 3% max share per user, redistribute excess |
+| PPLP Light API | ✅ Done | `pplp-light-api` — profile/me/epoch/transparency |
+| Level System Update | ✅ Done | seed/sprout/builder/guardian/architect + trend |
+| AI Content Analyzer | Thiết kế | Ego Risk Classifier, Pillar Support Scorer |
+| AI Spam Detector | Thiết kế | Burst pattern, reciprocal rings |
+| 8 Câu Thần Chú PPLP | Cần UI | Flow xác nhận + bảng events |
+| Transparency Dashboard UI | Cần UI | Public stats widget, no individual data |
+| Model Drift Monitor | Thiết kế | Phát hiện khi hành vi lệch về Ego |
+| Community Council Review | Thiết kế | Guardian + Architect review định kỳ |
+| Slow Mint Curve | Thiết kế | Total supply tăng từ từ |
 
----
+## Cron Schedule
 
-### Database Changes (1 migration)
+| Job | Schedule | Function |
+|-----|----------|----------|
+| build-features | 02:00 AM daily | Tổng hợp features_user_day |
+| detect-sequences | 02:30 AM daily | Phát hiện chuỗi hành vi |
+| mint-epoch-weekly | 03:00 AM Monday | Tạo epoch + phân bổ mint |
 
-**New table: `scoring_rules`**
-- `rule_version` (PK, text) — e.g. "V1.0", "V2.0"
-- `name`, `description`
-- `formula_json`, `weight_config_json`, `multiplier_config_json`, `penalty_config_json` (JSONB)
-- `effective_from`, `effective_to` (timestamptz)
-- `status` (draft/active/deprecated)
-- RLS: public SELECT, admin-only INSERT/UPDATE
+## Kiến trúc
 
-**Alter `light_score_ledger`**: add `rule_version TEXT DEFAULT 'V1.0'`
+```
+Events → Features (2:00 AM) → Sequences (2:30 AM) → Scoring (RPC) → Mint Epoch (3:00 AM Monday)
+                                                          ↓
+                                                   Light API (4 actions)
+                                                   ├── /profile (public, no raw score)
+                                                   ├── /me (authenticated, full detail)
+                                                   ├── /epoch (public, mint summary)
+                                                   └── /transparency (public, system stats)
+```
 
-**Alter `mint_allocations`**: add `anti_whale_capped BOOLEAN DEFAULT false`
+## Triết lý thiết kế
 
-**Seed V1.0 rule** with current formula/weights from `pplp-engine.ts`
-
----
-
-### Edge Function: `pplp-light-api` (new)
-
-Single function handling 4 endpoints via query param `action`:
-
-1. **`profile`** (public) — returns `level`, `trend`, `consistency_streak`, `sequence_active`. No raw score.
-2. **`me`** (authenticated) — returns private score detail: `final_light_score`, multipliers, `reason_codes`, `period`
-3. **`epoch`** (public) — returns current mint epoch summary: `epoch_id`, `mint_pool`, `total_light`, `rule_version`
-4. **`transparency`** (public) — system-wide stats: total light, FUN minted, % by level, sequence counts. No individual data.
-
----
-
-### Reason Codes System
-
-Define positive-language reason codes in `src/lib/fun-money/reason-codes.ts`:
-- Positive: `CONSISTENCY_STRONG`, `MENTOR_CHAIN_COMPLETED`, `VALUE_LOOP_ACTIVE`, `COMMUNITY_VALIDATED`, `HEALING_IMPACT_DETECTED`, `GOVERNANCE_PARTICIPATION`
-- Adjustment (no negative words): `INTERACTION_PATTERN_UNSTABLE`, `RATING_CLUSTER_REVIEW`, `CONTENT_REVIEW_IN_PROGRESS`, `TEMPORARY_WEIGHT_ADJUSTMENT`, `QUALITY_SIGNAL_LOW`
-
----
-
-### Mint Engine Enhancement: Anti-Whale Cap
-
-Update `mint-epoch-engine/index.ts`:
-- Add `max_share_per_user = 3%` of epoch pool
-- Cap individual allocations, redistribute excess proportionally
-- Mark capped users with `anti_whale_capped = true`
-
----
-
-### Level System Update
-
-Update `pplp-engine.ts` and `calculate_user_light_score` RPC:
-- Rename levels: `presence` → `seed`, keep `contributor` → `sprout`, `builder`, `guardian`, `architect`
-- Add trend calculation: `Stable`, `Growing`, `Reflecting`, `Rebalancing`
-
----
-
-### Update `.lovable/plan.md`
-
-Mark completed items and add new roadmap entries.
-
----
-
-### Implementation Order
-
-| Step | Task | Type |
-|------|------|------|
-| 1 | DB migration: `scoring_rules` table + `light_score_ledger.rule_version` + `mint_allocations.anti_whale_capped` + seed V1.0 | Migration |
-| 2 | Create `src/lib/fun-money/reason-codes.ts` | Code |
-| 3 | Update `mint-epoch-engine` with anti-whale cap (3%) | Code |
-| 4 | Create `pplp-light-api` edge function (4 actions) | Code |
-| 5 | Update level labels in `pplp-engine.ts` | Code |
-| 6 | Update `calculate_user_light_score` RPC for new level names + trend | Migration |
-| 7 | Update plan.md | Code |
-
+- **Không nuôi Ego**: Không hiển thị raw score công khai, không ranking cá nhân
+- **Ngôn ngữ tích cực**: Reason codes dùng từ xây dựng, không tiêu cực
+- **Anti-Whale**: Tối đa 3% pool/user, bảo vệ công bằng
+- **Versioning**: Mỗi epoch ghi nhận rule_version, có thể audit toàn bộ lịch sử
+- **Trend > Score**: Hiển thị Growing/Stable/Reflecting/Rebalancing thay vì số
