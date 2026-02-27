@@ -37,9 +37,10 @@ Ingest Events → Validate → Feature Builder → Scoring Engine → Mint Engin
 ### CHƯA TRIỂN KHAI (cần code/infrastructure)
 | Tính năng | Trạng thái | Ghi chú |
 |---|---|---|
-| Event Ingest Edge Function | DB Ready | Cần edge function để ghi events từ client |
-| Feature Builder Cron | DB Ready | Cron job tổng hợp features_user_day hàng ngày |
-| PPLP Rating UI | DB Ready | UI cho user chấm điểm nội dung theo 5 trụ |
+| Event Ingest Edge Function | ✅ Done | `ingest-pplp-event` — ghi events từ client, dedup by hash |
+| Feature Builder Cron | ✅ Done | `build-features` — tổng hợp features_user_day |
+| PPLP Rating UI | ✅ Done | `PPLPRatingModal` — 5 trụ × 0-2, tích hợp PostCard |
+| Client Event Hook | ✅ Done | `usePplpEventIngest` — hook gọi ingest từ client |
 | Sequence Detector | DB Ready | Logic phát hiện và ghi nhận chuỗi hành vi |
 | Mint Epoch Engine | DB Ready | Cron job tạo epoch + phân bổ mint |
 | AI Content Analyzer | Thiết kế | Ego Risk Classifier, Pillar Support Scorer |

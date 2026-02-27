@@ -132,3 +132,9 @@ verify_jwt = false
 
 [functions.generate-sitemap]
 verify_jwt = false
+
+[functions.ingest-pplp-event]
+verify_jwt = false
+
+[functions.build-features]
+verify_jwt = false
