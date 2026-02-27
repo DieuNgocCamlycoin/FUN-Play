@@ -41,14 +41,9 @@ export function useUploadGate() {
           return result;
         }
 
-        // Step 1b: Suspicious score check - warn that upload requires admin review
+        // Step 1b: Suspicious score check - log only, auto-approve all uploads
         if ((profile?.suspicious_score ?? 0) >= 3) {
-          const result: UploadGateResult = {
-            allowed: true,
-            approvalStatus: "pending_review",
-          };
-          setGateResult(result);
-          return result;
+          console.warn("[UploadGate] User has suspicious_score >= 3, but auto-approving per policy");
         }
 
         // Step 2: Run content moderation via moderate-content edge function
@@ -79,13 +74,9 @@ export function useUploadGate() {
               return result;
             }
 
+            // Score 3-5: auto-approve (previously pending_review)
             if (score <= 5) {
-              const result: UploadGateResult = {
-                allowed: true,
-                approvalStatus: "pending_review",
-              };
-              setGateResult(result);
-              return result;
+              console.warn("[UploadGate] Moderation score borderline:", score, "- auto-approving per policy");
             }
           }
         } catch (modErr) {
