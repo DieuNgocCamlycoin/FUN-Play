@@ -769,6 +769,42 @@ export type Database = {
           },
         ]
       }
+      daily_checkins: {
+        Row: {
+          checkin_date: string
+          created_at: string
+          id: string
+          intention: string | null
+          light_level_snapshot: string | null
+          light_score_snapshot: number | null
+          mood: string | null
+          streak_count: number
+          user_id: string
+        }
+        Insert: {
+          checkin_date?: string
+          created_at?: string
+          id?: string
+          intention?: string | null
+          light_level_snapshot?: string | null
+          light_score_snapshot?: number | null
+          mood?: string | null
+          streak_count?: number
+          user_id: string
+        }
+        Update: {
+          checkin_date?: string
+          created_at?: string
+          id?: string
+          intention?: string | null
+          light_level_snapshot?: string | null
+          light_score_snapshot?: number | null
+          mood?: string | null
+          streak_count?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       daily_claim_records: {
         Row: {
           claim_count: number | null
