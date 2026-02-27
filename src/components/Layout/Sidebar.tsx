@@ -210,7 +210,7 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                 )}
               >
                 <Trophy className="h-5 w-5 text-[#004eac]" />
-                <span className="text-[#004eac]">Bảng Xếp Hạng</span>
+                <span className="text-[#004eac]">Light Community</span>
               </Button>
               <Button
                 variant="ghost"
