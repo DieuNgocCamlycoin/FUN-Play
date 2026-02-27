@@ -446,18 +446,16 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
           const isSameAddress = dbWallet?.toLowerCase() === account.address.toLowerCase();
           
           if (dbWallet && !isSameAddress) {
-            logWalletDebug('Different wallet detected on init', {
+            // Wallet mismatch on init — silently use DB wallet, don't show dialog
+            logWalletDebug('Different wallet detected on init (silent)', {
               dbWallet: dbWallet?.slice(0, 10) + '...',
               newWallet: account.address.slice(0, 10) + '...',
             });
-            
-            setWalletChangeDetails({
-              oldAddress: dbWallet,
-              newAddress: account.address,
-              oldWalletType: previousWalletTypeRef.current,
-              newWalletType: type,
-            });
-            setShowWalletChangeDialog(true);
+            setAddress(dbWallet);
+            setIsConnected(true);
+            setChainId(account.chainId);
+            setWalletType(previousWalletTypeRef.current);
+            wasWeb3ConnectedRef.current = true;
           } else {
             setAddress(account.address);
             setIsConnected(true);
@@ -492,19 +490,15 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
           const isSameAddress = dbWallet?.toLowerCase() === account.address.toLowerCase();
           
           if (dbWallet && !isSameAddress) {
-            logWalletDebug('Wallet change detected', {
+            // Wallet mismatch on account change — silently keep DB wallet
+            logWalletDebug('Wallet change detected (silent, ignored)', {
               oldWallet: dbWallet?.slice(0, 10) + '...',
               newWallet: account.address.slice(0, 10) + '...',
             });
-            
-            setWalletChangeDetails({
-              oldAddress: dbWallet,
-              newAddress: account.address,
-              oldWalletType: previousWalletTypeRef.current,
-              newWalletType: type,
-            });
-            setShowWalletChangeDialog(true);
+            setAddress(dbWallet);
+            setIsConnected(true);
             setChainId(account.chainId);
+            setWalletType(previousWalletTypeRef.current);
           } else {
             setAddress(account.address);
             setIsConnected(true);
