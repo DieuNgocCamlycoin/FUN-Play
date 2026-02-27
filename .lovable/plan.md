@@ -19,5 +19,5 @@
 | Staking CAMLY tăng Reputation Weight | Chưa có smart contract |
 | Mint không tức thì (delay mechanism) | Cần redesign mint flow |
 | AI phát hiện spam cảm xúc giả | Cần tích hợp AI riêng |
-| Light Check-in hàng ngày | Cần UI widget + bảng `daily_checkins` |
+| ~~Light Check-in hàng ngày~~ | ✅ Bảng `daily_checkins` đã tạo + tích hợp vào `calculate_user_light_score` RPC (checkin_bonus max 10 điểm) |
 | Cross-platform contribution score | Chưa có FUN Academy, FUN Earth, FUN Legal |
