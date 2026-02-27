@@ -91,6 +91,7 @@ export default function Watch({ videoIdProp }: { videoIdProp?: string }) {
   const [ambientColor, setAmbientColor] = useState<string | null>(null);
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const videoPlayerRef = useRef<HTMLDivElement>(null);
+  const viewCountedRef = useRef<string | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -114,6 +115,28 @@ export default function Watch({ videoIdProp }: { videoIdProp?: string }) {
     window.addEventListener('camly-reward', handler);
     return () => window.removeEventListener('camly-reward', handler);
   }, []);
+
+  // Delayed view count: only increment after 30s of watching
+  useEffect(() => {
+    if (!video || !id) return;
+    // Reset ref when video ID changes
+    if (viewCountedRef.current !== id) {
+      viewCountedRef.current = null;
+    }
+    // Already counted for this video
+    if (viewCountedRef.current === id) return;
+
+    const timer = setTimeout(async () => {
+      if (viewCountedRef.current === id) return;
+      viewCountedRef.current = id;
+      await supabase
+        .from("videos")
+        .update({ view_count: (video.view_count || 0) + 1 })
+        .eq("id", id);
+    }, 30000);
+
+    return () => clearTimeout(timer);
+  }, [video, id]);
 
   const handleSwipeLeft = () => {
     const next = nextVideo();
@@ -250,11 +273,7 @@ export default function Watch({ videoIdProp }: { videoIdProp?: string }) {
         }
       }
 
-      // Increment view count
-      await supabase
-        .from("videos")
-        .update({ view_count: (data.view_count || 0) + 1 })
-        .eq("id", id);
+      // View count is now incremented after 30s of watching (see useEffect below)
 
       // View reward is now handled in EnhancedVideoPlayer based on watch time policy
 
