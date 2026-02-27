@@ -191,10 +191,11 @@ export function contentDailyScore(
 /** Content type weight ρ(type) */
 export const CONTENT_TYPE_WEIGHTS: Record<string, number> = {
   post: 1.0,
-  comment: 0.4,
-  video: 1.5,
-  course: 2.0,
-  bug_report: 0.8,
+  comment: 0.6,
+  video: 1.2,
+  course: 1.5,
+  bug_report: 1.1,
+  proposal: 1.3,
   mentor_session: 1.8,
   donation_proof: 1.2,
 };

@@ -6,6 +6,12 @@
 // PPLP Scoring Engine
 export * from './pplp-engine';
 
+// Scoring Config V1
+export { SCORING_RULES_V1, type ScoringRulesV1 } from './scoring-config-v1';
+
+// Scoring Simulation & Tests
+export { simulateUserLy, runTestCases, runFullSimulation } from './scoring-simulation';
+
 // Pool System & Inactivity Decay (5D Whitepaper)
 export * from './pool-system';
 
