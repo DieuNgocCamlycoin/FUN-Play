@@ -138,11 +138,15 @@ export function EnhancedVideoPlayer({
       const dur = video.duration;
       if (!dur || dur <= 0) return;
 
-      if (accumulatedWatchTimeRef.current >= dur * 0.3) {
+      // Short video (≤180s): watch ≥90%; Long video (>180s): watch ≥300s
+      const isShort = dur <= 180;
+      const threshold = isShort ? dur * 0.9 : 300;
+
+      if (accumulatedWatchTimeRef.current >= threshold) {
         setViewRewarded(true);
         const result = await awardViewReward(videoId, { actualWatchTime: accumulatedWatchTimeRef.current });
         if (result.success) {
-          console.log('[Desktop Reward] View reward awarded:', result.amount);
+          console.log(`[Desktop Reward] ${isShort ? 'Short' : 'Long'} video reward awarded:`, result.amount);
         }
       }
     };
