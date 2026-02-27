@@ -421,8 +421,10 @@ export const BASE_REWARDS: Record<string, Record<string, string>> = {
 // ===== LIGHT LEVEL HELPERS =====
 
 const LIGHT_LEVELS: Record<string, { label: string; emoji: string }> = {
-  presence: { label: 'Light Presence', emoji: '🌱' },
-  contributor: { label: 'Light Contributor', emoji: '🌿' },
+  seed: { label: 'Light Seed', emoji: '🌱' },
+  presence: { label: 'Light Seed', emoji: '🌱' }, // legacy alias
+  sprout: { label: 'Light Sprout', emoji: '🌿' },
+  contributor: { label: 'Light Sprout', emoji: '🌿' }, // legacy alias
   builder: { label: 'Light Builder', emoji: '🌳' },
   guardian: { label: 'Light Guardian', emoji: '🛡️' },
   architect: { label: 'Light Architect', emoji: '👑' },
