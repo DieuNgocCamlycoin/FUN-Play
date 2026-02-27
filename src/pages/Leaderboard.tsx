@@ -1,90 +1,87 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState } from "react";
 import { MainLayout } from "@/components/Layout/MainLayout";
-import { supabase } from "@/integrations/supabase/client";
-import { Trophy, Crown, Medal, Sparkles, RefreshCw } from "lucide-react";
+import { Sparkles, RefreshCw, Users } from "lucide-react";
 import { motion } from "framer-motion";
-import { CounterAnimation } from "@/components/Layout/CounterAnimation";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { BackButton } from "@/components/ui/back-button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useLightCommunity, LightCommunityMember } from "@/hooks/useLightCommunity";
+import { getLightLevelLabel, getLightLevelEmoji } from "@/lib/fun-money/pplp-engine";
 
-interface LeaderboardUser {
-  id: string;
-  username: string;
-  display_name: string | null;
-  avatar_url: string | null;
-  total_camly_rewards: number;
+const LEVEL_STYLES: Record<string, string> = {
+  presence: "from-emerald-400/20 to-emerald-600/20 border-emerald-500/40 text-emerald-700 dark:text-emerald-300",
+  contributor: "from-cyan-400/20 to-blue-500/20 border-cyan-500/40 text-cyan-700 dark:text-cyan-300",
+  builder: "from-violet-400/20 to-purple-500/20 border-violet-500/40 text-violet-700 dark:text-violet-300",
+  guardian: "from-amber-400/20 to-orange-500/20 border-amber-500/40 text-amber-700 dark:text-amber-300",
+  architect: "from-yellow-300/20 to-amber-400/20 border-yellow-500/50 text-yellow-700 dark:text-yellow-300",
+};
+
+interface MemberCardProps {
+  member: LightCommunityMember;
+  index: number;
 }
 
-export default function Leaderboard() {
-  const [topUsers, setTopUsers] = useState<LeaderboardUser[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+const MemberCard = ({ member, index }: MemberCardProps) => {
   const navigate = useNavigate();
-  const cacheRef = useRef<{ data: LeaderboardUser[]; timestamp: number }>({ data: [], timestamp: 0 });
+  const level = member.light_level || "presence";
+  const emoji = getLightLevelEmoji(level);
+  const label = getLightLevelLabel(level);
+  const style = LEVEL_STYLES[level] || LEVEL_STYLES.presence;
 
-  const fetchLeaderboard = useCallback(async (force = false) => {
-    const now = Date.now();
-    if (!force && cacheRef.current.data.length > 0 && now - cacheRef.current.timestamp < 120_000) {
-      setTopUsers(cacheRef.current.data);
-      setLoading(false);
-      return;
-    }
-    try {
-      if (force) setRefreshing(true);
-      const { data, error } = await (supabase
-        .from("mv_top_ranking" as any)
-        .select("id, username, display_name, avatar_url, total_camly_rewards")
-        .order("total_camly_rewards", { ascending: false })
-        .limit(10) as any);
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -30 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: index * 0.06 }}
+      onClick={() => navigate(`/@${member.username}`)}
+      className="cursor-pointer group"
+    >
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[hsl(var(--cosmic-cyan))]/5 via-[hsl(var(--cosmic-purple))]/5 to-[hsl(var(--cosmic-magenta))]/5 backdrop-blur-sm border-2 border-[hsl(var(--cosmic-purple))]/20 p-4 transition-all duration-300 hover:shadow-[0_0_25px_rgba(122,43,255,0.3)] hover:border-[hsl(var(--cosmic-purple))]/40">
+        <div className="flex items-center gap-4 relative z-10">
+          {/* Emoji */}
+          <span className="text-2xl min-w-[36px] text-center">{emoji}</span>
 
-      if (error) throw error;
-      const result = (data as LeaderboardUser[]) || [];
-      cacheRef.current = { data: result, timestamp: Date.now() };
-      setTopUsers(result);
-    } catch (error) {
-      console.error("Error fetching leaderboard:", error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
+          {/* Avatar */}
+          <Avatar className="h-12 w-12 border-2 border-[hsl(var(--cosmic-purple))]/30 group-hover:border-[hsl(var(--cosmic-purple))]/60 transition-all duration-300 group-hover:scale-105">
+            <AvatarImage src={member.avatar_url || undefined} />
+            <AvatarFallback className="bg-gradient-to-br from-[hsl(var(--cosmic-purple))] to-[hsl(var(--cosmic-magenta))] text-white font-bold">
+              {(member.display_name || member.username).charAt(0).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
 
-  useEffect(() => {
-    fetchLeaderboard();
-    const interval = setInterval(() => fetchLeaderboard(), 120_000);
-    return () => clearInterval(interval);
-  }, [fetchLeaderboard]);
+          {/* Name & Username */}
+          <div className="flex-1 min-w-0">
+            <h3 className="font-bold text-base text-foreground truncate group-hover:text-[hsl(var(--cosmic-purple))] transition-colors">
+              {member.display_name || member.username}
+            </h3>
+            <p className="text-sm text-muted-foreground">@{member.username}</p>
+          </div>
 
-  const getRankBadge = (rank: number) => {
-    if (rank === 1) {
-      return (
-        <div className="relative">
-          <Crown className="w-8 h-8 text-yellow-400 animate-pulse drop-shadow-[0_0_10px_rgba(255,215,0,0.8)]" />
-          <Sparkles className="w-4 h-4 text-yellow-300 absolute -top-1 -right-1 animate-spin" />
+          {/* Light Level Badge */}
+          <div className={`px-3 py-1.5 rounded-full border backdrop-blur-md bg-gradient-to-r ${style} text-xs font-bold whitespace-nowrap`}>
+            {label}
+          </div>
         </div>
-      );
-    }
-    if (rank === 2) return <Medal className="w-7 h-7 text-gray-300 drop-shadow-[0_0_8px_rgba(192,192,192,0.8)]" />;
-    if (rank === 3) return <Medal className="w-6 h-6 text-amber-600 drop-shadow-[0_0_8px_rgba(205,127,50,0.8)]" />;
-    return (
-      <div className="w-8 h-8 flex items-center justify-center">
-        <span className="text-lg font-bold text-muted-foreground">#{rank}</span>
       </div>
-    );
-  };
+    </motion.div>
+  );
+};
 
-  const getRankGradient = (rank: number) => {
-    if (rank === 1) return "from-yellow-400 via-yellow-300 to-yellow-500";
-    if (rank === 2) return "from-gray-300 via-gray-200 to-gray-400";
-    if (rank === 3) return "from-amber-600 via-amber-500 to-amber-700";
-    return "from-blue-400 to-cyan-400";
+export default function Leaderboard() {
+  const { members, loading, refetch } = useLightCommunity(20);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await refetch();
+    setRefreshing(false);
   };
 
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-foreground">Đang tải bảng xếp hạng...</div>
+        <div className="text-foreground">Đang tải Light Community...</div>
       </div>
     );
   }
@@ -100,20 +97,19 @@ export default function Leaderboard() {
         >
           <div className="absolute left-0 top-0"><BackButton /></div>
           <div className="flex items-center justify-center gap-3 mb-4">
-            <Trophy className="w-12 h-12 text-yellow-400 animate-pulse drop-shadow-[0_0_20px_rgba(255,215,0,0.8)]" />
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 bg-clip-text text-transparent">
-              Bảng Xếp Hạng
+            <Sparkles className="w-10 h-10 text-[hsl(var(--cosmic-gold))] animate-pulse drop-shadow-[0_0_15px_rgba(255,215,0,0.6)]" />
+            <h1 className="text-3xl md:text-4xl font-black italic bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] via-[hsl(var(--cosmic-purple))] to-[hsl(var(--cosmic-magenta))] bg-clip-text text-transparent">
+              LIGHT COMMUNITY
             </h1>
-            <Trophy className="w-12 h-12 text-yellow-400 animate-pulse drop-shadow-[0_0_20px_rgba(255,215,0,0.8)]" />
+            <Users className="w-10 h-10 text-[hsl(var(--cosmic-purple))] drop-shadow-[0_0_15px_rgba(122,43,255,0.5)]" />
           </div>
-          <p className="text-muted-foreground text-lg">
-            Top 10 người dùng có tổng CAMLY Rewards cao nhất
+          <p className="text-muted-foreground text-base md:text-lg">
+            Những người đóng góp bền vững trong hệ sinh thái FUN Play
           </p>
-          {/* Manual Refresh Button */}
           <Button
             variant="outline"
             size="sm"
-            onClick={() => fetchLeaderboard(true)}
+            onClick={handleRefresh}
             disabled={refreshing}
             className="absolute top-0 right-0 gap-1.5"
           >
@@ -122,71 +118,16 @@ export default function Leaderboard() {
           </Button>
         </motion.div>
 
-        {/* Leaderboard */}
-        <div className="space-y-4">
-          {topUsers.map((user, index) => {
-            const rank = index + 1;
-            return (
-              <motion.div
-                key={user.id}
-                initial={{ opacity: 0, x: -50 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.1 }}
-                onClick={() => navigate(`/@${user.username}`)}
-                className="cursor-pointer group"
-              >
-                <div
-                  className={`relative overflow-hidden rounded-xl bg-gradient-to-br from-cyan-500/10 via-blue-500/10 to-purple-500/10 backdrop-blur-sm border-2 p-4 transition-all duration-300 hover:shadow-[0_0_30px_rgba(0,231,255,0.5)] ${
-                    rank <= 3
-                      ? "border-yellow-500/60 hover:border-yellow-400"
-                      : "border-cyan-400/40 hover:border-cyan-400/60"
-                  }`}
-                >
-                  {rank <= 3 && (
-                    <div className="absolute inset-0 pointer-events-none">
-                      <Sparkles className="absolute top-2 right-2 w-5 h-5 text-yellow-300 animate-pulse" />
-                      <Sparkles className="absolute bottom-2 left-2 w-4 h-4 text-yellow-300 animate-pulse delay-75" />
-                      <Sparkles className="absolute top-1/2 right-1/4 w-3 h-3 text-yellow-300 animate-pulse delay-150" />
-                    </div>
-                  )}
-                  <div className="flex items-center gap-4 relative z-10">
-                    <div className="flex-shrink-0">{getRankBadge(rank)}</div>
-                    <div
-                      className={`w-14 h-14 rounded-full flex items-center justify-center text-foreground font-semibold text-lg transition-all duration-300 group-hover:scale-110 ${
-                        rank <= 3
-                          ? `bg-gradient-to-br ${getRankGradient(rank)} shadow-lg`
-                          : "bg-gradient-to-br from-cosmic-sapphire via-cosmic-cyan to-cosmic-magenta"
-                      }`}
-                    >
-                      {user.avatar_url ? (
-                        <img src={user.avatar_url} alt={user.display_name || user.username} className="w-full h-full rounded-full object-cover" />
-                      ) : (
-                        (user.display_name || user.username)[0].toUpperCase()
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-lg text-foreground truncate group-hover:text-cosmic-cyan transition-colors">
-                        {user.display_name || user.username}
-                      </h3>
-                      <p className="text-sm text-muted-foreground">@{user.username}</p>
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      <div className="text-xs text-muted-foreground mb-1">Tổng Rewards</div>
-                      <div className={`text-2xl font-bold bg-gradient-to-br ${getRankGradient(rank)} bg-clip-text text-transparent tabular-nums`}>
-                        <CounterAnimation value={user.total_camly_rewards} decimals={0} />
-                        <span className="text-sm ml-1">CAMLY</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            );
-          })}
+        {/* Community Members */}
+        <div className="space-y-3">
+          {members.map((member, index) => (
+            <MemberCard key={member.id} member={member} index={index} />
+          ))}
         </div>
 
-        {topUsers.length === 0 && (
+        {members.length === 0 && (
           <div className="text-center text-muted-foreground py-12">
-            Chưa có dữ liệu bảng xếp hạng
+            Chưa có dữ liệu cộng đồng
           </div>
         )}
       </div>
