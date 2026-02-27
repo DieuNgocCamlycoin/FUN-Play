@@ -1138,6 +1138,7 @@ export type Database = {
           period_end: string
           period_start: string
           reputation_weight: number
+          rule_version: string
           sequence_multiplier: number
           user_id: string
         }
@@ -1154,6 +1155,7 @@ export type Database = {
           period_end: string
           period_start: string
           reputation_weight?: number
+          rule_version?: string
           sequence_multiplier?: number
           user_id: string
         }
@@ -1170,6 +1172,7 @@ export type Database = {
           period_end?: string
           period_start?: string
           reputation_weight?: number
+          rule_version?: string
           sequence_multiplier?: number
           user_id?: string
         }
@@ -1300,6 +1303,7 @@ export type Database = {
       mint_allocations: {
         Row: {
           allocation_amount: number
+          anti_whale_capped: boolean
           created_at: string
           eligible: boolean
           epoch_id: string
@@ -1312,6 +1316,7 @@ export type Database = {
         }
         Insert: {
           allocation_amount?: number
+          anti_whale_capped?: boolean
           created_at?: string
           eligible?: boolean
           epoch_id: string
@@ -1324,6 +1329,7 @@ export type Database = {
         }
         Update: {
           allocation_amount?: number
+          anti_whale_capped?: boolean
           created_at?: string
           eligible?: boolean
           epoch_id?: string
@@ -2476,6 +2482,48 @@ export type Database = {
           scoring_version?: string
           top_contributors_json?: Json
           user_id?: string
+        }
+        Relationships: []
+      }
+      scoring_rules: {
+        Row: {
+          created_at: string
+          description: string | null
+          effective_from: string | null
+          effective_to: string | null
+          formula_json: Json
+          multiplier_config_json: Json
+          name: string
+          penalty_config_json: Json
+          rule_version: string
+          status: string
+          weight_config_json: Json
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          effective_from?: string | null
+          effective_to?: string | null
+          formula_json?: Json
+          multiplier_config_json?: Json
+          name: string
+          penalty_config_json?: Json
+          rule_version: string
+          status?: string
+          weight_config_json?: Json
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          effective_from?: string | null
+          effective_to?: string | null
+          formula_json?: Json
+          multiplier_config_json?: Json
+          name?: string
+          penalty_config_json?: Json
+          rule_version?: string
+          status?: string
+          weight_config_json?: Json
         }
         Relationships: []
       }

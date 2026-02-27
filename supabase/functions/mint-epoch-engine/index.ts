@@ -20,6 +20,7 @@ const corsHeaders = {
  */
 
 const DEFAULT_WEEKLY_POOL = 100000; // FUN per week
+const MAX_SHARE_PER_USER = 0.03; // 3% anti-whale cap
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -63,16 +64,50 @@ Deno.serve(async (req) => {
         // Distribute pool proportionally based on light scores
         const totalScore = allocations.reduce((sum, a) => sum + a.score, 0);
         
-        const allocationRows = allocations.map((a) => ({
+        const maxPerUser = epoch.mint_pool_amount * MAX_SHARE_PER_USER;
+        
+        // First pass: calculate raw allocations
+        let rawAllocations = allocations.map((a) => {
+          const rawAmount = a.eligible && totalScore > 0
+            ? (a.score / totalScore) * epoch.mint_pool_amount
+            : 0;
+          return { ...a, rawAmount };
+        });
+
+        // Anti-whale: cap and redistribute
+        let excess = 0;
+        let uncappedTotal = 0;
+        rawAllocations = rawAllocations.map((a) => {
+          if (a.rawAmount > maxPerUser) {
+            excess += a.rawAmount - maxPerUser;
+            return { ...a, rawAmount: maxPerUser, capped: true };
+          }
+          uncappedTotal += a.rawAmount;
+          return { ...a, capped: false };
+        });
+
+        // Redistribute excess proportionally to uncapped users
+        if (excess > 0 && uncappedTotal > 0) {
+          rawAllocations = rawAllocations.map((a) => {
+            if (!a.capped && a.rawAmount > 0) {
+              const bonus = (a.rawAmount / uncappedTotal) * excess;
+              const newAmount = a.rawAmount + bonus;
+              // Re-check cap after redistribution
+              return { ...a, rawAmount: Math.min(newAmount, maxPerUser) };
+            }
+            return a;
+          });
+        }
+
+        const allocationRows = rawAllocations.map((a) => ({
           epoch_id: epoch.epoch_id,
           user_id: a.userId,
           eligible: a.eligible,
-          allocation_amount: a.eligible && totalScore > 0
-            ? Math.round((a.score / totalScore) * epoch.mint_pool_amount * 100) / 100
-            : 0,
+          allocation_amount: Math.round(a.rawAmount * 100) / 100,
           light_score_at_epoch: a.score,
           level_at_epoch: a.level,
-          reason_codes: a.reasons,
+          reason_codes: a.capped ? [...a.reasons, "anti_whale_capped"] : a.reasons,
+          anti_whale_capped: a.capped || false,
         }));
 
         const { error: allocErr } = await supabase
