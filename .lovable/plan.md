@@ -1,34 +1,41 @@
 
 
-# Kế hoạch: Nâng cấp Light Score & FUN Money theo tài liệu PPLP bổ sung
+## Phân tích: Đã triển khai vs Cần triển khai
 
-## Trạng thái: ĐÃ TRIỂN KHAI ✅
+### ĐÃ CÓ (từ các bước trước)
+- Công thức PPLP Score với Reputation Weight × Consistency Multiplier × Sequence Multiplier – Integrity Penalty
+- Light Level classification (presence/contributor/builder/guardian/architect) trong RPC
+- Server-side `calculate_user_light_score` đầy đủ 6 trụ + multipliers
+- `useLightActivity.ts` và `LightActivityBreakdown.tsx` đã cập nhật
 
-### Những gì đã hoàn thành
+### CẦN TRIỂN KHAI NGAY (3 thay đổi)
 
-1. ✅ **Migration**: Thêm cột `light_level` TEXT và `consistency_days` INTEGER vào profiles
-2. ✅ **RPC `calculate_user_light_score`**: Viết lại hoàn toàn với:
-   - **6 trụ cột mới**: Truth(20) + Trust(15) + Service(20) + Healing(20) + Community(15) + Sequence Bonus(10)
-   - **Reputation Weight** (0.6→1.3): Dựa trên account age + no violations + approved content + donations
-   - **Consistency Multiplier** (1.0→1.6): Dựa trên số ngày active từ daily_reward_limits
-   - **Sequence Bonus**: Light Growth Chain (5pts) + Economic Integrity (5pts)
-   - **Light Level**: Tự động gán presence/contributor/builder/guardian/architect
-3. ✅ **pplp-engine.ts**: Thêm `getLightLevelLabel`, `getLightLevelEmoji`, `calculateReputationWeight`, `calculateConsistencyMultiplier`
-4. ✅ **useLightActivity.ts**: Thêm `lightLevel`, `reputationWeight`, `consistencyMultiplier`, `consistencyDays`, `sequenceBonus`, `rawScore`; sử dụng server-side light_score
-5. ✅ **LightActivityBreakdown.tsx**: Hiển thị 6 pillars + Light Level badge + Reputation/Consistency multipliers + raw score
+#### 1. Ẩn điểm chi tiết trên profile công khai (Channel.tsx)
+Hiện tại `ProfileHeader` nhận `lightScore` số và truyền vào `DiamondBadge`. Cần:
+- Thêm `lightLevel` prop vào `ProfileHeader`
+- Hiển thị Light Level badge (text label) thay vì số điểm trên profile công khai
+- DiamondBadge vẫn dùng `lightScore` cho hiệu ứng glow (không hiển thị số)
 
----
+#### 2. Bỏ bảng xếp hạng cạnh tranh Top Ranking
+Hiện tại `TopRankingCard` và `MobileTopRankingCard` hiển thị "TOP RANKING" theo `total_camly_rewards`. Theo tài liệu: "Không Top 1 – Top 2. Chỉ hiển thị Light Level cá nhân và xu hướng tăng trưởng."
+- Chuyển từ ranking CAMLY sang hiển thị "Light Community" - danh sách Light Builders/Guardians
+- Hoặc đổi thành hiển thị Light Level + growth trend thay vì số CAMLY
 
-## Ghi nhớ cho tương lai (CHƯA triển khai)
+#### 3. Cập nhật plan.md và constitution docs
+Ghi nhận các thay đổi đã triển khai và các mục tương lai.
 
-| Tính năng | Ghi chú |
+### GHI NHỚ TƯƠNG LAI (chưa triển khai)
+| Tính năng | Lý do |
 |---|---|
-| Mint Pool theo chu kỳ (tuần/tháng) | Cần thiết kế Mint Pool engine, phân bổ tỷ lệ, cron job hàng tuần |
-| 8 Câu Thần Chú PPLP | Cần UI flow xác nhận, bảng `pplp_mantras_confirmed` |
+| Mint Pool theo chu kỳ tuần/tháng | Cần thiết kế Mint Pool engine + cron job |
+| 8 Câu Thần Chú PPLP | Cần UI flow + bảng `pplp_mantras_confirmed` |
 | Cam kết 5 lời hứa cộng đồng | Cần UI + bảng tracking |
-| Light Check-in hàng ngày | Cần UI widget + bảng `daily_checkins` |
-| Không hiển thị bảng xếp hạng cạnh tranh | Cần redesign trang Admin stats + public ranking |
-| Staking CAMLY tăng Reputation Weight | Chưa có smart contract staking |
-| Cross-platform contribution score | Chưa có FUN Academy, FUN Earth, FUN Legal |
-| AI phát hiện spam cảm xúc giả | Cần tích hợp AI layer riêng |
-| Ẩn điểm chi tiết trên profile công khai | Channel.tsx chỉ hiện Light Level badge (đã thêm light_level vào ProfileData) |
+| Staking CAMLY tăng Reputation Weight | Chưa có smart contract |
+| Mint không tức thì (delay mechanism) | Cần redesign mint flow |
+| AI phát hiện spam cảm xúc giả | Cần tích hợp AI riêng |
+
+### Thứ tự triển khai
+1. Cập nhật `ProfileHeader.tsx` + `Channel.tsx` - hiển thị Light Level badge công khai
+2. Cập nhật `TopRankingCard` + `MobileTopRankingCard` - đổi từ ranking cạnh tranh sang Light Community
+3. Cập nhật `plan.md`
+
