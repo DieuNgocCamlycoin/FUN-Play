@@ -69,7 +69,7 @@ const MemberCard = ({ member, index }: MemberCardProps) => {
 };
 
 export default function Leaderboard() {
-  const { members, loading, refetch } = useLightCommunity(20);
+  const { members, loading, refetch } = useLightCommunity(1000);
   const [refreshing, setRefreshing] = useState(false);
 
   const handleRefresh = async () => {
