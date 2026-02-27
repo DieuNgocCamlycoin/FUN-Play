@@ -536,7 +536,8 @@ function RequestTableRow({
       <TableRow className={cn(
         "cursor-pointer transition-colors",
         isExpanded && "bg-accent/50",
-        isSelected && "bg-primary/5"
+        isSelected && "bg-primary/5",
+        !isSelected && !isExpanded && request.status === 'pending' && "bg-yellow-500/5 border-l-2 border-l-yellow-500"
       )}>
         {showCheckbox && (
           <TableCell onClick={(e) => e.stopPropagation()}>
