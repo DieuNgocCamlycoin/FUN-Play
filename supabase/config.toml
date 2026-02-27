@@ -138,3 +138,9 @@ verify_jwt = false
 
 [functions.build-features]
 verify_jwt = false
+
+[functions.detect-sequences]
+verify_jwt = false
+
+[functions.mint-epoch-engine]
+verify_jwt = false
