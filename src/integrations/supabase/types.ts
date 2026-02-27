@@ -1002,6 +1002,66 @@ export type Database = {
           },
         ]
       }
+      features_user_day: {
+        Row: {
+          anti_farm_risk: number | null
+          avg_rating_weighted: number | null
+          checkin_done: boolean | null
+          consistency_streak: number | null
+          count_comments: number | null
+          count_donations: number | null
+          count_help: number | null
+          count_likes_given: number | null
+          count_posts: number | null
+          count_reports_valid: number | null
+          count_shares: number | null
+          count_videos: number | null
+          date: string
+          onchain_value_score: number | null
+          sequence_count: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          anti_farm_risk?: number | null
+          avg_rating_weighted?: number | null
+          checkin_done?: boolean | null
+          consistency_streak?: number | null
+          count_comments?: number | null
+          count_donations?: number | null
+          count_help?: number | null
+          count_likes_given?: number | null
+          count_posts?: number | null
+          count_reports_valid?: number | null
+          count_shares?: number | null
+          count_videos?: number | null
+          date?: string
+          onchain_value_score?: number | null
+          sequence_count?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          anti_farm_risk?: number | null
+          avg_rating_weighted?: number | null
+          checkin_done?: boolean | null
+          consistency_streak?: number | null
+          count_comments?: number | null
+          count_donations?: number | null
+          count_help?: number | null
+          count_likes_given?: number | null
+          count_posts?: number | null
+          count_reports_valid?: number | null
+          count_shares?: number | null
+          count_videos?: number | null
+          date?: string
+          onchain_value_score?: number | null
+          sequence_count?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       internal_wallets: {
         Row: {
           balance: number
@@ -1113,7 +1173,15 @@ export type Database = {
           sequence_multiplier?: number
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_ledger_explain"
+            columns: ["explain_ref"]
+            isOneToOne: false
+            referencedRelation: "score_explanations"
+            referencedColumns: ["explain_ref"]
+          },
+        ]
       }
       likes: {
         Row: {
@@ -1226,6 +1294,89 @@ export type Database = {
           thumbnail_url?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      mint_allocations: {
+        Row: {
+          allocation_amount: number
+          created_at: string
+          eligible: boolean
+          epoch_id: string
+          id: string
+          level_at_epoch: string | null
+          light_score_at_epoch: number | null
+          onchain_tx_hash: string | null
+          reason_codes: string[] | null
+          user_id: string
+        }
+        Insert: {
+          allocation_amount?: number
+          created_at?: string
+          eligible?: boolean
+          epoch_id: string
+          id?: string
+          level_at_epoch?: string | null
+          light_score_at_epoch?: number | null
+          onchain_tx_hash?: string | null
+          reason_codes?: string[] | null
+          user_id: string
+        }
+        Update: {
+          allocation_amount?: number
+          created_at?: string
+          eligible?: boolean
+          epoch_id?: string
+          id?: string
+          level_at_epoch?: string | null
+          light_score_at_epoch?: number | null
+          onchain_tx_hash?: string | null
+          reason_codes?: string[] | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mint_allocations_epoch_id_fkey"
+            columns: ["epoch_id"]
+            isOneToOne: false
+            referencedRelation: "mint_epochs"
+            referencedColumns: ["epoch_id"]
+          },
+        ]
+      }
+      mint_epochs: {
+        Row: {
+          created_at: string
+          epoch_id: string
+          finalized_at: string | null
+          mint_pool_amount: number
+          onchain_tx_hash: string | null
+          period_end: string
+          period_start: string
+          rules_version: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          epoch_id?: string
+          finalized_at?: string | null
+          mint_pool_amount?: number
+          onchain_tx_hash?: string | null
+          period_end: string
+          period_start: string
+          rules_version?: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          epoch_id?: string
+          finalized_at?: string | null
+          mint_pool_amount?: number
+          onchain_tx_hash?: string | null
+          period_end?: string
+          period_start?: string
+          rules_version?: string
+          status?: string
         }
         Relationships: []
       }
@@ -1815,6 +1966,7 @@ export type Database = {
           banned_at: string | null
           bio: string | null
           claim_freeze_until: string | null
+          completion_pct: number | null
           consistency_days: number | null
           created_at: string
           display_name: string | null
@@ -1831,9 +1983,12 @@ export type Database = {
           light_score: number
           light_score_details: Json | null
           linkedin_url: string | null
+          mantra_ack_at: string | null
           music_enabled: boolean | null
           music_url: string | null
           pending_rewards: number | null
+          pplp_accepted_at: string | null
+          pplp_version: string | null
           previous_username: string | null
           signup_ip_hash: string | null
           signup_rewarded: boolean | null
@@ -1867,6 +2022,7 @@ export type Database = {
           banned_at?: string | null
           bio?: string | null
           claim_freeze_until?: string | null
+          completion_pct?: number | null
           consistency_days?: number | null
           created_at?: string
           display_name?: string | null
@@ -1883,9 +2039,12 @@ export type Database = {
           light_score?: number
           light_score_details?: Json | null
           linkedin_url?: string | null
+          mantra_ack_at?: string | null
           music_enabled?: boolean | null
           music_url?: string | null
           pending_rewards?: number | null
+          pplp_accepted_at?: string | null
+          pplp_version?: string | null
           previous_username?: string | null
           signup_ip_hash?: string | null
           signup_rewarded?: boolean | null
@@ -1919,6 +2078,7 @@ export type Database = {
           banned_at?: string | null
           bio?: string | null
           claim_freeze_until?: string | null
+          completion_pct?: number | null
           consistency_days?: number | null
           created_at?: string
           display_name?: string | null
@@ -1935,9 +2095,12 @@ export type Database = {
           light_score?: number
           light_score_details?: Json | null
           linkedin_url?: string | null
+          mantra_ack_at?: string | null
           music_enabled?: boolean | null
           music_url?: string | null
           pending_rewards?: number | null
+          pplp_accepted_at?: string | null
+          pplp_version?: string | null
           previous_username?: string | null
           signup_ip_hash?: string | null
           signup_rewarded?: boolean | null
