@@ -1,33 +1,45 @@
 
 
-# Cải thiện cách đếm View Count: Chỉ tăng sau 30 giây xem
+# Căn giữa Avatar và thông tin tài khoản trên giao diện di động
 
 ## Vấn đề hiện tại
+- Avatar được đặt ở vị trí `absolute` bên trái (không căn giữa)
+- Thông tin tài khoản (tên, username, bio, wallet) có `pl-36` padding bên trái để nằm cạnh avatar
+- Trên mobile, layout này bị lệch sang trái, không đẹp mắt
 
-Trong `src/pages/Watch.tsx` (dòng 253-257), view_count được tăng **ngay lập tức** khi video data load xong, không cần user thực sự xem video. Điều này dễ bị lạm dụng (reload = tăng view).
+## Thay đổi
 
-## Giải pháp
+### 1. `src/components/Profile/ProfileHeader.tsx`
+- Trên mobile: căn giữa avatar bằng cách thêm `left-1/2 -translate-x-1/2` cho `motion.div` chứa avatar (chỉ áp dụng `md:left-auto md:translate-x-0` cho desktop để giữ nguyên layout cũ)
 
-Thay thế logic tăng view ngay lập tức bằng một timer 30 giây, chỉ tăng view khi user thực sự xem đủ thời gian.
+### 2. `src/components/Profile/ProfileInfo.tsx`
+- Trên mobile: bỏ `pl-36` và thay bằng `items-center text-center` cho phần thông tin
+- Trên desktop (md trở lên): giữ nguyên `md:pl-44 lg:pl-52 md:text-left md:items-start`
+- Các phần con (tên, username, bio, wallet, action buttons) cũng sẽ căn giữa trên mobile
 
 ## Chi tiết kỹ thuật
 
-### Sửa `src/pages/Watch.tsx`
+**ProfileHeader.tsx (dòng 58-63):**
+- Đổi class của `motion.div` từ `absolute -top-20 md:-top-24 lg:-top-28` thành `absolute -top-20 md:-top-24 lg:-top-28 left-1/2 -translate-x-1/2 md:left-auto md:translate-x-0`
 
-1. **Xóa** đoạn increment view_count ngay lập tức (dòng 253-257)
+**ProfileHeader.tsx (dòng 121):**
+- Tăng spacer height trên mobile để bù cho avatar căn giữa: `h-24 md:h-20 lg:h-24`
 
-2. **Thêm useEffect mới** với logic:
-   - Khởi tạo timer 30 giây khi video đã load thành công
-   - Dùng `useRef` để đảm bảo chỉ tăng view **1 lần** cho mỗi video ID
-   - Khi timer hoàn thành (30s), gọi `supabase.update()` tăng view_count +1
-   - Cleanup timer khi user chuyển trang hoặc đổi video
-   - Reset ref khi video ID thay đổi (để video mới có thể đếm view riêng)
+**ProfileInfo.tsx (dòng 97):**
+- Đổi `pl-36 md:pl-44 lg:pl-52` thành `items-center md:items-start md:pl-44 lg:pl-52`
 
-```text
-Logic flow:
-  Video load xong → Bắt đầu timer 30s → Timer hết → Tăng view_count +1
-  User chuyển trang trước 30s → Cancel timer → Không tăng view
-```
+**ProfileInfo.tsx (dòng 99-101):**
+- Thêm `justify-center md:justify-start` cho dòng display name
 
-Không cần thay đổi database hay các file khác.
+**ProfileInfo.tsx (dòng 111):**
+- Thêm `justify-center md:justify-start` cho dòng username/stats
+
+**ProfileInfo.tsx (dòng 123):**
+- Thêm `text-center md:text-left` cho bio
+
+**ProfileInfo.tsx (dòng 129):**
+- Thêm `justify-center md:justify-start` cho wallet/link row
+
+**ProfileInfo.tsx (dòng 171):**
+- Đổi `pl-36 md:pl-44 lg:pl-0` thành `justify-center md:justify-start md:pl-0` cho action buttons
 
