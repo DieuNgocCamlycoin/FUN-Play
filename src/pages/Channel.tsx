@@ -412,6 +412,7 @@ export default function Channel() {
           profile={profile}
           channel={channel}
           lightScore={profile.light_score ?? 0}
+          lightLevel={profile.light_level ?? undefined}
           suspiciousScore={profile.suspicious_score ?? 0}
           banned={profile.banned ?? false}
           violationLevel={profile.violation_level ?? 0}

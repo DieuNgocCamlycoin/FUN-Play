@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { ProfileHonorBoard } from "./ProfileHonorBoard";
 import { SocialMediaOrbit } from "./SocialMediaOrbit";
 import { DiamondBadge } from "./DiamondBadge";
+import { LightLevelBadge } from "./LightLevelBadge";
 
 interface ProfileHeaderProps {
   profile: {
@@ -26,6 +27,7 @@ interface ProfileHeaderProps {
     user_id: string;
   } | null;
   lightScore?: number;
+  lightLevel?: string;
   suspiciousScore?: number;
   banned?: boolean;
   violationLevel?: number;
@@ -33,7 +35,7 @@ interface ProfileHeaderProps {
   onProfileUpdate?: () => void;
 }
 
-export const ProfileHeader = ({ profile, channel, lightScore = 0, suspiciousScore = 0, banned, violationLevel, isOwnProfile, onProfileUpdate }: ProfileHeaderProps) => {
+export const ProfileHeader = ({ profile, channel, lightScore = 0, lightLevel, suspiciousScore = 0, banned, violationLevel, isOwnProfile, onProfileUpdate }: ProfileHeaderProps) => {
   const displayName = profile.display_name || profile.username || "User";
 
   return (
@@ -63,6 +65,11 @@ export const ProfileHeader = ({ profile, channel, lightScore = 0, suspiciousScor
           <div className="relative group">
             {/* Diamond Badge */}
             <DiamondBadge lightScore={lightScore} suspiciousScore={suspiciousScore} banned={banned} violationLevel={violationLevel} />
+
+            {/* Light Level Badge - public label, no numeric score */}
+            {lightLevel && !banned && (
+              <LightLevelBadge level={lightLevel} />
+            )}
 
             {/* Glow Ring */}
             <div className="absolute -inset-1.5 rounded-full bg-gradient-to-r from-[hsl(var(--cosmic-cyan))] via-[hsl(var(--cosmic-magenta))] to-[hsl(var(--cosmic-gold))] opacity-70 blur-md animate-pulse group-hover:opacity-100 transition-opacity" />
