@@ -75,16 +75,32 @@ export function useAutoMintFun(userId: string | undefined) {
       // Check light score
       if ((profile.light_score || 0) < MIN_LIGHT_SCORE) return;
 
-      // Build pillar scores (simplified from profile data)
+      // Fetch real LS-Math data from features_user_day
+      const { data: features } = await (supabase as any)
+        .from('features_user_day')
+        .select('consistency_streak, sequence_count, anti_farm_risk, content_pillar_score, avg_rating_weighted')
+        .eq('user_id', userId)
+        .order('date', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const streakDays = features?.consistency_streak || 0;
+      const sequenceBonus = features?.sequence_count || 0;
+      const riskScore = features?.anti_farm_risk || 0;
+      const contentPillarScore = features?.content_pillar_score || 0;
+
+      // Build pillar scores from real data instead of hardcoded values
       const accountAgeDays = Math.floor((Date.now() - new Date(profile.created_at).getTime()) / (1000 * 60 * 60 * 24));
       const isVerified = profile.avatar_verified || false;
+      const lightScore = profile.light_score || 0;
 
+      // Derive pillar scores from real profile data
       const pillars: PillarScores = {
-        S: Math.min(100, 50),
+        S: Math.min(100, Math.round(lightScore * 0.8)), // Service: derived from light score
         T: Math.min(100, (isVerified ? 30 : 0) + Math.min(accountAgeDays, 365) / 365 * 40 + 30),
-        H: 50,
-        C: Math.min(100, 40),
-        U: Math.min(100, 30),
+        H: Math.min(100, Math.round(contentPillarScore * 10)), // Healing: from content quality
+        C: Math.min(100, Math.round(lightScore * 0.6)), // Contribution: from overall light
+        U: Math.min(100, Math.round(streakDays * 2)), // Unity: from consistency
       };
 
       const unitySignals: Partial<UnitySignals> = {
@@ -94,7 +110,16 @@ export function useAutoMintFun(userId: string | undefined) {
         bridgeValue: false,
       };
 
-      // Submit mint request
+      // PPLP v2.0: Build validation based on action type
+      const pplpValidation = {
+        hasRealAction: true, // Triggered by actual user action (view/like/comment)
+        hasRealValue: ['WATCH_VIDEO', 'COMMENT', 'UPLOAD_VIDEO', 'CREATE_POST'].includes(funAction),
+        hasPositiveImpact: true, // Platform activity contributes to ecosystem
+        noExploitation: riskScore < 0.4, // Anti-farm check
+        charterCompliant: true,
+      };
+
+      // Submit mint request with LS-Math v1.0 data
       const result = await submitRequest({
         platformId: 'FUN_PLAY',
         actionType: funAction,
@@ -113,6 +138,10 @@ export function useAutoMintFun(userId: string | undefined) {
         antiSybilScore: 1 - (profile.suspicious_score || 0) / 10,
         qualityMultiplier: 1.0,
         impactMultiplier: 1.0,
+        streakDays,
+        sequenceBonus,
+        riskScore,
+        pplpValidation,
       });
 
       if (result) {

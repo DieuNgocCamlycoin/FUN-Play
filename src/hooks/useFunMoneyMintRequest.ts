@@ -35,6 +35,14 @@ export interface MintRequestInput {
   antiSybilScore?: number;
   qualityMultiplier?: number;
   impactMultiplier?: number;
+  /** LS-Math v1.0: streak days for consistency multiplier */
+  streakDays?: number;
+  /** LS-Math v1.0: sequence bonus total */
+  sequenceBonus?: number;
+  /** LS-Math v1.0: risk score (0-1) */
+  riskScore?: number;
+  /** PPLP v2.0: validation flags */
+  pplpValidation?: import('@/lib/fun-money/constitution').PPLPValidation;
 }
 
 // Auto mint input (1-click from light activity)
@@ -120,10 +128,40 @@ export function useMintRequest(): UseMintRequestReturn {
         throw new Error('You must be logged in to submit a request');
       }
 
+      // 1b. Fetch LS-Math data from profile & features if not provided
+      let streakDays = input.streakDays ?? 0;
+      let sequenceBonus = input.sequenceBonus ?? 0;
+      let riskScore = input.riskScore ?? 0;
+
+      if (input.streakDays === undefined || input.sequenceBonus === undefined || input.riskScore === undefined) {
+        const { data: features } = await (supabase as any)
+          .from('features_user_day')
+          .select('consistency_streak, sequence_count, anti_farm_risk')
+          .eq('user_id', user.id)
+          .order('date', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (features) {
+          streakDays = input.streakDays ?? (features.consistency_streak || 0);
+          sequenceBonus = input.sequenceBonus ?? (features.sequence_count || 0);
+          riskScore = input.riskScore ?? (features.anti_farm_risk || 0);
+        }
+      }
+
+      // 1c. Build PPLP validation (default: all true for manual form, caller can override)
+      const pplpValidation = input.pplpValidation ?? {
+        hasRealAction: true,
+        hasRealValue: true,
+        hasPositiveImpact: true,
+        noExploitation: true,
+        charterCompliant: true,
+      };
+
       // 2. Get base reward for action
       const baseRewardAtomic = getBaseReward(input.platformId, input.actionType);
 
-      // 3. Calculate scores and multipliers
+      // 3. Calculate scores and multipliers (now with LS-Math v1.0 + PPLP v2.0)
       const scoringResult = scoreAction({
         platformId: input.platformId,
         actionType: input.actionType,
@@ -132,7 +170,11 @@ export function useMintRequest(): UseMintRequestReturn {
         antiSybilScore: input.antiSybilScore ?? 0.9,
         baseRewardAtomic,
         qualityMultiplier: input.qualityMultiplier,
-        impactMultiplier: input.impactMultiplier
+        impactMultiplier: input.impactMultiplier,
+        streakDays,
+        sequenceBonus,
+        riskScore,
+        pplpValidation,
       });
 
       // 4. Create hashes
@@ -291,11 +333,51 @@ export function useAutoMintRequest(): UseAutoMintRequestReturn {
         throw new Error('Bạn cần đăng nhập để gửi yêu cầu mint');
       }
 
-      // 2. Calculate multipliers from provided data
-      const integrityK = calculateIntegrityMultiplier(0.9, false, 1.0);
-      const unityUx = calculateUnityMultiplier(input.unityScore, input.unitySignals);
+      // 2. Fetch LS-Math data from features_user_day
+      const { data: features } = await (supabase as any)
+        .from('features_user_day')
+        .select('consistency_streak, sequence_count, anti_farm_risk')
+        .eq('user_id', user.id)
+        .order('date', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-      // 3. Create evidence from activity summary
+      const streakDays = features?.consistency_streak || 0;
+      const sequenceBonus = features?.sequence_count || 0;
+      const riskScore = features?.anti_farm_risk || 0;
+
+      // 3. PPLP v2.0 validation
+      const pplpValidation = {
+        hasRealAction: true,
+        hasRealValue: input.activitySummary.views > 0 || input.activitySummary.uploads > 0 || input.activitySummary.comments > 0,
+        hasPositiveImpact: true,
+        noExploitation: riskScore < 0.4,
+        charterCompliant: true,
+      };
+
+      // 4. Route through scoreAction() instead of bypassing
+      const baseRewardAtomic = input.mintableFunAtomic;
+      const scoringResult = scoreAction({
+        platformId: 'FUN_PROFILE',
+        actionType: 'LIGHT_ACTIVITY',
+        pillarScores: input.pillars,
+        unitySignals: input.unitySignals,
+        antiSybilScore: 0.9,
+        baseRewardAtomic,
+        qualityMultiplier: 1.0,
+        impactMultiplier: 1.0,
+        streakDays,
+        sequenceBonus,
+        riskScore,
+        pplpValidation,
+      });
+
+      // If rejected by scoring engine, abort
+      if (scoringResult.decision === 'REJECT') {
+        throw new Error(`Yêu cầu bị từ chối: ${scoringResult.reasonCodes.join(', ')}`);
+      }
+
+      // 5. Create evidence from activity summary
       const evidence = {
         type: 'LIGHT_ACTIVITY',
         description: 'Auto-generated from platform light activities',
@@ -303,7 +385,7 @@ export function useAutoMintRequest(): UseAutoMintRequestReturn {
         timestamp: new Date().toISOString()
       };
 
-      // 4. Create hashes
+      // 6. Create hashes
       const actionHash = createActionHash('LIGHT_ACTIVITY');
       const evidenceHash = createEvidenceHash({
         actionType: 'LIGHT_ACTIVITY',
@@ -312,7 +394,7 @@ export function useAutoMintRequest(): UseAutoMintRequestReturn {
         metadata: evidence
       });
 
-      // 5. Insert into database
+      // 7. Insert into database using scored results
       const insertData = {
         user_id: user.id,
         user_wallet_address: input.userWalletAddress,
@@ -320,23 +402,23 @@ export function useAutoMintRequest(): UseAutoMintRequestReturn {
         action_type: 'LIGHT_ACTIVITY',
         action_evidence: evidence,
         pillar_scores: input.pillars,
-        light_score: Math.round(input.lightScore),
-        unity_score: Math.round(input.unityScore),
+        light_score: scoringResult.lightScore,
+        unity_score: scoringResult.unityScore,
         unity_signals: input.unitySignals,
-        multiplier_q: 1.0,
-        multiplier_i: 1.0,
-        multiplier_k: integrityK,
-        multiplier_ux: unityUx,
-        base_reward_atomic: input.mintableFunAtomic,
-        calculated_amount_atomic: input.mintableFunAtomic,
-        calculated_amount_formatted: formatFunAmount(input.mintableFunAtomic),
+        multiplier_q: scoringResult.multipliers.Q,
+        multiplier_i: scoringResult.multipliers.I,
+        multiplier_k: scoringResult.multipliers.K,
+        multiplier_ux: scoringResult.multipliers.Ux,
+        base_reward_atomic: baseRewardAtomic,
+        calculated_amount_atomic: scoringResult.calculatedAmountAtomic,
+        calculated_amount_formatted: scoringResult.calculatedAmountFormatted,
         action_hash: actionHash,
         evidence_hash: evidenceHash,
-        status: 'pending',
-        decision_reason: null
+        status: scoringResult.decision === 'REVIEW_HOLD' ? 'pending' : 'pending',
+        decision_reason: scoringResult.reasonCodes.join(', ') || null
       };
 
-      console.log('[MintRequest] Inserting mint request...', { userId: user.id, wallet: input.userWalletAddress, amount: formatFunAmount(input.mintableFunAtomic) });
+      console.log('[MintRequest] Inserting mint request...', { userId: user.id, wallet: input.userWalletAddress, amount: scoringResult.calculatedAmountFormatted });
 
       const { data, error: insertError } = await (supabase as any)
         .from('mint_requests')
@@ -351,7 +433,7 @@ export function useAutoMintRequest(): UseAutoMintRequestReturn {
 
       console.log('[MintRequest] Success! Request ID:', data.id);
 
-      // 6. Update last mint timestamp on profile
+      // 8. Update last mint timestamp on profile
       await supabase
         .from('profiles')
         .update({ last_fun_mint_at: new Date().toISOString() })
