@@ -214,7 +214,7 @@ const steps = [
         <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3">
           <p className="text-sm flex items-start gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-            <span>Sau khi Claim xong, bạn có thể thấy FUN Money trong ví MetaMask bằng cách bấm <strong>"Thêm FUN vào ví"</strong> ở mục Tổng Quan.</span>
+            <span>Sau khi Claim xong, bạn có thể thấy FUN Money trong ví MetaMask bằng cách bấm <strong>"Thêm Contract FUN Money vào ví"</strong> ở mục Tổng Quan.</span>
           </p>
         </div>
       </div>
@@ -229,7 +229,7 @@ const faqItems = [
   },
   {
     q: 'Tôi không thấy FUN trong ví MetaMask?',
-    a: 'Bạn cần thêm token FUN vào MetaMask. Bấm nút "Thêm FUN vào ví" ở mục Tổng Quan, hoặc thêm thủ công với địa chỉ contract: 0x39A1b047D5d143f8874888cfa1d30Fb2AE6F0CD6'
+    a: 'Bạn cần thêm token FUN vào MetaMask. Bấm nút "Thêm Contract FUN Money vào ví" ở mục Tổng Quan, hoặc thêm thủ công với địa chỉ contract: 0x39A1b047D5d143f8874888cfa1d30Fb2AE6F0CD6'
   },
   {
     q: 'Activate và Claim khác nhau thế nào?',
