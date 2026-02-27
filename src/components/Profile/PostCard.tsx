@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { EnhancedDonateModal } from "@/components/Donate/EnhancedDonateModal";
 import { DonationCelebrationCard } from "@/components/Profile/DonationCelebrationCard";
-import { Heart, MessageSquare, Share2, Gift, MoreHorizontal, Sparkles } from "lucide-react";
+import { Heart, MessageSquare, Share2, Gift, MoreHorizontal, Sparkles, Star } from "lucide-react";
+import { PPLPRatingModal } from "@/components/PPLP/PPLPRatingModal";
 import { formatDistanceToNow } from "date-fns";
 import { vi } from "date-fns/locale";
 import {
@@ -46,6 +47,7 @@ export const PostCard = ({ post, onUpdate }: PostCardProps) => {
   const { toast } = useToast();
   const { isLiked, likeCount, toggleLike, loading: likeLoading } = usePostLike(post.id, post.like_count);
   const [donateModalOpen, setDonateModalOpen] = useState(false);
+  const [ratingModalOpen, setRatingModalOpen] = useState(false);
 
   const displayName = post.profiles?.display_name || post.profiles?.username || "User";
   const avatarUrl = post.profiles?.avatar_url;
@@ -261,15 +263,26 @@ export const PostCard = ({ post, onUpdate }: PostCardProps) => {
 
         {/* Donate (only for other users' posts) */}
         {user && user.id !== post.user_id && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setDonateModalOpen(true)}
-            className="gap-2 text-[hsl(var(--cosmic-gold))] hover:text-[hsl(var(--cosmic-gold))] hover:bg-[hsl(var(--cosmic-gold))]/10 ml-auto"
-          >
-            <Gift className="w-4 h-4" />
-            <span className="hidden sm:inline">Tặng</span>
-          </Button>
+          <>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setRatingModalOpen(true)}
+              className="gap-2 text-[hsl(var(--cosmic-cyan))] hover:text-[hsl(var(--cosmic-cyan))] hover:bg-[hsl(var(--cosmic-cyan))]/10"
+            >
+              <Star className="w-4 h-4" />
+              <span className="hidden sm:inline">PPLP</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setDonateModalOpen(true)}
+              className="gap-2 text-[hsl(var(--cosmic-gold))] hover:text-[hsl(var(--cosmic-gold))] hover:bg-[hsl(var(--cosmic-gold))]/10 ml-auto"
+            >
+              <Gift className="w-4 h-4" />
+              <span className="hidden sm:inline">Tặng</span>
+            </Button>
+          </>
         )}
       </div>
 
@@ -281,6 +294,15 @@ export const PostCard = ({ post, onUpdate }: PostCardProps) => {
         defaultReceiverName={displayName}
         defaultReceiverAvatar={avatarUrl || undefined}
         defaultReceiverWallet={undefined}
+      />
+
+      {/* PPLP Rating Modal */}
+      <PPLPRatingModal
+        open={ratingModalOpen}
+        onOpenChange={setRatingModalOpen}
+        contentId={post.id}
+        contentType="post"
+        authorUserId={post.user_id}
       />
     </Card>
   );
