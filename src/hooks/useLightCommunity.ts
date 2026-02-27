@@ -28,7 +28,7 @@ export const useLightCommunity = (limit: number = 5) => {
         .from("profiles")
         .select("id, username, display_name, avatar_url, light_level, light_score")
         .not("banned", "eq", true)
-        .gte("light_score", 20)
+        .gte("light_score", 0)
         .order("light_score", { ascending: false })
         .limit(limit);
 
