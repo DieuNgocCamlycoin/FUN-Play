@@ -1632,6 +1632,7 @@ export type Database = {
           banned_at: string | null
           bio: string | null
           claim_freeze_until: string | null
+          consistency_days: number | null
           created_at: string
           display_name: string | null
           facebook_url: string | null
@@ -1643,6 +1644,7 @@ export type Database = {
           last_fun_mint_at: string | null
           last_light_score_update: string | null
           last_wallet_change_at: string | null
+          light_level: string | null
           light_score: number
           light_score_details: Json | null
           linkedin_url: string | null
@@ -1682,6 +1684,7 @@ export type Database = {
           banned_at?: string | null
           bio?: string | null
           claim_freeze_until?: string | null
+          consistency_days?: number | null
           created_at?: string
           display_name?: string | null
           facebook_url?: string | null
@@ -1693,6 +1696,7 @@ export type Database = {
           last_fun_mint_at?: string | null
           last_light_score_update?: string | null
           last_wallet_change_at?: string | null
+          light_level?: string | null
           light_score?: number
           light_score_details?: Json | null
           linkedin_url?: string | null
@@ -1732,6 +1736,7 @@ export type Database = {
           banned_at?: string | null
           bio?: string | null
           claim_freeze_until?: string | null
+          consistency_days?: number | null
           created_at?: string
           display_name?: string | null
           facebook_url?: string | null
@@ -1743,6 +1748,7 @@ export type Database = {
           last_fun_mint_at?: string | null
           last_light_score_update?: string | null
           last_wallet_change_at?: string | null
+          light_level?: string | null
           light_score?: number
           light_score_details?: Json | null
           linkedin_url?: string | null
