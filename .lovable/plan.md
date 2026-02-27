@@ -1,112 +1,157 @@
 
 
-# Kế hoạch: Watch Time Tracking - Phân biệt thưởng Video Ngắn vs Video Dài
+# Kế hoạch: Nâng cấp Light Score & FUN Money theo tài liệu PPLP bổ sung
 
-## Tổng quan
+## Tổng quan phân tích
 
-Hiện tại, tất cả lượt xem video đều nhận **cùng mức thưởng 5,000 CAMLY** (tương đương base reward 10 FUN) bất kể video dài hay ngắn. Điều kiện duy nhất là xem tích lũy đủ **30% thời lượng video**. Kế hoạch này sẽ phân biệt rõ ràng giữa video ngắn (Shorts) và video dài, với điều kiện xem và mức thưởng khác nhau.
+### So sánh Hiện tại vs Tài liệu mới
 
----
-
-## Quy tắc thưởng mới
-
-| Loại video | Định nghĩa | Điều kiện xem | Thưởng CAMLY |
+| Khía cạnh | Hiện tại | Tài liệu yêu cầu | Trạng thái |
 |---|---|---|---|
-| **Video ngắn (Short)** | Thời lượng dưới hoac bang 3 phút (180s) | Xem hết video (>= 90% thời lượng) | 3,000 CAMLY |
-| **Video dài (Long)** | Thời lượng trên 3 phút | Xem tối thiểu 5 phút (300s) thực tế | 8,000 CAMLY |
+| Công thức Light Score | 5 pillars x weights (fixed) | 5 pillars x Reputation Weight x Consistency Multiplier x Sequence Multiplier - Integrity Penalty | CẦN CẬP NHẬT |
+| Reputation Weight | Chưa có | Weight dựa trên thời gian, lịch sử, hành vi | CẦN THÊM |
+| Consistency Multiplier | Chưa có | 1 bài = x1.0, 30 ngày ổn định = x1.3, 90 ngày = x1.6 | CẦN THÊM |
+| Sequence Multiplier | Đã lên kế hoạch (plan trước) | Chuỗi hành động nhân hệ số | ĐANG TRIỂN KHAI |
+| Integrity Penalty | Có (suspicious_score) | Spam, đánh giá chéo, farm -> giảm điểm chậm | DA CO |
+| Hiển thị điểm công khai | Hiển thị số cụ thể | Chỉ hiện Light Level (Presence/Growing/Builder/Guardian) | CẦN SỬA UI |
+| Bảng xếp hạng | Có Top Earners/Creators | Không Top 1-2, chỉ xu hướng cá nhân | CẦN SỬA UI |
+| FUN Mint Flow | Mint ngay theo activity count | Mint theo chu kỳ + Mint Pool tỷ lệ | GHI NHO TUONG LAI |
+| 8 Câu Thần Chú | Chưa có | Xác nhận 8 câu thần chú PPLP | GHI NHO TUONG LAI |
 
 ---
 
-## Các thay đổi cần thực hiện
+## Thay đổi sẽ triển khai ngay
 
-### 1. Cập nhật Edge Function `batch-award-camly`
+### 1. Thêm Reputation Weight vào RPC `calculate_user_light_score`
 
-Thay đổi logic xử lý VIEW reward:
+Tính dựa trên dữ liệu đã có:
+- Thời gian đóng góp (account age): 0.6 -> 1.0
+- Lịch sử không vi phạm (suspicious_score = 0): +0.1
+- Có video approved: +0.1
+- Có donations/giving: +0.1
 
-- Truy vấn `duration` của video từ bảng `videos`
-- Phân loại: `duration <= 180` la Short, `> 180` la Long
-- **Short**: Yêu cầu `actualWatchTime >= duration * 0.9` (xem gần hết)
-- **Long**: Yêu cầu `actualWatchTime >= 300` (xem tối thiểu 5 phút)
-- Gán mức thưởng tương ứng (3,000 hoặc 8,000 CAMLY)
-- Cập nhật `short_video_count` và `long_video_count` trong `daily_reward_limits`
-- Ghi `view_logs` kèm `video_duration_seconds`, `watch_time_seconds`, `watch_percentage`
+```text
+reputation_weight = base_weight (by account_age)
+  + 0.1 if no violations
+  + 0.1 if has approved content
+  + 0.1 if has given to community
+Cap: 1.0 -> 1.3
+```
 
-### 2. Thêm cấu hình vào `reward_config`
+### 2. Thêm Consistency Multiplier vào RPC
 
-Thêm các config key mới để admin có thể điều chỉnh linh hoạt:
-- `SHORT_VIDEO_VIEW_REWARD`: 3000
-- `LONG_VIDEO_VIEW_REWARD`: 8000
-- `SHORT_VIDEO_MIN_WATCH_PERCENT`: 90
-- `LONG_VIDEO_MIN_WATCH_SECONDS`: 300
-- `SHORT_VIDEO_MAX_DURATION`: 180
+Tính từ `daily_reward_limits` (số ngày active liên tục):
+- Dưới 7 ngày active: x1.0
+- 7-29 ngày: x1.1
+- 30-89 ngày: x1.3
+- 90+ ngày: x1.6
 
-### 3. Cập nhật Video Players (3 file)
+```text
+active_days = COUNT(DISTINCT date) FROM daily_reward_limits WHERE user_id = p_user_id
+consistency_multiplier = CASE
+  WHEN active_days >= 90 THEN 1.6
+  WHEN active_days >= 30 THEN 1.3
+  WHEN active_days >= 7 THEN 1.1
+  ELSE 1.0
+END
+```
 
-Sửa logic tích lũy watch time trong 3 player components:
+### 3. Cập nhật công thức Light Score trong SQL function
 
-- `EnhancedVideoPlayer.tsx` (Desktop)
-- `YouTubeMobilePlayer.tsx` (Mobile)
-- `MobileVideoPlayer.tsx` (Shorts)
+```text
+-- Công thức mới (theo tài liệu):
+raw_score = (truth + trust + service + healing + community + pplp_bonus + sequence_bonus)
 
-Thay đổi: Bỏ ngưỡng cứng 30%, thay bằng logic phân loại theo duration:
-- Short (duration <= 180s): trigger reward khi `accumulatedWatchTime >= duration * 0.9`
-- Long (duration > 180s): trigger reward khi `accumulatedWatchTime >= 300`
+-- Áp dụng multipliers
+weighted_score = raw_score
+  * reputation_weight     -- 0.6 -> 1.3
+  * consistency_multiplier -- 1.0 -> 1.6
 
-### 4. Cập nhật UI hiển thị chính sách
+-- Trừ penalty
+final_score = weighted_score - integrity_penalty
 
-- Sửa `RewardPolicyCard.tsx`: Tách "Xem video" thành 2 dòng riêng cho Short và Long
-- Cập nhật mô tả: Short "Xem hết video" = 3,000 CAMLY, Long "Xem tối thiểu 5 phút" = 8,000 CAMLY
+-- Cap 0-100
+```
 
-### 5. Ghi log chi tiết vào `view_logs`
+### 4. Cập nhật UI: Ẩn điểm chi tiết công khai
 
-Edge function sẽ insert vào `view_logs` với đầy đủ thông tin:
-- `watch_time_seconds`: Thời gian xem thực tế
-- `watch_percentage`: Phần trăm đã xem
-- `video_duration_seconds`: Thời lượng video
-- `is_valid`: true/false dựa trên điều kiện xem
+Theo tài liệu: "Người khác không thấy bạn được bao nhiêu điểm chính xác"
+
+- Trang Channel (profile công khai): Chỉ hiển thị Light Level label, KHÔNG hiện số điểm
+- Trang FUN Money (cá nhân): Vẫn hiển thị đầy đủ pillars + số điểm (chỉ bản thân xem)
+
+Light Level labels:
+- "Light Presence" (0-25)
+- "Light Growing" (26-50)
+- "Light Builder" (51-70)
+- "Light Guardian" (71-85)
+- "Light Architect" (86-100)
+
+### 5. Cập nhật `useLightActivity.ts`
+
+- Thêm `consistencyMultiplier` và `reputationWeight` vào `LightActivity` interface
+- Áp dụng multipliers vào client-side pillar calculation
+- Thêm `lightLevel` string field
+
+### 6. Cập nhật `LightActivityBreakdown.tsx`
+
+- Thêm section hiển thị Reputation Weight và Consistency Multiplier
+- Thêm Light Level badge nổi bật
+- Thêm xu hướng tăng trưởng (growth trend) thay vì ranking
 
 ---
 
 ## Chi tiết kỹ thuật
 
-### Logic phân loại trong Edge Function
+### Migration SQL
 
-```text
-if (video.duration <= 180) {
-  // SHORT VIDEO
-  requiredWatch = video.duration * 0.9
-  rewardAmount = SHORT_VIDEO_VIEW_REWARD (3000)
-  counterField = "short_video_count"
-} else {
-  // LONG VIDEO  
-  requiredWatch = 300 // 5 minutes
-  rewardAmount = LONG_VIDEO_VIEW_REWARD (8000)
-  counterField = "long_video_count"
-}
-
-if (actualWatchTime < requiredWatch) {
-  REJECT: "Insufficient watch time"
-}
+```sql
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS light_level TEXT DEFAULT 'presence';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS consistency_days INTEGER DEFAULT 0;
 ```
 
-### Logic trigger trong Video Player
+### Cập nhật RPC function `calculate_user_light_score`
 
-```text
-// Thay thế logic hiện tại (accumulatedWatchTime >= duration * 0.3)
-const isShort = duration <= 180
-const threshold = isShort ? duration * 0.9 : 300
+Thêm vào function hiện tại:
+1. Query `daily_reward_limits` đếm distinct dates -> consistency_days
+2. Tính reputation_weight từ account_age + violations + content
+3. Tính consistency_multiplier từ consistency_days
+4. Áp dụng: `final = raw * rep_weight * consist_mult - penalty`
+5. Tính light_level và UPDATE vào profiles
 
-if (accumulatedWatchTime >= threshold && !viewRewarded) {
-  awardViewReward(videoId, { actualWatchTime })
-}
-```
+### Cập nhật `pplp-engine.ts`
+
+Thêm functions:
+- `calculateReputationWeight(accountAgeDays, suspiciousScore, hasApprovedContent, hasDonations)`
+- `calculateConsistencyMultiplier(activeDays)`
+
+### Cập nhật Channel.tsx
+
+Thay thế hiển thị `light_score` số thành Light Level badge.
 
 ---
 
 ## Thứ tự triển khai
 
-1. Thêm config mới vào bảng `reward_config` (data insert)
-2. Cập nhật Edge Function `batch-award-camly` với logic phân loại
-3. Cập nhật 3 video player components (client-side threshold)
-4. Cập nhật `RewardPolicyCard.tsx` (UI hiển thị)
+1. Migration: Thêm cột `light_level`, `consistency_days`
+2. RPC: Viết lại `calculate_user_light_score` với multipliers mới
+3. Engine: Cập nhật `pplp-engine.ts` thêm reputation + consistency functions
+4. Hook: Cập nhật `useLightActivity.ts` với fields mới
+5. UI: Cập nhật `LightActivityBreakdown.tsx` + `Channel.tsx`
+6. Recalculate: Trigger batch tính lại cho tất cả users
+
+---
+
+## Ghi nhớ cho tương lai (CHƯA triển khai)
+
+| Tính năng | Ghi chú |
+|---|---|
+| Mint Pool theo chu kỳ (tuần/tháng) | Cần thiết kế Mint Pool engine, phân bổ tỷ lệ, cron job hàng tuần |
+| 8 Câu Thần Chú PPLP | Cần UI flow xác nhận, bảng `pplp_mantras_confirmed` |
+| Cam kết 5 lời hứa cộng đồng | Cần UI + bảng tracking |
+| Light Check-in hàng ngày | Cần UI widget + bảng `daily_checkins` |
+| Không hiển thị bảng xếp hạng cạnh tranh | Cần redesign trang Admin stats + public ranking |
+| Staking CAMLY tăng Reputation Weight | Chưa có smart contract staking |
+| Cross-platform contribution score | Chưa có FUN Academy, FUN Earth, FUN Legal |
+| AI phát hiện spam cảm xúc giả | Cần tích hợp AI layer riêng |
 
