@@ -41,8 +41,8 @@ Ingest Events → Validate → Feature Builder → Scoring Engine → Mint Engin
 | Feature Builder Cron | ✅ Done | `build-features` — tổng hợp features_user_day |
 | PPLP Rating UI | ✅ Done | `PPLPRatingModal` — 5 trụ × 0-2, tích hợp PostCard |
 | Client Event Hook | ✅ Done | `usePplpEventIngest` — hook gọi ingest từ client |
-| Sequence Detector | DB Ready | Logic phát hiện và ghi nhận chuỗi hành vi |
-| Mint Epoch Engine | DB Ready | Cron job tạo epoch + phân bổ mint |
+| Sequence Detector | ✅ Done | `detect-sequences` — 4 loại chuỗi, cron 2:30 AM daily |
+| Mint Epoch Engine | ✅ Done | `mint-epoch-engine` — weekly epoch, cron 3:00 AM Monday |
 | AI Content Analyzer | Thiết kế | Ego Risk Classifier, Pillar Support Scorer |
 | AI Spam Detector | Thiết kế | Burst pattern, reciprocal rings |
 | 8 Câu Thần Chú PPLP | Cần UI | Flow xác nhận + bảng events |
