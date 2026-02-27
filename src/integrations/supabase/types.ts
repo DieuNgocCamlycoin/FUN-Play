@@ -3328,6 +3328,10 @@ export type Database = {
         Args: { p_owner_id: string; p_target_user_id: string }
         Returns: boolean
       }
+      aggregate_features_user_day: {
+        Args: { p_date?: string }
+        Returns: number
+      }
       approve_user_reward: {
         Args: { p_admin_id: string; p_note?: string; p_user_id: string }
         Returns: number
@@ -3335,6 +3339,10 @@ export type Database = {
       atomic_increment_reward: {
         Args: { p_amount: number; p_auto_approve: boolean; p_user_id: string }
         Returns: Json
+      }
+      backfill_features_user_day: {
+        Args: { p_days_back?: number }
+        Returns: number
       }
       ban_user_permanently: {
         Args: { p_admin_id: string; p_reason?: string; p_user_id: string }
