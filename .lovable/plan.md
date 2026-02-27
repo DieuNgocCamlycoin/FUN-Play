@@ -1,40 +1,50 @@
 
 
-## Plan: Light Score Mathematical Spec (LS-Math v1.0) — ✅ COMPLETED
+## Plan: Scoring Config V1 + End-to-End Test Suite
 
-Replaced step-function scoring with formal mathematical formulas from the PPLP spec.
+Add the formal scoring config, end-to-end simulation examples, and unit test cases as specified in the document.
 
-### Completed Steps
+---
 
-| Step | Task | Status |
-|------|------|--------|
-| 1 | Created `src/lib/fun-money/light-score-math.ts` with all 19 sections | ✅ Done |
-| 2 | DB migration: added `content_pillar_score` to `features_user_day` | ✅ Done |
-| 3 | Updated `calculate_user_light_score` RPC with LS-Math v1.0 formulas | ✅ Done |
-| 4 | Updated `build-features` to compute content pillar scores | ✅ Done |
-| 5 | Updated `pplp-engine.ts` with new formula functions | ✅ Done |
-| 6 | Updated plan.md | ✅ Done |
+### 1. Create `src/lib/fun-money/scoring-config-v1.ts`
 
-### Key Formulas Implemented
+Scoring rules config object matching the YAML spec exactly:
+- `rule_version: "LS-Math-v1.0"`
+- All weights, reputation, content, consistency, sequence, penalty, mint params
+- Updated content type multipliers: `comment: 0.6`, `video: 1.2`, `course: 1.5`, `bug_report: 1.1`, `proposal: 1.3`
 
-- **Reputation Weight**: `w = clip(0.5, 2.0, 1 + 0.25 * log(1 + R_u))`
-- **Content Pillar Score**: Weighted avg of community ratings per pillar k, with `(P_c/10)^1.3` quality curve
-- **Action Base Score**: `B_u(t) = Σ b_τ * g(x)` with payload quality g ∈ [0, 1.5]
-- **Content Daily Score**: `C_u(t) = Σ ρ(type) * h(P_c)`
-- **Consistency Multiplier**: `M_cons = 1 + 0.6 * (1 - e^(-S/30))`
-- **Sequence Multiplier**: `M_seq = 1 + 0.5 * tanh(Q/5)`
-- **Integrity Penalty**: `Π = 1 - min(0.5, 0.8 * r)`
-- **Daily Light Score**: `L = (0.4*B + 0.6*C) * M_cons * M_seq * Π`
-- **Epoch Light Score**: `L_u(e) = Σ L_u(t)`
-- **Anti-whale cap**: 3% max per user with redistribution
-- **Cold start fallback**: `P̃_c = μ_topic * φ_u` when ratings < N_min
-- **Eligibility**: 4 conditions (PPLP accepted, integrity gate, min contribution, no review)
-- **Explainability**: Full audit object with top contributors and reason codes
-- **AI advisory**: ego_risk, pillar_suggest, spam_risk (Section 19)
+### 2. Update `CONTENT_TYPE_WEIGHTS` in `light-score-math.ts`
 
-### Files
+Align with the new config values:
+- `comment: 0.4 → 0.6`
+- `video: 1.5 → 1.2`
+- `course: 2.0 → 1.5`
+- `bug_report: 0.8 → 1.1`
+- Add `proposal: 1.3`
 
-- `src/lib/fun-money/light-score-math.ts` — Pure math module (all 19 sections)
-- `src/lib/fun-money/pplp-engine.ts` — Updated with logarithmic/exponential formulas
-- `supabase/functions/build-features/index.ts` — Content pillar score computation
-- DB RPC `calculate_user_light_score` — LS-Math v1.0 formulas
+### 3. Create `src/lib/fun-money/scoring-simulation.ts`
+
+End-to-end simulation module with:
+- **`simulateUserLy()`**: The exact example from the doc (u_ly, Feb 2026, 3 posts, mentor chain, 30-day streak, risk 0.1) producing Light Score ~8.67 and mint allocation ~86.7 FUN
+- **`runTestCases()`**: 4 test scenarios:
+  - Test 1 — Spam burst: 50 low-quality posts → low score
+  - Test 2 — Viral drama: high ratings but healing=0 → low P_c
+  - Test 3 — Silent consistent: 60-day streak, few high-quality posts → beats noisy users
+  - Test 4 — Rating ring: 5 users rating each other → penalty activates
+- Each test returns input, expected behavior, actual computed values, and pass/fail
+
+### 4. Update `.lovable/plan.md`
+
+Add Scoring Config V1 + Simulation Suite as completed.
+
+---
+
+### Implementation Order
+
+| Step | Task |
+|------|------|
+| 1 | Create `scoring-config-v1.ts` |
+| 2 | Update content type weights in `light-score-math.ts` |
+| 3 | Create `scoring-simulation.ts` with e2e examples + test cases |
+| 4 | Update `index.ts` exports and `plan.md` |
+
