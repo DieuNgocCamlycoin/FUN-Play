@@ -129,14 +129,14 @@ export function MintableCard({ activity, loading, onMintSuccess }: MintableCardP
         onMintSuccess?.();
       } else {
         toast.error('❌ Gửi yêu cầu mint thất bại', {
-          description: 'Vui lòng thử lại sau hoặc liên hệ Admin.',
+          description: mintError || 'Vui lòng thử lại sau hoặc liên hệ Admin.',
           duration: 6000
         });
       }
     } catch (err: any) {
       console.error('[MintableCard] Unexpected error:', err);
       toast.error('Lỗi khi tạo mint request', {
-        description: err.message
+        description: err.message || mintError || 'Lỗi không xác định'
       });
     } finally {
       setIsMinting(false);

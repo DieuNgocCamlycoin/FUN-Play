@@ -77,7 +77,7 @@ const UNITY_MULTIPLIER_MAPPING = [
 
 const THRESHOLDS = {
   minLightScore: 60,
-  minTruthT: 70,
+  minTruthT: 30,
   minIntegrityK: 0.6,
   antiSybilMin: 0.6,
   auditAmountAtomic: BigInt("5000000000000000000000") // 5000 FUN
