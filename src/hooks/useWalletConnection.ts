@@ -115,8 +115,8 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
     const currentUser = userRef.current;
     if (!currentUser) return;
     try {
-      // Check if this is first-time wallet save (no previous wallet)
       const isFirstSave = !previousAddressRef.current;
+      const isSameWallet = previousAddressRef.current?.toLowerCase() === walletAddress.toLowerCase();
       
       if (isFirstSave) {
         // First-time wallet connection: direct update (no RPC needed)
@@ -127,8 +127,16 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
             wallet_type: type === 'metamask' ? 'MetaMask' : type === 'bitget' ? 'Bitget Wallet' : 'Unknown',
           })
           .eq('id', currentUser.id);
+      } else if (isSameWallet) {
+        // Same wallet reconnecting — just update wallet_type if needed, no RPC
+        await supabase
+          .from('profiles')
+          .update({
+            wallet_type: type === 'metamask' ? 'MetaMask' : type === 'bitget' ? 'Bitget Wallet' : 'Unknown',
+          })
+          .eq('id', currentUser.id);
       } else {
-        // Wallet CHANGE: go through RPC for security checks
+        // Actual wallet CHANGE: go through RPC for security checks
         const { data, error } = await supabase.rpc('request_wallet_change', {
           p_user_id: currentUser.id,
           p_new_wallet: walletAddress,
