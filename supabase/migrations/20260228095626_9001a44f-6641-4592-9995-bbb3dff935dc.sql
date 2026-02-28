@@ -1,0 +1,1 @@
+UPDATE mint_requests SET status = 'minted', minted_at = '2026-02-27T06:41:58Z', block_number = 92753784 WHERE id = 'd7685c01-42da-4d33-93a1-4a7d486eb9bd' AND status = 'failed';
