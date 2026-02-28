@@ -296,9 +296,6 @@ export function useLightActivity(userId: string | undefined): UseLightActivityRe
       } else if (integrityScore === 0) {
         canMint = false;
         mintBlockReason = 'Tài khoản bị đánh dấu đáng ngờ';
-      } else if (pillars.T < 30) {
-        canMint = false;
-        mintBlockReason = `Truth Score (${pillars.T}) phải >= 30. Hãy xác thực avatar hoặc tăng thời gian sử dụng.`;
       } else if (parseFloat(mintable.formatted) < 1) {
         canMint = false;
         mintBlockReason = 'Số FUN có thể mint quá nhỏ (< 1 FUN)';
