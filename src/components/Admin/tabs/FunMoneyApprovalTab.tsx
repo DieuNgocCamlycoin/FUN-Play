@@ -74,7 +74,7 @@ export function FunMoneyApprovalTab() {
   const [isMinting, setIsMinting] = useState(false);
   const [isBatchProcessing, setIsBatchProcessing] = useState(false);
   
-  const [profileCache, setProfileCache] = useState<Record<string, { display_name: string | null; avatar_url: string | null; username: string; banned?: boolean }>>({});
+  const [profileCache, setProfileCache] = useState<Record<string, { display_name: string | null; avatar_url: string | null; username: string; banned?: boolean; wallet_address?: string | null }>>({});
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchQuery), 500);
@@ -111,13 +111,13 @@ export function FunMoneyApprovalTab() {
     if (userIds.length === 0) return;
     supabase
       .from('profiles')
-      .select('id, display_name, avatar_url, username, banned')
+      .select('id, display_name, avatar_url, username, banned, wallet_address')
       .in('id', userIds)
       .then(({ data }) => {
         if (data) {
           setProfileCache(prev => {
             const next = { ...prev };
-            data.forEach((p: any) => { next[p.id] = { display_name: p.display_name, avatar_url: p.avatar_url, username: p.username, banned: p.banned || false }; });
+            data.forEach((p: any) => { next[p.id] = { display_name: p.display_name, avatar_url: p.avatar_url, username: p.username, banned: p.banned || false, wallet_address: p.wallet_address }; });
             return next;
           });
         }
@@ -214,6 +214,28 @@ export function FunMoneyApprovalTab() {
         toast.error(`Không thể mint: ${validation.issues.join(', ')}`);
         return;
       }
+
+      // Wallet mismatch check
+      const { data: currentProfile } = await supabase
+        .from('profiles')
+        .select('wallet_address')
+        .eq('id', request.user_id)
+        .single();
+
+      if (currentProfile?.wallet_address && 
+          currentProfile.wallet_address.toLowerCase() !== request.user_wallet_address.toLowerCase()) {
+        const proceed = window.confirm(
+          `⚠️ CẢNH BÁO: Ví không khớp!\n\n` +
+          `Ví trong yêu cầu: ${request.user_wallet_address}\n` +
+          `Ví hiện tại: ${currentProfile.wallet_address}\n\n` +
+          `User có thể đã đổi ví sau khi tạo yêu cầu.\nBạn có muốn tiếp tục mint về ví cũ không?`
+        );
+        if (!proceed) {
+          toast.warning('Đã hủy mint do ví không khớp');
+          return;
+        }
+      }
+
       const txHash = await mintFunMoney(signer, request.user_wallet_address, request.action_type, BigInt(request.calculated_amount_atomic), request.action_evidence);
       const saved = await saveMintResult(request.id, txHash, adminAddress);
       if (saved) {
@@ -278,6 +300,21 @@ export function FunMoneyApprovalTab() {
       const request = requests.find(r => r.id === id);
       if (!request) { fail++; continue; }
       try {
+        // Wallet mismatch check for batch
+        const { data: batchProfile } = await supabase
+          .from('profiles')
+          .select('wallet_address')
+          .eq('id', request.user_id)
+          .single();
+
+        if (batchProfile?.wallet_address && 
+            batchProfile.wallet_address.toLowerCase() !== request.user_wallet_address.toLowerCase()) {
+          const displayName = profileCache[request.user_id]?.display_name || request.user_wallet_address.slice(0, 10);
+          toast.warning(`⚠️ Bỏ qua ${displayName}: Ví đã đổi (${request.user_wallet_address.slice(0, 6)}... → ${batchProfile.wallet_address.slice(0, 6)}...)`);
+          fail++;
+          continue;
+        }
+
         const approved = await approveRequest(id, 'Batch approved & minted');
         if (!approved) { fail++; continue; }
         const signer = await getSigner();
@@ -515,7 +552,7 @@ function RequestTableRow({
   isMinting: boolean;
   isBatchProcessing: boolean;
   rejectReason: string;
-  profile?: { display_name: string | null; avatar_url: string | null; username: string; banned?: boolean };
+  profile?: { display_name: string | null; avatar_url: string | null; username: string; banned?: boolean; wallet_address?: string | null };
   onToggleExpand: () => void;
   onToggleSelect: () => void;
   onApprove: () => void;
@@ -530,6 +567,8 @@ function RequestTableRow({
   const colSpan = showCheckbox ? 8 : 7;
   const displayName = profile?.display_name || profile?.username || 'Unknown';
   const walletShort = `${request.user_wallet_address.slice(0, 6)}...${request.user_wallet_address.slice(-4)}`;
+  const hasWalletMismatch = profile?.wallet_address && 
+    profile.wallet_address.toLowerCase() !== request.user_wallet_address.toLowerCase();
 
   return (
     <>
@@ -556,7 +595,15 @@ function RequestTableRow({
             </Avatar>
             <div className="flex flex-col min-w-0">
               <span className="text-xs font-semibold truncate max-w-[140px]">{displayName}</span>
-              <span className="font-mono text-[10px] text-muted-foreground">{walletShort}</span>
+              <div className="flex items-center gap-1">
+                <span className="font-mono text-[10px] text-muted-foreground">{walletShort}</span>
+                {hasWalletMismatch && (
+                  <Badge variant="destructive" className="text-[9px] px-1 py-0 h-4 gap-0.5" title={`Ví hiện tại: ${profile?.wallet_address}`}>
+                    <AlertTriangle className="w-2.5 h-2.5" />
+                    Ví đã đổi
+                  </Badge>
+                )}
+              </div>
             </div>
           </div>
         </TableCell>
