@@ -475,9 +475,10 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
             wasWeb3ConnectedRef.current = true;
             localStorage.setItem('last_connected_wallet', account.address);
             
-            if (account.chainId !== BSC_CHAIN_ID) {
-              switchToBSCRef.current();
-            }
+             // Only auto-switch if not on BSC Mainnet (56) or BSC Testnet (97)
+             if (account.chainId !== BSC_CHAIN_ID && account.chainId !== 97) {
+               switchToBSCRef.current();
+             }
           }
         }
         
@@ -518,7 +519,9 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
              wasWeb3ConnectedRef.current = true;
              localStorage.setItem('last_connected_wallet', account.address);
              
-             if (account.chainId !== BSC_CHAIN_ID) {
+             // Only auto-switch if not on BSC Mainnet (56) or BSC Testnet (97)
+             // BSC Testnet is needed for FUN Money operations
+             if (account.chainId !== BSC_CHAIN_ID && account.chainId !== 97) {
                switchToBSCRef.current();
              }
            }
