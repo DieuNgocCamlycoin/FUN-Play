@@ -77,7 +77,6 @@ const UNITY_MULTIPLIER_MAPPING = [
 
 const THRESHOLDS = {
   minLightScore: 60,
-  minTruthT: 30,
   minIntegrityK: 0.6,
   antiSybilMin: 0.6,
   auditAmountAtomic: BigInt("5000000000000000000000") // 5000 FUN
@@ -230,9 +229,6 @@ export function determineDecision(
     reasons.push(`Light Score ${lightScore} < ${THRESHOLDS.minLightScore}`);
   }
   
-  if (pillars.T < THRESHOLDS.minTruthT) {
-    reasons.push(`Truth Score ${pillars.T} < ${THRESHOLDS.minTruthT}`);
-  }
   
   if (integrityK < THRESHOLDS.minIntegrityK) {
     reasons.push(`Integrity K ${integrityK} < ${THRESHOLDS.minIntegrityK}`);
