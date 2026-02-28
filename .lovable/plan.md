@@ -1,45 +1,32 @@
 
 
-# Căn giữa Avatar và thông tin tài khoản trên giao diện di động
+## Problem
 
-## Vấn đề hiện tại
-- Avatar được đặt ở vị trí `absolute` bên trái (không căn giữa)
-- Thông tin tài khoản (tên, username, bio, wallet) có `pl-36` padding bên trái để nằm cạnh avatar
-- Trên mobile, layout này bị lệch sang trái, không đẹp mắt
+The red error toast "Không thể đổi ví" appears for all users because:
+1. The `WALLET_CHANGE_DISABLED` flag in `reward_config` is set globally to block all wallet changes
+2. `saveWalletToDb` sometimes triggers the RPC `request_wallet_change` even during normal reconnection (when `previousAddressRef` is already set but the address is the same)
 
-## Thay đổi
+The toast should only appear when a user **explicitly** tries to change their wallet (e.g., from Settings), not during automatic reconnection.
 
-### 1. `src/components/Profile/ProfileHeader.tsx`
-- Trên mobile: căn giữa avatar bằng cách thêm `left-1/2 -translate-x-1/2` cho `motion.div` chứa avatar (chỉ áp dụng `md:left-auto md:translate-x-0` cho desktop để giữ nguyên layout cũ)
+## Plan
 
-### 2. `src/components/Profile/ProfileInfo.tsx`
-- Trên mobile: bỏ `pl-36` và thay bằng `items-center text-center` cho phần thông tin
-- Trên desktop (md trở lên): giữ nguyên `md:pl-44 lg:pl-52 md:text-left md:items-start`
-- Các phần con (tên, username, bio, wallet, action buttons) cũng sẽ căn giữa trên mobile
+### 1. Fix `saveWalletToDb` in `src/hooks/useWalletConnection.ts`
 
-## Chi tiết kỹ thuật
+Add a check: if the new wallet address is the **same** as `previousAddressRef.current`, skip the RPC call entirely (no need to "change" to the same wallet). Only call `request_wallet_change` RPC when the address is actually different AND the user has an existing wallet.
 
-**ProfileHeader.tsx (dòng 58-63):**
-- Đổi class của `motion.div` từ `absolute -top-20 md:-top-24 lg:-top-28` thành `absolute -top-20 md:-top-24 lg:-top-28 left-1/2 -translate-x-1/2 md:left-auto md:translate-x-0`
+```typescript
+// In saveWalletToDb:
+const isFirstSave = !previousAddressRef.current;
+const isSameWallet = previousAddressRef.current?.toLowerCase() === walletAddress.toLowerCase();
 
-**ProfileHeader.tsx (dòng 121):**
-- Tăng spacer height trên mobile để bù cho avatar căn giữa: `h-24 md:h-20 lg:h-24`
+if (isFirstSave) {
+  // Direct update for first-time connection
+} else if (isSameWallet) {
+  // Same wallet reconnecting — just update wallet_type if needed, no RPC
+} else {
+  // Actual wallet CHANGE — go through RPC
+}
+```
 
-**ProfileInfo.tsx (dòng 97):**
-- Đổi `pl-36 md:pl-44 lg:pl-52` thành `items-center md:items-start md:pl-44 lg:pl-52`
-
-**ProfileInfo.tsx (dòng 99-101):**
-- Thêm `justify-center md:justify-start` cho dòng display name
-
-**ProfileInfo.tsx (dòng 111):**
-- Thêm `justify-center md:justify-start` cho dòng username/stats
-
-**ProfileInfo.tsx (dòng 123):**
-- Thêm `text-center md:text-left` cho bio
-
-**ProfileInfo.tsx (dòng 129):**
-- Thêm `justify-center md:justify-start` cho wallet/link row
-
-**ProfileInfo.tsx (dòng 171):**
-- Đổi `pl-36 md:pl-44 lg:pl-0` thành `justify-center md:justify-start md:pl-0` cho action buttons
+This single change prevents the red toast from appearing during normal wallet reconnections while preserving the security check for actual wallet changes.
 
