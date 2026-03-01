@@ -21,7 +21,8 @@ import {
   BarChart3,
   Fingerprint,
   Flag,
-  Sparkles
+  Sparkles,
+  FileBarChart
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -38,7 +39,8 @@ export type AdminSection =
   | "user-stats"
   | "wallet-detective"
   | "reports"
-  | "transparency";
+  | "transparency"
+  | "system-report";
 
 interface NavItem {
   id: AdminSection;
@@ -69,6 +71,7 @@ const navItems: NavItem[] = [
   { id: "wallet-detective", label: "Wallet Detective", icon: Fingerprint },
   { id: "reports", label: "Báo Cáo", icon: Flag },
   { id: "transparency", label: "PPLP Transparency", icon: Sparkles },
+  { id: "system-report", label: "Báo Cáo Tổng Hợp", icon: FileBarChart },
   { id: "admin-team", label: "Quản Lý Admin", icon: Crown, ownerOnly: true },
 ];
 
