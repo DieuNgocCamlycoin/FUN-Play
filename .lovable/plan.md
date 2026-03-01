@@ -1,29 +1,29 @@
 
 
-## Plan: Public Transparency Page at `/transparency`
+## Plan: Fix Stale Feature Data in Light Score Calculation
 
-### What We're Building
-A public-facing page at `/transparency` accessible to all users (no login required) that displays the same aggregate PPLP ecosystem stats currently in the admin dashboard. Includes educational content explaining the Light Score system and No-Ego philosophy.
+### Root Cause
+The `aggregate_features_user_day` cron runs once at 02:00 AM. Any activity after that isn't counted until the next day. But `calculate_user_light_score` only falls back to raw tables when `action_base = 0` — if features exist but are stale, it uses the incomplete data.
+
+### Fix: Two Changes
+
+**1. Update `calculate_user_light_score` SQL function**
+- Remove the `IF v_action_base = 0` condition on the fallback
+- For the **current day only** (`CURRENT_DATE`), always compute from raw tables and take the MAX of features vs raw data
+- This ensures any activity after the cron job is still counted
+
+**2. Re-aggregate features for today and recalculate**
+- Run `aggregate_features_user_day('2026-03-01')` to update today's features with the 13 missing posts
+- Then recalculate light score for this user
 
 ### Implementation
 
-**1. Create `src/pages/Transparency.tsx`**
-- Reuses `useTransparencyStats` hook (already works without auth since the `transparency` action is public)
-- Sections:
-  - Hero banner with title "FUN Play Transparency" and philosophy tagline
-  - 4 stat cards (Total Light, FUN Minted, Active Users, Sequences) — same data as admin tab
-  - Level distribution pie chart (Seed→Architect)
-  - "How It Works" educational cards explaining: Light Score basics, 5 Levels, No-Ego policy, Anti-Whale cap
-  - Active scoring rule version
-- Responsive layout, Vietnamese labels
-- Back navigation to home
+**Migration SQL:**
+- Modify `calculate_user_light_score`: after reading from `features_user_day`, also compute a `v_action_base_raw` from raw tables for dates where `date = CURRENT_DATE`, then use `GREATEST(v_action_base_features, v_action_base_raw)` as the final action_base
+- This is a ~15 line change in the existing function, specifically replacing the fallback `IF` block with an always-run supplement for current-day data
 
-**2. Register route in `src/App.tsx`**
-- Add `/transparency` route with lazy-loaded `Transparency` page
-- Place before dynamic `/:username` catch-all route
+**No frontend changes needed** — the hook already reads `light_score` from profiles which will update automatically.
 
-### Key Details
-- No new database changes needed — reuses existing `pplp-light-api` transparency endpoint
-- No auth required — the transparency action returns only aggregate data
-- Zero individual user data exposed (follows No-Ego policy)
+### Immediate Fix
+After deploying the migration, invoke `aggregate_features_user_day('2026-03-01')` and then `calculate_user_light_score` for this user to immediately correct the score.
 
