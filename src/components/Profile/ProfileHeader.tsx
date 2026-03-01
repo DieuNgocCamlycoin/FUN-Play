@@ -60,7 +60,7 @@ export const ProfileHeader = ({ profile, channel, lightScore = 0, lightLevel, su
           initial={{ scale: 0.8, opacity: 0, y: 20 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           transition={{ duration: 0.5, type: "spring" }}
-          className="absolute -top-20 md:-top-24 lg:-top-28 left-[50vw] -translate-x-1/2 md:left-auto md:translate-x-0"
+          className="absolute -top-20 md:-top-24 lg:-top-28 left-1/2 -translate-x-1/2 md:left-auto md:translate-x-0"
         >
           <div className="relative group">
             {/* Diamond Badge */}
