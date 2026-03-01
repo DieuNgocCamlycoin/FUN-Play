@@ -1,28 +1,42 @@
 
 
-## Căn trục trung tâm avatar trùng ảnh bìa trên mobile
+## Kích hoạt pipeline tự động thu nạp pplp_events từ hoạt động người dùng
 
-### Phân tích
-- Ảnh bìa (line 44): nằm trong container `w-full` bên trong div `relative` ngoài cùng (line 42) -- trung tâm = 50% width của container cha.
-- Avatar (line 63): đang dùng `left-[50vw]` -- tính theo **viewport**, không phải theo container cha. Nếu có bất kỳ offset nào (scrollbar, padding ẩn...) thì sẽ lệch so với ảnh bìa.
+### Vấn đề hiện tại
+Hook `usePplpEventIngest` chỉ được gọi tại 1 nơi duy nhất (`PPLPRatingModal`). Các hành động chính (đăng bài, bình luận, like, upload video, check-in, donation) **không tạo pplp_events**, khiến `features_user_day`, `light_score`, và `mint-epoch-engine` không có dữ liệu để hoạt động.
 
-### Giải pháp (1 thay đổi duy nhất, chỉ mobile)
-Đổi `left-[50vw]` về lại `left-1/2` trên mobile tại dòng 63 trong `src/components/Profile/ProfileHeader.tsx`.
+### Giải pháp: Database Triggers (server-side)
+Thay vì sửa từng component client-side (dễ bỏ sót, phụ thuộc UI), tạo **1 database function + nhiều triggers** tự động ghi `pplp_events` mỗi khi có INSERT vào các bảng hoạt động. Cách này đảm bảo 100% coverage bất kể hành động đến từ web, mobile, hay API.
 
-`left-1/2` tính 50% theo chính container cha (`relative w-full` ở line 58), đảm bảo trục trung tâm avatar **luôn trùng** với trục trung tâm ảnh bìa vì cả hai đều tính theo cùng một hệ tọa độ parent.
+### Chi tiết kỹ thuật
 
-```text
-Từ:  left-[50vw] -translate-x-1/2 md:left-auto md:translate-x-0
-Thành: left-1/2 -translate-x-1/2 md:left-auto md:translate-x-0
-```
+**1 migration** tạo:
 
-### Tại sao cách này đúng
-- Ảnh bìa dùng `w-full` trong parent -- trung tâm = 50% parent width
-- Avatar dùng `left-1/2` trong cùng cây layout -- trung tâm = 50% parent width  
-- Cả hai tính cùng hệ tọa độ nên **luôn trùng trục**, bất kể kích thước màn hình
-- Desktop không bị ảnh hưởng nhờ `md:left-auto md:translate-x-0`
+1. **Function `auto_ingest_pplp_event()`** -- trigger function chung, nhận tham số `event_type` và `target_type`, tự tạo `ingest_hash` dedup theo minute-bucket (giống logic edge function hiện tại).
 
-### Phạm vi
-- **1 file**: `src/components/Profile/ProfileHeader.tsx`
-- **1 dòng**: dòng 63, thay 1 class
+2. **7 triggers** trên các bảng:
+
+| Bảng | Event Type | Target Type |
+|------|-----------|-------------|
+| `posts` | `POST_CREATED` | `post` |
+| `comments` | `COMMENT_CREATED` | `comment` |
+| `post_comments` | `COMMENT_CREATED` | `post_comment` |
+| `videos` | `VIDEO_UPLOADED` | `video` |
+| `likes` (where is_dislike=false) | `LIKE_GIVEN` | `video` |
+| `post_likes` | `LIKE_GIVEN` | `post` |
+| `daily_checkins` | `LIGHT_CHECKIN` | `checkin` |
+| `donation_transactions` (where status='success') | `DONATION_MADE` | `donation` |
+
+3. **Dedup logic**: Hash = `md5(user_id || event_type || target_id || minute_bucket)`, upsert với `ON CONFLICT (ingest_hash) DO NOTHING`.
+
+4. **Backfill** (optional): Chạy 1 lần `backfill_pplp_events()` để nạp dữ liệu lịch sử từ các bảng hiện có vào `pplp_events`.
+
+### Phạm vi thay đổi
+- **1 database migration**: tạo function + triggers
+- **0 file frontend thay đổi** -- hoàn toàn server-side
+
+### Lợi ích
+- Mọi hành động đều tự động được ghi nhận, không phụ thuộc client
+- `build-features` edge function và `mint-epoch-engine` sẽ có dữ liệu ngay lập tức
+- Dedup tích hợp sẵn, tránh tính điểm trùng
 
