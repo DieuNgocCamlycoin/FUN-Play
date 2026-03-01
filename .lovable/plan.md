@@ -1,39 +1,25 @@
 
 
-## Plan: Light Level Guide Table on Homepage
+## Điều chỉnh avatar vào trung tâm màn hình trên giao diện điện thoại
 
-Create a new component `LightLevelGuide` that displays all 5 light levels in a visually rich, easy-to-understand card on the homepage.
+### Vấn đề hiện tại
+Avatar đang được căn giữa bằng `left-1/2 -translate-x-1/2`, nhưng nằm bên trong container có `max-w-6xl mx-auto px-4`. Trên mobile, padding và max-width của container cha khiến avatar bị lệch so với trung tâm thực sự của màn hình.
 
-### Component Design
+### Giải pháp
+Chỉnh sửa file `src/components/Profile/ProfileHeader.tsx` để avatar căn giữa chính xác theo viewport trên mobile.
 
-A premium card with 5 rows, one per light level, showing:
-- Emoji icon + Level name
-- Light Score threshold
-- Short description of what the level represents
-- Visual gradient accent per level
+### Chi tiết kỹ thuật
 
-| Level | Emoji | Threshold | Color Accent |
-|-------|-------|-----------|-------------|
-| Seed | 🌱 | 0+ | Emerald/Green |
-| Sprout | 🌿 | 50+ | Cyan/Teal |
-| Builder | 🌳 | 200+ | Violet/Purple |
-| Guardian | 🛡️ | 500+ | Amber/Orange |
-| Architect | 👑 | 1200+ | Gold/Yellow |
+**File chỉnh sửa:** `src/components/Profile/ProfileHeader.tsx`
 
-### Implementation Steps
+1. **Dòng 58** - Thay đổi container của avatar: trên mobile bỏ giới hạn `max-w-6xl` và `px-4`, chỉ áp dụng chúng từ `md` trở lên:
+   - Từ: `relative max-w-6xl mx-auto px-4 lg:px-6`
+   - Thành: `relative max-w-none md:max-w-6xl mx-auto md:px-4 lg:px-6`
 
-1. **Create `src/components/FunMoney/LightLevelGuide.tsx`** - New standalone component with:
-   - Glassmorphism card style matching project aesthetic
-   - 5 level rows with gradient backgrounds, emoji, name, threshold, and description
-   - Responsive design (stacks nicely on mobile)
-   - Animated entrance using framer-motion
+2. **Dòng 121** - Tăng khoảng cách spacer trên mobile để avatar không bị chồng lên nội dung phía dưới:
+   - Từ: `h-24 md:h-20 lg:h-24`
+   - Thành: `h-28 md:h-20 lg:h-24`
 
-2. **Add to Homepage (`src/pages/Index.tsx`)** - Insert the guide above the video grid (after ProfileNudgeBanner, before ContinueWatching), visible to all users.
-
-### Technical Details
-
-- Uses existing `getLightLevelLabel`, `getLightLevelEmoji` from `pplp-engine.ts`
-- Styled with Tailwind gradients matching `LightLevelBadge` color scheme
-- Uses `framer-motion` for staggered row animations
-- Card uses the project's glassmorphism pattern (`glass-card` or gradient borders)
+### Kết quả mong đợi
+Avatar sẽ nằm chính giữa màn hình trên giao diện điện thoại, không bị lệch do padding hay max-width của container cha.
 
