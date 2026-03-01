@@ -55,7 +55,7 @@ export const ProfileHeader = ({ profile, channel, lightScore = 0, lightLevel, su
       <ProfileHonorBoard userId={profile.id} placement="below" />
 
       {/* Avatar */}
-      <div className="relative max-w-none md:max-w-6xl mx-auto md:px-4 lg:px-6">
+      <div className="relative w-full max-w-none md:max-w-6xl mx-auto md:px-4 lg:px-6">
         <motion.div
           initial={{ scale: 0.8, opacity: 0, y: 20 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
