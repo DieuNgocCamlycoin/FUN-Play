@@ -1,42 +1,38 @@
 
 
-## Kích hoạt pipeline tự động thu nạp pplp_events từ hoạt động người dùng
+## Plan: Transparency Dashboard Tab
 
-### Vấn đề hiện tại
-Hook `usePplpEventIngest` chỉ được gọi tại 1 nơi duy nhất (`PPLPRatingModal`). Các hành động chính (đăng bài, bình luận, like, upload video, check-in, donation) **không tạo pplp_events**, khiến `features_user_day`, `light_score`, và `mint-epoch-engine` không có dữ liệu để hoạt động.
+### What We're Building
+A new "PPLP Transparency" tab in the Admin Dashboard showing system-wide Light Score and FUN Money statistics without any individual user data. This follows the No-Ego policy.
 
-### Giải pháp: Database Triggers (server-side)
-Thay vì sửa từng component client-side (dễ bỏ sót, phụ thuộc UI), tạo **1 database function + nhiều triggers** tự động ghi `pplp_events` mỗi khi có INSERT vào các bảng hoạt động. Cách này đảm bảo 100% coverage bất kể hành động đến từ web, mobile, hay API.
+### Data Source
+The existing `pplp-light-api` edge function already has a `transparency` action returning:
+- `total_light` - Total Light Score across system
+- `total_users_with_light` - Users with Light > 0
+- `total_fun_minted` - Total FUN minted from finalized epochs
+- `level_distribution_pct` - % breakdown by level (seed/sprout/builder/guardian/architect)
+- `total_sequences_completed` - Mentor chains etc.
+- `active_rule` - Current scoring rule version
 
-### Chi tiết kỹ thuật
+### Implementation Steps
 
-**1 migration** tạo:
+**1. Create hook `src/hooks/useTransparencyStats.ts`**
+- Calls `pplp-light-api?action=transparency` via `supabase.functions.invoke`
+- Returns typed data with loading state
 
-1. **Function `auto_ingest_pplp_event()`** -- trigger function chung, nhận tham số `event_type` và `target_type`, tự tạo `ingest_hash` dedup theo minute-bucket (giống logic edge function hiện tại).
+**2. Create component `src/components/Admin/tabs/TransparencyDashboardTab.tsx`**
+- Top row: 4 stat cards (Total Light, Total FUN Minted, Users with Light, Sequences Completed)
+- Middle: Pie/Bar chart showing level distribution (Seed/Sprout/Builder/Guardian/Architect %)
+- Bottom: Active rule version info card
+- No individual user data shown anywhere
 
-2. **7 triggers** trên các bảng:
+**3. Register in admin navigation**
+- Add `"transparency"` to `AdminSection` type in `UnifiedAdminLayout.tsx`
+- Add nav item with `Sparkles` icon and label "PPLP Transparency"
+- Add route case in `UnifiedAdminDashboard.tsx` with header text
 
-| Bảng | Event Type | Target Type |
-|------|-----------|-------------|
-| `posts` | `POST_CREATED` | `post` |
-| `comments` | `COMMENT_CREATED` | `comment` |
-| `post_comments` | `COMMENT_CREATED` | `post_comment` |
-| `videos` | `VIDEO_UPLOADED` | `video` |
-| `likes` (where is_dislike=false) | `LIKE_GIVEN` | `video` |
-| `post_likes` | `LIKE_GIVEN` | `post` |
-| `daily_checkins` | `LIGHT_CHECKIN` | `checkin` |
-| `donation_transactions` (where status='success') | `DONATION_MADE` | `donation` |
-
-3. **Dedup logic**: Hash = `md5(user_id || event_type || target_id || minute_bucket)`, upsert với `ON CONFLICT (ingest_hash) DO NOTHING`.
-
-4. **Backfill** (optional): Chạy 1 lần `backfill_pplp_events()` để nạp dữ liệu lịch sử từ các bảng hiện có vào `pplp_events`.
-
-### Phạm vi thay đổi
-- **1 database migration**: tạo function + triggers
-- **0 file frontend thay đổi** -- hoàn toàn server-side
-
-### Lợi ích
-- Mọi hành động đều tự động được ghi nhận, không phụ thuộc client
-- `build-features` edge function và `mint-epoch-engine` sẽ có dữ liệu ngay lập tức
-- Dedup tích hợp sẵn, tránh tính điểm trùng
+### Technical Details
+- Uses `recharts` PieChart for level distribution visualization
+- Calls edge function: `supabase.functions.invoke('pplp-light-api', { body: null, headers: {} })` with query param `action=transparency`
+- All data is system-aggregate only, zero individual exposure
 
