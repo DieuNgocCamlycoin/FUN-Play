@@ -8,6 +8,7 @@ import { BackButton } from "@/components/ui/back-button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useLightCommunity, LightCommunityMember } from "@/hooks/useLightCommunity";
 import { getLightLevelLabel, getLightLevelEmoji } from "@/lib/fun-money/pplp-engine";
+import { LightLevelGuide } from "@/components/FunMoney/LightLevelGuide";
 
 const LEVEL_STYLES: Record<string, string> = {
   presence: "from-emerald-400/20 to-emerald-600/20 border-emerald-500/40 text-emerald-700 dark:text-emerald-300",
@@ -117,6 +118,9 @@ export default function Leaderboard() {
             Cập nhật
           </Button>
         </motion.div>
+
+        {/* Light Level Guide */}
+        <LightLevelGuide />
 
         {/* Community Members */}
         <div className="space-y-3">
