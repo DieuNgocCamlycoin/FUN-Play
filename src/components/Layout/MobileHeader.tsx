@@ -199,6 +199,10 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
                       <DropdownMenuSeparator />
                     </>
                   )}
+                  <DropdownMenuItem onClick={() => navigate(`/@${profile?.username}`)} className="gap-2">
+                    <Users className="h-4 w-4" />
+                    Trang cá nhân
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate("/settings")} className="gap-2">
                     <Settings className="h-4 w-4" />
                     Cài đặt tài khoản
