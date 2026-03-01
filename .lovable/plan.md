@@ -1,38 +1,59 @@
 
 
-## Plan: Transparency Dashboard Tab
+## Plan: Unified FUN Money System Report Dashboard
 
 ### What We're Building
-A new "PPLP Transparency" tab in the Admin Dashboard showing system-wide Light Score and FUN Money statistics without any individual user data. This follows the No-Ego policy.
+A new comprehensive "System Report" tab in the Admin Dashboard that consolidates all FUN Money mint statistics into a single, easy-to-understand page. This combines data from PPLP scoring, mint engine, transparency, and platform activity into one unified view -- making it accessible for both admins and users.
 
-### Data Source
-The existing `pplp-light-api` edge function already has a `transparency` action returning:
-- `total_light` - Total Light Score across system
-- `total_users_with_light` - Users with Light > 0
-- `total_fun_minted` - Total FUN minted from finalized epochs
-- `level_distribution_pct` - % breakdown by level (seed/sprout/builder/guardian/architect)
-- `total_sequences_completed` - Mentor chains etc.
-- `active_rule` - Current scoring rule version
+### Data Sources
+- **`get_fun_money_system_stats`** RPC - mint requests, action breakdown, top holders
+- **`pplp-light-api?action=transparency`** - Light Score totals, level distribution
+- **`pplp-light-api?action=epoch`** - Current epoch info
+- **`get_admin_dashboard_stats`** RPC - platform stats (users, videos, activity)
+
+### UI Layout (Single Page)
+
+**Section 1: System Health Overview** (top cards row)
+- Total Users | Total Light Score | Total FUN Minted | Active Mint Epoch | Scoring Rule Version
+
+**Section 2: PPLP Scoring Pipeline Status** (info cards)
+- Cron job schedule summary (build-features 02:00, detect-sequences 02:30, light-scores 4h, mint-epoch Mon 03:00)
+- Current epoch period + status (draft/finalized)
+- Anti-whale cap (3%) + min threshold (10)
+
+**Section 3: Mint Flow Visualization** (charts)
+- Pipeline diagram: Events → Features → Scoring → Mint (text-based)
+- Level distribution pie chart (reuse from TransparencyDashboardTab)
+- Action breakdown bar chart (reuse from FunMoneyStatsTab)
+- Mint requests by status donut chart
+
+**Section 4: Key Metrics Explanation** (educational cards)
+- How Light Score works (formula summary in plain language)
+- 5 Levels explained (Seed → Architect with thresholds)
+- Multipliers explained (Consistency, Sequence, Integrity)
+- Anti-Whale + No-Ego policy summary
 
 ### Implementation Steps
 
-**1. Create hook `src/hooks/useTransparencyStats.ts`**
-- Calls `pplp-light-api?action=transparency` via `supabase.functions.invoke`
-- Returns typed data with loading state
+**1. Create `src/hooks/useSystemReport.ts`**
+- Combines calls to `useAdminFunMoneyStats`, `useTransparencyStats`, and epoch data
+- Returns unified typed data object
 
-**2. Create component `src/components/Admin/tabs/TransparencyDashboardTab.tsx`**
-- Top row: 4 stat cards (Total Light, Total FUN Minted, Users with Light, Sequences Completed)
-- Middle: Pie/Bar chart showing level distribution (Seed/Sprout/Builder/Guardian/Architect %)
-- Bottom: Active rule version info card
-- No individual user data shown anywhere
+**2. Create `src/components/Admin/tabs/SystemReportTab.tsx`**
+- Single comprehensive page with all 4 sections
+- Uses existing recharts components
+- Includes educational "How it works" cards for user understanding
+- Mobile-responsive grid layout
 
 **3. Register in admin navigation**
-- Add `"transparency"` to `AdminSection` type in `UnifiedAdminLayout.tsx`
-- Add nav item with `Sparkles` icon and label "PPLP Transparency"
-- Add route case in `UnifiedAdminDashboard.tsx` with header text
+- Add `"system-report"` to `AdminSection` type
+- Add nav item with `FileBarChart` icon and label "Báo Cáo Tổng Hợp"
+- Add route case in `UnifiedAdminDashboard.tsx`
 
 ### Technical Details
-- Uses `recharts` PieChart for level distribution visualization
-- Calls edge function: `supabase.functions.invoke('pplp-light-api', { body: null, headers: {} })` with query param `action=transparency`
-- All data is system-aggregate only, zero individual exposure
+- Reuses existing hooks (`useAdminFunMoneyStats`, `useTransparencyStats`) plus direct edge function calls
+- All scoring config values read from `SCORING_RULES_V1` constant (single source of truth)
+- No new database tables or migrations needed
+- No individual user data exposed in the report (follows No-Ego policy)
+- Vietnamese language for all labels
 
