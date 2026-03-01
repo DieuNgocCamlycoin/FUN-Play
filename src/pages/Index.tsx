@@ -15,7 +15,7 @@ import { ContinueWatching } from "@/components/Video/ContinueWatching";
 import { PullToRefreshIndicator } from "@/components/Layout/PullToRefreshIndicator";
 import { HonobarDetailModal } from "@/components/Layout/HonobarDetailModal";
 import { ProfileNudgeBanner } from "@/components/Profile/ProfileNudgeBanner";
-import { LightLevelGuide } from "@/components/FunMoney/LightLevelGuide";
+
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -417,10 +417,6 @@ const Index = () => {
             />
           )}
 
-          {/* Light Level Guide */}
-          <div className="px-4 lg:px-6 mt-4">
-            <LightLevelGuide />
-          </div>
 
           {!user && !isMobile && (
             <div className="glass-card mx-4 mt-4 rounded-xl border border-cosmic-magenta/50 p-4 shadow-[0_0_50px_rgba(217,0,255,0.5)]">
