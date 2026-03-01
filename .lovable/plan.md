@@ -1,44 +1,39 @@
 
 
-## Problem
-When admin mints FUN for a user, the tokens go to `mint_request.user_wallet_address` (captured at request creation time). If the user changed their wallet since then, tokens go to the old wallet — as happened with @angelgiau.
+## Plan: Light Level Guide Table on Homepage
 
-## Plan
+Create a new component `LightLevelGuide` that displays all 5 light levels in a visually rich, easy-to-understand card on the homepage.
 
-### 1. Add wallet mismatch check in `handleMint` and `handleBatchApproveAndMint`
+### Component Design
 
-In `src/components/Admin/tabs/FunMoneyApprovalTab.tsx`:
+A premium card with 5 rows, one per light level, showing:
+- Emoji icon + Level name
+- Light Score threshold
+- Short description of what the level represents
+- Visual gradient accent per level
 
-**Before minting** (both single and batch), fetch the user's current `wallet_address` from `profiles` and compare with `request.user_wallet_address`. If different:
-- Show a warning toast with both addresses
-- Block the mint unless admin confirms (using `window.confirm`)
+| Level | Emoji | Threshold | Color Accent |
+|-------|-------|-----------|-------------|
+| Seed | 🌱 | 0+ | Emerald/Green |
+| Sprout | 🌿 | 50+ | Cyan/Teal |
+| Builder | 🌳 | 200+ | Violet/Purple |
+| Guardian | 🛡️ | 500+ | Amber/Orange |
+| Architect | 👑 | 1200+ | Gold/Yellow |
 
-```typescript
-// In handleMint, after validation passes (line ~216):
-const { data: currentProfile } = await supabase
-  .from('profiles')
-  .select('wallet_address')
-  .eq('id', request.user_id)
-  .single();
+### Implementation Steps
 
-if (currentProfile?.wallet_address && 
-    currentProfile.wallet_address.toLowerCase() !== request.user_wallet_address.toLowerCase()) {
-  const proceed = window.confirm(
-    `⚠️ CẢNH BÁO: Ví không khớp!\n\n` +
-    `Ví trong yêu cầu: ${request.user_wallet_address}\n` +
-    `Ví hiện tại: ${currentProfile.wallet_address}\n\n` +
-    `User có thể đã đổi ví sau khi tạo yêu cầu.\nBạn có muốn tiếp tục mint về ví cũ không?`
-  );
-  if (!proceed) {
-    toast.warning('Đã hủy mint do ví không khớp');
-    return;
-  }
-}
-```
+1. **Create `src/components/FunMoney/LightLevelGuide.tsx`** - New standalone component with:
+   - Glassmorphism card style matching project aesthetic
+   - 5 level rows with gradient backgrounds, emoji, name, threshold, and description
+   - Responsive design (stacks nicely on mobile)
+   - Animated entrance using framer-motion
 
-**Same check in batch mint** (line ~283), skip the request with a warning toast if mismatch detected.
+2. **Add to Homepage (`src/pages/Index.tsx`)** - Insert the guide above the video grid (after ProfileNudgeBanner, before ContinueWatching), visible to all users.
 
-### 2. Visual indicator in the table row
+### Technical Details
 
-Also in the profile fetch (line ~112), include `wallet_address`. In the table row, if `profileCache[r.user_id]?.wallet_address` differs from `r.user_wallet_address`, show a small warning badge "⚠️ Ví đã đổi" next to the wallet address.
+- Uses existing `getLightLevelLabel`, `getLightLevelEmoji` from `pplp-engine.ts`
+- Styled with Tailwind gradients matching `LightLevelBadge` color scheme
+- Uses `framer-motion` for staggered row animations
+- Card uses the project's glassmorphism pattern (`glass-card` or gradient borders)
 
