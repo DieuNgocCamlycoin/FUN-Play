@@ -1,22 +1,28 @@
 
 
-## Căn giữa avatar theo viewport (1 lệnh duy nhất)
+## Căn trục trung tâm avatar trùng ảnh bìa trên mobile
 
-### Nguyên nhân gốc
-`left-1/2` tính 50% theo **container cha** (phần tử `relative` gần nhất), không phải theo màn hình. Dù container đã có `w-full`, các yếu tố layout phía trên có thể khiến nó không thực sự chiếm đúng 100% viewport.
+### Phân tích
+- Ảnh bìa (line 44): nằm trong container `w-full` bên trong div `relative` ngoài cùng (line 42) -- trung tâm = 50% width của container cha.
+- Avatar (line 63): đang dùng `left-[50vw]` -- tính theo **viewport**, không phải theo container cha. Nếu có bất kỳ offset nào (scrollbar, padding ẩn...) thì sẽ lệch so với ảnh bìa.
 
-### Giải pháp
-Sửa **duy nhất 1 class** tại dòng 63 của `src/components/Profile/ProfileHeader.tsx`:
+### Giải pháp (1 thay đổi duy nhất, chỉ mobile)
+Đổi `left-[50vw]` về lại `left-1/2` trên mobile tại dòng 63 trong `src/components/Profile/ProfileHeader.tsx`.
 
-- Thay `left-1/2` thành `left-[50vw]` (chỉ trên mobile)
-- `50vw` = 50% **viewport width**, luôn đúng tâm màn hình bất kể container cha có padding hay max-width gì
-
-**Thay đổi cụ thể (dòng 63):**
+`left-1/2` tính 50% theo chính container cha (`relative w-full` ở line 58), đảm bảo trục trung tâm avatar **luôn trùng** với trục trung tâm ảnh bìa vì cả hai đều tính theo cùng một hệ tọa độ parent.
 
 ```text
-Từ:  left-1/2 -translate-x-1/2 md:left-auto md:translate-x-0
-Thành: left-[50vw] -translate-x-1/2 md:left-auto md:translate-x-0
+Từ:  left-[50vw] -translate-x-1/2 md:left-auto md:translate-x-0
+Thành: left-1/2 -translate-x-1/2 md:left-auto md:translate-x-0
 ```
 
-Chỉ 1 thay đổi duy nhất, avatar sẽ luôn nằm chính giữa màn hình điện thoại, trùng tâm ảnh bìa (vì ảnh bìa cũng full-width).
+### Tại sao cách này đúng
+- Ảnh bìa dùng `w-full` trong parent -- trung tâm = 50% parent width
+- Avatar dùng `left-1/2` trong cùng cây layout -- trung tâm = 50% parent width  
+- Cả hai tính cùng hệ tọa độ nên **luôn trùng trục**, bất kể kích thước màn hình
+- Desktop không bị ảnh hưởng nhờ `md:left-auto md:translate-x-0`
+
+### Phạm vi
+- **1 file**: `src/components/Profile/ProfileHeader.tsx`
+- **1 dòng**: dòng 63, thay 1 class
 
