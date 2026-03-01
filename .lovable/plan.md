@@ -1,25 +1,24 @@
 
 
-## Điều chỉnh avatar vào trung tâm màn hình trên giao diện điện thoại
+## Thêm mục "Trang cá nhân" vào menu dropdown avatar
 
-### Vấn đề hiện tại
-Avatar đang được căn giữa bằng `left-1/2 -translate-x-1/2`, nhưng nằm bên trong container có `max-w-6xl mx-auto px-4`. Trên mobile, padding và max-width của container cha khiến avatar bị lệch so với trung tâm thực sự của màn hình.
+### Vấn đề
+Khi bấm vào avatar ở góc phải trên, menu chỉ hiển thị: "Bảng điều khiển", "Cài đặt tài khoản" và "Đăng xuất". Không có cách nào để truy cập nhanh vào trang cá nhân từ menu này.
 
 ### Giải pháp
-Chỉnh sửa file `src/components/Profile/ProfileHeader.tsx` để avatar căn giữa chính xác theo viewport trên mobile.
+Thêm mục **"Trang cá nhân"** vào menu dropdown avatar trên cả giao diện **mobile** (`MobileHeader.tsx`) và **desktop** (`Header.tsx`). Khi bấm vào, sẽ chuyển đến trang `/@username` của người dùng hiện tại.
 
 ### Chi tiết kỹ thuật
 
-**File chỉnh sửa:** `src/components/Profile/ProfileHeader.tsx`
+**File chỉnh sửa:**
 
-1. **Dòng 58** - Thay đổi container của avatar: trên mobile bỏ giới hạn `max-w-6xl` và `px-4`, chỉ áp dụng chúng từ `md` trở lên:
-   - Từ: `relative max-w-6xl mx-auto px-4 lg:px-6`
-   - Thành: `relative max-w-none md:max-w-6xl mx-auto md:px-4 lg:px-6`
+1. **`src/components/Layout/MobileHeader.tsx`** (dòng 201-205):
+   - Thêm mục "Trang cá nhân" với icon `User` từ lucide-react, đặt **trước** "Cài đặt tài khoản"
+   - Điều hướng đến `/@${profile?.username}` hoặc `/profile` nếu chưa có username
+   - Sử dụng hook `useProfile` đã có sẵn để lấy username
 
-2. **Dòng 121** - Tăng khoảng cách spacer trên mobile để avatar không bị chồng lên nội dung phía dưới:
-   - Từ: `h-24 md:h-20 lg:h-24`
-   - Thành: `h-28 md:h-20 lg:h-24`
+2. **`src/components/Layout/Header.tsx`** (dòng tương ứng):
+   - Thêm mục tương tự vào menu dropdown trên desktop
 
 ### Kết quả mong đợi
-Avatar sẽ nằm chính giữa màn hình trên giao diện điện thoại, không bị lệch do padding hay max-width của container cha.
-
+Khi bấm vào avatar → menu hiển thị thêm mục "Trang cá nhân" → bấm vào sẽ đưa bạn đến trang cá nhân của mình.
