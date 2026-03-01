@@ -19,6 +19,7 @@ import { UserStatsTab } from "@/components/Admin/tabs/UserStatsTab";
 import { WalletDetectiveTab } from "@/components/Admin/tabs/WalletDetectiveTab";
 import { ReportsManagementTab } from "@/components/Admin/tabs/ReportsManagementTab";
 import { FunMoneyStatsTab } from "@/components/Admin/tabs/FunMoneyStatsTab";
+import { TransparencyDashboardTab } from "@/components/Admin/tabs/TransparencyDashboardTab";
 import { useAdminManage } from "@/hooks/useAdminManage";
 
 export default function UnifiedAdminDashboard() {
@@ -137,6 +138,8 @@ export default function UnifiedAdminDashboard() {
         return <ReportsManagementTab />;
       case "fun-money-stats":
         return <FunMoneyStatsTab />;
+      case "transparency":
+        return <TransparencyDashboardTab />;
       default:
         return <OverviewTab />;
     }
@@ -166,6 +169,7 @@ export default function UnifiedAdminDashboard() {
               {currentSection === "wallet-detective" && "Wallet Detective"}
               {currentSection === "reports" && "Quản Lý Báo Cáo"}
               {currentSection === "fun-money-stats" && "Thống Kê FUN Money"}
+              {currentSection === "transparency" && "PPLP Transparency"}
             </h1>
             <p className="text-muted-foreground mt-1">
               {currentSection === "overview" && "Thống kê toàn nền tảng FUN Play"}
@@ -180,6 +184,7 @@ export default function UnifiedAdminDashboard() {
               {currentSection === "wallet-detective" && "Truy vết ví: tìm tất cả users liên quan qua giao dịch on-chain"}
               {currentSection === "reports" && "Xem xét và xử lý báo cáo video, kênh từ cộng đồng"}
               {currentSection === "fun-money-stats" && "Biểu đồ breakdown FUN Money theo action, status, top holders và trend 30 ngày"}
+              {currentSection === "transparency" && "Số liệu tổng quát toàn hệ — Light Score, FUN Minted, phân bổ Level — Không lộ cá nhân"}
             </p>
           </div>
         </div>
