@@ -20,7 +20,8 @@ import {
   Home,
   BarChart3,
   Fingerprint,
-  Flag
+  Flag,
+  Sparkles
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -36,7 +37,8 @@ export type AdminSection =
   | "abuse-detection"
   | "user-stats"
   | "wallet-detective"
-  | "reports";
+  | "reports"
+  | "transparency";
 
 interface NavItem {
   id: AdminSection;
@@ -66,6 +68,7 @@ const navItems: NavItem[] = [
   { id: "user-stats", label: "Thống Kê Users", icon: BarChart3 },
   { id: "wallet-detective", label: "Wallet Detective", icon: Fingerprint },
   { id: "reports", label: "Báo Cáo", icon: Flag },
+  { id: "transparency", label: "PPLP Transparency", icon: Sparkles },
   { id: "admin-team", label: "Quản Lý Admin", icon: Crown, ownerOnly: true },
 ];
 
