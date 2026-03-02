@@ -1,100 +1,82 @@
 
 
-# Audit Report: PPLP Light Score Scoring Accuracy
+# Plan: Tích hợp Multisig 3-of-3 (WILL + WISDOM + LOVE)
 
-## Findings Summary
+## Phân tích hiện trạng
 
-I compared the deployed `calculate_user_light_score` function and `aggregate_features_user_day` against the LS-Math v1.0 spec (`scoring-config-v1.ts`). Here are the issues found:
+Dự án hiện có hệ thống mint FUN Money **single-sig** (1 attester ký, admin submit). Cần nâng cấp lên **multisig 3-of-3** theo guide, với bảng `pplp_mint_requests` riêng, GOV Groups config, và UI cho Attester/Admin.
 
----
+Các thành phần đã có sẵn và tái sử dụng được:
+- EIP-712 signer (`src/lib/fun-money/eip712-signer.ts`)
+- Contract helpers & ABI (`src/lib/fun-money/contract-helpers.ts`, `web3-config.ts`)
+- Wagmi/AppKit provider đã cấu hình trong `App.tsx`
 
-## Issue 1: `content_pillar_score` Always 0 in SQL Aggregation
+## Các bước triển khai
 
-**Severity: HIGH**
+### 1. Database Migration - Tạo bảng `pplp_mint_requests`
 
-The SQL function `aggregate_features_user_day` (the cron-based aggregator) hardcodes `content_pillar_score = 0` (line 57). It never queries `pplp_ratings` to compute the actual content quality score.
+Tạo bảng mới với đầy đủ cột theo guide (Section 5): `multisig_signatures` (JSONB), `multisig_completed_groups` (TEXT[]), `multisig_required_groups` (TEXT[]), status flow `pending_sig → signing → signed → submitted → confirmed`. Kèm RLS policies (user chỉ xem request mình, attester xem request đang ký) và bật Realtime.
 
-Only the `build-features` edge function computes `content_pillar_score` from `pplp_ratings`, but that function is NOT called by the cron — the cron calls `aggregate_features_user_day` SQL function instead.
+### 2. PPLP Multisig Config - `src/lib/fun-money/pplp-multisig-config.ts`
 
-**Impact**: The 60% content weight in the formula (`0.6 * content_score`) is always 0 for all users scored via the cron pipeline. Users' scores are based only on the 40% action base.
+File config chứa:
+- GOV Groups (WILL/WISDOM/LOVE) với danh sách 11 địa chỉ ví và tên
+- Helper functions: `getGroupForAddress()`, `isAttesterAddress()`, `getAttesterName()`
+- Constants: `REQUIRED_GROUPS`, `CONTRACT_ADDRESS`, `EIP712_DOMAIN`
 
-**Fix**: Update `aggregate_features_user_day` to compute `content_pillar_score` from `pplp_ratings` using the spec formula: `h(P_c) = (P_c/10)^1.3` with content type multipliers.
+### 3. PPLP Types - `src/lib/fun-money/pplp-multisig-types.ts`
 
----
+Interfaces cho `MultisigSignature`, `MultisigSignatures`, `PPLPMintRequest`, status enum.
 
-## Issue 2: Raw Fallback Path Missing Several Action Types
+### 4. Edge Function - `supabase/functions/pplp-mint-fun/index.ts`
 
-**Severity: MEDIUM**
+Xử lý POST request tạo mint request:
+- Validate user (auth, not banned, daily cap 2/ngày)
+- Validate light actions (eligible, mint_status = approved)
+- Tính amount, tạo evidence hash, lưu nonce on-chain
+- Insert vào `pplp_mint_requests` với status `pending_sig`
+- Platform ID = `fun_play`
 
-The `GREATEST(features, raw)` fallback in `calculate_user_light_score` (lines 62-72) counts raw activity from source tables but is missing:
+### 5. Frontend Hook - `src/hooks/useAttesterSigning.ts`
 
-| Action | Spec Weight | Status |
-|--------|-------------|--------|
-| Posts | 3.0 | Included |
-| Comments + Post Comments | 1.5 | Included |
-| Videos | 5.0 | Included |
-| Likes (all 4 types) | 0.3 | Included |
-| Donations | 4.0 | Included |
-| **Shares** | **0.8** | **MISSING** |
-| **Help/Bounty** | **6.0** | **MISSING** |
-| **Reports** | **2.0** | **MISSING** |
-| **Checkins** | **1.0** | **MISSING** |
+Hook cho GOV Attester:
+- Detect wallet address → xác định group (WILL/WISDOM/LOVE)
+- Load pending requests cần ký (Realtime subscription)
+- `signRequest()`: Tạo EIP-712 typed data, ký bằng wagmi signer, lưu signature vào `multisig_signatures` JSONB
+- Auto-update status: `pending_sig → signing` (khi có 1-2 chữ ký), `signing → signed` (đủ 3/3)
 
-**Impact**: When the raw fallback is used (activity after 02:00 AM cron), shares, help actions, reports, and checkins are not counted.
+### 6. Frontend Hook - `src/hooks/useMintSubmit.ts`
 
-**Fix**: Add these missing sources to the raw fallback query.
+Hook cho Admin submit on-chain:
+- Load requests có status `signed` (đủ 3 chữ ký)
+- `verifyNonce()`: So sánh nonce DB vs on-chain
+- `submitMint()`: Gọi `lockWithPPLP(user, action, amount, evidenceHash, [sig_will, sig_wisdom, sig_love])`
+- Update status: `signed → submitted → confirmed/failed`
 
----
+### 7. UI Components
 
-## Issue 3: `aggregate_features_user_day` — `avg_rating_weighted` Always 0
+**`src/components/Multisig/AttesterPanel.tsx`**: Giao diện cho GOV member ký request - hiển thị danh sách request pending, nút ký, trạng thái 3 nhóm.
 
-**Severity: MEDIUM**
+**`src/components/Multisig/AdminMintPanel.tsx`**: Giao diện cho Admin submit on-chain - hiển thị request đã đủ chữ ký, nonce verification, nút submit.
 
-Line 56 of the aggregator hardcodes `avg_rating_weighted = 0`. This field was originally a fallback for `content_pillar_score` calculation. Neither field is populated from `pplp_ratings` in the SQL path.
+**`src/components/Multisig/MultisigStatusBadge.tsx`**: Badge hiển thị trạng thái 3 chữ ký (WILL ✓, WISDOM ✓, LOVE ⏳).
 
----
+### 8. Tích hợp vào Admin page
 
-## Issue 4: `sequence_count` Calculation Mismatch
+Thêm tab/section "Multisig Mint" vào trang Admin hiện có, chứa cả AttesterPanel và AdminMintPanel.
 
-**Severity: LOW**
+## Thứ tự triển khai
 
-In `aggregate_features_user_day`, `sequence_count` counts the number of **distinct action types** the user performed that day (line 39-54), not the actual completed behavioral sequences from the `sequences` table. The `build-features` edge function correctly queries `sequences WHERE state = 'complete'`.
+1. Database migration (bảng + RLS + Realtime)
+2. Config + Types files
+3. Edge function
+4. Frontend hooks (useAttesterSigning, useMintSubmit)
+5. UI components
+6. Tích hợp vào Admin page
 
-The sequence multiplier formula `M_seq = 1 + 0.5 * tanh(Q/5)` expects Q = number of completed sequences, not distinct action types.
+## Lưu ý kỹ thuật
 
-**Impact**: Users may get inflated or deflated sequence multipliers.
-
----
-
-## Issue 5: No Ledger Write
-
-**Severity: LOW**
-
-`calculate_user_light_score` updates `profiles` but does NOT insert into `light_score_ledger`. The ledger is used by the `pplp-light-api` `/me` endpoint and trend calculation. Historical score tracking is incomplete.
-
----
-
-## Proposed Fix Plan
-
-### Step 1: Fix `aggregate_features_user_day` to compute `content_pillar_score` from `pplp_ratings`
-- Query `pplp_ratings` for each user/date
-- Calculate weighted pillar average per the spec: `(P_c/10)^1.3` with content type multipliers
-- Also populate `avg_rating_weighted`
-
-### Step 2: Fix `sequence_count` to query from `sequences` table
-- Replace the "distinct action types" logic with actual completed sequence count
-
-### Step 3: Add missing actions to the raw fallback path in `calculate_user_light_score`
-- Add shares (from `reward_transactions`), help (from `bounty_submissions`), checkins (from `daily_checkins`)
-
-### Step 4: Add ledger insert to `calculate_user_light_score`
-- Insert a row into `light_score_ledger` after computing the final score
-
-### Step 5: Re-aggregate and recalculate all users
-- Run `aggregate_features_user_day` for all dates in the current epoch
-- Batch recalculate all users
-
-### Technical Details
-
-All fixes are SQL migrations to the two core functions. No frontend changes needed. After deploying, a data refresh (aggregate + recalculate) will correct all existing scores.
+- Threshold trên contract hiện là 1 (single-sig). Guide yêu cầu 3-of-3, nghĩa là contract cần được update threshold bằng `govSetThreshold(3)` - đây là bước on-chain ngoài phạm vi code.
+- 11 địa chỉ GOV cần được đăng ký on-chain bằng `govRegisterAttester()` - cũng là bước on-chain.
+- Chữ ký phải theo thứ tự [WILL, WISDOM, LOVE] khi submit.
 
