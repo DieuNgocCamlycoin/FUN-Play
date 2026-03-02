@@ -1,32 +1,24 @@
 
 
-## Cải thiện giao diện TransactionSummaryWidget
+## Gộp Direction và Time filter về cùng 1 hàng
 
-Dựa trên screenshot tham khảo, widget hiện tại hơi rời rạc với nhiều hàng nút riêng lẻ. Sẽ tổ chức lại gọn gàng và khoa học hơn.
+Chuyển 2 mục "Loại giao dịch" và "Thời gian tổng hợp" từ dạng segmented control riêng biệt thành 2 dropdown/select filter nằm trên cùng 1 hàng, giúp giao diện gọn hơn.
 
-### Thay đổi chính
+### Thay đổi
 
 #### File: `src/components/Transactions/TransactionSummaryWidget.tsx`
 
-1. **Direction tabs**: Chuyển sang dạng segmented control liền mạch với gradient background cho tab active, bo tròn đẹp hơn (thay vì 3 button rời)
+1. **Xóa 2 segmented control** hiện tại (dòng 107-124 cho Direction, dòng 144-160 cho Time)
 
-2. **Token filter**: Giữ dạng chip/pill nhỏ gọn, nhưng thêm rounded-full và spacing đều hơn
+2. **Thay bằng 1 hàng chứa 2 Select** (dùng Radix Select component đã có sẵn):
+   - Select 1: Loại GD -- "Tất cả" / "Đã gửi" / "Đã nhận"
+   - Select 2: Thời gian -- "Hôm nay" / "7 ngày" / "30 ngày" / "Tất cả"
+   - Cả 2 nằm trong `div className="flex gap-2"`, mỗi select chiếm `flex-1`
+   - Styling nhỏ gọn: `h-7 text-xs rounded-lg bg-muted/60 border-0`
 
-3. **Time filter**: Chuyển sang segmented control tương tự direction tabs, gradient cho active state
+3. **Import thêm** `Select, SelectContent, SelectItem, SelectTrigger, SelectValue` từ `@/components/ui/select`
 
-4. **Stats cards**: Giảm padding, font size vừa phải hơn, thêm subtle gradient background thay vì border cứng
-
-5. **Token breakdown**: Chuyển sang grid 2 cột gọn hơn, mỗi ô có visual indicator (thanh nhỏ hoặc dot màu)
-
-6. **Tổng thể**: 
-   - Bỏ emoji trong title, thay bằng icon
-   - Giảm spacing giữa các section (space-y-3 xuống space-y-2.5)
-   - Direction và Time filter dùng div với rounded-full border làm container, các option bên trong không có border riêng
-   - Active state dùng gradient `bg-gradient-to-r from-cyan-400 to-fuchsia-400` (match screenshot)
-
-### Kết quả mong đợi
-- Giao diện gọn gàng, các nhóm filter được nhóm rõ ràng
-- Active state nổi bật với gradient đẹp mắt
-- Stats cards clean hơn, dễ đọc
-- Tổng thể chuyên nghiệp và khoa học hơn
-
+### Kết quả
+- 2 dòng filter rút gọn thành 1 dòng duy nhất với 2 dropdown
+- Tiết kiệm không gian dọc đáng kể
+- Vẫn giữ nguyên logic filter hiện tại
