@@ -49,3 +49,7 @@ export {
 
 // Contract Source Reference
 export { CONSTITUTION_V2_CONTRACT_INFO } from './contracts/contract-info';
+
+// PPLP Multisig Config
+export * from './pplp-multisig-config';
+export * from './pplp-multisig-types';

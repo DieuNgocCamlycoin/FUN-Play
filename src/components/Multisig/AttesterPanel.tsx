@@ -1,0 +1,135 @@
+import { useAttesterSigning } from '@/hooks/useAttesterSigning';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { MultisigStatusBadge } from './MultisigStatusBadge';
+import { ShieldAlert, Pen, RefreshCw } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { formatFunDisplay } from '@/lib/fun-money/web3-config';
+import type { MultisigSignatures } from '@/lib/fun-money/pplp-multisig-types';
+import type { GovGroupName } from '@/lib/fun-money/pplp-multisig-config';
+
+export function AttesterPanel() {
+  const {
+    pendingRequests,
+    signRequest,
+    myGroup,
+    myName,
+    groupLabel,
+    isAttester,
+    loading,
+    signing,
+    refresh,
+  } = useAttesterSigning();
+  const { toast } = useToast();
+
+  if (!isAttester) {
+    return (
+      <Card className="p-6 text-center">
+        <ShieldAlert className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+        <h3 className="font-semibold text-lg mb-1">Không phải Attester</h3>
+        <p className="text-muted-foreground text-sm">
+          Ví hiện tại không nằm trong danh sách GOV Attester. Hãy kết nối ví đúng.
+        </p>
+      </Card>
+    );
+  }
+
+  const handleSign = async (request: any) => {
+    try {
+      const result = await signRequest(request);
+      toast({
+        title: 'Ký thành công! ✅',
+        description: result.status === 'signed' 
+          ? 'Đã đủ 3/3 chữ ký. Sẵn sàng submit on-chain.'
+          : 'Chữ ký đã được lưu. Chờ nhóm khác ký tiếp.',
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Lỗi ký',
+        description: err.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-bold">Attester Panel</h3>
+          <p className="text-sm text-muted-foreground">
+            Nhóm: <span className="font-medium text-foreground">{groupLabel}</span>
+            {' · '}Tên: <span className="font-medium text-foreground">{myName}</span>
+          </p>
+        </div>
+        <Button variant="outline" size="sm" onClick={refresh} disabled={loading}>
+          <RefreshCw className={`w-4 h-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
+      </div>
+
+      {/* Requests */}
+      {loading ? (
+        <div className="space-y-3">
+          {[1, 2].map(i => <Skeleton key={i} className="h-24" />)}
+        </div>
+      ) : pendingRequests.length === 0 ? (
+        <Card className="p-8 text-center text-muted-foreground">
+          Không có request nào đang chờ ký.
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {pendingRequests.map((req) => {
+            const sigs = (req.multisig_signatures || {}) as MultisigSignatures;
+            const alreadySigned = myGroup ? !!sigs[myGroup] : false;
+            const completedGroups = (req.multisig_completed_groups || []) as GovGroupName[];
+
+            return (
+              <Card key={req.id} className="p-4 space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Badge variant="outline" className="text-xs">
+                        {req.action_type}
+                      </Badge>
+                      <Badge variant="secondary" className="text-xs">
+                        {req.status}
+                      </Badge>
+                    </div>
+                    <p className="text-sm font-mono truncate text-muted-foreground">
+                      → {req.recipient_address}
+                    </p>
+                    <p className="text-lg font-bold mt-1">
+                      {formatFunDisplay(req.amount_wei)}
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    disabled={alreadySigned || signing === req.id}
+                    onClick={() => handleSign(req)}
+                    className={alreadySigned ? 'opacity-50' : ''}
+                  >
+                    <Pen className="w-4 h-4 mr-1" />
+                    {signing === req.id ? 'Đang ký...' : alreadySigned ? 'Đã ký' : 'Ký'}
+                  </Button>
+                </div>
+
+                <MultisigStatusBadge
+                  signatures={sigs}
+                  completedGroups={completedGroups}
+                />
+
+                <p className="text-[11px] text-muted-foreground">
+                  ID: {req.id.slice(0, 8)}... · {new Date(req.created_at).toLocaleString('vi-VN')}
+                </p>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}

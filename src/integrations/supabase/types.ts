@@ -1914,6 +1914,75 @@ export type Database = {
         }
         Relationships: []
       }
+      pplp_mint_requests: {
+        Row: {
+          action_hash: string | null
+          action_ids: string[] | null
+          action_type: string
+          amount: number
+          amount_wei: string
+          block_number: number | null
+          created_at: string
+          error_message: string | null
+          evidence_hash: string | null
+          id: string
+          multisig_completed_groups: string[] | null
+          multisig_required_groups: string[] | null
+          multisig_signatures: Json | null
+          nonce: string | null
+          platform_id: string
+          recipient_address: string
+          status: string
+          tx_hash: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          action_hash?: string | null
+          action_ids?: string[] | null
+          action_type: string
+          amount: number
+          amount_wei: string
+          block_number?: number | null
+          created_at?: string
+          error_message?: string | null
+          evidence_hash?: string | null
+          id?: string
+          multisig_completed_groups?: string[] | null
+          multisig_required_groups?: string[] | null
+          multisig_signatures?: Json | null
+          nonce?: string | null
+          platform_id?: string
+          recipient_address: string
+          status?: string
+          tx_hash?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          action_hash?: string | null
+          action_ids?: string[] | null
+          action_type?: string
+          amount?: number
+          amount_wei?: string
+          block_number?: number | null
+          created_at?: string
+          error_message?: string | null
+          evidence_hash?: string | null
+          id?: string
+          multisig_completed_groups?: string[] | null
+          multisig_required_groups?: string[] | null
+          multisig_signatures?: Json | null
+          nonce?: string | null
+          platform_id?: string
+          recipient_address?: string
+          status?: string
+          tx_hash?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       pplp_ratings: {
         Row: {
           author_user_id: string

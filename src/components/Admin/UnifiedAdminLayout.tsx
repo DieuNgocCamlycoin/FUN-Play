@@ -40,7 +40,8 @@ export type AdminSection =
   | "wallet-detective"
   | "reports"
   | "transparency"
-  | "system-report";
+  | "system-report"
+  | "multisig-mint";
 
 interface NavItem {
   id: AdminSection;
@@ -72,6 +73,7 @@ const navItems: NavItem[] = [
   { id: "reports", label: "Báo Cáo", icon: Flag },
   { id: "transparency", label: "PPLP Transparency", icon: Sparkles },
   { id: "system-report", label: "Báo Cáo Tổng Hợp", icon: FileBarChart },
+  { id: "multisig-mint", label: "Multisig Mint", icon: Shield },
   { id: "admin-team", label: "Quản Lý Admin", icon: Crown, ownerOnly: true },
 ];
 
