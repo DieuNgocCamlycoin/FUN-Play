@@ -19,7 +19,7 @@ const corsHeaders = {
  * 4. Write mint_allocations
  */
 
-const DEFAULT_WEEKLY_POOL = 100000; // FUN per week
+const DEFAULT_WEEKLY_POOL = 5000000; // FUN per week (5M pool)
 const MAX_SHARE_PER_USER = 0.03; // 3% anti-whale cap
 
 Deno.serve(async (req) => {
@@ -218,7 +218,7 @@ async function calculateAllocations(
     .from("profiles")
     .select("id, light_score, light_level, banned, pplp_accepted_at")
     .eq("banned", false)
-    .gt("light_score", 0)
+    .gte("light_score", 10)
     .order("light_score", { ascending: false })
     .limit(1000);
 
