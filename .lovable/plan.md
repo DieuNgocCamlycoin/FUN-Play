@@ -1,43 +1,45 @@
 
 
-## Tính năng: Widget Tổng hợp Giao dịch Gửi/Nhận
+## Thiết kế lại trang Wallet với Header Tabs
 
-Tạo widget tổng hợp cho user xem tổng giao dịch đã gửi và đã nhận, lọc theo token và thời gian -- tương tự giao diện FUN Profile.
+Chuyển trang Wallet từ layout dọc (tất cả sections xếp chồng) sang layout tabs gọn gàng, mỗi tab hiển thị 1 section.
 
-### Thay đổi
+### Giao dien moi
 
-#### 1. Cập nhật `src/hooks/useTransactionHistory.ts`
-- Thêm `direction?: "all" | "sent" | "received"` và `"today"` vào `TransactionFilters` interface (line 55-65)
-- Thêm logic filter direction trong phần Apply Filters (line 542-612): so sánh `sender_user_id` / `receiver_user_id` với `user.id`
-- Thêm case `"today"` vào switch timeRange
+```text
++--------------------------------------------------+
+|  FUN PLAY WALLET           [Ví: 0x1234...abcd]   |
++--------------------------------------------------+
+| [CAMLY Token] [Claim Rewards] [Top MTQ] [Lich Su] |
++--------------------------------------------------+
+|                                                    |
+|        << Noi dung cua tab dang chon >>            |
+|                                                    |
++--------------------------------------------------+
+```
 
-#### 2. Tạo file mới `src/components/Transactions/TransactionSummaryWidget.tsx`
-- **Props**: `transactions: UnifiedTransaction[]`, `currentUserId?: string`
-- **State nội bộ riêng** (không ảnh hưởng filter chính):
-  - `direction`: "both" | "sent" | "received" (3 tabs)
-  - `tokenFilter`: "all" | "CAMLY" | "USDT" | "BNB" | "FUN" (5 nút)
-  - `timeFilter`: "today" | "7d" | "30d" | "all" (4 nút)
-- **Tính toán client-side** từ `transactions[]`:
-  - Lọc theo direction: sent = `sender_user_id === currentUserId`, received = `receiver_user_id === currentUserId`
-  - Lọc theo token (`token_symbol`) và thời gian (`created_at`)
-  - Tính: tổng số giao dịch, tổng giá trị, breakdown theo token (khi chọn "Tất cả")
-- **Giao diện**:
-  - 3 tabs direction (toggle buttons với active highlight)
-  - Hàng nút token (button group)
-  - Hàng nút thời gian (button group)
-  - Cards thống kê: Tổng GD, Tổng giá trị, GD lớn nhất
+- **4 tabs**: Camly Token | Claim Rewards | Top Manh Thuong Quan | Lich Su Giao Dich
+- Moi lan chi hien thi 1 section, trang gon gang hon nhieu
+- Tab mac dinh: **Camly Token**
+- Tren mobile: tabs cuon ngang hoac text ngan gon
 
-#### 3. Cập nhật `src/components/Transactions/index.ts`
-- Export thêm `TransactionSummaryWidget`
+### Thay doi
 
-#### 4. Tích hợp vào `src/components/Wallet/TransactionHistorySection.tsx`
-- Thêm `TransactionSummaryWidget` sau `TransactionStats`, truyền `transactions` (allTransactions từ hook) và `user?.id`
+#### 1. Cap nhat `src/pages/Wallet.tsx`
+- Thay the khoi `<div className="space-y-6">` (chua 4 sections xep chong) bang component `Tabs` cua Radix UI
+- 4 `TabsTrigger`: "CAMLY Token", "Claim Rewards", "Top MTQ", "Lich Su GD"
+- 4 `TabsContent`: moi tab render 1 section tuong ung
+- State `activeTab` mac dinh la `"camly"`
+- TabsList styling: cuon ngang tren mobile, icon kem text
 
-### Chi tiết kỹ thuật
+#### Chi tiet ky thuat
 
-- Dữ liệu: Tái sử dụng `UnifiedTransaction[]` hiện có, không cần query DB mới
-- Widget có state nội bộ riêng, không ảnh hưởng đến filter/danh sách giao dịch bên dưới
-- Time filter "today": `created_at >= startOfToday()`
-- Styling: Button group với `variant="default"` cho active, `variant="outline"` cho inactive, responsive mobile
-- Breakdown theo token hiển thị khi chọn "Tất cả token": liệt kê từng token với số lượng và giá trị
+- Su dung `@radix-ui/react-tabs` (da cai san)
+- Import tu `@/components/ui/tabs` (Tabs, TabsList, TabsTrigger, TabsContent)
+- Giu nguyen cac component section hien tai, chi thay doi cach hien thi
+- TabsList responsive: `overflow-x-auto` tren mobile
+- Moi TabsTrigger co icon nho: Coins (CAMLY), Gift (Claim), Crown (Top MTQ), History (Lich Su)
+
+### Files thay doi
+1. `src/pages/Wallet.tsx` -- thay layout xep chong bang Tabs
 
