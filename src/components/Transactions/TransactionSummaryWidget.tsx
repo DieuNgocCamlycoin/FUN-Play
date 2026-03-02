@@ -152,13 +152,13 @@ export const TransactionSummaryWidget = ({ transactions, currentUserId }: Props)
           </div>
           <div className="bg-background/80 rounded-lg p-3 text-center border">
             <TrendingUp className="h-4 w-4 mx-auto mb-1 text-primary" />
-            <p className="text-lg font-bold text-foreground">{formatValue(summary.totalValue)}</p>
+            <p className="text-lg font-bold text-foreground">{formatValue(summary.totalValue)} <span className="text-xs font-medium text-muted-foreground">{tokenFilter !== "all" ? tokenFilter : "tokens"}</span></p>
             <p className="text-[10px] text-muted-foreground">Tổng giá trị</p>
           </div>
           <div className="bg-background/80 rounded-lg p-3 text-center border">
             <Trophy className="h-4 w-4 mx-auto mb-1 text-primary" />
             <p className="text-lg font-bold text-foreground">
-              {summary.largest ? formatValue(summary.largest.amount) : "—"}
+              {summary.largest ? <>{formatValue(summary.largest.amount)} <span className="text-xs font-medium text-muted-foreground">{summary.largest.token_symbol}</span></> : "—"}
             </p>
             <p className="text-[10px] text-muted-foreground">GD lớn nhất</p>
           </div>
@@ -175,7 +175,7 @@ export const TransactionSummaryWidget = ({ transactions, currentUserId }: Props)
                   <div key={token} className="flex items-center justify-between bg-background/60 rounded px-2 py-1 border text-xs">
                     <span className="font-medium text-foreground">{token}</span>
                     <span className="text-muted-foreground">
-                      {data.count} GD · {formatValue(data.value)}
+                      {data.count} GD · {formatValue(data.value)} {token}
                     </span>
                   </div>
                 ))}
