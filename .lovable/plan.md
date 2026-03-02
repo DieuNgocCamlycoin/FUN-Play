@@ -1,24 +1,24 @@
 
+## Thêm tiêu đề cho mỗi dropdown filter
 
-## Gộp Direction và Time filter về cùng 1 hàng
-
-Chuyển 2 mục "Loại giao dịch" và "Thời gian tổng hợp" từ dạng segmented control riêng biệt thành 2 dropdown/select filter nằm trên cùng 1 hàng, giúp giao diện gọn hơn.
+Chia mỗi ô filter thành 2 phần: nửa trái là label, nửa phải là dropdown.
 
 ### Thay đổi
 
-#### File: `src/components/Transactions/TransactionSummaryWidget.tsx`
+#### File: `src/components/Transactions/TransactionSummaryWidget.tsx` (dòng 108-130)
 
-1. **Xóa 2 segmented control** hiện tại (dòng 107-124 cho Direction, dòng 144-160 cho Time)
+Thay thế layout hiện tại từ 2 Select đơn giản thành 2 ô, mỗi ô có cấu trúc:
 
-2. **Thay bằng 1 hàng chứa 2 Select** (dùng Radix Select component đã có sẵn):
-   - Select 1: Loại GD -- "Tất cả" / "Đã gửi" / "Đã nhận"
-   - Select 2: Thời gian -- "Hôm nay" / "7 ngày" / "30 ngày" / "Tất cả"
-   - Cả 2 nằm trong `div className="flex gap-2"`, mỗi select chiếm `flex-1`
-   - Styling nhỏ gọn: `h-7 text-xs rounded-lg bg-muted/60 border-0`
+```
+[Label     | Dropdown ▼]  [Label     | Dropdown ▼]
+```
 
-3. **Import thêm** `Select, SelectContent, SelectItem, SelectTrigger, SelectValue` từ `@/components/ui/select`
+Cụ thể:
+- Mỗi filter được bọc trong `div className="flex-1 flex items-center rounded-lg bg-muted/60 overflow-hidden"`
+- Nửa trái: `span className="px-2 text-[10px] font-medium text-muted-foreground whitespace-nowrap"` chứa tiêu đề ("Loại GD" và "Thời gian")
+- Nửa phải: Select component với trigger không có background riêng (`bg-transparent border-0`)
+- Giữ nguyên logic filter, chỉ thay đổi layout
 
 ### Kết quả
-- 2 dòng filter rút gọn thành 1 dòng duy nhất với 2 dropdown
-- Tiết kiệm không gian dọc đáng kể
-- Vẫn giữ nguyên logic filter hiện tại
+- Mỗi dropdown có label rõ ràng giúp người dùng biết ô đó dùng để lọc gì
+- Giao diện gọn gàng, 2 filter vẫn nằm trên 1 hàng
