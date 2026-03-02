@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowUpRight, ArrowDownLeft, ArrowLeftRight, Hash, TrendingUp, Trophy, BarChart3 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Hash, TrendingUp, Trophy, BarChart3 } from "lucide-react";
 import type { UnifiedTransaction } from "@/hooks/useTransactionHistory";
 import { cn } from "@/lib/utils";
 
@@ -13,10 +14,10 @@ interface Props {
   currentUserId?: string;
 }
 
-const DIRECTION_OPTIONS: { value: Direction; label: string; icon: React.ReactNode }[] = [
-  { value: "both", label: "Cả hai", icon: <ArrowLeftRight className="h-3 w-3" /> },
-  { value: "sent", label: "Đã gửi", icon: <ArrowUpRight className="h-3 w-3" /> },
-  { value: "received", label: "Đã nhận", icon: <ArrowDownLeft className="h-3 w-3" /> },
+const DIRECTION_OPTIONS: { value: Direction; label: string }[] = [
+  { value: "both", label: "Tất cả" },
+  { value: "sent", label: "Đã gửi" },
+  { value: "received", label: "Đã nhận" },
 ];
 
 const TOKEN_OPTIONS: TokenFilter[] = ["all", "CAMLY", "USDT", "BNB", "FUN"];
@@ -104,23 +105,28 @@ export const TransactionSummaryWidget = ({ transactions, currentUserId }: Props)
           <h3 className="text-sm font-semibold text-foreground">Tổng hợp Giao dịch</h3>
         </div>
 
-        {/* Direction segmented control */}
-        <div className="flex rounded-full bg-muted/60 p-0.5">
-          {DIRECTION_OPTIONS.map(opt => (
-            <button
-              key={opt.value}
-              onClick={() => setDirection(opt.value)}
-              className={cn(
-                "flex-1 flex items-center justify-center gap-1 h-7 rounded-full text-xs font-medium transition-all",
-                direction === opt.value
-                  ? "bg-gradient-to-r from-cyan-400 to-fuchsia-400 text-white shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {opt.icon}
-              {opt.label}
-            </button>
-          ))}
+        {/* Direction + Time filters row */}
+        <div className="flex gap-2">
+          <Select value={direction} onValueChange={(v) => setDirection(v as Direction)}>
+            <SelectTrigger className="flex-1 h-7 text-xs rounded-lg bg-muted/60 border-0">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {DIRECTION_OPTIONS.map(opt => (
+                <SelectItem key={opt.value} value={opt.value} className="text-xs">{opt.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={timeFilter} onValueChange={(v) => setTimeFilter(v as TimeFilter)}>
+            <SelectTrigger className="flex-1 h-7 text-xs rounded-lg bg-muted/60 border-0">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {TIME_OPTIONS.map(opt => (
+                <SelectItem key={opt.value} value={opt.value} className="text-xs">{opt.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Token filter pills */}
@@ -141,23 +147,6 @@ export const TransactionSummaryWidget = ({ transactions, currentUserId }: Props)
           ))}
         </div>
 
-        {/* Time segmented control */}
-        <div className="flex rounded-full bg-muted/60 p-0.5">
-          {TIME_OPTIONS.map(opt => (
-            <button
-              key={opt.value}
-              onClick={() => setTimeFilter(opt.value)}
-              className={cn(
-                "flex-1 h-6 rounded-full text-[11px] font-medium transition-all",
-                timeFilter === opt.value
-                  ? "bg-gradient-to-r from-cyan-400 to-fuchsia-400 text-white shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
 
         {/* Stats cards */}
         <div className="grid grid-cols-3 gap-1.5">
