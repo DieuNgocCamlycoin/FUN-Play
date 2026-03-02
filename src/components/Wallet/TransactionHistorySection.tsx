@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTransactionHistory, TransactionFilters as FilterType } from "@/hooks/useTransactionHistory";
-import { TransactionCard, TransactionFilters, TransactionExport, TransactionStats } from "@/components/Transactions";
+import { TransactionCard, TransactionFilters, TransactionExport, TransactionStats, TransactionSummaryWidget } from "@/components/Transactions";
 
 export const TransactionHistorySection = () => {
   const { user } = useAuth();
@@ -17,13 +17,14 @@ export const TransactionHistorySection = () => {
   // Use unified hook - publicMode: false = only user's transactions
   const { 
     transactions, 
+    allTransactions,
     loading, 
     error, 
     stats,
     hasMore,
     loadMore,
     refresh
-  } = useTransactionHistory({ 
+  } = useTransactionHistory({
     publicMode: false, 
     limit: 50,
     filters 
@@ -73,6 +74,14 @@ export const TransactionHistorySection = () => {
       <CardContent className="space-y-4">
         {/* Stats Widget */}
         {!loading && <TransactionStats stats={stats} />}
+        
+        {/* Summary Widget */}
+        {!loading && allTransactions.length > 0 && (
+          <TransactionSummaryWidget 
+            transactions={allTransactions} 
+            currentUserId={user?.id} 
+          />
+        )}
         
         {/* Filters - Compact mode for personal history */}
         <TransactionFilters 

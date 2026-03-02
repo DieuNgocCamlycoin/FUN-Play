@@ -56,7 +56,8 @@ export interface TransactionFilters {
   search?: string;
   token?: string;
   type?: TransactionType | "all";
-  timeRange?: "all" | "7d" | "30d" | "thisMonth" | "custom";
+  direction?: "all" | "sent" | "received";
+  timeRange?: "all" | "today" | "7d" | "30d" | "thisMonth" | "custom";
   startDate?: Date;
   endDate?: Date;
   isOnchain?: boolean | "all";
@@ -559,6 +560,9 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
       let cutoff: Date;
       
       switch (filters.timeRange) {
+        case "today":
+          cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          break;
         case "7d":
           cutoff = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
           break;
@@ -591,6 +595,15 @@ export function useTransactionHistory(options: UseTransactionHistoryOptions = {}
     // Status filter
     if (filters.status && filters.status !== "all") {
       filtered = filtered.filter(t => t.status === filters.status);
+    }
+
+    // Direction filter
+    if (filters.direction && filters.direction !== "all" && user?.id) {
+      if (filters.direction === "sent") {
+        filtered = filtered.filter(t => t.sender_user_id === user.id);
+      } else if (filters.direction === "received") {
+        filtered = filtered.filter(t => t.receiver_user_id === user.id);
+      }
     }
 
     // Search filter (UPDATED: include username)
