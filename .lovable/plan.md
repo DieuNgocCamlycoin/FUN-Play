@@ -1,45 +1,17 @@
 
+## Thêm đơn vị tiền tệ vào TransactionSummaryWidget
 
-## Thiết kế lại trang Wallet với Header Tabs
+Thêm ký hiệu token (CAMLY, USDT, BNB, FUN) vào sau mỗi giá trị hiển thị trong widget tổng hợp giao dịch.
 
-Chuyển trang Wallet từ layout dọc (tất cả sections xếp chồng) sang layout tabs gọn gàng, mỗi tab hiển thị 1 section.
+### Thay đổi
 
-### Giao dien moi
+#### File: `src/components/Transactions/TransactionSummaryWidget.tsx`
 
-```text
-+--------------------------------------------------+
-|  FUN PLAY WALLET           [Ví: 0x1234...abcd]   |
-+--------------------------------------------------+
-| [CAMLY Token] [Claim Rewards] [Top MTQ] [Lich Su] |
-+--------------------------------------------------+
-|                                                    |
-|        << Noi dung cua tab dang chon >>            |
-|                                                    |
-+--------------------------------------------------+
-```
+1. **Tổng giá trị (line 155)**: Thêm token symbol phía sau -- nếu đang lọc 1 token cụ thể thì hiện tên token đó, nếu chọn "Tất cả" thì hiện "tokens"
+2. **GD lớn nhất (line 160-162)**: Thêm `token_symbol` của giao dịch lớn nhất phía sau giá trị
+3. **Breakdown theo token (line 178)**: Thêm token symbol sau giá trị mỗi dòng
 
-- **4 tabs**: Camly Token | Claim Rewards | Top Manh Thuong Quan | Lich Su Giao Dich
-- Moi lan chi hien thi 1 section, trang gon gang hon nhieu
-- Tab mac dinh: **Camly Token**
-- Tren mobile: tabs cuon ngang hoac text ngan gon
-
-### Thay doi
-
-#### 1. Cap nhat `src/pages/Wallet.tsx`
-- Thay the khoi `<div className="space-y-6">` (chua 4 sections xep chong) bang component `Tabs` cua Radix UI
-- 4 `TabsTrigger`: "CAMLY Token", "Claim Rewards", "Top MTQ", "Lich Su GD"
-- 4 `TabsContent`: moi tab render 1 section tuong ung
-- State `activeTab` mac dinh la `"camly"`
-- TabsList styling: cuon ngang tren mobile, icon kem text
-
-#### Chi tiet ky thuat
-
-- Su dung `@radix-ui/react-tabs` (da cai san)
-- Import tu `@/components/ui/tabs` (Tabs, TabsList, TabsTrigger, TabsContent)
-- Giu nguyen cac component section hien tai, chi thay doi cach hien thi
-- TabsList responsive: `overflow-x-auto` tren mobile
-- Moi TabsTrigger co icon nho: Coins (CAMLY), Gift (Claim), Crown (Top MTQ), History (Lich Su)
-
-### Files thay doi
-1. `src/pages/Wallet.tsx` -- thay layout xep chong bang Tabs
-
+Ví dụ hiển thị:
+- Tổng giá trị: `1.5M CAMLY` (khi lọc CAMLY) hoặc `2.3M tokens` (khi chọn Tất cả)
+- GD lớn nhất: `500K CAMLY`
+- Breakdown: `12 GD · 1.5M CAMLY`
