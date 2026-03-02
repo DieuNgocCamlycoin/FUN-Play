@@ -1,8 +1,8 @@
 import { useState, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { ArrowUpRight, ArrowDownLeft, ArrowLeftRight, Hash, TrendingUp, Trophy } from "lucide-react";
+import { ArrowUpRight, ArrowDownLeft, ArrowLeftRight, Hash, TrendingUp, Trophy, BarChart3 } from "lucide-react";
 import type { UnifiedTransaction } from "@/hooks/useTransactionHistory";
+import { cn } from "@/lib/utils";
 
 type Direction = "both" | "sent" | "received";
 type TokenFilter = "all" | "CAMLY" | "USDT" | "BNB" | "FUN";
@@ -14,9 +14,9 @@ interface Props {
 }
 
 const DIRECTION_OPTIONS: { value: Direction; label: string; icon: React.ReactNode }[] = [
-  { value: "both", label: "Cả hai", icon: <ArrowLeftRight className="h-3.5 w-3.5" /> },
-  { value: "sent", label: "Đã gửi", icon: <ArrowUpRight className="h-3.5 w-3.5" /> },
-  { value: "received", label: "Đã nhận", icon: <ArrowDownLeft className="h-3.5 w-3.5" /> },
+  { value: "both", label: "Cả hai", icon: <ArrowLeftRight className="h-3 w-3" /> },
+  { value: "sent", label: "Đã gửi", icon: <ArrowUpRight className="h-3 w-3" /> },
+  { value: "received", label: "Đã nhận", icon: <ArrowDownLeft className="h-3 w-3" /> },
 ];
 
 const TOKEN_OPTIONS: TokenFilter[] = ["all", "CAMLY", "USDT", "BNB", "FUN"];
@@ -27,6 +27,13 @@ const TIME_OPTIONS: { value: TimeFilter; label: string }[] = [
   { value: "all", label: "Tất cả" },
 ];
 
+const TOKEN_COLORS: Record<string, string> = {
+  CAMLY: "bg-cyan-400",
+  USDT: "bg-emerald-400",
+  BNB: "bg-yellow-400",
+  FUN: "bg-fuchsia-400",
+};
+
 export const TransactionSummaryWidget = ({ transactions, currentUserId }: Props) => {
   const [direction, setDirection] = useState<Direction>("both");
   const [tokenFilter, setTokenFilter] = useState<TokenFilter>("all");
@@ -35,19 +42,16 @@ export const TransactionSummaryWidget = ({ transactions, currentUserId }: Props)
   const summary = useMemo(() => {
     let filtered = [...transactions];
 
-    // Direction filter
     if (direction === "sent" && currentUserId) {
       filtered = filtered.filter(t => t.sender_user_id === currentUserId);
     } else if (direction === "received" && currentUserId) {
       filtered = filtered.filter(t => t.receiver_user_id === currentUserId);
     }
 
-    // Token filter
     if (tokenFilter !== "all") {
       filtered = filtered.filter(t => t.token_symbol === tokenFilter);
     }
 
-    // Time filter
     if (timeFilter !== "all") {
       const now = new Date();
       let cutoff: Date;
@@ -73,7 +77,6 @@ export const TransactionSummaryWidget = ({ transactions, currentUserId }: Props)
       ? filtered.reduce((max, t) => t.amount > max.amount ? t : max, filtered[0])
       : null;
 
-    // Breakdown by token
     const breakdown: Record<string, { count: number; value: number }> = {};
     filtered.forEach(t => {
       if (!breakdown[t.token_symbol]) {
@@ -94,89 +97,111 @@ export const TransactionSummaryWidget = ({ transactions, currentUserId }: Props)
 
   return (
     <Card className="bg-gradient-to-br from-primary/5 to-accent/5 border-primary/10">
-      <CardContent className="p-4 space-y-3">
-        <h3 className="text-sm font-semibold text-foreground">📊 Tổng hợp Giao dịch</h3>
+      <CardContent className="p-4 space-y-2.5">
+        {/* Header */}
+        <div className="flex items-center gap-1.5">
+          <BarChart3 className="h-4 w-4 text-primary" />
+          <h3 className="text-sm font-semibold text-foreground">Tổng hợp Giao dịch</h3>
+        </div>
 
-        {/* Direction tabs */}
-        <div className="flex gap-1">
+        {/* Direction segmented control */}
+        <div className="flex rounded-full bg-muted/60 p-0.5">
           {DIRECTION_OPTIONS.map(opt => (
-            <Button
+            <button
               key={opt.value}
-              size="sm"
-              variant={direction === opt.value ? "default" : "outline"}
               onClick={() => setDirection(opt.value)}
-              className="flex-1 gap-1 h-8 text-xs"
+              className={cn(
+                "flex-1 flex items-center justify-center gap-1 h-7 rounded-full text-xs font-medium transition-all",
+                direction === opt.value
+                  ? "bg-gradient-to-r from-cyan-400 to-fuchsia-400 text-white shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
             >
               {opt.icon}
               {opt.label}
-            </Button>
+            </button>
           ))}
         </div>
 
-        {/* Token filter */}
-        <div className="flex gap-1 flex-wrap">
+        {/* Token filter pills */}
+        <div className="flex gap-1.5 flex-wrap">
           {TOKEN_OPTIONS.map(tok => (
-            <Button
+            <button
               key={tok}
-              size="sm"
-              variant={tokenFilter === tok ? "default" : "outline"}
               onClick={() => setTokenFilter(tok)}
-              className="h-7 px-2.5 text-xs"
+              className={cn(
+                "h-6 px-3 rounded-full text-[11px] font-medium transition-all",
+                tokenFilter === tok
+                  ? "bg-gradient-to-r from-cyan-400 to-fuchsia-400 text-white shadow-sm"
+                  : "bg-muted/60 text-muted-foreground hover:text-foreground"
+              )}
             >
               {tok === "all" ? "Tất cả" : tok}
-            </Button>
+            </button>
           ))}
         </div>
 
-        {/* Time filter */}
-        <div className="flex gap-1">
+        {/* Time segmented control */}
+        <div className="flex rounded-full bg-muted/60 p-0.5">
           {TIME_OPTIONS.map(opt => (
-            <Button
+            <button
               key={opt.value}
-              size="sm"
-              variant={timeFilter === opt.value ? "default" : "outline"}
               onClick={() => setTimeFilter(opt.value)}
-              className="flex-1 h-7 text-xs"
+              className={cn(
+                "flex-1 h-6 rounded-full text-[11px] font-medium transition-all",
+                timeFilter === opt.value
+                  ? "bg-gradient-to-r from-cyan-400 to-fuchsia-400 text-white shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
             >
               {opt.label}
-            </Button>
+            </button>
           ))}
         </div>
 
         {/* Stats cards */}
-        <div className="grid grid-cols-3 gap-2">
-          <div className="bg-background/80 rounded-lg p-3 text-center border">
-            <Hash className="h-4 w-4 mx-auto mb-1 text-primary" />
-            <p className="text-lg font-bold text-foreground">{summary.totalCount}</p>
+        <div className="grid grid-cols-3 gap-1.5">
+          <div className="bg-gradient-to-br from-background/90 to-muted/30 rounded-xl p-2.5 text-center">
+            <Hash className="h-3.5 w-3.5 mx-auto mb-0.5 text-primary" />
+            <p className="text-base font-bold text-foreground">{summary.totalCount}</p>
             <p className="text-[10px] text-muted-foreground">Tổng GD</p>
           </div>
-          <div className="bg-background/80 rounded-lg p-3 text-center border">
-            <TrendingUp className="h-4 w-4 mx-auto mb-1 text-primary" />
-            <p className="text-lg font-bold text-foreground">{formatValue(summary.totalValue)} <span className="text-xs font-medium text-muted-foreground">{tokenFilter !== "all" ? tokenFilter : "tokens"}</span></p>
+          <div className="bg-gradient-to-br from-background/90 to-muted/30 rounded-xl p-2.5 text-center">
+            <TrendingUp className="h-3.5 w-3.5 mx-auto mb-0.5 text-primary" />
+            <p className="text-base font-bold text-foreground">
+              {formatValue(summary.totalValue)}
+              <span className="text-[10px] font-medium text-muted-foreground ml-0.5">{tokenFilter !== "all" ? tokenFilter : "tokens"}</span>
+            </p>
             <p className="text-[10px] text-muted-foreground">Tổng giá trị</p>
           </div>
-          <div className="bg-background/80 rounded-lg p-3 text-center border">
-            <Trophy className="h-4 w-4 mx-auto mb-1 text-primary" />
-            <p className="text-lg font-bold text-foreground">
-              {summary.largest ? <>{formatValue(summary.largest.amount)} <span className="text-xs font-medium text-muted-foreground">{summary.largest.token_symbol}</span></> : "—"}
+          <div className="bg-gradient-to-br from-background/90 to-muted/30 rounded-xl p-2.5 text-center">
+            <Trophy className="h-3.5 w-3.5 mx-auto mb-0.5 text-primary" />
+            <p className="text-base font-bold text-foreground">
+              {summary.largest ? (
+                <>
+                  {formatValue(summary.largest.amount)}
+                  <span className="text-[10px] font-medium text-muted-foreground ml-0.5">{summary.largest.token_symbol}</span>
+                </>
+              ) : "—"}
             </p>
             <p className="text-[10px] text-muted-foreground">GD lớn nhất</p>
           </div>
         </div>
 
-        {/* Token breakdown (when "all" token selected) */}
+        {/* Token breakdown */}
         {tokenFilter === "all" && Object.keys(summary.breakdown).length > 0 && (
-          <div className="space-y-1">
-            <p className="text-xs font-medium text-muted-foreground">Phân loại theo token:</p>
+          <div className="space-y-1.5">
+            <p className="text-[11px] font-medium text-muted-foreground">Phân loại theo token</p>
             <div className="grid grid-cols-2 gap-1.5">
               {Object.entries(summary.breakdown)
                 .sort((a, b) => b[1].value - a[1].value)
                 .map(([token, data]) => (
-                  <div key={token} className="flex items-center justify-between bg-background/60 rounded px-2 py-1 border text-xs">
-                    <span className="font-medium text-foreground">{token}</span>
-                    <span className="text-muted-foreground">
-                      {data.count} GD · {formatValue(data.value)} {token}
-                    </span>
+                  <div key={token} className="flex items-center gap-1.5 bg-gradient-to-br from-background/80 to-muted/20 rounded-lg px-2 py-1.5">
+                    <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", TOKEN_COLORS[token] || "bg-primary")} />
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-[11px] font-semibold text-foreground truncate">{token}</span>
+                      <span className="text-[10px] text-muted-foreground">{data.count} GD · {formatValue(data.value)}</span>
+                    </div>
                   </div>
                 ))}
             </div>
