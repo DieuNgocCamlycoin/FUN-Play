@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, Wallet as WalletIcon, LogOut } from "lucide-react";
+import { ArrowLeft, Wallet as WalletIcon, LogOut, Coins, Gift, Crown, History } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -93,13 +94,40 @@ const WalletPage = () => {
             </div>
           </div>
 
-          {/* Main Content */}
-          <div className="space-y-6">
-            <CAMLYPriceSection />
-            <ClaimRewardsSection />
-            <TopSponsorsSection />
-            <TransactionHistorySection />
-          </div>
+          {/* Main Content - Tabs */}
+          <Tabs defaultValue="camly" className="w-full">
+            <TabsList className="w-full justify-start overflow-x-auto bg-muted/50 backdrop-blur-sm border border-border/50 h-auto p-1 gap-1">
+              <TabsTrigger value="camly" className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                <Coins className="h-4 w-4" />
+                <span className="hidden sm:inline">CAMLY</span> Token
+              </TabsTrigger>
+              <TabsTrigger value="claim" className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                <Gift className="h-4 w-4" />
+                Claim <span className="hidden sm:inline">Rewards</span>
+              </TabsTrigger>
+              <TabsTrigger value="sponsors" className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                <Crown className="h-4 w-4" />
+                Top MTQ
+              </TabsTrigger>
+              <TabsTrigger value="history" className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                <History className="h-4 w-4" />
+                Lịch Sử <span className="hidden sm:inline">GD</span>
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="camly">
+              <CAMLYPriceSection />
+            </TabsContent>
+            <TabsContent value="claim">
+              <ClaimRewardsSection />
+            </TabsContent>
+            <TabsContent value="sponsors">
+              <TopSponsorsSection />
+            </TabsContent>
+            <TabsContent value="history">
+              <TransactionHistorySection />
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
 
