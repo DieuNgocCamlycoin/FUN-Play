@@ -71,7 +71,7 @@ export interface UseLightActivityReturn {
 
 // ===== CONSTANTS =====
 
-const MIN_LIGHT_SCORE = 60;
+const MIN_LIGHT_SCORE = 10;
 const MIN_ACTIVITIES = 10;
 const MINT_COOLDOWN_HOURS = 24;
 
