@@ -107,26 +107,32 @@ export const TransactionSummaryWidget = ({ transactions, currentUserId }: Props)
 
         {/* Direction + Time filters row */}
         <div className="flex gap-2">
-          <Select value={direction} onValueChange={(v) => setDirection(v as Direction)}>
-            <SelectTrigger className="flex-1 h-7 text-xs rounded-lg bg-muted/60 border-0">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {DIRECTION_OPTIONS.map(opt => (
-                <SelectItem key={opt.value} value={opt.value} className="text-xs">{opt.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={timeFilter} onValueChange={(v) => setTimeFilter(v as TimeFilter)}>
-            <SelectTrigger className="flex-1 h-7 text-xs rounded-lg bg-muted/60 border-0">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {TIME_OPTIONS.map(opt => (
-                <SelectItem key={opt.value} value={opt.value} className="text-xs">{opt.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex-1 flex items-center rounded-lg bg-muted/60 overflow-hidden">
+            <span className="px-2 text-[10px] font-medium text-muted-foreground whitespace-nowrap">Loại GD</span>
+            <Select value={direction} onValueChange={(v) => setDirection(v as Direction)}>
+              <SelectTrigger className="flex-1 h-7 text-xs bg-transparent border-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {DIRECTION_OPTIONS.map(opt => (
+                  <SelectItem key={opt.value} value={opt.value} className="text-xs">{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex-1 flex items-center rounded-lg bg-muted/60 overflow-hidden">
+            <span className="px-2 text-[10px] font-medium text-muted-foreground whitespace-nowrap">Thời gian</span>
+            <Select value={timeFilter} onValueChange={(v) => setTimeFilter(v as TimeFilter)}>
+              <SelectTrigger className="flex-1 h-7 text-xs bg-transparent border-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TIME_OPTIONS.map(opt => (
+                  <SelectItem key={opt.value} value={opt.value} className="text-xs">{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         {/* Token filter pills */}
