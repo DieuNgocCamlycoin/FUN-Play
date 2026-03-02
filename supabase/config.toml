@@ -144,3 +144,6 @@ verify_jwt = false
 
 [functions.mint-epoch-engine]
 verify_jwt = false
+
+[functions.pplp-mint-fun]
+verify_jwt = false
