@@ -1,56 +1,100 @@
 
 
-## Thêm Reaction và Reply cho tin nhắn Chat (cập nhật emoji)
+## Plan tổng hợp: Nâng cấp Chat — Context Menu Telegram + Ghim tin nhắn + Emoji mới
 
-Cập nhật theo yêu cầu: thay 😢 (buồn) bằng 🥰 (thương thương), thay 😡 (tức giận) bằng 🙏 (biết ơn), và sắp xếp lại thứ tự.
+Gộp tất cả thay đổi chưa triển khai thành một plan duy nhất.
 
-### 1. Database Migration
+---
 
-**Bảng mới: `chat_message_reactions`**
-- `id` (uuid, PK), `message_id` (FK -> chat_messages.id ON DELETE CASCADE), `user_id` (uuid), `emoji` (text), `created_at` (timestamptz)
-- Unique constraint: (message_id, user_id, emoji)
-- RLS policies cho authenticated users trong chat
-- Enable realtime
+### 1. Database Migration — Thêm cột Ghim tin nhắn
 
-**Thêm cột `reply_to_id`** (uuid, nullable, FK -> chat_messages.id) vào `chat_messages`
+Thêm 3 cột vào bảng `chat_messages`:
+- `is_pinned` (boolean, mặc định false)
+- `pinned_at` (timestamptz, nullable)
+- `pinned_by` (uuid, nullable)
 
-### 2. Thanh reaction nhanh -- emoji và thứ tự mới
+Thêm RLS policy cho phép người dùng trong cuộc trò chuyện có thể cập nhật trạng thái ghim.
 
+### 2. Đổi emoji 👍 thành 🎉
+
+Cập nhật 2 file:
+
+**`ChatMessageActions.tsx`**: Đổi `{ emoji: "👍", label: "Like" }` thành `{ emoji: "🎉", label: "Pháo hoa" }`
+
+**`ChatMessageReactions.tsx`**: Đổi phần tử cuối trong `EMOJI_ORDER` từ `"👍"` thành `"🎉"`
+
+Thứ tự emoji cuối cùng:
+```text
+🙏  🥰  ❤️  😂  😮  🎉
 ```
-🙏  🥰  ❤️  😂  😮  👍
+
+### 3. Thiết kế lại `ChatMessageActions.tsx` — Menu ngữ cảnh kiểu Telegram
+
+Thay giao diện thanh reaction ngang đơn giản bằng menu ngữ cảnh gồm 2 phần:
+
+**Phần trên — Thanh Reaction (ngang):**
+```text
+🙏  🥰  ❤️  😂  😮  🎉
 ```
+Bo tròn, nền mờ (backdrop blur), đổ bóng.
 
-Thứ tự: Biết ơn, Thương thương, Tim, Haha, Wow, Like
+**Phần dưới — Menu hành động (danh sách dọc):**
+- Trả lời — icon Reply
+- Ghim / Bỏ ghim — icon Pin
+- Sao chép — icon Copy
 
-### 3. Component mới: `ChatMessageActions.tsx`
+**Không bao gồm**: Xóa, Chọn, Chuyển tiếp.
 
-- Hiện khi hover (desktop) / nhấn giữ (mobile) vào tin nhắn
-- Thanh reaction nhanh 6 emoji theo thứ tự trên
-- Nút "Trả lời"
+Props mới: `messageContent`, `isPinned`, `onPin`, `onCopy`.
 
-### 4. Component mới: `ChatMessageReactions.tsx`
+### 4. Cập nhật `ChatMessageItem.tsx`
 
-- Hiển thị reactions gộp theo emoji dưới bubble: `🙏 2  ❤️ 1`
-- Nhấn vào reaction để toggle (thêm/xóa)
+- Thay thế hiển thị khi hover bằng **nhấn giữ (di động) / chuột phải (máy tính)** để mở menu ngữ cảnh tại vị trí nhấn
+- Lớp phủ mờ phía sau khi menu đang mở
+- Nhấn bên ngoài hoặc chọn hành động sẽ đóng menu
+- Hiển thị biểu tượng ghim nhỏ bên cạnh thời gian nếu tin nhắn đã được ghim
+- Truyền thêm props: `messageContent`, `isPinned`, `onPin`
+- Xử lý `onCopy`: sao chép nội dung vào clipboard + hiện thông báo "Đã sao chép"
+- Xử lý `onPin`: gọi callback lên component cha
 
-### 5. Cập nhật `ChatMessageItem.tsx`
+### 5. Cập nhật `useChatMessages.ts`
 
-- Hover/long-press hiện ChatMessageActions
-- Hiển thị ChatMessageReactions dưới bubble
-- Nếu có `reply_to_id`: hiện preview tin nhắn gốc phía trên bubble
+- Thêm vào giao diện `ChatMessage`: `isPinned`, `pinnedAt`, `pinnedBy`
+- Truy vấn lấy thêm `is_pinned, pinned_at, pinned_by`
+- Thêm hàm `togglePinMessage(messageId)`:
+  - Nếu đang ghim → bỏ ghim (`is_pinned = false, pinned_at = null, pinned_by = null`)
+  - Nếu chưa ghim → ghim (`is_pinned = true, pinned_at = now(), pinned_by = user.id`)
+- Thêm giá trị tính toán `pinnedMessage`: tin nhắn ghim mới nhất trong cuộc trò chuyện
+- Xuất `togglePinMessage` và `pinnedMessage`
 
-### 6. Cập nhật `ChatInput.tsx`
+### 6. Component mới: `ChatPinnedBanner.tsx`
 
-- Thêm state `replyingTo` -- banner "Đang trả lời [tên]: [nội dung...]" phía trên ô input, nút X hủy
-- Gửi kèm `reply_to_id`
+Banner nhỏ gọn phía dưới tiêu đề chat, hiển thị khi có tin nhắn được ghim:
+- Biểu tượng Ghim + nội dung rút gọn của tin nhắn ghim
+- Nhấn vào banner → cuộn đến tin nhắn ghim
+- Nút X nhỏ để ẩn banner (chỉ ẩn giao diện, không bỏ ghim)
+- Kiểu dáng: nhỏ gọn, viền dưới, nền amber nhạt
 
-### 7. Cập nhật `useChatMessages.ts`
+### 7. Cập nhật `ChatWindow.tsx`
 
-- Mở rộng ChatMessage interface: `replyToId`, `replyToContent`, `replyToSenderName`
-- Query fetch thêm reply info
-- `sendMessage` nhận thêm `replyToId`
-- Realtime subscribe `chat_message_reactions`
+- Nhận `pinnedMessage` và `togglePinMessage` từ hook
+- Hiển thị `ChatPinnedBanner` giữa tiêu đề và danh sách tin nhắn
+- Truyền callback `onPin` xuống `ChatMessageList` → `ChatMessageItem`
 
-### 8. Cập nhật `ChatWindow.tsx` và `ChatMessageList.tsx`
+### 8. Cập nhật `ChatMessageList.tsx`
 
-- Quản lý state `replyingTo`, truyền callbacks `onReact`, `onReply` xuống items
+- Nhận thêm prop `onPin: (messageId: string) => void`
+- Truyền xuống từng `ChatMessageItem`
+
+---
+
+### Tóm tắt thứ tự thực hiện
+
+1. Migration cơ sở dữ liệu (thêm cột ghim)
+2. Đổi emoji 👍 → 🎉 trong `ChatMessageActions` và `ChatMessageReactions`
+3. Thiết kế lại `ChatMessageActions` thành menu ngữ cảnh Telegram (thanh reaction + Trả lời/Ghim/Sao chép)
+4. Cập nhật `ChatMessageItem` (kích hoạt menu ngữ cảnh, biểu tượng ghim, xử lý sao chép)
+5. Cập nhật `useChatMessages` (trường ghim, togglePin, pinnedMessage)
+6. Tạo `ChatPinnedBanner`
+7. Cập nhật `ChatWindow` và `ChatMessageList` (banner ghim, truyền callbacks)
+
