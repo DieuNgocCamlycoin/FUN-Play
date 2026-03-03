@@ -1282,11 +1282,47 @@ export type Database = {
           },
         ]
       }
+      livestream_bans: {
+        Row: {
+          banned_by: string
+          created_at: string
+          id: string
+          livestream_id: string
+          reason: string | null
+          user_id: string
+        }
+        Insert: {
+          banned_by: string
+          created_at?: string
+          id?: string
+          livestream_id: string
+          reason?: string | null
+          user_id: string
+        }
+        Update: {
+          banned_by?: string
+          created_at?: string
+          id?: string
+          livestream_id?: string
+          reason?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "livestream_bans_livestream_id_fkey"
+            columns: ["livestream_id"]
+            isOneToOne: false
+            referencedRelation: "livestreams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       livestream_chat: {
         Row: {
           content: string
           created_at: string
           id: string
+          is_deleted: boolean
           livestream_id: string
           message_type: string
           user_id: string
@@ -1295,6 +1331,7 @@ export type Database = {
           content: string
           created_at?: string
           id?: string
+          is_deleted?: boolean
           livestream_id: string
           message_type?: string
           user_id: string
@@ -1303,6 +1340,7 @@ export type Database = {
           content?: string
           created_at?: string
           id?: string
+          is_deleted?: boolean
           livestream_id?: string
           message_type?: string
           user_id?: string

@@ -28,9 +28,13 @@ export function useWebRTCStreamer(livestreamId: string) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [viewerCount, setViewerCount] = useState(0);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [isMicOn, setIsMicOn] = useState(true);
+  const [isCameraOn, setIsCameraOn] = useState(true);
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
   const peersRef = useRef<Map<string, RTCPeerConnection>>(new Map());
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const cameraTrackRef = useRef<MediaStreamTrack | null>(null);
   const userIdRef = useRef<string>("");
   const iceServersRef = useRef<RTCIceServer[]>(DEFAULT_ICE_SERVERS);
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -42,6 +46,7 @@ export function useWebRTCStreamer(livestreamId: string) {
         audio: true,
       });
       streamRef.current = stream;
+      cameraTrackRef.current = stream.getVideoTracks()[0] || null;
       setLocalStream(stream);
       return stream;
     } catch (err) {
@@ -53,10 +58,10 @@ export function useWebRTCStreamer(livestreamId: string) {
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
+    cameraTrackRef.current = null;
     setLocalStream(null);
   }, []);
 
-  // Cập nhật viewer count vào DB khi peers thay đổi
   const syncViewerCount = useCallback((count: number) => {
     setViewerCount(count);
     if (livestreamId) {
@@ -104,12 +109,77 @@ export function useWebRTCStreamer(livestreamId: string) {
     return pc;
   }, [syncViewerCount]);
 
+  // Toggle mic
+  const toggleMic = useCallback(() => {
+    const audioTrack = streamRef.current?.getAudioTracks()[0];
+    if (audioTrack) {
+      audioTrack.enabled = !audioTrack.enabled;
+      setIsMicOn(audioTrack.enabled);
+    }
+  }, []);
+
+  // Toggle camera
+  const toggleCamera = useCallback(() => {
+    const videoTrack = streamRef.current?.getVideoTracks()[0];
+    if (videoTrack) {
+      videoTrack.enabled = !videoTrack.enabled;
+      setIsCameraOn(videoTrack.enabled);
+    }
+  }, []);
+
+  // Screen share toggle
+  const toggleScreenShare = useCallback(async () => {
+    if (isScreenSharing) {
+      // Stop screen share, restore camera
+      const camTrack = cameraTrackRef.current;
+      if (camTrack && streamRef.current) {
+        const currentVideoTrack = streamRef.current.getVideoTracks()[0];
+        if (currentVideoTrack) {
+          currentVideoTrack.stop();
+          streamRef.current.removeTrack(currentVideoTrack);
+        }
+        streamRef.current.addTrack(camTrack);
+        // Replace track on all peers
+        peersRef.current.forEach((pc) => {
+          const sender = pc.getSenders().find((s) => s.track?.kind === "video");
+          sender?.replaceTrack(camTrack);
+        });
+        setLocalStream(new MediaStream(streamRef.current.getTracks()));
+      }
+      setIsScreenSharing(false);
+    } else {
+      try {
+        const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+        const screenTrack = screenStream.getVideoTracks()[0];
+        if (streamRef.current) {
+          const currentVideoTrack = streamRef.current.getVideoTracks()[0];
+          if (currentVideoTrack) {
+            streamRef.current.removeTrack(currentVideoTrack);
+          }
+          streamRef.current.addTrack(screenTrack);
+          // Replace track on all peers
+          peersRef.current.forEach((pc) => {
+            const sender = pc.getSenders().find((s) => s.track?.kind === "video");
+            sender?.replaceTrack(screenTrack);
+          });
+          setLocalStream(new MediaStream(streamRef.current.getTracks()));
+        }
+        setIsScreenSharing(true);
+        // When user stops sharing via browser UI
+        screenTrack.onended = () => {
+          toggleScreenShare();
+        };
+      } catch (err) {
+        console.warn("Screen share cancelled or failed:", err);
+      }
+    }
+  }, [isScreenSharing]);
+
   const startStreaming = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     userIdRef.current = user.id;
 
-    // Lấy ICE servers (bao gồm TURN nếu có)
     iceServersRef.current = await fetchIceServers();
 
     const channel = supabase.channel(`livestream:${livestreamId}`, {
@@ -159,7 +229,6 @@ export function useWebRTCStreamer(livestreamId: string) {
     channelRef.current = channel;
     setIsStreaming(true);
 
-    // Bắt đầu heartbeat mỗi 15 giây
     heartbeatRef.current = setInterval(() => {
       supabase
         .from("livestreams")
@@ -170,7 +239,6 @@ export function useWebRTCStreamer(livestreamId: string) {
         });
     }, 15_000);
 
-    // Gửi heartbeat đầu tiên ngay lập tức
     supabase
       .from("livestreams")
       .update({ last_heartbeat_at: new Date().toISOString() })
@@ -178,7 +246,6 @@ export function useWebRTCStreamer(livestreamId: string) {
   }, [livestreamId, createPeerConnection]);
 
   const stopStreaming = useCallback(() => {
-    // Dọn heartbeat
     if (heartbeatRef.current) {
       clearInterval(heartbeatRef.current);
       heartbeatRef.current = null;
@@ -191,7 +258,6 @@ export function useWebRTCStreamer(livestreamId: string) {
     setIsStreaming(false);
     setViewerCount(0);
 
-    // Reset viewer count trong DB
     if (livestreamId) {
       supabase.rpc("update_livestream_viewers", {
         p_livestream_id: livestreamId,
@@ -207,22 +273,31 @@ export function useWebRTCStreamer(livestreamId: string) {
     };
   }, [stopStreaming, stopCamera]);
 
-  return { isStreaming, viewerCount, localStream, startCamera, stopCamera, startStreaming, stopStreaming };
+  return {
+    isStreaming, viewerCount, localStream, startCamera, stopCamera, startStreaming, stopStreaming,
+    isMicOn, isCameraOn, isScreenSharing, toggleMic, toggleCamera, toggleScreenShare,
+  };
 }
 
 export function useWebRTCViewer(livestreamId: string, streamerId: string) {
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [connectionState, setConnectionState] = useState<string>("new");
+  const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const userIdRef = useRef<string>("");
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const maxReconnectAttempts = 5;
 
   const connect = useCallback(async () => {
+    // Clean up previous connection
+    pcRef.current?.close();
+    pcRef.current = null;
+
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     userIdRef.current = user.id;
 
-    // Lấy ICE servers (bao gồm TURN nếu có)
     const iceServers = await fetchIceServers();
 
     const pc = new RTCPeerConnection({ iceServers });
@@ -233,62 +308,99 @@ export function useWebRTCViewer(livestreamId: string, streamerId: string) {
     };
 
     pc.onconnectionstatechange = () => {
-      setConnectionState(pc.connectionState);
-    };
+      const state = pc.connectionState;
+      setConnectionState(state);
 
-    const channel = supabase.channel(`livestream:${livestreamId}`, {
-      config: { broadcast: { self: false } },
-    });
-
-    pc.onicecandidate = (e) => {
-      if (e.candidate) {
-        channel.send({
-          type: "broadcast",
-          event: "signal",
-          payload: {
-            type: "candidate",
-            candidate: e.candidate.toJSON(),
-            senderId: userIdRef.current,
-            targetId: streamerId,
-          } as SignalPayload,
+      // Auto-reconnect on disconnect/fail
+      if (state === "disconnected" || state === "failed") {
+        setReconnectAttempts((prev) => {
+          const next = prev + 1;
+          if (next <= maxReconnectAttempts) {
+            reconnectTimerRef.current = setTimeout(() => {
+              connect();
+            }, 3000);
+          }
+          return next;
         });
+      } else if (state === "connected") {
+        setReconnectAttempts(0);
       }
     };
 
-    channel.on("broadcast", { event: "signal" }, async ({ payload }) => {
-      const signal = payload as SignalPayload;
-      if (signal.targetId && signal.targetId !== userIdRef.current) return;
+    // Reuse existing channel or create new
+    if (!channelRef.current) {
+      const channel = supabase.channel(`livestream:${livestreamId}`, {
+        config: { broadcast: { self: false } },
+      });
 
-      if (signal.type === "offer") {
-        await pc.setRemoteDescription({ type: "offer", sdp: signal.sdp });
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-        channel.send({
-          type: "broadcast",
-          event: "signal",
-          payload: {
-            type: "answer",
-            sdp: answer.sdp,
-            senderId: userIdRef.current,
-            targetId: signal.senderId,
-          } as SignalPayload,
-        });
-      }
-
-      if (signal.type === "candidate" && signal.candidate) {
-        try {
-          await pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
-        } catch (e) {
-          console.warn("Failed to add ICE candidate:", e);
+      pc.onicecandidate = (e) => {
+        if (e.candidate) {
+          channel.send({
+            type: "broadcast",
+            event: "signal",
+            payload: {
+              type: "candidate",
+              candidate: e.candidate.toJSON(),
+              senderId: userIdRef.current,
+              targetId: streamerId,
+            } as SignalPayload,
+          });
         }
-      }
-    });
+      };
 
-    await channel.subscribe();
-    channelRef.current = channel;
+      channel.on("broadcast", { event: "signal" }, async ({ payload }) => {
+        const signal = payload as SignalPayload;
+        if (signal.targetId && signal.targetId !== userIdRef.current) return;
+
+        if (signal.type === "offer") {
+          const currentPc = pcRef.current;
+          if (!currentPc) return;
+          await currentPc.setRemoteDescription({ type: "offer", sdp: signal.sdp });
+          const answer = await currentPc.createAnswer();
+          await currentPc.setLocalDescription(answer);
+          channel.send({
+            type: "broadcast",
+            event: "signal",
+            payload: {
+              type: "answer",
+              sdp: answer.sdp,
+              senderId: userIdRef.current,
+              targetId: signal.senderId,
+            } as SignalPayload,
+          });
+        }
+
+        if (signal.type === "candidate" && signal.candidate) {
+          try {
+            await pcRef.current?.addIceCandidate(new RTCIceCandidate(signal.candidate));
+          } catch (e) {
+            console.warn("Failed to add ICE candidate:", e);
+          }
+        }
+      });
+
+      await channel.subscribe();
+      channelRef.current = channel;
+    } else {
+      // Reusing channel, just set ice candidate handler on new pc
+      pc.onicecandidate = (e) => {
+        if (e.candidate && channelRef.current) {
+          channelRef.current.send({
+            type: "broadcast",
+            event: "signal",
+            payload: {
+              type: "candidate",
+              candidate: e.candidate.toJSON(),
+              senderId: userIdRef.current,
+              targetId: streamerId,
+            } as SignalPayload,
+          });
+        }
+      };
+    }
 
     // Send join signal
-    channel.send({
+    channelRef.current!.send({
       type: "broadcast",
       event: "signal",
       payload: {
@@ -299,17 +411,27 @@ export function useWebRTCViewer(livestreamId: string, streamerId: string) {
   }, [livestreamId, streamerId]);
 
   const disconnect = useCallback(() => {
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
     pcRef.current?.close();
     pcRef.current = null;
     channelRef.current?.unsubscribe();
     channelRef.current = null;
     setRemoteStream(null);
     setConnectionState("closed");
+    setReconnectAttempts(0);
   }, []);
+
+  const manualRetry = useCallback(() => {
+    setReconnectAttempts(0);
+    connect();
+  }, [connect]);
 
   useEffect(() => {
     return () => disconnect();
   }, [disconnect]);
 
-  return { remoteStream, connectionState, connect, disconnect };
+  return { remoteStream, connectionState, connect, disconnect, reconnectAttempts, maxReconnectAttempts, manualRetry };
 }

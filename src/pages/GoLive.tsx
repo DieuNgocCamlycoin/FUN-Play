@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/Layout/Header";
 import { GoLiveForm } from "@/components/Live/GoLiveForm";
 import { LivePlayer } from "@/components/Live/LivePlayer";
+import { StreamerControls } from "@/components/Live/StreamerControls";
 import { useWebRTCStreamer } from "@/hooks/useWebRTC";
 import { useCreateLivestream } from "@/hooks/useLivestream";
 import { useAuth } from "@/hooks/useAuth";
@@ -25,7 +26,10 @@ const GoLive = () => {
   const [elapsed, setElapsed] = useState(0);
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const { localStream, viewerCount, startCamera, stopCamera, startStreaming, stopStreaming, isStreaming } = useWebRTCStreamer(livestreamId || "");
+  const {
+    localStream, viewerCount, startCamera, stopCamera, startStreaming, stopStreaming, isStreaming,
+    isMicOn, isCameraOn, isScreenSharing, toggleMic, toggleCamera, toggleScreenShare,
+  } = useWebRTCStreamer(livestreamId || "");
   const { createLivestream, goLive, endLive } = useCreateLivestream();
   const { isRecording, startRecording, stopRecording } = useMediaRecorder();
 
@@ -60,7 +64,6 @@ const GoLive = () => {
     try {
       await goLive(livestreamId);
       await startStreaming();
-      // Start recording
       if (localStream) {
         startRecording(localStream);
       }
@@ -71,16 +74,14 @@ const GoLive = () => {
     }
   }, [livestreamId, goLive, startStreaming, localStream, startRecording]);
 
-  // beforeunload handler — kết thúc live khi đóng tab
+  // beforeunload handler
   useEffect(() => {
     if (phase !== "live" || !livestreamId) return;
 
     const handleBeforeUnload = () => {
-      // Best effort: gửi request kết thúc live
       navigator.sendBeacon?.(
         `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/livestreams?id=eq.${livestreamId}`,
       );
-      // Fallback: dùng supabase update
       supabase
         .from("livestreams")
         .update({ status: "ended", ended_at: new Date().toISOString(), viewer_count: 0 })
@@ -94,14 +95,12 @@ const GoLive = () => {
   const handleEndLive = useCallback(async () => {
     if (!livestreamId) return;
     try {
-      // Stop recording and get blob
       const recordedBlob = await stopRecording();
       
       stopStreaming();
       stopCamera();
       await endLive(livestreamId);
 
-      // Upload VOD if we have recorded data
       if (recordedBlob && recordedBlob.size > 0 && user) {
         toast.info("Đang lưu bản ghi...");
         const fileName = `vod/${user.id}/${livestreamId}.webm`;
@@ -111,7 +110,6 @@ const GoLive = () => {
 
         if (!uploadError) {
           const { data: urlData } = supabase.storage.from("videos").getPublicUrl(fileName);
-          // Get user's channel
           const { data: channel } = await supabase.from("channels").select("id").eq("user_id", user.id).single();
           if (channel) {
             const { data: videoData } = await supabase.from("videos").insert({
@@ -176,6 +174,7 @@ const GoLive = () => {
                   stream={localStream}
                   isLocal
                   viewerCount={viewerCount}
+                  className="aspect-video md:aspect-video"
                 />
                 {phase === "live" && livestreamId && (
                   <>
@@ -188,8 +187,8 @@ const GoLive = () => {
               </div>
 
               {/* Controls */}
-              <div className="flex items-center justify-between bg-background border border-border rounded-xl p-3">
-                <div className="flex items-center gap-4 text-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2 bg-background border border-border rounded-xl p-3">
+                <div className="flex flex-wrap items-center gap-3 text-sm">
                   {phase === "live" && (
                     <>
                       <div className="flex items-center gap-1.5 text-destructive font-medium">
@@ -198,15 +197,26 @@ const GoLive = () => {
                       </div>
                       <div className="flex items-center gap-1.5 text-muted-foreground">
                         <Users className="h-4 w-4" />
-                        {viewerCount} người xem
+                        <span className="hidden sm:inline">{viewerCount} người xem</span>
+                        <span className="sm:hidden">{viewerCount}</span>
                       </div>
                       {isRecording && (
                         <div className="flex items-center gap-1.5 text-destructive">
                           <span className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
-                          Đang ghi
+                          <span className="hidden sm:inline">Đang ghi</span>
                         </div>
                       )}
                     </>
+                  )}
+                  {phase === "live" && (
+                    <StreamerControls
+                      isMicOn={isMicOn}
+                      isCameraOn={isCameraOn}
+                      isScreenSharing={isScreenSharing}
+                      onToggleMic={toggleMic}
+                      onToggleCamera={toggleCamera}
+                      onToggleScreenShare={toggleScreenShare}
+                    />
                   )}
                 </div>
 
@@ -224,8 +234,8 @@ const GoLive = () => {
             </div>
 
             {/* Chat panel */}
-            <div className="h-[calc(100vh-12rem)]">
-              {livestreamId && <LiveChat livestreamId={livestreamId} className="h-full" />}
+            <div className="h-[60vh] lg:h-[calc(100vh-12rem)]">
+              {livestreamId && <LiveChat livestreamId={livestreamId} streamerId={user.id} className="h-full" />}
             </div>
           </div>
         )}
