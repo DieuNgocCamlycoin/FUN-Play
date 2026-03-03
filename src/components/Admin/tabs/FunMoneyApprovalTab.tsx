@@ -43,8 +43,9 @@ import {
 import { useAdminMintRequest } from '@/hooks/useAdminMintRequest';
 import { useFunMoneyWallet } from '@/hooks/useFunMoneyWallet';
 import { formatFunAmount } from '@/lib/fun-money/pplp-engine';
-import { validateBeforeMint, mintFunMoney, CONTRACT_ACTION } from '@/lib/fun-money/contract-helpers';
+import { CONTRACT_ACTION } from '@/lib/fun-money/contract-helpers';
 import { KNOWN_ADDRESSES } from '@/lib/fun-money/web3-config';
+import { createMultisigRequest } from '@/lib/fun-money/pplp-multisig-helpers';
 import { cn } from '@/lib/utils';
 import type { MintRequest } from '@/hooks/useFunMoneyMintRequest';
 
@@ -193,9 +194,9 @@ export function FunMoneyApprovalTab() {
     }
   };
 
-  const handleMint = async (request: MintRequest) => {
+  const handleRouteToMultisig = async (request: MintRequest) => {
     if (!isConnected || !adminAddress) {
-      toast.error('Vui lòng kết nối ví Attester trước');
+      toast.error('Vui lòng kết nối ví trước để đọc nonce on-chain');
       return;
     }
     setIsMinting(true);
@@ -204,16 +205,10 @@ export function FunMoneyApprovalTab() {
       if (!isCorrectChain) {
         toast.info('🔄 Đang chuyển sang BSC Testnet...');
         await switchToBscTestnet();
-        // Wait a moment for chain switch to propagate
         await new Promise(r => setTimeout(r, 1500));
       }
       const signer = await getSigner();
       const provider = signer.provider as import('ethers').BrowserProvider;
-      const validation = await validateBeforeMint(provider, adminAddress, CONTRACT_ACTION);
-      if (!validation.canMint) {
-        toast.error(`Không thể mint: ${validation.issues.join(', ')}`);
-        return;
-      }
 
       // Wallet mismatch check
       const { data: currentProfile } = await supabase
@@ -228,46 +223,53 @@ export function FunMoneyApprovalTab() {
           `⚠️ CẢNH BÁO: Ví không khớp!\n\n` +
           `Ví trong yêu cầu: ${request.user_wallet_address}\n` +
           `Ví hiện tại: ${currentProfile.wallet_address}\n\n` +
-          `User có thể đã đổi ví sau khi tạo yêu cầu.\nBạn có muốn tiếp tục mint về ví cũ không?`
+          `User có thể đã đổi ví sau khi tạo yêu cầu.\nBạn có muốn tiếp tục không?`
         );
         if (!proceed) {
-          toast.warning('Đã hủy mint do ví không khớp');
+          toast.warning('Đã hủy do ví không khớp');
           return;
         }
       }
 
-      const txHash = await mintFunMoney(signer, request.user_wallet_address, request.action_type, BigInt(request.calculated_amount_atomic), request.action_evidence);
-      const saved = await saveMintResult(request.id, txHash, adminAddress);
-      if (saved) {
-        toast.success(
-          <div className="flex flex-col gap-1">
-            <span>✨ Mint thành công!</span>
-            <a href={`https://testnet.bscscan.com/tx/${txHash}`} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:underline">
-              Xem trên BSCScan →
-            </a>
-          </div>
-        );
-        setExpandedId(null);
-      }
+      const multisigRecord = await createMultisigRequest({
+        mintRequest: {
+          id: request.id,
+          user_id: request.user_id,
+          user_wallet_address: request.user_wallet_address,
+          action_type: request.action_type,
+          calculated_amount_atomic: request.calculated_amount_atomic,
+          action_evidence: request.action_evidence,
+          platform_id: request.platform_id,
+        },
+        provider,
+      });
+
+      toast.success(
+        <div className="flex flex-col gap-1">
+          <span>✅ Đã chuyển sang Multisig 3/3</span>
+          <span className="text-xs text-muted-foreground">
+            Chờ 3 nhóm GOV (WILL + WISDOM + LOVE) ký. ID: {multisigRecord.id.slice(0, 8)}...
+          </span>
+        </div>
+      );
+      setExpandedId(null);
+      // Refresh list
+      if (activeTab === 'pending') fetchPendingRequests();
+      else fetchAllRequests();
     } catch (err: any) {
-      console.error('Mint error:', err);
-      toast.error(`Mint thất bại: ${err.message?.slice(0, 100)}`);
-      if (request.status === 'approved') {
-        await markAsFailed(request.id, err.message?.slice(0, 200) || 'Lỗi không xác định');
-      }
+      console.error('Route to multisig error:', err);
+      toast.error(`Lỗi chuyển Multisig: ${err.message?.slice(0, 100)}`);
     } finally {
       setIsMinting(false);
     }
   };
 
-  const handleApproveAndMint = async (request: MintRequest) => {
-    if (!isConnected || !adminAddress || !isAttesterWallet) {
-      toast.error('Vui lòng kết nối ví Attester');
+  const handleApproveAndRouteToMultisig = async (request: MintRequest) => {
+    if (!isConnected || !adminAddress) {
+      toast.error('Vui lòng kết nối ví để đọc nonce on-chain');
       return;
     }
-    const approved = await approveRequest(request.id, 'Approved & minted by admin');
-    if (!approved) { toast.error('Không thể duyệt'); return; }
-    await handleMint({ ...request, status: 'approved' });
+    await handleRouteToMultisig(request);
   };
 
   // Batch approve
@@ -285,9 +287,9 @@ export function FunMoneyApprovalTab() {
     fetchPendingRequests();
   };
 
-  // Batch approve + mint
-  const handleBatchApproveAndMint = async () => {
-    if (selectedIds.size === 0 || !isConnected || !isAttesterWallet || !adminAddress) return;
+  // Batch approve + route to multisig
+  const handleBatchApproveAndRoute = async () => {
+    if (selectedIds.size === 0 || !isConnected || !adminAddress) return;
     setIsBatchProcessing(true);
     // Auto-switch to BSC Testnet if needed
     if (!isCorrectChain) {
@@ -296,6 +298,8 @@ export function FunMoneyApprovalTab() {
       await new Promise(r => setTimeout(r, 1500));
     }
     let success = 0, fail = 0;
+    const signer = await getSigner();
+    const provider = signer.provider as import('ethers').BrowserProvider;
     for (const id of selectedIds) {
       const request = requests.find(r => r.id === id);
       if (!request) { fail++; continue; }
@@ -310,25 +314,31 @@ export function FunMoneyApprovalTab() {
         if (batchProfile?.wallet_address && 
             batchProfile.wallet_address.toLowerCase() !== request.user_wallet_address.toLowerCase()) {
           const displayName = profileCache[request.user_id]?.display_name || request.user_wallet_address.slice(0, 10);
-          toast.warning(`⚠️ Bỏ qua ${displayName}: Ví đã đổi (${request.user_wallet_address.slice(0, 6)}... → ${batchProfile.wallet_address.slice(0, 6)}...)`);
+          toast.warning(`⚠️ Bỏ qua ${displayName}: Ví đã đổi`);
           fail++;
           continue;
         }
 
-        const approved = await approveRequest(id, 'Batch approved & minted');
-        if (!approved) { fail++; continue; }
-        const signer = await getSigner();
-        const txHash = await mintFunMoney(signer, request.user_wallet_address, request.action_type, BigInt(request.calculated_amount_atomic), request.action_evidence);
-        await saveMintResult(id, txHash, adminAddress);
+        await createMultisigRequest({
+          mintRequest: {
+            id: request.id,
+            user_id: request.user_id,
+            user_wallet_address: request.user_wallet_address,
+            action_type: request.action_type,
+            calculated_amount_atomic: request.calculated_amount_atomic,
+            action_evidence: request.action_evidence,
+            platform_id: request.platform_id,
+          },
+          provider,
+        });
         success++;
-        toast.success(`✨ Mint ${success}/${selectedIds.size}: ${request.calculated_amount_formatted || formatFunAmount(request.calculated_amount_atomic)} FUN`);
+        toast.success(`✅ Multisig ${success}/${selectedIds.size}: ${request.calculated_amount_formatted || formatFunAmount(request.calculated_amount_atomic)} FUN`);
       } catch (err: any) {
         fail++;
-        await markAsFailed(id, err.message?.slice(0, 200) || 'Batch mint error');
-        toast.error(`❌ Lỗi mint ${request.user_wallet_address.slice(0, 8)}...: ${err.message?.slice(0, 60)}`);
+        toast.error(`❌ Lỗi ${request.user_wallet_address.slice(0, 8)}...: ${err.message?.slice(0, 60)}`);
       }
     }
-    toast.success(`🎉 Hoàn tất: ${success} thành công, ${fail} thất bại`);
+    toast.success(`🎉 Hoàn tất: ${success} chuyển Multisig, ${fail} thất bại`);
     setSelectedIds(new Set());
     setIsBatchProcessing(false);
     fetchPendingRequests();
@@ -438,15 +448,15 @@ export function FunMoneyApprovalTab() {
               {isBatchProcessing ? <RefreshCw className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3" />}
               Duyệt tất cả
             </Button>
-            {isConnected && isAttesterWallet && (
+            {isConnected && (
               <Button
                 size="sm"
                 className="h-8 gap-1 text-xs bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600 text-white"
-                onClick={handleBatchApproveAndMint}
+                onClick={handleBatchApproveAndRoute}
                 disabled={isBatchProcessing}
               >
                 {isBatchProcessing ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />}
-                ⚡ Duyệt & Mint tất cả
+                🔐 Chuyển Multisig 3/3 tất cả
               </Button>
             )}
             <Button
@@ -511,8 +521,8 @@ export function FunMoneyApprovalTab() {
                     onToggleSelect={() => toggleSelect(request.id)}
                     onApprove={() => handleApprove(request)}
                     onReject={() => handleReject(request)}
-                    onMint={() => handleMint(request)}
-                    onApproveAndMint={() => handleApproveAndMint(request)}
+                    onRouteToMultisig={() => handleRouteToMultisig(request)}
+                    onApproveAndRoute={() => handleApproveAndRouteToMultisig(request)}
                     onRejectReasonChange={setRejectReason}
                     onCopy={copyToClipboard}
                     profile={profileCache[request.user_id]}
@@ -540,7 +550,7 @@ function RequestTableRow({
   isConnected, isAttesterWallet, isMinting, isBatchProcessing,
   rejectReason, profile,
   onToggleExpand, onToggleSelect,
-  onApprove, onReject, onMint, onApproveAndMint,
+  onApprove, onReject, onRouteToMultisig, onApproveAndRoute,
   onRejectReasonChange, onCopy
 }: {
   request: MintRequest;
@@ -557,8 +567,8 @@ function RequestTableRow({
   onToggleSelect: () => void;
   onApprove: () => void;
   onReject: () => void;
-  onMint: () => void;
-  onApproveAndMint: () => void;
+  onRouteToMultisig: () => void;
+  onApproveAndRoute: () => void;
   onRejectReasonChange: (v: string) => void;
   onCopy: (t: string) => void;
 }) {
@@ -637,15 +647,15 @@ function RequestTableRow({
             {/* Quick actions for pending */}
             {request.status === 'pending' && (
               <>
-                {isConnected && isAttesterWallet && (
+                {isConnected && (
                   <Button
                     size="sm"
                     className="h-7 px-2 text-[10px] gap-1 bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600 text-white"
-                    onClick={(e) => { e.stopPropagation(); onApproveAndMint(); }}
+                    onClick={(e) => { e.stopPropagation(); onApproveAndRoute(); }}
                     disabled={isMinting || isBatchProcessing}
                   >
-                    <Zap className="w-3 h-3" />
-                    Mint
+                    <Shield className="w-3 h-3" />
+                    Multisig 3/3
                   </Button>
                 )}
                 <Button
@@ -660,15 +670,15 @@ function RequestTableRow({
                 </Button>
               </>
             )}
-            {request.status === 'approved' && isConnected && isAttesterWallet && (
+            {request.status === 'approved' && isConnected && (
               <Button
                 size="sm"
                 className="h-7 px-2 text-[10px] gap-1 bg-gradient-to-r from-cyan-500 to-purple-500 text-white"
-                onClick={(e) => { e.stopPropagation(); onMint(); }}
+                onClick={(e) => { e.stopPropagation(); onRouteToMultisig(); }}
                 disabled={isMinting}
               >
-                <Zap className="w-3 h-3" />
-                Mint
+                <Shield className="w-3 h-3" />
+                Multisig 3/3
               </Button>
             )}
             <Button
@@ -777,17 +787,17 @@ function RequestTableRow({
                 <div className="space-y-2">
                   {request.status === 'pending' && (
                     <>
-                      {isConnected && isAttesterWallet && (
+                      {isConnected && (
                         <Button
                           className="w-full gap-2 bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600 text-white"
-                          onClick={onApproveAndMint}
+                          onClick={onApproveAndRoute}
                           disabled={isMinting}
                         >
-                          {isMinting ? <><RefreshCw className="w-4 h-4 animate-spin" /> Đang mint...</> : <><Zap className="w-4 h-4" /> ⚡ Duyệt & Mint Ngay</>}
+                          {isMinting ? <><RefreshCw className="w-4 h-4 animate-spin" /> Đang xử lý...</> : <><Shield className="w-4 h-4" /> 🔐 Chuyển Multisig 3/3</>}
                         </Button>
                       )}
                       <Button variant="outline" className="w-full gap-2" onClick={onApprove}>
-                        <CheckCircle className="w-4 h-4" /> Chỉ Duyệt (mint sau)
+                        <CheckCircle className="w-4 h-4" /> Chỉ Duyệt
                       </Button>
                       <Textarea
                         placeholder="Lý do từ chối (bắt buộc)"
@@ -805,13 +815,12 @@ function RequestTableRow({
                     <>
                       <Button
                         className="w-full gap-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white"
-                        onClick={onMint}
-                        disabled={!isConnected || !isAttesterWallet || isMinting}
+                        onClick={onRouteToMultisig}
+                        disabled={!isConnected || isMinting}
                       >
-                        {isMinting ? <><RefreshCw className="w-4 h-4 animate-spin" /> Đang mint...</> : <><Zap className="w-4 h-4" /> Ký & Mint On-Chain</>}
+                        {isMinting ? <><RefreshCw className="w-4 h-4 animate-spin" /> Đang xử lý...</> : <><Shield className="w-4 h-4" /> 🔐 Chuyển Multisig 3/3</>}
                       </Button>
-                      {!isConnected && <p className="text-xs text-center text-muted-foreground">Kết nối ví Attester để mint</p>}
-                      {isConnected && !isAttesterWallet && <p className="text-xs text-center text-yellow-500">⚠️ Cần ví Attester</p>}
+                      {!isConnected && <p className="text-xs text-center text-muted-foreground">Kết nối ví để đọc nonce on-chain</p>}
                     </>
                   )}
                   {request.status === 'minted' && (
