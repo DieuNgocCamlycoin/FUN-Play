@@ -1,83 +1,45 @@
 
 
-## So sánh: Trước và Sau khi sửa `useLightActivity.ts`
+## Kế hoạch: Bảng Giải trình Light Score hàng ngày (LS-Math v1.0)
 
-### HIỆN TẠI (Sai spec)
+### Mục tiêu
+Tạo component hiển thị chi tiết Light Score theo ngày cho mỗi user, tương tự screenshot: ngày, B (action base), C (content score), L (final light score), và các multipliers (M_cons, M_seq, Π, w).
 
-```text
-useLightActivity.ts — calculateMintableFun()
-─────────────────────────────────────────────
-FUN = count × BASE_REWARDS_FUN (cố định)
+### Nguồn dữ liệu
 
-Ví dụ user có: 100 views, 20 likes, 5 comments, 3 shares, 1 upload
-  views:    100 × 10  = 1,000 FUN
-  likes:     20 ×  5  =   100 FUN
-  comments:   5 × 15  =    75 FUN
-  shares:     3 × 20  =    60 FUN
-  uploads:    1 × 100 =   100 FUN
-  ──────────────────────────────
-  TỔNG = 1,335 FUN  ← Không có multiplier nào!
+Đã có sẵn 2 bảng:
+- **`light_score_ledger`**: `base_score`, `final_light_score`, `consistency_multiplier`, `sequence_multiplier`, `integrity_penalty`, `reputation_weight`, `level`, `period`, `period_start` — RLS cho phép user đọc dữ liệu của mình
+- **`features_user_day`**: `count_posts`, `count_videos`, `count_comments`, `content_pillar_score`, `consistency_streak`, `sequence_count`, `anti_farm_risk` — cần kiểm tra RLS
 
-Vấn đề:
-• Bỏ qua Q (Quality), I (Impact), K (Integrity), Ux (Unity)
-• Bỏ qua M_cons (Consistency), M_seq (Sequence), Π (Penalty)
-• User spam 1000 views = 10,000 FUN, user chất lượng cao cũng chỉ = 10,000 FUN
-• Mâu thuẫn với scoreAction() trong pplp-engine.ts đã implement đầy đủ
-```
+### Thay đổi kỹ thuật
 
-### SAU KHI SỬA (Đúng LS-Math v1.0)
+#### 1. Kiểm tra/thêm RLS cho `features_user_day`
+- Đảm bảo user có thể SELECT dữ liệu của mình từ `features_user_day` (cần cho cột B, C chi tiết)
 
-```text
-useLightActivity.ts — calculateMintableFun() MỚI
-─────────────────────────────────────────────────
-FUN = Σ scoreAction(action) cho từng loại action
-    = baseReward × Q × I × K × Ux  (per action)
-    + áp dụng M_cons, M_seq, Π từ profile
+#### 2. Tạo component `DailyLightScoreTable.tsx`
+- Fetch từ `light_score_ledger` (period = 'day') + `features_user_day` cho user hiện tại, 30 ngày gần nhất
+- Hiển thị bảng mỗi dòng là 1 ngày:
+  - **Ngày** (yyyy-MM-dd)
+  - **B** (action base score từ features_user_day hoặc tính từ ledger)
+  - **C** (content_pillar_score)
+  - **L** (final_light_score) — highlight màu
+  - Dòng phụ: `M_cons: ×1.46 | M_seq: ×1.50 | Π: 0.00 | w: 1.97`
+- Header hiển thị điều kiện mint (đủ/chưa đủ) + light level
+- Collapsible accordion style
 
-Cùng ví dụ user: 100 views, 20 likes, 5 comments, 3 shares, 1 upload
-Giả sử: Q=1.0, I=1.0, K=0.85, Ux=1.0 (Unity Score ~55)
+#### 3. Tích hợp vào FunMoneyPage
+- Đặt trong tab "Chi Tiết" (`breakdown`), bên dưới `LightActivityBreakdown` và `ActivitySummary`
+- Hoặc tạo riêng 1 section full-width bên dưới grid 2 cột hiện tại
 
-  views:    100 × 10 × 1.0 × 1.0 × 0.85 × 1.0 =   850 FUN
-  likes:     20 ×  5 × 1.0 × 1.0 × 0.85 × 1.0 =    85 FUN
-  comments:   5 × 15 × 1.0 × 1.0 × 0.85 × 1.0 =    64 FUN
-  shares:     3 × 20 × 1.0 × 1.0 × 0.85 × 1.0 =    51 FUN
-  uploads:    1 × 100× 1.0 × 1.0 × 0.85 × 1.0 =    85 FUN
-  ──────────────────────────────────────────────
-  TỔNG ~1,135 FUN  ← Giảm vì K=0.85 (integrity chưa hoàn hảo)
+#### 4. Tạo hook `useDailyLightScore.ts`
+- Fetch `light_score_ledger` WHERE `user_id = auth.uid()` AND `period = 'day'` ORDER BY `period_start DESC` LIMIT 30
+- Join với `features_user_day` để lấy B, C chi tiết
+- Return array `{ date, B, C, L, mCons, mSeq, penalty, w }`
 
-Nếu user có Unity Score cao (Ux=1.5):  → ~1,700 FUN (thưởng thêm)
-Nếu user suspicious (K=0):             → 0 FUN (bị chặn hoàn toàn)
-```
-
-### Bảng so sánh tổng quan
-
-| Yếu tố | Hiện tại | Sau sửa |
-|---------|----------|---------|
-| **Công thức** | `count × fixed_base` | `base × Q × I × K × Ux` |
-| **Quality (Q)** | ❌ Bỏ qua | ✅ 0.5–3.0 |
-| **Impact (I)** | ❌ Bỏ qua | ✅ 0.5–5.0 |
-| **Integrity (K)** | ❌ Bỏ qua | ✅ 0–1.0, chặn fraud |
-| **Unity (Ux)** | ❌ Bỏ qua | ✅ 0.5–2.5, thưởng cộng đồng |
-| **Anti-whale** | ❌ Không kiểm tra | ✅ Cap 3% pool |
-| **Consistency** | ❌ Không tính | ✅ M_cons từ streakDays |
-| **Sequence** | ❌ Không tính | ✅ M_seq từ sequenceBonus |
-| **Spam user** | Nhận đầy đủ FUN | Bị giảm bởi K thấp |
-| **User chất lượng** | Giống spam user | Nhận nhiều hơn (Q, Ux cao) |
-| **Nguồn BASE_REWARDS** | Hardcode riêng | Import từ `pplp-engine.ts` |
-| **UI hiển thị** | Chỉ base reward | Base + multiplied (so sánh) |
-
-### Thay đổi code cụ thể
-
-**1. Xóa** `BASE_REWARDS_FUN` hardcode (dòng 78-85) → import `BASE_REWARDS.FUN_PLAY` từ engine
-
-**2. Sửa** `calculateMintableFun()` — gọi `scoreAction()` cho mỗi action type với đầy đủ tham số: pillarScores, unitySignals, antiSybilScore, streakDays, sequenceBonus, riskScore
-
-**3. Thêm** `multipliedBreakdown` vào `LightActivity` interface — hiển thị FUN sau khi áp dụng multipliers (cạnh base breakdown hiện tại)
-
-**4. Cập nhật** `ActivitySummary.tsx` — hiển thị thêm cột "Actual FUN" bên cạnh "Base FUN" để user thấy sự khác biệt do multipliers
-
-### Tác động
-- User spam/suspicious sẽ nhận **ít hơn** FUN (K thấp, Ux thấp)
-- User chất lượng cao, cộng đồng tốt sẽ nhận **nhiều hơn** FUN (Q, Ux cao)
-- Đúng spec LS-Math v1.0 end-to-end
+### Files tạo/sửa
+- **Tạo**: `src/hooks/useDailyLightScore.ts`
+- **Tạo**: `src/components/FunMoney/DailyLightScoreTable.tsx`
+- **Sửa**: `src/pages/FunMoneyPage.tsx` — import và render component mới trong tab breakdown
+- **Sửa**: `src/components/FunMoney/index.ts` — export component mới
+- **Migration** (nếu cần): thêm RLS policy cho `features_user_day` SELECT
 
