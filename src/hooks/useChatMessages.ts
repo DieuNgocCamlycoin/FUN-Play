@@ -12,6 +12,9 @@ export interface ChatMessage {
   deepLink: string | null;
   createdAt: Date;
   isRead: boolean;
+  isPinned?: boolean;
+  pinnedAt?: string | null;
+  pinnedBy?: string | null;
   sender?: {
     id: string;
     username: string;
@@ -96,7 +99,10 @@ export const useChatMessages = (chatId: string | undefined) => {
           deep_link,
           created_at,
           is_read,
-          reply_to_id
+          reply_to_id,
+          is_pinned,
+          pinned_at,
+          pinned_by
         `)
         .eq("chat_id", chatId)
         .order("created_at", { ascending: true });
@@ -174,6 +180,9 @@ export const useChatMessages = (chatId: string | undefined) => {
           deepLink: msg.deep_link,
           createdAt: new Date(msg.created_at),
           isRead: msg.is_read,
+          isPinned: (msg as any).is_pinned || false,
+          pinnedAt: (msg as any).pinned_at || null,
+          pinnedBy: (msg as any).pinned_by || null,
           sender: profileMap.get(msg.sender_id),
           replyToId: msg.reply_to_id,
           replyToContent: replyInfo?.content || null,
@@ -443,11 +452,52 @@ export const useChatMessages = (chatId: string | undefined) => {
     };
   }, [chatId, user?.id]);
 
+  const togglePinMessage = useCallback(
+    async (messageId: string) => {
+      if (!user?.id) return;
+
+      const msg = messages.find((m) => m.id === messageId);
+      if (!msg) return;
+
+      const newPinned = !msg.isPinned;
+
+      // Optimistic update
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId
+            ? { ...m, isPinned: newPinned, pinnedAt: newPinned ? new Date().toISOString() : null, pinnedBy: newPinned ? user.id : null }
+            : m
+        )
+      );
+
+      await supabase
+        .from("chat_messages")
+        .update({
+          is_pinned: newPinned,
+          pinned_at: newPinned ? new Date().toISOString() : null,
+          pinned_by: newPinned ? user.id : null,
+        } as any)
+        .eq("id", messageId);
+    },
+    [user?.id, messages]
+  );
+
+  // Tin nhắn ghim mới nhất
+  const pinnedMessage = messages
+    .filter((m) => m.isPinned)
+    .sort((a, b) => {
+      const aTime = a.pinnedAt ? new Date(a.pinnedAt).getTime() : 0;
+      const bTime = b.pinnedAt ? new Date(b.pinnedAt).getTime() : 0;
+      return bTime - aTime;
+    })[0] || null;
+
   return {
     messages,
     loading,
     sendMessage,
     toggleReaction,
+    togglePinMessage,
+    pinnedMessage,
     markAsRead,
     messagesEndRef,
     scrollToBottom,

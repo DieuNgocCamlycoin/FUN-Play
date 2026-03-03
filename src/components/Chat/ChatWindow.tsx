@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { ChatHeader } from "./ChatHeader";
 import { ChatMessageList } from "./ChatMessageList";
 import { ChatInput } from "./ChatInput";
+import { ChatPinnedBanner } from "./ChatPinnedBanner";
 import { useChatMessages } from "@/hooks/useChatMessages";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,7 +23,7 @@ interface OtherUser {
 
 export const ChatWindow = ({ chatId, showBackButton = false }: ChatWindowProps) => {
   const { user } = useAuth();
-  const { messages, loading, sendMessage, toggleReaction, messagesEndRef } = useChatMessages(chatId);
+  const { messages, loading, sendMessage, toggleReaction, togglePinMessage, pinnedMessage, messagesEndRef } = useChatMessages(chatId);
   const [otherUser, setOtherUser] = useState<OtherUser | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
@@ -97,6 +98,10 @@ export const ChatWindow = ({ chatId, showBackButton = false }: ChatWindowProps) 
     <div className="flex-1 flex flex-col min-h-0 bg-gradient-to-b from-purple-50/30 via-transparent to-pink-50/30">
       <ChatHeader otherUser={otherUser} showBackButton={showBackButton} />
 
+      {pinnedMessage && (
+        <ChatPinnedBanner pinnedMessage={pinnedMessage} />
+      )}
+
       <ChatMessageList
         messages={messages}
         loading={loading}
@@ -104,6 +109,7 @@ export const ChatWindow = ({ chatId, showBackButton = false }: ChatWindowProps) 
         messagesEndRef={messagesEndRef}
         onReact={toggleReaction}
         onReply={handleReply}
+        onPin={togglePinMessage}
       />
 
       <ChatInput

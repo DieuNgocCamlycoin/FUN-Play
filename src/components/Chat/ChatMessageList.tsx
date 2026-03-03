@@ -11,6 +11,7 @@ interface ChatMessageListProps {
   messagesEndRef: React.RefObject<HTMLDivElement>;
   onReact?: (messageId: string, emoji: string) => void;
   onReply?: (message: ChatMessage) => void;
+  onPin?: (messageId: string) => void;
 }
 
 export const ChatMessageList = ({
@@ -20,6 +21,7 @@ export const ChatMessageList = ({
   messagesEndRef,
   onReact,
   onReply,
+  onPin,
 }: ChatMessageListProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -74,6 +76,7 @@ export const ChatMessageList = ({
             showAvatar={showAvatar}
             onReact={onReact}
             onReply={onReply}
+            onPin={onPin}
           />
         );
       })}

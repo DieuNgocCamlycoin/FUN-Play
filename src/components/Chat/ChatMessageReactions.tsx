@@ -12,7 +12,7 @@ interface ChatMessageReactionsProps {
   isMe: boolean;
 }
 
-const EMOJI_ORDER = ["🙏", "🥰", "❤️", "😂", "😮", "👍"];
+const EMOJI_ORDER = ["🙏", "🥰", "❤️", "😂", "😮", "🎉"];
 
 export const ChatMessageReactions = ({
   reactions,
