@@ -112,13 +112,13 @@ const GoLive = () => {
     setIsEnding(true);
 
     try {
-      // Step 1: Stop recording & get blob
+      // Step 1: Stop recording FIRST (before stopping camera/streaming)
       toast.info("⏹️ Đang đóng bản ghi...");
       console.log("[VOD] Step 1 - Stopping recording. recorderStarted:", recorderStartedRef.current);
       const recordedBlob = await stopRecording();
-      console.log("[VOD] Step 1 - stopRecording result:", recordedBlob ? `${(recordedBlob.size / 1024 / 1024).toFixed(2)} MB` : "null");
+      console.log("[VOD] Step 1 - stopRecording result:", recordedBlob ? `${(recordedBlob.size / 1024 / 1024).toFixed(2)} MB, type: ${recordedBlob.type}` : "null");
 
-      // Stop streaming & camera
+      // Step 1.5: NOW stop streaming & camera (after recorder got its data)
       stopStreaming();
       stopCamera();
       await endLive(livestreamId);
@@ -130,17 +130,32 @@ const GoLive = () => {
         const fileName = `${user.id}/vod/${livestreamId}.${ext}`;
         console.log("[VOD] Step 2 - uploading to:", fileName, "size:", recordedBlob.size);
 
-        const { error: uploadError } = await supabase.storage
-          .from("videos")
-          .upload(fileName, recordedBlob, {
-            contentType: recordedBlob.type || "video/webm",
-            upsert: true,
-          });
+        let uploadError: any = null;
+
+        // Try upload with 1 retry
+        for (let attempt = 1; attempt <= 2; attempt++) {
+          const { error } = await supabase.storage
+            .from("videos")
+            .upload(fileName, recordedBlob, {
+              contentType: recordedBlob.type || "video/webm",
+              upsert: true,
+            });
+
+          if (!error) {
+            uploadError = null;
+            console.log(`[VOD] Step 2 OK - uploaded on attempt ${attempt}`);
+            break;
+          }
+
+          uploadError = error;
+          console.error(`[VOD] Step 2 attempt ${attempt} FAILED:`, error);
+          if (attempt < 2) {
+            await new Promise(r => setTimeout(r, 2000));
+          }
+        }
 
         if (uploadError) {
-          console.error("[VOD] Step 2 FAILED - upload error:", uploadError);
           toast.error(`Lỗi upload VOD: ${uploadError.message}`);
-
           // Offer download as fallback
           try {
             const url = URL.createObjectURL(recordedBlob);
@@ -153,13 +168,11 @@ const GoLive = () => {
           } catch (dlErr) {
             console.error("[VOD] Download fallback failed:", dlErr);
           }
-
           navigate("/studio");
           return;
         }
-        console.log("[VOD] Step 2 OK - uploaded");
 
-        // Step 3: Finalize with RPC (atomic insert video + link livestream)
+        // Step 3: Finalize with RPC
         toast.info("🔗 Đang tạo bản ghi VOD...");
         const { data: urlData } = supabase.storage.from("videos").getPublicUrl(fileName);
 
