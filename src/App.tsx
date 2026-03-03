@@ -133,6 +133,9 @@ const MyReports = lazyWithRetry(() => import("./pages/MyReports"));
 const GenerateOG = lazyWithRetry(() => import("./pages/GenerateOG"));
 const Whitepaper = lazyWithRetry(() => import("./pages/Whitepaper"));
 const Constitution = lazyWithRetry(() => import("./pages/Constitution"));
+const GoLive = lazyWithRetry(() => import("./pages/GoLive"));
+const LiveWatch = lazyWithRetry(() => import("./pages/LiveWatch"));
+const LiveDirectory = lazyWithRetry(() => import("./pages/LiveDirectory"));
 const Transparency = lazyWithRetry(() => import("./pages/Transparency"));
 
 const queryClient = new QueryClient();
@@ -261,6 +264,9 @@ function AppContent() {
             <Route path="/whitepaper" element={<Whitepaper />} />
             <Route path="/constitution" element={<Constitution />} />
             <Route path="/transparency" element={<Transparency />} />
+            <Route path="/go-live" element={<GoLive />} />
+            <Route path="/live" element={<LiveDirectory />} />
+            <Route path="/live/:id" element={<LiveWatch />} />
             {/* Legacy redirects */}
             <Route path="/user/:userId" element={<LegacyUserRedirect />} />
             <Route path="/u/:username" element={<LegacyUsernameRedirect />} />

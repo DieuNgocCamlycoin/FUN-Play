@@ -1282,6 +1282,135 @@ export type Database = {
           },
         ]
       }
+      livestream_chat: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          livestream_id: string
+          message_type: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          livestream_id: string
+          message_type?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          livestream_id?: string
+          message_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "livestream_chat_livestream_id_fkey"
+            columns: ["livestream_id"]
+            isOneToOne: false
+            referencedRelation: "livestreams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      livestream_reactions: {
+        Row: {
+          created_at: string
+          emoji: string
+          id: string
+          livestream_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          emoji?: string
+          id?: string
+          livestream_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          emoji?: string
+          id?: string
+          livestream_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "livestream_reactions_livestream_id_fkey"
+            columns: ["livestream_id"]
+            isOneToOne: false
+            referencedRelation: "livestreams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      livestreams: {
+        Row: {
+          category: string | null
+          created_at: string
+          description: string | null
+          ended_at: string | null
+          id: string
+          peak_viewers: number
+          started_at: string | null
+          status: string
+          thumbnail_url: string | null
+          title: string
+          total_donations: number
+          updated_at: string
+          user_id: string
+          viewer_count: number
+          vod_video_id: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          ended_at?: string | null
+          id?: string
+          peak_viewers?: number
+          started_at?: string | null
+          status?: string
+          thumbnail_url?: string | null
+          title: string
+          total_donations?: number
+          updated_at?: string
+          user_id: string
+          viewer_count?: number
+          vod_video_id?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          ended_at?: string | null
+          id?: string
+          peak_viewers?: number
+          started_at?: string | null
+          status?: string
+          thumbnail_url?: string | null
+          title?: string
+          total_donations?: number
+          updated_at?: string
+          user_id?: string
+          viewer_count?: number
+          vod_video_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "livestreams_vod_video_id_fkey"
+            columns: ["vod_video_id"]
+            isOneToOne: false
+            referencedRelation: "videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       meditation_playlist_videos: {
         Row: {
           created_at: string
