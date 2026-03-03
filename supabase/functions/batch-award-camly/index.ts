@@ -219,10 +219,10 @@ serve(async (req) => {
           const isShort = videoDuration <= shortVideoMaxDuration;
           videoCategory = isShort ? 'short' : 'long';
 
-          // Determine required watch time
+          // Determine required watch time — cap at 90% of duration for videos shorter than threshold
           const requiredWatch = isShort
             ? videoDuration * (shortVideoMinWatchPercent / 100)
-            : longVideoMinWatchSeconds;
+            : Math.min(longVideoMinWatchSeconds, videoDuration * (shortVideoMinWatchPercent / 100));
 
           // Validate watch time
           if (actualWatchTime == null || actualWatchTime < requiredWatch) {
