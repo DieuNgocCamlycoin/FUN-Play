@@ -16,6 +16,7 @@ export type Livestream = {
   peak_viewers: number;
   total_donations: number;
   vod_video_id: string | null;
+  last_heartbeat_at: string | null;
   created_at: string;
   updated_at: string;
   profile?: {
@@ -177,13 +178,10 @@ export function useCreateLivestream() {
   }, []);
 
   const updateViewerCount = useCallback(async (livestreamId: string, count: number) => {
-    await supabase
-      .from("livestreams")
-      .update({
-        viewer_count: count,
-        peak_viewers: count, // Will use GREATEST in a real scenario
-      })
-      .eq("id", livestreamId);
+    await supabase.rpc("update_livestream_viewers", {
+      p_livestream_id: livestreamId,
+      p_count: count,
+    });
   }, []);
 
   return { createLivestream, goLive, endLive, updateViewerCount };

@@ -71,6 +71,26 @@ const GoLive = () => {
     }
   }, [livestreamId, goLive, startStreaming, localStream, startRecording]);
 
+  // beforeunload handler — kết thúc live khi đóng tab
+  useEffect(() => {
+    if (phase !== "live" || !livestreamId) return;
+
+    const handleBeforeUnload = () => {
+      // Best effort: gửi request kết thúc live
+      navigator.sendBeacon?.(
+        `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/livestreams?id=eq.${livestreamId}`,
+      );
+      // Fallback: dùng supabase update
+      supabase
+        .from("livestreams")
+        .update({ status: "ended", ended_at: new Date().toISOString(), viewer_count: 0 })
+        .eq("id", livestreamId);
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [phase, livestreamId]);
+
   const handleEndLive = useCallback(async () => {
     if (!livestreamId) return;
     try {

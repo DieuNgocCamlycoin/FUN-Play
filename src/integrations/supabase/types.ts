@@ -1356,6 +1356,7 @@ export type Database = {
           description: string | null
           ended_at: string | null
           id: string
+          last_heartbeat_at: string | null
           peak_viewers: number
           started_at: string | null
           status: string
@@ -1373,6 +1374,7 @@ export type Database = {
           description?: string | null
           ended_at?: string | null
           id?: string
+          last_heartbeat_at?: string | null
           peak_viewers?: number
           started_at?: string | null
           status?: string
@@ -1390,6 +1392,7 @@ export type Database = {
           description?: string | null
           ended_at?: string | null
           id?: string
+          last_heartbeat_at?: string | null
           peak_viewers?: number
           started_at?: string | null
           status?: string
@@ -3810,6 +3813,10 @@ export type Database = {
       unban_user: {
         Args: { p_admin_id: string; p_user_id: string }
         Returns: boolean
+      }
+      update_livestream_viewers: {
+        Args: { p_count: number; p_livestream_id: string }
+        Returns: undefined
       }
       wipe_user_rewards: {
         Args: { p_admin_id: string; p_user_id: string }
