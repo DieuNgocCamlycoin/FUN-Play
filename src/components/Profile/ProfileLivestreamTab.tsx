@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Radio, Eye, Clock, Users } from "lucide-react";
+import { useVideoNavigation } from "@/lib/videoNavigation";
 import { LiveBadge } from "@/components/Live/LiveBadge";
 import { formatDistanceToNow } from "date-fns";
 import { vi } from "date-fns/locale";
@@ -12,6 +13,7 @@ interface ProfileLivestreamTabProps {
 
 export const ProfileLivestreamTab = ({ userId }: ProfileLivestreamTabProps) => {
   const navigate = useNavigate();
+  const { goToVideo } = useVideoNavigation();
 
   const { data: livestreams, isLoading } = useQuery({
     queryKey: ["profile-livestreams", userId],
@@ -32,7 +34,7 @@ export const ProfileLivestreamTab = ({ userId }: ProfileLivestreamTabProps) => {
     if (ls.status === "live") {
       navigate(`/live/${ls.id}`);
     } else if (ls.vod_video_id) {
-      navigate(`/video/${ls.vod_video_id}`);
+      goToVideo(ls.vod_video_id);
     }
   };
 
