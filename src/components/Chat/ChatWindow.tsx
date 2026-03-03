@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { ChatHeader } from "./ChatHeader";
 import { ChatMessageList } from "./ChatMessageList";
 import { ChatInput } from "./ChatInput";
@@ -6,6 +6,7 @@ import { useChatMessages } from "@/hooks/useChatMessages";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { ChatMessage } from "@/hooks/useChatMessages";
 
 interface ChatWindowProps {
   chatId: string;
@@ -21,52 +22,58 @@ interface OtherUser {
 
 export const ChatWindow = ({ chatId, showBackButton = false }: ChatWindowProps) => {
   const { user } = useAuth();
-  const { messages, loading, sendMessage, messagesEndRef } = useChatMessages(chatId);
+  const { messages, loading, sendMessage, toggleReaction, messagesEndRef } = useChatMessages(chatId);
   const [otherUser, setOtherUser] = useState<OtherUser | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
+  const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
+
+  const handleReply = useCallback((message: ChatMessage) => {
+    setReplyingTo(message);
+  }, []);
+
+  const handleCancelReply = useCallback(() => {
+    setReplyingTo(null);
+  }, []);
+
+  const handleSend = useCallback(
+    async (content: string, imageUrl?: string) => {
+      const result = await sendMessage(content, imageUrl, replyingTo?.id);
+      if (result) setReplyingTo(null);
+      return result;
+    },
+    [sendMessage, replyingTo]
+  );
 
   // Fetch other user info
   useEffect(() => {
     const fetchOtherUser = async () => {
       if (!chatId || !user?.id) return;
-
       try {
-        // Get chat info
         const { data: chat } = await supabase
           .from("user_chats")
           .select("user1_id, user2_id")
           .eq("id", chatId)
           .single();
-
         if (!chat) return;
-
-        const otherUserId =
-          chat.user1_id === user.id ? chat.user2_id : chat.user1_id;
-
-        // Get other user profile
+        const otherUserId = chat.user1_id === user.id ? chat.user2_id : chat.user1_id;
         const { data: profile } = await supabase
           .from("profiles")
           .select("id, username, display_name, avatar_url")
           .eq("id", otherUserId)
           .single();
-
-        if (profile) {
-          setOtherUser(profile);
-        }
+        if (profile) setOtherUser(profile);
       } catch (error) {
         console.error("Error fetching other user:", error);
       } finally {
         setLoadingUser(false);
       }
     };
-
     fetchOtherUser();
   }, [chatId, user?.id]);
 
   if (loadingUser || !otherUser) {
     return (
       <div className="flex-1 flex flex-col">
-        {/* Header skeleton */}
         <div className="h-16 border-b flex items-center gap-3 px-4">
           <Skeleton className="h-10 w-10 rounded-full" />
           <div className="space-y-2">
@@ -74,13 +81,9 @@ export const ChatWindow = ({ chatId, showBackButton = false }: ChatWindowProps) 
             <Skeleton className="h-3 w-20" />
           </div>
         </div>
-        {/* Messages skeleton */}
         <div className="flex-1 p-4 space-y-4">
           {[...Array(4)].map((_, i) => (
-            <div
-              key={i}
-              className={`flex gap-2 ${i % 2 === 0 ? "" : "flex-row-reverse"}`}
-            >
+            <div key={i} className={`flex gap-2 ${i % 2 === 0 ? "" : "flex-row-reverse"}`}>
               <Skeleton className="h-8 w-8 rounded-full" />
               <Skeleton className={`h-12 ${i % 2 === 0 ? "w-48" : "w-40"} rounded-2xl`} />
             </div>
@@ -93,21 +96,25 @@ export const ChatWindow = ({ chatId, showBackButton = false }: ChatWindowProps) 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-gradient-to-b from-purple-50/30 via-transparent to-pink-50/30">
       <ChatHeader otherUser={otherUser} showBackButton={showBackButton} />
-      
+
       <ChatMessageList
         messages={messages}
         loading={loading}
         currentUserId={user?.id || ""}
         messagesEndRef={messagesEndRef}
+        onReact={toggleReaction}
+        onReply={handleReply}
       />
-      
+
       <ChatInput
-        onSend={sendMessage}
+        onSend={handleSend}
         disabled={!user}
         otherUserId={otherUser.id}
         otherUserName={otherUser.display_name || otherUser.username}
         otherUserAvatar={otherUser.avatar_url}
         chatId={chatId}
+        replyingTo={replyingTo}
+        onCancelReply={handleCancelReply}
       />
     </div>
   );

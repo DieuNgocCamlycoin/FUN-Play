@@ -1,15 +1,20 @@
+import { useState, useCallback } from "react";
 import { format, isToday, isYesterday } from "date-fns";
 import { vi } from "date-fns/locale";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ChatDonationCard } from "./ChatDonationCard";
+import { ChatMessageActions, useLongPress } from "./ChatMessageActions";
+import { ChatMessageReactions } from "./ChatMessageReactions";
 import { cn } from "@/lib/utils";
-import { Loader2, AlertCircle } from "lucide-react";
+import { Loader2, AlertCircle, Reply } from "lucide-react";
 import type { ChatMessage } from "@/hooks/useChatMessages";
 
 interface ChatMessageItemProps {
   message: ChatMessage;
   isMe: boolean;
   showAvatar?: boolean;
+  onReact?: (messageId: string, emoji: string) => void;
+  onReply?: (message: ChatMessage) => void;
 }
 
 const formatMessageTime = (date: Date) => {
@@ -26,7 +31,26 @@ export const ChatMessageItem = ({
   message,
   isMe,
   showAvatar = true,
+  onReact,
+  onReply,
 }: ChatMessageItemProps) => {
+  const [showActions, setShowActions] = useState(false);
+
+  const handleReact = useCallback(
+    (emoji: string) => {
+      onReact?.(message.id, emoji);
+      setShowActions(false);
+    },
+    [message.id, onReact]
+  );
+
+  const handleReply = useCallback(() => {
+    onReply?.(message);
+    setShowActions(false);
+  }, [message, onReply]);
+
+  const longPressHandlers = useLongPress(() => setShowActions(true), 400);
+
   // System message
   if (message.messageType === "system") {
     return (
@@ -42,7 +66,7 @@ export const ChatMessageItem = ({
   if (message.messageType === "donation") {
     return (
       <div className="my-3 px-1 sm:px-0">
-      <ChatDonationCard
+        <ChatDonationCard
           content={message.content}
           deepLink={message.deepLink}
           donationTransactionId={message.donationTransactionId}
@@ -63,11 +87,13 @@ export const ChatMessageItem = ({
   // Check if message is emoji-only (sticker)
   const isEmojiOnly = (text: string | null) => {
     if (!text) return false;
-    const emojiRegex = /^[\p{Emoji_Presentation}\p{Extended_Pictographic}\uFE0F\u200D\u20E3]{1,6}$/u;
+    const emojiRegex =
+      /^[\p{Emoji_Presentation}\p{Extended_Pictographic}\uFE0F\u200D\u20E3]{1,6}$/u;
     return emojiRegex.test(text.trim());
   };
 
-  const isSticker = message.messageType === "text" && isEmojiOnly(message.content);
+  const isSticker =
+    message.messageType === "text" && isEmojiOnly(message.content);
 
   // Parse image message content
   const parseImageContent = () => {
@@ -82,13 +108,25 @@ export const ChatMessageItem = ({
 
   const imageData = parseImageContent();
 
-  // Text or image message
+  // Truncate reply content
+  const truncate = (s: string | null, max = 60) => {
+    if (!s) return "";
+    try {
+      const parsed = JSON.parse(s);
+      if (parsed.imageUrl) return "📷 Hình ảnh";
+    } catch {}
+    return s.length > max ? s.slice(0, max) + "…" : s;
+  };
+
   return (
     <div
       className={cn(
-        "flex gap-2 my-1",
+        "flex gap-2 my-1 group relative",
         isMe ? "flex-row-reverse" : "flex-row"
       )}
+      onMouseEnter={() => setShowActions(true)}
+      onMouseLeave={() => setShowActions(false)}
+      {...longPressHandlers}
     >
       {/* Avatar */}
       {showAvatar && !isMe && (
@@ -103,56 +141,87 @@ export const ChatMessageItem = ({
       )}
       {showAvatar && !isMe && <div className="w-8" />}
 
-      <div className={cn("flex flex-col", isMe ? "items-end" : "items-start")}>
+      <div
+        className={cn("flex flex-col max-w-[85%]", isMe ? "items-end" : "items-start")}
+      >
+        {/* Reply preview */}
+        {message.replyToId && (
+          <div
+            className={cn(
+              "flex items-center gap-1.5 mb-0.5 px-3 py-1 rounded-lg text-xs max-w-[280px] truncate",
+              "bg-muted/60 border-l-2 border-purple-400"
+            )}
+          >
+            <Reply className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+            <span className="font-medium text-purple-600 dark:text-purple-300 flex-shrink-0">
+              {message.replyToSenderName || "..."}
+            </span>
+            <span className="text-muted-foreground truncate">
+              {truncate(message.replyToContent)}
+            </span>
+          </div>
+        )}
+
         {/* Bubble */}
         {isSticker ? (
-          <div className="text-5xl py-1">
-            {message.content}
-          </div>
+          <div className="text-5xl py-1">{message.content}</div>
         ) : (
-        <div
-          className={cn(
-            "max-w-[280px] break-words",
-            imageData ? "rounded-2xl overflow-hidden" : "px-4 py-2.5",
-            isMe
-              ? imageData
-                ? "rounded-br-sm"
-                : "bg-gradient-to-br from-purple-500 via-pink-500 to-purple-600 text-white rounded-2xl rounded-br-sm"
-              : imageData
-                ? "rounded-bl-sm"
-                : "bg-muted text-foreground rounded-2xl rounded-bl-sm",
-            !imageData && message.isPending && "opacity-70",
-            message.isError && "border-2 border-destructive"
-          )}
-        >
-          {imageData ? (
-            <div className={cn(
-              "border rounded-2xl overflow-hidden",
-              isMe ? "rounded-br-sm" : "rounded-bl-sm",
-              message.isPending && "opacity-70"
-            )}>
-              <img
-                src={imageData.imageUrl}
-                alt="Hình ảnh"
-                className="w-full max-h-60 object-cover cursor-pointer"
-                onClick={() => window.open(imageData.imageUrl, "_blank")}
-              />
-              {imageData.text && (
-                <div className={cn(
-                  "px-3 py-2 text-sm",
-                  isMe
-                    ? "bg-gradient-to-br from-purple-500 via-pink-500 to-purple-600 text-white"
-                    : "bg-muted text-foreground"
-                )}>
-                  <p className="whitespace-pre-wrap">{imageData.text}</p>
-                </div>
-              )}
-            </div>
-          ) : (
-            <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-          )}
-        </div>
+          <div
+            className={cn(
+              "max-w-[280px] break-words",
+              imageData
+                ? "rounded-2xl overflow-hidden"
+                : "px-4 py-2.5",
+              isMe
+                ? imageData
+                  ? "rounded-br-sm"
+                  : "bg-gradient-to-br from-purple-500 via-pink-500 to-purple-600 text-white rounded-2xl rounded-br-sm"
+                : imageData
+                  ? "rounded-bl-sm"
+                  : "bg-muted text-foreground rounded-2xl rounded-bl-sm",
+              !imageData && message.isPending && "opacity-70",
+              message.isError && "border-2 border-destructive"
+            )}
+          >
+            {imageData ? (
+              <div
+                className={cn(
+                  "border rounded-2xl overflow-hidden",
+                  isMe ? "rounded-br-sm" : "rounded-bl-sm",
+                  message.isPending && "opacity-70"
+                )}
+              >
+                <img
+                  src={imageData.imageUrl}
+                  alt="Hình ảnh"
+                  className="w-full max-h-60 object-cover cursor-pointer"
+                  onClick={() => window.open(imageData.imageUrl, "_blank")}
+                />
+                {imageData.text && (
+                  <div
+                    className={cn(
+                      "px-3 py-2 text-sm",
+                      isMe
+                        ? "bg-gradient-to-br from-purple-500 via-pink-500 to-purple-600 text-white"
+                        : "bg-muted text-foreground"
+                    )}
+                  >
+                    <p className="whitespace-pre-wrap">{imageData.text}</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+            )}
+          </div>
         )}
+
+        {/* Reactions */}
+        <ChatMessageReactions
+          reactions={message.reactions || []}
+          onToggleReaction={(emoji) => onReact?.(message.id, emoji)}
+          isMe={isMe}
+        />
 
         {/* Time + status */}
         <div
@@ -161,15 +230,29 @@ export const ChatMessageItem = ({
             isMe ? "mr-1" : "ml-1"
           )}
         >
-          {message.isPending && (
-            <Loader2 className="w-3 h-3 animate-spin" />
-          )}
+          {message.isPending && <Loader2 className="w-3 h-3 animate-spin" />}
           {message.isError && (
             <AlertCircle className="w-3 h-3 text-destructive" />
           )}
           <span>{formatMessageTime(message.createdAt)}</span>
         </div>
       </div>
+
+      {/* Actions overlay */}
+      {showActions && !message.isPending && !message.isError && (
+        <div
+          className={cn(
+            "absolute z-10",
+            isMe ? "right-0 -top-10" : "left-10 -top-10"
+          )}
+        >
+          <ChatMessageActions
+            onReact={handleReact}
+            onReply={handleReply}
+            isMe={isMe}
+          />
+        </div>
+      )}
     </div>
   );
 };
