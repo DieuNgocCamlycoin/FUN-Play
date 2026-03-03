@@ -227,7 +227,7 @@ const steps = [
             <li><strong>Hằng ngày 02:00</strong> — Tổng hợp dữ liệu hoạt động (Features)</li>
             <li><strong>Hằng ngày 02:30</strong> — Nhận diện chuỗi hành vi (Sequences)</li>
             <li><strong>Mỗi 4 giờ</strong> — Tính lại Light Score</li>
-            <li><strong>Thứ Hai 03:00</strong> — Chốt Epoch Mint (phân bổ FUN)</li>
+            <li><strong>Đầu tháng</strong> — Chốt Epoch Mint (phân bổ FUN cho tháng trước)</li>
           </ul>
         </div>
         <div className="bg-muted rounded-lg p-3 space-y-2">
@@ -334,7 +334,7 @@ const faqItems = [
   },
   {
     q: 'Epoch Mint là gì?',
-    a: 'FUN Money không được mint tức thì. Hệ thống tích lũy Light Score hằng ngày, sau đó phân phối FUN theo chu kỳ (Epoch) — thường chốt vào thứ Hai hàng tuần. Điều này đảm bảo cung tiền bền vững và công bằng cho toàn cộng đồng.'
+    a: 'FUN Money không được mint tức thì. Hệ thống tích lũy Light Score hằng ngày, sau đó phân phối FUN theo chu kỳ hàng tháng (Monthly Epoch). Mỗi đầu tháng mới, hệ thống chốt epoch tháng trước và phân bổ FUN cho các thành viên đủ điều kiện. Điều này đảm bảo cung tiền bền vững và công bằng cho toàn cộng đồng.'
   },
 ];
 

@@ -135,7 +135,7 @@ export const ELIGIBILITY_REASONS = {
   NO_ACTIVITY_IN_EPOCH: {
     code: 'no_activity_in_epoch',
     label: 'Chưa có hoạt động trong kỳ',
-    description: 'Cần tham gia hoạt động trong tuần hiện tại',
+    description: 'Cần tham gia hoạt động trong tháng hiện tại',
     emoji: '💤',
   },
   ANTI_WHALE_CAPPED: {
