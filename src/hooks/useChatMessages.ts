@@ -18,6 +18,10 @@ export interface ChatMessage {
     display_name: string | null;
     avatar_url: string | null;
   };
+  replyToId?: string | null;
+  replyToContent?: string | null;
+  replyToSenderName?: string | null;
+  reactions?: { emoji: string; count: number; hasMyReaction: boolean }[];
   // For optimistic UI
   isPending?: boolean;
   isError?: boolean;
@@ -32,6 +36,45 @@ export const useChatMessages = (chatId: string | undefined) => {
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
+
+  const fetchReactions = useCallback(async (messageIds: string[]) => {
+    if (messageIds.length === 0) return new Map<string, ChatMessage["reactions"]>();
+    
+    const { data } = await supabase
+      .from("chat_message_reactions")
+      .select("message_id, emoji, user_id")
+      .in("message_id", messageIds);
+
+    const reactionMap = new Map<string, ChatMessage["reactions"]>();
+    if (!data) return reactionMap;
+
+    // Group by message_id
+    const grouped = new Map<string, { emoji: string; user_id: string }[]>();
+    for (const r of data) {
+      const existing = grouped.get(r.message_id) || [];
+      existing.push({ emoji: r.emoji, user_id: r.user_id });
+      grouped.set(r.message_id, existing);
+    }
+
+    for (const [msgId, reactions] of grouped) {
+      const emojiMap = new Map<string, { count: number; hasMyReaction: boolean }>();
+      for (const r of reactions) {
+        const existing = emojiMap.get(r.emoji) || { count: 0, hasMyReaction: false };
+        existing.count++;
+        if (r.user_id === user?.id) existing.hasMyReaction = true;
+        emojiMap.set(r.emoji, existing);
+      }
+      reactionMap.set(
+        msgId,
+        Array.from(emojiMap.entries()).map(([emoji, data]) => ({
+          emoji,
+          ...data,
+        }))
+      );
+    }
+
+    return reactionMap;
+  }, [user?.id]);
 
   const fetchMessages = useCallback(async () => {
     if (!chatId || !user?.id) {
@@ -52,7 +95,8 @@ export const useChatMessages = (chatId: string | undefined) => {
           donation_transaction_id,
           deep_link,
           created_at,
-          is_read
+          is_read,
+          reply_to_id
         `)
         .eq("chat_id", chatId)
         .order("created_at", { ascending: true });
@@ -62,40 +106,93 @@ export const useChatMessages = (chatId: string | undefined) => {
       // Get unique sender IDs
       const senderIds = [...new Set(data?.map((m) => m.sender_id) || [])];
 
-      // Fetch sender profiles
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, username, display_name, avatar_url")
-        .in("id", senderIds);
+      // Fetch sender profiles and reactions in parallel
+      const [{ data: profiles }, reactionMap] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("id, username, display_name, avatar_url")
+          .in("id", senderIds),
+        fetchReactions(data?.map((m) => m.id) || []),
+      ]);
 
       const profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
 
-      const formattedMessages: ChatMessage[] = (data || []).map((msg) => ({
-        id: msg.id,
-        chatId: msg.chat_id,
-        senderId: msg.sender_id,
-        messageType: msg.message_type as "text" | "donation" | "system" | "image",
-        content: msg.content,
-        donationTransactionId: msg.donation_transaction_id,
-        deepLink: msg.deep_link,
-        createdAt: new Date(msg.created_at),
-        isRead: msg.is_read,
-        sender: profileMap.get(msg.sender_id),
-      }));
+      // Build reply info map
+      const replyToIds = data?.filter((m) => m.reply_to_id).map((m) => m.reply_to_id!) || [];
+      const replyInfoMap = new Map<string, { content: string | null; senderName: string | null }>();
+      
+      if (replyToIds.length > 0) {
+        // Look up reply targets from within the same data set first
+        const dataMap = new Map(data?.map((m) => [m.id, m]) || []);
+        for (const rid of replyToIds) {
+          const target = dataMap.get(rid);
+          if (target) {
+            const senderProfile = profileMap.get(target.sender_id);
+            replyInfoMap.set(rid, {
+              content: target.content,
+              senderName: senderProfile?.display_name || senderProfile?.username || null,
+            });
+          }
+        }
+
+        // Fetch any missing reply targets
+        const missing = replyToIds.filter((id) => !replyInfoMap.has(id));
+        if (missing.length > 0) {
+          const { data: replyMsgs } = await supabase
+            .from("chat_messages")
+            .select("id, content, sender_id")
+            .in("id", missing);
+          
+          if (replyMsgs) {
+            const replySenderIds = [...new Set(replyMsgs.map((m) => m.sender_id))];
+            const { data: replyProfiles } = await supabase
+              .from("profiles")
+              .select("id, username, display_name")
+              .in("id", replySenderIds);
+            const replyProfileMap = new Map(replyProfiles?.map((p) => [p.id, p]) || []);
+            
+            for (const rm of replyMsgs) {
+              const sp = replyProfileMap.get(rm.sender_id);
+              replyInfoMap.set(rm.id, {
+                content: rm.content,
+                senderName: sp?.display_name || sp?.username || null,
+              });
+            }
+          }
+        }
+      }
+
+      const formattedMessages: ChatMessage[] = (data || []).map((msg) => {
+        const replyInfo = msg.reply_to_id ? replyInfoMap.get(msg.reply_to_id) : null;
+        return {
+          id: msg.id,
+          chatId: msg.chat_id,
+          senderId: msg.sender_id,
+          messageType: msg.message_type as ChatMessage["messageType"],
+          content: msg.content,
+          donationTransactionId: msg.donation_transaction_id,
+          deepLink: msg.deep_link,
+          createdAt: new Date(msg.created_at),
+          isRead: msg.is_read,
+          sender: profileMap.get(msg.sender_id),
+          replyToId: msg.reply_to_id,
+          replyToContent: replyInfo?.content || null,
+          replyToSenderName: replyInfo?.senderName || null,
+          reactions: reactionMap.get(msg.id) || [],
+        };
+      });
 
       setMessages(formattedMessages);
-      
-      // Mark messages as read after fetching
       markAsRead();
     } catch (error) {
       console.error("Error fetching messages:", error);
     } finally {
       setLoading(false);
     }
-  }, [chatId, user?.id]);
+  }, [chatId, user?.id, fetchReactions]);
 
   const sendMessage = useCallback(
-    async (content: string, imageUrl?: string): Promise<boolean> => {
+    async (content: string, imageUrl?: string, replyToId?: string): Promise<boolean> => {
       if (!chatId || !user?.id || (!content.trim() && !imageUrl)) return false;
 
       const messageType = imageUrl ? "image" : "text";
@@ -115,6 +212,8 @@ export const useChatMessages = (chatId: string | undefined) => {
         createdAt: new Date(),
         isRead: false,
         isPending: true,
+        replyToId: replyToId || null,
+        reactions: [],
         sender: {
           id: user.id,
           username: "",
@@ -123,33 +222,30 @@ export const useChatMessages = (chatId: string | undefined) => {
         },
       };
 
-      // Optimistic update
       setMessages((prev) => [...prev, tempMessage]);
       scrollToBottom();
 
       try {
+        const insertData: any = {
+          chat_id: chatId,
+          sender_id: user.id,
+          message_type: messageType,
+          content: finalContent,
+        };
+        if (replyToId) insertData.reply_to_id = replyToId;
+
         const { data, error } = await supabase
           .from("chat_messages")
-          .insert({
-            chat_id: chatId,
-            sender_id: user.id,
-            message_type: messageType,
-            content: finalContent,
-          })
+          .insert(insertData)
           .select()
           .single();
 
         if (error) throw error;
 
-        // Replace temp message with real one
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === tempId
-              ? {
-                  ...msg,
-                  id: data.id,
-                  isPending: false,
-                }
+              ? { ...msg, id: data.id, isPending: false }
               : msg
           )
         );
@@ -157,15 +253,10 @@ export const useChatMessages = (chatId: string | undefined) => {
         return true;
       } catch (error) {
         console.error("Error sending message:", error);
-        // Mark as error
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === tempId
-              ? {
-                  ...msg,
-                  isPending: false,
-                  isError: true,
-                }
+              ? { ...msg, isPending: false, isError: true }
               : msg
           )
         );
@@ -175,9 +266,54 @@ export const useChatMessages = (chatId: string | undefined) => {
     [chatId, user?.id, scrollToBottom]
   );
 
+  const toggleReaction = useCallback(
+    async (messageId: string, emoji: string) => {
+      if (!user?.id) return;
+
+      // Optimistic update
+      setMessages((prev) =>
+        prev.map((msg) => {
+          if (msg.id !== messageId) return msg;
+          const reactions = [...(msg.reactions || [])];
+          const idx = reactions.findIndex((r) => r.emoji === emoji);
+          if (idx >= 0) {
+            if (reactions[idx].hasMyReaction) {
+              reactions[idx] = { ...reactions[idx], count: reactions[idx].count - 1, hasMyReaction: false };
+              if (reactions[idx].count <= 0) reactions.splice(idx, 1);
+            } else {
+              reactions[idx] = { ...reactions[idx], count: reactions[idx].count + 1, hasMyReaction: true };
+            }
+          } else {
+            reactions.push({ emoji, count: 1, hasMyReaction: true });
+          }
+          return { ...msg, reactions };
+        })
+      );
+
+      // Check if reaction exists
+      const { data: existing } = await supabase
+        .from("chat_message_reactions")
+        .select("id")
+        .eq("message_id", messageId)
+        .eq("user_id", user.id)
+        .eq("emoji", emoji)
+        .maybeSingle();
+
+      if (existing) {
+        await supabase.from("chat_message_reactions").delete().eq("id", existing.id);
+      } else {
+        await supabase.from("chat_message_reactions").insert({
+          message_id: messageId,
+          user_id: user.id,
+          emoji,
+        });
+      }
+    },
+    [user?.id]
+  );
+
   const markAsRead = useCallback(async () => {
     if (!chatId || !user?.id) return;
-
     try {
       await supabase
         .from("chat_messages")
@@ -195,7 +331,7 @@ export const useChatMessages = (chatId: string | undefined) => {
     fetchMessages();
   }, [fetchMessages]);
 
-  // Realtime subscription
+  // Realtime subscription for messages
   useEffect(() => {
     if (!chatId) return;
 
@@ -211,18 +347,24 @@ export const useChatMessages = (chatId: string | undefined) => {
         },
         async (payload) => {
           const newMsg = payload.new as any;
-          
-          // Don't add if it's our own message (already added optimistically)
-          if (newMsg.sender_id === user?.id) {
-            return;
-          }
+          if (newMsg.sender_id === user?.id) return;
 
-          // Fetch sender profile
           const { data: profile } = await supabase
             .from("profiles")
             .select("id, username, display_name, avatar_url")
             .eq("id", newMsg.sender_id)
             .single();
+
+          // Resolve reply info
+          let replyToContent: string | null = null;
+          let replyToSenderName: string | null = null;
+          if (newMsg.reply_to_id) {
+            const existingMsg = messages.find((m) => m.id === newMsg.reply_to_id);
+            if (existingMsg) {
+              replyToContent = existingMsg.content;
+              replyToSenderName = existingMsg.sender?.display_name || existingMsg.sender?.username || null;
+            }
+          }
 
           const formattedMessage: ChatMessage = {
             id: newMsg.id,
@@ -235,12 +377,14 @@ export const useChatMessages = (chatId: string | undefined) => {
             createdAt: new Date(newMsg.created_at),
             isRead: newMsg.is_read,
             sender: profile || undefined,
+            replyToId: newMsg.reply_to_id,
+            replyToContent,
+            replyToSenderName,
+            reactions: [],
           };
 
           setMessages((prev) => [...prev, formattedMessage]);
           scrollToBottom();
-          
-          // Mark as read immediately since user is viewing
           markAsRead();
         }
       )
@@ -251,10 +395,59 @@ export const useChatMessages = (chatId: string | undefined) => {
     };
   }, [chatId, user?.id, scrollToBottom, markAsRead]);
 
+  // Realtime subscription for reactions
+  useEffect(() => {
+    if (!chatId) return;
+
+    const channel = supabase
+      .channel(`chat-reactions-${chatId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "chat_message_reactions",
+        },
+        (payload) => {
+          const record = (payload.new || payload.old) as any;
+          if (!record?.message_id) return;
+
+          // Re-fetch reactions for this message
+          supabase
+            .from("chat_message_reactions")
+            .select("emoji, user_id")
+            .eq("message_id", record.message_id)
+            .then(({ data }) => {
+              if (!data) return;
+              const emojiMap = new Map<string, { count: number; hasMyReaction: boolean }>();
+              for (const r of data) {
+                const existing = emojiMap.get(r.emoji) || { count: 0, hasMyReaction: false };
+                existing.count++;
+                if (r.user_id === user?.id) existing.hasMyReaction = true;
+                emojiMap.set(r.emoji, existing);
+              }
+              const reactions = Array.from(emojiMap.entries()).map(([emoji, d]) => ({ emoji, ...d }));
+
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === record.message_id ? { ...msg, reactions } : msg
+                )
+              );
+            });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [chatId, user?.id]);
+
   return {
     messages,
     loading,
     sendMessage,
+    toggleReaction,
     markAsRead,
     messagesEndRef,
     scrollToBottom,

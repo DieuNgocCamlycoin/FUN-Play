@@ -1,13 +1,14 @@
 import { useState, useRef, KeyboardEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Heart, Loader2, ImagePlus, X, Gift } from "lucide-react";
+import { Send, Heart, Loader2, ImagePlus, X, Gift, Reply } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useR2Upload } from "@/hooks/useR2Upload";
 import { useToast } from "@/hooks/use-toast";
 import { resizeImage } from "@/lib/imageUtils";
 import { ChatEmojiStickerPicker } from "./ChatEmojiStickerPicker";
 import { EnhancedDonateModal } from "@/components/Donate/EnhancedDonateModal";
+import type { ChatMessage } from "@/hooks/useChatMessages";
 
 interface ChatInputProps {
   onSend: (content: string, imageUrl?: string) => Promise<boolean>;
@@ -16,6 +17,8 @@ interface ChatInputProps {
   otherUserName?: string;
   otherUserAvatar?: string | null;
   chatId?: string;
+  replyingTo?: ChatMessage | null;
+  onCancelReply?: () => void;
 }
 
 const MAX_IMAGE_SIZE_MB = 5;
@@ -27,6 +30,8 @@ export const ChatInput = ({
   otherUserName,
   otherUserAvatar,
   chatId,
+  replyingTo,
+  onCancelReply,
 }: ChatInputProps) => {
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
@@ -124,6 +129,28 @@ export const ChatInput = ({
 
   return (
     <div className="border-t bg-background/95 backdrop-blur p-3">
+      {/* Reply banner */}
+      {replyingTo && (
+        <div className="mb-2 flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/60 border-l-2 border-purple-400">
+          <Reply className="h-4 w-4 text-purple-500 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-medium text-purple-600 dark:text-purple-300">
+              Đang trả lời {replyingTo.sender?.display_name || replyingTo.sender?.username || "..."}
+            </p>
+            <p className="text-xs text-muted-foreground truncate">
+              {replyingTo.content?.slice(0, 80) || "📷 Hình ảnh"}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onCancelReply}
+            className="p-1 rounded-full hover:bg-muted"
+          >
+            <X className="h-3.5 w-3.5 text-muted-foreground" />
+          </button>
+        </div>
+      )}
+
       {/* Image preview */}
       {imagePreview && (
         <div className="mb-2 relative inline-block">
