@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Home, Zap, Users, Library, History, Video, Clock, ThumbsUp, Wallet, ListVideo, FileText, Tv, Trophy, Coins, UserPlus, Image, Sparkles, Music, ExternalLink, Globe } from "lucide-react";
+import { Home, Zap, Users, Library, History, Video, Clock, ThumbsUp, Wallet, ListVideo, FileText, Tv, Trophy, Coins, UserPlus, Image, Sparkles, Music, ExternalLink, Globe, Radio } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
@@ -26,6 +26,7 @@ interface NavItem {
 const mainNavItems: NavItem[] = [
   { icon: Home, label: "Trang chủ", href: "/" },
   { icon: Zap, label: "Shorts", href: "/shorts" },
+  { icon: Radio, label: "Trực tiếp", href: "/live" },
   { icon: Users, label: "Kênh đăng ký", href: "/subscriptions" },
   { icon: Sparkles, label: "Thiền cùng Cha", href: "/meditate", special: true },
   { icon: Music, label: "Tạo Nhạc Ánh Sáng", href: "/create-music", special: true },

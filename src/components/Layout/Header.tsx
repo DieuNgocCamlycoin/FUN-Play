@@ -230,6 +230,10 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
                 <FileVideo className="mr-2 h-4 w-4" />
                 Tải video lên
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate("/go-live")}>
+                <Radio className="mr-2 h-4 w-4 text-destructive" />
+                Phát sóng trực tiếp
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate("/create-music")}>
                 <Music className="mr-2 h-4 w-4 text-cyan-500" />
                 Tạo Nhạc Ánh Sáng

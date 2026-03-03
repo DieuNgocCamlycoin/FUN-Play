@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/Layout/Header";
 import { GoLiveForm } from "@/components/Live/GoLiveForm";
@@ -6,14 +6,16 @@ import { LivePlayer } from "@/components/Live/LivePlayer";
 import { useWebRTCStreamer } from "@/hooks/useWebRTC";
 import { useCreateLivestream } from "@/hooks/useLivestream";
 import { useAuth } from "@/hooks/useAuth";
+import { useMediaRecorder } from "@/hooks/useMediaRecorder";
 import { LiveChat } from "@/components/Live/LiveChat";
 import { LiveReactions } from "@/components/Live/LiveReactions";
 import { LiveDonationAlert } from "@/components/Live/LiveDonationAlert";
 import { LiveBadge } from "@/components/Live/LiveBadge";
 import { Button } from "@/components/ui/button";
-import { Users, Clock, Gift, PhoneOff, ArrowLeft } from "lucide-react";
+import { Users, Clock, PhoneOff, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 type Phase = "setup" | "preview" | "live";
 
@@ -25,6 +27,7 @@ const GoLive = () => {
   const navigate = useNavigate();
   const { localStream, viewerCount, startCamera, stopCamera, startStreaming, stopStreaming, isStreaming } = useWebRTCStreamer(livestreamId || "");
   const { createLivestream, goLive, endLive } = useCreateLivestream();
+  const { isRecording, startRecording, stopRecording } = useMediaRecorder();
 
   useEffect(() => {
     if (!loading && !user) navigate("/auth");
@@ -57,25 +60,65 @@ const GoLive = () => {
     try {
       await goLive(livestreamId);
       await startStreaming();
+      // Start recording
+      if (localStream) {
+        startRecording(localStream);
+      }
       setPhase("live");
       toast.success("🔴 Đang phát sóng trực tiếp!");
     } catch (err: any) {
       toast.error(err?.message || "Lỗi khi bắt đầu phát sóng");
     }
-  }, [livestreamId, goLive, startStreaming]);
+  }, [livestreamId, goLive, startStreaming, localStream, startRecording]);
 
   const handleEndLive = useCallback(async () => {
     if (!livestreamId) return;
     try {
+      // Stop recording and get blob
+      const recordedBlob = await stopRecording();
+      
       stopStreaming();
       stopCamera();
       await endLive(livestreamId);
+
+      // Upload VOD if we have recorded data
+      if (recordedBlob && recordedBlob.size > 0 && user) {
+        toast.info("Đang lưu bản ghi...");
+        const fileName = `vod/${user.id}/${livestreamId}.webm`;
+        const { error: uploadError } = await supabase.storage
+          .from("videos")
+          .upload(fileName, recordedBlob, { contentType: "video/webm" });
+
+        if (!uploadError) {
+          const { data: urlData } = supabase.storage.from("videos").getPublicUrl(fileName);
+          // Get user's channel
+          const { data: channel } = await supabase.from("channels").select("id").eq("user_id", user.id).single();
+          if (channel) {
+            const { data: videoData } = await supabase.from("videos").insert({
+              title: `[VOD] Livestream`,
+              user_id: user.id,
+              channel_id: channel.id,
+              video_url: urlData.publicUrl,
+              status: "published",
+            }).select("id").single();
+
+            if (videoData) {
+              await supabase.from("livestreams").update({ vod_video_id: videoData.id }).eq("id", livestreamId);
+              toast.success("Bản ghi đã được lưu!");
+            }
+          }
+        } else {
+          console.error("VOD upload failed:", uploadError);
+          toast.error("Không thể lưu bản ghi");
+        }
+      }
+
       toast.success("Đã kết thúc phát sóng");
       navigate("/studio");
     } catch (err: any) {
       toast.error("Lỗi khi kết thúc");
     }
-  }, [livestreamId, stopStreaming, stopCamera, endLive, navigate]);
+  }, [livestreamId, stopRecording, stopStreaming, stopCamera, endLive, navigate, user]);
 
   const formatTime = (s: number) => {
     const h = Math.floor(s / 3600);
@@ -137,6 +180,12 @@ const GoLive = () => {
                         <Users className="h-4 w-4" />
                         {viewerCount} người xem
                       </div>
+                      {isRecording && (
+                        <div className="flex items-center gap-1.5 text-destructive">
+                          <span className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
+                          Đang ghi
+                        </div>
+                      )}
                     </>
                   )}
                 </div>
