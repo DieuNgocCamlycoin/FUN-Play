@@ -1,10 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-const ICE_SERVERS = [
+const DEFAULT_ICE_SERVERS = [
   { urls: "stun:stun.l.google.com:19302" },
   { urls: "stun:stun1.l.google.com:19302" },
 ];
+
+async function fetchIceServers(): Promise<RTCIceServer[]> {
+  try {
+    const { data, error } = await supabase.functions.invoke("get-turn-credentials");
+    if (error || !data?.iceServers) return DEFAULT_ICE_SERVERS;
+    return data.iceServers;
+  } catch {
+    return DEFAULT_ICE_SERVERS;
+  }
+}
 
 type SignalPayload = {
   type: "offer" | "answer" | "candidate" | "join";
@@ -22,6 +32,8 @@ export function useWebRTCStreamer(livestreamId: string) {
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const userIdRef = useRef<string>("");
+  const iceServersRef = useRef<RTCIceServer[]>(DEFAULT_ICE_SERVERS);
+  const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const startCamera = useCallback(async (videoConstraints?: MediaTrackConstraints) => {
     try {
@@ -44,8 +56,21 @@ export function useWebRTCStreamer(livestreamId: string) {
     setLocalStream(null);
   }, []);
 
+  // Cập nhật viewer count vào DB khi peers thay đổi
+  const syncViewerCount = useCallback((count: number) => {
+    setViewerCount(count);
+    if (livestreamId) {
+      supabase.rpc("update_livestream_viewers", {
+        p_livestream_id: livestreamId,
+        p_count: count,
+      }).then(({ error }) => {
+        if (error) console.warn("Failed to sync viewer count:", error);
+      });
+    }
+  }, [livestreamId]);
+
   const createPeerConnection = useCallback((viewerId: string) => {
-    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    const pc = new RTCPeerConnection({ iceServers: iceServersRef.current });
 
     streamRef.current?.getTracks().forEach((track) => {
       pc.addTrack(track, streamRef.current!);
@@ -70,19 +95,22 @@ export function useWebRTCStreamer(livestreamId: string) {
       if (pc.connectionState === "disconnected" || pc.connectionState === "failed") {
         pc.close();
         peersRef.current.delete(viewerId);
-        setViewerCount(peersRef.current.size);
+        syncViewerCount(peersRef.current.size);
       }
     };
 
     peersRef.current.set(viewerId, pc);
-    setViewerCount(peersRef.current.size);
+    syncViewerCount(peersRef.current.size);
     return pc;
-  }, []);
+  }, [syncViewerCount]);
 
   const startStreaming = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     userIdRef.current = user.id;
+
+    // Lấy ICE servers (bao gồm TURN nếu có)
+    iceServersRef.current = await fetchIceServers();
 
     const channel = supabase.channel(`livestream:${livestreamId}`, {
       config: { broadcast: { self: false } },
@@ -130,16 +158,47 @@ export function useWebRTCStreamer(livestreamId: string) {
     await channel.subscribe();
     channelRef.current = channel;
     setIsStreaming(true);
+
+    // Bắt đầu heartbeat mỗi 15 giây
+    heartbeatRef.current = setInterval(() => {
+      supabase
+        .from("livestreams")
+        .update({ last_heartbeat_at: new Date().toISOString() })
+        .eq("id", livestreamId)
+        .then(({ error }) => {
+          if (error) console.warn("Heartbeat failed:", error);
+        });
+    }, 15_000);
+
+    // Gửi heartbeat đầu tiên ngay lập tức
+    supabase
+      .from("livestreams")
+      .update({ last_heartbeat_at: new Date().toISOString() })
+      .eq("id", livestreamId);
   }, [livestreamId, createPeerConnection]);
 
   const stopStreaming = useCallback(() => {
+    // Dọn heartbeat
+    if (heartbeatRef.current) {
+      clearInterval(heartbeatRef.current);
+      heartbeatRef.current = null;
+    }
+
     peersRef.current.forEach((pc) => pc.close());
     peersRef.current.clear();
     channelRef.current?.unsubscribe();
     channelRef.current = null;
     setIsStreaming(false);
     setViewerCount(0);
-  }, []);
+
+    // Reset viewer count trong DB
+    if (livestreamId) {
+      supabase.rpc("update_livestream_viewers", {
+        p_livestream_id: livestreamId,
+        p_count: 0,
+      });
+    }
+  }, [livestreamId]);
 
   useEffect(() => {
     return () => {
@@ -163,7 +222,10 @@ export function useWebRTCViewer(livestreamId: string, streamerId: string) {
     if (!user) return;
     userIdRef.current = user.id;
 
-    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    // Lấy ICE servers (bao gồm TURN nếu có)
+    const iceServers = await fetchIceServers();
+
+    const pc = new RTCPeerConnection({ iceServers });
     pcRef.current = pc;
 
     pc.ontrack = (e) => {

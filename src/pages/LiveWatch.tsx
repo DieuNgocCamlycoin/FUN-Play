@@ -28,7 +28,15 @@ const LiveWatch = () => {
 
   useEffect(() => {
     if (livestream?.status === "live" && livestream.user_id) {
-      connect();
+      // Kiểm tra heartbeat — nếu quá cũ (> 60s), coi như stream đã chết
+      const heartbeat = livestream.last_heartbeat_at
+        ? new Date(livestream.last_heartbeat_at).getTime()
+        : null;
+      const isZombie = heartbeat && Date.now() - heartbeat > 60_000;
+
+      if (!isZombie) {
+        connect();
+      }
     }
   }, [livestream?.status, livestream?.user_id, connect]);
 

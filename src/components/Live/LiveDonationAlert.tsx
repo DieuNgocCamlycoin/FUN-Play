@@ -38,14 +38,28 @@ export const LiveDonationAlert = ({ livestreamId }: LiveDonationAlertProps) => {
             .eq("id", msg.user_id)
             .single();
 
-          // Parse donation info from content (format: "amount|message")
-          const [amountStr, ...msgParts] = (msg.content || "0").split("|");
+          // Parse donation info from content
+          // Format: "💝 Đã tặng 100 CAMLY - "message"" hoặc "amount|message"
+          let parsedAmount = 0;
+          let parsedMessage: string | undefined;
+          
+          const camlyMatch = (msg.content || "").match(/tặng\s+([\d,.]+)\s*CAMLY/i);
+          if (camlyMatch) {
+            parsedAmount = parseFloat(camlyMatch[1].replace(/,/g, "")) || 0;
+            const msgMatch = (msg.content || "").match(/-\s*"(.+?)"/);
+            parsedMessage = msgMatch ? msgMatch[1] : undefined;
+          } else {
+            // Fallback: format "amount|message"
+            const [amountStr, ...msgParts] = (msg.content || "0").split("|");
+            parsedAmount = parseFloat(amountStr) || 0;
+            parsedMessage = msgParts.join("|") || undefined;
+          }
 
           const alert: DonationAlert = {
             id: msg.id,
             senderName: profile?.display_name || profile?.username || "Ẩn danh",
-            amount: parseFloat(amountStr) || 0,
-            message: msgParts.join("|") || undefined,
+            amount: parsedAmount,
+            message: parsedMessage,
           };
 
           setAlerts((prev) => [...prev, alert]);
