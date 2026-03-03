@@ -3656,6 +3656,10 @@ export type Database = {
         Args: { p_action: string; p_admin_id: string; p_max_requests?: number }
         Returns: Json
       }
+      finalize_livestream_vod: {
+        Args: { p_livestream_id: string; p_title?: string; p_video_url: string }
+        Returns: string
+      }
       freeze_user_rewards: {
         Args: { p_admin_id: string; p_user_id: string }
         Returns: undefined
