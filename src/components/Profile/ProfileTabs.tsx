@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProfilePostsTab } from "./ProfilePostsTab";
 import { ProfileVideosTab } from "./ProfileVideosTab";
 import { ProfilePlaylistsTab } from "./ProfilePlaylistsTab";
+import { ProfileLivestreamTab } from "./ProfileLivestreamTab";
 import { FileText, Video, Zap, Radio, ListMusic, Info, Calendar, Eye, Flag } from "lucide-react";
 import { ReportChannelButton } from "@/components/Channel/ReportChannelButton";
 import { motion } from "framer-motion";
@@ -114,13 +115,7 @@ export const ProfileTabs = ({ userId, channelId, isOwnProfile, banned, showRepor
         </TabsContent>
 
         <TabsContent value="livestream" className="mt-0">
-          <div className="text-center py-12">
-            <Radio className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
-            <h3 className="text-lg font-semibold text-foreground mb-2">Chưa có Livestream</h3>
-            <p className="text-muted-foreground text-sm">
-              Tính năng Livestream sẽ sớm ra mắt! 🎥
-            </p>
-          </div>
+          <ProfileLivestreamTab userId={userId} />
         </TabsContent>
 
         <TabsContent value="posts" className="mt-0">
