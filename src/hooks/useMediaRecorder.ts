@@ -20,6 +20,7 @@ export const useMediaRecorder = (): UseMediaRecorderReturn => {
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const mimeRef = useRef<string | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   const startRecording = useCallback((stream: MediaStream): boolean => {
     chunksRef.current = [];
@@ -31,6 +32,24 @@ export const useMediaRecorder = (): UseMediaRecorderReturn => {
         return false;
       }
 
+      // Validate tracks are active
+      const videoTracks = stream.getVideoTracks();
+      const audioTracks = stream.getAudioTracks();
+      console.log("[MediaRecorder] Stream tracks:", {
+        video: videoTracks.map(t => ({ id: t.id, enabled: t.enabled, readyState: t.readyState })),
+        audio: audioTracks.map(t => ({ id: t.id, enabled: t.enabled, readyState: t.readyState })),
+      });
+
+      const hasLiveTrack = [...videoTracks, ...audioTracks].some(t => t.readyState === "live");
+      if (!hasLiveTrack) {
+        console.error("[MediaRecorder] No live tracks in stream");
+        return false;
+      }
+
+      // Clone stream so WebRTC peer connections don't interfere
+      const recordingStream = stream.clone();
+      streamRef.current = recordingStream;
+
       const mimeType = MIME_CANDIDATES.find((m) => MediaRecorder.isTypeSupported(m)) || "";
 
       if (!mimeType) {
@@ -39,12 +58,12 @@ export const useMediaRecorder = (): UseMediaRecorderReturn => {
       }
 
       console.log("[MediaRecorder] Using mime type:", mimeType);
-      const recorder = new MediaRecorder(stream, { mimeType });
+      const recorder = new MediaRecorder(recordingStream, { mimeType });
 
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) {
           chunksRef.current.push(e.data);
-          console.log(`[MediaRecorder] Chunk received: ${(e.data.size / 1024).toFixed(1)} KB, total chunks: ${chunksRef.current.length}`);
+          console.log(`[MediaRecorder] Chunk #${chunksRef.current.length}: ${(e.data.size / 1024).toFixed(1)} KB`);
         }
       };
 
@@ -52,11 +71,23 @@ export const useMediaRecorder = (): UseMediaRecorderReturn => {
         console.error("[MediaRecorder] Recording error:", e);
       };
 
+      // Monitor track health periodically
+      const trackMonitor = setInterval(() => {
+        const tracks = recordingStream.getTracks();
+        const allEnded = tracks.every(t => t.readyState === "ended");
+        if (allEnded && recorderRef.current?.state === "recording") {
+          console.warn("[MediaRecorder] All tracks ended while recording - stopping");
+          clearInterval(trackMonitor);
+        }
+      }, 5000);
+
+      recorder.onstop = () => clearInterval(trackMonitor);
+
       recorder.start(1000);
       recorderRef.current = recorder;
       mimeRef.current = mimeType;
       setIsRecording(true);
-      console.log("[MediaRecorder] Started recording successfully");
+      console.log("[MediaRecorder] Started recording on CLONED stream successfully");
       return true;
     } catch (err) {
       console.error("[MediaRecorder] Failed to start recording:", err);
@@ -69,7 +100,20 @@ export const useMediaRecorder = (): UseMediaRecorderReturn => {
       const recorder = recorderRef.current;
       if (!recorder || recorder.state === "inactive") {
         console.warn("[MediaRecorder] stopRecording called but recorder is inactive/null");
-        resolve(null);
+        // Still try to build blob from any chunks we have
+        if (chunksRef.current.length > 0) {
+          const blobType = mimeRef.current || "video/webm";
+          const blob = new Blob(chunksRef.current, { type: blobType });
+          console.log(`[MediaRecorder] Built blob from ${chunksRef.current.length} orphan chunks: ${(blob.size / 1024 / 1024).toFixed(2)} MB`);
+          chunksRef.current = [];
+          cleanupStream();
+          setIsRecording(false);
+          resolve(blob.size > 0 ? blob : null);
+        } else {
+          cleanupStream();
+          setIsRecording(false);
+          resolve(null);
+        }
         return;
       }
 
@@ -84,17 +128,20 @@ export const useMediaRecorder = (): UseMediaRecorderReturn => {
 
       // Safety timeout: if onstop never fires, resolve with whatever we have
       const safetyTimeout = setTimeout(() => {
-        console.warn("[MediaRecorder] onstop timeout - resolving with collected chunks");
+        console.warn("[MediaRecorder] onstop timeout (5s) - resolving with collected chunks");
         const chunks = chunksRef.current;
         if (chunks.length > 0) {
           const blobType = mimeRef.current || "video/webm";
           const blob = new Blob(chunks, { type: blobType });
+          console.log(`[MediaRecorder] Safety blob: ${(blob.size / 1024 / 1024).toFixed(2)} MB from ${chunks.length} chunks`);
           chunksRef.current = [];
           recorderRef.current = null;
+          cleanupStream();
           setIsRecording(false);
           resolve(blob.size > 0 ? blob : null);
         } else {
           recorderRef.current = null;
+          cleanupStream();
           setIsRecording(false);
           resolve(null);
         }
@@ -104,9 +151,10 @@ export const useMediaRecorder = (): UseMediaRecorderReturn => {
         clearTimeout(safetyTimeout);
         const blobType = mimeRef.current || "video/webm";
         const blob = new Blob(chunksRef.current, { type: blobType });
-        console.log(`[MediaRecorder] Stopped. Blob size: ${(blob.size / 1024 / 1024).toFixed(2)} MB, chunks: ${chunksRef.current.length}`);
+        console.log(`[MediaRecorder] Stopped. Blob: ${(blob.size / 1024 / 1024).toFixed(2)} MB, chunks: ${chunksRef.current.length}`);
         chunksRef.current = [];
         recorderRef.current = null;
+        cleanupStream();
         setIsRecording(false);
 
         if (blob.size === 0) {
@@ -122,12 +170,31 @@ export const useMediaRecorder = (): UseMediaRecorderReturn => {
       } catch (e) {
         clearTimeout(safetyTimeout);
         console.error("[MediaRecorder] stop() threw:", e);
-        recorderRef.current = null;
-        setIsRecording(false);
-        resolve(null);
+        // Try to salvage chunks
+        if (chunksRef.current.length > 0) {
+          const blobType = mimeRef.current || "video/webm";
+          const blob = new Blob(chunksRef.current, { type: blobType });
+          chunksRef.current = [];
+          recorderRef.current = null;
+          cleanupStream();
+          setIsRecording(false);
+          resolve(blob.size > 0 ? blob : null);
+        } else {
+          recorderRef.current = null;
+          cleanupStream();
+          setIsRecording(false);
+          resolve(null);
+        }
       }
     });
   }, []);
+
+  const cleanupStream = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+    }
+  };
 
   return { isRecording, startRecording, stopRecording, actualMimeType: mimeRef.current };
 };
