@@ -1,72 +1,50 @@
 
 
-## Kế hoạch: Tích hợp Multisig 3-of-3 vào luồng Mint FUN Money chính
+## Kế hoạch: Trang quản lý GOV Attester cho Admin
 
-### Tình trạng hiện tại
-
-Hệ thống có **2 luồng mint tách biệt**:
-
-```text
-Luồng 1 (đang dùng):
-  User MINT NOW → mint_requests (DB) → Admin FunMoneyApprovalTab → mintFunMoney() [1 chữ ký] → on-chain
-
-Luồng 2 (đã xây nhưng chưa kết nối):
-  pplp_mint_requests (DB) → AttesterPanel [3 nhóm ký] → AdminMintPanel → lockWithPPLP [3 sigs] → on-chain
-```
-
-**Vấn đề**: Luồng 1 cho phép admin mint trực tiếp với 1 chữ ký, bỏ qua hoàn toàn cơ chế multisig 3-of-3.
+### Hiện trạng
+9 ví GOV Attester hiện được **hardcode** trong `src/lib/fun-money/pplp-multisig-config.ts`. Không có cách nào thay đổi thành viên mà không sửa code.
 
 ### Mục tiêu
-
-Khi admin duyệt request trong `FunMoneyApprovalTab`, thay vì mint trực tiếp, hệ thống sẽ **tạo record vào `pplp_mint_requests`** và chuyển sang luồng multisig 3-of-3.
-
-### Luồng mới
-
-```text
-User MINT NOW → mint_requests (DB)
-  → Admin duyệt (FunMoneyApprovalTab)
-    → Tạo pplp_mint_requests [status: pending_sig]
-      → 3 GOV Attesters ký (AttesterPanel): WILL + WISDOM + LOVE
-        → Khi đủ 3/3 [status: signed]
-          → Admin submit on-chain (AdminMintPanel) → lockWithPPLP [3 sigs]
-```
+Tạo bảng `gov_attesters` trong database và trang admin để quản lý 3 nhóm GOV (WILL, WISDOM, LOVE) — xem, thêm, sửa, xóa thành viên.
 
 ### Thay đổi kỹ thuật
 
-#### 1. Sửa `FunMoneyApprovalTab.tsx` — Thay `handleMint` bằng `handleRouteToMultisig`
-- Khi admin bấm "Mint" hoặc "Approve & Mint", thay vì gọi `mintFunMoney()`, tạo record trong `pplp_mint_requests` với:
-  - `recipient_address` = user wallet
-  - `amount_wei` = calculated_amount_atomic
-  - `action_type` = request.action_type
-  - `status` = `pending_sig`
-  - `multisig_required_groups` = ['will', 'wisdom', 'love']
-  - `action_hash`, `evidence_hash`, `nonce` (lấy từ contract)
-- Cập nhật `mint_requests.status` = `'approved'` và ghi note "Routed to multisig"
-- Hiển thị toast: "Đã chuyển sang luồng Multisig 3/3. Chờ 3 nhóm GOV ký."
+#### 1. Database Migration — Tạo bảng `gov_attesters`
+```sql
+CREATE TABLE public.gov_attesters (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  gov_group TEXT NOT NULL CHECK (gov_group IN ('will', 'wisdom', 'love')),
+  name TEXT NOT NULL,
+  wallet_address TEXT NOT NULL,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (wallet_address)
+);
+```
+- RLS: chỉ admin được CRUD, authenticated users được SELECT (cần đọc để verify chữ ký)
+- Seed 9 thành viên hiện tại vào bảng
 
-#### 2. Tạo helper `createMultisigRequest()` trong `src/lib/fun-money/pplp-multisig-helpers.ts`
-- Hàm tiện ích để tạo record `pplp_mint_requests` từ dữ liệu `mint_requests`
-- Đọc nonce on-chain cho recipient
-- Tạo action_hash và evidence_hash
+#### 2. Tạo component `GovAttesterManagementTab.tsx`
+- Hiển thị 3 nhóm GOV dưới dạng cards (WILL, WISDOM, LOVE)
+- Mỗi card liệt kê thành viên: tên, địa chỉ ví (rút gọn), trạng thái active/inactive
+- Nút thêm thành viên mới (dialog với form: tên, địa chỉ ví, chọn nhóm)
+- Nút sửa/xóa (toggle active) cho từng thành viên
+- Hiển thị cảnh báo nếu nhóm nào có ít hơn 1 thành viên active
 
-#### 3. Cập nhật UI `FunMoneyApprovalTab`
-- Thay nút "Mint" bằng "Chuyển Multisig 3/3"
-- Hiển thị trạng thái nếu request đã được route sang multisig (link đến tab MultisigMint)
-- Ẩn nút mint trực tiếp hoàn toàn
+#### 3. Cập nhật `pplp-multisig-config.ts`
+- Thêm hook `useGovAttesters()` để fetch từ database thay vì hardcode
+- Giữ lại hardcode config làm **fallback** khi chưa có data trong DB
+- Các helper functions (`getGroupForAddress`, `isAttesterAddress`...) sẽ ưu tiên dùng DB data
 
-#### 4. Cập nhật `MultisigMintTab` / `AttesterPanel`
-- Không cần thay đổi logic — đã hoạt động đúng với `pplp_mint_requests`
-- Chỉ cần đảm bảo realtime subscription hoạt động để attester thấy request mới ngay
-
-#### 5. Liên kết 2 bảng
-- Thêm cột `source_mint_request_id` vào `pplp_mint_requests` (optional, để truy vết nguồn gốc)
-- Hoặc đơn giản hơn: ghi `mint_request_id` vào metadata/notes
+#### 4. Đăng ký tab mới trong Admin Layout
+- Thêm section `"gov-attesters"` vào `AdminSection` type trong `UnifiedAdminLayout.tsx`
+- Thêm nav item với icon `Users` và label "GOV Attesters"
+- Thêm case trong `UnifiedAdminDashboard.tsx` để render tab mới
 
 ### Không thay đổi
-- Smart contract (giữ nguyên `attesterThreshold = 1`, nhưng app layer bắt buộc 3/3)
-- `AdminMintPanel` + `useMintSubmit` (đã sẵn sàng submit 3 sigs)
-- `AttesterPanel` + `useAttesterSigning` (đã sẵn sàng ký)
-
-### Migration DB (nếu cần)
-- Thêm cột `source_mint_request_id UUID REFERENCES mint_requests(id)` vào `pplp_mint_requests` để liên kết 2 bảng
+- Smart contract (quản lý attester on-chain là việc riêng)
+- Logic ký multisig trong `AttesterPanel` / `useAttesterSigning`
+- Luồng mint đã tích hợp multisig 3-of-3
 
