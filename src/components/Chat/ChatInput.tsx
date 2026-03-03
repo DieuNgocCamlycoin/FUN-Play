@@ -1,24 +1,38 @@
 import { useState, useRef, KeyboardEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Heart, Loader2, ImagePlus, X } from "lucide-react";
+import { Send, Heart, Loader2, ImagePlus, X, Gift } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useR2Upload } from "@/hooks/useR2Upload";
 import { useToast } from "@/hooks/use-toast";
 import { resizeImage } from "@/lib/imageUtils";
+import { ChatEmojiStickerPicker } from "./ChatEmojiStickerPicker";
+import { EnhancedDonateModal } from "@/components/Donate/EnhancedDonateModal";
 
 interface ChatInputProps {
   onSend: (content: string, imageUrl?: string) => Promise<boolean>;
   disabled?: boolean;
+  otherUserId?: string;
+  otherUserName?: string;
+  otherUserAvatar?: string | null;
+  chatId?: string;
 }
 
 const MAX_IMAGE_SIZE_MB = 5;
 
-export const ChatInput = ({ onSend, disabled }: ChatInputProps) => {
+export const ChatInput = ({
+  onSend,
+  disabled,
+  otherUserId,
+  otherUserName,
+  otherUserAvatar,
+  chatId,
+}: ChatInputProps) => {
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [donateModalOpen, setDonateModalOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { uploadToR2, uploading } = useR2Upload({ folder: "chat" });
@@ -89,13 +103,21 @@ export const ChatInput = ({ onSend, disabled }: ChatInputProps) => {
     reader.onloadend = () => setImagePreview(reader.result as string);
     reader.readAsDataURL(file);
 
-    // Reset input so the same file can be selected again
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const clearImage = () => {
     setImageFile(null);
     setImagePreview(null);
+  };
+
+  const handleEmojiSelect = (emoji: string) => {
+    setMessage((prev) => prev + emoji);
+    textareaRef.current?.focus();
+  };
+
+  const handleSendSticker = async (sticker: string) => {
+    await onSend(sticker);
   };
 
   const isBusy = sending || uploading;
@@ -120,7 +142,7 @@ export const ChatInput = ({ onSend, disabled }: ChatInputProps) => {
         </div>
       )}
 
-      <div className="flex items-end gap-2">
+      <div className="flex items-end gap-1">
         {/* Image picker button */}
         <Button
           type="button"
@@ -139,6 +161,25 @@ export const ChatInput = ({ onSend, disabled }: ChatInputProps) => {
           className="hidden"
           onChange={handleImageSelect}
         />
+
+        {/* Emoji/Sticker picker */}
+        <ChatEmojiStickerPicker
+          onEmojiSelect={handleEmojiSelect}
+          onSendSticker={handleSendSticker}
+          disabled={disabled || isBusy}
+        />
+
+        {/* Gift button */}
+        <Button
+          type="button"
+          size="icon"
+          variant="ghost"
+          className="h-11 w-11 rounded-full flex-shrink-0 text-muted-foreground hover:text-pink-500"
+          disabled={disabled || isBusy}
+          onClick={() => setDonateModalOpen(true)}
+        >
+          <Gift className="h-5 w-5" />
+        </Button>
 
         {/* Input */}
         <div className="flex-1 relative">
@@ -186,6 +227,17 @@ export const ChatInput = ({ onSend, disabled }: ChatInputProps) => {
       <p className="text-[10px] text-muted-foreground mt-1.5 ml-2">
         Enter để gửi • Shift+Enter xuống dòng
       </p>
+
+      {/* Donate Modal */}
+      <EnhancedDonateModal
+        open={donateModalOpen}
+        onOpenChange={setDonateModalOpen}
+        defaultReceiverId={otherUserId}
+        defaultReceiverName={otherUserName}
+        defaultReceiverAvatar={otherUserAvatar || undefined}
+        contextType="comment"
+        contextId={chatId}
+      />
     </div>
   );
 };
