@@ -261,11 +261,12 @@ export function useLightActivity(userId: string | undefined): UseLightActivityRe
           .eq('user_id', userId)
           .eq('platform_id', 'FUN_PLAY'),
 
-        // Total FUN already minted (all platforms, non-rejected)
+        // Total FUN already minted (FUN_PLAY only, non-rejected)
         (supabase as any)
           .from('mint_requests')
           .select('calculated_amount_formatted, status')
           .eq('user_id', userId)
+          .eq('platform_id', 'FUN_PLAY')
           .neq('status', 'rejected')
       ]);
 

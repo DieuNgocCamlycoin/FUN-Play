@@ -337,11 +337,11 @@ export function MintableCard({ activity, loading, onMintSuccess }: MintableCardP
         {/* Quick Stats */}
         <div className="grid grid-cols-3 gap-4 pt-4 border-t border-border/50">
           <div className="text-center">
-            <p className="text-2xl font-bold text-primary">{(activity.totalMultipliedReward ?? 0).toLocaleString()}</p>
+            <p className="text-2xl font-bold text-primary">{(activity.totalMultipliedReward ?? 0).toFixed(2)}</p>
             <p className="text-xs text-muted-foreground">Tổng FUN</p>
           </div>
           <div className="text-center">
-            <p className="text-2xl font-bold text-yellow-500">{(activity.alreadyMintedFun ?? 0).toLocaleString()}</p>
+            <p className="text-2xl font-bold text-yellow-500">{(activity.alreadyMintedFun ?? 0).toFixed(2)}</p>
             <p className="text-xs text-muted-foreground">Đã Mint</p>
           </div>
           <div className="text-center">
