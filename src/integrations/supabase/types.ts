@@ -1116,6 +1116,36 @@ export type Database = {
         }
         Relationships: []
       }
+      gov_attesters: {
+        Row: {
+          created_at: string
+          gov_group: string
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+          wallet_address: string
+        }
+        Insert: {
+          created_at?: string
+          gov_group: string
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+          wallet_address: string
+        }
+        Update: {
+          created_at?: string
+          gov_group?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+          wallet_address?: string
+        }
+        Relationships: []
+      }
       internal_wallets: {
         Row: {
           balance: number
