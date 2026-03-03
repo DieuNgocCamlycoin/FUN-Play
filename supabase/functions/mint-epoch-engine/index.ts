@@ -9,7 +9,7 @@ const corsHeaders = {
 /**
  * Mint Epoch Engine
  * 
- * Creates weekly epochs, calculates allocations based on light scores,
+ * Creates monthly epochs, calculates allocations based on light scores,
  * and distributes mint pool proportionally.
  * 
  * Flow:
@@ -19,7 +19,7 @@ const corsHeaders = {
  * 4. Write mint_allocations
  */
 
-const DEFAULT_WEEKLY_POOL = 5000000; // FUN per week (5M pool)
+const DEFAULT_MONTHLY_POOL = 5000000; // FUN per month (5M pool)
 const MAX_SHARE_PER_USER = 0.03; // 3% anti-whale cap
 
 Deno.serve(async (req) => {
@@ -33,11 +33,11 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    let poolAmount = DEFAULT_WEEKLY_POOL;
+    let poolAmount = DEFAULT_MONTHLY_POOL;
     let action = "auto"; // "auto" | "finalize" | "create"
     try {
       const body = await req.json();
-      poolAmount = body.pool_amount || DEFAULT_WEEKLY_POOL;
+      poolAmount = body.pool_amount || DEFAULT_MONTHLY_POOL;
       action = body.action || "auto";
     } catch {
       // defaults
@@ -138,16 +138,11 @@ Deno.serve(async (req) => {
     // Step 2: Create new epoch for current week
     if (action === "auto" || action === "create") {
       const now = new Date();
-      const dayOfWeek = now.getUTCDay();
-      const weekStart = new Date(now);
-      weekStart.setUTCDate(now.getUTCDate() - dayOfWeek);
-      weekStart.setUTCHours(0, 0, 0, 0);
+      const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+      const monthEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0));
 
-      const weekEnd = new Date(weekStart);
-      weekEnd.setUTCDate(weekStart.getUTCDate() + 6);
-
-      const periodStart = weekStart.toISOString().slice(0, 10);
-      const periodEnd = weekEnd.toISOString().slice(0, 10);
+      const periodStart = monthStart.toISOString().slice(0, 10);
+      const periodEnd = monthEnd.toISOString().slice(0, 10);
 
       // Check if epoch already exists for this period
       const { data: existingEpoch } = await supabase
