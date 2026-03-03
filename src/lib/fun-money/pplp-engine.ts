@@ -3,6 +3,8 @@
  * SDK v1.0
  */
 
+import { validatePPLP } from './constitution';
+
 // ===== TYPE DEFINITIONS =====
 
 export interface PillarScores {
@@ -277,7 +279,6 @@ export interface ScoringInput {
 export function scoreAction(input: ScoringInput): ScoringResult {
   // PPLP v2.0 — 5 điều kiện bắt buộc (Chương III Constitution v2.0)
   if (input.pplpValidation) {
-    const { validatePPLP } = require('./constitution') as typeof import('./constitution');
     const { valid, failedConditions } = validatePPLP(input.pplpValidation);
     if (!valid) {
       return {
