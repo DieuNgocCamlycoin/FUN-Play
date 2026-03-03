@@ -138,9 +138,9 @@ export function EnhancedVideoPlayer({
       const dur = video.duration;
       if (!dur || dur <= 0) return;
 
-      // Short video (≤180s): watch ≥90%; Long video (>180s): watch ≥300s
+      // Short video (≤180s): watch ≥90%; Long video (>180s): watch ≥min(300s, 90%)
       const isShort = dur <= 180;
-      const threshold = isShort ? dur * 0.9 : 300;
+      const threshold = isShort ? dur * 0.9 : Math.min(300, dur * 0.9);
 
       if (accumulatedWatchTimeRef.current >= threshold) {
         setViewRewarded(true);
