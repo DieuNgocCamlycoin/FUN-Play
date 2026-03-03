@@ -1,0 +1,1 @@
+UPDATE profiles SET light_score = 60, light_score_details = COALESCE(light_score_details, '{}'::jsonb) || '{"final_score": 60, "level": "sprout"}'::jsonb WHERE username = 'angelgiau';
