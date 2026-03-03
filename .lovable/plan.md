@@ -1,54 +1,37 @@
 
 
-## Áp dụng Context Menu & Ghim cho tin nhắn Tặng Thưởng (Donation)
+## Nâng cấp giao diện TransactionStats — Sắc nét & rõ ràng hơn
 
-### Vấn đề hiện tại
+### Tham khảo
 
-Trong `ChatMessageItem.tsx`, tin nhắn loại `donation` được trả về sớm ở dòng 111-130, **bỏ qua hoàn toàn** các tính năng:
-- Context menu (nhấn giữ / chuột phải)
-- Reaction (thả cảm xúc)
-- Ghim (Pin)
-- Biểu tượng ghim bên cạnh thời gian
-- Backdrop mờ khi menu mở
-
-### Giải pháp
-
-Xoá khối return sớm cho donation (dòng 111-130) và **gộp** `ChatDonationCard` vào luồng render chính, ngang hàng với tin nhắn text/image/sticker. Cụ thể:
-
-#### Cập nhật `src/components/Chat/ChatMessageItem.tsx`
-
-1. **Bỏ khối return sớm** cho `messageType === "donation"` (dòng 111-130)
-
-2. **Trong khối render chính** (sau reply preview, trước reactions), thêm điều kiện render:
-   - Nếu `messageType === "donation"` → render `ChatDonationCard`
-   - Nếu là sticker → render emoji lớn (giữ nguyên)
-   - Còn lại → render bubble text/image (giữ nguyên)
-
-3. **Giữ nguyên** tất cả tính năng bao quanh:
-   - `onContextMenu` + `longPressHandlers` trên wrapper
-   - Backdrop mờ khi `showActions`
-   - Context menu `ChatMessageActions` với đầy đủ Reaction/Reply/Pin/Copy
-   - `ChatMessageReactions` hiển thị reaction
-   - Dòng thời gian + biểu tượng ghim
-
-4. **Xử lý Copy cho donation**: Khi nhấn "Sao chép" trên tin nhắn donation, sao chép nội dung text (content) của tin nhắn thay vì toàn bộ JSON.
-
-### Chi tiết kỹ thuật
-
-Cấu trúc render mới trong phần bubble:
-
-```text
-if (messageType === "donation")
-  -> ChatDonationCard (giữ nguyên props)
-else if (isSticker)
-  -> emoji lớn text-5xl
-else
-  -> bubble text/image (giữ nguyên)
-```
-
-Tất cả 3 nhánh đều nằm trong cùng wrapper có context menu, reactions và thời gian.
+Dựa trên 2 hình ảnh, thiết kế mới cần:
+- Card viền mỏng, nền sạch (không backdrop-blur mờ)
+- Icon nhỏ gọn nằm cùng dòng với label
+- Label ngắn gọn hơn: "Tổng giao", "Tổng giá trị", "Hôm nay", "Thành công", "Xử lý"
+- Giá trị (value) to, đậm, nổi bật
+- 5 card ngang hàng trên desktop, 2-3 cột trên mobile
+- Bỏ hiệu ứng glass/blur, thay bằng card phẳng có border rõ ràng
 
 ### File cần sửa
 
-- `src/components/Chat/ChatMessageItem.tsx` — duy nhất 1 file
+**`src/components/Transactions/TransactionStats.tsx`** — duy nhất 1 file
+
+### Chi tiết thay đổi
+
+1. **Card style mới**: Bỏ `bg-card/50 backdrop-blur-sm border-border/50`, thay bằng `bg-background border border-border rounded-xl` — nền trắng/sạch, viền rõ ràng
+
+2. **Layout icon + label trên cùng dòng**: Icon nhỏ (h-3.5 w-3.5) nằm bên trái label text, cùng một hàng ngang. Bỏ khối icon background lớn (p-2 rounded-lg)
+
+3. **Rút gọn label**:
+   - "Tổng giao dịch" -> "Tổng giao"
+   - "Tổng giá trị" -> "Tổng giá trị" (giữ nguyên)
+   - "Hôm nay" -> "Hôm nay" (giữ nguyên)
+   - "Thành công" -> "Thành công" (giữ nguyên)
+   - "Chờ xử lý" -> "Xử lý"
+
+4. **Value nổi bật hơn**: Tăng cỡ chữ value lên `text-xl font-bold`, suffix (CAMLY) vẫn nhỏ `text-xs`
+
+5. **Bố cục**: Giữ grid `grid-cols-2 md:grid-cols-5`, bỏ thuộc tính `wide` (col-span-2) cho "Tổng giá trị" vì không cần thiết với label rút gọn
+
+6. **Giữ nguyên**: Tooltip hiển thị giá trị đầy đủ khi hover vào "Tổng giá trị", logic format số
 
