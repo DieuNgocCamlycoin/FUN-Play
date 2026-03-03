@@ -24,7 +24,7 @@ interface EnhancedDonateModalProps {
   defaultReceiverName?: string;
   defaultReceiverAvatar?: string;
   defaultReceiverWallet?: string;
-  contextType?: "global" | "post" | "video" | "comment";
+  contextType?: "global" | "post" | "video" | "comment" | "livestream";
   contextId?: string;
   onSuccess?: (transaction: DonationTransaction) => void;
 }

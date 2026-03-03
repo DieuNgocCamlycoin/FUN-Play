@@ -1,7 +1,8 @@
-import { LayoutDashboard, Video, ListVideo, Settings, MessageSquare, FileText, BarChart3 } from "lucide-react";
+import { LayoutDashboard, Video, ListVideo, Settings, MessageSquare, FileText, BarChart3, Radio } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { useNavigate } from "react-router-dom";
 
 interface StudioSidebarProps {
   isOpen: boolean;
@@ -21,6 +22,8 @@ const menuItems = [
 ];
 
 export const StudioSidebar = ({ isOpen, onClose, activeTab, onTabChange }: StudioSidebarProps) => {
+  const navigate = useNavigate();
+
   return (
     <>
       {/* Mobile overlay */}
@@ -42,6 +45,17 @@ export const StudioSidebar = ({ isOpen, onClose, activeTab, onTabChange }: Studi
           <div className="py-4 px-2">
             <div className="mb-4 px-4">
               <h2 className="text-lg font-semibold text-foreground">Studio</h2>
+            </div>
+
+            {/* Go Live Button */}
+            <div className="px-2 mb-3">
+              <Button
+                onClick={() => navigate("/go-live")}
+                className="w-full bg-destructive hover:bg-destructive/90 text-destructive-foreground gap-2"
+              >
+                <Radio className="h-5 w-5" />
+                Phát sóng trực tiếp
+              </Button>
             </div>
 
             <div className="space-y-1">

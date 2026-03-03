@@ -48,7 +48,7 @@ interface CreateDonationParams {
   tokenSymbol: string;
   amount: number;
   message?: string;
-  contextType?: "global" | "post" | "video" | "comment";
+  contextType?: "global" | "post" | "video" | "comment" | "livestream";
   contextId?: string;
   receiverWalletAddress?: string;
   theme?: string;

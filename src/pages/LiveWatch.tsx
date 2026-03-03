@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Header } from "@/components/Layout/Header";
 import { LivePlayer } from "@/components/Live/LivePlayer";
@@ -7,25 +7,45 @@ import { LiveReactions } from "@/components/Live/LiveReactions";
 import { LiveDonationAlert } from "@/components/Live/LiveDonationAlert";
 import { useWebRTCViewer } from "@/hooks/useWebRTC";
 import { useLivestream } from "@/hooks/useLivestream";
+import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Users } from "lucide-react";
+import { ArrowLeft, Gift } from "lucide-react";
 import { LiveBadge } from "@/components/Live/LiveBadge";
+import { EnhancedDonateModal } from "@/components/Donate/EnhancedDonateModal";
+import { supabase } from "@/integrations/supabase/client";
 
 const LiveWatch = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { livestream, isLoading } = useLivestream(id);
   const { remoteStream, connectionState, connect } = useWebRTCViewer(
     id || "",
     livestream?.user_id || ""
   );
+  const [donateModalOpen, setDonateModalOpen] = useState(false);
 
   useEffect(() => {
     if (livestream?.status === "live" && livestream.user_id) {
       connect();
     }
   }, [livestream?.status, livestream?.user_id, connect]);
+
+  const handleDonationSuccess = async (transaction: any) => {
+    if (!id) return;
+    // Auto-send donation message to livestream chat
+    try {
+      await supabase.from("livestream_chat").insert({
+        livestream_id: id,
+        user_id: transaction.sender_id,
+        content: `💝 Đã tặng ${transaction.amount} CAMLY${transaction.message ? ` - "${transaction.message}"` : ""}`,
+        message_type: "donation",
+      });
+    } catch (err) {
+      console.error("Failed to send donation chat message:", err);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -109,6 +129,17 @@ const LiveWatch = () => {
                     <p className="text-sm text-muted-foreground mt-2">{livestream.description}</p>
                   )}
                 </div>
+
+                {/* Donate button */}
+                {!isEnded && user && livestream.user_id !== user.id && (
+                  <Button
+                    onClick={() => setDonateModalOpen(true)}
+                    className="bg-destructive hover:bg-destructive/90 text-destructive-foreground gap-2 shrink-0"
+                  >
+                    <Gift className="h-4 w-4" />
+                    Tặng CAMLY
+                  </Button>
+                )}
               </div>
             </div>
           </div>
@@ -119,6 +150,18 @@ const LiveWatch = () => {
           </div>
         </div>
       </div>
+
+      {/* Donate Modal */}
+      <EnhancedDonateModal
+        open={donateModalOpen}
+        onOpenChange={setDonateModalOpen}
+        defaultReceiverId={livestream.user_id}
+        defaultReceiverName={livestream.profile?.display_name || livestream.profile?.username || "Streamer"}
+        defaultReceiverAvatar={livestream.profile?.avatar_url || undefined}
+        contextType="livestream"
+        contextId={livestream.id}
+        onSuccess={handleDonationSuccess}
+      />
     </div>
   );
 };
