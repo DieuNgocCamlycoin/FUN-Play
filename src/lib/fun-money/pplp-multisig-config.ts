@@ -1,6 +1,10 @@
 /**
  * PPLP Multisig 3-of-3 Configuration
  * GOV Groups: WILL + WISDOM + LOVE
+ * 
+ * NOTE: These hardcoded values serve as FALLBACK only.
+ * Primary source of truth is the `gov_attesters` database table.
+ * See useGovAttesters.ts and useAttesterSigning.ts for DB-first logic.
  */
 
 import { DEFAULT_CONTRACT_ADDRESS, BSC_TESTNET_CONFIG } from './web3-config';
@@ -23,7 +27,7 @@ export interface GovGroup {
   members: GovMember[];
 }
 
-// ===== GOV GROUPS CONFIGURATION =====
+// ===== GOV GROUPS CONFIGURATION (FALLBACK) =====
 
 export const GOV_GROUPS: Record<GovGroupName, GovGroup> = {
   will: {
@@ -68,9 +72,9 @@ export const REQUIRED_GROUPS: GovGroupName[] = ['will', 'wisdom', 'love'];
 
 export const ALL_ATTESTERS = Object.values(GOV_GROUPS).flatMap(g => g.members);
 
-// ===== HELPER FUNCTIONS =====
+// ===== HELPER FUNCTIONS (FALLBACK - config-only) =====
 
-/** Get the GOV group for a wallet address */
+/** Get the GOV group for a wallet address (config fallback only) */
 export function getGroupForAddress(address: string): GovGroupName | null {
   const lower = address.toLowerCase();
   for (const [groupName, group] of Object.entries(GOV_GROUPS)) {
@@ -81,12 +85,12 @@ export function getGroupForAddress(address: string): GovGroupName | null {
   return null;
 }
 
-/** Check if an address is a registered attester */
+/** Check if an address is a registered attester (config fallback only) */
 export function isAttesterAddress(address: string): boolean {
   return getGroupForAddress(address) !== null;
 }
 
-/** Get attester name by address */
+/** Get attester name by address (config fallback only) */
 export function getAttesterName(address: string): string | null {
   const lower = address.toLowerCase();
   for (const group of Object.values(GOV_GROUPS)) {
@@ -96,7 +100,7 @@ export function getAttesterName(address: string): string | null {
   return null;
 }
 
-/** Get group info by address */
+/** Get group info by address (config fallback only) */
 export function getAttesterInfo(address: string): { group: GovGroupName; name: string; groupLabel: string } | null {
   const lower = address.toLowerCase();
   for (const group of Object.values(GOV_GROUPS)) {
