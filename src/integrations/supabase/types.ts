@@ -522,8 +522,11 @@ export type Database = {
           deep_link: string | null
           donation_transaction_id: string | null
           id: string
+          is_pinned: boolean
           is_read: boolean
           message_type: string
+          pinned_at: string | null
+          pinned_by: string | null
           reply_to_id: string | null
           sender_id: string
         }
@@ -534,8 +537,11 @@ export type Database = {
           deep_link?: string | null
           donation_transaction_id?: string | null
           id?: string
+          is_pinned?: boolean
           is_read?: boolean
           message_type?: string
+          pinned_at?: string | null
+          pinned_by?: string | null
           reply_to_id?: string | null
           sender_id: string
         }
@@ -546,8 +552,11 @@ export type Database = {
           deep_link?: string | null
           donation_transaction_id?: string | null
           id?: string
+          is_pinned?: boolean
           is_read?: boolean
           message_type?: string
+          pinned_at?: string | null
+          pinned_by?: string | null
           reply_to_id?: string | null
           sender_id?: string
         }

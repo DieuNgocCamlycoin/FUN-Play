@@ -1,5 +1,5 @@
-import { useState, useRef, useCallback } from "react";
-import { Reply } from "lucide-react";
+import { useRef, useCallback } from "react";
+import { Reply, Pin, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const REACTION_EMOJIS = [
@@ -8,45 +8,76 @@ const REACTION_EMOJIS = [
   { emoji: "❤️", label: "Tim" },
   { emoji: "😂", label: "Haha" },
   { emoji: "😮", label: "Wow" },
-  { emoji: "👍", label: "Like" },
+  { emoji: "🎉", label: "Pháo hoa" },
 ];
 
 interface ChatMessageActionsProps {
   onReact: (emoji: string) => void;
   onReply: () => void;
+  onPin?: () => void;
+  onCopy?: () => void;
+  isPinned?: boolean;
   isMe: boolean;
 }
 
 export const ChatMessageActions = ({
   onReact,
   onReply,
+  onPin,
+  onCopy,
+  isPinned,
   isMe,
 }: ChatMessageActionsProps) => {
   return (
     <div
       className={cn(
-        "flex items-center gap-0.5 bg-background/95 backdrop-blur border rounded-full shadow-lg px-1.5 py-1",
-        isMe ? "flex-row-reverse" : "flex-row"
+        "flex flex-col bg-background/95 backdrop-blur border rounded-2xl shadow-xl overflow-hidden min-w-[180px]",
       )}
     >
-      {REACTION_EMOJIS.map(({ emoji, label }) => (
+      {/* Thanh Reaction ngang */}
+      <div className="flex items-center gap-0.5 px-2 py-1.5 border-b">
+        {REACTION_EMOJIS.map(({ emoji, label }) => (
+          <button
+            key={emoji}
+            onClick={() => onReact(emoji)}
+            title={label}
+            className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-muted transition-all text-lg hover:scale-125 active:scale-95 duration-150"
+          >
+            {emoji}
+          </button>
+        ))}
+      </div>
+
+      {/* Menu hành động dọc */}
+      <div className="flex flex-col py-1">
         <button
-          key={emoji}
-          onClick={() => onReact(emoji)}
-          title={label}
-          className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-muted transition-colors text-lg hover:scale-125 active:scale-95 transition-transform duration-150"
+          onClick={onReply}
+          className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-muted transition-colors text-left"
         >
-          {emoji}
+          <Reply className="h-4 w-4 text-muted-foreground" />
+          <span>Trả lời</span>
         </button>
-      ))}
-      <div className="w-px h-5 bg-border mx-0.5" />
-      <button
-        onClick={onReply}
-        title="Trả lời"
-        className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-      >
-        <Reply className="h-4 w-4" />
-      </button>
+
+        {onPin && (
+          <button
+            onClick={onPin}
+            className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-muted transition-colors text-left"
+          >
+            <Pin className="h-4 w-4 text-muted-foreground" />
+            <span>{isPinned ? "Bỏ ghim" : "Ghim"}</span>
+          </button>
+        )}
+
+        {onCopy && (
+          <button
+            onClick={onCopy}
+            className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-muted transition-colors text-left"
+          >
+            <Copy className="h-4 w-4 text-muted-foreground" />
+            <span>Sao chép</span>
+          </button>
+        )}
+      </div>
     </div>
   );
 };
