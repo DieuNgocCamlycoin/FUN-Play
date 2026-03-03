@@ -1,49 +1,31 @@
 
 
-## Nguyên nhân lỗi
+## Kế hoạch: Hiển thị danh sách Livestream đã kết thúc trong tab Livestream trên Profile
 
-Lỗi **"column s.user_id does not exist"** xảy ra trong database trigger `notify_livestream_start`. Trigger này chạy khi livestream chuyển sang trạng thái `"live"` (tức khi bấm "Bắt đầu phát sóng").
+### Vấn đề hiện tại
+Tab "Livestream" trên trang profile đang hiển thị placeholder tĩnh "Chưa có Livestream - Tính năng Livestream sẽ sớm ra mắt! 🎥". Cần thay thế bằng danh sách các buổi livestream đã kết thúc (có VOD) của user/channel đó.
 
-Trong trigger, có đoạn SQL:
-```sql
-SELECT s.user_id, ...
-FROM subscriptions s
-JOIN channels c ON c.id = s.channel_id
-WHERE c.user_id = NEW.user_id;
-```
+### Kế hoạch thực hiện
 
-Nhưng bảng `subscriptions` **không có cột `user_id`** — cột đúng là `subscriber_id`.
+**1. Tạo component `ProfileLivestreamTab`** (`src/components/Profile/ProfileLivestreamTab.tsx`)
+- Query bảng `livestreams` với `status = 'ended'`, filter theo `user_id`
+- Join với bảng `videos` qua `vod_video_id` để lấy `video_url` nếu có
+- Hiển thị dạng grid card tương tự tab Video, mỗi card gồm:
+  - Thumbnail (từ `thumbnail_url` của livestream)
+  - Tiêu đề livestream
+  - Thời gian phát sóng (`started_at` → `ended_at`)
+  - Peak viewers, total donations
+  - Badge "Có VOD" nếu `vod_video_id` không null → click vào sẽ navigate đến video VOD
+  - Badge "LIVE" đỏ nếu status vẫn là `live`
+- Empty state giữ lại icon Radio + text "Chưa có Livestream nào"
 
-## Kế hoạch sửa
+**2. Cập nhật `ProfileTabs.tsx`**
+- Import `ProfileLivestreamTab`
+- Thay thế placeholder tĩnh trong `TabsContent value="livestream"` bằng `<ProfileLivestreamTab userId={userId} />`
 
-**Database migration**: Thay thế function `notify_livestream_start` để dùng đúng tên cột `s.subscriber_id` thay vì `s.user_id`:
-
-```sql
-CREATE OR REPLACE FUNCTION public.notify_livestream_start()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path TO 'public'
-AS $$
-BEGIN
-  IF NEW.status = 'live' AND (OLD.status IS NULL OR OLD.status != 'live') THEN
-    INSERT INTO public.notifications (user_id, type, title, message, link, thumbnail_url)
-    SELECT 
-      s.subscriber_id,  -- FIX: was s.user_id
-      'livestream',
-      '🔴 Đang phát sóng trực tiếp!',
-      (SELECT COALESCE(display_name, username) FROM profiles WHERE id = NEW.user_id) 
-        || ' đang phát sóng: ' || NEW.title,
-      '/live/' || NEW.id,
-      NEW.thumbnail_url
-    FROM subscriptions s
-    JOIN channels c ON c.id = s.channel_id
-    WHERE c.user_id = NEW.user_id;
-  END IF;
-  RETURN NEW;
-END;
-$$;
-```
-
-Chỉ cần 1 migration duy nhất, không cần thay đổi code frontend.
+### Chi tiết kỹ thuật
+- Query: `supabase.from("livestreams").select("*, videos(id, video_url, thumbnail_url)").eq("user_id", userId).in("status", ["ended", "live"]).order("created_at", { ascending: false })`
+- Click vào card có VOD → navigate đến `/video/{vod_video_id}`
+- Click vào card đang live → navigate đến `/live/{livestream_id}`
+- Không cần migration database, chỉ thay đổi frontend
 
