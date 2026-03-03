@@ -1,28 +1,52 @@
 
 
-## Kế hoạch sửa: Đồng bộ số liệu MintableCard
+## Phân tích: Tại sao số liệu vẫn không khớp
 
-### Nguyên nhân
-- `totalFunReward` (Tổng FUN) = sum of `count × baseFun` — **chưa nhân multipliers**
-- `mintableFun` = `totalMultipliedReward - alreadyMintedFun` — **đã nhân multipliers**
-- → Mâu thuẫn: Mintable > Tổng FUN, vô lý về mặt logic hiển thị
+### Nguyên nhân gốc
 
-### Giải pháp
-Sửa `MintableCard.tsx` để "Tổng FUN" hiển thị `totalMultipliedReward` thay vì `totalFunReward`, đảm bảo phép toán nhất quán:
+Có **2 lỗi logic** trong `useLightActivity.ts`:
 
-**Mintable FUN = Tổng FUN (after multipliers) − Đã Mint**
+**Lỗi 1: `alreadyMintedFun` tính từ ALL platforms, nhưng `totalMultipliedReward` chỉ tính FUN_PLAY**
 
-Cụ thể chỉ sửa 1 dòng trong `MintableCard.tsx`:
-```diff
-- <p className="text-2xl font-bold text-primary">{(activity.totalFunReward ?? 0).toLocaleString()}</p>
-+ <p className="text-2xl font-bold text-primary">{(activity.totalMultipliedReward ?? 0).toLocaleString()}</p>
+```text
+alreadyMintedFun  → mint_requests WHERE user_id=X AND status != 'rejected'  (ALL platforms)
+totalMultipliedReward → chỉ tính từ 5 action types của FUN_PLAY (views, likes, comments, shares, uploads)
+
+→ Nếu có mint_requests từ platform khác, alreadyMintedFun > phần FUN_PLAY → số liệu lệch
 ```
 
-Tất cả 3 số liệu sẽ cùng hệ quy chiếu "sau multipliers":
-- Tổng FUN = totalMultipliedReward (ví dụ ~18,638)
-- Đã Mint = 3,530
-- Mintable = 18,638 - 3,530 = 15,108 ✓
+**Lỗi 2: `alreadyMintedFun` dùng giá trị lịch sử (`calculated_amount_formatted`), nhưng `totalMultipliedReward` tính lại real-time với multipliers hiện tại**
+
+Khi multipliers thay đổi theo thời gian (streak tăng, riskScore thay đổi), `totalMultipliedReward` sẽ khác so với tổng các `calculated_amount_formatted` đã lưu trong DB.
+
+### Giải pháp
+
+Sửa `useLightActivity.ts` để `alreadyMintedFun` chỉ tính mint_requests của **FUN_PLAY** (cùng scope với `totalMultipliedReward`):
+
+```diff
+// Line 264-269: Thay đổi query
+- // Total FUN already minted (all platforms, non-rejected)
+- (supabase as any)
+-   .from('mint_requests')
+-   .select('calculated_amount_formatted, status')
+-   .eq('user_id', userId)
+-   .neq('status', 'rejected')
++ // Total FUN already minted (FUN_PLAY only, non-rejected)
++ (supabase as any)
++   .from('mint_requests')
++   .select('calculated_amount_formatted, status')
++   .eq('user_id', userId)
++   .eq('platform_id', 'FUN_PLAY')
++   .neq('status', 'rejected')
+```
+
+Thêm vào đó, cần đảm bảo hiển thị nhất quán: cả 3 giá trị trong grid phải cùng đơn vị và độ chính xác:
+
+- **Tổng FUN**: `totalMultipliedReward.toFixed(2)` (thay vì `toLocaleString()` mất precision)
+- **Đã Mint**: `alreadyMintedFun.toFixed(2)`
+- **Mintable**: đã đúng (`mintableFun` = `toFixed(2)`)
 
 ### Files sửa
-- **`src/components/FunMoney/MintableCard.tsx`**: Thay `totalFunReward` → `totalMultipliedReward` tại dòng hiển thị "Tổng FUN"
+- **`src/hooks/useLightActivity.ts`**: Filter `alreadyMintedFun` query thêm `.eq('platform_id', 'FUN_PLAY')`
+- **`src/components/FunMoney/MintableCard.tsx`**: Format `toFixed(2)` cho Tổng FUN và Đã Mint để nhất quán
 
