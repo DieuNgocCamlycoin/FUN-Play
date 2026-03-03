@@ -101,7 +101,14 @@ export const ChatWindow = ({ chatId, showBackButton = false }: ChatWindowProps) 
         messagesEndRef={messagesEndRef}
       />
       
-      <ChatInput onSend={sendMessage} disabled={!user} />
+      <ChatInput
+        onSend={sendMessage}
+        disabled={!user}
+        otherUserId={otherUser.id}
+        otherUserName={otherUser.display_name || otherUser.username}
+        otherUserAvatar={otherUser.avatar_url}
+        chatId={chatId}
+      />
     </div>
   );
 };

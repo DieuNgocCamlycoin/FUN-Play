@@ -60,6 +60,15 @@ export const ChatMessageItem = ({
     );
   }
 
+  // Check if message is emoji-only (sticker)
+  const isEmojiOnly = (text: string | null) => {
+    if (!text) return false;
+    const emojiRegex = /^[\p{Emoji_Presentation}\p{Extended_Pictographic}\uFE0F\u200D\u20E3]{1,6}$/u;
+    return emojiRegex.test(text.trim());
+  };
+
+  const isSticker = message.messageType === "text" && isEmojiOnly(message.content);
+
   // Parse image message content
   const parseImageContent = () => {
     if (message.messageType !== "image") return null;
@@ -96,6 +105,11 @@ export const ChatMessageItem = ({
 
       <div className={cn("flex flex-col", isMe ? "items-end" : "items-start")}>
         {/* Bubble */}
+        {isSticker ? (
+          <div className="text-5xl py-1">
+            {message.content}
+          </div>
+        ) : (
         <div
           className={cn(
             "max-w-[280px] break-words",
@@ -138,6 +152,7 @@ export const ChatMessageItem = ({
             <p className="text-sm whitespace-pre-wrap">{message.content}</p>
           )}
         </div>
+        )}
 
         {/* Time + status */}
         <div
