@@ -2153,6 +2153,7 @@ export type Database = {
           nonce: string | null
           platform_id: string
           recipient_address: string
+          source_mint_request_id: string | null
           status: string
           tx_hash: string | null
           updated_at: string
@@ -2175,6 +2176,7 @@ export type Database = {
           nonce?: string | null
           platform_id?: string
           recipient_address: string
+          source_mint_request_id?: string | null
           status?: string
           tx_hash?: string | null
           updated_at?: string
@@ -2197,12 +2199,21 @@ export type Database = {
           nonce?: string | null
           platform_id?: string
           recipient_address?: string
+          source_mint_request_id?: string | null
           status?: string
           tx_hash?: string | null
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "pplp_mint_requests_source_mint_request_id_fkey"
+            columns: ["source_mint_request_id"]
+            isOneToOne: false
+            referencedRelation: "mint_requests"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pplp_ratings: {
         Row: {
