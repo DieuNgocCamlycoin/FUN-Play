@@ -65,7 +65,10 @@ const GoLive = () => {
       await goLive(livestreamId);
       await startStreaming();
       if (localStream) {
-        startRecording(localStream);
+        const recOk = startRecording(localStream);
+        if (!recOk) {
+          toast.warning("Trình duyệt không hỗ trợ ghi VOD. Livestream vẫn hoạt động nhưng không có bản ghi lại.");
+        }
       }
       setPhase("live");
       toast.success("🔴 Đang phát sóng trực tiếp!");
@@ -141,7 +144,7 @@ const GoLive = () => {
           user_id: user.id,
           channel_id: channel.id,
           video_url: urlData.publicUrl,
-          status: "published",
+          approval_status: "approved",
         }).select("id").single();
 
         if (insertError || !videoData) {

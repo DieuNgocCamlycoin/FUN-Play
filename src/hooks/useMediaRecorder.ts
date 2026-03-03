@@ -2,7 +2,7 @@ import { useState, useRef, useCallback } from "react";
 
 interface UseMediaRecorderReturn {
   isRecording: boolean;
-  startRecording: (stream: MediaStream) => void;
+  startRecording: (stream: MediaStream) => boolean;
   stopRecording: () => Promise<Blob | null>;
 }
 
@@ -11,24 +11,46 @@ export const useMediaRecorder = (): UseMediaRecorderReturn => {
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
-  const startRecording = useCallback((stream: MediaStream) => {
+  const startRecording = useCallback((stream: MediaStream): boolean => {
     chunksRef.current = [];
 
-    const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp8,opus")
-      ? "video/webm;codecs=vp8,opus"
-      : "video/webm";
-
-    const recorder = new MediaRecorder(stream, { mimeType });
-
-    recorder.ondataavailable = (e) => {
-      if (e.data.size > 0) {
-        chunksRef.current.push(e.data);
+    try {
+      if (typeof MediaRecorder === "undefined") {
+        console.error("[MediaRecorder] Not supported in this browser");
+        return false;
       }
-    };
 
-    recorder.start(1000); // collect data every second
-    recorderRef.current = recorder;
-    setIsRecording(true);
+      const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp8,opus")
+        ? "video/webm;codecs=vp8,opus"
+        : MediaRecorder.isTypeSupported("video/webm")
+          ? "video/webm"
+          : "";
+
+      if (!mimeType) {
+        console.error("[MediaRecorder] No supported mime type found");
+        return false;
+      }
+
+      const recorder = new MediaRecorder(stream, { mimeType });
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          chunksRef.current.push(e.data);
+        }
+      };
+
+      recorder.onerror = (e) => {
+        console.error("[MediaRecorder] Recording error:", e);
+      };
+
+      recorder.start(1000);
+      recorderRef.current = recorder;
+      setIsRecording(true);
+      return true;
+    } catch (err) {
+      console.error("[MediaRecorder] Failed to start recording:", err);
+      return false;
+    }
   }, []);
 
   const stopRecording = useCallback((): Promise<Blob | null> => {
