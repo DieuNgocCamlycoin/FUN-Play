@@ -107,27 +107,7 @@ export const ChatMessageItem = ({
     );
   }
 
-  // Donation message
-  if (message.messageType === "donation") {
-    return (
-      <div className="my-3 px-1 sm:px-0">
-        <ChatDonationCard
-          content={message.content}
-          deepLink={message.deepLink}
-          donationTransactionId={message.donationTransactionId}
-          isMe={isMe}
-        />
-        <div
-          className={cn(
-            "text-[10px] text-muted-foreground mt-1",
-            isMe ? "text-right mr-2" : "ml-2"
-          )}
-        >
-          {formatMessageTime(message.createdAt)}
-        </div>
-      </div>
-    );
-  }
+  const isDonation = message.messageType === "donation";
 
   // Check if message is emoji-only (sticker)
   const isEmojiOnly = (text: string | null) => {
@@ -214,7 +194,14 @@ export const ChatMessageItem = ({
           )}
 
           {/* Bubble */}
-          {isSticker ? (
+          {isDonation ? (
+            <ChatDonationCard
+              content={message.content}
+              deepLink={message.deepLink}
+              donationTransactionId={message.donationTransactionId}
+              isMe={isMe}
+            />
+          ) : isSticker ? (
             <div className="text-5xl py-1">{message.content}</div>
           ) : (
             <div
