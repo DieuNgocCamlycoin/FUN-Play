@@ -4,9 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { MultisigStatusBadge } from './MultisigStatusBadge';
-import { ShieldAlert, Pen, RefreshCw } from 'lucide-react';
+import { ShieldAlert, Pen, RefreshCw, ShieldCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatFunDisplay } from '@/lib/fun-money/web3-config';
+import { REQUIRED_GROUPS } from '@/lib/fun-money/pplp-multisig-config';
 import type { MultisigSignatures } from '@/lib/fun-money/pplp-multisig-types';
 import type { GovGroupName } from '@/lib/fun-money/pplp-multisig-config';
 
@@ -42,8 +43,8 @@ export function AttesterPanel() {
       toast({
         title: 'Ký thành công! ✅',
         description: result.status === 'signed' 
-          ? 'Đã đủ 3/3 chữ ký. Sẵn sàng submit on-chain.'
-          : 'Chữ ký đã được lưu. Chờ nhóm khác ký tiếp.',
+          ? 'Đã đủ 3/3 chữ ký từ 3 nhóm GOV. Sẵn sàng submit on-chain.'
+          : `Chữ ký nhóm ${myGroup?.toUpperCase()} đã được lưu. Chờ nhóm khác ký tiếp.`,
       });
     } catch (err: any) {
       toast({
@@ -59,10 +60,16 @@ export function AttesterPanel() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-bold">Attester Panel</h3>
+          <h3 className="text-lg font-bold flex items-center gap-2">
+            <ShieldCheck className="w-5 h-5 text-primary" />
+            Attester Panel — Multisig 3/3
+          </h3>
           <p className="text-sm text-muted-foreground">
             Nhóm: <span className="font-medium text-foreground">{groupLabel}</span>
             {' · '}Tên: <span className="font-medium text-foreground">{myName}</span>
+          </p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Mỗi request cần 1 chữ ký từ MỖI nhóm (WILL + WISDOM + LOVE)
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={refresh} disabled={loading}>
@@ -86,6 +93,7 @@ export function AttesterPanel() {
             const sigs = (req.multisig_signatures || {}) as MultisigSignatures;
             const alreadySigned = myGroup ? !!sigs[myGroup] : false;
             const completedGroups = (req.multisig_completed_groups || []) as GovGroupName[];
+            const remainingGroups = REQUIRED_GROUPS.filter(g => !completedGroups.includes(g));
 
             return (
               <Card key={req.id} className="p-4 space-y-3">
@@ -96,7 +104,7 @@ export function AttesterPanel() {
                         {req.action_type}
                       </Badge>
                       <Badge variant="secondary" className="text-xs">
-                        {req.status}
+                        {completedGroups.length}/{REQUIRED_GROUPS.length} nhóm đã ký
                       </Badge>
                     </div>
                     <p className="text-sm font-mono truncate text-muted-foreground">
@@ -113,7 +121,7 @@ export function AttesterPanel() {
                     className={alreadySigned ? 'opacity-50' : ''}
                   >
                     <Pen className="w-4 h-4 mr-1" />
-                    {signing === req.id ? 'Đang ký...' : alreadySigned ? 'Đã ký' : 'Ký'}
+                    {signing === req.id ? 'Đang ký...' : alreadySigned ? 'Đã ký ✓' : 'Ký xác nhận'}
                   </Button>
                 </div>
 
@@ -121,6 +129,12 @@ export function AttesterPanel() {
                   signatures={sigs}
                   completedGroups={completedGroups}
                 />
+
+                {remainingGroups.length > 0 && (
+                  <p className="text-xs text-amber-500">
+                    ⏳ Chờ nhóm: {remainingGroups.map(g => g.toUpperCase()).join(', ')}
+                  </p>
+                )}
 
                 <p className="text-[11px] text-muted-foreground">
                   ID: {req.id.slice(0, 8)}... · {new Date(req.created_at).toLocaleString('vi-VN')}

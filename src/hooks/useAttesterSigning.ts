@@ -1,5 +1,6 @@
 /**
  * useAttesterSigning - Hook for GOV Attester to sign PPLP mint requests
+ * Validates attester identity against BOTH database (gov_attesters table) and hardcoded fallback config.
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -8,8 +9,8 @@ import { useWalletContext } from '@/contexts/WalletContext';
 import { useWalletClient } from 'wagmi';
 import { BrowserProvider } from 'ethers';
 import {
-  getGroupForAddress,
-  getAttesterInfo,
+  getGroupForAddress as getGroupFromConfig,
+  getAttesterInfo as getAttesterInfoFromConfig,
   REQUIRED_GROUPS,
   type GovGroupName,
 } from '@/lib/fun-money/pplp-multisig-config';
@@ -17,15 +18,86 @@ import { getEip712Domain, PPLP_TYPES, createActionHash } from '@/lib/fun-money/e
 import { CONTRACT_ACTION } from '@/lib/fun-money/contract-helpers';
 import type { PPLPMintRequest, MultisigSignatures } from '@/lib/fun-money/pplp-multisig-types';
 
+interface AttesterIdentity {
+  group: GovGroupName;
+  name: string;
+  groupLabel: string;
+  source: 'database' | 'config';
+}
+
 export function useAttesterSigning() {
   const { address, isConnected } = useWalletContext();
   const { data: walletClient } = useWalletClient();
   const [pendingRequests, setPendingRequests] = useState<PPLPMintRequest[]>([]);
   const [loading, setLoading] = useState(false);
   const [signing, setSigning] = useState<string | null>(null);
+  const [attesterIdentity, setAttesterIdentity] = useState<AttesterIdentity | null>(null);
+  const [identityLoading, setIdentityLoading] = useState(false);
 
-  const myGroup = address ? getGroupForAddress(address) : null;
-  const attesterInfo = address ? getAttesterInfo(address) : null;
+  // Resolve attester identity from DB first, then fallback to hardcoded config
+  useEffect(() => {
+    if (!address) {
+      setAttesterIdentity(null);
+      return;
+    }
+
+    const resolveIdentity = async () => {
+      setIdentityLoading(true);
+      try {
+        // 1. Check database first
+        const { data, error } = await supabase
+          .from('gov_attesters')
+          .select('gov_group, name, is_active')
+          .ilike('wallet_address', address)
+          .eq('is_active', true)
+          .single();
+
+        if (!error && data) {
+          const groupEmojis: Record<string, string> = { will: '💪', wisdom: '🌟', love: '❤️' };
+          setAttesterIdentity({
+            group: data.gov_group as GovGroupName,
+            name: data.name,
+            groupLabel: `${groupEmojis[data.gov_group] || '🔹'} ${data.gov_group.toUpperCase()}`,
+            source: 'database',
+          });
+          return;
+        }
+
+        // 2. Fallback to hardcoded config
+        const configInfo = getAttesterInfoFromConfig(address);
+        if (configInfo) {
+          setAttesterIdentity({
+            group: configInfo.group,
+            name: configInfo.name,
+            groupLabel: configInfo.groupLabel,
+            source: 'config',
+          });
+          return;
+        }
+
+        setAttesterIdentity(null);
+      } catch {
+        // Fallback to config on any error
+        const configInfo = getAttesterInfoFromConfig(address);
+        if (configInfo) {
+          setAttesterIdentity({
+            group: configInfo.group,
+            name: configInfo.name,
+            groupLabel: configInfo.groupLabel,
+            source: 'config',
+          });
+        } else {
+          setAttesterIdentity(null);
+        }
+      } finally {
+        setIdentityLoading(false);
+      }
+    };
+
+    resolveIdentity();
+  }, [address]);
+
+  const myGroup = attesterIdentity?.group ?? null;
   const isAttester = myGroup !== null;
 
   // Load pending requests
@@ -70,14 +142,14 @@ export function useAttesterSigning() {
 
   // Sign a request
   const signRequest = useCallback(async (request: PPLPMintRequest) => {
-    if (!walletClient || !address || !myGroup) {
+    if (!walletClient || !address || !myGroup || !attesterIdentity) {
       throw new Error('Wallet not connected or not an attester');
     }
 
     // Check if already signed by this group
     const sigs = (request.multisig_signatures || {}) as MultisigSignatures;
     if (sigs[myGroup]) {
-      throw new Error(`Group ${myGroup.toUpperCase()} already signed this request`);
+      throw new Error(`Nhóm ${myGroup.toUpperCase()} đã ký request này rồi`);
     }
 
     setSigning(request.id);
@@ -106,7 +178,7 @@ export function useAttesterSigning() {
           signer: address,
           signature,
           signed_at: new Date().toISOString(),
-          signer_name: attesterInfo?.name,
+          signer_name: attesterIdentity.name,
         },
       };
 
@@ -131,16 +203,16 @@ export function useAttesterSigning() {
     } finally {
       setSigning(null);
     }
-  }, [walletClient, address, myGroup, attesterInfo, loadRequests]);
+  }, [walletClient, address, myGroup, attesterIdentity, loadRequests]);
 
   return {
     pendingRequests,
     signRequest,
     myGroup,
-    myName: attesterInfo?.name || null,
-    groupLabel: attesterInfo?.groupLabel || null,
+    myName: attesterIdentity?.name || null,
+    groupLabel: attesterIdentity?.groupLabel || null,
     isAttester,
-    loading,
+    loading: loading || identityLoading,
     signing,
     refresh: loadRequests,
   };
