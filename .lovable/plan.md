@@ -1,50 +1,83 @@
 
 
-## Kế hoạch: Trang quản lý GOV Attester cho Admin
+## So sánh: Trước và Sau khi sửa `useLightActivity.ts`
 
-### Hiện trạng
-9 ví GOV Attester hiện được **hardcode** trong `src/lib/fun-money/pplp-multisig-config.ts`. Không có cách nào thay đổi thành viên mà không sửa code.
+### HIỆN TẠI (Sai spec)
 
-### Mục tiêu
-Tạo bảng `gov_attesters` trong database và trang admin để quản lý 3 nhóm GOV (WILL, WISDOM, LOVE) — xem, thêm, sửa, xóa thành viên.
+```text
+useLightActivity.ts — calculateMintableFun()
+─────────────────────────────────────────────
+FUN = count × BASE_REWARDS_FUN (cố định)
 
-### Thay đổi kỹ thuật
+Ví dụ user có: 100 views, 20 likes, 5 comments, 3 shares, 1 upload
+  views:    100 × 10  = 1,000 FUN
+  likes:     20 ×  5  =   100 FUN
+  comments:   5 × 15  =    75 FUN
+  shares:     3 × 20  =    60 FUN
+  uploads:    1 × 100 =   100 FUN
+  ──────────────────────────────
+  TỔNG = 1,335 FUN  ← Không có multiplier nào!
 
-#### 1. Database Migration — Tạo bảng `gov_attesters`
-```sql
-CREATE TABLE public.gov_attesters (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  gov_group TEXT NOT NULL CHECK (gov_group IN ('will', 'wisdom', 'love')),
-  name TEXT NOT NULL,
-  wallet_address TEXT NOT NULL,
-  is_active BOOLEAN NOT NULL DEFAULT true,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (wallet_address)
-);
+Vấn đề:
+• Bỏ qua Q (Quality), I (Impact), K (Integrity), Ux (Unity)
+• Bỏ qua M_cons (Consistency), M_seq (Sequence), Π (Penalty)
+• User spam 1000 views = 10,000 FUN, user chất lượng cao cũng chỉ = 10,000 FUN
+• Mâu thuẫn với scoreAction() trong pplp-engine.ts đã implement đầy đủ
 ```
-- RLS: chỉ admin được CRUD, authenticated users được SELECT (cần đọc để verify chữ ký)
-- Seed 9 thành viên hiện tại vào bảng
 
-#### 2. Tạo component `GovAttesterManagementTab.tsx`
-- Hiển thị 3 nhóm GOV dưới dạng cards (WILL, WISDOM, LOVE)
-- Mỗi card liệt kê thành viên: tên, địa chỉ ví (rút gọn), trạng thái active/inactive
-- Nút thêm thành viên mới (dialog với form: tên, địa chỉ ví, chọn nhóm)
-- Nút sửa/xóa (toggle active) cho từng thành viên
-- Hiển thị cảnh báo nếu nhóm nào có ít hơn 1 thành viên active
+### SAU KHI SỬA (Đúng LS-Math v1.0)
 
-#### 3. Cập nhật `pplp-multisig-config.ts`
-- Thêm hook `useGovAttesters()` để fetch từ database thay vì hardcode
-- Giữ lại hardcode config làm **fallback** khi chưa có data trong DB
-- Các helper functions (`getGroupForAddress`, `isAttesterAddress`...) sẽ ưu tiên dùng DB data
+```text
+useLightActivity.ts — calculateMintableFun() MỚI
+─────────────────────────────────────────────────
+FUN = Σ scoreAction(action) cho từng loại action
+    = baseReward × Q × I × K × Ux  (per action)
+    + áp dụng M_cons, M_seq, Π từ profile
 
-#### 4. Đăng ký tab mới trong Admin Layout
-- Thêm section `"gov-attesters"` vào `AdminSection` type trong `UnifiedAdminLayout.tsx`
-- Thêm nav item với icon `Users` và label "GOV Attesters"
-- Thêm case trong `UnifiedAdminDashboard.tsx` để render tab mới
+Cùng ví dụ user: 100 views, 20 likes, 5 comments, 3 shares, 1 upload
+Giả sử: Q=1.0, I=1.0, K=0.85, Ux=1.0 (Unity Score ~55)
 
-### Không thay đổi
-- Smart contract (quản lý attester on-chain là việc riêng)
-- Logic ký multisig trong `AttesterPanel` / `useAttesterSigning`
-- Luồng mint đã tích hợp multisig 3-of-3
+  views:    100 × 10 × 1.0 × 1.0 × 0.85 × 1.0 =   850 FUN
+  likes:     20 ×  5 × 1.0 × 1.0 × 0.85 × 1.0 =    85 FUN
+  comments:   5 × 15 × 1.0 × 1.0 × 0.85 × 1.0 =    64 FUN
+  shares:     3 × 20 × 1.0 × 1.0 × 0.85 × 1.0 =    51 FUN
+  uploads:    1 × 100× 1.0 × 1.0 × 0.85 × 1.0 =    85 FUN
+  ──────────────────────────────────────────────
+  TỔNG ~1,135 FUN  ← Giảm vì K=0.85 (integrity chưa hoàn hảo)
+
+Nếu user có Unity Score cao (Ux=1.5):  → ~1,700 FUN (thưởng thêm)
+Nếu user suspicious (K=0):             → 0 FUN (bị chặn hoàn toàn)
+```
+
+### Bảng so sánh tổng quan
+
+| Yếu tố | Hiện tại | Sau sửa |
+|---------|----------|---------|
+| **Công thức** | `count × fixed_base` | `base × Q × I × K × Ux` |
+| **Quality (Q)** | ❌ Bỏ qua | ✅ 0.5–3.0 |
+| **Impact (I)** | ❌ Bỏ qua | ✅ 0.5–5.0 |
+| **Integrity (K)** | ❌ Bỏ qua | ✅ 0–1.0, chặn fraud |
+| **Unity (Ux)** | ❌ Bỏ qua | ✅ 0.5–2.5, thưởng cộng đồng |
+| **Anti-whale** | ❌ Không kiểm tra | ✅ Cap 3% pool |
+| **Consistency** | ❌ Không tính | ✅ M_cons từ streakDays |
+| **Sequence** | ❌ Không tính | ✅ M_seq từ sequenceBonus |
+| **Spam user** | Nhận đầy đủ FUN | Bị giảm bởi K thấp |
+| **User chất lượng** | Giống spam user | Nhận nhiều hơn (Q, Ux cao) |
+| **Nguồn BASE_REWARDS** | Hardcode riêng | Import từ `pplp-engine.ts` |
+| **UI hiển thị** | Chỉ base reward | Base + multiplied (so sánh) |
+
+### Thay đổi code cụ thể
+
+**1. Xóa** `BASE_REWARDS_FUN` hardcode (dòng 78-85) → import `BASE_REWARDS.FUN_PLAY` từ engine
+
+**2. Sửa** `calculateMintableFun()` — gọi `scoreAction()` cho mỗi action type với đầy đủ tham số: pillarScores, unitySignals, antiSybilScore, streakDays, sequenceBonus, riskScore
+
+**3. Thêm** `multipliedBreakdown` vào `LightActivity` interface — hiển thị FUN sau khi áp dụng multipliers (cạnh base breakdown hiện tại)
+
+**4. Cập nhật** `ActivitySummary.tsx` — hiển thị thêm cột "Actual FUN" bên cạnh "Base FUN" để user thấy sự khác biệt do multipliers
+
+### Tác động
+- User spam/suspicious sẽ nhận **ít hơn** FUN (K thấp, Ux thấp)
+- User chất lượng cao, cộng đồng tốt sẽ nhận **nhiều hơn** FUN (Q, Ux cao)
+- Đúng spec LS-Math v1.0 end-to-end
 
