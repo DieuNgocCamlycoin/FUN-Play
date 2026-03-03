@@ -25,6 +25,7 @@ interface ActivityCounts {
   comments: number;
   shares: number;
   uploads: number;
+  posts: number;
 }
 
 interface CamlyEarned {
@@ -87,7 +88,8 @@ const ACTIVITY_TO_ACTION: Record<string, string> = {
   likes: 'LIKE_VIDEO',
   comments: 'COMMENT',
   shares: 'SHARE',
-  uploads: 'UPLOAD_VIDEO'
+  uploads: 'UPLOAD_VIDEO',
+  posts: 'CREATE_POST'
 };
 
 // ===== HELPER FUNCTIONS =====
@@ -98,7 +100,7 @@ function calculatePillarsFromActivity(
   isVerified: boolean,
   totalCamly: number
 ): PillarScores {
-  const totalActivities = counts.views + counts.likes + counts.comments + counts.shares + counts.uploads;
+  const totalActivities = counts.views + counts.likes + counts.comments + counts.shares + counts.uploads + counts.posts;
   
   const S = Math.min(100, Math.round(
     (counts.uploads * 15) + (counts.comments * 2) + 30
@@ -310,7 +312,8 @@ export function useLightActivity(userId: string | undefined): UseLightActivityRe
         likes: Number(summary?.likes || 0),
         comments: Number(summary?.comments || 0),
         shares: Number(summary?.shares || 0),
-        uploads: Number(summary?.uploads || 0)
+        uploads: Number(summary?.uploads || 0),
+        posts: Number(summary?.posts || 0)
       };
 
       const totalCamly = Number(summary?.total_camly || 0);
@@ -322,7 +325,7 @@ export function useLightActivity(userId: string | undefined): UseLightActivityRe
       const accountAgeDays = Math.floor((Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
 
       const totalActivities = activityCounts.views + activityCounts.likes + 
-        activityCounts.comments + activityCounts.shares + activityCounts.uploads;
+        activityCounts.comments + activityCounts.shares + activityCounts.uploads + activityCounts.posts;
 
       // Calculate pillars and scores
       const isVerified = profile.avatar_verified || false;
