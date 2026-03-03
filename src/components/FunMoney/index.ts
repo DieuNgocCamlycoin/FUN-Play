@@ -18,3 +18,6 @@ export { ActivateClaimPanel } from './ActivateClaimPanel';
 
 // Guide
 export { ClaimGuide } from './ClaimGuide';
+
+// Daily Light Score Table
+export { DailyLightScoreTable } from './DailyLightScoreTable';
