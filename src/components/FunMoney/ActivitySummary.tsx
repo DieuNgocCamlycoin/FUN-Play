@@ -86,7 +86,8 @@ export function ActivitySummary({ activity }: ActivitySummaryProps) {
         <div className="space-y-2">
           {STATS.map((stat) => {
             const count = activity.activityCounts[stat.activityKey];
-            const funReward = activity.funBreakdown?.[stat.activityKey] ?? (count * stat.funPerAction);
+            const baseFun = activity.funBreakdown?.[stat.activityKey] ?? (count * stat.funPerAction);
+            const actualFun = activity.multipliedBreakdown?.[stat.activityKey] ?? baseFun;
             return (
               <div 
                 key={stat.label}
@@ -103,31 +104,54 @@ export function ActivitySummary({ activity }: ActivitySummaryProps) {
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-bold">{count.toLocaleString()}</p>
-                  <p className="text-xs text-primary font-medium">→ {funReward.toLocaleString()} FUN</p>
+                  <p className="text-xs text-muted-foreground line-through">{baseFun.toLocaleString()} FUN</p>
+                  <p className="text-xs text-primary font-medium">→ {actualFun.toLocaleString()} FUN</p>
                 </div>
               </div>
             );
           })}
         </div>
 
+        {/* Applied Multipliers */}
+        {activity.appliedMultipliers && (
+          <div className="mt-4 pt-4 border-t border-border">
+            <p className="text-sm font-medium mb-2">LS-Math Multipliers</p>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { label: 'Q', value: activity.appliedMultipliers.Q },
+                { label: 'I', value: activity.appliedMultipliers.I },
+                { label: 'K', value: activity.appliedMultipliers.K },
+                { label: 'Ux', value: activity.appliedMultipliers.Ux },
+                { label: 'M_cons', value: activity.appliedMultipliers.mCons },
+                { label: 'M_seq', value: activity.appliedMultipliers.mSeq },
+                { label: 'Π', value: activity.appliedMultipliers.penalty },
+              ].map(m => (
+                <div key={m.label} className="px-2 py-1 rounded bg-muted text-xs font-mono">
+                  {m.label}={m.value.toFixed(2)}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* FUN Totals */}
         <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-border">
           <div className="p-3 rounded-lg bg-primary/10 text-center">
-            <p className="text-xs text-muted-foreground">Tổng FUN</p>
-            <p className="text-lg font-bold text-primary">
+            <p className="text-xs text-muted-foreground">Base FUN</p>
+            <p className="text-sm text-muted-foreground">
               {(activity.totalFunReward ?? 0).toLocaleString()}
             </p>
           </div>
-          <div className="p-3 rounded-lg bg-yellow-500/10 text-center">
-            <p className="text-xs text-muted-foreground">Đã Mint</p>
-            <p className="text-lg font-bold text-yellow-500">
-              {(activity.alreadyMintedFun ?? 0).toLocaleString()}
+          <div className="p-3 rounded-lg bg-primary/10 text-center">
+            <p className="text-xs text-muted-foreground">Actual FUN</p>
+            <p className="text-lg font-bold text-primary">
+              {(activity.totalMultipliedReward ?? 0).toLocaleString()}
             </p>
           </div>
           <div className="p-3 rounded-lg bg-green-500/10 text-center">
-            <p className="text-xs text-muted-foreground">Còn lại</p>
+            <p className="text-xs text-muted-foreground">Mintable</p>
             <p className="text-lg font-bold text-green-500">
-              {Math.max(0, (activity.totalFunReward ?? 0) - (activity.alreadyMintedFun ?? 0)).toLocaleString()}
+              {Math.max(0, (activity.totalMultipliedReward ?? 0) - (activity.alreadyMintedFun ?? 0)).toLocaleString()}
             </p>
           </div>
         </div>

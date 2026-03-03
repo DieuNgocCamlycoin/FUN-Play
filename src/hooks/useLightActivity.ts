@@ -11,6 +11,8 @@ import {
   calculateUnityScore,
   calculateIntegrityMultiplier,
   calculateUnityMultiplier,
+  scoreAction,
+  BASE_REWARDS,
   type PillarScores,
   type UnitySignals
 } from '@/lib/fun-money/pplp-engine';
@@ -49,10 +51,14 @@ export interface LightActivity {
   hasPendingRequest: boolean;
   lastMintAt: string | null;
   funMintedByAction: Record<string, { count: number; totalFun: string }>;
-  // NEW: BASE_REWARDS breakdown
+  // BASE_REWARDS breakdown (before multipliers)
   funBreakdown: Record<string, number>;
   totalFunReward: number;
   alreadyMintedFun: number;
+  // LS-Math v1.0: breakdown after multipliers
+  multipliedBreakdown: Record<string, number>;
+  totalMultipliedReward: number;
+  appliedMultipliers: { Q: number; I: number; K: number; Ux: number; mCons: number; mSeq: number; penalty: number };
   // PPLP v2: Multipliers & Light Level
   lightLevel: string;
   reputationWeight: number;
@@ -75,13 +81,13 @@ const MIN_LIGHT_SCORE = 10;
 const MIN_ACTIVITIES = 10;
 const MINT_COOLDOWN_HOURS = 24;
 
-// BASE_REWARDS per action (FUN, not atomic)
-const BASE_REWARDS_FUN: Record<string, number> = {
-  views: 10,
-  likes: 5,
-  comments: 15,
-  shares: 20,
-  uploads: 100
+// Map activity keys to FUN_PLAY action types in BASE_REWARDS
+const ACTIVITY_TO_ACTION: Record<string, string> = {
+  views: 'WATCH_VIDEO',
+  likes: 'LIKE_VIDEO',
+  comments: 'COMMENT',
+  shares: 'SHARE',
+  uploads: 'UPLOAD_VIDEO'
 };
 
 // ===== HELPER FUNCTIONS =====
@@ -130,26 +136,80 @@ function deriveUnitySignals(counts: ActivityCounts): Partial<UnitySignals> {
   };
 }
 
+interface MintableFunResult {
+  atomic: string;
+  formatted: string;
+  totalReward: number;
+  breakdown: Record<string, number>;
+  multipliedBreakdown: Record<string, number>;
+  totalMultipliedReward: number;
+  appliedMultipliers: { Q: number; I: number; K: number; Ux: number; mCons: number; mSeq: number; penalty: number };
+}
+
 function calculateMintableFun(
   activityCounts: ActivityCounts,
-  alreadyMintedFun: number
-): { atomic: string; formatted: string; totalReward: number; breakdown: Record<string, number> } {
-  const breakdown: Record<string, number> = {
-    views: activityCounts.views * BASE_REWARDS_FUN.views,
-    likes: activityCounts.likes * BASE_REWARDS_FUN.likes,
-    comments: activityCounts.comments * BASE_REWARDS_FUN.comments,
-    shares: activityCounts.shares * BASE_REWARDS_FUN.shares,
-    uploads: activityCounts.uploads * BASE_REWARDS_FUN.uploads
-  };
-  const totalReward = Object.values(breakdown).reduce((sum, v) => sum + v, 0);
-  const mintable = Math.max(0, totalReward - alreadyMintedFun);
+  alreadyMintedFun: number,
+  pillars: PillarScores,
+  unitySignals: Partial<UnitySignals>,
+  antiSybilScore: number,
+  streakDays: number,
+  sequenceBonus: number,
+  riskScore: number
+): MintableFunResult {
+  const breakdown: Record<string, number> = {};
+  const multipliedBreakdown: Record<string, number> = {};
+  let firstResult: any = null;
+
+  for (const [actKey, actionType] of Object.entries(ACTIVITY_TO_ACTION)) {
+    const count = activityCounts[actKey as keyof ActivityCounts];
+    const baseRewardAtomic = BASE_REWARDS.FUN_PLAY[actionType];
+    if (!baseRewardAtomic || count === 0) {
+      breakdown[actKey] = 0;
+      multipliedBreakdown[actKey] = 0;
+      continue;
+    }
+
+    // Base FUN (no multipliers)
+    const baseFun = Number(BigInt(baseRewardAtomic) / BigInt(1e18));
+    breakdown[actKey] = count * baseFun;
+
+    // Score one action with full LS-Math pipeline, then multiply by count
+    const result = scoreAction({
+      platformId: 'FUN_PLAY',
+      actionType,
+      pillarScores: pillars,
+      unitySignals,
+      antiSybilScore,
+      baseRewardAtomic,
+      streakDays,
+      sequenceBonus,
+      riskScore
+    });
+    if (!firstResult) firstResult = result;
+
+    const perActionFun = Number(BigInt(result.calculatedAmountAtomic) / BigInt(1e14)) / 10000;
+    multipliedBreakdown[actKey] = Math.round(count * perActionFun * 100) / 100;
+  }
+
+  const totalReward = Object.values(breakdown).reduce((s, v) => s + v, 0);
+  const totalMultipliedReward = Object.values(multipliedBreakdown).reduce((s, v) => s + v, 0);
+  const mintable = Math.max(0, totalMultipliedReward - alreadyMintedFun);
   const atomicBigInt = BigInt(Math.floor(mintable)) * BigInt(1e18);
-  
+
+  // Extract applied multipliers from first scored action
+  const muls = firstResult?.multipliers ?? { Q: 1, I: 1, K: 1, Ux: 1 };
+  const mCons = Math.round((1 + 0.6 * (1 - Math.exp(-streakDays / 30))) * 10000) / 10000;
+  const mSeq = Math.round((1 + 0.5 * Math.tanh(sequenceBonus / 5)) * 10000) / 10000;
+  const penalty = Math.round((1 - Math.min(0.5, 0.8 * riskScore)) * 10000) / 10000;
+
   return {
     atomic: atomicBigInt.toString(),
     formatted: mintable.toFixed(2),
     totalReward,
-    breakdown
+    breakdown,
+    multipliedBreakdown,
+    totalMultipliedReward,
+    appliedMultipliers: { Q: muls.Q, I: muls.I, K: muls.K, Ux: muls.Ux, mCons, mSeq, penalty }
   };
 }
 
@@ -277,8 +337,22 @@ export function useLightActivity(userId: string | undefined): UseLightActivityRe
       );
       const unityMultiplier = calculateUnityMultiplier(unityScore, unitySignals);
 
-      // Calculate mintable FUN
-      const mintable = calculateMintableFun(activityCounts, alreadyMintedFun);
+      // Extract server-side details if available
+      const serverDetails = profile.light_score_details as Record<string, any> | null;
+      const serverLightScore = profile.light_score ?? lightScore;
+      const serverLightLevel = serverDetails?.light_level || 'presence';
+      const serverRepWeight = Number(serverDetails?.reputation_weight || 1);
+      const serverConsistMult = Number(serverDetails?.consistency_multiplier || 1);
+      const serverConsistDays = Number(serverDetails?.consistency_days || 0);
+      const serverSeqBonus = Number(serverDetails?.sequence_bonus || 0);
+      const serverRawScore = Number(serverDetails?.raw_score || 0);
+
+      // Calculate mintable FUN with full LS-Math multipliers
+      const riskScore = (profile.suspicious_score || 0) / 10;
+      const mintable = calculateMintableFun(
+        activityCounts, alreadyMintedFun, pillars, unitySignals,
+        1 - riskScore, serverConsistDays, serverSeqBonus, riskScore
+      );
 
       // Determine if user can mint (with cooldown enforcement)
       let canMint = true;
@@ -300,7 +374,6 @@ export function useLightActivity(userId: string | undefined): UseLightActivityRe
         canMint = false;
         mintBlockReason = 'Số FUN có thể mint quá nhỏ (< 1 FUN)';
       } else if (profile.last_fun_mint_at) {
-        // Enforce 24-hour cooldown between mints
         const lastMint = new Date(profile.last_fun_mint_at);
         const hoursSinceLastMint = (Date.now() - lastMint.getTime()) / (1000 * 60 * 60);
         if (hoursSinceLastMint < MINT_COOLDOWN_HOURS) {
@@ -308,16 +381,6 @@ export function useLightActivity(userId: string | undefined): UseLightActivityRe
           mintBlockReason = `Cần đợi ${Math.ceil(MINT_COOLDOWN_HOURS - hoursSinceLastMint)} giờ nữa để mint tiếp`;
         }
       }
-
-      // Extract server-side details if available
-      const serverDetails = profile.light_score_details as Record<string, any> | null;
-      const serverLightScore = profile.light_score ?? lightScore;
-      const serverLightLevel = serverDetails?.light_level || 'presence';
-      const serverRepWeight = Number(serverDetails?.reputation_weight || 1);
-      const serverConsistMult = Number(serverDetails?.consistency_multiplier || 1);
-      const serverConsistDays = Number(serverDetails?.consistency_days || 0);
-      const serverSeqBonus = Number(serverDetails?.sequence_bonus || 0);
-      const serverRawScore = Number(serverDetails?.raw_score || 0);
 
       setActivity({
         activityCounts,
@@ -344,6 +407,9 @@ export function useLightActivity(userId: string | undefined): UseLightActivityRe
         funBreakdown: mintable.breakdown,
         totalFunReward: mintable.totalReward,
         alreadyMintedFun,
+        multipliedBreakdown: mintable.multipliedBreakdown,
+        totalMultipliedReward: mintable.totalMultipliedReward,
+        appliedMultipliers: mintable.appliedMultipliers,
         lightLevel: serverLightLevel,
         reputationWeight: serverRepWeight,
         consistencyMultiplier: serverConsistMult,
