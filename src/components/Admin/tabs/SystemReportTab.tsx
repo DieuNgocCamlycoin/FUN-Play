@@ -117,7 +117,7 @@ export function SystemReportTab() {
               <div className="flex items-center gap-2"><Badge variant="outline">02:00</Badge> Build Features (hàng ngày)</div>
               <div className="flex items-center gap-2"><Badge variant="outline">02:30</Badge> Detect Sequences (hàng ngày)</div>
               <div className="flex items-center gap-2"><Badge variant="outline">4h</Badge> Tính Light Score (mỗi 4 giờ)</div>
-              <div className="flex items-center gap-2"><Badge variant="outline">T2 03:00</Badge> Chốt Mint Epoch (hàng tuần)</div>
+              <div className="flex items-center gap-2"><Badge variant="outline">Đầu tháng</Badge> Chốt Mint Epoch (hàng tháng)</div>
             </CardContent>
           </Card>
 
