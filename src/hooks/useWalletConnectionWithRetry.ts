@@ -132,11 +132,12 @@ export const useWalletConnectionWithRetry = (config: Partial<RetryConfig> = EMPT
         stopProgressSimulation();
         console.error(`[WalletRetry] Attempt ${attempt} failed:`, error);
         
-        const errorMessage = error instanceof Error ? error.message : '';
+        const errorMessage = error instanceof Error ? error.message : String(error);
         const errorMsg = errorMessage.toLowerCase();
         const isUserCancel = errorMsg.includes('user rejected') || 
                              errorMsg.includes('user denied') ||
-                             errorMsg.includes('cancelled');
+                             errorMsg.includes('cancelled') ||
+                             errorMsg.includes('failed to connect');
         
         if (isUserCancel) {
           console.log('[WalletRetry] User cancelled connection');
@@ -200,7 +201,9 @@ export const useWalletConnectionWithRetry = (config: Partial<RetryConfig> = EMPT
             title: '⚠️ Mất kết nối ví',
             description: 'Đang thử kết nối lại...',
           });
-          connectWithRetryRef.current();
+          connectWithRetryRef.current().catch((err: unknown) => {
+            console.warn('[WalletRetry] Auto-reconnect failed:', err);
+          });
         }
       }, 5000);
     }
@@ -224,7 +227,9 @@ export const useWalletConnectionWithRetry = (config: Partial<RetryConfig> = EMPT
   // Manual retry
   const retry = useCallback(() => {
     setRetryCount(0);
-    connectWithRetry();
+    connectWithRetry().catch((err: unknown) => {
+      console.warn('[WalletRetry] Manual retry failed:', err);
+    });
   }, [connectWithRetry]);
 
   // Cancel connection attempt
