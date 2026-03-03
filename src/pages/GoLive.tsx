@@ -24,6 +24,7 @@ const GoLive = () => {
   const [phase, setPhase] = useState<Phase>("setup");
   const [livestreamId, setLivestreamId] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
+  const [isEnding, setIsEnding] = useState(false);
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const {
@@ -32,6 +33,7 @@ const GoLive = () => {
   } = useWebRTCStreamer(livestreamId || "");
   const { createLivestream, goLive, endLive } = useCreateLivestream();
   const { isRecording, startRecording, stopRecording } = useMediaRecorder();
+  const recorderStartedRef = useRef(false);
 
   useEffect(() => {
     if (!loading && !user) navigate("/auth");
@@ -64,12 +66,22 @@ const GoLive = () => {
     try {
       await goLive(livestreamId);
       await startStreaming();
+
+      // Start recording - block live if recorder fails
       if (localStream) {
         const recOk = startRecording(localStream);
         if (!recOk) {
           toast.warning("Trình duyệt không hỗ trợ ghi VOD. Livestream vẫn hoạt động nhưng không có bản ghi lại.");
+          recorderStartedRef.current = false;
+        } else {
+          recorderStartedRef.current = true;
+          console.log("[GoLive] Recorder started successfully");
         }
+      } else {
+        console.warn("[GoLive] No localStream available for recording");
+        recorderStartedRef.current = false;
       }
+
       setPhase("live");
       toast.success("🔴 Đang phát sóng trực tiếp!");
     } catch (err: any) {
@@ -96,79 +108,84 @@ const GoLive = () => {
   }, [phase, livestreamId]);
 
   const handleEndLive = useCallback(async () => {
-    if (!livestreamId) return;
-    try {
-      // Step 1: Stop recording
-      const recordedBlob = await stopRecording();
-      console.log("[VOD] Step 1 - stopRecording:", recordedBlob ? `${(recordedBlob.size / 1024 / 1024).toFixed(2)} MB` : "null");
+    if (!livestreamId || isEnding) return;
+    setIsEnding(true);
 
+    try {
+      // Step 1: Stop recording & get blob
+      toast.info("⏹️ Đang đóng bản ghi...");
+      console.log("[VOD] Step 1 - Stopping recording. recorderStarted:", recorderStartedRef.current);
+      const recordedBlob = await stopRecording();
+      console.log("[VOD] Step 1 - stopRecording result:", recordedBlob ? `${(recordedBlob.size / 1024 / 1024).toFixed(2)} MB` : "null");
+
+      // Stop streaming & camera
       stopStreaming();
       stopCamera();
       await endLive(livestreamId);
 
-      if (recordedBlob && recordedBlob.size > 0 && user) {
-        toast.info("Đang lưu bản ghi...");
+      if (recordedBlob && recordedBlob.size > 1000 && user) {
+        // Step 2: Upload to storage
+        toast.info("📤 Đang upload bản ghi VOD...");
+        const ext = recordedBlob.type.includes("mp4") ? "mp4" : "webm";
+        const fileName = `${user.id}/vod/${livestreamId}.${ext}`;
+        console.log("[VOD] Step 2 - uploading to:", fileName, "size:", recordedBlob.size);
 
-        // Step 2: Upload to storage (path must start with user.id per RLS policy)
-        const fileName = `${user.id}/vod/${livestreamId}.webm`;
-        console.log("[VOD] Step 2 - uploading to:", fileName);
         const { error: uploadError } = await supabase.storage
           .from("videos")
-          .upload(fileName, recordedBlob, { contentType: "video/webm" });
+          .upload(fileName, recordedBlob, {
+            contentType: recordedBlob.type || "video/webm",
+            upsert: true,
+          });
 
         if (uploadError) {
           console.error("[VOD] Step 2 FAILED - upload error:", uploadError);
           toast.error(`Lỗi upload VOD: ${uploadError.message}`);
-          toast.success("Đã kết thúc phát sóng");
+
+          // Offer download as fallback
+          try {
+            const url = URL.createObjectURL(recordedBlob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `livestream-${livestreamId}.${ext}`;
+            a.click();
+            URL.revokeObjectURL(url);
+            toast.info("📥 Đã tải bản ghi về máy để bạn lưu trữ.");
+          } catch (dlErr) {
+            console.error("[VOD] Download fallback failed:", dlErr);
+          }
+
           navigate("/studio");
           return;
         }
         console.log("[VOD] Step 2 OK - uploaded");
 
-        // Step 3: Get channel & insert video record
-        const { data: channel, error: channelError } = await supabase
-          .from("channels").select("id").eq("user_id", user.id).single();
-
-        if (channelError || !channel) {
-          console.error("[VOD] Step 3 FAILED - channel not found:", channelError);
-          toast.error("Không tìm thấy kênh, VOD không được lưu.");
-          toast.success("Đã kết thúc phát sóng");
-          navigate("/studio");
-          return;
-        }
-
+        // Step 3: Finalize with RPC (atomic insert video + link livestream)
+        toast.info("🔗 Đang tạo bản ghi VOD...");
         const { data: urlData } = supabase.storage.from("videos").getPublicUrl(fileName);
 
-        const { data: videoData, error: insertError } = await supabase.from("videos").insert({
-          title: `[VOD] Livestream`,
-          user_id: user.id,
-          channel_id: channel.id,
-          video_url: urlData.publicUrl,
-          approval_status: "approved",
-        }).select("id").single();
+        const { data: videoId, error: rpcError } = await supabase.rpc(
+          "finalize_livestream_vod" as any,
+          {
+            p_livestream_id: livestreamId,
+            p_video_url: urlData.publicUrl,
+            p_title: `[VOD] Livestream`,
+          }
+        );
 
-        if (insertError || !videoData) {
-          console.error("[VOD] Step 3 FAILED - insert video:", insertError);
-          toast.error(`Lỗi tạo bản ghi video: ${insertError?.message}`);
-          toast.success("Đã kết thúc phát sóng");
-          navigate("/studio");
-          return;
-        }
-        console.log("[VOD] Step 3 OK - video id:", videoData.id);
-
-        // Step 4: Link VOD to livestream
-        const { error: linkError } = await supabase
-          .from("livestreams").update({ vod_video_id: videoData.id }).eq("id", livestreamId);
-
-        if (linkError) {
-          console.error("[VOD] Step 4 FAILED - link vod:", linkError);
-          toast.error(`Lỗi liên kết VOD: ${linkError.message}`);
+        if (rpcError) {
+          console.error("[VOD] Step 3 FAILED - RPC error:", rpcError);
+          toast.error(`Lỗi tạo VOD: ${rpcError.message}`);
         } else {
-          console.log("[VOD] Step 4 OK - linked vod_video_id");
-          toast.success("Bản ghi đã được lưu!");
+          console.log("[VOD] Step 3 OK - video_id:", videoId);
+          toast.success("✅ Bản ghi VOD đã được lưu thành công!");
         }
       } else {
-        console.warn("[VOD] No recorded blob or user missing, skipping VOD save");
+        if (recorderStartedRef.current) {
+          console.warn("[VOD] Blob is null or too small:", recordedBlob?.size);
+          toast.warning("Không thể lưu bản ghi - dữ liệu ghi quá ngắn hoặc trống.");
+        } else {
+          console.log("[VOD] Recorder was not started, skipping VOD save");
+        }
       }
 
       toast.success("Đã kết thúc phát sóng");
@@ -177,8 +194,10 @@ const GoLive = () => {
       console.error("[VOD] handleEndLive error:", err);
       toast.error(`Lỗi khi kết thúc: ${err?.message || "Unknown"}`);
       navigate("/studio");
+    } finally {
+      setIsEnding(false);
     }
-  }, [livestreamId, stopRecording, stopStreaming, stopCamera, endLive, navigate, user]);
+  }, [livestreamId, isEnding, stopRecording, stopStreaming, stopCamera, endLive, navigate, user]);
 
   const formatTime = (s: number) => {
     const h = Math.floor(s / 3600);
@@ -268,8 +287,14 @@ const GoLive = () => {
                   </Button>
                 )}
                 {phase === "live" && (
-                  <Button variant="outline" onClick={handleEndLive} className="text-destructive border-destructive/30">
-                    <PhoneOff className="h-4 w-4 mr-1" /> Kết thúc
+                  <Button
+                    variant="outline"
+                    onClick={handleEndLive}
+                    disabled={isEnding}
+                    className="text-destructive border-destructive/30"
+                  >
+                    <PhoneOff className="h-4 w-4 mr-1" />
+                    {isEnding ? "Đang kết thúc..." : "Kết thúc"}
                   </Button>
                 )}
               </div>
