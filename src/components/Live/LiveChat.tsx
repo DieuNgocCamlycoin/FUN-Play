@@ -1,21 +1,26 @@
 import { useState, useRef, useEffect } from "react";
 import { useLiveChat, LiveChatMessage } from "@/hooks/useLiveChat";
+import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Send, Gift } from "lucide-react";
+import { Send, Gift, Trash2, Ban } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface LiveChatProps {
   livestreamId: string;
+  streamerId?: string;
   className?: string;
 }
 
-export const LiveChat = ({ livestreamId, className }: LiveChatProps) => {
-  const { messages, isLoading, sendMessage } = useLiveChat(livestreamId);
+export const LiveChat = ({ livestreamId, streamerId, className }: LiveChatProps) => {
+  const { messages, isLoading, sendMessage, deleteMessage, banUser } = useLiveChat(livestreamId);
+  const { user } = useAuth();
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const isStreamer = user?.id === streamerId;
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -27,7 +32,21 @@ export const LiveChat = ({ livestreamId, className }: LiveChatProps) => {
     const text = input.trim();
     if (!text) return;
     setInput("");
-    await sendMessage(text);
+    try {
+      await sendMessage(text);
+    } catch (err: any) {
+      toast.error(err?.message || "Không thể gửi tin nhắn");
+    }
+  };
+
+  const handleDelete = async (messageId: string) => {
+    await deleteMessage(messageId);
+    toast.success("Đã xoá tin nhắn");
+  };
+
+  const handleBan = async (userId: string) => {
+    await banUser(userId);
+    toast.success("Đã cấm người dùng khỏi chat");
   };
 
   return (
@@ -42,7 +61,14 @@ export const LiveChat = ({ livestreamId, className }: LiveChatProps) => {
             <p className="text-xs text-muted-foreground text-center py-4">Đang tải...</p>
           )}
           {messages.map((msg) => (
-            <ChatBubble key={msg.id} message={msg} />
+            <ChatBubble
+              key={msg.id}
+              message={msg}
+              isStreamer={isStreamer}
+              currentUserId={user?.id}
+              onDelete={handleDelete}
+              onBan={handleBan}
+            />
           ))}
         </div>
       </ScrollArea>
@@ -63,13 +89,26 @@ export const LiveChat = ({ livestreamId, className }: LiveChatProps) => {
   );
 };
 
-function ChatBubble({ message }: { message: LiveChatMessage }) {
+function ChatBubble({
+  message,
+  isStreamer,
+  currentUserId,
+  onDelete,
+  onBan,
+}: {
+  message: LiveChatMessage;
+  isStreamer: boolean;
+  currentUserId?: string;
+  onDelete: (id: string) => void;
+  onBan: (userId: string) => void;
+}) {
   const isDonation = message.message_type === "donation";
+  const canModerate = isStreamer && message.user_id !== currentUserId;
 
   return (
     <div
       className={cn(
-        "flex items-start gap-2 text-sm",
+        "group flex items-start gap-2 text-sm",
         isDonation && "bg-amber-500/10 rounded-lg p-1.5"
       )}
     >
@@ -79,7 +118,7 @@ function ChatBubble({ message }: { message: LiveChatMessage }) {
           {(message.profile?.display_name || "U")[0]}
         </AvatarFallback>
       </Avatar>
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <span className="font-medium text-xs text-primary">
           {message.profile?.display_name || message.profile?.username || "Ẩn danh"}
         </span>
@@ -88,6 +127,26 @@ function ChatBubble({ message }: { message: LiveChatMessage }) {
           {message.content}
         </span>
       </div>
+      {canModerate && (
+        <div className="hidden group-hover:flex items-center gap-0.5 shrink-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-5 w-5 text-muted-foreground hover:text-destructive"
+            onClick={() => onDelete(message.id)}
+          >
+            <Trash2 className="h-3 w-3" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-5 w-5 text-muted-foreground hover:text-destructive"
+            onClick={() => onBan(message.user_id)}
+          >
+            <Ban className="h-3 w-3" />
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

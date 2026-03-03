@@ -7,6 +7,7 @@ export type LiveChatMessage = {
   user_id: string;
   content: string;
   message_type: string;
+  is_deleted?: boolean;
   created_at: string;
   profile?: {
     display_name: string | null;
@@ -26,11 +27,11 @@ export function useLiveChat(livestreamId: string) {
         .from("livestream_chat")
         .select("*")
         .eq("livestream_id", livestreamId)
+        .eq("is_deleted", false)
         .order("created_at", { ascending: true })
         .limit(100);
 
       if (data && data.length > 0) {
-        // Fetch profiles for messages
         const userIds = [...new Set(data.map((m) => m.user_id))];
         const { data: profiles } = await supabase
           .from("profiles")
@@ -66,7 +67,7 @@ export function useLiveChat(livestreamId: string) {
         },
         async (payload) => {
           const msg = payload.new as LiveChatMessage;
-          // Fetch profile
+          if (msg.is_deleted) return;
           const { data: profile } = await supabase
             .from("profiles")
             .select("id, display_name, avatar_url, username")
@@ -77,6 +78,21 @@ export function useLiveChat(livestreamId: string) {
             ...prev.slice(-199),
             { ...msg, profile: profile as LiveChatMessage["profile"] },
           ]);
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "livestream_chat",
+          filter: `livestream_id=eq.${livestreamId}`,
+        },
+        (payload) => {
+          const updated = payload.new as LiveChatMessage;
+          if (updated.is_deleted) {
+            setMessages((prev) => prev.filter((m) => m.id !== updated.id));
+          }
         }
       )
       .subscribe();
@@ -93,15 +109,50 @@ export function useLiveChat(livestreamId: string) {
       } = await supabase.auth.getUser();
       if (!user) return;
 
-      await supabase.from("livestream_chat").insert({
+      const { error } = await supabase.from("livestream_chat").insert({
         livestream_id: livestreamId,
         user_id: user.id,
         content,
         message_type: messageType,
       });
+
+      if (error) {
+        // Check if banned
+        if (error.message?.includes("row-level security")) {
+          throw new Error("Bạn đã bị cấm chat trong buổi phát sóng này");
+        }
+        throw error;
+      }
     },
     [livestreamId]
   );
 
-  return { messages, isLoading, sendMessage };
+  const deleteMessage = useCallback(
+    async (messageId: string) => {
+      await supabase
+        .from("livestream_chat")
+        .update({ is_deleted: true })
+        .eq("id", messageId);
+    },
+    []
+  );
+
+  const banUser = useCallback(
+    async (userId: string, reason?: string) => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      await supabase.from("livestream_bans").insert({
+        livestream_id: livestreamId,
+        user_id: userId,
+        banned_by: user.id,
+        reason: reason || "Vi phạm quy tắc chat",
+      });
+    },
+    [livestreamId]
+  );
+
+  return { messages, isLoading, sendMessage, deleteMessage, banUser };
 }

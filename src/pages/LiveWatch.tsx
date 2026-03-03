@@ -10,7 +10,7 @@ import { useLivestream } from "@/hooks/useLivestream";
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Gift } from "lucide-react";
+import { ArrowLeft, Gift, RefreshCw } from "lucide-react";
 import { LiveBadge } from "@/components/Live/LiveBadge";
 import { EnhancedDonateModal } from "@/components/Donate/EnhancedDonateModal";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,7 +20,7 @@ const LiveWatch = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { livestream, isLoading } = useLivestream(id);
-  const { remoteStream, connectionState, connect } = useWebRTCViewer(
+  const { remoteStream, connectionState, connect, reconnectAttempts, maxReconnectAttempts, manualRetry } = useWebRTCViewer(
     id || "",
     livestream?.user_id || ""
   );
@@ -28,7 +28,6 @@ const LiveWatch = () => {
 
   useEffect(() => {
     if (livestream?.status === "live" && livestream.user_id) {
-      // Kiểm tra heartbeat — nếu quá cũ (> 60s), coi như stream đã chết
       const heartbeat = livestream.last_heartbeat_at
         ? new Date(livestream.last_heartbeat_at).getTime()
         : null;
@@ -42,7 +41,6 @@ const LiveWatch = () => {
 
   const handleDonationSuccess = async (transaction: any) => {
     if (!id) return;
-    // Auto-send donation message to livestream chat
     try {
       await supabase.from("livestream_chat").insert({
         livestream_id: id,
@@ -77,6 +75,8 @@ const LiveWatch = () => {
   }
 
   const isEnded = livestream.status === "ended";
+  const isReconnecting = (connectionState === "disconnected" || connectionState === "failed") && reconnectAttempts > 0 && reconnectAttempts <= maxReconnectAttempts;
+  const isConnectionFailed = reconnectAttempts > maxReconnectAttempts;
 
   return (
     <div className="min-h-screen bg-background">
@@ -104,11 +104,33 @@ const LiveWatch = () => {
                   <LivePlayer
                     stream={remoteStream}
                     viewerCount={livestream.viewer_count}
+                    className="aspect-video md:aspect-video"
                   />
                   <LiveDonationAlert livestreamId={livestream.id} />
                   <div className="absolute bottom-3 right-3">
                     <LiveReactions livestreamId={livestream.id} />
                   </div>
+
+                  {/* Reconnection overlay */}
+                  {isReconnecting && (
+                    <div className="absolute inset-0 bg-black/70 rounded-xl flex items-center justify-center">
+                      <div className="text-center text-white">
+                        <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-2" />
+                        <p className="font-medium">Đang kết nối lại...</p>
+                        <p className="text-sm text-white/70">Lần {reconnectAttempts}/{maxReconnectAttempts}</p>
+                      </div>
+                    </div>
+                  )}
+                  {isConnectionFailed && (
+                    <div className="absolute inset-0 bg-black/70 rounded-xl flex items-center justify-center">
+                      <div className="text-center text-white">
+                        <p className="font-medium mb-2">Không thể kết nối</p>
+                        <Button variant="outline" size="sm" onClick={manualRetry} className="text-white border-white/30">
+                          <RefreshCw className="h-4 w-4 mr-1" /> Thử lại
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -117,7 +139,7 @@ const LiveWatch = () => {
             <div className="bg-background border border-border rounded-xl p-4">
               <div className="flex items-start gap-3">
                 <Avatar
-                  className="h-10 w-10 cursor-pointer"
+                  className="h-10 w-10 cursor-pointer shrink-0"
                   onClick={() => navigate(`/${livestream.profile?.username}`)}
                 >
                   <AvatarImage src={livestream.profile?.avatar_url || ""} />
@@ -134,7 +156,7 @@ const LiveWatch = () => {
                     {livestream.profile?.display_name || livestream.profile?.username}
                   </p>
                   {livestream.description && (
-                    <p className="text-sm text-muted-foreground mt-2">{livestream.description}</p>
+                    <p className="text-sm text-muted-foreground mt-2 hidden sm:block">{livestream.description}</p>
                   )}
                 </div>
 
@@ -143,9 +165,10 @@ const LiveWatch = () => {
                   <Button
                     onClick={() => setDonateModalOpen(true)}
                     className="bg-destructive hover:bg-destructive/90 text-destructive-foreground gap-2 shrink-0"
+                    size="sm"
                   >
                     <Gift className="h-4 w-4" />
-                    Tặng CAMLY
+                    <span className="hidden sm:inline">Tặng CAMLY</span>
                   </Button>
                 )}
               </div>
@@ -153,8 +176,8 @@ const LiveWatch = () => {
           </div>
 
           {/* Chat */}
-          <div className="h-[calc(100vh-12rem)]">
-            <LiveChat livestreamId={livestream.id} className="h-full" />
+          <div className="h-[50vh] lg:h-[calc(100vh-12rem)]">
+            <LiveChat livestreamId={livestream.id} streamerId={livestream.user_id} className="h-full" />
           </div>
         </div>
       </div>
