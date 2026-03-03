@@ -1,96 +1,133 @@
 
 
-## Bước tiếp theo: Tích hợp Livestream vào Navigation & Hoàn thiện tính năng
-
-Hệ thống livestream cốt lõi (database, WebRTC hooks, pages, components) đã được xây dựng xong. Bước tiếp theo tập trung vào **tích hợp vào giao diện hiện tại** và **hoàn thiện các tính năng còn thiếu**.
+## Kế hoạch sửa 3 vấn đề nghiêm trọng của Livestream
 
 ---
 
-### 1. Thêm "Phát sóng trực tiếp" vào menu Tạo (Header)
+### Vấn đề 1: TURN Server
 
-Trong dropdown menu "Tao" o Header, them mot muc moi:
-- Icon: `Radio` (lucide-react, da import san)
-- Label: "Phat song truc tiep"
-- Navigate toi `/go-live`
-- Dat ngay sau muc "Tai video len"
+**Hiện tại:** Chỉ dùng Google STUN servers. Khi streamer/viewer ở sau symmetric NAT hoặc firewall nghiêm ngặt, kết nối P2P sẽ thất bại (không có fallback).
 
-**File:** `src/components/Layout/Header.tsx` (dong 228-249)
+**Giải pháp:** Thêm TURN server vào ICE configuration trong `useWebRTC.ts`.
 
----
+- Sử dụng dịch vụ TURN miễn phí hoặc tự host (VD: Metered.ca cung cấp free tier)
+- Lưu TURN credentials vào Edge Function secret, tạo edge function `get-turn-credentials` trả về thông tin TURN cho client
+- Client gọi edge function khi khởi tạo peer connection để lấy ICE servers động (bao gồm cả STUN + TURN)
+- Fallback: Nếu edge function lỗi, vẫn dùng STUN mặc định
 
-### 2. Them muc "Live" vao Sidebar chinh
-
-Them vao `mainNavItems` trong Sidebar:
-- Icon: `Radio` (lucide-react)
-- Label: "Truc tiep" 
-- Href: `/live`
-- Dat sau "Shorts"
-
-**File:** `src/components/Layout/Sidebar.tsx` (dong 26-32)
+**File thay đổi:**
+- Tạo `supabase/functions/get-turn-credentials/index.ts` — trả về TURN config từ secrets
+- Cập nhật `src/hooks/useWebRTC.ts` — gọi edge function lấy ICE servers trước khi tạo RTCPeerConnection
 
 ---
 
-### 3. Them nut "Go Live" vao Studio Sidebar
+### Vấn đề 2: Heartbeat System (Tự động kết thúc live khi mất kết nối)
 
-Them mot nut noi bat (mau do) o dau Studio Sidebar:
-- Icon: `Radio`
-- Label: "Phat song truc tiep"
-- Navigate truc tiep toi `/go-live` (khong phai tab)
-- Style: background do, text trang, noi bat hon cac menu item khac
+**Hiện tại:** Nếu streamer đóng tab hoặc mất mạng, livestream vẫn ở trạng thái `live` vĩnh viễn trong database. Viewer thấy trạng thái "đang live" nhưng không nhận được stream.
 
-**File:** `src/components/Studio/StudioSidebar.tsx` (dong 42-75)
+**Giải pháp:** Hệ thống heartbeat 3 lớp:
 
----
+**Lớp 1 — Client heartbeat (Streamer):**
+- Mỗi 15 giây, streamer gửi `UPDATE livestreams SET last_heartbeat_at = now()`
+- Thêm cột `last_heartbeat_at` vào bảng `livestreams`
 
-### 4. Tich hop CAMLY Donation trong LiveWatch
+**Lớp 2 — Database cleanup (Edge Function):**
+- Tạo edge function `livestream-cleanup` chạy định kỳ
+- Logic: Tìm tất cả livestreams có `status = 'live'` và `last_heartbeat_at < now() - interval '45 seconds'`, cập nhật `status = 'ended'`
+- Viewer khi kết nối cũng kiểm tra `last_heartbeat_at` — nếu quá cũ thì hiện "Stream đã kết thúc"
 
-Tai su dung component `EnhancedDonateModal` hien co:
-- Them nut "Tang CAMLY" vao trang LiveWatch
-- Context type = `livestream`, context_id = livestream ID
-- Khi donation thanh cong, tu dong gui tin nhan vao livestream_chat voi message_type = `donation`
+**Lớp 3 — beforeunload event:**
+- Khi streamer đóng tab, bắt sự kiện `beforeunload` để gọi `endLive()` (best effort, không đảm bảo 100%)
 
-**File:** `src/pages/LiveWatch.tsx`
-
----
-
-### 5. VOD Recording (Luu lai ban ghi)
-
-Tich hop `MediaRecorder API` vao trang GoLive:
-- Bat dau ghi khi streamer nhan "Bat dau phat song"
-- Dung ghi khi ket thuc live
-- Upload file WebM len storage
-- Tao ban ghi trong bang `videos` voi source = `livestream`
-- Cap nhat `livestreams.vod_video_id`
-
-**File:** `src/pages/GoLive.tsx`, them hook `src/hooks/useMediaRecorder.ts`
+**File thay đổi:**
+- Migration: Thêm cột `last_heartbeat_at` vào `livestreams`
+- Cập nhật `src/hooks/useWebRTC.ts` (useWebRTCStreamer) — thêm heartbeat interval mỗi 15s
+- Cập nhật `src/pages/GoLive.tsx` — thêm beforeunload handler
+- Tạo `supabase/functions/livestream-cleanup/index.ts` — tìm và kết thúc các stream "zombie"
+- Cập nhật `src/pages/LiveWatch.tsx` — kiểm tra heartbeat trước khi kết nối
 
 ---
 
-### 6. Hien thi badge LIVE tren avatar streamer
+### Vấn đề 3: Đồng bộ Viewer Count
 
-Khi mot user dang live, hien thi badge "LIVE" nhap nhay tren avatar cua ho:
-- Trang chu (video cards)
-- Sidebar kenh dang ky
-- Trang kenh ca nhan
+**Hiện tại:** `viewer_count` trong database không được cập nhật. `viewerCount` chỉ là số peer connections local của streamer (`peersRef.current.size`), không đồng bộ vào DB. `peak_viewers` dùng logic `count` thay vì `GREATEST`.
 
-**File:** Component moi `src/components/Live/LiveAvatarBadge.tsx`, cap nhat cac component hien thi avatar
+**Giải pháp:** Hệ thống viewer tracking chính xác:
+
+**Phía Streamer:**
+- Khi `peersRef.current.size` thay đổi (thêm/xóa peer), gọi `updateViewerCount` để cập nhật DB
+- Sử dụng `GREATEST(peak_viewers, $count)` trong SQL để chỉ tăng `peak_viewers`, không giảm
+
+**Phía Viewer:**
+- Khi viewer rời đi (disconnect/beforeunload), giảm `viewer_count` -1
+
+**Cập nhật SQL:**
+- Tạo DB function `update_livestream_viewers` dùng `GREATEST` cho `peak_viewers`
+
+**File thay đổi:**
+- Migration: Tạo DB function `update_livestream_viewers`
+- Cập nhật `src/hooks/useLivestream.ts` — sửa `updateViewerCount` dùng RPC thay vì update trực tiếp
+- Cập nhật `src/hooks/useWebRTC.ts` (useWebRTCStreamer) — gọi `updateViewerCount` khi peers thay đổi
+- Cập nhật `src/hooks/useWebRTC.ts` (useWebRTCViewer) — thêm beforeunload giảm viewer count
 
 ---
 
-### Thu tu uu tien thuc hien
+### Sửa kèm: DonationAlert parse sai format
 
-| Thu tu | Cong viec | Do kho |
+**Hiện tại:** `LiveDonationAlert` dùng `split("|")` để parse nội dung donation nhưng chat message gửi dạng text thuần, dẫn đến amount luôn = 0.
+
+**Giải pháp:** Chuẩn hoá format donation message khi gửi vào chat, và cập nhật parser cho khớp.
+
+---
+
+### Thứ tự thực hiện
+
+| Thứ tự | Công việc | Độ khó |
 |--------|-----------|--------|
-| 1 | Them Live vao Header menu + Sidebar | Thap |
-| 2 | Them Go Live vao Studio Sidebar | Thap |
-| 3 | Tich hop CAMLY Donation vao LiveWatch | Trung binh |
-| 4 | VOD Recording voi MediaRecorder | Trung binh |
-| 5 | Badge LIVE tren avatar | Thap |
+| 1 | Migration: thêm `last_heartbeat_at` + DB function `update_livestream_viewers` | Thấp |
+| 2 | Heartbeat system (client + cleanup edge function) | Trung bình |
+| 3 | Đồng bộ viewer count (streamer cập nhật DB khi peers thay đổi) | Trung bình |
+| 4 | TURN server (edge function + cập nhật ICE config) | Trung bình |
+| 5 | beforeunload handlers (GoLive + LiveWatch) | Thấp |
+| 6 | Sửa DonationAlert parser | Thấp |
 
-### Ghi chu ky thuat
+---
 
-- Component `EnhancedDonateModal` can duoc kiem tra xem co ho tro `context_type = 'livestream'` chua, neu chua thi cap nhat
-- `MediaRecorder` se ghi dinh dang WebM (codec VP8/Opus), tuong thich tot voi trinh duyet
-- Badge LIVE can query bang `livestreams` de biet user nao dang phat song (status = 'live')
-- Tat ca thay doi khong can migration database moi — chi la frontend integration
+### Bảng tổng kết tính năng Livestream
+
+#### Đã có (hoàn thành)
+| STT | Tính năng | Trạng thái |
+|-----|-----------|------------|
+| 1 | Database: bảng livestreams, livestream_chat, livestream_reactions với RLS | Xong |
+| 2 | WebRTC P2P signaling qua Supabase Realtime broadcast | Xong |
+| 3 | Trang GoLive (thiết lập -> xem trước -> phát sóng) | Xong |
+| 4 | Trang LiveWatch (xem stream + thông tin streamer) | Xong |
+| 5 | Trang LiveDirectory (danh sách stream đang live) | Xong |
+| 6 | Live Chat realtime | Xong |
+| 7 | Flying Reactions (emoji bay) | Xong |
+| 8 | Tặng thưởng CAMLY với EnhancedDonateModal | Xong |
+| 9 | VOD Recording (MediaRecorder + upload R2) | Xong |
+| 10 | Thông báo tự động cho subscriber khi bắt đầu live | Xong |
+| 11 | Navigation: nút Live trong Header, Sidebar, Studio | Xong |
+| 12 | LiveBadge nhấp nháy + LiveAvatarBadge | Xong |
+| 13 | Donation alert hiển thị trên màn hình live | Xong |
+
+#### Vấn đề cần khắc phục (kế hoạch này)
+| STT | Vấn đề | Mức độ | Trạng thái |
+|-----|--------|--------|------------|
+| 1 | Chỉ có STUN, thiếu TURN server — kết nối thất bại trên nhiều mạng | Nghiêm trọng | Sẽ sửa |
+| 2 | Không có heartbeat — stream "zombie" vĩnh viễn trong DB | Nghiêm trọng | Sẽ sửa |
+| 3 | viewer_count/peak_viewers không đồng bộ vào DB | Nghiêm trọng | Sẽ sửa |
+| 4 | DonationAlert parse sai format (amount luôn = 0) | Trung bình | Sẽ sửa kèm |
+
+#### Tính năng cần nâng cấp (tương lai)
+| STT | Tính năng | Độ khó |
+|-----|-----------|--------|
+| 1 | Điều khiển streamer: bật/tắt mic, camera, chia sẻ màn hình | Trung bình |
+| 2 | Quản lý chat: xoá tin nhắn, cấm người dùng khỏi phòng chat | Trung bình |
+| 3 | Giao diện mobile responsive cho trang xem live | Thấp |
+| 4 | Tự động kết nối lại cho viewer khi mất kết nối | Trung bình |
+| 5 | Xem trước thumbnail từ stream (canvas capture) | Thấp |
+| 6 | Co-streaming (nhiều người phát sóng cùng lúc) | Cao |
+| 7 | Chọn chất lượng stream (720p/480p/360p) | Cao |
 
