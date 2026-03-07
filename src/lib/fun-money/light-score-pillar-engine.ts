@@ -381,7 +381,7 @@ export async function fetchPillarSignals(userId: string) {
   const identity: IdentitySignals = {
     hasDisplayName: !!profile.display_name,
     hasAvatar: !!profile.avatar_url,
-    hasVerifiedEmail: !!profile.email,
+    hasVerifiedEmail: !!profile.display_name, // Email verified via auth (proxy: has display name)
     hasWallet: !!profile.wallet_address,
     hasWeb3Profile: !!profile.wallet_address,
     accountAgeDays,
