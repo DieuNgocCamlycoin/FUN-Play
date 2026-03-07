@@ -337,6 +337,9 @@ export default function FunMoney() {
               <ActivitySummary activity={activity} />
             </div>
 
+            {/* 5-Pillar Light Score Dashboard */}
+            <LightScoreDashboard />
+
             {/* Daily Light Score Table */}
             <DailyLightScoreTable />
 
