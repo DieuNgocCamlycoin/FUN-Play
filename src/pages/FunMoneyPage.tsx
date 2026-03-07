@@ -33,7 +33,8 @@ import {
   ActivitySummary,
   ActivateClaimPanel,
   ClaimGuide,
-  DailyLightScoreTable
+  DailyLightScoreTable,
+  LightScoreDashboard
 } from '@/components/FunMoney';
 import { cn } from '@/lib/utils';
 import { BackButton } from '@/components/ui/back-button';
