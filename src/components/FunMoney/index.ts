@@ -21,3 +21,6 @@ export { ClaimGuide } from './ClaimGuide';
 
 // Daily Light Score Table
 export { DailyLightScoreTable } from './DailyLightScoreTable';
+
+// 5-Pillar Light Score Dashboard
+export { LightScoreDashboard } from './LightScoreDashboard';

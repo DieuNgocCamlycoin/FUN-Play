@@ -33,7 +33,8 @@ import {
   ActivitySummary,
   ActivateClaimPanel,
   ClaimGuide,
-  DailyLightScoreTable
+  DailyLightScoreTable,
+  LightScoreDashboard
 } from '@/components/FunMoney';
 import { cn } from '@/lib/utils';
 import { BackButton } from '@/components/ui/back-button';
@@ -335,6 +336,9 @@ export default function FunMoney() {
               <LightActivityBreakdown activity={activity} />
               <ActivitySummary activity={activity} />
             </div>
+
+            {/* 5-Pillar Light Score Dashboard */}
+            <LightScoreDashboard />
 
             {/* Daily Light Score Table */}
             <DailyLightScoreTable />
