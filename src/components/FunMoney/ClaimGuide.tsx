@@ -152,11 +152,11 @@ const steps = [
         <p>Light Score tích lũy theo thời gian và xác định <strong>cấp độ</strong> của bạn:</p>
         <div className="bg-muted rounded-lg p-3 space-y-2">
           {[
-            { level: 'Seed', threshold: SCORING_RULES_V1.levels.seed, emoji: '🌱', desc: 'Người mới — bắt đầu hành trình' },
-            { level: 'Sprout', threshold: SCORING_RULES_V1.levels.sprout, emoji: '🌿', desc: 'Đã nảy mầm — hoạt động đều đặn' },
-            { level: 'Builder', threshold: SCORING_RULES_V1.levels.builder, emoji: '🔨', desc: 'Người xây dựng — đóng góp nội dung chất lượng' },
-            { level: 'Guardian', threshold: SCORING_RULES_V1.levels.guardian, emoji: '🛡️', desc: 'Người bảo vệ — thành viên cốt lõi' },
-            { level: 'Architect', threshold: SCORING_RULES_V1.levels.architect, emoji: '👑', desc: 'Kiến trúc sư — đóng góp xuất sắc bền vững' },
+            { level: 'Light Seed', threshold: 0, emoji: '🌱', desc: 'Người mới — bắt đầu hành trình ánh sáng' },
+            { level: 'Light Builder', threshold: 100, emoji: '🔨', desc: 'Người xây dựng — đóng góp nội dung đều đặn' },
+            { level: 'Light Guardian', threshold: 250, emoji: '🛡️', desc: 'Người bảo vệ — thành viên cốt lõi cộng đồng' },
+            { level: 'Light Leader', threshold: 500, emoji: '👑', desc: 'Người dẫn dắt — ảnh hưởng tích cực sâu rộng' },
+            { level: 'Cosmic Contributor', threshold: 800, emoji: '✨', desc: 'Linh hồn của hệ sinh thái' },
           ].map(item => (
             <div key={item.level} className="flex items-center gap-3 py-1.5">
               <span className="text-lg">{item.emoji}</span>
