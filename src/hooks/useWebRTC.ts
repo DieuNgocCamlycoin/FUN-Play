@@ -42,7 +42,7 @@ export function useWebRTCStreamer(livestreamId: string) {
   const startCamera = useCallback(async (videoConstraints?: MediaTrackConstraints) => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: videoConstraints || { width: 1280, height: 720, facingMode: "user" },
+        video: videoConstraints || { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" },
         audio: true,
       });
       streamRef.current = stream;
