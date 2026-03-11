@@ -88,7 +88,7 @@ const LiveWatch = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Video */}
-          <div className="lg:col-span-2 space-y-3">
+          <div className="md:col-span-2 space-y-3">
             <div className="relative">
               {isEnded ? (
                 <div className="aspect-video bg-muted rounded-xl flex items-center justify-center">
