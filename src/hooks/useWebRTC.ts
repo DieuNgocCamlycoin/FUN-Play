@@ -127,6 +127,40 @@ export function useWebRTCStreamer(livestreamId: string) {
     }
   }, []);
 
+  // Flip camera (front/back) for mobile
+  const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
+  const flipCamera = useCallback(async () => {
+    const newFacing = facingMode === "user" ? "environment" : "user";
+    try {
+      const newStream = await navigator.mediaDevices.getUserMedia({
+        video: { width: 1280, height: 720, facingMode: newFacing },
+        audio: false,
+      });
+      const newVideoTrack = newStream.getVideoTracks()[0];
+      if (!newVideoTrack || !streamRef.current) return;
+
+      // Replace old video track in stream
+      const oldVideoTrack = streamRef.current.getVideoTracks()[0];
+      if (oldVideoTrack) {
+        oldVideoTrack.stop();
+        streamRef.current.removeTrack(oldVideoTrack);
+      }
+      streamRef.current.addTrack(newVideoTrack);
+      cameraTrackRef.current = newVideoTrack;
+
+      // Replace track on all peer connections
+      peersRef.current.forEach((pc) => {
+        const sender = pc.getSenders().find((s) => s.track?.kind === "video");
+        sender?.replaceTrack(newVideoTrack);
+      });
+
+      setLocalStream(new MediaStream(streamRef.current.getTracks()));
+      setFacingMode(newFacing);
+    } catch (err) {
+      console.warn("Failed to flip camera:", err);
+    }
+  }, [facingMode]);
+
   // Screen share toggle
   const toggleScreenShare = useCallback(async () => {
     if (isScreenSharing) {
