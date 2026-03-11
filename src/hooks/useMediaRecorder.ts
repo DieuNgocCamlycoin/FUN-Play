@@ -98,7 +98,7 @@ export const useMediaRecorder = (): UseMediaRecorderReturn => {
       recorderRef.current = recorder;
       mimeRef.current = mimeType;
       setIsRecording(true);
-      console.log("[MediaRecorder] Started recording on CLONED stream successfully");
+      console.log("[MediaRecorder] Started recording on SOURCE stream successfully");
       return true;
     } catch (err) {
       console.error("[MediaRecorder] Failed to start recording:", err);
