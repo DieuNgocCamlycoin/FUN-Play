@@ -56,7 +56,23 @@ const GoLive = () => {
         setPhase("preview");
         toast.success("Camera sẵn sàng! Xem trước và bắt đầu phát sóng.");
       } catch (err: any) {
-        toast.error(err?.message || "Không thể bật camera");
+        const name = err?.name || "";
+        if (name === "NotAllowedError") {
+          toast.error("Bạn chưa cấp quyền camera/mic. Vui lòng vào Cài đặt trình duyệt → cho phép truy cập Camera & Microphone rồi thử lại.");
+        } else if (name === "NotFoundError") {
+          toast.error("Không tìm thấy camera hoặc microphone trên thiết bị này.");
+        } else if (name === "OverconstrainedError") {
+          try {
+            await startCamera({ facingMode: "user" });
+            setPhase("preview");
+            toast.success("Camera sẵn sàng (độ phân giải thấp hơn).");
+            return;
+          } catch {
+            toast.error("Camera không tương thích. Vui lòng thử thiết bị khác.");
+          }
+        } else {
+          toast.error(err?.message || "Không thể bật camera");
+        }
       }
     },
     [createLivestream, startCamera]

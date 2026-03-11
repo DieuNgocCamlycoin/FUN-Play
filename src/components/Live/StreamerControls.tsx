@@ -63,7 +63,7 @@ export const StreamerControls = ({
       )}
 
       {/* Screen share - only on desktop or when API is available */}
-      {supportsScreenShare && !isMobile && (
+      {supportsScreenShare && (
         <Button
           variant={isScreenSharing ? "default" : "outline"}
           size="sm"
