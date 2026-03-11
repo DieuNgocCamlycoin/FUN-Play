@@ -243,7 +243,7 @@ const GoLive = () => {
         {(phase === "preview" || phase === "live") && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Main video area */}
-            <div className="lg:col-span-2 space-y-3">
+            <div className="md:col-span-2 space-y-3">
               <div className="relative">
                 <LivePlayer
                   stream={localStream}
