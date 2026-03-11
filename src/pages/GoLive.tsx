@@ -291,6 +291,7 @@ const GoLive = () => {
                       onToggleMic={toggleMic}
                       onToggleCamera={toggleCamera}
                       onToggleScreenShare={toggleScreenShare}
+                      onFlipCamera={flipCamera}
                     />
                   )}
                 </div>
