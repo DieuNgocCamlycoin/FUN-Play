@@ -438,7 +438,14 @@ export function MobileUploadFlow({ open, onOpenChange }: MobileUploadFlowProps) 
                           <motion.button
                             key={type.id}
                             whileTap={{ scale: 0.95 }}
-                            onClick={() => setSelectedType(type.id)}
+                            onClick={() => {
+                              if (type.id === "live") {
+                                onOpenChange(false);
+                                navigate("/go-live");
+                                return;
+                              }
+                              setSelectedType(type.id);
+                            }}
                             className={cn(
                               "flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-medium whitespace-nowrap transition-all min-h-[44px] scroll-snap-start touch-manipulation",
                               isActive

@@ -133,7 +133,7 @@ export function useWebRTCStreamer(livestreamId: string) {
     const newFacing = facingMode === "user" ? "environment" : "user";
     try {
       const newStream = await navigator.mediaDevices.getUserMedia({
-        video: { width: 1280, height: 720, facingMode: newFacing },
+        video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: newFacing },
         audio: false,
       });
       const newVideoTrack = newStream.getVideoTracks()[0];
