@@ -30,6 +30,7 @@ const GoLive = () => {
   const {
     localStream, viewerCount, startCamera, stopCamera, startStreaming, stopStreaming, isStreaming,
     isMicOn, isCameraOn, isScreenSharing, toggleMic, toggleCamera, toggleScreenShare,
+    flipCamera,
   } = useWebRTCStreamer(livestreamId || "");
   const { createLivestream, goLive, endLive } = useCreateLivestream();
   const { isRecording, startRecording, stopRecording } = useMediaRecorder();
