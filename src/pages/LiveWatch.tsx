@@ -176,7 +176,7 @@ const LiveWatch = () => {
           </div>
 
           {/* Chat */}
-          <div className="h-[50vh] lg:h-[calc(100vh-12rem)]">
+          <div className="h-[50vh] md:h-[calc(100vh-12rem)]">
             <LiveChat livestreamId={livestream.id} streamerId={livestream.user_id} className="h-full" />
           </div>
         </div>

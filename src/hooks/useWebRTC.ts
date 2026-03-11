@@ -310,6 +310,7 @@ export function useWebRTCStreamer(livestreamId: string) {
   return {
     isStreaming, viewerCount, localStream, startCamera, stopCamera, startStreaming, stopStreaming,
     isMicOn, isCameraOn, isScreenSharing, toggleMic, toggleCamera, toggleScreenShare,
+    flipCamera, facingMode,
   };
 }
 

@@ -316,7 +316,7 @@ const GoLive = () => {
             </div>
 
             {/* Chat panel */}
-            <div className="h-[60vh] lg:h-[calc(100vh-12rem)]">
+            <div className="h-[60vh] md:h-[calc(100vh-12rem)]">
               {livestreamId && <LiveChat livestreamId={livestreamId} streamerId={user.id} className="h-full" />}
             </div>
           </div>

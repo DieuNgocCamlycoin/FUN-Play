@@ -63,7 +63,7 @@ export const useMediaRecorder = (): UseMediaRecorderReturn => {
       const mimeType = MIME_CANDIDATES.find((m) => MediaRecorder.isTypeSupported(m)) || "";
 
       if (!mimeType) {
-        console.error("[MediaRecorder] No supported mime type found");
+        console.error("[MediaRecorder] No supported mime type found. Browser:", navigator.userAgent);
         return false;
       }
 
