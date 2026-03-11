@@ -86,7 +86,7 @@ const LiveWatch = () => {
           <ArrowLeft className="h-4 w-4 mr-1" /> Quay lại
         </Button>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Video */}
           <div className="lg:col-span-2 space-y-3">
             <div className="relative">
