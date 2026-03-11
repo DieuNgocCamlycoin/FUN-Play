@@ -56,9 +56,10 @@ export const useMediaRecorder = (): UseMediaRecorderReturn => {
         return false;
       }
 
-      // Clone stream so WebRTC peer connections don't interfere
-      const recordingStream = stream.clone();
-      streamRef.current = recordingStream;
+      // Use the source stream directly so track replacements (flip camera, screen share)
+      // are automatically picked up by MediaRecorder
+      const recordingStream = stream;
+      streamRef.current = null; // No clone to clean up
 
       const mimeType = MIME_CANDIDATES.find((m) => MediaRecorder.isTypeSupported(m)) || "";
 
