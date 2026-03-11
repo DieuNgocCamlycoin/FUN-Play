@@ -201,10 +201,8 @@ export const useMediaRecorder = (): UseMediaRecorderReturn => {
   }, []);
 
   const cleanupStream = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(t => t.stop());
-      streamRef.current = null;
-    }
+    // No-op: source stream lifecycle is managed by useWebRTC
+    streamRef.current = null;
   };
 
   return { isRecording, startRecording, stopRecording, actualMimeType: mimeRef.current };
