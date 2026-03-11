@@ -56,9 +56,10 @@ export const useMediaRecorder = (): UseMediaRecorderReturn => {
         return false;
       }
 
-      // Clone stream so WebRTC peer connections don't interfere
-      const recordingStream = stream.clone();
-      streamRef.current = recordingStream;
+      // Use the source stream directly so track replacements (flip camera, screen share)
+      // are automatically picked up by MediaRecorder
+      const recordingStream = stream;
+      streamRef.current = null; // No clone to clean up
 
       const mimeType = MIME_CANDIDATES.find((m) => MediaRecorder.isTypeSupported(m)) || "";
 
@@ -97,7 +98,7 @@ export const useMediaRecorder = (): UseMediaRecorderReturn => {
       recorderRef.current = recorder;
       mimeRef.current = mimeType;
       setIsRecording(true);
-      console.log("[MediaRecorder] Started recording on CLONED stream successfully");
+      console.log("[MediaRecorder] Started recording on SOURCE stream successfully");
       return true;
     } catch (err) {
       console.error("[MediaRecorder] Failed to start recording:", err);
@@ -200,10 +201,8 @@ export const useMediaRecorder = (): UseMediaRecorderReturn => {
   }, []);
 
   const cleanupStream = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(t => t.stop());
-      streamRef.current = null;
-    }
+    // No-op: source stream lifecycle is managed by useWebRTC
+    streamRef.current = null;
   };
 
   return { isRecording, startRecording, stopRecording, actualMimeType: mimeRef.current };
