@@ -86,9 +86,9 @@ const LiveWatch = () => {
           <ArrowLeft className="h-4 w-4 mr-1" /> Quay lại
         </Button>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Video */}
-          <div className="lg:col-span-2 space-y-3">
+          <div className="md:col-span-2 space-y-3">
             <div className="relative">
               {isEnded ? (
                 <div className="aspect-video bg-muted rounded-xl flex items-center justify-center">
@@ -176,7 +176,7 @@ const LiveWatch = () => {
           </div>
 
           {/* Chat */}
-          <div className="h-[50vh] lg:h-[calc(100vh-12rem)]">
+          <div className="h-[50vh] md:h-[calc(100vh-12rem)]">
             <LiveChat livestreamId={livestream.id} streamerId={livestream.user_id} className="h-full" />
           </div>
         </div>

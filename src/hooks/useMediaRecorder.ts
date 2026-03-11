@@ -7,13 +7,23 @@ interface UseMediaRecorderReturn {
   actualMimeType: string | null;
 }
 
-const MIME_CANDIDATES = [
-  "video/webm;codecs=vp8,opus",
-  "video/webm;codecs=vp9,opus",
-  "video/webm;codecs=vp8",
-  "video/webm",
-  "video/mp4",
-];
+// Detect iOS/Safari to prioritize mp4
+const isIOSSafari = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+  (navigator.userAgent.includes("Mac") && "ontouchend" in document);
+
+const MIME_CANDIDATES = isIOSSafari
+  ? [
+      "video/mp4",
+      "video/webm;codecs=vp8,opus",
+      "video/webm",
+    ]
+  : [
+      "video/webm;codecs=vp8,opus",
+      "video/webm;codecs=vp9,opus",
+      "video/webm;codecs=vp8",
+      "video/webm",
+      "video/mp4",
+    ];
 
 export const useMediaRecorder = (): UseMediaRecorderReturn => {
   const [isRecording, setIsRecording] = useState(false);
@@ -53,7 +63,7 @@ export const useMediaRecorder = (): UseMediaRecorderReturn => {
       const mimeType = MIME_CANDIDATES.find((m) => MediaRecorder.isTypeSupported(m)) || "";
 
       if (!mimeType) {
-        console.error("[MediaRecorder] No supported mime type found");
+        console.error("[MediaRecorder] No supported mime type found. Browser:", navigator.userAgent);
         return false;
       }
 

@@ -30,6 +30,7 @@ const GoLive = () => {
   const {
     localStream, viewerCount, startCamera, stopCamera, startStreaming, stopStreaming, isStreaming,
     isMicOn, isCameraOn, isScreenSharing, toggleMic, toggleCamera, toggleScreenShare,
+    flipCamera,
   } = useWebRTCStreamer(livestreamId || "");
   const { createLivestream, goLive, endLive } = useCreateLivestream();
   const { isRecording, startRecording, stopRecording } = useMediaRecorder();
@@ -240,9 +241,9 @@ const GoLive = () => {
         )}
 
         {(phase === "preview" || phase === "live") && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Main video area */}
-            <div className="lg:col-span-2 space-y-3">
+            <div className="md:col-span-2 space-y-3">
               <div className="relative">
                 <LivePlayer
                   stream={localStream}
@@ -290,6 +291,7 @@ const GoLive = () => {
                       onToggleMic={toggleMic}
                       onToggleCamera={toggleCamera}
                       onToggleScreenShare={toggleScreenShare}
+                      onFlipCamera={flipCamera}
                     />
                   )}
                 </div>
@@ -314,7 +316,7 @@ const GoLive = () => {
             </div>
 
             {/* Chat panel */}
-            <div className="h-[60vh] lg:h-[calc(100vh-12rem)]">
+            <div className="h-[60vh] md:h-[calc(100vh-12rem)]">
               {livestreamId && <LiveChat livestreamId={livestreamId} streamerId={user.id} className="h-full" />}
             </div>
           </div>
