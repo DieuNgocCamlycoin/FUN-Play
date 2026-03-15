@@ -391,6 +391,7 @@ export function EnhancedVideoPlayer({
       try {
         requestPlayback("video");
         setShowEndScreen(false);
+        setAutoplayFailed(false);
         await video.play();
       } catch (e) {
         console.log("Play failed:", e);
