@@ -105,6 +105,7 @@ export function EnhancedVideoPlayer({
   const [isPiPActive, setIsPiPActive] = useState(false);
   const [showEndScreen, setShowEndScreen] = useState(false);
   const [viewRewarded, setViewRewarded] = useState(false);
+  const [autoplayFailed, setAutoplayFailed] = useState(false);
   const [ambientEnabled, setAmbientEnabled] = useState(() => {
     try { return localStorage.getItem('funplay_ambient_mode') === 'true'; } catch { return false; }
   });
