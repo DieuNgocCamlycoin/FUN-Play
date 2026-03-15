@@ -447,17 +447,27 @@ export function EnhancedVideoPlayer({
 
   const toggleFullscreen = async () => {
     const container = containerRef.current;
+    const video = videoRef.current;
     if (!container) return;
 
     try {
       if (!document.fullscreenElement) {
-        await container.requestFullscreen();
+        if (container.requestFullscreen) {
+          await container.requestFullscreen();
+        } else if ((video as any)?.webkitEnterFullscreen) {
+          // iOS Safari fallback — only supports fullscreen on video element directly
+          (video as any).webkitEnterFullscreen();
+        }
         setIsFullscreen(true);
       } else {
         await document.exitFullscreen();
         setIsFullscreen(false);
       }
     } catch (e) {
+      // Final fallback for iOS
+      if ((video as any)?.webkitEnterFullscreen) {
+        try { (video as any).webkitEnterFullscreen(); } catch {}
+      }
       console.error("Fullscreen error:", e);
     }
   };
