@@ -10,6 +10,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 import { requestPlayback, onPauseRequest } from "@/lib/mediaSessionManager";
 import {
   DropdownMenu,
