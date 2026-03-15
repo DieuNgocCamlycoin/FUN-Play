@@ -357,10 +357,34 @@ export function EnhancedVideoPlayer({
     }
   };
 
-  const handleLoadedMetadata = () => {
+  const handleLoadedMetadata = async () => {
     const video = videoRef.current;
     if (video) {
       setDuration(video.duration);
+
+      // Auto-fix duration in DB if NULL or significantly mismatched
+      if (videoId && video.duration > 0 && isFinite(video.duration)) {
+        try {
+          const { data } = await supabase
+            .from("videos")
+            .select("duration")
+            .eq("id", videoId)
+            .single();
+          const storedDuration = data?.duration;
+          const rounded = Math.round(video.duration);
+          const needsUpdate = storedDuration == null
+            || Math.abs(rounded - storedDuration) / Math.max(rounded, 1) > 0.3;
+          if (needsUpdate) {
+            console.log(`[Auto-Duration] Fixing video ${videoId}: stored=${storedDuration}s → actual=${rounded}s`);
+            await supabase
+              .from("videos")
+              .update({ duration: rounded })
+              .eq("id", videoId);
+          }
+        } catch (e) {
+          console.log("[Auto-Duration] Error:", e);
+        }
+      }
     }
   };
 
