@@ -218,8 +218,10 @@ export function EnhancedVideoPlayer({
       try {
         requestPlayback("video");
         await video.play();
+        setAutoplayFailed(false);
       } catch (e) {
         console.log("Autoplay prevented:", e);
+        setAutoplayFailed(true);
       }
     };
 
