@@ -10,6 +10,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 import { requestPlayback, onPauseRequest } from "@/lib/mediaSessionManager";
 import {
   DropdownMenu,
@@ -105,6 +106,7 @@ export function EnhancedVideoPlayer({
   const [isPiPActive, setIsPiPActive] = useState(false);
   const [showEndScreen, setShowEndScreen] = useState(false);
   const [viewRewarded, setViewRewarded] = useState(false);
+  const [autoplayFailed, setAutoplayFailed] = useState(false);
   const [ambientEnabled, setAmbientEnabled] = useState(() => {
     try { return localStorage.getItem('funplay_ambient_mode') === 'true'; } catch { return false; }
   });
@@ -217,8 +219,10 @@ export function EnhancedVideoPlayer({
       try {
         requestPlayback("video");
         await video.play();
+        setAutoplayFailed(false);
       } catch (e) {
         console.log("Autoplay prevented:", e);
+        setAutoplayFailed(true);
       }
     };
 
@@ -354,10 +358,34 @@ export function EnhancedVideoPlayer({
     }
   };
 
-  const handleLoadedMetadata = () => {
+  const handleLoadedMetadata = async () => {
     const video = videoRef.current;
     if (video) {
       setDuration(video.duration);
+
+      // Auto-fix duration in DB if NULL or significantly mismatched
+      if (videoId && video.duration > 0 && isFinite(video.duration)) {
+        try {
+          const { data } = await supabase
+            .from("videos")
+            .select("duration")
+            .eq("id", videoId)
+            .single();
+          const storedDuration = data?.duration;
+          const rounded = Math.round(video.duration);
+          const needsUpdate = storedDuration == null
+            || Math.abs(rounded - storedDuration) / Math.max(rounded, 1) > 0.3;
+          if (needsUpdate) {
+            console.log(`[Auto-Duration] Fixing video ${videoId}: stored=${storedDuration}s → actual=${rounded}s`);
+            await supabase
+              .from("videos")
+              .update({ duration: rounded })
+              .eq("id", videoId);
+          }
+        } catch (e) {
+          console.log("[Auto-Duration] Error:", e);
+        }
+      }
     }
   };
 
@@ -388,6 +416,7 @@ export function EnhancedVideoPlayer({
       try {
         requestPlayback("video");
         setShowEndScreen(false);
+        setAutoplayFailed(false);
         await video.play();
       } catch (e) {
         console.log("Play failed:", e);
@@ -447,17 +476,27 @@ export function EnhancedVideoPlayer({
 
   const toggleFullscreen = async () => {
     const container = containerRef.current;
+    const video = videoRef.current;
     if (!container) return;
 
     try {
       if (!document.fullscreenElement) {
-        await container.requestFullscreen();
+        if (container.requestFullscreen) {
+          await container.requestFullscreen();
+        } else if ((video as any)?.webkitEnterFullscreen) {
+          // iOS Safari fallback — only supports fullscreen on video element directly
+          (video as any).webkitEnterFullscreen();
+        }
         setIsFullscreen(true);
       } else {
         await document.exitFullscreen();
         setIsFullscreen(false);
       }
     } catch (e) {
+      // Final fallback for iOS
+      if ((video as any)?.webkitEnterFullscreen) {
+        try { (video as any).webkitEnterFullscreen(); } catch {}
+      }
       console.error("Fullscreen error:", e);
     }
   };
@@ -600,6 +639,27 @@ export function EnhancedVideoPlayer({
         }}
         playsInline
       />
+
+      {/* Autoplay failed overlay */}
+      <AnimatePresence>
+        {autoplayFailed && !isPlaying && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 flex items-center justify-center z-20 bg-black/30"
+            onClick={togglePlay}
+          >
+            <motion.div
+              initial={{ scale: 0.8 }}
+              animate={{ scale: 1 }}
+              className="w-20 h-20 rounded-full bg-primary/90 flex items-center justify-center cursor-pointer hover:bg-primary transition-colors"
+            >
+              <Play className="w-10 h-10 text-primary-foreground ml-1" />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Close button - Top left, visible on hover */}
       <div className={cn(

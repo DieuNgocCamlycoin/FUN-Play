@@ -256,7 +256,14 @@ export function YouTubeMobilePlayer({
 
     try {
       if (!document.fullscreenElement) {
-        await container.requestFullscreen();
+        if (container.requestFullscreen) {
+          await container.requestFullscreen();
+        } else if ((video as any)?.webkitEnterFullscreen) {
+          // iOS Safari fallback
+          (video as any).webkitEnterFullscreen();
+          setIsFullscreen(true);
+          return;
+        }
         setIsFullscreen(true);
         
         // Lock orientation based on video aspect ratio
@@ -282,6 +289,10 @@ export function YouTubeMobilePlayer({
         }
       }
     } catch (e) {
+      // Final fallback for iOS
+      if ((video as any)?.webkitEnterFullscreen) {
+        try { (video as any).webkitEnterFullscreen(); } catch {}
+      }
       console.error("Fullscreen error:", e);
     }
   };
