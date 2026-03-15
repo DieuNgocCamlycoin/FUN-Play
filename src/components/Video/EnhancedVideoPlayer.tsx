@@ -640,6 +640,27 @@ export function EnhancedVideoPlayer({
         playsInline
       />
 
+      {/* Autoplay failed overlay */}
+      <AnimatePresence>
+        {autoplayFailed && !isPlaying && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 flex items-center justify-center z-20 bg-black/30"
+            onClick={togglePlay}
+          >
+            <motion.div
+              initial={{ scale: 0.8 }}
+              animate={{ scale: 1 }}
+              className="w-20 h-20 rounded-full bg-primary/90 flex items-center justify-center cursor-pointer hover:bg-primary transition-colors"
+            >
+              <Play className="w-10 h-10 text-primary-foreground ml-1" />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Close button - Top left, visible on hover */}
       <div className={cn(
         "absolute top-4 left-4 z-30 transition-opacity duration-300",
