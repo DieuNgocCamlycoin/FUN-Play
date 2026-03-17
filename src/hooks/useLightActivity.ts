@@ -242,7 +242,7 @@ export function useLightActivity(userId: string | undefined): UseLightActivityRe
       ] = await Promise.all([
         supabase
           .from('profiles')
-          .select('created_at, avatar_verified, suspicious_score, last_fun_mint_at, light_score, light_score_details')
+          .select('created_at, avatar_verified, suspicious_score, last_fun_mint_at, light_score, light_score_details, pplp_accepted_at')
           .eq('id', userId)
           .single(),
         
