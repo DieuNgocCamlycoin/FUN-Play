@@ -223,7 +223,7 @@ export function MintableCard({ activity, loading, onMintSuccess }: MintableCardP
             </span>
             <span className={cn(
               "font-bold",
-              activity.lightScore >= 60 ? "text-green-500" : "text-yellow-500"
+              activity.lightScore >= 10 ? "text-green-500" : "text-yellow-500"
             )}>
               {activity.lightScore}/100
             </span>
