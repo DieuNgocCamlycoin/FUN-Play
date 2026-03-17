@@ -232,7 +232,7 @@ export function MintableCard({ activity, loading, onMintSuccess }: MintableCardP
             value={activity.lightScore} 
             className={cn(
               "h-3",
-              activity.lightScore >= 60 ? "[&>div]:bg-gradient-to-r [&>div]:from-green-500 [&>div]:to-emerald-500" : ""
+              activity.lightScore >= 10 ? "[&>div]:bg-gradient-to-r [&>div]:from-green-500 [&>div]:to-emerald-500" : ""
             )}
           />
         </div>
