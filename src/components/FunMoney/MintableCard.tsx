@@ -216,7 +216,7 @@ export function MintableCard({ activity, loading, onMintSuccess }: MintableCardP
                   </TooltipTrigger>
                   <TooltipContent>
                     <p>Điểm ánh sáng được tính từ 5 trụ cột: S, T, H, C, U</p>
-                    <p className="text-xs text-muted-foreground mt-1">Cần tối thiểu 60 để mint</p>
+                    <p className="text-xs text-muted-foreground mt-1">Cần tối thiểu 10 để mint</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
