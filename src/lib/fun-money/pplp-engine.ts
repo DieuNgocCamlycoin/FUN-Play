@@ -78,7 +78,7 @@ const UNITY_MULTIPLIER_MAPPING = [
 ];
 
 const THRESHOLDS = {
-  minLightScore: 60,
+  minLightScore: 10,
   minIntegrityK: 0.6,
   antiSybilMin: 0.6,
   auditAmountAtomic: BigInt("5000000000000000000000") // 5000 FUN
@@ -435,11 +435,13 @@ export const BASE_REWARDS: Record<string, Record<string, string>> = {
 const LIGHT_LEVELS: Record<string, { label: string; emoji: string }> = {
   seed: { label: 'Light Seed', emoji: '🌱' },
   presence: { label: 'Light Seed', emoji: '🌱' }, // legacy alias
-  sprout: { label: 'Light Sprout', emoji: '🌿' },
-  contributor: { label: 'Light Sprout', emoji: '🌿' }, // legacy alias
+  sprout: { label: 'Light Seed', emoji: '🌱' }, // legacy alias → mapped to seed
+  contributor: { label: 'Light Builder', emoji: '🌳' }, // legacy alias
   builder: { label: 'Light Builder', emoji: '🌳' },
   guardian: { label: 'Light Guardian', emoji: '🛡️' },
-  architect: { label: 'Light Architect', emoji: '👑' },
+  leader: { label: 'Light Leader', emoji: '⚡' },
+  architect: { label: 'Cosmic Contributor', emoji: '👑' }, // legacy alias
+  cosmic: { label: 'Cosmic Contributor', emoji: '👑' },
 };
 
 export function getLightLevelLabel(level: string): string {

@@ -1,110 +1,94 @@
 
 
-## Kiểm tra toàn diện hệ thống Mint FUN Money — Báo cáo & Kế hoạch khắc phục
+## Phân Tích Hệ Thống PPLP & Light Score — Hiện Trạng và Đề Xuất Test
 
-### Tổng quan
-
-Hệ thống FUN Money Mint gồm: **pplp-engine.ts** (scoring), **constitution.ts** (PPLP v2.0 validation), **useLightActivity.ts** (tính mintable FUN), **useFunMoneyMintRequest.ts** (submit request), **MintableCard.tsx** (UI), **scoring-config-v1.ts** (config), **pool-system.ts** (4 pools + decay), cùng backend functions (calculate_user_light_score, get_fun_money_system_stats).
-
----
-
-### Bảng đánh giá đối chiếu với tài liệu
+### 1. Hệ thống hoạt động ra sao?
 
 ```text
-┌─────────────────────────────────────┬─────────┬──────────────────────────────────────────┐
-│ Tiêu chí (theo tài liệu)           │ Trạng thái │ Chi tiết                              │
-├─────────────────────────────────────┼─────────┼──────────────────────────────────────────┤
-│ LS-Math v1.0 scoring formula        │  ✅     │ Đúng: L = (0.4B + 0.6C) × M_cons ×     │
-│                                     │         │ M_seq × Π × w                           │
-│ PPLP v2.0 — 5 điều kiện bắt buộc   │  ✅     │ validatePPLP() check đủ 5 flags         │
-│ Base Rewards FUN_PLAY               │  ✅     │ Đúng: VIEW=10, LIKE=5, COMMENT=15...    │
-│ Constitution v2.0 lifecycle         │  ✅     │ 4 trạng thái LOCKED/ACTIVATED/FLOWING/  │
-│                                     │         │ RECYCLE đã implement                     │
-│ Anti-whale cap 3%                   │  ✅     │ scoring-config-v1: cap=0.03,             │
-│                                     │         │ light-score-math.ts redistribution loop  │
-│ Monthly epoch                       │  ✅     │ epoch_type: 'monthly', DB fn dùng       │
-│                                     │         │ date_trunc('month')                      │
-│ Pool System 4-tier                  │  ✅     │ 40/30/20/10% đúng Whitepaper 5D         │
-│ Inactivity Decay                    │  ✅     │ 90d grace, 0.1%/day, max 50%            │
-│ Multisig 3/3 GOV                    │  ✅     │ WILL + WISDOM + LOVE, AttesterPanel +   │
-│                                     │         │ AdminMintPanel                           │
-│ No-Ego Policy                       │  ✅     │ Ẩn điểm thô, chỉ hiển thị Level+Trend  │
-│ Cooldown 24h giữa các lần mint     │  ✅     │ MINT_COOLDOWN_HOURS = 24                │
-│ Min 10 activities                   │  ✅     │ MIN_ACTIVITIES = 10                     │
-│ Contract address                    │  ✅     │ 0x39A1b...F0CD6 BSC Testnet, đúng      │
-│ Unified on-chain action FUN_REWARD  │  ✅     │ Đúng theo tài liệu                     │
-├─────────────────────────────────────┼─────────┼──────────────────────────────────────────┤
-│ PPLP Charter gate (pplp_accepted)   │  ❌     │ THIẾU: useLightActivity KHÔNG check     │
-│                                     │         │ pplp_accepted_at trước khi cho mint     │
-│ Min Light Score gating: MỚI vs CŨ  │  ⚠️     │ KHÔNG NHẤT QUÁN: Tài liệu = 10,        │
-│                                     │         │ useLightActivity dùng 10 (đúng), nhưng  │
-│                                     │         │ MintableCard tooltip nói "Cần 60",      │
-│                                     │         │ pplp-engine THRESHOLDS.minLightScore=60  │
-│ Level mapping KHÔNG NHẤT QUÁN       │  ❌     │ 3 bộ level khác nhau trong codebase     │
-│ DEFAULT_MONTHLY_POOL 5M enforcement │  ⚠️     │ Config có nhưng không thấy enforce      │
-│                                     │         │ trong client-side mint flow              │
-└─────────────────────────────────────┴─────────┴──────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│                    PPLP SCORING PIPELINE                        │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Events (pplp_events)                                           │
+│    ↓                                                            │
+│  02:00 AM — build-features → features_user_day                  │
+│    ↓                                                            │
+│  02:30 AM — detect-sequences → sequences                        │
+│    ↓                                                            │
+│  Mỗi 4h — calculate_user_light_score()                          │
+│    │                                                            │
+│    ├── B = 0.4 × Action Base (posts×3, videos×5, comments×1.5)  │
+│    ├── C = 0.6 × Content Score ((P_c/10)^1.3)                   │
+│    ├── M_cons = 1 + 0.6(1 - e^(-streak/30))                    │
+│    ├── M_seq  = 1 + 0.5 × tanh(Q/5)                            │
+│    ├── Π      = 1 - min(0.5, 0.8 × risk)                       │
+│    └── L = (0.4B + 0.6C) × M_cons × M_seq × Π × w_u           │
+│    ↓                                                            │
+│  Đầu tháng — mint-epoch-engine                                  │
+│    ├── Pool: 5,000,000 FUN / tháng                              │
+│    ├── Anti-whale: max 3% per user                              │
+│    └── Redistribute dư thừa cho users khác                      │
+│                                                                  │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
----
+### 2. Đánh giá: Đã chuẩn chỉnh chưa?
 
-### Chi tiết 4 vấn đề cần khắc phục
+**Đã tốt:**
+- LS-Math v1.0 triển khai đầy đủ 19 sections trong `light-score-math.ts`
+- Config single source of truth tại `scoring-config-v1.ts` (epoch_type: monthly -- khớp)
+- DB function `calculate_user_light_score` có fallback raw data, upsert ledger
+- Anti-whale, anti-farm, integrity penalty hoạt động
+- 4 test cases simulation đã pass (Spam, Drama, Silent Consistent, Rating Ring)
+- PPLP Constitution v2.0 validation trước khi scoring
+- Inactivity Decay (90 ngày grace, 0.1%/ngày, max 50%)
 
-#### 1. THIẾU kiểm tra `pplp_accepted_at` trước khi cho mint (❌ Critical)
+**Cần bổ sung test:**
+- Chưa có unit test riêng cho `light-score-math.ts` (chỉ có simulation test)
+- Chưa có test cho edge functions (mint-epoch-engine, ingest-pplp-event)
+- Chưa có security/attack simulation tests
 
-**Tài liệu yêu cầu:** Người dùng phải chấp nhận Hiến chương PPLP (`pplp_accepted_at IS NOT NULL`) trước khi được mint.
+### 3. Kế hoạch: Bộ Test Toàn Diện + Mô Phỏng Tấn Công
 
-**Thực tế:** `useLightActivity.ts` fetch profile nhưng KHÔNG select `pplp_accepted_at` và KHÔNG kiểm tra điều kiện này. User chưa chấp nhận Charter vẫn thấy nút MINT NOW và có thể submit request.
+**File mới: `src/lib/fun-money/__tests__/light-score-math.test.ts`**
+- Unit test cho từng hàm: `reputationWeight`, `contentPillarScore`, `actionBaseScore`, `dailyLightScore`, `consistencyMultiplier`, `sequenceMultiplier`, `integrityPenalty`, `checkEligibility`, `calculateMintAllocations`, `coldStartFallback`
+- Edge cases: score = 0, negative inputs, extreme values
 
-**Sửa:** Thêm `pplp_accepted_at` vào select query profile, thêm gate check: nếu null → `canMint = false`, `mintBlockReason = 'Bạn cần chấp nhận Hiến chương PPLP trước'`.
+**File mới: `src/lib/fun-money/__tests__/attack-simulation.test.ts`**
+Mô phỏng 6 kịch bản tấn công hacker:
 
-**File:** `src/hooks/useLightActivity.ts`
+1. **Sybil Attack** — 100 tài khoản giả, mỗi account có light score thấp, cố gắng chiếm pool
+   - Kiểm tra: anti-whale cap 3% + eligibility gate chặn accounts có risk > 0.4
 
-#### 2. Level mapping KHÔNG NHẤT QUÁN giữa 3 nơi (❌ Medium)
+2. **Rating Ring Collusion** — 10 users chấm chéo cho nhau điểm tối đa
+   - Kiểm tra: integrity penalty giảm 50% khi risk = 0.625
 
-3 bộ level khác nhau trong codebase:
+3. **Score Inflation via Spam** — 1000 bài post chất lượng thấp trong 1 ngày
+   - Kiểm tra: exponent γ=1.3 crush điểm thấp, (2/10)^1.3 ≈ 0.148
 
-| Nguồn | Levels |
-|-------|--------|
-| **Tài liệu (memory)** | Light Seed (0-99), Light Builder (100-249), Light Guardian (250-499), Light Leader (500-799), Cosmic Contributor (800+) |
-| **pplp-engine.ts** (LIGHT_LEVELS) | seed, sprout, builder, guardian, architect (tên khác, không có Leader/Cosmic) |
-| **scoring-config-v1.ts** (levels) | seed(0), sprout(50), builder(200), guardian(500), architect(1200) — ngưỡng khác |
-| **light-score-pillars.ts** + **ClaimGuide.tsx** | Light Seed(0), Light Builder(100), Light Guardian(250), Light Leader(500), Cosmic Contributor(800) — **ĐÚNG tài liệu** |
-| **DB function** calculate_user_light_score | seed(0-49), sprout(50-199), builder(200-499), guardian(500-1199), architect(1200+) — **KHÁC tài liệu** |
+4. **Whale Monopoly** — 1 user có light score = 50,000, cố lấy hết pool
+   - Kiểm tra: anti-whale cap giới hạn 3% = 150,000 FUN max, redistribution hoạt động
 
-**Sửa:** Đồng bộ tất cả về chuẩn tài liệu mới nhất (5 levels trong light-score-pillars.ts). Cập nhật:
-- `pplp-engine.ts` LIGHT_LEVELS → 5 levels đúng tên + ngưỡng
-- `scoring-config-v1.ts` levels → thresholds 0/100/250/500/800
-- DB function `calculate_user_light_score` → cập nhật level mapping
+5. **Epoch Gaming** — User chỉ hoạt động 1 ngày cuối epoch rồi nghỉ
+   - Kiểm tra: consistency multiplier thấp (streak=1 → M_cons ≈ 1.02), thua user bền vững
 
-**Files:** `pplp-engine.ts`, `scoring-config-v1.ts`, DB migration
+6. **Inactivity Exploit** — User cố tích trữ FUN, không hoạt động 200 ngày
+   - Kiểm tra: decay 11% balance quay về community pool
 
-#### 3. MintableCard tooltip hiển thị sai ngưỡng Light Score (⚠️ Medium)
+**File mới: `src/lib/fun-money/__tests__/pplp-engine.test.ts`**
+- Test `scoreAction` pipeline end-to-end
+- Test PPLP validation rejection
+- Test BigInt mint amount calculations
+- Test format/parse FUN amounts
 
-**Vấn đề:** `MintableCard.tsx` dòng 219 tooltip nói "Cần tối thiểu 60 để mint" và progress bar check `>= 60` (dòng 227, 234). Nhưng `useLightActivity.ts` dùng `MIN_LIGHT_SCORE = 10` (đúng tài liệu). `pplp-engine.ts` `THRESHOLDS.minLightScore = 60` dùng cho scoring decision (REJECT), không phải mint gating.
+Tổng cộng: **~50-60 test cases** bao phủ logic scoring, bảo mật, và edge cases.
 
-**Sửa:** Cập nhật MintableCard tooltip và progress bar check từ 60 → 10 để khớp với gating logic thực tế.
+### 4. Kết quả mong đợi
 
-**File:** `src/components/FunMoney/MintableCard.tsx`
-
-#### 4. `pplp-engine.ts` THRESHOLDS.minLightScore = 60 quá cao so với tài liệu (⚠️ Medium)
-
-**Vấn đề:** `scoreAction()` dùng `THRESHOLDS.minLightScore = 60` để REJECT request. Nhưng Light Score client-side (calculated from pillars, 0-100 range) khác hoàn toàn với server-side Light Score (LS-Math, có thể hàng trăm/nghìn). Khi user có server LS = 50 (trên ngưỡng 10) nhưng pillar-derived LS = 45 (dưới 60) → `scoreAction` REJECT → user bị từ chối sai.
-
-**Sửa:** Đổi `THRESHOLDS.minLightScore` từ 60 → 10 để khớp tài liệu, hoặc tách biệt rõ ràng 2 loại light score (pillar-based vs LS-Math) trong scoring pipeline.
-
-**File:** `src/lib/fun-money/pplp-engine.ts`
-
----
-
-### Kế hoạch thực hiện
-
-| # | Task | Priority | Files |
-|---|------|----------|-------|
-| 1 | Thêm gate `pplp_accepted_at` vào useLightActivity | Critical | `useLightActivity.ts` |
-| 2 | Đồng bộ THRESHOLDS.minLightScore → 10 | Medium | `pplp-engine.ts` |
-| 3 | Sửa MintableCard tooltip/progress bar 60→10 | Medium | `MintableCard.tsx` |
-| 4 | Đồng bộ level mapping (pplp-engine + scoring-config + DB) | Medium | `pplp-engine.ts`, `scoring-config-v1.ts`, DB migration |
-
-Tổng: sửa **3 files frontend** + **1 DB migration** cho level mapping.
+Sau khi chạy `npx vitest`, developer có thể xác nhận:
+- Mọi công thức LS-Math v1.0 tính đúng
+- Hacker không thể trục lợi qua spam, sybil, rating ring, hay whale monopoly
+- Anti-whale redistribution phân bổ công bằng
+- Inactivity decay bảo vệ khỏi tích trữ
+- PPLP Constitution v2.0 chặn đúng hành vi không hợp lệ
 

@@ -54,11 +54,11 @@ export const SCORING_RULES_V1 = {
   },
 
   levels: {
-    seed: 0,
-    sprout: 50,
-    builder: 200,
-    guardian: 500,
-    architect: 1200,
+    seed: 0,        // Light Seed: 0-99
+    builder: 100,   // Light Builder: 100-249
+    guardian: 250,   // Light Guardian: 250-499
+    leader: 500,     // Light Leader: 500-799
+    cosmic: 800,     // Cosmic Contributor: 800+
   },
 } as const;
 

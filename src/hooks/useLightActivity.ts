@@ -242,7 +242,7 @@ export function useLightActivity(userId: string | undefined): UseLightActivityRe
       ] = await Promise.all([
         supabase
           .from('profiles')
-          .select('created_at, avatar_verified, suspicious_score, last_fun_mint_at, light_score, light_score_details')
+          .select('created_at, avatar_verified, suspicious_score, last_fun_mint_at, light_score, light_score_details, pplp_accepted_at')
           .eq('id', userId)
           .single(),
         
@@ -362,7 +362,13 @@ export function useLightActivity(userId: string | undefined): UseLightActivityRe
       let canMint = true;
       let mintBlockReason: string | undefined;
 
-      if (hasPendingRequest) {
+      // PPLP Charter gate — must accept charter before minting
+      const pplpAcceptedAt = (profile as any).pplp_accepted_at;
+
+      if (!pplpAcceptedAt) {
+        canMint = false;
+        mintBlockReason = 'Bạn cần chấp nhận Hiến chương PPLP trước khi mint';
+      } else if (hasPendingRequest) {
         canMint = false;
         mintBlockReason = 'Bạn đã có request đang chờ duyệt';
       } else if ((profile.light_score ?? lightScore) < MIN_LIGHT_SCORE) {

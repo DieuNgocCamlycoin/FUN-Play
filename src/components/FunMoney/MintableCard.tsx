@@ -216,14 +216,14 @@ export function MintableCard({ activity, loading, onMintSuccess }: MintableCardP
                   </TooltipTrigger>
                   <TooltipContent>
                     <p>Điểm ánh sáng được tính từ 5 trụ cột: S, T, H, C, U</p>
-                    <p className="text-xs text-muted-foreground mt-1">Cần tối thiểu 60 để mint</p>
+                    <p className="text-xs text-muted-foreground mt-1">Cần tối thiểu 10 để mint</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
             </span>
             <span className={cn(
               "font-bold",
-              activity.lightScore >= 60 ? "text-green-500" : "text-yellow-500"
+              activity.lightScore >= 10 ? "text-green-500" : "text-yellow-500"
             )}>
               {activity.lightScore}/100
             </span>
@@ -232,7 +232,7 @@ export function MintableCard({ activity, loading, onMintSuccess }: MintableCardP
             value={activity.lightScore} 
             className={cn(
               "h-3",
-              activity.lightScore >= 60 ? "[&>div]:bg-gradient-to-r [&>div]:from-green-500 [&>div]:to-emerald-500" : ""
+              activity.lightScore >= 10 ? "[&>div]:bg-gradient-to-r [&>div]:from-green-500 [&>div]:to-emerald-500" : ""
             )}
           />
         </div>
