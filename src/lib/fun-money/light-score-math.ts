@@ -43,10 +43,10 @@ export const LS_PARAMS = {
   // Section 15: Level thresholds
   level_thresholds: {
     seed: 0,
-    sprout: 50,
-    builder: 200,
-    guardian: 500,
-    architect: 1200,
+    builder: 100,
+    guardian: 250,
+    leader: 500,
+    cosmic: 800,
   },
 } as const;
 
@@ -403,10 +403,10 @@ export function calculateMintAllocations(input: MintAllocationInput): MintAlloca
 
 export function determineLevel(epochScore: number): string {
   const t = LS_PARAMS.level_thresholds;
-  if (epochScore >= t.architect) return 'architect';
+  if (epochScore >= t.cosmic) return 'cosmic';
+  if (epochScore >= t.leader) return 'leader';
   if (epochScore >= t.guardian) return 'guardian';
   if (epochScore >= t.builder) return 'builder';
-  if (epochScore >= t.sprout) return 'sprout';
   return 'seed';
 }
 
