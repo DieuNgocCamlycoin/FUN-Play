@@ -403,10 +403,10 @@ export function calculateMintAllocations(input: MintAllocationInput): MintAlloca
 
 export function determineLevel(epochScore: number): string {
   const t = LS_PARAMS.level_thresholds;
-  if (epochScore >= t.architect) return 'architect';
+  if (epochScore >= t.cosmic) return 'cosmic';
+  if (epochScore >= t.leader) return 'leader';
   if (epochScore >= t.guardian) return 'guardian';
   if (epochScore >= t.builder) return 'builder';
-  if (epochScore >= t.sprout) return 'sprout';
   return 'seed';
 }
 
