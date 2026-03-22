@@ -417,27 +417,29 @@ describe('calculateMintAllocations', () => {
 // ===== SECTION 15: LEVEL MAPPING =====
 
 describe('determineLevel', () => {
-  it('seed for score < 50', () => {
+  it('seed for score < 100', () => {
     expect(determineLevel(0)).toBe('seed');
-    expect(determineLevel(49)).toBe('seed');
+    expect(determineLevel(99)).toBe('seed');
   });
 
-  it('sprout for score 50-199', () => {
-    expect(determineLevel(50)).toBe('sprout');
-    expect(determineLevel(199)).toBe('sprout');
+  it('builder for score 100-249', () => {
+    expect(determineLevel(100)).toBe('builder');
+    expect(determineLevel(249)).toBe('builder');
   });
 
-  it('builder for score 200-499', () => {
-    expect(determineLevel(200)).toBe('builder');
+  it('guardian for score 250-499', () => {
+    expect(determineLevel(250)).toBe('guardian');
+    expect(determineLevel(499)).toBe('guardian');
   });
 
-  it('guardian for score 500-1199', () => {
-    expect(determineLevel(500)).toBe('guardian');
+  it('leader for score 500-799', () => {
+    expect(determineLevel(500)).toBe('leader');
+    expect(determineLevel(799)).toBe('leader');
   });
 
-  it('architect for score >= 1200', () => {
-    expect(determineLevel(1200)).toBe('architect');
-    expect(determineLevel(99999)).toBe('architect');
+  it('cosmic for score >= 800', () => {
+    expect(determineLevel(800)).toBe('cosmic');
+    expect(determineLevel(99999)).toBe('cosmic');
   });
 });
 
