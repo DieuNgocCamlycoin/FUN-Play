@@ -484,9 +484,9 @@ describe('constants integrity', () => {
 
   it('level thresholds are in ascending order', () => {
     const t = LS_PARAMS.level_thresholds;
-    expect(t.seed).toBeLessThan(t.sprout);
-    expect(t.sprout).toBeLessThan(t.builder);
+    expect(t.seed).toBeLessThan(t.builder);
     expect(t.builder).toBeLessThan(t.guardian);
-    expect(t.guardian).toBeLessThan(t.architect);
+    expect(t.guardian).toBeLessThan(t.leader);
+    expect(t.leader).toBeLessThan(t.cosmic);
   });
 });
