@@ -43,10 +43,10 @@ export const LS_PARAMS = {
   // Section 15: Level thresholds
   level_thresholds: {
     seed: 0,
-    sprout: 50,
-    builder: 200,
-    guardian: 500,
-    architect: 1200,
+    builder: 100,
+    guardian: 250,
+    leader: 500,
+    cosmic: 800,
   },
 } as const;
 
