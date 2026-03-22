@@ -1,94 +1,94 @@
 
 
-## Phân Tích Hệ Thống PPLP & Light Score — Hiện Trạng và Đề Xuất Test
+## Rà Soát Toàn Bộ Hệ Thống Tính Điểm User — Báo Cáo
 
-### 1. Hệ thống hoạt động ra sao?
+### Kiến trúc tổng quan
+
+Hệ thống tính điểm có **3 tầng song song**, mỗi tầng phục vụ mục đích khác:
 
 ```text
-┌──────────────────────────────────────────────────────────────────┐
-│                    PPLP SCORING PIPELINE                        │
-├──────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  Events (pplp_events)                                           │
-│    ↓                                                            │
-│  02:00 AM — build-features → features_user_day                  │
-│    ↓                                                            │
-│  02:30 AM — detect-sequences → sequences                        │
-│    ↓                                                            │
-│  Mỗi 4h — calculate_user_light_score()                          │
-│    │                                                            │
-│    ├── B = 0.4 × Action Base (posts×3, videos×5, comments×1.5)  │
-│    ├── C = 0.6 × Content Score ((P_c/10)^1.3)                   │
-│    ├── M_cons = 1 + 0.6(1 - e^(-streak/30))                    │
-│    ├── M_seq  = 1 + 0.5 × tanh(Q/5)                            │
-│    ├── Π      = 1 - min(0.5, 0.8 × risk)                       │
-│    └── L = (0.4B + 0.6C) × M_cons × M_seq × Π × w_u           │
-│    ↓                                                            │
-│  Đầu tháng — mint-epoch-engine                                  │
-│    ├── Pool: 5,000,000 FUN / tháng                              │
-│    ├── Anti-whale: max 3% per user                              │
-│    └── Redistribute dư thừa cho users khác                      │
-│                                                                  │
-└──────────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────┐
+│ Tầng 1: LS-Math v1.0 (SERVER — DB function)                      │
+│   calculate_user_light_score() → profiles.light_score             │
+│   Công thức: L = (0.4B + 0.6C) × M_cons × M_seq × Π × w         │
+│   → Dùng cho: Level assignment, eligibility, mint gating          │
+│   → Chạy mỗi 4h (cron) hoặc manual trigger                      │
+├───────────────────────────────────────────────────────────────────┤
+│ Tầng 2: PPLP Engine (CLIENT — pplp-engine.ts)                    │
+│   scoreAction() → tính FUN mint amount per action                 │
+│   Công thức: Base × Q × I × K × Ux × (M_cons × M_seq × Π)       │
+│   → Dùng cho: Tính mintable FUN, hiển thị breakdown              │
+├───────────────────────────────────────────────────────────────────┤
+│ Tầng 3: 5-Pillar Engine (CLIENT — light-score-pillar-engine.ts)  │
+│   calculatePillarScores() → 5 sub-scores (0-100 each)            │
+│   Công thức: Weighted sum 20% × 5 pillars - risk + streak        │
+│   → Dùng cho: Radar chart hiển thị, Reputation NFT metadata      │
+└───────────────────────────────────────────────────────────────────┘
 ```
 
-### 2. Đánh giá: Đã chuẩn chỉnh chưa?
+### Bảng đánh giá chi tiết
 
-**Đã tốt:**
-- LS-Math v1.0 triển khai đầy đủ 19 sections trong `light-score-math.ts`
-- Config single source of truth tại `scoring-config-v1.ts` (epoch_type: monthly -- khớp)
-- DB function `calculate_user_light_score` có fallback raw data, upsert ledger
-- Anti-whale, anti-farm, integrity penalty hoạt động
-- 4 test cases simulation đã pass (Spam, Drama, Silent Consistent, Rating Ring)
-- PPLP Constitution v2.0 validation trước khi scoring
-- Inactivity Decay (90 ngày grace, 0.1%/ngày, max 50%)
+```text
+┌───────────────────────────────────┬────────┬─────────────────────────────────┐
+│ Tiêu chí                          │ Status │ Chi tiết                        │
+├───────────────────────────────────┼────────┼─────────────────────────────────┤
+│ LS-Math công thức đúng (DB)       │  ✅    │ Khớp spec hoàn toàn             │
+│ LS-Math công thức đúng (TS)       │  ✅    │ light-score-math.ts khớp DB     │
+│ PPLP v2.0 validation              │  ✅    │ 5 điều kiện enforce trước mint  │
+│ Charter gate (pplp_accepted_at)   │  ✅    │ Đã thêm trong useLightActivity  │
+│ Min Light Score = 10              │  ✅    │ Đồng bộ DB + TS + UI            │
+│ Cooldown 24h                      │  ✅    │ useLightActivity enforce        │
+│ Anti-whale 3%                     │  ✅    │ calculateMintAllocations         │
+│ Monthly epoch                     │  ✅    │ DB date_trunc('month')          │
+│ Consistency M_cons formula        │  ✅    │ 1+0.6(1-e^{-S/30}) — cả 3 tầng │
+│ Sequence M_seq formula            │  ✅    │ 1+0.5·tanh(Q/5) — khớp         │
+│ Integrity Π formula               │  ✅    │ 1-min(0.5, 0.8×risk) — khớp    │
+│ Reputation w formula              │  ✅    │ clip(0.5, 2, 1+0.25·ln(1+R))   │
+│ Content h(P_c) = (P/10)^1.3      │  ✅    │ DB + TS + features_user_day     │
+│ Cold start fallback               │  ✅    │ μ_topic × φ_u clipped [0.8,1.1] │
+│ Raw fallback GREATEST()           │  ✅    │ DB function handles correctly   │
+│ Ledger upsert                     │  ✅    │ ON CONFLICT works               │
+│ 5-Pillar scoring (Whitepaper)     │  ✅    │ Extends, not replaces LS-Math   │
+├───────────────────────────────────┼────────┼─────────────────────────────────┤
+│ Level thresholds light-score-math │  ❌    │ CŨ: seed/sprout/builder/        │
+│                                   │        │ guardian/architect               │
+│                                   │        │ (0/50/200/500/1200)             │
+│ Level thresholds useLightActivity │  ⚠️    │ Lấy level từ server (đúng)      │
+│                                   │        │ nhưng client pillar-based score  │
+│                                   │        │ dùng thang 0-100 khác server    │
+│ light-score-math.ts KHÔNG import  │  ⚠️    │ scoring-config-v1.ts — 2 nguồn  │
+│ scoring-config-v1.ts              │        │ config song song, dễ lệch       │
+└───────────────────────────────────┴────────┴─────────────────────────────────┘
+```
 
-**Cần bổ sung test:**
-- Chưa có unit test riêng cho `light-score-math.ts` (chỉ có simulation test)
-- Chưa có test cho edge functions (mint-epoch-engine, ingest-pplp-event)
-- Chưa có security/attack simulation tests
+### 2 vấn đề cần khắc phục
 
-### 3. Kế hoạch: Bộ Test Toàn Diện + Mô Phỏng Tấn Công
+#### 1. `light-score-math.ts` level thresholds CHƯA đồng bộ (❌ Medium)
 
-**File mới: `src/lib/fun-money/__tests__/light-score-math.test.ts`**
-- Unit test cho từng hàm: `reputationWeight`, `contentPillarScore`, `actionBaseScore`, `dailyLightScore`, `consistencyMultiplier`, `sequenceMultiplier`, `integrityPenalty`, `checkEligibility`, `calculateMintAllocations`, `coldStartFallback`
-- Edge cases: score = 0, negative inputs, extreme values
+**File `light-score-math.ts` dòng 44-50** vẫn dùng bộ level cũ:
+- seed: 0, sprout: 50, builder: 200, guardian: 500, architect: 1200
 
-**File mới: `src/lib/fun-money/__tests__/attack-simulation.test.ts`**
-Mô phỏng 6 kịch bản tấn công hacker:
+Trong khi **DB function**, **pplp-engine.ts**, **scoring-config-v1.ts**, **light-score-pillars.ts** đều đã cập nhật:
+- seed: 0, builder: 100, guardian: 250, leader: 500, cosmic: 800
 
-1. **Sybil Attack** — 100 tài khoản giả, mỗi account có light score thấp, cố gắng chiếm pool
-   - Kiểm tra: anti-whale cap 3% + eligibility gate chặn accounts có risk > 0.4
+Hàm `determineLevel()` trong light-score-math.ts (dòng 404-411) trả ra level sai nếu ai gọi nó. Hiện tại hàm này **không được gọi trực tiếp trong production flow** (DB function tự tính level), nhưng nó được dùng trong `generateExplanation()` và các test — tạo ra kết quả sai trong audit/explainability.
 
-2. **Rating Ring Collusion** — 10 users chấm chéo cho nhau điểm tối đa
-   - Kiểm tra: integrity penalty giảm 50% khi risk = 0.625
+**Sửa:** Cập nhật `LS_PARAMS.level_thresholds` và `determineLevel()` trong `light-score-math.ts` cho khớp.
 
-3. **Score Inflation via Spam** — 1000 bài post chất lượng thấp trong 1 ngày
-   - Kiểm tra: exponent γ=1.3 crush điểm thấp, (2/10)^1.3 ≈ 0.148
+#### 2. `light-score-math.ts` config trùng lặp với `scoring-config-v1.ts` (⚠️ Low)
 
-4. **Whale Monopoly** — 1 user có light score = 50,000, cố lấy hết pool
-   - Kiểm tra: anti-whale cap giới hạn 3% = 150,000 FUN max, redistribution hoạt động
+Cả hai file đều định nghĩa cùng tham số (gamma, beta, lambda, eta, kappa, theta, cap...) nhưng **không import nhau**. Hiện tại giá trị khớp, nhưng nếu sửa 1 file mà quên file kia → lệch.
 
-5. **Epoch Gaming** — User chỉ hoạt động 1 ngày cuối epoch rồi nghỉ
-   - Kiểm tra: consistency multiplier thấp (streak=1 → M_cons ≈ 1.02), thua user bền vững
+**Sửa:** Cho `light-score-math.ts` import từ `scoring-config-v1.ts` thay vì khai báo `LS_PARAMS` riêng. Hoặc tối thiểu — đồng bộ level thresholds.
 
-6. **Inactivity Exploit** — User cố tích trữ FUN, không hoạt động 200 ngày
-   - Kiểm tra: decay 11% balance quay về community pool
+---
 
-**File mới: `src/lib/fun-money/__tests__/pplp-engine.test.ts`**
-- Test `scoreAction` pipeline end-to-end
-- Test PPLP validation rejection
-- Test BigInt mint amount calculations
-- Test format/parse FUN amounts
+### Kế hoạch thực hiện
 
-Tổng cộng: **~50-60 test cases** bao phủ logic scoring, bảo mật, và edge cases.
+| # | Task | Priority | File |
+|---|------|----------|------|
+| 1 | Đồng bộ level thresholds trong light-score-math.ts | Medium | `light-score-math.ts` |
+| 2 | Refactor LS_PARAMS import từ scoring-config-v1 (optional) | Low | `light-score-math.ts` |
 
-### 4. Kết quả mong đợi
-
-Sau khi chạy `npx vitest`, developer có thể xác nhận:
-- Mọi công thức LS-Math v1.0 tính đúng
-- Hacker không thể trục lợi qua spam, sybil, rating ring, hay whale monopoly
-- Anti-whale redistribution phân bổ công bằng
-- Inactivity decay bảo vệ khỏi tích trữ
-- PPLP Constitution v2.0 chặn đúng hành vi không hợp lệ
+**Kết luận:** Hệ thống tính điểm **hoạt động đúng trên production flow** (DB function là nguồn chính, client lấy kết quả từ server). Chỉ còn 1 file `light-score-math.ts` có level thresholds cũ cần đồng bộ — ảnh hưởng chủ yếu đến explainability/test, không ảnh hưởng scoring thực tế.
 
