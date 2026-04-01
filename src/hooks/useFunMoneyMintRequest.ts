@@ -395,6 +395,7 @@ export function useAutoMintRequest(): UseAutoMintRequestReturn {
 
       // If rejected by scoring engine, abort
       if (scoringResult.decision === 'REJECT') {
+        console.error('[MintRequest] Scoring REJECT:', scoringResult.reasonCodes, { dbLightScore, pillarSum, adjustedPillars });
         throw new Error(`Yêu cầu bị từ chối: ${scoringResult.reasonCodes.join(', ')}`);
       }
 
