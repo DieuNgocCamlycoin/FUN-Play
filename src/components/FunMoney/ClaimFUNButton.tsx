@@ -39,11 +39,12 @@ export function ClaimFUNButton() {
         .eq('user_id', user.id)
         .eq('eligible', true);
 
-      // Get pending claim requests
+      // Get pending FUN Money claim requests only (not CAMLY)
       const { data: claims } = await supabase
         .from('claim_requests')
         .select('status, amount, tx_hash')
         .eq('user_id', user.id)
+        .eq('claim_type', 'fun_money')
         .order('created_at', { ascending: false });
 
       const totalAllocated = allocations?.reduce((s, a) => s + Number(a.allocation_amount), 0) ?? 0;
@@ -74,7 +75,7 @@ export function ClaimFUNButton() {
         user_id: user.id,
         wallet_address: address,
         amount: summary.pendingClaim,
-        claim_type: 'manual',
+        claim_type: 'fun_money',
       });
       if (error) throw error;
       toast.success('Yêu cầu claim đã được gửi! Admin sẽ xử lý sớm.');
