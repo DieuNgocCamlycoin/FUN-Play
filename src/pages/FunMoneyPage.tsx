@@ -183,12 +183,25 @@ export default function FunMoney() {
           </div>
         </div>
 
-        {/* Mintable FUN Card - Main CTA */}
-        <MintableCard 
-          activity={activity}
-          loading={activityLoading}
-          onMintSuccess={handleMintSuccess}
-        />
+        {/* PPLP Charter Gate — must accept before minting */}
+        {pplpAccepted === false && user && (
+          <PPLPCharterAcceptance
+            userId={user.id}
+            onAccepted={() => {
+              setPplpAccepted(true);
+              refetchActivity();
+            }}
+          />
+        )}
+
+        {/* Mintable FUN Card - Main CTA (only after charter accepted) */}
+        {pplpAccepted !== false && (
+          <MintableCard 
+            activity={activity}
+            loading={activityLoading}
+            onMintSuccess={handleMintSuccess}
+          />
+        )}
 
         <TokenLifecyclePanel requests={myRequests} />
 
