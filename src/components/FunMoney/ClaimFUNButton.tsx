@@ -55,7 +55,7 @@ export function ClaimFUNButton() {
       setSummary({
         totalAllocated,
         totalClaimed,
-        pendingClaim: totalAllocated - totalClaimed,
+        pendingClaim: Math.max(0, totalAllocated - totalClaimed),
         latestTxHash,
         hasPendingRequest,
       });
