@@ -119,6 +119,7 @@ const RewardPoolTab = () => {
       const { data, error } = await supabase
         .from("claim_requests")
         .select("*")
+        .neq("claim_type", "fun_money")
         .order("created_at", { ascending: false })
         .limit(100);
       if (error) throw error;
@@ -142,7 +143,7 @@ const RewardPoolTab = () => {
   // ── Fetch pool stats ──
   const fetchPoolStats = async () => {
     try {
-      const { data: claimData, error } = await supabase.from("claim_requests").select("status, amount");
+      const { data: claimData, error } = await supabase.from("claim_requests").select("status, amount").neq("claim_type", "fun_money");
       if (error) throw error;
       const newStats: PoolStats = { totalClaimed: 0, totalPending: 0, totalFailed: 0, claimCount: 0, pendingCount: 0 };
       claimData?.forEach(c => {
