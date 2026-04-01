@@ -30,3 +30,12 @@ export { PPLPCharterAcceptance } from './PPLPCharterAcceptance';
 
 // Epoch Allocation History
 export { EpochAllocationHistory } from './EpochAllocationHistory';
+
+// Mint Flow Guide (5-step visual)
+export { MintFlowGuide } from './MintFlowGuide';
+
+// Claim FUN Button (smart claim)
+export { ClaimFUNButton } from './ClaimFUNButton';
+
+// Mint Notification Banner
+export { MintNotificationBanner } from './MintNotificationBanner';

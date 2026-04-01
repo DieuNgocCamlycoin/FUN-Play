@@ -26,6 +26,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
+import { MintNotificationBanner } from "@/components/FunMoney";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -311,7 +312,9 @@ export default function RewardHistory() {
 
   return (
     <MainLayout>
-      <div className="max-w-6xl mx-auto p-4 md:p-6">
+      <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-4">
+        {/* Mint Notification Banner */}
+        <MintNotificationBanner />
         {/* Header */}
           <motion.div
             initial={{ opacity: 0, y: -20 }}
