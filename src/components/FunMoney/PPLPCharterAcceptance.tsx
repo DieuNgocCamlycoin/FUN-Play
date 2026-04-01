@@ -150,7 +150,7 @@ export function PPLPCharterAcceptance({ userId, onAccepted }: PPLPCharterAccepta
                       : "border-border hover:border-primary/30 hover:bg-muted/30"
                   )}
                 >
-                  <div className="pt-0.5">
+                  <div className="pt-0.5" onClick={(e) => e.stopPropagation()}>
                     <Checkbox
                       checked={isChecked}
                       onCheckedChange={() => toggleCheck(i)}
