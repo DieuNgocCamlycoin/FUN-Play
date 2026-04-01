@@ -35,7 +35,8 @@ import {
   ClaimGuide,
   DailyLightScoreTable,
   LightScoreDashboard,
-  PPLPCharterAcceptance
+  PPLPCharterAcceptance,
+  EpochAllocationHistory
 } from '@/components/FunMoney';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
@@ -397,7 +398,11 @@ export default function FunMoney() {
           </TabsContent>
 
           {/* History Tab */}
-          <TabsContent value="history" className="mt-6">
+          <TabsContent value="history" className="mt-6 space-y-6">
+            {/* Epoch Allocation History */}
+            <EpochAllocationHistory />
+
+            {/* Mint Request History */}
             <MintRequestList 
               requests={myRequests}
               loading={loadingRequests}
