@@ -36,7 +36,10 @@ import {
   DailyLightScoreTable,
   LightScoreDashboard,
   PPLPCharterAcceptance,
-  EpochAllocationHistory
+  EpochAllocationHistory,
+  MintFlowGuide,
+  ClaimFUNButton,
+  MintNotificationBanner
 } from '@/components/FunMoney';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
