@@ -59,6 +59,7 @@ export interface AutoMintInput {
     comments: number;
     shares?: number;
     uploads: number;
+    posts?: number;
   };
 }
 
