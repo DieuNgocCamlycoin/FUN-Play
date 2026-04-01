@@ -311,7 +311,9 @@ export default function RewardHistory() {
 
   return (
     <MainLayout>
-      <div className="max-w-6xl mx-auto p-4 md:p-6">
+      <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-4">
+        {/* Mint Notification Banner */}
+        <MintNotificationBanner />
         {/* Header */}
           <motion.div
             initial={{ opacity: 0, y: -20 }}
