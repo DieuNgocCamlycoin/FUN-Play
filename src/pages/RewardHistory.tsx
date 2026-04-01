@@ -162,6 +162,7 @@ export default function RewardHistory() {
         .from("claim_requests")
         .select("id, amount, wallet_address, status, tx_hash, created_at, processed_at, error_message")
         .eq("user_id", user.id)
+        .neq("claim_type", "fun_money")
         .order("created_at", { ascending: false })
         .limit(100);
 

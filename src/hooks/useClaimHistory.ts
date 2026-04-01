@@ -33,6 +33,7 @@ export const useClaimHistory = (userId: string | undefined) => {
         .from("claim_requests")
         .select("*")
         .eq("user_id", userId)
+        .neq("claim_type", "fun_money")
         .order("created_at", { ascending: false })
         .limit(50);
 

@@ -82,7 +82,8 @@ export function usePublicSuspendedList() {
       const { data, error } = await supabase
         .from("claim_requests")
         .select("user_id, amount")
-        .eq("status", "success");
+        .eq("status", "success")
+        .neq("claim_type", "fun_money");
       if (error) throw error;
       const totals = new Map<string, number>();
       for (const row of data || []) {
