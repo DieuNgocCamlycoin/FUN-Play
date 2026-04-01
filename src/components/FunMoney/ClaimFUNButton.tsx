@@ -156,7 +156,7 @@ export function ClaimFUNButton() {
             {summary.latestTxHash && (
               <Button variant="outline" size="sm" asChild>
                 <a
-                  href={`https://testnet.bscscan.com/tx/${summary.latestTxHash}`}
+                  href={`https://bscscan.com/tx/${summary.latestTxHash}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="gap-1"
