@@ -44,6 +44,7 @@ import { BackButton } from '@/components/ui/back-button';
 export default function FunMoney() {
   const { user, loading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
+  const [pplpAccepted, setPplpAccepted] = useState<boolean | null>(null);
 
   const { 
     loading: requestsLoading, 
