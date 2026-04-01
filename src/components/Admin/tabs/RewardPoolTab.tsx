@@ -119,6 +119,7 @@ const RewardPoolTab = () => {
       const { data, error } = await supabase
         .from("claim_requests")
         .select("*")
+        .neq("claim_type", "fun_money")
         .order("created_at", { ascending: false })
         .limit(100);
       if (error) throw error;
