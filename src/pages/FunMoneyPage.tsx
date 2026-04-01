@@ -3,7 +3,7 @@
  * Main user interface for PPLP Protocol - Auto-Mint Flow
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { MainLayout } from '@/components/Layout/MainLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,14 +34,17 @@ import {
   ActivateClaimPanel,
   ClaimGuide,
   DailyLightScoreTable,
-  LightScoreDashboard
+  LightScoreDashboard,
+  PPLPCharterAcceptance
 } from '@/components/FunMoney';
+import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { BackButton } from '@/components/ui/back-button';
 
 export default function FunMoney() {
   const { user, loading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
+  const [pplpAccepted, setPplpAccepted] = useState<boolean | null>(null);
 
   const { 
     loading: requestsLoading, 
@@ -84,6 +87,19 @@ export default function FunMoney() {
     onUpdate: handleRealtimeUpdate,
     enabled: !!user,
   });
+
+  // Check PPLP acceptance status
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from('profiles')
+      .select('pplp_accepted_at')
+      .eq('id', user.id)
+      .single()
+      .then(({ data }) => {
+        setPplpAccepted(!!data?.pplp_accepted_at);
+      });
+  }, [user]);
 
   useEffect(() => {
     if (user) {
@@ -167,12 +183,25 @@ export default function FunMoney() {
           </div>
         </div>
 
-        {/* Mintable FUN Card - Main CTA */}
-        <MintableCard 
-          activity={activity}
-          loading={activityLoading}
-          onMintSuccess={handleMintSuccess}
-        />
+        {/* PPLP Charter Gate — must accept before minting */}
+        {pplpAccepted === false && user && (
+          <PPLPCharterAcceptance
+            userId={user.id}
+            onAccepted={() => {
+              setPplpAccepted(true);
+              refetchActivity();
+            }}
+          />
+        )}
+
+        {/* Mintable FUN Card - Main CTA (only after charter accepted) */}
+        {pplpAccepted !== false && (
+          <MintableCard 
+            activity={activity}
+            loading={activityLoading}
+            onMintSuccess={handleMintSuccess}
+          />
+        )}
 
         <TokenLifecyclePanel requests={myRequests} />
 
