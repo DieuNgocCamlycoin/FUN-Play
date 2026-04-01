@@ -59,6 +59,7 @@ export interface AutoMintInput {
     comments: number;
     shares?: number;
     uploads: number;
+    posts?: number;
   };
 }
 
@@ -349,7 +350,7 @@ export function useAutoMintRequest(): UseAutoMintRequestReturn {
       // 3. PPLP v2.0 validation
       const pplpValidation = {
         hasRealAction: true,
-        hasRealValue: input.activitySummary.views > 0 || input.activitySummary.uploads > 0 || input.activitySummary.comments > 0,
+        hasRealValue: (input.activitySummary.views || 0) > 0 || (input.activitySummary.uploads || 0) > 0 || (input.activitySummary.comments || 0) > 0 || (input.activitySummary.likes || 0) > 0 || (input.activitySummary.shares || 0) > 0 || (input.activitySummary.posts || 0) > 0,
         hasPositiveImpact: true,
         noExploitation: riskScore < 0.4,
         charterCompliant: true,
