@@ -186,6 +186,24 @@ export function MintableCard({ activity, loading, onMintSuccess, onRefresh }: Mi
             <h2 className="text-lg font-bold text-muted-foreground uppercase tracking-wide">
               Mintable FUN
             </h2>
+            {onRefresh && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 rounded-full"
+                disabled={isRefreshing || loading}
+                onClick={async () => {
+                  setIsRefreshing(true);
+                  try {
+                    await onRefresh();
+                  } finally {
+                    setIsRefreshing(false);
+                  }
+                }}
+              >
+                <RefreshCw className={cn("w-4 h-4", isRefreshing && "animate-spin")} />
+              </Button>
+            )}
           </div>
         </div>
 
