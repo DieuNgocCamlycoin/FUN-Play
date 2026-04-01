@@ -27,3 +27,6 @@ export { LightScoreDashboard } from './LightScoreDashboard';
 
 // PPLP Charter Acceptance
 export { PPLPCharterAcceptance } from './PPLPCharterAcceptance';
+
+// Epoch Allocation History
+export { EpochAllocationHistory } from './EpochAllocationHistory';

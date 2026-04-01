@@ -35,7 +35,8 @@ import {
   ClaimGuide,
   DailyLightScoreTable,
   LightScoreDashboard,
-  PPLPCharterAcceptance
+  PPLPCharterAcceptance,
+  EpochAllocationHistory
 } from '@/components/FunMoney';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
