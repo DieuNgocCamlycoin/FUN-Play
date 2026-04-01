@@ -88,6 +88,19 @@ export default function FunMoney() {
     enabled: !!user,
   });
 
+  // Check PPLP acceptance status
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from('profiles')
+      .select('pplp_accepted_at')
+      .eq('id', user.id)
+      .single()
+      .then(({ data }) => {
+        setPplpAccepted(!!data?.pplp_accepted_at);
+      });
+  }, [user]);
+
   useEffect(() => {
     if (user) {
       fetchRequests();
