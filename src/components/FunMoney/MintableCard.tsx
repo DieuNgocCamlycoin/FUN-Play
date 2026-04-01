@@ -168,7 +168,8 @@ export function MintableCard({ activity, loading, onMintSuccess, onRefresh }: Mi
   }
 
   const mintableFunNum = parseFloat(activity.mintableFun);
-  const canMint = activity.canMint && isWalletConnected && isCorrectChain;
+  // Allow button click when there's mintable FUN; handleMint shows toast for other conditions
+  const canMint = mintableFunNum > 0 && isWalletConnected && isCorrectChain;
 
   return (
     <Card className="relative overflow-hidden">
