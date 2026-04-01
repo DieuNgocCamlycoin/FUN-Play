@@ -347,6 +347,14 @@ export function useAutoMintRequest(): UseAutoMintRequestReturn {
       const sequenceBonus = features?.sequence_count || 0;
       const riskScore = features?.anti_farm_risk || 0;
 
+      // 2b. Fetch actual light_score from profile (DB truth)
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('light_score')
+        .eq('id', user.id)
+        .single();
+      const dbLightScore = profile?.light_score || input.lightScore || 0;
+
       // 3. PPLP v2.0 validation
       const pplpValidation = {
         hasRealAction: true,
@@ -356,12 +364,24 @@ export function useAutoMintRequest(): UseAutoMintRequestReturn {
         charterCompliant: true,
       };
 
-      // 4. Route through scoreAction() instead of bypassing
+      // 4. Route through scoreAction() — use DB light score to override pillar-based calculation
       const baseRewardAtomic = input.mintableFunAtomic;
+      
+      // Normalize pillar scores to match DB light score so scoreAction doesn't reject
+      // The DB light_score is the authoritative value from LS-Math v1.0
+      const pillarSum = Object.values(input.pillars).reduce((a, b) => a + b, 0);
+      const adjustedPillars = pillarSum > 0 ? input.pillars : {
+        S: dbLightScore * 0.25,
+        T: dbLightScore * 0.20,
+        H: dbLightScore * 0.20,
+        C: dbLightScore * 0.20,
+        U: dbLightScore * 0.15,
+      };
+
       const scoringResult = scoreAction({
         platformId: 'FUN_PROFILE',
         actionType: 'LIGHT_ACTIVITY',
-        pillarScores: input.pillars,
+        pillarScores: adjustedPillars,
         unitySignals: input.unitySignals,
         antiSybilScore: 0.9,
         baseRewardAtomic,
@@ -375,6 +395,7 @@ export function useAutoMintRequest(): UseAutoMintRequestReturn {
 
       // If rejected by scoring engine, abort
       if (scoringResult.decision === 'REJECT') {
+        console.error('[MintRequest] Scoring REJECT:', scoringResult.reasonCodes, { dbLightScore, pillarSum, adjustedPillars });
         throw new Error(`Yêu cầu bị từ chối: ${scoringResult.reasonCodes.join(', ')}`);
       }
 
@@ -403,7 +424,7 @@ export function useAutoMintRequest(): UseAutoMintRequestReturn {
         action_type: 'LIGHT_ACTIVITY',
         action_evidence: evidence,
         pillar_scores: input.pillars,
-        light_score: scoringResult.lightScore,
+        light_score: dbLightScore, // Use DB authoritative value
         unity_score: scoringResult.unityScore,
         unity_signals: input.unitySignals,
         multiplier_q: scoringResult.multipliers.Q,

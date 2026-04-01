@@ -122,7 +122,6 @@ export function MintableCard({ activity, loading, onMintSuccess, onRefresh }: Mi
           description: `${activity.mintableFun} FUN • Request #${result.id.slice(0, 8)}. Admin sẽ duyệt và mint on-chain cho bạn.`,
           duration: 8000
         });
-        // Show tBNB gas fee notice
         setTimeout(() => {
           toast.info('⛽ Lưu ý về phí gas', {
             description: 'Sau khi Admin mint xong, bạn cần có tBNB trong ví để thực hiện Activate và Claim FUN về ví. Hãy chuẩn bị sẵn tBNB trên BSC Testnet nhé!',
@@ -131,8 +130,11 @@ export function MintableCard({ activity, loading, onMintSuccess, onRefresh }: Mi
         }, 2000);
         onMintSuccess?.();
       } else {
+        // Read error from hook state after async completes
+        const errorMsg = mintError || 'Vui lòng thử lại sau hoặc liên hệ Admin.';
+        console.error('[MintableCard] Mint failed:', errorMsg);
         toast.error('❌ Gửi yêu cầu mint thất bại', {
-          description: mintError || 'Vui lòng thử lại sau hoặc liên hệ Admin.',
+          description: errorMsg,
           duration: 6000
         });
       }
