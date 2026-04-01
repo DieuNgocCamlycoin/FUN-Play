@@ -198,6 +198,9 @@ export default function FunMoney() {
           />
         )}
 
+        {/* Notification Banner - FUN mới phân bổ */}
+        <MintNotificationBanner />
+
         {/* Mintable FUN Card - Main CTA (only after charter accepted) */}
         {pplpAccepted !== false && (
           <MintableCard 
@@ -207,6 +210,9 @@ export default function FunMoney() {
             onRefresh={refetchActivity}
           />
         )}
+
+        {/* Claim FUN Button - Smart claim */}
+        <ClaimFUNButton />
 
         <TokenLifecyclePanel requests={myRequests} />
 
