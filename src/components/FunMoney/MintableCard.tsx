@@ -3,7 +3,7 @@
  * Displays user's mintable FUN with 1-click MINT button
  */
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -22,7 +22,8 @@ import {
   Info, 
   AlertCircle,
   Wallet,
-  CheckCircle2
+  CheckCircle2,
+  RefreshCw
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { LightActivity } from '@/hooks/useLightActivity';
@@ -33,10 +34,12 @@ interface MintableCardProps {
   activity: LightActivity | null;
   loading?: boolean;
   onMintSuccess?: () => void;
+  onRefresh?: () => Promise<void>;
 }
 
-export function MintableCard({ activity, loading, onMintSuccess }: MintableCardProps) {
+export function MintableCard({ activity, loading, onMintSuccess, onRefresh }: MintableCardProps) {
   const [isMinting, setIsMinting] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   const { 
     isConnected: isWalletConnected, 
@@ -183,6 +186,24 @@ export function MintableCard({ activity, loading, onMintSuccess }: MintableCardP
             <h2 className="text-lg font-bold text-muted-foreground uppercase tracking-wide">
               Mintable FUN
             </h2>
+            {onRefresh && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 rounded-full"
+                disabled={isRefreshing || loading}
+                onClick={async () => {
+                  setIsRefreshing(true);
+                  try {
+                    await onRefresh();
+                  } finally {
+                    setIsRefreshing(false);
+                  }
+                }}
+              >
+                <RefreshCw className={cn("w-4 h-4", isRefreshing && "animate-spin")} />
+              </Button>
+            )}
           </div>
         </div>
 
