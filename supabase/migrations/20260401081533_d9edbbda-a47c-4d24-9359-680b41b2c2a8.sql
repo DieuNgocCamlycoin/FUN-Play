@@ -1,0 +1,2 @@
+ALTER TABLE public.light_score_ledger DROP CONSTRAINT light_score_ledger_period_check;
+ALTER TABLE public.light_score_ledger ADD CONSTRAINT light_score_ledger_period_check CHECK (period = ANY (ARRAY['day'::text, 'week'::text, 'month'::text, 'rolling_30d'::text]));
