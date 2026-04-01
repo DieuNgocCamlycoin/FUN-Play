@@ -75,7 +75,7 @@ export function ClaimFUNButton() {
         user_id: user.id,
         wallet_address: address,
         amount: summary.pendingClaim,
-        claim_type: 'manual',
+        claim_type: 'fun_money',
       });
       if (error) throw error;
       toast.success('Yêu cầu claim đã được gửi! Admin sẽ xử lý sớm.');
