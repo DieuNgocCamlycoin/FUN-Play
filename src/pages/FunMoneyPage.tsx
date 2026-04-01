@@ -201,6 +201,7 @@ export default function FunMoney() {
             activity={activity}
             loading={activityLoading}
             onMintSuccess={handleMintSuccess}
+            onRefresh={refetchActivity}
           />
         )}
 
