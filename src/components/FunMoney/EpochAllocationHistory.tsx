@@ -82,7 +82,7 @@ export function EpochAllocationHistory() {
         const epochMap = new Map((epochs || []).map((e: any) => [e.epoch_id, e]));
 
         const merged: EpochAllocation[] = allocs.map((a: any) => {
-          const epoch = epochMap.get(a.epoch_id) || {};
+          const epoch = (epochMap.get(a.epoch_id) || {}) as any;
           return {
             ...a,
             period_start: epoch.period_start || '',
