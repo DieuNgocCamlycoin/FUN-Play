@@ -26,6 +26,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
+import { MintNotificationBanner } from "@/components/FunMoney";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
