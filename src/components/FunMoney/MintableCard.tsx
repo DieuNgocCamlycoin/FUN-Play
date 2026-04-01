@@ -34,10 +34,12 @@ interface MintableCardProps {
   activity: LightActivity | null;
   loading?: boolean;
   onMintSuccess?: () => void;
+  onRefresh?: () => Promise<void>;
 }
 
-export function MintableCard({ activity, loading, onMintSuccess }: MintableCardProps) {
+export function MintableCard({ activity, loading, onMintSuccess, onRefresh }: MintableCardProps) {
   const [isMinting, setIsMinting] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   const { 
     isConnected: isWalletConnected, 
