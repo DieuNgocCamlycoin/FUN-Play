@@ -34,8 +34,10 @@ import {
   ActivateClaimPanel,
   ClaimGuide,
   DailyLightScoreTable,
-  LightScoreDashboard
+  LightScoreDashboard,
+  PPLPCharterAcceptance
 } from '@/components/FunMoney';
+import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { BackButton } from '@/components/ui/back-button';
 
