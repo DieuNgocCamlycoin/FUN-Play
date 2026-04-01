@@ -1,94 +1,69 @@
 
 
-## Rà Soát Toàn Bộ Hệ Thống Tính Điểm User — Báo Cáo
+## Thêm 3 tính năng mới trên trang Mint FUN
 
-### Kiến trúc tổng quan
+### Tổng quan
 
-Hệ thống tính điểm có **3 tầng song song**, mỗi tầng phục vụ mục đích khác:
+Tạo 3 component mới và tích hợp vào `FunMoneyPage.tsx`, đồng thời thêm `MintNotificationBanner` vào các trang Earn-related.
 
-```text
-┌───────────────────────────────────────────────────────────────────┐
-│ Tầng 1: LS-Math v1.0 (SERVER — DB function)                      │
-│   calculate_user_light_score() → profiles.light_score             │
-│   Công thức: L = (0.4B + 0.6C) × M_cons × M_seq × Π × w         │
-│   → Dùng cho: Level assignment, eligibility, mint gating          │
-│   → Chạy mỗi 4h (cron) hoặc manual trigger                      │
-├───────────────────────────────────────────────────────────────────┤
-│ Tầng 2: PPLP Engine (CLIENT — pplp-engine.ts)                    │
-│   scoreAction() → tính FUN mint amount per action                 │
-│   Công thức: Base × Q × I × K × Ux × (M_cons × M_seq × Π)       │
-│   → Dùng cho: Tính mintable FUN, hiển thị breakdown              │
-├───────────────────────────────────────────────────────────────────┤
-│ Tầng 3: 5-Pillar Engine (CLIENT — light-score-pillar-engine.ts)  │
-│   calculatePillarScores() → 5 sub-scores (0-100 each)            │
-│   Công thức: Weighted sum 20% × 5 pillars - risk + streak        │
-│   → Dùng cho: Radar chart hiển thị, Reputation NFT metadata      │
-└───────────────────────────────────────────────────────────────────┘
-```
+### 1. MintFlowGuide — Hướng dẫn trực quan 5 bước
 
-### Bảng đánh giá chi tiết
+**File mới:** `src/components/FunMoney/MintFlowGuide.tsx`
 
-```text
-┌───────────────────────────────────┬────────┬─────────────────────────────────┐
-│ Tiêu chí                          │ Status │ Chi tiết                        │
-├───────────────────────────────────┼────────┼─────────────────────────────────┤
-│ LS-Math công thức đúng (DB)       │  ✅    │ Khớp spec hoàn toàn             │
-│ LS-Math công thức đúng (TS)       │  ✅    │ light-score-math.ts khớp DB     │
-│ PPLP v2.0 validation              │  ✅    │ 5 điều kiện enforce trước mint  │
-│ Charter gate (pplp_accepted_at)   │  ✅    │ Đã thêm trong useLightActivity  │
-│ Min Light Score = 10              │  ✅    │ Đồng bộ DB + TS + UI            │
-│ Cooldown 24h                      │  ✅    │ useLightActivity enforce        │
-│ Anti-whale 3%                     │  ✅    │ calculateMintAllocations         │
-│ Monthly epoch                     │  ✅    │ DB date_trunc('month')          │
-│ Consistency M_cons formula        │  ✅    │ 1+0.6(1-e^{-S/30}) — cả 3 tầng │
-│ Sequence M_seq formula            │  ✅    │ 1+0.5·tanh(Q/5) — khớp         │
-│ Integrity Π formula               │  ✅    │ 1-min(0.5, 0.8×risk) — khớp    │
-│ Reputation w formula              │  ✅    │ clip(0.5, 2, 1+0.25·ln(1+R))   │
-│ Content h(P_c) = (P/10)^1.3      │  ✅    │ DB + TS + features_user_day     │
-│ Cold start fallback               │  ✅    │ μ_topic × φ_u clipped [0.8,1.1] │
-│ Raw fallback GREATEST()           │  ✅    │ DB function handles correctly   │
-│ Ledger upsert                     │  ✅    │ ON CONFLICT works               │
-│ 5-Pillar scoring (Whitepaper)     │  ✅    │ Extends, not replaces LS-Math   │
-├───────────────────────────────────┼────────┼─────────────────────────────────┤
-│ Level thresholds light-score-math │  ❌    │ CŨ: seed/sprout/builder/        │
-│                                   │        │ guardian/architect               │
-│                                   │        │ (0/50/200/500/1200)             │
-│ Level thresholds useLightActivity │  ⚠️    │ Lấy level từ server (đúng)      │
-│                                   │        │ nhưng client pillar-based score  │
-│                                   │        │ dùng thang 0-100 khác server    │
-│ light-score-math.ts KHÔNG import  │  ⚠️    │ scoring-config-v1.ts — 2 nguồn  │
-│ scoring-config-v1.ts              │        │ config song song, dễ lệch       │
-└───────────────────────────────────┴────────┴─────────────────────────────────┘
-```
+- Hiển thị 5 bước theo timeline ngang (hoặc dọc trên mobile):
+  1. **Hành động** — Xem, like, comment, upload trên nền tảng
+  2. **Tích lũy Light Score** — Hệ thống tự động tính điểm rolling 30 ngày
+  3. **Phân bổ theo Epoch** — Cuối tháng, hệ thống phân bổ FUN từ pool 5M
+  4. **Ký duyệt (Admin)** — Admin review & ký giao dịch on-chain
+  5. **Nhận FUN về ví** — User claim FUN token (ERC-20) vào ví BSC
 
-### 2 vấn đề cần khắc phục
+- Mỗi bước có icon, tên, mô tả ngắn, và đường nối (connector line) giữa các bước
+- Dùng gradient color giống theme hiện tại (cyan → purple → pink)
+- Đặt ngay sau PPLP Charter / trước MintableCard
 
-#### 1. `light-score-math.ts` level thresholds CHƯA đồng bộ (❌ Medium)
+### 2. ClaimFUNButton — Nút Claim FUN thông minh
 
-**File `light-score-math.ts` dòng 44-50** vẫn dùng bộ level cũ:
-- seed: 0, sprout: 50, builder: 200, guardian: 500, architect: 1200
+**File mới:** `src/components/FunMoney/ClaimFUNButton.tsx`
 
-Trong khi **DB function**, **pplp-engine.ts**, **scoring-config-v1.ts**, **light-score-pillars.ts** đều đã cập nhật:
-- seed: 0, builder: 100, guardian: 250, leader: 500, cosmic: 800
+- Query `mint_allocations` joined `mint_epochs` để lấy tổng FUN đã phân bổ cho user
+- Phân loại trạng thái:
+  - **Chưa có phân bổ** → hiển thị "Chưa có FUN" (disabled)
+  - **Có phân bổ, chưa claim** → hiển thị số FUN + nút "Yêu cầu Claim"
+  - **Đang pending claim** → Badge "Đang xử lý"
+  - **Đã mint on-chain** → Badge "Đã nhận" + link tx_hash
+- Khi bấm Claim → insert vào `claim_requests` table
+- Đặt ngay cạnh/sau MintableCard hoặc thay thế ActivateClaimPanel hiện tại
 
-Hàm `determineLevel()` trong light-score-math.ts (dòng 404-411) trả ra level sai nếu ai gọi nó. Hiện tại hàm này **không được gọi trực tiếp trong production flow** (DB function tự tính level), nhưng nó được dùng trong `generateExplanation()` và các test — tạo ra kết quả sai trong audit/explainability.
+### 3. MintNotificationBanner — Banner thông báo FUN mới
 
-**Sửa:** Cập nhật `LS_PARAMS.level_thresholds` và `determineLevel()` trong `light-score-math.ts` cho khớp.
+**File mới:** `src/components/FunMoney/MintNotificationBanner.tsx`
 
-#### 2. `light-score-math.ts` config trùng lặp với `scoring-config-v1.ts` (⚠️ Low)
+- Query `mint_allocations` where `created_at >= now() - 7 days` và `allocation_amount > 0`
+- Nếu có → hiển thị banner gradient nổi bật: "🎉 Bạn có X FUN mới được phân bổ trong tháng Y!"
+- Có nút dismiss (lưu vào localStorage)
+- Có nút "Xem chi tiết" → navigate đến `/fun-money` tab history
 
-Cả hai file đều định nghĩa cùng tham số (gamma, beta, lambda, eta, kappa, theta, cap...) nhưng **không import nhau**. Hiện tại giá trị khớp, nhưng nếu sửa 1 file mà quên file kia → lệch.
+**Tích hợp:**
+- Hiển thị trên `FunMoneyPage.tsx` (trước MintableCard)
+- Hiển thị trên `RewardHistory.tsx` (trang Earn) ở đầu trang
 
-**Sửa:** Cho `light-score-math.ts` import từ `scoring-config-v1.ts` thay vì khai báo `LS_PARAMS` riêng. Hoặc tối thiểu — đồng bộ level thresholds.
+### 4. Cập nhật index & page
 
----
+**File sửa:** `src/components/FunMoney/index.ts` — export 3 component mới
 
-### Kế hoạch thực hiện
+**File sửa:** `src/pages/FunMoneyPage.tsx`:
+- Import 3 component
+- Thêm `MintNotificationBanner` sau header
+- Thêm `MintFlowGuide` trong tab Overview (thay/bổ sung card "Quy Trình Mới")
+- Thêm `ClaimFUNButton` sau MintableCard
 
-| # | Task | Priority | File |
-|---|------|----------|------|
-| 1 | Đồng bộ level thresholds trong light-score-math.ts | Medium | `light-score-math.ts` |
-| 2 | Refactor LS_PARAMS import từ scoring-config-v1 (optional) | Low | `light-score-math.ts` |
+**File sửa:** `src/pages/RewardHistory.tsx` — thêm `MintNotificationBanner` ở đầu
 
-**Kết luận:** Hệ thống tính điểm **hoạt động đúng trên production flow** (DB function là nguồn chính, client lấy kết quả từ server). Chỉ còn 1 file `light-score-math.ts` có level thresholds cũ cần đồng bộ — ảnh hưởng chủ yếu đến explainability/test, không ảnh hưởng scoring thực tế.
+### Technical Details
+
+- Tất cả query dùng `supabase` client từ `@/integrations/supabase/client`
+- Auth từ `useAuth()` hook
+- Styling theo pattern hiện có: Card, Badge, gradient colors, lucide icons
+- Responsive: grid cols thay đổi theo breakpoint (sm/md/lg)
+- localStorage key cho dismiss: `fun_mint_notification_dismissed_{epoch_id}`
 
