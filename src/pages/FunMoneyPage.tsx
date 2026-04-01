@@ -242,6 +242,9 @@ export default function FunMoney() {
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6 mt-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* MintFlowGuide - 5 bước trực quan */}
+              <MintFlowGuide />
+
               {/* What is PPLP */}
               <Card>
                 <CardHeader>
@@ -273,36 +276,6 @@ export default function FunMoney() {
                         </div>
                       ))}
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* How it works - Updated for Auto-Mint */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Zap className="w-5 h-5 text-primary" />
-                    Quy Trình Mới
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {[
-                      { step: 1, title: 'Hoạt động', desc: 'Xem video, like, comment, upload trên nền tảng' },
-                      { step: 2, title: 'Tự động tính điểm', desc: 'Hệ thống tính Light Score từ hoạt động của bạn' },
-                      { step: 3, title: 'Bấm MINT', desc: 'Chỉ cần 1 click để tạo yêu cầu mint FUN' },
-                      { step: 4, title: 'Nhận FUN', desc: 'Admin duyệt → Token mint vào ví của bạn' }
-                    ].map(item => (
-                      <div key={item.step} className="flex items-start gap-3">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm shrink-0">
-                          {item.step}
-                        </div>
-                        <div>
-                          <p className="font-medium">{item.title}</p>
-                          <p className="text-sm text-muted-foreground">{item.desc}</p>
-                        </div>
-                      </div>
-                    ))}
                   </div>
                 </CardContent>
               </Card>
