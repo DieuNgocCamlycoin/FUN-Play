@@ -424,7 +424,7 @@ export function useAutoMintRequest(): UseAutoMintRequestReturn {
         action_type: 'LIGHT_ACTIVITY',
         action_evidence: evidence,
         pillar_scores: input.pillars,
-        light_score: scoringResult.lightScore,
+        light_score: dbLightScore, // Use DB authoritative value
         unity_score: scoringResult.unityScore,
         unity_signals: input.unitySignals,
         multiplier_q: scoringResult.multipliers.Q,
