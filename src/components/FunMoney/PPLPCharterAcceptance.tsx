@@ -150,7 +150,7 @@ export function PPLPCharterAcceptance({ userId, onAccepted }: PPLPCharterAccepta
                       : "border-border hover:border-primary/30 hover:bg-muted/30"
                   )}
                 >
-                  <div className="pt-0.5">
+                  <div className="pt-0.5" onClick={(e) => e.stopPropagation()}>
                     <Checkbox
                       checked={isChecked}
                       onCheckedChange={() => toggleCheck(i)}
@@ -191,12 +191,14 @@ export function PPLPCharterAcceptance({ userId, onAccepted }: PPLPCharterAccepta
               : "border-dashed border-muted-foreground/30 hover:border-primary/40"
           )}
         >
-          <Checkbox
-            checked={finalAgree}
-            disabled={checkedCount < 5}
-            onCheckedChange={() => setFinalAgree(!finalAgree)}
-            className="mt-0.5 data-[state=checked]:bg-primary"
-          />
+          <div onClick={(e) => e.stopPropagation()}>
+            <Checkbox
+              checked={finalAgree}
+              disabled={checkedCount < 5}
+              onCheckedChange={() => setFinalAgree(!finalAgree)}
+              className="mt-0.5 data-[state=checked]:bg-primary"
+            />
+          </div>
           <p className="text-sm font-medium leading-relaxed">
             Tôi đã đọc, hiểu và <strong>cam kết tuân thủ toàn bộ Hiến chương PPLP v2.0</strong>. 
             Tôi hiểu rằng FUN Money là phần thưởng cho đóng góp thực sự và tôi sẽ hành động vì lợi ích chung của cộng đồng.
