@@ -22,7 +22,8 @@ import {
   Info, 
   AlertCircle,
   Wallet,
-  CheckCircle2
+  CheckCircle2,
+  RefreshCw
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { LightActivity } from '@/hooks/useLightActivity';
