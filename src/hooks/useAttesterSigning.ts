@@ -47,6 +47,13 @@ export function useAttesterSigning() {
   // Use live wallet if connected, otherwise fallback to profile wallet
   const address = walletAddress || profileWallet;
 
+  // Resolve attester identity from DB first, then fallback to hardcoded config
+  useEffect(() => {
+    if (!address) {
+      setAttesterIdentity(null);
+      return;
+    }
+
     const resolveIdentity = async () => {
       setIdentityLoading(true);
       try {
