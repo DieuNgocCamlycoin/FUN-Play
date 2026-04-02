@@ -1,0 +1,1 @@
+UPDATE profiles SET last_light_score_update = NULL WHERE id = 'fdde48d1-96be-45e2-9b78-ad3d45ba5431';
