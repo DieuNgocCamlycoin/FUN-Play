@@ -159,6 +159,9 @@ export function useAttesterSigning() {
 
         const enriched: AttesterPendingRequest[] = data.map((request) => ({
           ...request,
+          multisig_signatures: (request.multisig_signatures || {}) as MultisigSignatures,
+          multisig_completed_groups: (request.multisig_completed_groups || []) as GovGroupName[],
+          multisig_required_groups: (request.multisig_required_groups || []) as GovGroupName[],
           user_display_name: profileNamesById[request.user_id] ?? null,
         }));
 
