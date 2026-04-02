@@ -69,7 +69,7 @@ export async function createMultisigRequest({ mintRequest, provider }: CreateMul
       recipient_address: mintRequest.user_wallet_address,
       action_type: mintRequest.action_type,
       amount: Number(amount) / 1e18, // human-readable
-      amount_wei: mintRequest.calculated_amount_atomic,
+      amount_wei: amount.toString(),
       action_hash: actionHash,
       evidence_hash: evidenceHash,
       nonce: nonce.toString(),

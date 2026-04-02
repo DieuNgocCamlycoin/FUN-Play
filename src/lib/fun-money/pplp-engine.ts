@@ -337,13 +337,14 @@ export function scoreAction(input: ScoringInput): ScoringResult {
     BigInt(calculatedAmountAtomic)
   );
   
+  const finalAmountAtomic = decision === 'AUTHORIZE' ? calculatedAmountAtomic : '0';
   return {
     lightScore,
     unityScore,
     multipliers,
     baseRewardAtomic: input.baseRewardAtomic,
-    calculatedAmountAtomic: decision === 'AUTHORIZE' ? calculatedAmountAtomic : '0',
-    calculatedAmountFormatted: formatFunAmount(calculatedAmountAtomic),
+    calculatedAmountAtomic: finalAmountAtomic,
+    calculatedAmountFormatted: formatFunAmount(finalAmountAtomic),
     decision,
     reasonCodes: reasons
   };
