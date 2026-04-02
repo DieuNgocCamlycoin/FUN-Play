@@ -162,6 +162,7 @@ export function useAttesterSigning() {
           multisig_signatures: (request.multisig_signatures || {}) as MultisigSignatures,
           multisig_completed_groups: (request.multisig_completed_groups || []) as GovGroupName[],
           multisig_required_groups: (request.multisig_required_groups || []) as GovGroupName[],
+          status: request.status as PPLPMintRequest['status'],
           user_display_name: profileNamesById[request.user_id] ?? null,
         }));
 
