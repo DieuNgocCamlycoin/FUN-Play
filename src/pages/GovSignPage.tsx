@@ -36,7 +36,9 @@ function usePendingCount() {
 
 export default function GovSignPage() {
   const { isConnected } = useWalletContext();
+  const { user } = useAuth();
   const pendingCount = usePendingCount();
+  const isLoggedIn = !!user;
 
   return (
     <div className="min-h-screen bg-background">
