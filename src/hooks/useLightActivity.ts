@@ -367,22 +367,22 @@ export function useLightActivity(userId: string | undefined): UseLightActivityRe
 
       if (!pplpAcceptedAt) {
         canMint = false;
-        mintBlockReason = 'Bạn cần chấp nhận Hiến chương PPLP trước khi mint';
+        mintBlockReason = '🌱 Hãy chấp nhận Hiến chương PPLP trước nhé! Đây là bước đầu tiên trên hành trình ánh sáng của bạn ✨';
       } else if (hasPendingRequest) {
         canMint = false;
-        mintBlockReason = 'Bạn đã có request đang chờ duyệt';
+        mintBlockReason = '⏳ Yêu cầu trước của bạn đang được xử lý rồi nè! Chờ chút xíu nhé, Admin đang lo cho bạn 💛';
       } else if ((profile.light_score ?? lightScore) < MIN_LIGHT_SCORE) {
         canMint = false;
-        mintBlockReason = `Light Score (${profile.light_score ?? lightScore}) phải >= ${MIN_LIGHT_SCORE}`;
+        mintBlockReason = `🌟 Điểm Ánh Sáng của bạn đang là ${profile.light_score ?? lightScore}/${MIN_LIGHT_SCORE}. Hãy tiếp tục xem video, đăng bài và tương tác để tỏa sáng hơn nha! 💪`;
       } else if (totalActivities < MIN_ACTIVITIES) {
         canMint = false;
-        mintBlockReason = `Cần ít nhất ${MIN_ACTIVITIES} activities`;
+        mintBlockReason = '🎯 Bạn cần thêm hoạt động nữa nè! Hãy xem video, like, bình luận và chia sẻ để đủ điều kiện mint nhé 🌈';
       } else if (integrityScore === 0) {
         canMint = false;
-        mintBlockReason = 'Tài khoản bị đánh dấu đáng ngờ';
+        mintBlockReason = '🔒 Tài khoản cần được xác minh thêm. Hãy liên hệ Admin để được hỗ trợ nhé! 🙏';
       } else if (parseFloat(mintable.formatted) < 1) {
         canMint = false;
-        mintBlockReason = 'Số FUN có thể mint quá nhỏ (< 1 FUN)';
+        mintBlockReason = '💫 Bạn gần đạt rồi! Cần tích lũy thêm một chút hoạt động để đủ 1 FUN mint nhé, cố lên! 🚀';
       } else if (profile.last_fun_mint_at) {
         const lastMint = new Date(profile.last_fun_mint_at);
         const hoursSinceLastMint = (Date.now() - lastMint.getTime()) / (1000 * 60 * 60);
