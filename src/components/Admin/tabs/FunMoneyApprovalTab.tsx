@@ -238,6 +238,7 @@ export function FunMoneyApprovalTab() {
           user_wallet_address: request.user_wallet_address,
           action_type: request.action_type,
           calculated_amount_atomic: request.calculated_amount_atomic,
+          calculated_amount_formatted: request.calculated_amount_formatted,
           action_evidence: request.action_evidence,
           platform_id: request.platform_id,
         },
