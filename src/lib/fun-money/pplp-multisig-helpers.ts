@@ -33,8 +33,21 @@ export async function createMultisigRequest({ mintRequest, provider }: CreateMul
   // 1. Read on-chain nonce for recipient
   const nonce = await getNonce(provider, mintRequest.user_wallet_address);
 
-  // 2. Prepare hashes
-  const amount = BigInt(mintRequest.calculated_amount_atomic);
+  // 2. Resolve amount - fallback to calculated_amount_formatted if atomic is "0"
+  let amount = BigInt(mintRequest.calculated_amount_atomic || '0');
+  if (amount === 0n && mintRequest.calculated_amount_formatted) {
+    // Parse "15187.22 FUN" or "15187.22" → wei (×10^18)
+    const numStr = mintRequest.calculated_amount_formatted.replace(/[^0-9.]/g, '');
+    const parsed = parseFloat(numStr);
+    if (parsed > 0) {
+      // Convert to wei: multiply by 10^18 using string math to avoid float precision issues
+      const [whole, decimal = ''] = parsed.toFixed(18).split('.');
+      amount = BigInt(whole + decimal.padEnd(18, '0').slice(0, 18));
+      console.log(`[Multisig] Fallback amount from formatted: ${numStr} → ${amount.toString()} wei`);
+    }
+  }
+
+  // 3. Prepare hashes
   const { actionHash, evidenceHash } = preparePPLPData({
     recipientAddress: mintRequest.user_wallet_address,
     actionType: CONTRACT_ACTION,
