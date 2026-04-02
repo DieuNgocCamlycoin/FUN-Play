@@ -2,11 +2,40 @@ import { useWalletContext } from '@/contexts/WalletContext';
 import { AttesterPanel } from '@/components/Multisig/AttesterPanel';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ShieldAlert, Wallet, ArrowLeft } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Wallet, ArrowLeft, Bell } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useEffect, useState, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+
+function usePendingCount() {
+  const [count, setCount] = useState(0);
+
+  const fetch = useCallback(async () => {
+    const { count: c } = await supabase
+      .from('pplp_mint_requests')
+      .select('*', { count: 'exact', head: true })
+      .in('status', ['pending_sig', 'signing']);
+    setCount(c ?? 0);
+  }, []);
+
+  useEffect(() => {
+    fetch();
+    const channel = supabase
+      .channel('gov-sign-badge')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pplp_mint_requests' }, () => {
+        fetch();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [fetch]);
+
+  return count;
+}
 
 export default function GovSignPage() {
   const { isConnected } = useWalletContext();
+  const pendingCount = usePendingCount();
 
   return (
     <div className="min-h-screen bg-background">
@@ -18,13 +47,34 @@ export default function GovSignPage() {
               <ArrowLeft className="w-5 h-5" />
             </Button>
           </Link>
-          <div>
-            <h1 className="text-xl font-bold">GOV Attester — Ký Multisig</h1>
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-bold">GOV Attester — Ký Multisig</h1>
+              {pendingCount > 0 && (
+                <Badge variant="destructive" className="animate-pulse flex items-center gap-1 text-xs">
+                  <Bell className="w-3 h-3" />
+                  {pendingCount} chờ ký
+                </Badge>
+              )}
+            </div>
             <p className="text-sm text-muted-foreground">
               Kết nối ví GOV để xem và ký các yêu cầu mint FUN Money
             </p>
           </div>
         </div>
+
+        {/* Realtime banner */}
+        {pendingCount > 0 && (
+          <Card className="p-3 border-destructive/50 bg-destructive/5 flex items-center gap-3">
+            <span className="relative flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75" />
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-destructive" />
+            </span>
+            <p className="text-sm font-medium">
+              Có <strong>{pendingCount}</strong> yêu cầu mint đang chờ chữ ký từ các nhóm GOV
+            </p>
+          </Card>
+        )}
 
         {/* Guide */}
         <Card className="p-4 bg-muted/50 border-dashed">
