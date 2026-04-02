@@ -107,12 +107,17 @@ export function useAttesterSigning() {
     try {
       const { data, error } = await supabase
         .from('pplp_mint_requests')
-        .select('*')
+        .select('*, profiles:user_id(display_name, username)')
         .in('status', ['pending_sig', 'signing'])
         .order('created_at', { ascending: true });
 
       if (!error && data) {
-        setPendingRequests(data as unknown as PPLPMintRequest[]);
+        // Flatten profile info into each request
+        const enriched = data.map((r: any) => ({
+          ...r,
+          user_display_name: r.profiles?.display_name || r.profiles?.username || null,
+        }));
+        setPendingRequests(enriched as unknown as PPLPMintRequest[]);
       }
     } finally {
       setLoading(false);
