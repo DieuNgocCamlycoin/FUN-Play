@@ -14,6 +14,7 @@ import { TransactionHistorySection } from "@/components/Wallet/TransactionHistor
 import { WalletSelectionModal } from "@/components/Web3/WalletSelectionModal";
 import { WalletChangeConfirmDialog } from "@/components/Web3/WalletChangeConfirmDialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { GovAttesterBanner } from "@/components/Wallet/GovAttesterBanner";
 
 const WalletPage = () => {
   const navigate = useNavigate();
