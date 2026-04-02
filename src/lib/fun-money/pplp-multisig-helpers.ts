@@ -18,6 +18,7 @@ export interface CreateMultisigParams {
     user_wallet_address: string;
     action_type: string;
     calculated_amount_atomic: string;
+    calculated_amount_formatted?: string | null;
     action_evidence: object;
     platform_id: string;
   };
