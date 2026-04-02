@@ -137,6 +137,7 @@ const GoLive = lazyWithRetry(() => import("./pages/GoLive"));
 const LiveWatch = lazyWithRetry(() => import("./pages/LiveWatch"));
 const LiveDirectory = lazyWithRetry(() => import("./pages/LiveDirectory"));
 const Transparency = lazyWithRetry(() => import("./pages/Transparency"));
+const GovSignPage = lazyWithRetry(() => import("./pages/GovSignPage"));
 
 const queryClient = new QueryClient();
 
@@ -230,6 +231,7 @@ function AppContent() {
             <Route path="/nft-gallery" element={<NFTGallery />} />
             <Route path="/fun-wallet" element={<FunWallet />} />
             <Route path="/fun-money" element={<FunMoneyPage />} />
+            <Route path="/gov-sign" element={<GovSignPage />} />
             <Route path="/meditate" element={<Meditate />} />
             <Route path="/create-music" element={<CreateMusic />} />
             <Route path="/music/:id" element={<MusicDetail />} />
