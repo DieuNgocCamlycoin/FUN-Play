@@ -133,8 +133,8 @@ export function PPLPCharterAcceptance({ userId, onAccepted }: PPLPCharterAccepta
         </div>
 
         {/* 5 Principles */}
-        <ScrollArea className="max-h-[50vh] sm:max-h-[400px] pr-2">
-          <div className="space-y-3">
+        <ScrollArea className="h-[55vh] sm:h-[400px] w-full pr-2">
+          <div className="space-y-3 overflow-y-auto touch-pan-y [-webkit-overflow-scrolling:touch]">
             {CHARTER_PRINCIPLES.map((principle, i) => {
               const Icon = principle.icon;
               const isChecked = checked[i];
