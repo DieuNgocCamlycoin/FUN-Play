@@ -95,6 +95,9 @@ const WalletPage = () => {
             </div>
           </div>
 
+          {/* GOV Attester Quick Access */}
+          <GovAttesterBanner />
+
           {/* Main Content - Tabs */}
           <Tabs defaultValue="camly" className="w-full">
             <TabsList className="w-full justify-start overflow-x-auto bg-muted/50 backdrop-blur-sm border border-border/50 h-auto p-1 gap-1">
