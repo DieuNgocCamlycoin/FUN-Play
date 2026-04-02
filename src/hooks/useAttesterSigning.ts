@@ -10,7 +10,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { useWalletClient } from 'wagmi';
 import { BrowserProvider } from 'ethers';
 import {
-  getGroupForAddress as getGroupFromConfig,
   getAttesterInfo as getAttesterInfoFromConfig,
   REQUIRED_GROUPS,
   type GovGroupName,
@@ -26,11 +25,15 @@ interface AttesterIdentity {
   source: 'database' | 'config';
 }
 
+type AttesterPendingRequest = PPLPMintRequest & {
+  user_display_name: string | null;
+};
+
 export function useAttesterSigning() {
   const { address: walletAddress, isConnected } = useWalletContext();
   const { user } = useAuth();
   const { data: walletClient } = useWalletClient();
-  const [pendingRequests, setPendingRequests] = useState<PPLPMintRequest[]>([]);
+  const [pendingRequests, setPendingRequests] = useState<AttesterPendingRequest[]>([]);
   const [loading, setLoading] = useState(false);
   const [signing, setSigning] = useState<string | null>(null);
   const [attesterIdentity, setAttesterIdentity] = useState<AttesterIdentity | null>(null);
@@ -122,17 +125,44 @@ export function useAttesterSigning() {
     try {
       const { data, error } = await supabase
         .from('pplp_mint_requests')
-        .select('*, profiles:user_id(display_name, username)')
+        .select('*')
         .in('status', ['pending_sig', 'signing'])
         .order('created_at', { ascending: true });
 
-      if (!error && data) {
-        // Flatten profile info into each request
-        const enriched = data.map((r: any) => ({
-          ...r,
-          user_display_name: r.profiles?.display_name || r.profiles?.username || null,
+      if (error) {
+        console.error('[AttesterSigning] Failed to load pending requests:', error);
+        setPendingRequests([]);
+        return;
+      }
+
+      if (data) {
+        const userIds = [...new Set(data.map((request) => request.user_id).filter(Boolean))];
+        let profileNamesById: Record<string, string | null> = {};
+
+        if (userIds.length > 0) {
+          const { data: profiles, error: profilesError } = await supabase
+            .from('profiles')
+            .select('id, display_name, username')
+            .in('id', userIds);
+
+          if (profilesError) {
+            console.error('[AttesterSigning] Failed to load request profile names:', profilesError);
+          } else {
+            profileNamesById = Object.fromEntries(
+              profiles.map((profile) => [
+                profile.id,
+                profile.display_name || profile.username || null,
+              ])
+            );
+          }
+        }
+
+        const enriched: AttesterPendingRequest[] = data.map((request) => ({
+          ...request,
+          user_display_name: profileNamesById[request.user_id] ?? null,
         }));
-        setPendingRequests(enriched as unknown as PPLPMintRequest[]);
+
+        setPendingRequests(enriched);
       }
     } finally {
       setLoading(false);
