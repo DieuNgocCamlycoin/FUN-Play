@@ -133,7 +133,7 @@ export function PPLPCharterAcceptance({ userId, onAccepted }: PPLPCharterAccepta
         </div>
 
         {/* 5 Principles */}
-        <ScrollArea className="max-h-[400px] pr-2">
+        <ScrollArea className="max-h-[50vh] sm:max-h-[400px] pr-2">
           <div className="space-y-3">
             {CHARTER_PRINCIPLES.map((principle, i) => {
               const Icon = principle.icon;
