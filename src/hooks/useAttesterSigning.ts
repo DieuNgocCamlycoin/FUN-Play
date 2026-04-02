@@ -6,6 +6,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWalletContext } from '@/contexts/WalletContext';
+import { useAuth } from '@/hooks/useAuth';
 import { useWalletClient } from 'wagmi';
 import { BrowserProvider } from 'ethers';
 import {
@@ -26,13 +27,25 @@ interface AttesterIdentity {
 }
 
 export function useAttesterSigning() {
-  const { address, isConnected } = useWalletContext();
+  const { address: walletAddress, isConnected } = useWalletContext();
+  const { user } = useAuth();
   const { data: walletClient } = useWalletClient();
   const [pendingRequests, setPendingRequests] = useState<PPLPMintRequest[]>([]);
   const [loading, setLoading] = useState(false);
   const [signing, setSigning] = useState<string | null>(null);
   const [attesterIdentity, setAttesterIdentity] = useState<AttesterIdentity | null>(null);
   const [identityLoading, setIdentityLoading] = useState(false);
+  const [profileWallet, setProfileWallet] = useState<string | null>(null);
+
+  // Fetch profile wallet as fallback
+  useEffect(() => {
+    if (!user?.id) { setProfileWallet(null); return; }
+    supabase.from('profiles').select('wallet_address').eq('id', user.id).single()
+      .then(({ data }) => setProfileWallet(data?.wallet_address ?? null));
+  }, [user?.id]);
+
+  // Use live wallet if connected, otherwise fallback to profile wallet
+  const address = walletAddress || profileWallet;
 
   // Resolve attester identity from DB first, then fallback to hardcoded config
   useEffect(() => {
