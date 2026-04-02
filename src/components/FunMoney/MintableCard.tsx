@@ -72,9 +72,9 @@ export function MintableCard({ activity, loading, onMintSuccess, onRefresh }: Mi
     }
     
     if (!activity.canMint) {
-      toast.error('Chưa đủ điều kiện mint', {
+      toast.info('💝 Chưa đến lúc mint nè!', {
         description: activity.mintBlockReason || 'Vui lòng kiểm tra lại điều kiện',
-        duration: 5000
+        duration: 7000
       });
       return;
     }

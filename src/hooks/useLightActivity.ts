@@ -388,7 +388,7 @@ export function useLightActivity(userId: string | undefined): UseLightActivityRe
         const hoursSinceLastMint = (Date.now() - lastMint.getTime()) / (1000 * 60 * 60);
         if (hoursSinceLastMint < MINT_COOLDOWN_HOURS) {
           canMint = false;
-          mintBlockReason = `Cần đợi ${Math.ceil(MINT_COOLDOWN_HOURS - hoursSinceLastMint)} giờ nữa để mint tiếp`;
+          mintBlockReason = `⏰ Bạn vừa mint xong rồi nè! Nghỉ ngơi ${Math.ceil(MINT_COOLDOWN_HOURS - hoursSinceLastMint)} giờ nữa rồi quay lại mint tiếp nhé, Angel chờ bạn! 🤗`;
         }
       }
 
