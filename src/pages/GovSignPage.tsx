@@ -39,6 +39,8 @@ export default function GovSignPage() {
   const { user } = useAuth();
   const pendingCount = usePendingCount();
   const isLoggedIn = !!user;
+  
+  console.log('[GovSignPage] isConnected:', isConnected, 'isLoggedIn:', isLoggedIn, 'userId:', user?.id);
 
   return (
     <div className="min-h-screen bg-background">
