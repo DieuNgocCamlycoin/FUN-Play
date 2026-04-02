@@ -6,6 +6,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWalletContext } from '@/contexts/WalletContext';
+import { useAuth } from '@/hooks/useAuth';
 import { useWalletClient } from 'wagmi';
 import { BrowserProvider } from 'ethers';
 import {
