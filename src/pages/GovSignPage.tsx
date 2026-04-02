@@ -1,4 +1,5 @@
 import { useWalletContext } from '@/contexts/WalletContext';
+import { useAuth } from '@/hooks/useAuth';
 import { AttesterPanel } from '@/components/Multisig/AttesterPanel';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
