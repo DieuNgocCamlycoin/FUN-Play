@@ -137,6 +137,7 @@ const GoLive = lazyWithRetry(() => import("./pages/GoLive"));
 const LiveWatch = lazyWithRetry(() => import("./pages/LiveWatch"));
 const LiveDirectory = lazyWithRetry(() => import("./pages/LiveDirectory"));
 const Transparency = lazyWithRetry(() => import("./pages/Transparency"));
+const GovSignPage = lazyWithRetry(() => import("./pages/GovSignPage"));
 
 const queryClient = new QueryClient();
 
