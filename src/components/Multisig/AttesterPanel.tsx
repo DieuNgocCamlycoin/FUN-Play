@@ -107,7 +107,12 @@ export function AttesterPanel() {
                         {completedGroups.length}/{REQUIRED_GROUPS.length} nhóm đã ký
                       </Badge>
                     </div>
-                    <p className="text-sm font-mono truncate text-muted-foreground">
+                    {(req as any).user_display_name && (
+                      <p className="text-sm font-semibold text-foreground">
+                        👤 {(req as any).user_display_name}
+                      </p>
+                    )}
+                    <p className="text-xs font-mono truncate text-muted-foreground">
                       → {req.recipient_address}
                     </p>
                     <p className="text-lg font-bold mt-1">
