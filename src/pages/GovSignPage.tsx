@@ -90,7 +90,7 @@ export default function GovSignPage() {
           </ol>
         </Card>
 
-        {!isConnected ? (
+        {!isConnected && !isLoggedIn ? (
           <Card className="p-8 text-center space-y-3">
             <Wallet className="w-12 h-12 mx-auto text-muted-foreground" />
             <h3 className="font-semibold text-lg">Chưa kết nối ví</h3>
@@ -100,7 +100,14 @@ export default function GovSignPage() {
             <w3m-button />
           </Card>
         ) : (
-          <AttesterPanel />
+          <>
+            {!isConnected && isLoggedIn && (
+              <Card className="p-3 border-amber-500/50 bg-amber-500/5 text-sm text-amber-600">
+                ⚠️ Ví chưa kết nối trực tiếp — đang dùng ví từ hồ sơ. Kết nối ví để ký xác nhận.
+              </Card>
+            )}
+            <AttesterPanel />
+          </>
         )}
       </div>
     </div>
