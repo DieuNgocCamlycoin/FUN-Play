@@ -229,11 +229,8 @@ async function calculateAllocations(
       reasons.push("pplp_not_accepted");
     }
 
-    // Must be at least "contributor" level
-    if (profile.light_level === "presence") {
-      eligible = false;
-      reasons.push("level_too_low");
-    }
+    // Constitution v2.0: No minimum level requirement
+    // Seed users can mint if they meet other criteria (score >= 10, PPLP accepted, activity)
 
     // Check anti-farm signals
     const { data: signals } = await supabase
