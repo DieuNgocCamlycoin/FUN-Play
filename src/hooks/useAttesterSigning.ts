@@ -168,6 +168,7 @@ export function useAttesterSigning() {
           multisig_required_groups: (request.multisig_required_groups || []) as GovGroupName[],
           status: request.status as PPLPMintRequest['status'],
           user_display_name: profileNamesById[request.user_id] ?? null,
+          user_avatar_url: (typeof profileAvatarsById !== 'undefined' ? profileAvatarsById[request.user_id] : null) ?? null,
         }));
 
         setPendingRequests(enriched);
