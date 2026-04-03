@@ -215,6 +215,9 @@ export default function FunMoney() {
         {/* Claim FUN Button - Smart claim */}
         <ClaimFUNButton />
 
+        {/* FUN Money Claim History */}
+        <FunMoneyClaimHistory />
+
         <TokenLifecyclePanel requests={myRequests} />
 
         {/* Activate & Claim Panel - User on-chain actions */}
