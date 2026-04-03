@@ -8,14 +8,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { useWalletContext } from '@/contexts/WalletContext';
 import { useAuth } from '@/hooks/useAuth';
 import { useWalletClient } from 'wagmi';
-import { BrowserProvider } from 'ethers';
 import {
   getAttesterInfo as getAttesterInfoFromConfig,
   REQUIRED_GROUPS,
   type GovGroupName,
 } from '@/lib/fun-money/pplp-multisig-config';
-import { getEip712Domain, PPLP_TYPES, createActionHash } from '@/lib/fun-money/eip712-signer';
+import { createActionHash } from '@/lib/fun-money/eip712-signer';
 import { CONTRACT_ACTION } from '@/lib/fun-money/contract-helpers';
+import { getContractAddress, BSC_TESTNET_CONFIG } from '@/lib/fun-money/web3-config';
 import type { PPLPMintRequest, MultisigSignatures } from '@/lib/fun-money/pplp-multisig-types';
 
 interface AttesterIdentity {
