@@ -39,7 +39,8 @@ import {
   EpochAllocationHistory,
   MintFlowGuide,
   ClaimFUNButton,
-  MintNotificationBanner
+  MintNotificationBanner,
+  FunMoneyClaimHistory
 } from '@/components/FunMoney';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
