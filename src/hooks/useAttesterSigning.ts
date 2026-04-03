@@ -139,6 +139,7 @@ export function useAttesterSigning() {
       if (data) {
         const userIds = [...new Set(data.map((request) => request.user_id).filter(Boolean))];
         let profileNamesById: Record<string, string | null> = {};
+        let profileAvatarsById: Record<string, string | null> = {};
 
         if (userIds.length > 0) {
           const { data: profiles, error: profilesError } = await supabase
@@ -155,7 +156,7 @@ export function useAttesterSigning() {
                 profile.display_name || profile.username || null,
               ])
             );
-            var profileAvatarsById: Record<string, string | null> = Object.fromEntries(
+            profileAvatarsById = Object.fromEntries(
               profiles.map((profile) => [profile.id, profile.avatar_url || null])
             );
           }
@@ -168,7 +169,7 @@ export function useAttesterSigning() {
           multisig_required_groups: (request.multisig_required_groups || []) as GovGroupName[],
           status: request.status as PPLPMintRequest['status'],
           user_display_name: profileNamesById[request.user_id] ?? null,
-          user_avatar_url: (typeof profileAvatarsById !== 'undefined' ? profileAvatarsById[request.user_id] : null) ?? null,
+          user_avatar_url: profileAvatarsById[request.user_id] ?? null,
         }));
 
         setPendingRequests(enriched);
