@@ -3,6 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { MultisigStatusBadge } from './MultisigStatusBadge';
 import { ShieldAlert, Pen, RefreshCw, ShieldCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -108,8 +109,14 @@ export function AttesterPanel() {
                       </Badge>
                     </div>
                     {(req as any).user_display_name && (
-                      <p className="text-sm font-semibold text-foreground">
-                        👤 {(req as any).user_display_name}
+                      <p className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                        <Avatar className="h-5 w-5">
+                          <AvatarImage src={(req as any).user_avatar_url || undefined} />
+                          <AvatarFallback className="bg-primary/10 text-primary text-[10px]">
+                            {((req as any).user_display_name as string).charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        {(req as any).user_display_name}
                       </p>
                     )}
                     <p className="text-xs font-mono truncate text-muted-foreground">
