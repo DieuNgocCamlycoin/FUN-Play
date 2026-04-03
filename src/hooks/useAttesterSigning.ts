@@ -27,6 +27,7 @@ interface AttesterIdentity {
 
 type AttesterPendingRequest = PPLPMintRequest & {
   user_display_name: string | null;
+  user_avatar_url: string | null;
 };
 
 export function useAttesterSigning() {
