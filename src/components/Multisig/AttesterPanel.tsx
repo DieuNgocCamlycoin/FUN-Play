@@ -3,6 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { MultisigStatusBadge } from './MultisigStatusBadge';
 import { ShieldAlert, Pen, RefreshCw, ShieldCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
