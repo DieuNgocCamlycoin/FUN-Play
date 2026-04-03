@@ -39,3 +39,6 @@ export { ClaimFUNButton } from './ClaimFUNButton';
 
 // Mint Notification Banner
 export { MintNotificationBanner } from './MintNotificationBanner';
+
+// FUN Money Claim History
+export { FunMoneyClaimHistory } from './FunMoneyClaimHistory';
