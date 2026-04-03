@@ -208,28 +208,47 @@ export function useAttesterSigning() {
 
     setSigning(request.id);
     try {
-      const provider = new BrowserProvider(walletClient as any);
-      const signer = await provider.getSigner();
-
-      // Build EIP-712 typed data
+      // Use viem's signTypedData directly via walletClient (avoids ethers "could not coalesce" error)
       const actionHash = createActionHash(CONTRACT_ACTION);
-      const domain = getEip712Domain();
+      const contractAddress = getContractAddress() as `0x${string}`;
 
       const message = {
-        user: request.recipient_address,
-        actionHash,
-        amount: BigInt(request.amount_wei || '0').toString(),
-        evidenceHash: request.evidence_hash || '0x' + '0'.repeat(64),
-        nonce: BigInt(request.nonce || '0').toString(),
+        user: request.recipient_address as `0x${string}`,
+        actionHash: actionHash as `0x${string}`,
+        amount: BigInt(request.amount_wei || '0'),
+        evidenceHash: (request.evidence_hash || '0x' + '0'.repeat(64)) as `0x${string}`,
+        nonce: BigInt(request.nonce || '0'),
       };
 
-      console.log('[AttesterSigning] Signing EIP-712 message:', {
-        ...message,
-        domain,
+      console.log('[AttesterSigning] Signing EIP-712 via viem:', {
+        user: message.user,
+        actionHash: message.actionHash,
+        amount: message.amount.toString(),
+        evidenceHash: message.evidenceHash,
+        nonce: message.nonce.toString(),
+        contractAddress,
         signerAddress: address,
       });
 
-      const signature = await signer.signTypedData(domain, PPLP_TYPES, message);
+      const signature = await walletClient.signTypedData({
+        domain: {
+          name: 'FUN Money',
+          version: '1.2.1',
+          chainId: BSC_TESTNET_CONFIG.chainId,
+          verifyingContract: contractAddress,
+        },
+        types: {
+          PureLoveProof: [
+            { name: 'user', type: 'address' },
+            { name: 'actionHash', type: 'bytes32' },
+            { name: 'amount', type: 'uint256' },
+            { name: 'evidenceHash', type: 'bytes32' },
+            { name: 'nonce', type: 'uint256' },
+          ],
+        },
+        primaryType: 'PureLoveProof',
+        message,
+      });
 
       // Update signatures in DB
       const updatedSigs: MultisigSignatures = {
