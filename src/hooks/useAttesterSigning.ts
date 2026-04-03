@@ -218,10 +218,16 @@ export function useAttesterSigning() {
       const message = {
         user: request.recipient_address,
         actionHash,
-        amount: request.amount_wei,
+        amount: BigInt(request.amount_wei || '0').toString(),
         evidenceHash: request.evidence_hash || '0x' + '0'.repeat(64),
-        nonce: request.nonce || '0',
+        nonce: BigInt(request.nonce || '0').toString(),
       };
+
+      console.log('[AttesterSigning] Signing EIP-712 message:', {
+        ...message,
+        domain,
+        signerAddress: address,
+      });
 
       const signature = await signer.signTypedData(domain, PPLP_TYPES, message);
 
