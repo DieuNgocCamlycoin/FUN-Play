@@ -39,7 +39,8 @@ import {
   EpochAllocationHistory,
   MintFlowGuide,
   ClaimFUNButton,
-  MintNotificationBanner
+  MintNotificationBanner,
+  FunMoneyClaimHistory
 } from '@/components/FunMoney';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
@@ -213,6 +214,9 @@ export default function FunMoney() {
 
         {/* Claim FUN Button - Smart claim */}
         <ClaimFUNButton />
+
+        {/* FUN Money Claim History */}
+        <FunMoneyClaimHistory />
 
         <TokenLifecyclePanel requests={myRequests} />
 
