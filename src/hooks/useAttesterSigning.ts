@@ -231,6 +231,7 @@ export function useAttesterSigning() {
       });
 
       const signature = await walletClient.signTypedData({
+        account: address as `0x${string}`,
         domain: {
           name: 'FUN Money',
           version: '1.2.1',
