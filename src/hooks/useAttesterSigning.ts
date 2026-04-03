@@ -155,6 +155,9 @@ export function useAttesterSigning() {
                 profile.display_name || profile.username || null,
               ])
             );
+            var profileAvatarsById: Record<string, string | null> = Object.fromEntries(
+              profiles.map((profile) => [profile.id, profile.avatar_url || null])
+            );
           }
         }
 
