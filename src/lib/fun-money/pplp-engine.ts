@@ -81,7 +81,7 @@ const THRESHOLDS = {
   minLightScore: 10,
   minIntegrityK: 0.6,
   antiSybilMin: 0.6,
-  auditAmountAtomic: BigInt("5000000000000000000000") // 5000 FUN
+  auditAmountAtomic: BigInt("150000000000000000000000") // 150,000 FUN (= anti-whale cap 3%)
 };
 
 const CAPS = {
