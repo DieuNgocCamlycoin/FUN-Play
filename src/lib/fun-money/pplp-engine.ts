@@ -239,13 +239,7 @@ export function determineDecision(
   if (reasons.length > 0) {
     return { decision: 'REJECT', reasons };
   }
-  
-  // Check audit trigger
-  if (calculatedAmount >= THRESHOLDS.auditAmountAtomic) {
-    reasons.push('AUDIT_TRIGGERED_LARGE_MINT');
-    return { decision: 'REVIEW_HOLD', reasons };
-  }
-  
+
   return { decision: 'AUTHORIZE', reasons: [] };
 }
 
