@@ -756,6 +756,10 @@ function RequestTableRow({
                   <Shield className="w-3 h-3" />
                   Đã chuyển Multisig
                 </Badge>
+              ) : (request.calculated_amount_atomic === '0' || request.calculated_amount_atomic === '') ? (
+                <Badge variant="outline" className="text-[10px] gap-1 opacity-50 text-muted-foreground">
+                  0 FUN
+                </Badge>
               ) : (
                 <Button
                   size="sm"
