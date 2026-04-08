@@ -112,6 +112,19 @@ export function MintProgressTracker() {
     failed: requests.filter(r => r.status === 'failed').length,
   };
 
+  const handleMintSubmit = useCallback(async (req: MintRequest) => {
+    if (!isConnected) {
+      toast.error('Vui lòng kết nối ví trước');
+      return;
+    }
+    try {
+      const result = await submitMint(req as unknown as PPLPMintRequest);
+      toast.success(`✅ Mint thành công! TX: ${result.txHash?.slice(0, 10)}...`);
+    } catch (err: any) {
+      toast.error(`❌ Mint thất bại: ${err.message?.slice(0, 100)}`);
+    }
+  }, [isConnected, submitMint]);
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
