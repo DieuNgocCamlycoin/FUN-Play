@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { MintProgressTracker } from '@/components/Multisig/MintProgressTracker';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -610,6 +611,11 @@ export function FunMoneyApprovalTab() {
           {error}
         </div>
       )}
+
+      {/* Bảng thống kê toàn bộ tiến trình Mint */}
+      <div className="border-t pt-6 mt-6">
+        <MintProgressTracker />
+      </div>
     </div>
   );
 }
