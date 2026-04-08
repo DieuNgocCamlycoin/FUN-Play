@@ -58,6 +58,8 @@ export function MintProgressTracker() {
   const [profiles, setProfiles] = useState<Record<string, UserProfile>>({});
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  const { isConnected } = useWalletContext();
+  const { submitMint, isSubmitting } = useMintSubmit();
 
   const fetchData = useCallback(async () => {
     setLoading(true);
