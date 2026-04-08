@@ -40,8 +40,16 @@ Deno.serve(async (req) => {
     const { recipient_address, action_type, amount, amount_wei, action_hash, evidence_hash, nonce, action_ids } = body;
 
     // Validate required fields
-    if (!recipient_address || !action_type || !amount || !amount_wei) {
+    if (!recipient_address || !action_type || amount == null || !amount_wei) {
       return new Response(JSON.stringify({ error: 'Missing required fields: recipient_address, action_type, amount, amount_wei' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Reject 0 FUN requests
+    if (amount <= 0) {
+      return new Response(JSON.stringify({ error: 'Amount must be greater than 0. User has no FUN to mint.' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
