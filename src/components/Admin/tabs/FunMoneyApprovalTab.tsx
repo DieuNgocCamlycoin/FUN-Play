@@ -74,6 +74,7 @@ export function FunMoneyApprovalTab() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [isMinting, setIsMinting] = useState(false);
   const [isBatchProcessing, setIsBatchProcessing] = useState(false);
+  const [routedIds, setRoutedIds] = useState<Set<string>>(new Set());
   
   const [profileCache, setProfileCache] = useState<Record<string, { display_name: string | null; avatar_url: string | null; username: string; banned?: boolean; wallet_address?: string | null }>>({});
 
@@ -253,6 +254,7 @@ export function FunMoneyApprovalTab() {
           </span>
         </div>
       );
+      setRoutedIds(prev => new Set(prev).add(request.id));
       setExpandedId(null);
       // Refresh list
       if (activeTab === 'pending') fetchPendingRequests();
@@ -601,6 +603,7 @@ export function FunMoneyApprovalTab() {
                     isMinting={isMinting}
                     isBatchProcessing={isBatchProcessing}
                     rejectReason={rejectReason}
+                    hasMultisig={routedIds.has(request.id) || (request.status === 'approved' && !!request.decision_reason?.includes('pplp_mint_requests'))}
                     onToggleExpand={() => setExpandedId(expandedId === request.id ? null : request.id)}
                     onToggleSelect={() => toggleSelect(request.id)}
                     onApprove={() => handleApprove(request)}
@@ -632,7 +635,7 @@ export function FunMoneyApprovalTab() {
 function RequestTableRow({
   request, isExpanded, isSelected, showCheckbox,
   isConnected, isAttesterWallet, isMinting, isBatchProcessing,
-  rejectReason, profile,
+  rejectReason, profile, hasMultisig,
   onToggleExpand, onToggleSelect,
   onApprove, onReject, onRouteToMultisig, onApproveAndRoute,
   onRejectReasonChange, onCopy
@@ -647,6 +650,7 @@ function RequestTableRow({
   isBatchProcessing: boolean;
   rejectReason: string;
   profile?: { display_name: string | null; avatar_url: string | null; username: string; banned?: boolean; wallet_address?: string | null };
+  hasMultisig: boolean;
   onToggleExpand: () => void;
   onToggleSelect: () => void;
   onApprove: () => void;
@@ -732,38 +736,54 @@ function RequestTableRow({
             {request.status === 'pending' && (
               <>
                 {isConnected && (
+                  hasMultisig ? (
+                    <Badge variant="outline" className="text-[10px] gap-1 opacity-50 cursor-not-allowed">
+                      <Shield className="w-3 h-3" />
+                      Đã chuyển Multisig
+                    </Badge>
+                  ) : (
+                    <Button
+                      size="sm"
+                      className="h-7 px-2 text-[10px] gap-1 bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600 text-white"
+                      onClick={(e) => { e.stopPropagation(); onApproveAndRoute(); }}
+                      disabled={isMinting || isBatchProcessing}
+                    >
+                      <Shield className="w-3 h-3" />
+                      Multisig 3/3
+                    </Button>
+                  )
+                )}
+                {!hasMultisig && (
                   <Button
                     size="sm"
-                    className="h-7 px-2 text-[10px] gap-1 bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600 text-white"
-                    onClick={(e) => { e.stopPropagation(); onApproveAndRoute(); }}
-                    disabled={isMinting || isBatchProcessing}
+                    variant="outline"
+                    className="h-7 px-2 text-[10px] gap-1"
+                    onClick={(e) => { e.stopPropagation(); onApprove(); }}
+                    disabled={isBatchProcessing}
                   >
-                    <Shield className="w-3 h-3" />
-                    Multisig 3/3
+                    <CheckCircle className="w-3 h-3" />
+                    Duyệt
                   </Button>
                 )}
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-7 px-2 text-[10px] gap-1"
-                  onClick={(e) => { e.stopPropagation(); onApprove(); }}
-                  disabled={isBatchProcessing}
-                >
-                  <CheckCircle className="w-3 h-3" />
-                  Duyệt
-                </Button>
               </>
             )}
             {request.status === 'approved' && isConnected && (
-              <Button
-                size="sm"
-                className="h-7 px-2 text-[10px] gap-1 bg-gradient-to-r from-cyan-500 to-purple-500 text-white"
-                onClick={(e) => { e.stopPropagation(); onRouteToMultisig(); }}
-                disabled={isMinting}
-              >
-                <Shield className="w-3 h-3" />
-                Multisig 3/3
-              </Button>
+              hasMultisig ? (
+                <Badge variant="outline" className="text-[10px] gap-1 opacity-50 cursor-not-allowed">
+                  <Shield className="w-3 h-3" />
+                  Đã chuyển Multisig
+                </Badge>
+              ) : (
+                <Button
+                  size="sm"
+                  className="h-7 px-2 text-[10px] gap-1 bg-gradient-to-r from-cyan-500 to-purple-500 text-white"
+                  onClick={(e) => { e.stopPropagation(); onRouteToMultisig(); }}
+                  disabled={isMinting}
+                >
+                  <Shield className="w-3 h-3" />
+                  Multisig 3/3
+                </Button>
+              )
             )}
             <Button
               size="sm"
