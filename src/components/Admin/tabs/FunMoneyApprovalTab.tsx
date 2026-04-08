@@ -45,7 +45,8 @@ import { useFunMoneyWallet } from '@/hooks/useFunMoneyWallet';
 import { formatFunAmount } from '@/lib/fun-money/pplp-engine';
 import { CONTRACT_ACTION } from '@/lib/fun-money/contract-helpers';
 import { KNOWN_ADDRESSES } from '@/lib/fun-money/web3-config';
-import { createMultisigRequest } from '@/lib/fun-money/pplp-multisig-helpers';
+import { createMultisigRequest, createConsolidatedMultisigRequests } from '@/lib/fun-money/pplp-multisig-helpers';
+import type { MintRequestForMultisig } from '@/lib/fun-money/pplp-multisig-helpers';
 import { cn } from '@/lib/utils';
 import type { MintRequest } from '@/hooks/useFunMoneyMintRequest';
 
