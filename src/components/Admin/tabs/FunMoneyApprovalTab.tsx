@@ -736,38 +736,54 @@ function RequestTableRow({
             {request.status === 'pending' && (
               <>
                 {isConnected && (
+                  hasMultisig ? (
+                    <Badge variant="outline" className="text-[10px] gap-1 opacity-50 cursor-not-allowed">
+                      <Shield className="w-3 h-3" />
+                      Đã chuyển Multisig
+                    </Badge>
+                  ) : (
+                    <Button
+                      size="sm"
+                      className="h-7 px-2 text-[10px] gap-1 bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600 text-white"
+                      onClick={(e) => { e.stopPropagation(); onApproveAndRoute(); }}
+                      disabled={isMinting || isBatchProcessing}
+                    >
+                      <Shield className="w-3 h-3" />
+                      Multisig 3/3
+                    </Button>
+                  )
+                )}
+                {!hasMultisig && (
                   <Button
                     size="sm"
-                    className="h-7 px-2 text-[10px] gap-1 bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600 text-white"
-                    onClick={(e) => { e.stopPropagation(); onApproveAndRoute(); }}
-                    disabled={isMinting || isBatchProcessing}
+                    variant="outline"
+                    className="h-7 px-2 text-[10px] gap-1"
+                    onClick={(e) => { e.stopPropagation(); onApprove(); }}
+                    disabled={isBatchProcessing}
                   >
-                    <Shield className="w-3 h-3" />
-                    Multisig 3/3
+                    <CheckCircle className="w-3 h-3" />
+                    Duyệt
                   </Button>
                 )}
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-7 px-2 text-[10px] gap-1"
-                  onClick={(e) => { e.stopPropagation(); onApprove(); }}
-                  disabled={isBatchProcessing}
-                >
-                  <CheckCircle className="w-3 h-3" />
-                  Duyệt
-                </Button>
               </>
             )}
             {request.status === 'approved' && isConnected && (
-              <Button
-                size="sm"
-                className="h-7 px-2 text-[10px] gap-1 bg-gradient-to-r from-cyan-500 to-purple-500 text-white"
-                onClick={(e) => { e.stopPropagation(); onRouteToMultisig(); }}
-                disabled={isMinting}
-              >
-                <Shield className="w-3 h-3" />
-                Multisig 3/3
-              </Button>
+              hasMultisig ? (
+                <Badge variant="outline" className="text-[10px] gap-1 opacity-50 cursor-not-allowed">
+                  <Shield className="w-3 h-3" />
+                  Đã chuyển Multisig
+                </Badge>
+              ) : (
+                <Button
+                  size="sm"
+                  className="h-7 px-2 text-[10px] gap-1 bg-gradient-to-r from-cyan-500 to-purple-500 text-white"
+                  onClick={(e) => { e.stopPropagation(); onRouteToMultisig(); }}
+                  disabled={isMinting}
+                >
+                  <Shield className="w-3 h-3" />
+                  Multisig 3/3
+                </Button>
+              )
             )}
             <Button
               size="sm"
