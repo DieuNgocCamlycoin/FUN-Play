@@ -310,7 +310,7 @@ export function FunMoneyApprovalTab() {
 
   // Approve ALL + route to multisig — CONSOLIDATED per user (1 multisig per user)
   const handleApproveAllAndRoute = async () => {
-    const pendingRequests = filteredRequests.filter(r => r.status === 'pending');
+    const pendingRequests = filteredRequests.filter(r => r.status === 'pending' && r.calculated_amount_atomic !== '0' && r.calculated_amount_atomic !== '');
     if (pendingRequests.length === 0 || !isConnected || !adminAddress) return;
     
     // Count unique users
@@ -363,7 +363,7 @@ export function FunMoneyApprovalTab() {
       const signer = await getSigner();
       const provider = signer.provider as import('ethers').BrowserProvider;
       
-      const selectedRequests = requests.filter(r => selectedIds.has(r.id));
+      const selectedRequests = requests.filter(r => selectedIds.has(r.id) && r.calculated_amount_atomic !== '0' && r.calculated_amount_atomic !== '');
       const mintRequests: MintRequestForMultisig[] = selectedRequests.map(r => ({
         id: r.id, user_id: r.user_id, user_wallet_address: r.user_wallet_address,
         action_type: r.action_type, calculated_amount_atomic: r.calculated_amount_atomic,
