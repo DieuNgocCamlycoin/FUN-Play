@@ -6,11 +6,14 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
-import { RefreshCw, ExternalLink, BarChart3 } from 'lucide-react';
+import { RefreshCw, ExternalLink, BarChart3, Rocket, Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatFunDisplay } from '@/lib/fun-money/web3-config';
 import { REQUIRED_GROUPS, GOV_GROUPS } from '@/lib/fun-money/pplp-multisig-config';
-import type { MultisigSignatures } from '@/lib/fun-money/pplp-multisig-types';
+import { useMintSubmit } from '@/hooks/useMintSubmit';
+import { useWalletContext } from '@/contexts/WalletContext';
+import { toast } from 'sonner';
+import type { MultisigSignatures, PPLPMintRequest } from '@/lib/fun-money/pplp-multisig-types';
 import type { GovGroupName } from '@/lib/fun-money/pplp-multisig-config';
 
 interface MintRequest {
