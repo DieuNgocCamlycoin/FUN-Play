@@ -660,15 +660,6 @@ function RequestTableRow({
   onRejectReasonChange: (v: string) => void;
   onCopy: (t: string) => void;
 }) {
-  onToggleExpand: () => void;
-  onToggleSelect: () => void;
-  onApprove: () => void;
-  onReject: () => void;
-  onRouteToMultisig: () => void;
-  onApproveAndRoute: () => void;
-  onRejectReasonChange: (v: string) => void;
-  onCopy: (t: string) => void;
-}) {
   const pillarScores = request.pillar_scores as { S: number; T: number; H: number; C: number; U: number };
   const unitySignals = request.unity_signals as Record<string, boolean> | null;
   const colSpan = showCheckbox ? 8 : 7;
