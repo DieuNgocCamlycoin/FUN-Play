@@ -254,6 +254,7 @@ export function FunMoneyApprovalTab() {
           </span>
         </div>
       );
+      setRoutedIds(prev => new Set(prev).add(request.id));
       setExpandedId(null);
       // Refresh list
       if (activeTab === 'pending') fetchPendingRequests();
