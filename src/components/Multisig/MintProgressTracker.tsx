@@ -6,11 +6,14 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
-import { RefreshCw, ExternalLink, BarChart3 } from 'lucide-react';
+import { RefreshCw, ExternalLink, BarChart3, Rocket, Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatFunDisplay } from '@/lib/fun-money/web3-config';
 import { REQUIRED_GROUPS, GOV_GROUPS } from '@/lib/fun-money/pplp-multisig-config';
-import type { MultisigSignatures } from '@/lib/fun-money/pplp-multisig-types';
+import { useMintSubmit } from '@/hooks/useMintSubmit';
+import { useWalletContext } from '@/contexts/WalletContext';
+import { toast } from 'sonner';
+import type { MultisigSignatures, PPLPMintRequest } from '@/lib/fun-money/pplp-multisig-types';
 import type { GovGroupName } from '@/lib/fun-money/pplp-multisig-config';
 
 interface MintRequest {
@@ -55,6 +58,8 @@ export function MintProgressTracker() {
   const [profiles, setProfiles] = useState<Record<string, UserProfile>>({});
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  const { isConnected } = useWalletContext();
+  const { submitMint, isSubmitting } = useMintSubmit();
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -106,6 +111,19 @@ export function MintProgressTracker() {
     confirmed: requests.filter(r => r.status === 'confirmed').length,
     failed: requests.filter(r => r.status === 'failed').length,
   };
+
+  const handleMintSubmit = useCallback(async (req: MintRequest) => {
+    if (!isConnected) {
+      toast.error('Vui lòng kết nối ví trước');
+      return;
+    }
+    try {
+      const result = await submitMint(req as unknown as PPLPMintRequest);
+      toast.success(`✅ Mint thành công! TX: ${result.txHash?.slice(0, 10)}...`);
+    } catch (err: any) {
+      toast.error(`❌ Mint thất bại: ${err.message?.slice(0, 100)}`);
+    }
+  }, [isConnected, submitMint]);
 
   return (
     <div className="space-y-4">
@@ -168,6 +186,7 @@ export function MintProgressTracker() {
                   ))}
                   <TableHead className="text-xs">Status</TableHead>
                   <TableHead className="text-xs">TX</TableHead>
+                  <TableHead className="text-xs text-center">Mint</TableHead>
                   <TableHead className="text-xs">Ngày</TableHead>
                 </TableRow>
               </TableHeader>
@@ -223,6 +242,36 @@ export function MintProgressTracker() {
                           </a>
                         ) : (
                           <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="py-2 text-center">
+                        {req.status === 'signed' ? (
+                          <Button
+                            size="sm"
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] h-7 px-2"
+                            onClick={() => handleMintSubmit(req)}
+                            disabled={isSubmitting === req.id}
+                          >
+                            {isSubmitting === req.id ? (
+                              <><Loader2 className="w-3 h-3 mr-1 animate-spin" />Đang gửi...</>
+                            ) : (
+                              <><Rocket className="w-3 h-3 mr-1" />Submit TX</>
+                            )}
+                          </Button>
+                        ) : req.status === 'submitted' ? (
+                          <Badge variant="outline" className="bg-purple-500/20 text-purple-400 border-purple-500/30 text-[10px]">
+                            <Loader2 className="w-3 h-3 mr-1 animate-spin" />Đang xử lý
+                          </Badge>
+                        ) : req.status === 'confirmed' ? (
+                          <Badge variant="outline" className="bg-green-500/20 text-green-300 border-green-500/30 text-[10px]">
+                            <CheckCircle2 className="w-3 h-3 mr-1" />Thành công
+                          </Badge>
+                        ) : req.status === 'failed' ? (
+                          <Badge variant="outline" className="bg-destructive/20 text-destructive border-destructive/30 text-[10px]">
+                            <XCircle className="w-3 h-3 mr-1" />Thất bại
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">—</span>
                         )}
                       </TableCell>
                       <TableCell className="py-2 text-[10px] text-muted-foreground whitespace-nowrap">
