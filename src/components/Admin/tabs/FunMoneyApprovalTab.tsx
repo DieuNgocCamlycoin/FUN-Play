@@ -611,6 +611,11 @@ export function FunMoneyApprovalTab() {
           {error}
         </div>
       )}
+
+      {/* Bảng thống kê toàn bộ tiến trình Mint */}
+      <div className="border-t pt-6 mt-6">
+        <MintProgressTracker />
+      </div>
     </div>
   );
 }
