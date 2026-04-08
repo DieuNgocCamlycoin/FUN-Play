@@ -603,6 +603,7 @@ export function FunMoneyApprovalTab() {
                     isMinting={isMinting}
                     isBatchProcessing={isBatchProcessing}
                     rejectReason={rejectReason}
+                    hasMultisig={routedIds.has(request.id) || (request.status === 'approved' && !!request.decision_reason?.includes('pplp_mint_requests'))}
                     onToggleExpand={() => setExpandedId(expandedId === request.id ? null : request.id)}
                     onToggleSelect={() => toggleSelect(request.id)}
                     onApprove={() => handleApprove(request)}
