@@ -635,7 +635,7 @@ export function FunMoneyApprovalTab() {
 function RequestTableRow({
   request, isExpanded, isSelected, showCheckbox,
   isConnected, isAttesterWallet, isMinting, isBatchProcessing,
-  rejectReason, profile,
+  rejectReason, profile, hasMultisig,
   onToggleExpand, onToggleSelect,
   onApprove, onReject, onRouteToMultisig, onApproveAndRoute,
   onRejectReasonChange, onCopy
@@ -650,6 +650,16 @@ function RequestTableRow({
   isBatchProcessing: boolean;
   rejectReason: string;
   profile?: { display_name: string | null; avatar_url: string | null; username: string; banned?: boolean; wallet_address?: string | null };
+  hasMultisig: boolean;
+  onToggleExpand: () => void;
+  onToggleSelect: () => void;
+  onApprove: () => void;
+  onReject: () => void;
+  onRouteToMultisig: () => void;
+  onApproveAndRoute: () => void;
+  onRejectReasonChange: (v: string) => void;
+  onCopy: (t: string) => void;
+}) {
   onToggleExpand: () => void;
   onToggleSelect: () => void;
   onApprove: () => void;
