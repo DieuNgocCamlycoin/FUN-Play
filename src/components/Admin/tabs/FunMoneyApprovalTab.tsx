@@ -74,6 +74,7 @@ export function FunMoneyApprovalTab() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [isMinting, setIsMinting] = useState(false);
   const [isBatchProcessing, setIsBatchProcessing] = useState(false);
+  const [routedIds, setRoutedIds] = useState<Set<string>>(new Set());
   
   const [profileCache, setProfileCache] = useState<Record<string, { display_name: string | null; avatar_url: string | null; username: string; banned?: boolean; wallet_address?: string | null }>>({});
 
