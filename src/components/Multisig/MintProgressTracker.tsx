@@ -244,6 +244,36 @@ export function MintProgressTracker() {
                           <span className="text-muted-foreground">—</span>
                         )}
                       </TableCell>
+                      <TableCell className="py-2 text-center">
+                        {req.status === 'signed' ? (
+                          <Button
+                            size="sm"
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] h-7 px-2"
+                            onClick={() => handleMintSubmit(req)}
+                            disabled={isSubmitting === req.id}
+                          >
+                            {isSubmitting === req.id ? (
+                              <><Loader2 className="w-3 h-3 mr-1 animate-spin" />Đang gửi...</>
+                            ) : (
+                              <><Rocket className="w-3 h-3 mr-1" />Submit TX</>
+                            )}
+                          </Button>
+                        ) : req.status === 'submitted' ? (
+                          <Badge variant="outline" className="bg-purple-500/20 text-purple-400 border-purple-500/30 text-[10px]">
+                            <Loader2 className="w-3 h-3 mr-1 animate-spin" />Đang xử lý
+                          </Badge>
+                        ) : req.status === 'confirmed' ? (
+                          <Badge variant="outline" className="bg-green-500/20 text-green-300 border-green-500/30 text-[10px]">
+                            <CheckCircle2 className="w-3 h-3 mr-1" />Thành công
+                          </Badge>
+                        ) : req.status === 'failed' ? (
+                          <Badge variant="outline" className="bg-destructive/20 text-destructive border-destructive/30 text-[10px]">
+                            <XCircle className="w-3 h-3 mr-1" />Thất bại
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">—</span>
+                        )}
+                      </TableCell>
                       <TableCell className="py-2 text-[10px] text-muted-foreground whitespace-nowrap">
                         {new Date(req.created_at).toLocaleDateString('vi-VN')}
                       </TableCell>
