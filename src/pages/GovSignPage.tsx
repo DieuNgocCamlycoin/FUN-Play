@@ -1,6 +1,7 @@
 import { useWalletContext } from '@/contexts/WalletContext';
 import { useAuth } from '@/hooks/useAuth';
 import { AttesterPanel } from '@/components/Multisig/AttesterPanel';
+import { MintProgressTracker } from '@/components/Multisig/MintProgressTracker';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -109,6 +110,9 @@ export default function GovSignPage() {
               </Card>
             )}
             <AttesterPanel />
+            <div className="border-t pt-6 mt-6">
+              <MintProgressTracker />
+            </div>
           </>
         )}
       </div>
