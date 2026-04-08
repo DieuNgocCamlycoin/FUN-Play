@@ -485,6 +485,37 @@ export function FunMoneyApprovalTab() {
         </Button>
       </div>
 
+      {/* Always-visible Approve All buttons for pending tab */}
+      {activeTab === 'pending' && selectableCount > 0 && (
+        <div className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-green-500/10 to-cyan-500/10 border border-green-500/20">
+          <CheckCircle className="w-4 h-4 text-green-500" />
+          <span className="text-sm font-medium">{selectableCount} yêu cầu chờ duyệt</span>
+          <div className="flex items-center gap-2 ml-auto">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 gap-1.5 text-xs border-green-500/30 hover:bg-green-500/10"
+              onClick={handleApproveAll}
+              disabled={isBatchProcessing}
+            >
+              {isBatchProcessing ? <RefreshCw className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3 text-green-500" />}
+              ✅ Duyệt tất cả ({selectableCount})
+            </Button>
+            {isConnected && (
+              <Button
+                size="sm"
+                className="h-8 gap-1.5 text-xs bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600 text-white"
+                onClick={handleApproveAllAndRoute}
+                disabled={isBatchProcessing}
+              >
+                {isBatchProcessing ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />}
+                🔐 Multisig 3/3 tất cả ({selectableCount})
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Batch Actions Bar */}
       {selectedIds.size > 0 && (
         <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
