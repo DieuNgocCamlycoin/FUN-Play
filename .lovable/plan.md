@@ -1,31 +1,49 @@
 
 
-## Thông báo dễ thương khi user chưa đủ điều kiện Mint FUN
+## Bảng Thống Kê Toàn Bộ Tiến Trình Mint FUN
 
-### Vấn đề
-Hiện tại khi user bấm MINT NOW mà không đủ điều kiện, hệ thống hiện toast khô khan kiểu: *"Chưa đủ điều kiện mint"* với lý do kỹ thuật như *"Light Score (3) phải >= 10"*. Cần thay bằng lời nhắn dễ thương, động viên user.
+### Vấn đề hiện tại
+Trang /gov-sign (AttesterPanel) chỉ hiển thị các request có status `pending_sig` hoặc `signing`. Sau khi đủ 3/3 chữ ký (status = `signed`, `submitted`, `confirmed`, `failed`), request biến mất khỏi giao diện — các Attester không theo dõi được kết quả.
 
 ### Giải pháp
+Thêm một bảng thống kê **"Lịch sử & Tiến trình"** ngay bên dưới AttesterPanel trên trang /gov-sign, hiển thị **tất cả** request (mọi status) với thông tin đầy đủ.
 
-Thay đổi **2 file** để hiển thị thông báo thân thiện, dễ thương với emoji và lời động viên:
+### Thay đổi cụ thể
 
-**1. `src/hooks/useLightActivity.ts`** — Thay các `mintBlockReason` khô khan bằng lời nhắn dễ thương:
+**1. Tạo component `MintProgressTracker.tsx`** (`src/components/Multisig/`)
+- Query tất cả records từ `pplp_mint_requests` (không lọc status)
+- Hiển thị bảng với các cột:
+  - Tên user (+ avatar) & địa chỉ ví
+  - Số FUN
+  - Trạng thái ký (WILL ✓/✗, WISDOM ✓/✗, LOVE ✓/✗)
+  - Status hiện tại (badge màu: signing/signed/submitted/confirmed/failed)
+  - TX hash (link BscScan nếu có)
+  - Ngày tạo & cập nhật
+- Tabs hoặc filter theo status: Tất cả / Đang ký / Đã ký đủ / Đã submit / Thành công / Thất bại
+- Realtime subscription để cập nhật tự động
+- Thống kê tổng hợp ở đầu: tổng request, tổng FUN, số đã hoàn tất, số đang chờ
 
-| Điều kiện | Hiện tại | Mới |
-|-----------|----------|-----|
-| Chưa chấp nhận PPLP | "Bạn cần chấp nhận Hiến chương PPLP trước khi mint" | "🌱 Hãy chấp nhận Hiến chương PPLP trước nhé! Đây là bước đầu tiên trên hành trình ánh sáng của bạn ✨" |
-| Đang có request chờ | "Bạn đã có request đang chờ duyệt" | "⏳ Yêu cầu trước của bạn đang được xử lý rồi nè! Chờ chút xíu nhé, Admin đang lo cho bạn 💛" |
-| Light Score thấp | "Light Score (X) phải >= 10" | "🌟 Điểm Ánh Sáng của bạn đang là X/10. Hãy tiếp tục xem video, đăng bài và tương tác để tỏa sáng hơn nha! 💪" |
-| Ít hoạt động | "Cần ít nhất 10 activities" | "🎯 Bạn cần thêm hoạt động nữa nè! Hãy xem video, like, bình luận và chia sẻ để đủ điều kiện mint nhé 🌈" |
-| Tài khoản đáng ngờ | "Tài khoản bị đánh dấu đáng ngờ" | "🔒 Tài khoản cần được xác minh thêm. Hãy liên hệ Admin để được hỗ trợ nhé! 🙏" |
-| FUN quá ít | "Số FUN có thể mint quá nhỏ (< 1 FUN)" | "💫 Bạn gần đạt rồi! Cần tích lũy thêm một chút hoạt động để đủ 1 FUN mint nhé, cố lên! 🚀" |
-| Cooldown | "Cần đợi X giờ nữa..." | "⏰ Bạn vừa mint xong rồi nè! Nghỉ ngơi X giờ nữa rồi quay lại mint tiếp nhé, Angel chờ bạn! 🤗" |
+**2. Cập nhật `GovSignPage.tsx`**
+- Import và render `MintProgressTracker` bên dưới `AttesterPanel`
 
-**2. `src/components/FunMoney/MintableCard.tsx`** — Thay `toast.error` bằng `toast.info` với title dễ thương:
-- Title: "💝 Chưa đến lúc mint nè!" thay vì "Chưa đủ điều kiện mint"
-- Duration tăng lên 7000ms để user đọc kịp
+**3. Cập nhật RLS (nếu cần)**
+- Kiểm tra policy SELECT hiện tại có cho phép đọc các status `signed`, `submitted`, `confirmed`, `failed` không — nếu chưa thì mở rộng
 
-### Phạm vi thay đổi
-- `src/hooks/useLightActivity.ts` — 7 dòng `mintBlockReason`
-- `src/components/FunMoney/MintableCard.tsx` — 1 block toast (dòng 74-79)
+### Giao diện dự kiến
+
+```text
+┌─────────────────────────────────────────────────┐
+│  📊 Thống kê tiến trình Mint FUN                │
+│  Tổng: 9 | Đang ký: 7 | Đã đủ 3/3: 2 | ✅: 0  │
+├─────────────────────────────────────────────────┤
+│ [Tất cả] [Đang ký] [Đã ký đủ] [On-chain] [Lỗi]│
+├──────┬────────┬─────┬─────┬──────┬──────┬───────┤
+│ User │  FUN   │WILL │WSDM │LOVE  │Status│ TX    │
+├──────┼────────┼─────┼─────┼──────┼──────┼───────┤
+│ Hạnh │3,378   │ ✓   │  ✗  │  ✗   │signing│  —   │
+│ Lan  │  79.9  │ ✓   │  ✗  │  ✗   │signing│  —   │
+│ ...  │15,187  │ ✓   │  ✓  │  ✓   │signed │  —   │
+│ ...  │18,485  │ ✓   │  ✓  │  ✓   │confirmed│🔗  │
+└──────┴────────┴─────┴─────┴──────┴──────┴───────┘
+```
 
