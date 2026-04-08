@@ -186,6 +186,7 @@ export function MintProgressTracker() {
                   ))}
                   <TableHead className="text-xs">Status</TableHead>
                   <TableHead className="text-xs">TX</TableHead>
+                  <TableHead className="text-xs text-center">Mint</TableHead>
                   <TableHead className="text-xs">Ngày</TableHead>
                 </TableRow>
               </TableHeader>
