@@ -288,6 +288,57 @@ export function FunMoneyApprovalTab() {
     fetchPendingRequests();
   };
 
+  // Approve ALL pending (no selection needed)
+  const handleApproveAll = async () => {
+    const pendingRequests = filteredRequests.filter(r => r.status === 'pending');
+    if (pendingRequests.length === 0) { toast.info('Không có yêu cầu nào chờ duyệt'); return; }
+    if (!window.confirm(`Duyệt tất cả ${pendingRequests.length} yêu cầu chờ duyệt?`)) return;
+    setIsBatchProcessing(true);
+    let success = 0, fail = 0;
+    for (const r of pendingRequests) {
+      const ok = await approveRequest(r.id, 'Batch approved all by admin');
+      if (ok) success++; else fail++;
+    }
+    toast.success(`✅ Đã duyệt ${success}/${pendingRequests.length} yêu cầu${fail > 0 ? ` (${fail} thất bại)` : ''}`);
+    setSelectedIds(new Set());
+    setIsBatchProcessing(false);
+    fetchPendingRequests();
+  };
+
+  // Approve ALL + route to multisig (no selection needed)
+  const handleApproveAllAndRoute = async () => {
+    const pendingRequests = filteredRequests.filter(r => r.status === 'pending');
+    if (pendingRequests.length === 0 || !isConnected || !adminAddress) return;
+    if (!window.confirm(`Duyệt và chuyển Multisig 3/3 cho tất cả ${pendingRequests.length} yêu cầu?`)) return;
+    setIsBatchProcessing(true);
+    if (!isCorrectChain) {
+      toast.info('🔄 Đang chuyển sang BSC Testnet...');
+      await switchToBscTestnet();
+      await new Promise(r => setTimeout(r, 1500));
+    }
+    let success = 0, fail = 0;
+    const signer = await getSigner();
+    const provider = signer.provider as import('ethers').BrowserProvider;
+    for (const request of pendingRequests) {
+      try {
+        const { data: bp } = await supabase.from('profiles').select('wallet_address').eq('id', request.user_id).single();
+        if (bp?.wallet_address && bp.wallet_address.toLowerCase() !== request.user_wallet_address.toLowerCase()) {
+          toast.warning(`⚠️ Bỏ qua ${profileCache[request.user_id]?.display_name || request.user_wallet_address.slice(0, 10)}: Ví đã đổi`);
+          fail++; continue;
+        }
+        await createMultisigRequest({
+          mintRequest: { id: request.id, user_id: request.user_id, user_wallet_address: request.user_wallet_address, action_type: request.action_type, calculated_amount_atomic: request.calculated_amount_atomic, calculated_amount_formatted: request.calculated_amount_formatted, action_evidence: request.action_evidence, platform_id: request.platform_id },
+          provider,
+        });
+        success++;
+      } catch (err: any) { fail++; toast.error(`❌ Lỗi: ${err.message?.slice(0, 60)}`); }
+    }
+    toast.success(`🎉 Hoàn tất: ${success} chuyển Multisig, ${fail} thất bại`);
+    setSelectedIds(new Set());
+    setIsBatchProcessing(false);
+    fetchPendingRequests();
+  };
+
   // Batch approve + route to multisig
   const handleBatchApproveAndRoute = async () => {
     if (selectedIds.size === 0 || !isConnected || !adminAddress) return;
