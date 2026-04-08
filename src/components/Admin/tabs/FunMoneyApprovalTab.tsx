@@ -288,6 +288,57 @@ export function FunMoneyApprovalTab() {
     fetchPendingRequests();
   };
 
+  // Approve ALL pending (no selection needed)
+  const handleApproveAll = async () => {
+    const pendingRequests = filteredRequests.filter(r => r.status === 'pending');
+    if (pendingRequests.length === 0) { toast.info('Không có yêu cầu nào chờ duyệt'); return; }
+    if (!window.confirm(`Duyệt tất cả ${pendingRequests.length} yêu cầu chờ duyệt?`)) return;
+    setIsBatchProcessing(true);
+    let success = 0, fail = 0;
+    for (const r of pendingRequests) {
+      const ok = await approveRequest(r.id, 'Batch approved all by admin');
+      if (ok) success++; else fail++;
+    }
+    toast.success(`✅ Đã duyệt ${success}/${pendingRequests.length} yêu cầu${fail > 0 ? ` (${fail} thất bại)` : ''}`);
+    setSelectedIds(new Set());
+    setIsBatchProcessing(false);
+    fetchPendingRequests();
+  };
+
+  // Approve ALL + route to multisig (no selection needed)
+  const handleApproveAllAndRoute = async () => {
+    const pendingRequests = filteredRequests.filter(r => r.status === 'pending');
+    if (pendingRequests.length === 0 || !isConnected || !adminAddress) return;
+    if (!window.confirm(`Duyệt và chuyển Multisig 3/3 cho tất cả ${pendingRequests.length} yêu cầu?`)) return;
+    setIsBatchProcessing(true);
+    if (!isCorrectChain) {
+      toast.info('🔄 Đang chuyển sang BSC Testnet...');
+      await switchToBscTestnet();
+      await new Promise(r => setTimeout(r, 1500));
+    }
+    let success = 0, fail = 0;
+    const signer = await getSigner();
+    const provider = signer.provider as import('ethers').BrowserProvider;
+    for (const request of pendingRequests) {
+      try {
+        const { data: bp } = await supabase.from('profiles').select('wallet_address').eq('id', request.user_id).single();
+        if (bp?.wallet_address && bp.wallet_address.toLowerCase() !== request.user_wallet_address.toLowerCase()) {
+          toast.warning(`⚠️ Bỏ qua ${profileCache[request.user_id]?.display_name || request.user_wallet_address.slice(0, 10)}: Ví đã đổi`);
+          fail++; continue;
+        }
+        await createMultisigRequest({
+          mintRequest: { id: request.id, user_id: request.user_id, user_wallet_address: request.user_wallet_address, action_type: request.action_type, calculated_amount_atomic: request.calculated_amount_atomic, calculated_amount_formatted: request.calculated_amount_formatted, action_evidence: request.action_evidence, platform_id: request.platform_id },
+          provider,
+        });
+        success++;
+      } catch (err: any) { fail++; toast.error(`❌ Lỗi: ${err.message?.slice(0, 60)}`); }
+    }
+    toast.success(`🎉 Hoàn tất: ${success} chuyển Multisig, ${fail} thất bại`);
+    setSelectedIds(new Set());
+    setIsBatchProcessing(false);
+    fetchPendingRequests();
+  };
+
   // Batch approve + route to multisig
   const handleBatchApproveAndRoute = async () => {
     if (selectedIds.size === 0 || !isConnected || !adminAddress) return;
@@ -433,6 +484,37 @@ export function FunMoneyApprovalTab() {
           <RefreshCw className="w-3.5 h-3.5" />
         </Button>
       </div>
+
+      {/* Always-visible Approve All buttons for pending tab */}
+      {activeTab === 'pending' && selectableCount > 0 && (
+        <div className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-green-500/10 to-cyan-500/10 border border-green-500/20">
+          <CheckCircle className="w-4 h-4 text-green-500" />
+          <span className="text-sm font-medium">{selectableCount} yêu cầu chờ duyệt</span>
+          <div className="flex items-center gap-2 ml-auto">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 gap-1.5 text-xs border-green-500/30 hover:bg-green-500/10"
+              onClick={handleApproveAll}
+              disabled={isBatchProcessing}
+            >
+              {isBatchProcessing ? <RefreshCw className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3 text-green-500" />}
+              ✅ Duyệt tất cả ({selectableCount})
+            </Button>
+            {isConnected && (
+              <Button
+                size="sm"
+                className="h-8 gap-1.5 text-xs bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600 text-white"
+                onClick={handleApproveAllAndRoute}
+                disabled={isBatchProcessing}
+              >
+                {isBatchProcessing ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />}
+                🔐 Multisig 3/3 tất cả ({selectableCount})
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Batch Actions Bar */}
       {selectedIds.size > 0 && (
