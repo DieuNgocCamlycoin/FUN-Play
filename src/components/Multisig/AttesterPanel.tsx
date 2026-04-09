@@ -29,24 +29,18 @@ export function AttesterPanel() {
   const [signingAll, setSigningAll] = useState(false);
   const [signAllProgress, setSignAllProgress] = useState({ done: 0, total: 0 });
 
-  if (!isAttester) {
-    return (
-      <Card className="p-6 text-center">
-        <ShieldAlert className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
-        <h3 className="font-semibold text-lg mb-1">Không phải Attester</h3>
-        <p className="text-muted-foreground text-sm">
-          Ví hiện tại không nằm trong danh sách GOV Attester. Hãy kết nối ví đúng.
-        </p>
-      </Card>
-    );
-  }
+  // Get unsigned requests for this group
+  const unsignedRequests = pendingRequests.filter((req) => {
+    const sigs = (req.multisig_signatures || {}) as MultisigSignatures;
+    return myGroup ? !sigs[myGroup] : false;
+  });
 
-  const handleSign = async (request: any) => {
+  const handleSign = useCallback(async (request: any) => {
     try {
       const result = await signRequest(request);
       toast({
         title: 'Ký thành công! ✅',
-        description: result.status === 'signed' 
+        description: result.status === 'signed'
           ? 'Đã đủ 3/3 chữ ký từ 3 nhóm GOV. Sẵn sàng submit on-chain.'
           : `Chữ ký nhóm ${myGroup?.toUpperCase()} đã được lưu. Chờ nhóm khác ký tiếp.`,
       });
@@ -57,13 +51,7 @@ export function AttesterPanel() {
         variant: 'destructive',
       });
     }
-  };
-
-  // Get unsigned requests for this group
-  const unsignedRequests = pendingRequests.filter((req) => {
-    const sigs = (req.multisig_signatures || {}) as MultisigSignatures;
-    return myGroup ? !sigs[myGroup] : false;
-  });
+  }, [signRequest, myGroup, toast]);
 
   const handleSignAll = useCallback(async () => {
     if (unsignedRequests.length === 0) return;
@@ -87,11 +75,23 @@ export function AttesterPanel() {
 
     setSigningAll(false);
     toast({
-      title: `Ký hàng loạt hoàn tất`,
+      title: 'Ký hàng loạt hoàn tất',
       description: `✅ Thành công: ${successCount} · ❌ Lỗi: ${failCount}`,
       variant: failCount > 0 ? 'destructive' : 'default',
     });
   }, [unsignedRequests, signRequest, toast]);
+
+  if (!isAttester) {
+    return (
+      <Card className="p-6 text-center">
+        <ShieldAlert className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+        <h3 className="font-semibold text-lg mb-1">Không phải Attester</h3>
+        <p className="text-muted-foreground text-sm">
+          Ví hiện tại không nằm trong danh sách GOV Attester. Hãy kết nối ví đúng.
+        </p>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -110,10 +110,33 @@ export function AttesterPanel() {
             Mỗi request cần 1 chữ ký từ MỖI nhóm (WILL + WISDOM + LOVE)
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={refresh} disabled={loading}>
-          <RefreshCw className={`w-4 h-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* Sign All Button */}
+          {unsignedRequests.length > 0 && (
+            <Button
+              size="sm"
+              onClick={handleSignAll}
+              disabled={signingAll || !!signing}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              {signingAll ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                  {signAllProgress.done}/{signAllProgress.total}
+                </>
+              ) : (
+                <>
+                  <PenLine className="w-4 h-4 mr-1" />
+                  Ký tất cả ({unsignedRequests.length})
+                </>
+              )}
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={refresh} disabled={loading}>
+            <RefreshCw className={`w-4 h-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Requests */}
@@ -165,7 +188,7 @@ export function AttesterPanel() {
                   </div>
                   <Button
                     size="sm"
-                    disabled={alreadySigned || signing === req.id}
+                    disabled={alreadySigned || signing === req.id || signingAll}
                     onClick={() => handleSign(req)}
                     className={alreadySigned ? 'opacity-50' : ''}
                   >
