@@ -334,9 +334,19 @@ export function MintProgressTracker() {
                             <CheckCircle2 className="w-3 h-3 mr-1" />Thành công
                           </Badge>
                         ) : req.status === 'failed' ? (
-                          <Badge variant="outline" className="bg-destructive/20 text-destructive border-destructive/30 text-[10px]">
-                            <XCircle className="w-3 h-3 mr-1" />Thất bại
-                          </Badge>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="bg-destructive/10 hover:bg-destructive/20 text-destructive text-[10px] h-7 px-2"
+                            onClick={() => handleResetWithFreshNonce(req)}
+                            disabled={resettingId === req.id}
+                          >
+                            {resettingId === req.id ? (
+                              <><Loader2 className="w-3 h-3 mr-1 animate-spin" />Đang reset...</>
+                            ) : (
+                              <><RotateCcw className="w-3 h-3 mr-1" />Reset & Refresh</>
+                            )}
+                          </Button>
                         ) : (
                           <span className="text-muted-foreground text-xs">—</span>
                         )}
