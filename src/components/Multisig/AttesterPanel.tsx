@@ -1,16 +1,17 @@
 import { useState, useCallback } from 'react';
 import { useAttesterSigning } from '@/hooks/useAttesterSigning';
+import { useMintSubmit } from '@/hooks/useMintSubmit';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { MultisigStatusBadge } from './MultisigStatusBadge';
-import { ShieldAlert, Pen, RefreshCw, ShieldCheck, PenLine, Loader2 } from 'lucide-react';
+import { ShieldAlert, Pen, RefreshCw, ShieldCheck, PenLine, Loader2, Zap } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatFunDisplay } from '@/lib/fun-money/web3-config';
 import { REQUIRED_GROUPS } from '@/lib/fun-money/pplp-multisig-config';
-import type { MultisigSignatures } from '@/lib/fun-money/pplp-multisig-types';
+import type { MultisigSignatures, PPLPMintRequest } from '@/lib/fun-money/pplp-multisig-types';
 import type { GovGroupName } from '@/lib/fun-money/pplp-multisig-config';
 
 export function AttesterPanel() {
