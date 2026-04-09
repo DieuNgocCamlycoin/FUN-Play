@@ -1,4 +1,7 @@
 import { useState, useCallback } from 'react';
+import { useWalletClient } from 'wagmi';
+import { BrowserProvider } from 'ethers';
+import { verifyOnChainNonce } from '@/lib/fun-money/pplp-nonce-refresh';
 import { useAttesterSigning } from '@/hooks/useAttesterSigning';
 import { useMintSubmit } from '@/hooks/useMintSubmit';
 import { Card } from '@/components/ui/card';
@@ -31,6 +34,7 @@ export function AttesterPanel() {
   const [signingAll, setSigningAll] = useState(false);
   const [signAllProgress, setSignAllProgress] = useState({ done: 0, total: 0 });
   const [autoMinting, setAutoMinting] = useState<string | null>(null);
+  const { data: walletClient } = useWalletClient();
 
   // Get unsigned requests for this group
   const unsignedRequests = pendingRequests.filter((req) => {
@@ -54,6 +58,23 @@ export function AttesterPanel() {
         .single();
 
       if (freshReq && freshReq.status === 'signed') {
+        // Verify nonce before submitting
+        if (walletClient) {
+          try {
+            const provider = new BrowserProvider(walletClient as any);
+            const { valid, onChainNonce } = await verifyOnChainNonce(provider, freshReq.recipient_address, freshReq.nonce);
+            if (!valid) {
+              toast({
+                title: '⚠️ Nonce không khớp',
+                description: `DB: ${freshReq.nonce}, On-chain: ${onChainNonce}. Cần Reset & Refresh Nonce trước.`,
+                variant: 'destructive',
+              });
+              return;
+            }
+          } catch (e) {
+            console.warn('[AutoMint] Nonce check failed, proceeding:', e);
+          }
+        }
         const result = await submitMint(freshReq as unknown as PPLPMintRequest);
         toast({
           title: '✅ Mint on-chain thành công!',

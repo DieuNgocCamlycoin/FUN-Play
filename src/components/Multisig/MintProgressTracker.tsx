@@ -6,7 +6,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
-import { RefreshCw, ExternalLink, BarChart3, Rocket, Loader2, CheckCircle2, XCircle } from 'lucide-react';
+import { RefreshCw, ExternalLink, BarChart3, Rocket, Loader2, CheckCircle2, XCircle, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatFunDisplay } from '@/lib/fun-money/web3-config';
 import { REQUIRED_GROUPS, GOV_GROUPS } from '@/lib/fun-money/pplp-multisig-config';
@@ -15,6 +15,9 @@ import { useWalletContext } from '@/contexts/WalletContext';
 import { toast } from 'sonner';
 import type { MultisigSignatures, PPLPMintRequest } from '@/lib/fun-money/pplp-multisig-types';
 import type { GovGroupName } from '@/lib/fun-money/pplp-multisig-config';
+import { resetRequestWithFreshNonce, verifyOnChainNonce } from '@/lib/fun-money/pplp-nonce-refresh';
+import { useWalletClient } from 'wagmi';
+import { BrowserProvider } from 'ethers';
 
 interface MintRequest {
   id: string;
@@ -59,7 +62,9 @@ export function MintProgressTracker() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const { isConnected } = useWalletContext();
+  const { data: walletClient } = useWalletClient();
   const { submitMint, isSubmitting } = useMintSubmit();
+  const [resettingId, setResettingId] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -89,9 +94,9 @@ export function MintProgressTracker() {
   const [autoMintedIds, setAutoMintedIds] = useState<Set<string>>(new Set());
   const [autoMinting, setAutoMinting] = useState<string | null>(null);
 
-  // Auto-submit: when a request reaches 'signed' and wallet is connected, auto-mint
+  // Auto-submit: when a request reaches 'signed' and wallet is connected, auto-mint with nonce verification
   useEffect(() => {
-    if (!isConnected) return;
+    if (!isConnected || !walletClient) return;
     const signedReqs = requests.filter(
       r => r.status === 'signed' && !autoMintedIds.has(r.id) && isSubmitting !== r.id && autoMinting !== r.id
     );
@@ -101,6 +106,20 @@ export function MintProgressTracker() {
       const req = signedReqs[0];
       setAutoMinting(req.id);
       setAutoMintedIds(prev => new Set(prev).add(req.id));
+
+      // Verify nonce before submitting
+      try {
+        const provider = new BrowserProvider(walletClient as any);
+        const { valid, onChainNonce } = await verifyOnChainNonce(provider, req.recipient_address, (req as any).nonce);
+        if (!valid) {
+          toast.error(`⚠️ Nonce cũ (DB: ${(req as any).nonce}, chain: ${onChainNonce}). Cần Reset & Refresh Nonce trước khi mint.`);
+          setAutoMinting(null);
+          return;
+        }
+      } catch (e) {
+        console.warn('Nonce check failed, proceeding anyway:', e);
+      }
+
       toast.info(`⚡ Tự động mint on-chain cho ${req.recipient_address.slice(0, 10)}...`);
       try {
         const result = await submitMint(req as unknown as PPLPMintRequest);
@@ -113,7 +132,7 @@ export function MintProgressTracker() {
     };
 
     autoSubmitNext();
-  }, [requests, isConnected, autoMintedIds, submitMint, isSubmitting, autoMinting]);
+  }, [requests, isConnected, walletClient, autoMintedIds, submitMint, isSubmitting, autoMinting]);
 
   useEffect(() => {
     fetchData();
@@ -154,6 +173,24 @@ export function MintProgressTracker() {
       toast.error(`❌ Mint thất bại: ${err.message?.slice(0, 100)}`);
     }
   }, [isConnected, submitMint]);
+
+  const handleResetWithFreshNonce = useCallback(async (req: MintRequest) => {
+    if (!walletClient) {
+      toast.error('Vui lòng kết nối ví trước');
+      return;
+    }
+    setResettingId(req.id);
+    try {
+      const provider = new BrowserProvider(walletClient as any);
+      const result = await resetRequestWithFreshNonce(req.id, provider);
+      toast.success(`✅ Reset thành công! Nonce mới: ${result.newNonce}. Cần ký lại 3/3.`);
+      fetchData();
+    } catch (err: any) {
+      toast.error(`❌ Reset thất bại: ${err.message?.slice(0, 100)}`);
+    } finally {
+      setResettingId(null);
+    }
+  }, [walletClient, fetchData]);
 
   return (
     <div className="space-y-4">
@@ -297,9 +334,19 @@ export function MintProgressTracker() {
                             <CheckCircle2 className="w-3 h-3 mr-1" />Thành công
                           </Badge>
                         ) : req.status === 'failed' ? (
-                          <Badge variant="outline" className="bg-destructive/20 text-destructive border-destructive/30 text-[10px]">
-                            <XCircle className="w-3 h-3 mr-1" />Thất bại
-                          </Badge>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="bg-destructive/10 hover:bg-destructive/20 text-destructive text-[10px] h-7 px-2"
+                            onClick={() => handleResetWithFreshNonce(req)}
+                            disabled={resettingId === req.id}
+                          >
+                            {resettingId === req.id ? (
+                              <><Loader2 className="w-3 h-3 mr-1 animate-spin" />Đang reset...</>
+                            ) : (
+                              <><RotateCcw className="w-3 h-3 mr-1" />Reset & Refresh</>
+                            )}
+                          </Button>
                         ) : (
                           <span className="text-muted-foreground text-xs">—</span>
                         )}
