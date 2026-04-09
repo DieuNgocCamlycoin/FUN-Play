@@ -58,6 +58,23 @@ export function AttesterPanel() {
         .single();
 
       if (freshReq && freshReq.status === 'signed') {
+        // Verify nonce before submitting
+        if (walletClient) {
+          try {
+            const provider = new BrowserProvider(walletClient as any);
+            const { valid, onChainNonce } = await verifyOnChainNonce(provider, freshReq.recipient_address, freshReq.nonce);
+            if (!valid) {
+              toast({
+                title: '⚠️ Nonce không khớp',
+                description: `DB: ${freshReq.nonce}, On-chain: ${onChainNonce}. Cần Reset & Refresh Nonce trước.`,
+                variant: 'destructive',
+              });
+              return;
+            }
+          } catch (e) {
+            console.warn('[AutoMint] Nonce check failed, proceeding:', e);
+          }
+        }
         const result = await submitMint(freshReq as unknown as PPLPMintRequest);
         toast({
           title: '✅ Mint on-chain thành công!',
