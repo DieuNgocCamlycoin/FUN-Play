@@ -1,4 +1,7 @@
 import { useState, useCallback } from 'react';
+import { useWalletClient } from 'wagmi';
+import { BrowserProvider } from 'ethers';
+import { verifyOnChainNonce } from '@/lib/fun-money/pplp-nonce-refresh';
 import { useAttesterSigning } from '@/hooks/useAttesterSigning';
 import { useMintSubmit } from '@/hooks/useMintSubmit';
 import { Card } from '@/components/ui/card';
@@ -31,6 +34,7 @@ export function AttesterPanel() {
   const [signingAll, setSigningAll] = useState(false);
   const [signAllProgress, setSignAllProgress] = useState({ done: 0, total: 0 });
   const [autoMinting, setAutoMinting] = useState<string | null>(null);
+  const { data: walletClient } = useWalletClient();
 
   // Get unsigned requests for this group
   const unsignedRequests = pendingRequests.filter((req) => {
