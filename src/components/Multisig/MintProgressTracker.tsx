@@ -85,6 +85,36 @@ export function MintProgressTracker() {
     setLoading(false);
   }, []);
 
+  // Track which requests we've already attempted auto-mint for
+  const [autoMintedIds, setAutoMintedIds] = useState<Set<string>>(new Set());
+  const [autoMinting, setAutoMinting] = useState<string | null>(null);
+
+  // Auto-submit: when a request reaches 'signed' and wallet is connected, auto-mint
+  useEffect(() => {
+    if (!isConnected) return;
+    const signedReqs = requests.filter(
+      r => r.status === 'signed' && !autoMintedIds.has(r.id) && isSubmitting !== r.id && autoMinting !== r.id
+    );
+    if (signedReqs.length === 0) return;
+
+    const autoSubmitNext = async () => {
+      const req = signedReqs[0];
+      setAutoMinting(req.id);
+      setAutoMintedIds(prev => new Set(prev).add(req.id));
+      toast.info(`⚡ Tự động mint on-chain cho ${req.recipient_address.slice(0, 10)}...`);
+      try {
+        const result = await submitMint(req as unknown as PPLPMintRequest);
+        toast.success(`✅ Auto-mint thành công! TX: ${result.txHash?.slice(0, 10)}...`);
+      } catch (err: any) {
+        toast.error(`❌ Auto-mint thất bại: ${err.message?.slice(0, 80)}`);
+      } finally {
+        setAutoMinting(null);
+      }
+    };
+
+    autoSubmitNext();
+  }, [requests, isConnected, autoMintedIds, submitMint, isSubmitting, autoMinting]);
+
   useEffect(() => {
     fetchData();
     const channel = supabase
