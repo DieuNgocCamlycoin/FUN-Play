@@ -239,15 +239,22 @@ export function AttesterPanel() {
                       {formatFunDisplay(req.amount_wei)}
                     </p>
                   </div>
-                  <Button
-                    size="sm"
-                    disabled={alreadySigned || signing === req.id || signingAll}
-                    onClick={() => handleSign(req)}
-                    className={alreadySigned ? 'opacity-50' : ''}
-                  >
-                    <Pen className="w-4 h-4 mr-1" />
-                    {signing === req.id ? 'Đang ký...' : alreadySigned ? 'Đã ký ✓' : 'Ký xác nhận'}
-                  </Button>
+                  {autoMinting === req.id ? (
+                    <Badge className="bg-primary/20 text-primary border-primary/30 text-xs animate-pulse">
+                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                      ⚡ Auto-minting...
+                    </Badge>
+                  ) : (
+                    <Button
+                      size="sm"
+                      disabled={alreadySigned || signing === req.id || signingAll}
+                      onClick={() => handleSign(req)}
+                      className={alreadySigned ? 'opacity-50' : ''}
+                    >
+                      <Pen className="w-4 h-4 mr-1" />
+                      {signing === req.id ? 'Đang ký...' : alreadySigned ? 'Đã ký ✓' : 'Ký xác nhận'}
+                    </Button>
+                  )}
                 </div>
 
                 <MultisigStatusBadge
