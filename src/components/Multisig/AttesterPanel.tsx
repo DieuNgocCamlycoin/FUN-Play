@@ -1,3 +1,4 @@
+import { useState, useCallback } from 'react';
 import { useAttesterSigning } from '@/hooks/useAttesterSigning';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -5,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { MultisigStatusBadge } from './MultisigStatusBadge';
-import { ShieldAlert, Pen, RefreshCw, ShieldCheck } from 'lucide-react';
+import { ShieldAlert, Pen, RefreshCw, ShieldCheck, PenLine, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatFunDisplay } from '@/lib/fun-money/web3-config';
 import { REQUIRED_GROUPS } from '@/lib/fun-money/pplp-multisig-config';
@@ -25,6 +26,60 @@ export function AttesterPanel() {
     refresh,
   } = useAttesterSigning();
   const { toast } = useToast();
+  const [signingAll, setSigningAll] = useState(false);
+  const [signAllProgress, setSignAllProgress] = useState({ done: 0, total: 0 });
+
+  // Get unsigned requests for this group
+  const unsignedRequests = pendingRequests.filter((req) => {
+    const sigs = (req.multisig_signatures || {}) as MultisigSignatures;
+    return myGroup ? !sigs[myGroup] : false;
+  });
+
+  const handleSign = useCallback(async (request: any) => {
+    try {
+      const result = await signRequest(request);
+      toast({
+        title: 'Ký thành công! ✅',
+        description: result.status === 'signed'
+          ? 'Đã đủ 3/3 chữ ký từ 3 nhóm GOV. Sẵn sàng submit on-chain.'
+          : `Chữ ký nhóm ${myGroup?.toUpperCase()} đã được lưu. Chờ nhóm khác ký tiếp.`,
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Lỗi ký',
+        description: err.message,
+        variant: 'destructive',
+      });
+    }
+  }, [signRequest, myGroup, toast]);
+
+  const handleSignAll = useCallback(async () => {
+    if (unsignedRequests.length === 0) return;
+    if (!window.confirm(`Bạn sẽ ký ${unsignedRequests.length} request cùng lúc. Tiếp tục?`)) return;
+
+    setSigningAll(true);
+    setSignAllProgress({ done: 0, total: unsignedRequests.length });
+    let successCount = 0;
+    let failCount = 0;
+
+    for (let i = 0; i < unsignedRequests.length; i++) {
+      try {
+        await signRequest(unsignedRequests[i]);
+        successCount++;
+      } catch (err: any) {
+        failCount++;
+        console.error(`[SignAll] Failed request ${unsignedRequests[i].id}:`, err.message);
+      }
+      setSignAllProgress({ done: i + 1, total: unsignedRequests.length });
+    }
+
+    setSigningAll(false);
+    toast({
+      title: 'Ký hàng loạt hoàn tất',
+      description: `✅ Thành công: ${successCount} · ❌ Lỗi: ${failCount}`,
+      variant: failCount > 0 ? 'destructive' : 'default',
+    });
+  }, [unsignedRequests, signRequest, toast]);
 
   if (!isAttester) {
     return (
@@ -37,24 +92,6 @@ export function AttesterPanel() {
       </Card>
     );
   }
-
-  const handleSign = async (request: any) => {
-    try {
-      const result = await signRequest(request);
-      toast({
-        title: 'Ký thành công! ✅',
-        description: result.status === 'signed' 
-          ? 'Đã đủ 3/3 chữ ký từ 3 nhóm GOV. Sẵn sàng submit on-chain.'
-          : `Chữ ký nhóm ${myGroup?.toUpperCase()} đã được lưu. Chờ nhóm khác ký tiếp.`,
-      });
-    } catch (err: any) {
-      toast({
-        title: 'Lỗi ký',
-        description: err.message,
-        variant: 'destructive',
-      });
-    }
-  };
 
   return (
     <div className="space-y-4">
@@ -73,10 +110,33 @@ export function AttesterPanel() {
             Mỗi request cần 1 chữ ký từ MỖI nhóm (WILL + WISDOM + LOVE)
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={refresh} disabled={loading}>
-          <RefreshCw className={`w-4 h-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* Sign All Button */}
+          {unsignedRequests.length > 0 && (
+            <Button
+              size="sm"
+              onClick={handleSignAll}
+              disabled={signingAll || !!signing}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              {signingAll ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                  {signAllProgress.done}/{signAllProgress.total}
+                </>
+              ) : (
+                <>
+                  <PenLine className="w-4 h-4 mr-1" />
+                  Ký tất cả ({unsignedRequests.length})
+                </>
+              )}
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={refresh} disabled={loading}>
+            <RefreshCw className={`w-4 h-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Requests */}
@@ -128,7 +188,7 @@ export function AttesterPanel() {
                   </div>
                   <Button
                     size="sm"
-                    disabled={alreadySigned || signing === req.id}
+                    disabled={alreadySigned || signing === req.id || signingAll}
                     onClick={() => handleSign(req)}
                     className={alreadySigned ? 'opacity-50' : ''}
                   >
