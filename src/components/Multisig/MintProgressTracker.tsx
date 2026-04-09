@@ -174,6 +174,24 @@ export function MintProgressTracker() {
     }
   }, [isConnected, submitMint]);
 
+  const handleResetWithFreshNonce = useCallback(async (req: MintRequest) => {
+    if (!walletClient) {
+      toast.error('Vui lòng kết nối ví trước');
+      return;
+    }
+    setResettingId(req.id);
+    try {
+      const provider = new BrowserProvider(walletClient as any);
+      const result = await resetRequestWithFreshNonce(req.id, provider);
+      toast.success(`✅ Reset thành công! Nonce mới: ${result.newNonce}. Cần ký lại 3/3.`);
+      fetchData();
+    } catch (err: any) {
+      toast.error(`❌ Reset thất bại: ${err.message?.slice(0, 100)}`);
+    } finally {
+      setResettingId(null);
+    }
+  }, [walletClient, fetchData]);
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
