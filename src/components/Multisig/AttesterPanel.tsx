@@ -105,11 +105,15 @@ export function AttesterPanel() {
     setSignAllProgress({ done: 0, total: unsignedRequests.length });
     let successCount = 0;
     let failCount = 0;
+    const completedRequests: any[] = [];
 
     for (let i = 0; i < unsignedRequests.length; i++) {
       try {
-        await signRequest(unsignedRequests[i]);
+        const result = await signRequest(unsignedRequests[i]);
         successCount++;
+        if (result.status === 'signed') {
+          completedRequests.push(unsignedRequests[i]);
+        }
       } catch (err: any) {
         failCount++;
         console.error(`[SignAll] Failed request ${unsignedRequests[i].id}:`, err.message);
@@ -120,10 +124,15 @@ export function AttesterPanel() {
     setSigningAll(false);
     toast({
       title: 'Ký hàng loạt hoàn tất',
-      description: `✅ Thành công: ${successCount} · ❌ Lỗi: ${failCount}`,
+      description: `✅ Thành công: ${successCount} · ❌ Lỗi: ${failCount}${completedRequests.length > 0 ? ` · ⚡ ${completedRequests.length} đủ 3/3, đang auto-mint...` : ''}`,
       variant: failCount > 0 ? 'destructive' : 'default',
     });
-  }, [unsignedRequests, signRequest, toast]);
+
+    // Auto-mint all completed requests
+    for (const req of completedRequests) {
+      await tryAutoMint(req);
+    }
+  }, [unsignedRequests, signRequest, toast, tryAutoMint]);
 
   if (!isAttester) {
     return (
