@@ -26,6 +26,8 @@ export function AttesterPanel() {
     refresh,
   } = useAttesterSigning();
   const { toast } = useToast();
+  const [signingAll, setSigningAll] = useState(false);
+  const [signAllProgress, setSignAllProgress] = useState({ done: 0, total: 0 });
 
   if (!isAttester) {
     return (
