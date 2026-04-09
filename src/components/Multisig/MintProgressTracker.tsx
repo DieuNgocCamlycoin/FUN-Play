@@ -94,9 +94,9 @@ export function MintProgressTracker() {
   const [autoMintedIds, setAutoMintedIds] = useState<Set<string>>(new Set());
   const [autoMinting, setAutoMinting] = useState<string | null>(null);
 
-  // Auto-submit: when a request reaches 'signed' and wallet is connected, auto-mint
+  // Auto-submit: when a request reaches 'signed' and wallet is connected, auto-mint with nonce verification
   useEffect(() => {
-    if (!isConnected) return;
+    if (!isConnected || !walletClient) return;
     const signedReqs = requests.filter(
       r => r.status === 'signed' && !autoMintedIds.has(r.id) && isSubmitting !== r.id && autoMinting !== r.id
     );
@@ -106,6 +106,20 @@ export function MintProgressTracker() {
       const req = signedReqs[0];
       setAutoMinting(req.id);
       setAutoMintedIds(prev => new Set(prev).add(req.id));
+
+      // Verify nonce before submitting
+      try {
+        const provider = new BrowserProvider(walletClient as any);
+        const { valid, onChainNonce } = await verifyOnChainNonce(provider, req.recipient_address, (req as any).nonce);
+        if (!valid) {
+          toast.error(`⚠️ Nonce cũ (DB: ${(req as any).nonce}, chain: ${onChainNonce}). Cần Reset & Refresh Nonce trước khi mint.`);
+          setAutoMinting(null);
+          return;
+        }
+      } catch (e) {
+        console.warn('Nonce check failed, proceeding anyway:', e);
+      }
+
       toast.info(`⚡ Tự động mint on-chain cho ${req.recipient_address.slice(0, 10)}...`);
       try {
         const result = await submitMint(req as unknown as PPLPMintRequest);
@@ -118,7 +132,7 @@ export function MintProgressTracker() {
     };
 
     autoSubmitNext();
-  }, [requests, isConnected, autoMintedIds, submitMint, isSubmitting, autoMinting]);
+  }, [requests, isConnected, walletClient, autoMintedIds, submitMint, isSubmitting, autoMinting]);
 
   useEffect(() => {
     fetchData();
