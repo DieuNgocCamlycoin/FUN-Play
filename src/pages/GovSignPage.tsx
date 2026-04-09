@@ -110,11 +110,13 @@ export default function GovSignPage() {
               </Card>
             )}
             <AttesterPanel />
-            <div className="border-t pt-6 mt-6">
-              <MintProgressTracker />
-            </div>
           </>
         )}
+
+        {/* Bảng thống kê toàn bộ tiến trình - luôn hiển thị cho tất cả Attester */}
+        <div className="border-t pt-6 mt-6">
+          <MintProgressTracker />
+        </div>
       </div>
     </div>
   );
