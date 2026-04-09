@@ -59,6 +59,40 @@ export function AttesterPanel() {
     }
   };
 
+  // Get unsigned requests for this group
+  const unsignedRequests = pendingRequests.filter((req) => {
+    const sigs = (req.multisig_signatures || {}) as MultisigSignatures;
+    return myGroup ? !sigs[myGroup] : false;
+  });
+
+  const handleSignAll = useCallback(async () => {
+    if (unsignedRequests.length === 0) return;
+    if (!window.confirm(`Bạn sẽ ký ${unsignedRequests.length} request cùng lúc. Tiếp tục?`)) return;
+
+    setSigningAll(true);
+    setSignAllProgress({ done: 0, total: unsignedRequests.length });
+    let successCount = 0;
+    let failCount = 0;
+
+    for (let i = 0; i < unsignedRequests.length; i++) {
+      try {
+        await signRequest(unsignedRequests[i]);
+        successCount++;
+      } catch (err: any) {
+        failCount++;
+        console.error(`[SignAll] Failed request ${unsignedRequests[i].id}:`, err.message);
+      }
+      setSignAllProgress({ done: i + 1, total: unsignedRequests.length });
+    }
+
+    setSigningAll(false);
+    toast({
+      title: `Ký hàng loạt hoàn tất`,
+      description: `✅ Thành công: ${successCount} · ❌ Lỗi: ${failCount}`,
+      variant: failCount > 0 ? 'destructive' : 'default',
+    });
+  }, [unsignedRequests, signRequest, toast]);
+
   return (
     <div className="space-y-4">
       {/* Header */}
