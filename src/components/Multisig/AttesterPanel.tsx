@@ -27,8 +27,10 @@ export function AttesterPanel() {
     refresh,
   } = useAttesterSigning();
   const { toast } = useToast();
+  const { submitMint } = useMintSubmit();
   const [signingAll, setSigningAll] = useState(false);
   const [signAllProgress, setSignAllProgress] = useState({ done: 0, total: 0 });
+  const [autoMinting, setAutoMinting] = useState<string | null>(null);
 
   // Get unsigned requests for this group
   const unsignedRequests = pendingRequests.filter((req) => {
