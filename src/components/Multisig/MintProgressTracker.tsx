@@ -62,7 +62,9 @@ export function MintProgressTracker() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const { isConnected } = useWalletContext();
+  const { data: walletClient } = useWalletClient();
   const { submitMint, isSubmitting } = useMintSubmit();
+  const [resettingId, setResettingId] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
