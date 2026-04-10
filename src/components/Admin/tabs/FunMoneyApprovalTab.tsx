@@ -723,6 +723,11 @@ function RequestTableRow({
           <div className="flex items-center justify-end gap-1">
             {/* Quick actions for pending */}
             {request.status === 'pending' && (
+              (request.calculated_amount_atomic === '0' || request.calculated_amount_atomic === '' || !request.calculated_amount_atomic) ? (
+                <Badge variant="outline" className="text-[10px] gap-1 text-destructive border-destructive/30">
+                  0 FUN — Tự động từ chối
+                </Badge>
+              ) : (
               <>
                 {isConnected && (
                   hasMultisig ? (
@@ -755,6 +760,7 @@ function RequestTableRow({
                   </Button>
                 )}
               </>
+              )
             )}
             {request.status === 'approved' && isConnected && (
               hasMultisig ? (
