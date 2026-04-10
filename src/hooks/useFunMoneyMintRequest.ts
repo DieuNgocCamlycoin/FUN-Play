@@ -399,6 +399,11 @@ export function useAutoMintRequest(): UseAutoMintRequestReturn {
         throw new Error(`Yêu cầu bị từ chối: ${scoringResult.reasonCodes.join(', ')}`);
       }
 
+      // Reject 0 FUN requests — no point minting nothing
+      if (!scoringResult.calculatedAmountAtomic || scoringResult.calculatedAmountAtomic === '0' || BigInt(scoringResult.calculatedAmountAtomic) <= 0n) {
+        throw new Error('💝 Bạn chưa có FUN để mint! Hãy tham gia thêm hoạt động trên nền tảng nhé 🌟');
+      }
+
       // 5. Create evidence from activity summary
       const evidence = {
         type: 'LIGHT_ACTIVITY',
