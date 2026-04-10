@@ -109,6 +109,37 @@ export function FunMoneyApprovalTab() {
     setExpandedId(null);
   }, [activeTab, fetchPendingRequests, fetchAllRequests]);
 
+  // Pre-populate routedIds from pplp_mint_requests to persist across reloads
+  useEffect(() => {
+    const loadRoutedIds = async () => {
+      const requestIds = requests.map(r => r.id);
+      if (requestIds.length === 0) return;
+      
+      // Check which requests have decision_reason indicating routing
+      const alreadyRouted = requests
+        .filter(r => r.decision_reason?.includes('pplp_mint_requests') || r.decision_reason?.includes('Multisig'))
+        .map(r => r.id);
+      
+      // Also check pplp_mint_requests table for source_mint_request_id matches
+      const { data: multisigRecords } = await supabase
+        .from('pplp_mint_requests')
+        .select('source_mint_request_id')
+        .in('source_mint_request_id', requestIds);
+      
+      const fromDb = (multisigRecords || []).map((m: any) => m.source_mint_request_id).filter(Boolean);
+      
+      const allRouted = new Set([...alreadyRouted, ...fromDb]);
+      if (allRouted.size > 0) {
+        setRoutedIds(prev => {
+          const next = new Set(prev);
+          allRouted.forEach(id => next.add(id));
+          return next;
+        });
+      }
+    };
+    loadRoutedIds();
+  }, [requests]);
+
   // Fetch profiles for all visible requests
   useEffect(() => {
     const userIds = [...new Set(requests.map(r => r.user_id))].filter(id => !profileCache[id]);
@@ -744,9 +775,9 @@ function RequestTableRow({
               <>
                 {isConnected && (
                   hasMultisig ? (
-                    <Badge variant="outline" className="text-[10px] gap-1 opacity-50 cursor-not-allowed">
-                      <Shield className="w-3 h-3" />
-                      Đã chuyển Multisig
+                    <Badge className="text-[10px] gap-1 cursor-not-allowed bg-green-500/20 text-green-600 border border-green-500/30">
+                      <CheckCircle className="w-3 h-3" />
+                      ✅ Đã chuyển Multisig
                     </Badge>
                   ) : (
                     <Button
@@ -775,17 +806,17 @@ function RequestTableRow({
               </>
               )
             )}
-            {request.status === 'approved' && isConnected && (
+            {request.status === 'approved' && (
               hasMultisig ? (
-                <Badge variant="outline" className="text-[10px] gap-1 opacity-50 cursor-not-allowed">
-                  <Shield className="w-3 h-3" />
-                  Đã chuyển Multisig
+                <Badge className="text-[10px] gap-1 cursor-not-allowed bg-green-500/20 text-green-600 border border-green-500/30">
+                  <CheckCircle className="w-3 h-3" />
+                  ✅ Đã chuyển Multisig
                 </Badge>
-              ) : (request.calculated_amount_atomic === '0' || request.calculated_amount_atomic === '') ? (
+              ) : isConnected && (request.calculated_amount_atomic === '0' || request.calculated_amount_atomic === '') ? (
                 <Badge variant="outline" className="text-[10px] gap-1 opacity-50 text-muted-foreground">
                   0 FUN
                 </Badge>
-              ) : (
+              ) : isConnected ? (
                 <Button
                   size="sm"
                   className="h-7 px-2 text-[10px] gap-1 bg-gradient-to-r from-cyan-500 to-purple-500 text-white"
@@ -795,7 +826,7 @@ function RequestTableRow({
                   <Shield className="w-3 h-3" />
                   Multisig 3/3
                 </Button>
-              )
+              ) : null
             )}
             <Button
               size="sm"
