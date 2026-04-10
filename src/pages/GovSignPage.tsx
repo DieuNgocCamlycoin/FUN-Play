@@ -1,11 +1,13 @@
 import { useWalletContext } from '@/contexts/WalletContext';
 import { useAuth } from '@/hooks/useAuth';
 import { AttesterPanel } from '@/components/Multisig/AttesterPanel';
+import { AdminMintPanel } from '@/components/Multisig/AdminMintPanel';
 import { MintProgressTracker } from '@/components/Multisig/MintProgressTracker';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Wallet, ArrowLeft, Bell, Shield, LayoutDashboard, ExternalLink } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Wallet, ArrowLeft, Bell, Shield, LayoutDashboard, ExternalLink, ChevronDown, Separator } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
