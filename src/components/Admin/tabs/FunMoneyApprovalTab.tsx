@@ -109,6 +109,37 @@ export function FunMoneyApprovalTab() {
     setExpandedId(null);
   }, [activeTab, fetchPendingRequests, fetchAllRequests]);
 
+  // Pre-populate routedIds from pplp_mint_requests to persist across reloads
+  useEffect(() => {
+    const loadRoutedIds = async () => {
+      const requestIds = requests.map(r => r.id);
+      if (requestIds.length === 0) return;
+      
+      // Check which requests have decision_reason indicating routing
+      const alreadyRouted = requests
+        .filter(r => r.decision_reason?.includes('pplp_mint_requests') || r.decision_reason?.includes('Multisig'))
+        .map(r => r.id);
+      
+      // Also check pplp_mint_requests table for source_mint_request_id matches
+      const { data: multisigRecords } = await supabase
+        .from('pplp_mint_requests')
+        .select('source_mint_request_id')
+        .in('source_mint_request_id', requestIds);
+      
+      const fromDb = (multisigRecords || []).map((m: any) => m.source_mint_request_id).filter(Boolean);
+      
+      const allRouted = new Set([...alreadyRouted, ...fromDb]);
+      if (allRouted.size > 0) {
+        setRoutedIds(prev => {
+          const next = new Set(prev);
+          allRouted.forEach(id => next.add(id));
+          return next;
+        });
+      }
+    };
+    loadRoutedIds();
+  }, [requests]);
+
   // Fetch profiles for all visible requests
   useEffect(() => {
     const userIds = [...new Set(requests.map(r => r.user_id))].filter(id => !profileCache[id]);
