@@ -296,14 +296,27 @@ export function FunMoneyApprovalTab() {
   const handleApproveAll = async () => {
     const pendingRequests = filteredRequests.filter(r => r.status === 'pending');
     if (pendingRequests.length === 0) { toast.info('Không có yêu cầu nào chờ duyệt'); return; }
-    if (!window.confirm(`Duyệt tất cả ${pendingRequests.length} yêu cầu chờ duyệt?`)) return;
+    
+    // Auto-reject 0 FUN requests
+    const zeroFunRequests = pendingRequests.filter(r => !r.calculated_amount_atomic || r.calculated_amount_atomic === '0' || r.calculated_amount_atomic === '');
+    const validRequests = pendingRequests.filter(r => r.calculated_amount_atomic && r.calculated_amount_atomic !== '0' && r.calculated_amount_atomic !== '');
+    
+    if (!window.confirm(`Duyệt ${validRequests.length} yêu cầu hợp lệ${zeroFunRequests.length > 0 ? ` và từ chối ${zeroFunRequests.length} yêu cầu 0 FUN` : ''}?`)) return;
     setIsBatchProcessing(true);
-    let success = 0, fail = 0;
-    for (const r of pendingRequests) {
+    let success = 0, fail = 0, rejected = 0;
+    
+    // Auto-reject 0 FUN
+    for (const r of zeroFunRequests) {
+      const ok = await rejectRequest(r.id, '0 FUN — Tự động từ chối');
+      if (ok) rejected++; else fail++;
+    }
+    
+    // Approve valid requests
+    for (const r of validRequests) {
       const ok = await approveRequest(r.id, 'Batch approved all by admin');
       if (ok) success++; else fail++;
     }
-    toast.success(`✅ Đã duyệt ${success}/${pendingRequests.length} yêu cầu${fail > 0 ? ` (${fail} thất bại)` : ''}`);
+    toast.success(`✅ Đã duyệt ${success} yêu cầu${rejected > 0 ? `, từ chối ${rejected} (0 FUN)` : ''}${fail > 0 ? `, ${fail} thất bại` : ''}`);
     setSelectedIds(new Set());
     setIsBatchProcessing(false);
     fetchPendingRequests();
@@ -723,6 +736,11 @@ function RequestTableRow({
           <div className="flex items-center justify-end gap-1">
             {/* Quick actions for pending */}
             {request.status === 'pending' && (
+              (request.calculated_amount_atomic === '0' || request.calculated_amount_atomic === '' || !request.calculated_amount_atomic) ? (
+                <Badge variant="outline" className="text-[10px] gap-1 text-destructive border-destructive/30">
+                  0 FUN — Tự động từ chối
+                </Badge>
+              ) : (
               <>
                 {isConnected && (
                   hasMultisig ? (
@@ -755,6 +773,7 @@ function RequestTableRow({
                   </Button>
                 )}
               </>
+              )
             )}
             {request.status === 'approved' && isConnected && (
               hasMultisig ? (
