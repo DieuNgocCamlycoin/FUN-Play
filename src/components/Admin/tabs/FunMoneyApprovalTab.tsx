@@ -806,17 +806,17 @@ function RequestTableRow({
               </>
               )
             )}
-            {request.status === 'approved' && isConnected && (
+            {request.status === 'approved' && (
               hasMultisig ? (
                 <Badge className="text-[10px] gap-1 cursor-not-allowed bg-green-500/20 text-green-600 border border-green-500/30">
                   <CheckCircle className="w-3 h-3" />
                   ✅ Đã chuyển Multisig
                 </Badge>
-              ) : (request.calculated_amount_atomic === '0' || request.calculated_amount_atomic === '') ? (
+              ) : isConnected && (request.calculated_amount_atomic === '0' || request.calculated_amount_atomic === '') ? (
                 <Badge variant="outline" className="text-[10px] gap-1 opacity-50 text-muted-foreground">
                   0 FUN
                 </Badge>
-              ) : (
+              ) : isConnected ? (
                 <Button
                   size="sm"
                   className="h-7 px-2 text-[10px] gap-1 bg-gradient-to-r from-cyan-500 to-purple-500 text-white"
@@ -826,7 +826,7 @@ function RequestTableRow({
                   <Shield className="w-3 h-3" />
                   Multisig 3/3
                 </Button>
-              )
+              ) : null
             )}
             <Button
               size="sm"
