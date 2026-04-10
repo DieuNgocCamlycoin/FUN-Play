@@ -94,28 +94,42 @@ export default function GovSignPage() {
 
         {/* Admin Toolbar - chỉ hiển thị cho admin */}
         {isAdmin && (
-          <Card className="p-3 border-primary/30 bg-primary/5">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div className="flex items-center gap-2">
-                <Shield className="h-5 w-5 text-primary" />
-                <span className="text-sm font-semibold">🛡️ Admin Tools</span>
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <Link to="/admin?tab=multisig-mint">
-                  <Button size="sm" variant="outline" className="gap-1.5 text-xs">
-                    <LayoutDashboard className="h-3.5 w-3.5" />
-                    Multisig Dashboard
-                  </Button>
-                </Link>
-                <Link to="/admin?tab=fun-money">
-                  <Button size="sm" variant="outline" className="gap-1.5 text-xs">
-                    <ExternalLink className="h-3.5 w-3.5" />
-                    Quản lý FUN Money
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          </Card>
+          <Collapsible defaultOpen={false}>
+            <Card className="border-primary/30 bg-primary/5 overflow-hidden">
+              <CollapsibleTrigger asChild>
+                <button className="w-full p-3 flex items-center justify-between gap-3 hover:bg-primary/10 transition-colors">
+                  <div className="flex items-center gap-2">
+                    <Shield className="h-5 w-5 text-primary" />
+                    <span className="text-sm font-semibold">🛡️ Admin Tools</span>
+                    <Badge variant="outline" className="text-[10px]">Admin Only</Badge>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [[data-state=open]_&]:rotate-180" />
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <Separator className="mx-0" />
+                <div className="p-4 space-y-4">
+                  {/* Quick links */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Link to="/admin?tab=multisig-mint">
+                      <Button size="sm" variant="outline" className="gap-1.5 text-xs">
+                        <LayoutDashboard className="h-3.5 w-3.5" />
+                        Multisig Dashboard
+                      </Button>
+                    </Link>
+                    <Link to="/admin?tab=fun-money">
+                      <Button size="sm" variant="outline" className="gap-1.5 text-xs">
+                        <ExternalLink className="h-3.5 w-3.5" />
+                        Quản lý FUN Money
+                      </Button>
+                    </Link>
+                  </div>
+                  {/* Embedded AdminMintPanel — Submit TX & Verify Nonce */}
+                  <AdminMintPanel />
+                </div>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
         )}
 
         {/* Realtime banner */}
