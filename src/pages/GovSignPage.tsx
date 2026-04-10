@@ -5,7 +5,7 @@ import { MintProgressTracker } from '@/components/Multisig/MintProgressTracker';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Wallet, ArrowLeft, Bell } from 'lucide-react';
+import { Wallet, ArrowLeft, Bell, Shield, LayoutDashboard, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
@@ -35,13 +35,33 @@ function usePendingCount() {
   return count;
 }
 
+function useIsAdmin() {
+  const { user } = useAuth();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    if (!user) { setIsAdmin(false); return; }
+    const check = async () => {
+      const [{ data: adminData }, { data: ownerData }] = await Promise.all([
+        supabase.rpc('has_role', { _user_id: user.id, _role: 'admin' }),
+        supabase.rpc('is_owner', { _user_id: user.id }),
+      ]);
+      setIsAdmin(adminData === true || ownerData === true);
+    };
+    check();
+  }, [user]);
+
+  return isAdmin;
+}
+
 export default function GovSignPage() {
   const { isConnected } = useWalletContext();
   const { user } = useAuth();
   const pendingCount = usePendingCount();
   const isLoggedIn = !!user;
+  const isAdmin = useIsAdmin();
   
-  console.log('[GovSignPage] isConnected:', isConnected, 'isLoggedIn:', isLoggedIn, 'userId:', user?.id);
+  console.log('[GovSignPage] isConnected:', isConnected, 'isLoggedIn:', isLoggedIn, 'isAdmin:', isAdmin);
 
   return (
     <div className="min-h-screen bg-background">
@@ -68,6 +88,32 @@ export default function GovSignPage() {
             </p>
           </div>
         </div>
+
+        {/* Admin Toolbar - chỉ hiển thị cho admin */}
+        {isAdmin && (
+          <Card className="p-3 border-primary/30 bg-primary/5">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-2">
+                <Shield className="h-5 w-5 text-primary" />
+                <span className="text-sm font-semibold">🛡️ Admin Tools</span>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Link to="/admin?tab=multisig-mint">
+                  <Button size="sm" variant="outline" className="gap-1.5 text-xs">
+                    <LayoutDashboard className="h-3.5 w-3.5" />
+                    Multisig Dashboard
+                  </Button>
+                </Link>
+                <Link to="/admin?tab=fun-money">
+                  <Button size="sm" variant="outline" className="gap-1.5 text-xs">
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    Quản lý FUN Money
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </Card>
+        )}
 
         {/* Realtime banner */}
         {pendingCount > 0 && (
