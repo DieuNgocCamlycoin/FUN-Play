@@ -246,6 +246,7 @@ serve(async (req) => {
       claimable_now: claimableNow,
       locked_amount: lockedAmount,
       validation_digest: validationDigest,
+      anti_whale_capped: antiWhaleCapped,
       tx_hash: null, // TODO: on-chain mint
       status: "minted",
     }), {
