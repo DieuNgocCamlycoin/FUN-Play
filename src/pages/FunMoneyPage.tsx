@@ -17,7 +17,8 @@ import {
   Info,
   Zap,
   RefreshCw,
-  Plus
+  Plus,
+  Shield
 } from 'lucide-react';
 import { addFunTokenToWallet } from '@/lib/fun-money/add-token-to-wallet';
 import { useAuth } from '@/hooks/useAuth';
@@ -28,6 +29,7 @@ import { useLightActivity } from '@/hooks/useLightActivity';
 import { 
   TokenLifecyclePanel, 
   MintRequestList,
+  MintRequestForm,
   MintableCard,
   LightActivityBreakdown,
   ActivitySummary,
@@ -228,10 +230,14 @@ export default function FunMoney() {
 
         {/* Main Content */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-3 w-full max-w-md mx-auto">
+          <TabsList className="grid grid-cols-4 w-full max-w-lg mx-auto">
             <TabsTrigger value="overview" className="gap-1.5 text-xs sm:text-sm">
               <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span className="truncate">Tổng Quan</span>
+            </TabsTrigger>
+            <TabsTrigger value="pplp-mint" className="gap-1.5 text-xs sm:text-sm">
+              <Shield className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="truncate">PPLP Mint</span>
             </TabsTrigger>
             <TabsTrigger value="breakdown" className="gap-1.5 text-xs sm:text-sm">
               <Info className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -345,6 +351,26 @@ export default function FunMoney() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* PPLP Mint Tab - 4-Step Truth Validation */}
+          <TabsContent value="pplp-mint" className="mt-6 space-y-4">
+            <div className="p-4 rounded-lg bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border border-primary/20">
+              <h3 className="font-semibold flex items-center gap-2 text-sm">
+                <Shield className="w-4 h-4 text-primary" />
+                PPLP — Truth Validation Engine
+              </h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                Submit hành động thiện nguyện kèm bằng chứng → Hệ thống xác minh qua 5 trụ cột PPLP → Mint FUN Money.
+                Công thức: Score = S × T × L × V × U / 10⁴
+              </p>
+            </div>
+            <MintRequestForm 
+              onSuccess={handleMintSuccess}
+              onSubmitSuccess={(id) => {
+                fetchRequests();
+              }}
+            />
           </TabsContent>
 
           {/* Breakdown Tab - Light Activity Details */}

@@ -382,7 +382,7 @@ export function MintRequestForm({ onSubmitSuccess, onSuccess }: MintRequestFormP
 
             {/* Mint Result */}
             {mintResult ? (
-              <div className="p-4 bg-green-50 dark:bg-green-950 rounded-lg border border-green-200 dark:border-green-800">
+              <div className="p-4 bg-green-50 dark:bg-green-950 rounded-lg border border-green-200 dark:border-green-800 space-y-3">
                 <div className="text-center">
                   <CheckCircle2 className="w-10 h-10 text-green-500 mx-auto mb-2" />
                   <p className="font-bold text-green-700 dark:text-green-300 text-lg">
@@ -392,6 +392,25 @@ export function MintRequestForm({ onSubmitSuccess, onSuccess }: MintRequestFormP
                     99% User = {mintResult.mint_amount_user} FUN | 1% Platform = {mintResult.mint_amount_platform} FUN
                   </p>
                 </div>
+
+                {/* Anti-Whale Cap Badge */}
+                {mintResult.anti_whale_capped && (
+                  <div className="flex justify-center">
+                    <Badge variant="destructive" className="gap-1 text-xs">
+                      🐋 Anti-Whale Capped
+                    </Badge>
+                  </div>
+                )}
+
+                {/* Validation Digest */}
+                {mintResult.validation_digest && (
+                  <div className="text-center">
+                    <p className="text-[10px] text-muted-foreground">🔐 Validation Digest</p>
+                    <code className="text-xs font-mono bg-muted px-2 py-1 rounded" title={mintResult.validation_digest}>
+                      {mintResult.validation_digest.slice(0, 16)}…
+                    </code>
+                  </div>
+                )}
               </div>
             ) : validationResult.validation_status === 'validated' ? (
               <Button onClick={handleMint} disabled={loading} className="w-full">
