@@ -508,3 +508,21 @@ function clamp(v: number, min = 0, max = 10): number {
 function round2(v: number): number {
   return Math.round(v * 100) / 100;
 }
+
+function buildExplanationNotes(flags: string[], proofs: any[], communityScores: any, validationStatus: string): string[] {
+  const notes: string[] = [];
+  if (proofs.length > 0) notes.push("Proof submitted and accepted");
+  if (!flags.includes("DUPLICATE_PROOF_URL") && !flags.includes("DUPLICATE_PROOF_HASH")) {
+    notes.push("No duplicate proof detected");
+  }
+  if (flags.includes("DUPLICATE_PROOF_URL") || flags.includes("DUPLICATE_PROOF_HASH")) {
+    notes.push("Duplicate proof detected — flagged for review");
+  }
+  if (flags.includes("VELOCITY_DAILY_LIMIT")) notes.push("Daily action limit reached");
+  if (flags.includes("VELOCITY_HIGH_IMPACT_LIMIT")) notes.push("High-impact daily limit reached");
+  if (flags.includes("LOW_TRUTH_SCORE")) notes.push("Low truth score — manual review required");
+  if (communityScores.avgScore > 0) notes.push(`Community endorsed (avg ${communityScores.avgScore.toFixed(1)})`);
+  if (validationStatus === "validated") notes.push("Validation passed");
+  if (validationStatus === "rejected") notes.push("Validation rejected");
+  return notes;
+}
