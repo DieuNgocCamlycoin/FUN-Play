@@ -158,7 +158,7 @@ serve(async (req) => {
           ai_score: 0, community_score: 0, trust_signal_score: 0,
           final_light_score: 0,
           validation_status: "manual_review",
-          explanation: { flags, reason: "Anti-fraud check flagged this action for manual review" },
+          explanation: { flags, reason: "Anti-fraud check flagged this action for manual review", notes: flags.map((f: string) => `Flag: ${f}`) },
         })
         .select("id")
         .single();
@@ -243,7 +243,14 @@ serve(async (req) => {
         trust_signal_score: round2(systemScores.trustLevel),
         final_light_score: finalScore,
         validation_status: validationStatus,
-        explanation: { flags, aiScores, communityScores: communityScores.summary, systemTrust: systemScores.summary, participationFactor },
+        explanation: {
+          flags,
+          aiScores,
+          communityScores: communityScores.summary,
+          systemTrust: systemScores.summary,
+          participationFactor,
+          notes: buildExplanationNotes(flags, proofs, communityScores, validationStatus),
+        },
         validated_at: validationStatus !== "manual_review" ? new Date().toISOString() : null,
       })
       .select("id")
@@ -315,7 +322,14 @@ serve(async (req) => {
       ai_score: round2(aiScores.confidence),
       community_score: round2(communityScores.avgScore),
       trust_signal_score: round2(systemScores.trustLevel),
-      explanation: { flags, aiScores, communityScores: communityScores.summary, systemTrust: systemScores.summary, participationFactor },
+      explanation: {
+        flags,
+        aiScores,
+        communityScores: communityScores.summary,
+        systemTrust: systemScores.summary,
+        participationFactor,
+        notes: buildExplanationNotes(flags, proofs, communityScores, validationStatus),
+      },
       flags,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
