@@ -158,7 +158,7 @@ serve(async (req) => {
           ai_score: 0, community_score: 0, trust_signal_score: 0,
           final_light_score: 0,
           validation_status: "manual_review",
-          explanation: { flags, reason: "Anti-fraud check flagged this action for manual review" },
+          explanation: { flags, reason: "Anti-fraud check flagged this action for manual review", notes: flags.map((f: string) => `Flag: ${f}`) },
         })
         .select("id")
         .single();
@@ -243,7 +243,14 @@ serve(async (req) => {
         trust_signal_score: round2(systemScores.trustLevel),
         final_light_score: finalScore,
         validation_status: validationStatus,
-        explanation: { flags, aiScores, communityScores: communityScores.summary, systemTrust: systemScores.summary, participationFactor },
+        explanation: {
+          flags,
+          aiScores,
+          communityScores: communityScores.summary,
+          systemTrust: systemScores.summary,
+          participationFactor,
+          notes: buildExplanationNotes(flags, proofs, communityScores, validationStatus),
+        },
         validated_at: validationStatus !== "manual_review" ? new Date().toISOString() : null,
       })
       .select("id")
@@ -315,7 +322,14 @@ serve(async (req) => {
       ai_score: round2(aiScores.confidence),
       community_score: round2(communityScores.avgScore),
       trust_signal_score: round2(systemScores.trustLevel),
-      explanation: { flags, aiScores, communityScores: communityScores.summary, systemTrust: systemScores.summary, participationFactor },
+      explanation: {
+        flags,
+        aiScores,
+        communityScores: communityScores.summary,
+        systemTrust: systemScores.summary,
+        participationFactor,
+        notes: buildExplanationNotes(flags, proofs, communityScores, validationStatus),
+      },
       flags,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -493,4 +507,22 @@ function clamp(v: number, min = 0, max = 10): number {
 
 function round2(v: number): number {
   return Math.round(v * 100) / 100;
+}
+
+function buildExplanationNotes(flags: string[], proofs: any[], communityScores: any, validationStatus: string): string[] {
+  const notes: string[] = [];
+  if (proofs.length > 0) notes.push("Proof submitted and accepted");
+  if (!flags.includes("DUPLICATE_PROOF_URL") && !flags.includes("DUPLICATE_PROOF_HASH")) {
+    notes.push("No duplicate proof detected");
+  }
+  if (flags.includes("DUPLICATE_PROOF_URL") || flags.includes("DUPLICATE_PROOF_HASH")) {
+    notes.push("Duplicate proof detected — flagged for review");
+  }
+  if (flags.includes("VELOCITY_DAILY_LIMIT")) notes.push("Daily action limit reached");
+  if (flags.includes("VELOCITY_HIGH_IMPACT_LIMIT")) notes.push("High-impact daily limit reached");
+  if (flags.includes("LOW_TRUTH_SCORE")) notes.push("Low truth score — manual review required");
+  if (communityScores.avgScore > 0) notes.push(`Community endorsed (avg ${communityScores.avgScore.toFixed(1)})`);
+  if (validationStatus === "validated") notes.push("Validation passed");
+  if (validationStatus === "rejected") notes.push("Validation rejected");
+  return notes;
 }

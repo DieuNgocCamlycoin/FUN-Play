@@ -1,7 +1,7 @@
 /**
  * get-light-profile — GET /v1/users/{userId}/light-profile
- * Aggregates trust_level, total_light_score, total_fun_minted, streak, recent_actions, pillar_summary
- * OpenAPI v1
+ * Aggregates trust_level, total_light_score, total_fun_minted, streak, recent_actions count, pillar_summary
+ * OpenAPI v1 — aligned with FUN_Backend_OpenAPI_Examples.json
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.84.0";
@@ -57,47 +57,37 @@ serve(async (req) => {
 
     const totalFunMinted = (mintAgg || []).reduce((sum: number, r: any) => sum + (r.mint_amount_user || 0), 0);
 
-    // Recent actions (last 10)
-    const { data: recentActions } = await supabaseAdmin
+    // Recent actions count
+    const { count: recentActionsCount } = await supabaseAdmin
       .from("user_actions")
-      .select("id, title, status, submitted_at, action_types(code, pillar_group)")
-      .eq("user_id", targetUserId)
-      .order("submitted_at", { ascending: false })
-      .limit(10);
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", targetUserId);
 
-    // Pillar summary: avg PPLP scores per pillar_group
+    // Pillar summary: per-pillar averages from pplp_validations for this user's actions
+    const { data: allUserActions } = await supabaseAdmin
+      .from("user_actions")
+      .select("id")
+      .eq("user_id", targetUserId)
+      .in("status", ["validated", "minted"]);
+
+    const actionIdSet = new Set((allUserActions || []).map((a: any) => a.id));
+
     const { data: validations } = await supabaseAdmin
       .from("pplp_validations")
       .select("serving_life, transparent_truth, healing_love, long_term_value, unity_over_separation, action_id")
       .eq("validation_status", "validated");
 
-    // Filter to this user's actions
-    const userActionIds = (recentActions || []).map((a: any) => a.id);
-    const { data: allUserActions } = await supabaseAdmin
-      .from("user_actions")
-      .select("id, action_types(pillar_group)")
-      .eq("user_id", targetUserId)
-      .in("status", ["validated", "minted"]);
-
-    const actionIdSet = new Set((allUserActions || []).map((a: any) => a.id));
-    const actionPillarMap = new Map((allUserActions || []).map((a: any) => [a.id, a.action_types?.pillar_group]));
-
     const userValidations = (validations || []).filter((v: any) => actionIdSet.has(v.action_id));
 
-    // Group by pillar
-    const pillarSummary: Record<string, { count: number; avg_light_score: number }> = {};
-    for (const v of userValidations) {
-      const pillar = actionPillarMap.get(v.action_id) || "unknown";
-      if (!pillarSummary[pillar]) pillarSummary[pillar] = { count: 0, avg_light_score: 0 };
-      pillarSummary[pillar].count++;
-      const ls = (v.serving_life * v.transparent_truth * v.healing_love * v.long_term_value * v.unity_over_separation) / 10000;
-      pillarSummary[pillar].avg_light_score += ls;
-    }
-    for (const key of Object.keys(pillarSummary)) {
-      if (pillarSummary[key].count > 0) {
-        pillarSummary[key].avg_light_score = Math.round((pillarSummary[key].avg_light_score / pillarSummary[key].count) * 100) / 100;
-      }
-    }
+    // Compute per-pillar averages
+    const count = userValidations.length || 1;
+    const pillarSummary = {
+      serving_life_avg: round2(userValidations.reduce((s: number, v: any) => s + (v.serving_life || 0), 0) / count),
+      transparent_truth_avg: round2(userValidations.reduce((s: number, v: any) => s + (v.transparent_truth || 0), 0) / count),
+      healing_love_avg: round2(userValidations.reduce((s: number, v: any) => s + (v.healing_love || 0), 0) / count),
+      long_term_value_avg: round2(userValidations.reduce((s: number, v: any) => s + (v.long_term_value || 0), 0) / count),
+      unity_over_separation_avg: round2(userValidations.reduce((s: number, v: any) => s + (v.unity_over_separation || 0), 0) / count),
+    };
 
     // Streak days
     const { data: checkins } = await supabaseAdmin
@@ -116,14 +106,7 @@ serve(async (req) => {
       total_fun_minted: Math.round(totalFunMinted * 100) / 100,
       streak_days: streakDays,
       member_since: profile?.created_at || null,
-      recent_actions: (recentActions || []).map((a: any) => ({
-        action_id: a.id,
-        title: a.title,
-        status: a.status,
-        action_type: a.action_types?.code || null,
-        pillar_group: a.action_types?.pillar_group || null,
-        submitted_at: a.submitted_at,
-      })),
+      recent_actions: recentActionsCount ?? 0,
       pillar_summary: pillarSummary,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -135,3 +118,7 @@ serve(async (req) => {
     });
   }
 });
+
+function round2(v: number): number {
+  return Math.round(v * 100) / 100;
+}
