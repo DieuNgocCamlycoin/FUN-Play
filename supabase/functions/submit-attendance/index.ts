@@ -105,9 +105,12 @@ serve(async (req) => {
         supabaseAdmin.from("love_house_groups").update({ actual_count: (group as any).actual_count + 1 }).eq("id", group_id);
       });
 
-      return new Response(JSON.stringify({ attendance, message: "Checked in successfully" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(JSON.stringify({
+        attendance,
+        attendance_mode: attendance_mode || "in_person",
+        attendance_confidence: attendance.participation_factor,
+        message: "Checked in successfully",
+      }), {
     }
 
     // === CHECK-OUT ===
@@ -157,9 +160,12 @@ serve(async (req) => {
         linkedAction = await createLinkedAction(supabaseAdmin, user.id, group, attendance.id, durationMinutes, pf);
       }
 
-      return new Response(JSON.stringify({ attendance: updated, linked_action: linkedAction }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(JSON.stringify({
+        attendance: updated,
+        linked_action: linkedAction,
+        attendance_mode: attendance_mode || "in_person",
+        attendance_confidence: updated.participation_factor,
+      }), {
     }
 
     // === LEADER CONFIRM ===
