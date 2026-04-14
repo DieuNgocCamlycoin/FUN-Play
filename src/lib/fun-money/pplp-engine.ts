@@ -53,13 +53,45 @@ export interface ScoringResult {
 
 // ===== CONFIGURATION =====
 
-const PILLAR_WEIGHTS = {
-  S: 0.25,
-  T: 0.20,
-  H: 0.20,
-  C: 0.20,
-  U: 0.15
+// PILLAR_WEIGHTS removed — CTO Diagram v13Apr2026 uses multiplicative formula only
+// FinalScore = (S × T × L × V × U) / 10⁴
+
+// === SOFT MULTIPLIERS (CTO Spec Section IV) ===
+
+/** Impact weight by action type */
+export const IMPACT_WEIGHTS: Record<string, number> = {
+  INNER_WORK: 0.80,
+  CHANNELING: 1.00,
+  GIVING: 1.10,
+  SOCIAL_IMPACT: 1.10,
+  SERVICE: 1.30,
+  LEARNING: 0.90,
 };
+
+/** Trust multiplier by user history */
+export function calculateTrustMultiplier(trustLevel: number): number {
+  // trustLevel: 1.0 (new) → 1.25 (proven long-term)
+  return Math.max(1.0, Math.min(1.25, trustLevel));
+}
+
+/** Base mint rate: FUN per unit light score */
+export const BASE_MINT_RATE = 10; // 10 FUN per 1.0 light score
+
+/** Calculate mint amount from light score with 99/1 split */
+export function calculateMintFromLightScore(
+  finalLightScore: number,
+  actionGroup: string = 'CHANNELING',
+  trustLevel: number = 1.0,
+): { total: number; user: number; platform: number } {
+  const impactWeight = IMPACT_WEIGHTS[actionGroup] ?? 1.0;
+  const trustMult = calculateTrustMultiplier(trustLevel);
+  const total = Math.round(BASE_MINT_RATE * finalLightScore * impactWeight * trustMult * 100) / 100;
+  return {
+    total,
+    user: Math.round(total * 0.99 * 100) / 100,
+    platform: Math.round(total * 0.01 * 100) / 100,
+  };
+}
 
 const UNITY_WEIGHTS = {
   collaboration: 0.40,
