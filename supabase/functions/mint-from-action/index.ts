@@ -20,6 +20,7 @@ const corsHeaders = {
 };
 
 const BASE_MINT_RATE = 10; // 10 FUN per 1.0 Light Score
+const ANTI_WHALE_CAP_RATIO = 0.03; // Max 3% of total supply per user per mint
 
 const IMPACT_WEIGHTS: Record<string, number> = {
   inner_work: 0.80,
@@ -118,7 +119,22 @@ serve(async (req) => {
     const consistencyDays = profile?.consistency_days || 0;
     const consistencyMult = 1 + 0.6 * (1 - Math.exp(-consistencyDays / 30));
 
-    const mintTotal = Math.round(BASE_MINT_RATE * lightScore * impactWeight * trustMultiplier * consistencyMult * 100) / 100;
+    let mintTotal = Math.round(BASE_MINT_RATE * lightScore * impactWeight * trustMultiplier * consistencyMult * 100) / 100;
+
+    // === Anti-whale cap enforcement ===
+    const { data: supplyData } = await supabaseAdmin
+      .from("mint_records")
+      .select("mint_amount_total.sum()")
+      .single();
+    const totalSupply = (supplyData as any)?.sum ?? 0;
+    const whaleCapAmount = Math.max(totalSupply * ANTI_WHALE_CAP_RATIO, 1000); // Min cap 1000 FUN
+    let antiWhaleCapped = false;
+    if (mintTotal > whaleCapAmount) {
+      console.log(`Anti-whale cap applied: ${mintTotal} → ${whaleCapAmount} (total supply: ${totalSupply})`);
+      mintTotal = whaleCapAmount;
+      antiWhaleCapped = true;
+    }
+
     const mintUser = Math.round(mintTotal * 0.99 * 100) / 100;
     const mintPlatform = Math.round(mintTotal * 0.01 * 100) / 100;
 
@@ -230,6 +246,7 @@ serve(async (req) => {
       claimable_now: claimableNow,
       locked_amount: lockedAmount,
       validation_digest: validationDigest,
+      anti_whale_capped: antiWhaleCapped,
       tx_hash: null, // TODO: on-chain mint
       status: "minted",
     }), {
