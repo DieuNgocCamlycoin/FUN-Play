@@ -1,5 +1,6 @@
 /**
  * LightScoreDashboard — 5-Pillar Radar Chart + Level Badge + Badges
+ * CTO Diagram v13Apr2026: Multiplicative formula, 0-10 scale
  */
 
 import { useAuth } from '@/hooks/useAuth';
@@ -12,27 +13,26 @@ import { PILLAR_CONFIGS, PILLAR_LIST, LIGHT_LEVELS, REPUTATION_BADGES, type Pill
 import { checkBadgeEligibility } from '@/lib/fun-money/reputation-nft';
 import { cn } from '@/lib/utils';
 
-// ===== RADAR CHART (Pure SVG) =====
+// ===== RADAR CHART (Pure SVG, 0-10 scale) =====
 
 function RadarChart({ scores }: { scores: Record<PillarName, number> }) {
   const size = 200;
   const center = size / 2;
   const maxRadius = 80;
-  const levels = 5; // concentric rings
+  const levels = 5;
 
   const pillars = PILLAR_LIST;
   const angleStep = (2 * Math.PI) / pillars.length;
 
   const getPoint = (index: number, value: number) => {
     const angle = angleStep * index - Math.PI / 2;
-    const r = (value / 100) * maxRadius;
+    const r = (value / 10) * maxRadius; // 0-10 scale
     return {
       x: center + r * Math.cos(angle),
       y: center + r * Math.sin(angle),
     };
   };
 
-  // Concentric rings
   const rings = Array.from({ length: levels }, (_, i) => {
     const r = ((i + 1) / levels) * maxRadius;
     const points = pillars.map((_, j) => {
@@ -42,7 +42,6 @@ function RadarChart({ scores }: { scores: Record<PillarName, number> }) {
     return points.join(' ');
   });
 
-  // Axis lines
   const axes = pillars.map((_, i) => {
     const angle = angleStep * i - Math.PI / 2;
     return {
@@ -51,13 +50,11 @@ function RadarChart({ scores }: { scores: Record<PillarName, number> }) {
     };
   });
 
-  // Data polygon
   const dataPoints = pillars.map((p, i) => {
     const pt = getPoint(i, scores[p]);
     return `${pt.x},${pt.y}`;
   }).join(' ');
 
-  // Labels
   const labels = pillars.map((p, i) => {
     const angle = angleStep * i - Math.PI / 2;
     const labelR = maxRadius + 18;
@@ -71,7 +68,6 @@ function RadarChart({ scores }: { scores: Record<PillarName, number> }) {
 
   return (
     <svg viewBox={`0 0 ${size} ${size}`} className="w-full max-w-[240px] mx-auto">
-      {/* Rings */}
       {rings.map((points, i) => (
         <polygon
           key={i}
@@ -82,8 +78,6 @@ function RadarChart({ scores }: { scores: Record<PillarName, number> }) {
           opacity={0.5}
         />
       ))}
-
-      {/* Axes */}
       {axes.map((axis, i) => (
         <line
           key={i}
@@ -96,50 +90,25 @@ function RadarChart({ scores }: { scores: Record<PillarName, number> }) {
           opacity={0.3}
         />
       ))}
-
-      {/* Data polygon */}
       <polygon
         points={dataPoints}
         fill="hsl(var(--primary) / 0.15)"
         stroke="hsl(var(--primary))"
         strokeWidth="2"
       />
-
-      {/* Data points */}
       {pillars.map((p, i) => {
         const pt = getPoint(i, scores[p]);
         return (
-          <circle
-            key={p}
-            cx={pt.x}
-            cy={pt.y}
-            r="3"
-            fill="hsl(var(--primary))"
-          />
+          <circle key={p} cx={pt.x} cy={pt.y} r="3" fill="hsl(var(--primary))" />
         );
       })}
-
-      {/* Labels */}
       {labels.map((l, i) => (
         <g key={i}>
-          <text
-            x={l.x}
-            y={l.y - 4}
-            textAnchor="middle"
-            fontSize="14"
-            className="fill-foreground"
-          >
+          <text x={l.x} y={l.y - 4} textAnchor="middle" fontSize="14" className="fill-foreground">
             {l.label}
           </text>
-          <text
-            x={l.x}
-            y={l.y + 10}
-            textAnchor="middle"
-            fontSize="9"
-            className="fill-muted-foreground"
-            fontWeight="bold"
-          >
-            {l.score}
+          <text x={l.x} y={l.y + 10} textAnchor="middle" fontSize="9" className="fill-muted-foreground" fontWeight="bold">
+            {l.score}/10
           </text>
         </g>
       ))}
@@ -178,7 +147,7 @@ function LevelBadge({ levelId, score }: { levelId: string; score: number }) {
   );
 }
 
-// ===== PILLAR DETAIL ROW =====
+// ===== PILLAR DETAIL ROW (0-10 scale) =====
 
 function PillarRow({ pillar, score }: { pillar: PillarName; score: number }) {
   const config = PILLAR_CONFIGS[pillar];
@@ -188,9 +157,9 @@ function PillarRow({ pillar, score }: { pillar: PillarName; score: number }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between mb-1">
           <span className="text-sm font-medium">{config.label}</span>
-          <span className="text-sm font-bold">{score}/100</span>
+          <span className="text-sm font-bold">{score}/10</span>
         </div>
-        <Progress value={score} className="h-2" />
+        <Progress value={score * 10} className="h-2" />
       </div>
     </div>
   );
@@ -222,15 +191,14 @@ export function LightScoreDashboard() {
     );
   }
 
-  const { pillarScores, finalScore, level, riskPenalty, streakBonus } = result;
+  const { pillarScores, finalScore, level, riskPenalty, streakBonus, hasZeroPillar } = result;
 
-  // Check badges
   const earnedBadges = checkBadgeEligibility(
     pillarScores,
-    0, // streakDays — simplified
+    0,
     riskPenalty / 100,
-    0, // walletAgeDays
-    0, // accountAgeDays
+    0,
+    0,
   );
 
   return (
@@ -239,9 +207,26 @@ export function LightScoreDashboard() {
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-bold">✨ Light Score — 5 Trụ Cột</h3>
         <Badge variant="outline" className="text-xs">
-          Whitepaper v1
+          CTO v13Apr2026
         </Badge>
       </div>
+
+      {/* Formula info */}
+      <div className="text-xs text-muted-foreground text-center bg-muted/50 rounded-lg p-2">
+        📐 S × T × L × V × U / 10⁴ — Nếu bất kỳ trụ cột = 0 → Score = 0
+      </div>
+
+      {/* Zero-kill warning */}
+      {hasZeroPillar && (
+        <div className="text-center p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+          <p className="text-sm font-medium text-destructive">
+            ⚠️ Có trụ cột = 0 — Light Score bị vô hiệu
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Hãy cải thiện tất cả 5 trụ cột để tích lũy điểm
+          </p>
+        </div>
+      )}
 
       {/* Level Badge + Score */}
       <LevelBadge levelId={level.id} score={finalScore} />

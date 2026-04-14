@@ -1,6 +1,6 @@
 /**
  * FUN Money Mint Request Form
- * SDK v1.0
+ * CTO Diagram v13Apr2026: Proof required, 0-10 pillar scale, action groups
  */
 
 import { useState } from 'react';
@@ -12,10 +12,11 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Loader2, Sparkles, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { useFunMoneyWallet } from '@/hooks/useFunMoneyWallet';
 import { useMintRequest } from '@/hooks/useFunMoneyMintRequest';
 import { formatFunAmount } from '@/lib/fun-money/pplp-engine';
+import { ACTION_GROUPS, type ActionGroup } from '@/lib/fun-money/light-score-pillars';
 import { toast } from 'sonner';
 
 interface MintRequestFormProps {
@@ -26,11 +27,11 @@ interface MintRequestFormProps {
 }
 
 const PILLAR_LABELS: Record<string, string> = {
-  S: 'Phục vụ (Service)',
-  T: 'Chân thật (Truth)',
-  H: 'Chữa lành (Healing)',
-  C: 'Đóng góp (Contribution)',
-  U: 'Đoàn kết (Unity)'
+  S: '🙏 Phụng sự (Serving Life)',
+  T: '💎 Chân thật (Truth)',
+  H: '💗 Chữa lành (Healing & Love)',
+  C: '🌟 Giá trị (Long-term Value)',
+  U: '🤝 Đoàn kết (Unity)'
 };
 
 const UNITY_SIGNAL_LABELS: Record<string, string> = {
@@ -39,6 +40,12 @@ const UNITY_SIGNAL_LABELS: Record<string, string> = {
   communityEndorsement: 'Cộng đồng ủng hộ',
   bridgeValue: 'Giá trị cầu nối'
 };
+
+const PROOF_TYPES = [
+  { value: 'link', label: '🔗 Link', placeholder: 'https://...' },
+  { value: 'video', label: '🎥 Video URL', placeholder: 'https://youtube.com/...' },
+  { value: 'image', label: '🖼️ Image URL', placeholder: 'https://...image.png' },
+];
 
 export function MintRequestForm({ 
   platformId = 'FUN_PROFILE', 
@@ -51,9 +58,10 @@ export function MintRequestForm({
   
   const [description, setDescription] = useState('');
   const [proofUrl, setProofUrl] = useState('');
+  const [proofError, setProofError] = useState('');
   
-  // Pillar scores
-  const [pillars, setPillars] = useState({ S: 75, T: 75, H: 75, C: 75, U: 75 });
+  // Pillar scores (0-10 scale per CTO diagram)
+  const [pillars, setPillars] = useState({ S: 7, T: 7, H: 7, C: 7, U: 7 });
   
   // Unity signals
   const [signals, setSignals] = useState({
@@ -65,6 +73,21 @@ export function MintRequestForm({
   
   const [submitted, setSubmitted] = useState(false);
   const [resultAmount, setResultAmount] = useState('');
+
+  const validateProof = (url: string): boolean => {
+    if (!url.trim()) {
+      setProofError('⚠️ Bắt buộc — No Proof → No Score → No Mint');
+      return false;
+    }
+    try {
+      new URL(url.trim());
+      setProofError('');
+      return true;
+    } catch {
+      setProofError('URL không hợp lệ');
+      return false;
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,6 +101,12 @@ export function MintRequestForm({
       toast.error('Vui lòng nhập mô tả');
       return;
     }
+
+    // PROOF LAYER: Required per CTO diagram
+    if (!validateProof(proofUrl)) {
+      toast.error('🚫 No Proof → No Score → No Mint');
+      return;
+    }
     
     const result = await submitRequest({
       platformId,
@@ -86,7 +115,7 @@ export function MintRequestForm({
       evidence: {
         type: 'TEXT_PROOF',
         description: description.trim(),
-        urls: proofUrl ? [proofUrl] : undefined
+        urls: [proofUrl.trim()]
       },
       pillarScores: pillars,
       unitySignals: signals
@@ -132,6 +161,10 @@ export function MintRequestForm({
           <Badge variant="outline">{platformId}</Badge>
           <Badge variant="secondary">{actionType}</Badge>
         </div>
+        {/* Formula reminder */}
+        <p className="text-xs text-muted-foreground mt-2">
+          📐 Score = S × T × L × V × U / 10⁴ — Bất kỳ trụ cột = 0 → Score = 0
+        </p>
       </CardHeader>
       
       <CardContent>
@@ -153,30 +186,49 @@ export function MintRequestForm({
               />
             </div>
             
+            {/* PROOF LAYER (Required) */}
             <div className="space-y-2">
-              <Label>URL bằng chứng (tùy chọn)</Label>
+              <Label className="flex items-center gap-2">
+                URL bằng chứng *
+                <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                  Bắt buộc
+                </Badge>
+              </Label>
               <Input
                 value={proofUrl}
-                onChange={(e) => setProofUrl(e.target.value)}
-                placeholder="https://..."
+                onChange={(e) => {
+                  setProofUrl(e.target.value);
+                  if (proofError) validateProof(e.target.value);
+                }}
+                placeholder="https://... (link, video, image)"
+                className={proofError ? 'border-destructive' : ''}
               />
+              {proofError && (
+                <p className="text-xs text-destructive flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3" />
+                  {proofError}
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                🔒 No Proof → No Score → No Mint
+              </p>
             </div>
             
-            {/* Pillar Scores */}
+            {/* Pillar Scores (0-10) */}
             <div className="space-y-4">
-              <Label>Điểm tự đánh giá</Label>
+              <Label>Điểm tự đánh giá (0-10)</Label>
               {Object.entries(pillars).map(([key, value]) => (
                 <div key={key} className="space-y-1">
                   <div className="flex justify-between text-sm">
                     <span>{PILLAR_LABELS[key] || key}</span>
-                    <span>{value}</span>
+                    <span className="font-bold">{value}/10</span>
                   </div>
                   <Slider
                     value={[value]}
                     onValueChange={([v]) => setPillars(p => ({ ...p, [key]: v }))}
                     min={0}
-                    max={100}
-                    step={5}
+                    max={10}
+                    step={1}
                   />
                 </div>
               ))}
