@@ -110,7 +110,7 @@ const UNITY_MULTIPLIER_MAPPING = [
 ];
 
 const THRESHOLDS = {
-  minLightScore: 10,
+  minLightScore: 0.5, // Multiplicative 0-10 scale: (S×T×L×V×U)/10⁴, max=10
   minIntegrityK: 0.6,
   antiSybilMin: 0.6,
   auditAmountAtomic: BigInt("150000000000000000000000") // 150,000 FUN (= anti-whale cap 3%)
