@@ -289,11 +289,14 @@ export type Database = {
       }
       attendance: {
         Row: {
+          attendance_confidence: number | null
+          attendance_mode: string | null
           check_in_at: string | null
           check_out_at: string | null
           confirmation_status: string
           created_at: string
           duration_minutes: number | null
+          event_id: string | null
           group_id: string
           id: string
           leader_confirmed: boolean | null
@@ -305,11 +308,14 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          attendance_confidence?: number | null
+          attendance_mode?: string | null
           check_in_at?: string | null
           check_out_at?: string | null
           confirmation_status?: string
           created_at?: string
           duration_minutes?: number | null
+          event_id?: string | null
           group_id: string
           id?: string
           leader_confirmed?: boolean | null
@@ -321,11 +327,14 @@ export type Database = {
           user_id: string
         }
         Update: {
+          attendance_confidence?: number | null
+          attendance_mode?: string | null
           check_in_at?: string | null
           check_out_at?: string | null
           confirmation_status?: string
           created_at?: string
           duration_minutes?: number | null
+          event_id?: string | null
           group_id?: string
           id?: string
           leader_confirmed?: boolean | null
@@ -337,6 +346,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "attendance_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "attendance_group_id_fkey"
             columns: ["group_id"]
@@ -1728,8 +1744,10 @@ export type Database = {
         Row: {
           actual_count: number | null
           created_at: string
+          estimated_participants: number | null
           event_id: string
           expected_count: number | null
+          group_name: string | null
           id: string
           leader_user_id: string
           location: string | null
@@ -1740,8 +1758,10 @@ export type Database = {
         Insert: {
           actual_count?: number | null
           created_at?: string
+          estimated_participants?: number | null
           event_id: string
           expected_count?: number | null
+          group_name?: string | null
           id?: string
           leader_user_id: string
           location?: string | null
@@ -1752,8 +1772,10 @@ export type Database = {
         Update: {
           actual_count?: number | null
           created_at?: string
+          estimated_participants?: number | null
           event_id?: string
           expected_count?: number | null
+          group_name?: string | null
           id?: string
           leader_user_id?: string
           location?: string | null
@@ -1945,6 +1967,7 @@ export type Database = {
           status: string
           updated_at: string
           user_id: string
+          validation_digest: string | null
         }
         Insert: {
           action_id: string
@@ -1961,6 +1984,7 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id: string
+          validation_digest?: string | null
         }
         Update: {
           action_id?: string
@@ -1977,6 +2001,7 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id?: string
+          validation_digest?: string | null
         }
         Relationships: [
           {

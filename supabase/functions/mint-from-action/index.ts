@@ -163,6 +163,7 @@ serve(async (req) => {
         release_mode: releaseMode,
         claimable_now: claimableNow,
         locked_amount: lockedAmount,
+        validation_digest: validationDigest,
         status: "minted",
       })
       .select("id")
