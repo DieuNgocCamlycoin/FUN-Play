@@ -10,7 +10,23 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const VALID_EVENT_TYPES = ["zoom_session", "love_house", "hybrid", "in_person", "livestream"];
+// OpenAPI v1 aligned enum values
+const VALID_EVENT_TYPES = [
+  "ZOOM_GROUP_MEDITATION",
+  "LIVESTREAM_SESSION",
+  "LOVE_HOUSE_GATHERING",
+  "HYBRID_EVENT",
+  "IN_PERSON_RETREAT",
+];
+
+// Backward-compat mapping from legacy values
+const LEGACY_MAP: Record<string, string> = {
+  zoom_session: "ZOOM_GROUP_MEDITATION",
+  love_house: "LOVE_HOUSE_GATHERING",
+  hybrid: "HYBRID_EVENT",
+  in_person: "IN_PERSON_RETREAT",
+  livestream: "LIVESTREAM_SESSION",
+};
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -44,7 +60,9 @@ serve(async (req) => {
       });
     }
 
-    const resolvedEventType = event_type && VALID_EVENT_TYPES.includes(event_type) ? event_type : "zoom_session";
+    // Resolve event_type: accept both new enum and legacy values
+    const mapped = event_type ? (LEGACY_MAP[event_type] || event_type) : "ZOOM_GROUP_MEDITATION";
+    const resolvedEventType = VALID_EVENT_TYPES.includes(mapped) ? mapped : "ZOOM_GROUP_MEDITATION";
 
     // Merge platform_links and livestream_links
     const allLinks = [...(platform_links || []), ...(livestream_links || [])];
