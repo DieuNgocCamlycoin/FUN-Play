@@ -1,6 +1,6 @@
 /**
- * create-group — Register a Love House subgroup within an event
- * PRD Section 9
+ * create-group — POST /v1/events/{eventId}/groups
+ * OpenAPI v1 aligned: group_name, estimated_participants
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.84.0";
@@ -33,7 +33,12 @@ serve(async (req) => {
       });
     }
 
-    const { event_id, love_house_id, location, expected_count } = await req.json();
+    const body = await req.json();
+    // Accept both OpenAPI fields and legacy fields
+    const event_id = body.event_id;
+    const love_house_id = body.love_house_id || null;
+    const location = body.location || body.group_name || null;
+    const expected_count = body.expected_count ?? body.estimated_participants ?? 0;
 
     if (!event_id) {
       return new Response(JSON.stringify({ error: "event_id is required" }), {
@@ -59,12 +64,12 @@ serve(async (req) => {
       .insert({
         event_id,
         leader_user_id: user.id,
-        love_house_id: love_house_id || null,
+        love_house_id,
         location: location ? String(location).slice(0, 500) : null,
         expected_count: Math.max(0, Math.min(1000, Number(expected_count) || 0)),
         status: "registered",
       })
-      .select("id, event_id, love_house_id, status")
+      .select("id, event_id, love_house_id, status, location, expected_count")
       .single();
 
     if (error) {
@@ -74,7 +79,13 @@ serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ group }), {
+    return new Response(JSON.stringify({
+      group: {
+        ...group,
+        group_name: group.location,
+        estimated_participants: group.expected_count,
+      },
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {

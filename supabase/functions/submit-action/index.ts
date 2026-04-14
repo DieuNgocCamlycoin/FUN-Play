@@ -1,3 +1,7 @@
+/**
+ * submit-action — POST /v1/actions
+ * OpenAPI v1 aligned: accepts action_type enum alongside action_type_code
+ */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.84.0";
 
@@ -27,22 +31,24 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { action_type_code, title, description, source_platform, source_url, metadata } = body;
+    // Accept both action_type (OpenAPI v1) and action_type_code (legacy)
+    const actionTypeCode = body.action_type || body.action_type_code;
+    const { title, description, source_platform, source_url, metadata } = body;
 
-    if (!action_type_code || !title) {
-      return new Response(JSON.stringify({ error: "action_type_code and title required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (!actionTypeCode || !title) {
+      return new Response(JSON.stringify({ error: "action_type and title required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // Look up action type
     const { data: actionType, error: atErr } = await supabase
       .from("action_types")
       .select("id")
-      .eq("code", action_type_code)
+      .eq("code", actionTypeCode)
       .eq("is_active", true)
       .single();
 
     if (atErr || !actionType) {
-      return new Response(JSON.stringify({ error: `Unknown action type: ${action_type_code}` }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: `Unknown action type: ${actionTypeCode}` }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // Velocity check: max 10 actions per day
@@ -70,7 +76,7 @@ serve(async (req) => {
         raw_metadata: metadata || {},
         status: "proof_pending",
       })
-      .select("id, status, submitted_at")
+      .select("id, status, submitted_at, created_at")
       .single();
 
     if (insertErr) {
@@ -78,7 +84,13 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Failed to create action" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    return new Response(JSON.stringify({ action_id: action.id, status: action.status }), {
+    return new Response(JSON.stringify({
+      action_id: action.id,
+      action_type: actionTypeCode,
+      status: action.status,
+      submitted_at: action.submitted_at,
+      created_at: action.created_at,
+    }), {
       status: 201,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

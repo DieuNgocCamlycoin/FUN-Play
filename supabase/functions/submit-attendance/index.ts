@@ -50,7 +50,7 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { group_id, action, reflection_text, leader_confirm_user_id } = body;
+    const { group_id, action, reflection_text, leader_confirm_user_id, attendance_mode, optional_signals } = body;
 
     if (!group_id || !action) {
       return new Response(JSON.stringify({ error: "group_id and action (check_in|check_out|confirm|reflect) required" }), {
@@ -105,12 +105,17 @@ serve(async (req) => {
         supabaseAdmin.from("love_house_groups").update({ actual_count: (group as any).actual_count + 1 }).eq("id", group_id);
       });
 
-      return new Response(JSON.stringify({ attendance, message: "Checked in successfully" }), {
+      return new Response(JSON.stringify({
+        attendance,
+        attendance_mode: attendance_mode || "in_person",
+        attendance_confidence: attendance.participation_factor,
+        message: "Checked in successfully",
+      }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // === CHECK-OUT ===
+
     if (action === "check_out") {
       const { data: attendance } = await supabaseAdmin
         .from("attendance")
@@ -157,12 +162,17 @@ serve(async (req) => {
         linkedAction = await createLinkedAction(supabaseAdmin, user.id, group, attendance.id, durationMinutes, pf);
       }
 
-      return new Response(JSON.stringify({ attendance: updated, linked_action: linkedAction }), {
+      return new Response(JSON.stringify({
+        attendance: updated,
+        linked_action: linkedAction,
+        attendance_mode: attendance_mode || "in_person",
+        attendance_confidence: updated.participation_factor,
+      }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // === LEADER CONFIRM ===
+
     if (action === "confirm") {
       if (user.id !== group.leader_user_id) {
         return new Response(JSON.stringify({ error: "Only group leader can confirm attendance" }), {

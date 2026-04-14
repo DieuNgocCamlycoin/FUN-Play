@@ -53,7 +53,8 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const { action_id } = await req.json();
+    const body = await req.json();
+    const { action_id, release_mode: requestedReleaseMode, claim_percent } = body;
     if (!action_id) {
       return new Response(JSON.stringify({ error: "action_id required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
@@ -143,6 +144,12 @@ serve(async (req) => {
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const validationDigest = "0x" + hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
 
+    // Resolve release mode
+    const releaseMode = requestedReleaseMode === "partial_lock" ? "partial_lock" : "instant";
+    const claimPct = releaseMode === "partial_lock" ? Math.max(0, Math.min(100, Number(claim_percent) || 70)) : 100;
+    const claimableNow = Math.round(mintUser * (claimPct / 100) * 100) / 100;
+    const lockedAmount = Math.round((mintUser - claimableNow) * 100) / 100;
+
     // Create mint record with validationDigest
     const { data: mintRecord, error: mintErr } = await supabaseAdmin
       .from("mint_records")
@@ -153,9 +160,9 @@ serve(async (req) => {
         mint_amount_total: mintTotal,
         mint_amount_user: mintUser,
         mint_amount_platform: mintPlatform,
-        release_mode: "instant",
-        claimable_now: mintUser,
-        locked_amount: 0,
+        release_mode: releaseMode,
+        claimable_now: claimableNow,
+        locked_amount: lockedAmount,
         status: "minted",
       })
       .select("id")
@@ -218,7 +225,11 @@ serve(async (req) => {
       mint_amount_total: mintTotal,
       mint_amount_user: mintUser,
       mint_amount_platform: mintPlatform,
+      release_mode: releaseMode,
+      claimable_now: claimableNow,
+      locked_amount: lockedAmount,
       validation_digest: validationDigest,
+      tx_hash: null, // TODO: on-chain mint
       status: "minted",
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
