@@ -1,60 +1,61 @@
 
 
-# Align Database with ERD + Sequence Diagrams v1
+# Build Founder Dashboard for Camly / Bé Ly
 
-## Current State vs ERD
+## Summary
 
-| ERD Entity | Current DB Table | Status |
-|---|---|---|
-| `users` (profiles) | `profiles` | ✅ Has `wallet_address`, `trust_level`, `total_light_score`, `total_fun_minted` |
-| `action_types` | `action_types` | ✅ Matches |
-| `user_actions` | `user_actions` | ✅ Matches |
-| `proofs` | `proofs` | ✅ Matches |
-| `pplp_validations` | `pplp_validations` | ✅ Matches (5 pillars + final_light_score + validation_status) |
-| `mint_records` | `mint_records` | ⚠️ Missing `validation_digest` column |
-| `balance_ledger` | `balance_ledger` | ✅ Matches (user_id, entry_type, amount, reference_table/id) |
-| `event_groups` | `love_house_groups` | ⚠️ Name mismatch + missing `group_name`, `estimated_participants` |
-| `group_attendance` | `attendance` | ⚠️ Name mismatch + missing `event_id`, `attendance_confidence` |
-| `community_reviews` | `community_reviews` | ✅ Exists |
+Create a dedicated Founder Dashboard page accessible only to the owner role, consolidating 7 panels from the spec. Most data already exists across existing hooks — the main work is building the UI and adding a few new queries.
 
-## Sequence Diagram Gaps
+## Data Source Mapping
 
-The 3 sequence diagrams confirm the flows already implemented in edge functions. One operational gap:
-
-- **Sequence 3 (Async jobs)**: Recommends event bus topics (`action.submitted`, `proof.attached`, `validation.completed`, `mint.completed`). Currently no event/queue system — edge functions run synchronously. This is a future DevOps concern, not blocking.
+| Panel | Data Source | Status |
+|-------|-----------|--------|
+| 1. Overview | `useAdminStatistics` + `useAdminFunMoneyStats` + `useTransparencyStats` | ✅ Existing |
+| 2. User Insights | `useAdminStatistics` (topEarners) + new RPC for trust distribution, streaks, flagged users | ⚠️ Partial |
+| 3. PPLP Analytics | `get-light-profile` pillar data + new RPC for system-wide pillar averages | ⚠️ Need new RPC |
+| 4. Anti-Fake Monitor | `useAdminManage` (walletGroups, suspicion scores) | ✅ Existing |
+| 5. Event & Love House | New RPC for event stats, attendance rates | ⚠️ Need new RPC |
+| 6. Economy Flow | `useAdminFunMoneyStats` (dailyMints, actionBreakdown) + `useTransparencyStats` | ✅ Mostly existing |
+| 7. Real-Time Alerts | New — simple anomaly detection from existing data | ⚠️ New logic |
 
 ## Plan
 
-### Step 1: Database migration — align table columns
+### Step 1: Database — create `get_founder_dashboard_stats` RPC
+Single RPC that returns:
+- System-wide pillar averages (from `pplp_validations`)
+- Trust level distribution (from `profiles`)
+- Event/attendance stats (from `events` + `attendance`)
+- Flagged user count, velocity alerts
+- Top Light Score users, fastest growing users
 
-**`attendance` table:**
-- Add `event_id` (uuid, FK → events) — ERD requires direct event linkage
-- Add `attendance_confidence` (numeric) — ERD's `presence / confidence` field
-- Add `attendance_mode` (text) — to track how attendance was recorded
+### Step 2: Create `useFounderDashboard` hook
+Combines the new RPC with existing hooks (`useAdminFunMoneyStats`, `useTransparencyStats`, `useAdminStatistics`).
 
-**`love_house_groups` table:**
-- Add `group_name` (text) — ERD's `group_name` field (currently only has `love_house_id`)
-- Add `estimated_participants` (integer) — ERD shows this; table has `expected_count` which is similar but the OpenAPI spec uses `estimated_participants`
+### Step 3: Build `FounderDashboardPage.tsx`
+A standalone page at `/founder` (owner-only), with 7 collapsible panels:
+1. **Overview** — KPI cards (Total Light, FUN Minted, Active Users, Validation Rate)
+2. **User Insights** — Top users table, trust distribution pie chart, streak leaders
+3. **PPLP Analytics** — Radar chart for 5 pillars, weakest/strongest indicators
+4. **Anti-Fake Monitor** — Alert cards for duplicates, velocity, spam
+5. **Event & Love House** — Event list with participation stats
+6. **Economy Flow** — Area chart for mint over time, distribution breakdown
+7. **Real-Time Alerts** — Alert feed from anomaly thresholds
 
-**`mint_records` table:**
-- Add `validation_digest` (text) — for audit trail hash (already computed in edge function but not stored)
+### Step 4: Add route and navigation
+- Add `/founder` route (owner-only)
+- Or add as a new section `"founder"` in `UnifiedAdminLayout` visible only to owners
 
-### Step 2: Update edge functions to use new columns
+## Files
 
-- `submit-attendance`: write `event_id`, `attendance_confidence`, `attendance_mode` to `attendance` table
-- `create-group`: write `group_name`, `estimated_participants` to `love_house_groups`
-- `mint-from-action`: persist `validation_digest` to `mint_records`
+**New:**
+- `src/pages/FounderDashboard.tsx` — main page with 7 panels
+- `src/hooks/useFounderDashboard.ts` — data aggregation hook
 
-### Step 3: Save ERD doc to project docs
-- Copy the document to `docs/FUN_ERD_Sequence_Diagrams_v1.docx`
+**Modified:**
+- `src/App.tsx` — add `/founder` route
+- `src/components/Admin/UnifiedAdminLayout.tsx` — add sidebar link (owner-only)
+- `src/pages/UnifiedAdminDashboard.tsx` — add section case
 
-## Not changing (intentional)
-- Table names (`love_house_groups` → not renaming to `event_groups`, `attendance` → not renaming to `group_attendance`) — renaming would break all existing edge functions, RLS policies, and frontend queries. The current names work fine.
-- Event bus / async queue system — future DevOps concern per Sequence 3
-
-## Files affected
-
-**Migration:** Add columns to `attendance`, `love_house_groups`, `mint_records`
-**Modified:** `supabase/functions/submit-attendance/index.ts`, `supabase/functions/create-group/index.ts`, `supabase/functions/mint-from-action/index.ts`
-**New:** `docs/FUN_ERD_Sequence_Diagrams_v1.docx`
+**Migration:**
+- `get_founder_dashboard_stats` RPC function
 
