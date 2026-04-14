@@ -1,87 +1,59 @@
 
 
-# Thay thế FUNMoney v1.2.1 bằng FUNMoneyMinter Contract
+# Align Backend with FUN_Backend_Pseudocode.md
 
-## Tổng quan thay đổi
+## Gaps Found
 
-Contract mới **FUNMoneyMinter** đơn giản hóa đáng kể quy trình mint:
+Comparing the pseudocode spec against the 5 deployed edge functions:
 
-```text
-CŨ (v1.2.1):  lockWithPPLP (3 chữ ký EIP-712) → activate (user trả gas) → claim (user trả gas)
-MỚI (Minter):  mintValidatedAction (1 bước, authorizedMinter gọi) → token về thẳng user
-```
+| Gap | Pseudocode | Current Implementation |
+|-----|-----------|----------------------|
+| **Action initial status** | `proof_pending` | `submitted` |
+| **Proof attachment logic** | Check `hasMinimumProof()` → only move to `under_review` when enough proof | Always sets `under_review` after any single proof |
+| **Validation: anti-fake checks** | `isDuplicateProof` + `exceedsVelocityLimits` run inside validation worker | Duplicate check is in `attach-proof`, velocity check only in `submit-action` (daily 10 limit). No high-impact limit (3/day) |
+| **Validation digest** | `hash({actionId, userId, finalLightScore, totalMint, pplp, definition})` stored for audit | Not computed at all |
+| **On-chain mint call** | `contract.mintValidatedAction(actionIdHash, wallet, amount, validationDigest)` | Only DB record — no on-chain call from edge function |
+| **Lifetime Light Score** | `addToLifetimeLightScore(userId, finalLightScore)` | Not implemented |
+| **Trust decay/increase** | `decayTrustForSpam` / `increaseTrustForVerifiedConsistency` | Not implemented |
+| **Participation weights** | Check-in 0.25, Check-out 0.20, Host confirmed 0.25, Reflection 0.15, Duration 0.10, Optional 0.05 | Need to verify `submit-attendance` matches exactly |
 
-Không còn 3 bước, không còn EIP-712 multisig, không còn user trả gas. Backend gọi `mintValidatedAction` → 99% user / 1% platform tự động on-chain.
+## Plan
 
-## Kế hoạch triển khai
+### Step 1: Fix action status flow
+- `submit-action`: set initial status to `proof_pending` instead of `submitted`
+- `attach-proof`: add `hasMinimumProof` check — only move to `under_review` when action has at least 1 qualifying proof
 
-### Step 1: Lưu contract mới & cập nhật ABI + config
+### Step 2: Add anti-fake checks to validate-action
+- Add `isDuplicateProof` check (verify no proof hash/URL reused across different actions)
+- Add `exceedsVelocityLimits` with both daily limit (10) and high-impact limit (3/day)
+- Flag for manual review instead of proceeding when limits exceeded
 
-- Copy `FUNMoneyMinter.sol` vào `src/lib/fun-money/contracts/`
-- Cập nhật `web3-config.ts`:
-  - Thay `FUN_MONEY_ABI` bằng ABI mới (`mintValidatedAction`, `mintValidatedActionLocked`, `releaseLockedGrant`, `previewSplit`, `getLockedGrants`)
-  - Xóa các hàm cũ: `lockWithPPLP`, `activate`, `claim`, `nonces`, `isAttester`, `alloc`, governance functions
-  - Cập nhật contract address (sẽ cần deploy mới)
-  - Xóa `activateTokens()`, `claimTokens()`, `getAllocation()` — không còn dùng
+### Step 3: Add validationDigest to mint-from-action
+- Compute `validationDigest = hash({actionId, userId, finalLightScore, totalMint, pplpScores, PPLP_DEFINITION})` 
+- Store in `mint_records` for audit trail
+- Prepare for future on-chain `mintValidatedAction` call (add TODO with contract integration point)
 
-### Step 2: Loại bỏ EIP-712 multisig signing
+### Step 4: Add lifetime Light Score tracking
+- After successful mint, update `profiles.total_light_score += finalLightScore`
+- Migration: add `total_light_score` column to profiles if not present
 
-Xóa hoặc deprecate các file không còn cần:
-- `eip712-signer.ts` — không còn cần EIP-712 signatures
-- `pplp-multisig-config.ts` — không còn 3/3 multisig
-- `pplp-multisig-helpers.ts` — helper cho multisig
-- `pplp-multisig-types.ts` — types cho multisig
-- `pplp-nonce-refresh.ts` — nonce management cho EIP-712
+### Step 5: Add trust decay/increase functions
+- `validate-action`: after validation, call `increaseTrustForVerifiedConsistency` (trust += 0.01, max 1.25)
+- When spam/velocity flagged: call `decayTrustForSpam` (trust -= 0.05, min 1.0)
+- Migration: add `trust_level` column to profiles (default 1.0) if not present
 
-### Step 3: Đơn giản hóa mint flow
-
-- `contract-helpers.ts`: Thay `validateBeforeMint()` — chỉ cần kiểm tra `authorizedMinters[sender]` thay vì attester + nonce + EIP-712
-- `useMintSubmit.ts`: Gọi `mintValidatedAction(actionId, user, totalMint, validationDigest)` thay vì `lockWithPPLP` + 3 signatures
-- `useAttesterSigning.ts`: Không còn cần — authorizedMinter gọi trực tiếp, không cần 3 chữ ký riêng
-
-### Step 4: Cập nhật UI components
-
-- **`TokenLifecyclePanel.tsx`**: Không còn 3 trạng thái LOCKED/ACTIVATED/FLOWING. Thay bằng: MINTED (instant) hoặc LOCKED (time-release) → RELEASED
-- **`ClaimGuide.tsx`**: Cập nhật FAQ — user không còn cần tBNB cho activate/claim
-- **`MintableCard`**: Xóa cảnh báo tBNB, đơn giản hóa flow
-- **Admin pages** (`/gov-sign`): Chuyển từ multisig signing sang authorized minter flow — admin chỉ cần gọi `mintValidatedAction`
-
-### Step 5: Cập nhật edge functions
-
-- `mint-from-action`: Tích hợp gọi contract `mintValidatedAction` thay vì tạo multisig queue
-- Xóa logic auto-route-multisig trigger (không còn multisig)
-
-### Step 6: Hỗ trợ Locked Grants (optional vesting)
-
-- Thêm UI cho `getLockedGrants(user)` — hiển thị locked grants và nút `releaseLockedGrant(index)` khi đã đến `releaseAt`
-- Đây là tính năng mới thay thế cơ chế activate/claim cũ
+### Step 6: Verify participation factor weights
+- Confirm `submit-attendance` uses exact pseudocode weights (0.25/0.20/0.25/0.15/0.10/0.05)
 
 ## Files affected
 
-**Xóa/Deprecate:**
-- `src/lib/fun-money/eip712-signer.ts`
-- `src/lib/fun-money/pplp-multisig-config.ts`
-- `src/lib/fun-money/pplp-multisig-helpers.ts`
-- `src/lib/fun-money/pplp-multisig-types.ts`
-- `src/lib/fun-money/pplp-nonce-refresh.ts`
+**Modified:**
+- `supabase/functions/submit-action/index.ts` — status `proof_pending`
+- `supabase/functions/attach-proof/index.ts` — `hasMinimumProof` gate
+- `supabase/functions/validate-action/index.ts` — duplicate proof + velocity checks
+- `supabase/functions/mint-from-action/index.ts` — validationDigest + lifetime LS update
+- `supabase/functions/submit-attendance/index.ts` — verify/fix participation weights
 
-**Thay đổi lớn:**
-- `src/lib/fun-money/web3-config.ts` — ABI + helpers mới
-- `src/lib/fun-money/contract-helpers.ts` — mint flow mới
-- `src/hooks/useMintSubmit.ts` — gọi `mintValidatedAction`
-- `src/hooks/useAttesterSigning.ts` — đơn giản hóa hoặc xóa
-- `src/components/FunMoney/TokenLifecyclePanel.tsx` — UI mới
-- `src/components/FunMoney/ClaimGuide.tsx` — cập nhật docs
-- `src/components/Multisig/AdminMintPanel.tsx` — authorized minter flow
-- `supabase/functions/mint-from-action/index.ts` — tích hợp contract mới
-
-**Thêm mới:**
-- `src/lib/fun-money/contracts/FUNMoneyMinter.sol`
-
-## Giữ nguyên
-- PPLP scoring engine (multiplicative formula, zero-kill rule)
-- 99/1 split (giờ được enforce cả on-chain lẫn off-chain)
-- Action pipeline (submit → proof → validate → mint)
-- Attendance system
-- Database tables
+**New:**
+- 1 migration: `total_light_score` + `trust_level` columns on profiles
 
