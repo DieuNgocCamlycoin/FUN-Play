@@ -1,40 +1,60 @@
 
 
-# Align Edge Function Responses with OpenAPI Examples JSON
+# Align Database with ERD + Sequence Diagrams v1
 
-## Summary
+## Current State vs ERD
 
-The uploaded `FUN_Backend_OpenAPI_Examples.json` provides concrete sample request/response payloads. Comparing against current edge functions, most responses already match. Two functions need adjustments:
+| ERD Entity | Current DB Table | Status |
+|---|---|---|
+| `users` (profiles) | `profiles` | ✅ Has `wallet_address`, `trust_level`, `total_light_score`, `total_fun_minted` |
+| `action_types` | `action_types` | ✅ Matches |
+| `user_actions` | `user_actions` | ✅ Matches |
+| `proofs` | `proofs` | ✅ Matches |
+| `pplp_validations` | `pplp_validations` | ✅ Matches (5 pillars + final_light_score + validation_status) |
+| `mint_records` | `mint_records` | ⚠️ Missing `validation_digest` column |
+| `balance_ledger` | `balance_ledger` | ✅ Matches (user_id, entry_type, amount, reference_table/id) |
+| `event_groups` | `love_house_groups` | ⚠️ Name mismatch + missing `group_name`, `estimated_participants` |
+| `group_attendance` | `attendance` | ⚠️ Name mismatch + missing `event_id`, `attendance_confidence` |
+| `community_reviews` | `community_reviews` | ✅ Exists |
 
-## Gaps Found
+## Sequence Diagram Gaps
 
-| Function | Gap | Example Expected | Current |
-|----------|-----|-----------------|---------|
-| `get-light-profile` | `pillar_summary` format | `{ serving_life_avg: 7.8, transparent_truth_avg: 8.4, ... }` (per-pillar averages) | `{ "service": { count, avg_light_score } }` (grouped by pillar_group) |
-| `get-light-profile` | `recent_actions` type | Number (`12`) | Array of action objects |
-| `validate-action` | `explanation` format | `{ notes: ["Event proof accepted", ...] }` | `{ flags, aiScores, communityScores, systemTrust, participationFactor }` |
+The 3 sequence diagrams confirm the flows already implemented in edge functions. One operational gap:
 
-All other endpoints (`submit-action`, `attach-proof`, `mint-from-action`, `create-event`, `create-group`, `submit-attendance`) already match the example payloads.
+- **Sequence 3 (Async jobs)**: Recommends event bus topics (`action.submitted`, `proof.attached`, `validation.completed`, `mint.completed`). Currently no event/queue system — edge functions run synchronously. This is a future DevOps concern, not blocking.
 
 ## Plan
 
-### Step 1: Update `get-light-profile` response
-- Change `pillar_summary` to compute per-pillar averages across all user validations: `serving_life_avg`, `transparent_truth_avg`, `healing_love_avg`, `long_term_value_avg`, `unity_over_separation_avg`
-- Change `recent_actions` to return count (number) instead of array — move the array to a separate field `recent_actions_list` or remove it
+### Step 1: Database migration — align table columns
 
-### Step 2: Update `validate-action` explanation field  
-- Add a `notes` array to the `explanation` object with human-readable strings like "Event proof accepted", "No duplicate proof detected"
-- Keep existing detailed data alongside for debugging
+**`attendance` table:**
+- Add `event_id` (uuid, FK → events) — ERD requires direct event linkage
+- Add `attendance_confidence` (numeric) — ERD's `presence / confidence` field
+- Add `attendance_mode` (text) — to track how attendance was recorded
 
-### Step 3: Save examples file to docs
-- Copy `FUN_Backend_OpenAPI_Examples.json` to `docs/` for reference
+**`love_house_groups` table:**
+- Add `group_name` (text) — ERD's `group_name` field (currently only has `love_house_id`)
+- Add `estimated_participants` (integer) — ERD shows this; table has `expected_count` which is similar but the OpenAPI spec uses `estimated_participants`
 
-## Files
+**`mint_records` table:**
+- Add `validation_digest` (text) — for audit trail hash (already computed in edge function but not stored)
 
-**Modified:**
-- `supabase/functions/get-light-profile/index.ts` — pillar_summary format + recent_actions as count
-- `supabase/functions/validate-action/index.ts` — explanation.notes array
+### Step 2: Update edge functions to use new columns
 
-**New:**
-- `docs/FUN_Backend_OpenAPI_Examples.json`
+- `submit-attendance`: write `event_id`, `attendance_confidence`, `attendance_mode` to `attendance` table
+- `create-group`: write `group_name`, `estimated_participants` to `love_house_groups`
+- `mint-from-action`: persist `validation_digest` to `mint_records`
+
+### Step 3: Save ERD doc to project docs
+- Copy the document to `docs/FUN_ERD_Sequence_Diagrams_v1.docx`
+
+## Not changing (intentional)
+- Table names (`love_house_groups` → not renaming to `event_groups`, `attendance` → not renaming to `group_attendance`) — renaming would break all existing edge functions, RLS policies, and frontend queries. The current names work fine.
+- Event bus / async queue system — future DevOps concern per Sequence 3
+
+## Files affected
+
+**Migration:** Add columns to `attendance`, `love_house_groups`, `mint_records`
+**Modified:** `supabase/functions/submit-attendance/index.ts`, `supabase/functions/create-group/index.ts`, `supabase/functions/mint-from-action/index.ts`
+**New:** `docs/FUN_ERD_Sequence_Diagrams_v1.docx`
 
