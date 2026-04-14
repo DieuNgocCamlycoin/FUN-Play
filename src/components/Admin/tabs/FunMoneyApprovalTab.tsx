@@ -253,7 +253,7 @@ export function FunMoneyApprovalTab() {
         request.action_evidence
       );
 
-      await saveMintResult(request.id, txHash);
+      await saveMintResult(request.id, txHash, adminAddress);
 
       toast.success(
         <div className="flex flex-col gap-1">
@@ -357,7 +357,7 @@ export function FunMoneyApprovalTab() {
           await approveRequest(r.id, 'Batch approved & direct mint');
           const amount = BigInt(r.calculated_amount_atomic);
           const txHash = await mintFunMoney(signer, r.user_wallet_address, r.action_type, amount, r.action_evidence);
-          await saveMintResult(r.id, txHash);
+          await saveMintResult(r.id, txHash, adminAddress);
           setMintedIds(prev => new Set(prev).add(r.id));
           success++;
         } catch (err: any) {
@@ -396,7 +396,7 @@ export function FunMoneyApprovalTab() {
           await approveRequest(r.id, 'Batch approved & direct mint');
           const amount = BigInt(r.calculated_amount_atomic);
           const txHash = await mintFunMoney(signer, r.user_wallet_address, r.action_type, amount, r.action_evidence);
-          await saveMintResult(r.id, txHash);
+          await saveMintResult(r.id, txHash, adminAddress);
           setMintedIds(prev => new Set(prev).add(r.id));
           success++;
         } catch (err: any) {
