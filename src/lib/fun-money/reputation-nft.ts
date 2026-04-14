@@ -1,7 +1,6 @@
 /**
  * Reputation NFT Types & Config (Phase 2)
- * 
- * Defines the structure for dynamic, soulbound-friendly Reputation NFTs.
+ * Updated for CTO Diagram v13Apr2026 — 5 new pillars (0-10 scale)
  */
 
 import { LIGHT_LEVELS, REPUTATION_BADGES, type LightLevel, type BadgeDefinition } from './light-score-pillars';
@@ -10,31 +9,18 @@ import type { PillarScores } from './light-score-pillar-engine';
 // ===== NFT METADATA =====
 
 export interface ReputationNFTMetadata {
-  /** Token ID on-chain */
   tokenId?: string;
-  /** Owner wallet address */
   owner: string;
-  /** User ID in platform */
   userId: string;
-  /** Current Light Level */
   level: LightLevel;
-  /** Current 5-pillar scores */
   pillarScores: PillarScores;
-  /** Final Light Score */
   lightScore: number;
-  /** Earned badges */
   badges: BadgeDefinition[];
-  /** Number of epochs contributed */
   epochsContributed: number;
-  /** Longest streak */
   longestStreak: number;
-  /** Total FUN minted */
   totalFunMinted: number;
-  /** Last updated */
   updatedAt: string;
-  /** NFT image URL (dynamic based on level) */
   imageUrl: string;
-  /** Soulbound flag */
   soulbound: boolean;
 }
 
@@ -74,38 +60,38 @@ export function checkBadgeEligibility(
 ): BadgeDefinition[] {
   const earned: BadgeDefinition[] = [];
 
-  // Community Builder: Activity >= 70 & streak >= 30
-  if (pillarScores.activity >= 70 && streakDays >= 30) {
+  // Community Builder: Serving >= 7 & streak >= 30
+  if (pillarScores.serving >= 7 && streakDays >= 30) {
     earned.push(REPUTATION_BADGES.find(b => b.id === 'community_builder')!);
   }
 
-  // Transparent Wallet: Transparency >= 80
-  if (pillarScores.transparency >= 80) {
+  // Transparent Truth: Truth >= 8
+  if (pillarScores.truth >= 8) {
     earned.push(REPUTATION_BADGES.find(b => b.id === 'transparent_wallet')!);
   }
 
-  // Long-term Holder: Alignment >= 70 & wallet age >= 6 months
-  if (pillarScores.alignment >= 70 && walletAgeDays >= 180) {
+  // Long-term Holder: Value >= 7 & wallet age >= 6 months
+  if (pillarScores.value >= 7 && walletAgeDays >= 180) {
     earned.push(REPUTATION_BADGES.find(b => b.id === 'long_term_holder')!);
   }
 
-  // Pure Contributor: All pillars >= 60 & risk < 0.1
-  const allAbove60 = Object.values(pillarScores).every(s => s >= 60);
-  if (allAbove60 && riskScore < 0.1) {
+  // Pure Contributor: All pillars >= 6 & risk < 0.1
+  const allAbove6 = Object.values(pillarScores).every(s => s >= 6);
+  if (allAbove6 && riskScore < 0.1) {
     earned.push(REPUTATION_BADGES.find(b => b.id === 'pure_contributor')!);
   }
 
-  // Early Supporter: Account age >= 1 year & Alignment >= 60
-  if (accountAgeDays >= 365 && pillarScores.alignment >= 60) {
+  // Early Supporter: Account age >= 1 year & Unity >= 6
+  if (accountAgeDays >= 365 && pillarScores.unity >= 6) {
     earned.push(REPUTATION_BADGES.find(b => b.id === 'early_supporter')!);
   }
 
   return earned.filter(Boolean);
 }
 
-// ===== NFT METADATA BUILDER =====
+// ===== GENERATE NFT METADATA =====
 
-export function buildNFTMetadata(params: {
+export function generateNFTMetadata(params: {
   owner: string;
   userId: string;
   pillarScores: PillarScores;
@@ -116,9 +102,10 @@ export function buildNFTMetadata(params: {
   accountAgeDays: number;
   epochsContributed: number;
   totalFunMinted: number;
-}): Omit<ReputationNFTMetadata, 'tokenId'> {
-  const level = LIGHT_LEVELS.find(l =>
-    params.lightScore >= l.minScore && (l.maxScore === null || params.lightScore <= l.maxScore)
+  baseImageUrl: string;
+}): ReputationNFTMetadata {
+  const level = LIGHT_LEVELS.find(
+    l => params.lightScore >= l.minScore && (l.maxScore === null || params.lightScore <= l.maxScore)
   ) || LIGHT_LEVELS[0];
 
   const badges = checkBadgeEligibility(
@@ -140,7 +127,7 @@ export function buildNFTMetadata(params: {
     longestStreak: params.streakDays,
     totalFunMinted: params.totalFunMinted,
     updatedAt: new Date().toISOString(),
-    imageUrl: '', // Generated dynamically
+    imageUrl: `${params.baseImageUrl}/${level.id}.png`,
     soulbound: true,
   };
 }

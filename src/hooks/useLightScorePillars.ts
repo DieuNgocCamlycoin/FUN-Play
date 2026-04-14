@@ -1,5 +1,6 @@
 /**
  * useLightScorePillars — Hook to fetch and calculate 5-pillar Light Score
+ * CTO Diagram v13Apr2026: Multiplicative formula
  */
 
 import { useState, useEffect } from 'react';
@@ -27,11 +28,11 @@ export function useLightScorePillars(userId: string | undefined) {
         }
 
         const scoreResult = calculatePillarScores(
-          signals.identity,
-          signals.activity,
-          signals.onchain,
-          signals.transparency,
-          signals.alignment,
+          signals.serving,
+          signals.truth,
+          signals.love,
+          signals.value,
+          signals.unity,
           signals.riskScore,
         );
 

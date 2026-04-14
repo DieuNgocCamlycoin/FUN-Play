@@ -1,16 +1,15 @@
 /**
- * Light Score 5-Pillar Scoring Engine
+ * Light Score 5-Pillar Scoring Engine — CTO Diagram v13Apr2026
  * 
- * Calculates sub-scores for each of the 5 pillars, then combines
- * with existing LS-Math v1.0 scoring to produce an enriched Light Score.
+ * CORE FORMULA (Multiplicative):
+ * FinalScore = (S × T × L × V × U) / 10⁴
  * 
- * Architecture: EXTENDS LS-Math v1.0, does NOT replace it.
- * The final Light Score = LS-Math result + 5-pillar sub-scores for display/analysis.
+ * ZERO-KILL RULE: Any pillar = 0 → Score = 0 (anti-fake built-in)
+ * Scale: 0–10 each pillar
  */
 
 import { supabase } from '@/integrations/supabase/client';
 import {
-  PILLAR_WEIGHTS_V1,
   PILLAR_LIST,
   getLightLevel,
   STREAK_BONUS,
@@ -20,310 +19,243 @@ import {
 // ===== PILLAR SCORE RESULTS =====
 
 export interface PillarScores {
-  identity: number;
-  activity: number;
-  onchain: number;
-  transparency: number;
-  alignment: number;
+  serving: number;   // 0-10: Serving Life
+  truth: number;     // 0-10: Transparent Truth
+  love: number;      // 0-10: Healing & Love
+  value: number;     // 0-10: Long-term Value
+  unity: number;     // 0-10: Unity over Separation
 }
 
 export interface PillarScoreResult {
   pillarScores: PillarScores;
-  weightedTotal: number;
+  rawProduct: number;      // S × T × L × V × U
+  finalScore: number;      // rawProduct / 10⁴
   riskPenalty: number;
   streakBonus: number;
-  finalScore: number;
   level: ReturnType<typeof getLightLevel>;
+  hasZeroPillar: boolean;  // anti-fake flag
 }
 
-// ===== IDENTITY SCORE =====
+// ===== SIGNAL INTERFACES =====
 
-interface IdentitySignals {
+interface ServingSignals {
   hasDisplayName: boolean;
   hasAvatar: boolean;
+  hasBio: boolean;
   hasVerifiedEmail: boolean;
   hasWallet: boolean;
-  hasWeb3Profile: boolean;
   accountAgeDays: number;
   consistencyDays: number;
-  hasBio: boolean;
-}
-
-export function calculateIdentityScore(signals: IdentitySignals): number {
-  let score = 0;
-
-  // Basic profile completeness (max 30)
-  if (signals.hasDisplayName) score += 8;
-  if (signals.hasAvatar) score += 8;
-  if (signals.hasBio) score += 7;
-  if (signals.hasVerifiedEmail) score += 7;
-
-  // Web3 identity (max 20)
-  if (signals.hasWallet) score += 10;
-  if (signals.hasWeb3Profile) score += 10;
-
-  // Account maturity (max 30)
-  if (signals.accountAgeDays >= 365) score += 30;
-  else if (signals.accountAgeDays >= 180) score += 25;
-  else if (signals.accountAgeDays >= 90) score += 20;
-  else if (signals.accountAgeDays >= 30) score += 15;
-  else if (signals.accountAgeDays >= 7) score += 8;
-
-  // Behavioral consistency (max 20)
-  if (signals.consistencyDays >= 90) score += 20;
-  else if (signals.consistencyDays >= 30) score += 15;
-  else if (signals.consistencyDays >= 7) score += 8;
-
-  return Math.min(100, score);
-}
-
-// ===== ACTIVITY SCORE =====
-
-interface ActivitySignals {
-  /** From LS-Math v1.0: action base + content daily score combined */
-  lsMathRawScore: number;
-  /** Total posts this epoch */
-  postCount: number;
-  /** Total comments this epoch */
-  commentCount: number;
-  /** Total videos this epoch */
-  videoCount: number;
-  /** Total likes given */
-  likesGiven: number;
-  /** Total shares */
-  shareCount: number;
-  /** Total help/bounty */
   helpCount: number;
-  /** Daily check-ins this epoch */
-  checkinCount: number;
-  /** Consistency streak days */
-  streakDays: number;
-  /** Sequence bonus total */
-  sequenceBonus: number;
-}
-
-export function calculateActivityScore(signals: ActivitySignals): number {
-  let score = 0;
-
-  // Content creation diversity (max 40)
-  const contentTypes = [
-    signals.postCount > 0,
-    signals.commentCount > 0,
-    signals.videoCount > 0,
-    signals.shareCount > 0,
-    signals.helpCount > 0,
-  ].filter(Boolean).length;
-  score += Math.min(40, contentTypes * 8);
-
-  // Volume with diminishing returns (max 30)
-  const totalActions = signals.postCount + signals.commentCount + signals.videoCount +
-    signals.likesGiven + signals.shareCount + signals.helpCount + signals.checkinCount;
-  score += Math.min(30, Math.floor(Math.sqrt(totalActions) * 3));
-
-  // Consistency (max 20)
-  if (signals.streakDays >= 30) score += 20;
-  else if (signals.streakDays >= 14) score += 15;
-  else if (signals.streakDays >= 7) score += 10;
-  else if (signals.streakDays >= 3) score += 5;
-
-  // Sequences (max 10)
-  score += Math.min(10, signals.sequenceBonus * 2);
-
-  return Math.min(100, score);
-}
-
-// ===== ON-CHAIN HISTORY SCORE =====
-
-interface OnChainSignals {
-  /** Wallet age in days */
-  walletAgeDays: number;
-  /** Total on-chain transactions */
-  transactionCount: number;
-  /** Has interacted with FUN contract */
-  hasContractInteraction: boolean;
-  /** Total FUN minted on-chain */
-  totalMinted: number;
-  /** Has claimed FUN */
-  hasClaimed: boolean;
-  /** Number of distinct contract interactions */
-  distinctContracts: number;
-}
-
-export function calculateOnChainScore(signals: OnChainSignals): number {
-  let score = 0;
-
-  // Wallet age (max 30)
-  if (signals.walletAgeDays >= 365) score += 30;
-  else if (signals.walletAgeDays >= 180) score += 25;
-  else if (signals.walletAgeDays >= 90) score += 20;
-  else if (signals.walletAgeDays >= 30) score += 10;
-
-  // Transaction history (max 25)
-  if (signals.transactionCount >= 50) score += 25;
-  else if (signals.transactionCount >= 20) score += 20;
-  else if (signals.transactionCount >= 5) score += 12;
-  else if (signals.transactionCount > 0) score += 5;
-
-  // Ecosystem interaction (max 25)
-  if (signals.hasContractInteraction) score += 15;
-  if (signals.hasClaimed) score += 10;
-
-  // Diversity of interactions (max 20)
-  score += Math.min(20, signals.distinctContracts * 5);
-
-  return Math.min(100, score);
-}
-
-// ===== WALLET TRANSPARENCY SCORE =====
-
-interface TransparencySignals {
-  /** Anti-farm risk score from features_user_day (0-1) */
-  antiFarmRisk: number;
-  /** Is wallet blacklisted */
-  isBlacklisted: boolean;
-  /** Number of wallet changes in 30 days */
-  walletChanges30d: number;
-  /** Is in suspicious IP cluster */
-  isInCluster: boolean;
-  /** Has normal transaction pattern */
-  normalPattern: boolean;
-  /** Risk status from wallet change */
-  walletRiskStatus: string;
-}
-
-export function calculateTransparencyScore(signals: TransparencySignals): number {
-  if (signals.isBlacklisted) return 0;
-
-  let score = 100;
-
-  // Anti-farm risk reduction (0-40 penalty)
-  score -= Math.min(40, Math.floor(signals.antiFarmRisk * 50));
-
-  // Wallet changes penalty
-  if (signals.walletChanges30d >= 3) score -= 30;
-  else if (signals.walletChanges30d >= 2) score -= 15;
-
-  // Cluster detection
-  if (signals.isInCluster) score -= 25;
-
-  // Wallet risk status
-  if (signals.walletRiskStatus === 'BLOCKED') score -= 40;
-  else if (signals.walletRiskStatus === 'REVIEW') score -= 20;
-  else if (signals.walletRiskStatus === 'WATCH') score -= 10;
-
-  // Natural pattern bonus
-  if (signals.normalPattern) score += 10;
-
-  return Math.max(0, Math.min(100, score));
-}
-
-// ===== ECOSYSTEM ALIGNMENT SCORE =====
-
-interface AlignmentSignals {
-  /** Holds Camly Coin */
-  holdsCamly: boolean;
-  /** Camly balance amount */
-  camlyBalance: number;
-  /** Total donations made */
   donationCount: number;
-  /** Participates in governance (has voted/attested) */
-  participatesGovernance: boolean;
-  /** Uses multiple FUN platforms */
-  platformsUsed: number;
-  /** Account age in months */
+}
+
+interface TruthSignals {
+  antiFarmRisk: number;       // 0-1
+  isBlacklisted: boolean;
+  normalPattern: boolean;
+  postCount: number;
+  commentCount: number;
+  contentQuality: number;     // 0-1 from AI analysis
+  reportCount: number;        // reports against user
+}
+
+interface LoveSignals {
+  checkinCount: number;
+  streakDays: number;
+  positiveInteractions: number;
+  likesGiven: number;
+  endorsements: number;
+}
+
+interface ValueSignals {
   accountAgeMonths: number;
-  /** Has bounty submissions */
-  hasBountyContributions: boolean;
-  /** PPLP charter accepted */
+  videoCount: number;
+  bountyContributions: number;
+  totalMinted: number;
+  hasClaimed: boolean;
   pplpAccepted: boolean;
-  /** Total FUN held */
   funBalance: number;
 }
 
-export function calculateAlignmentScore(signals: AlignmentSignals): number {
-  let score = 0;
-
-  // Holds Camly (max 20)
-  if (signals.holdsCamly) {
-    score += 10;
-    if (signals.camlyBalance >= 100) score += 10;
-    else if (signals.camlyBalance >= 10) score += 5;
-  }
-
-  // FUN Money holding (max 15)
-  if (signals.funBalance > 0) {
-    score += Math.min(15, Math.floor(Math.log10(signals.funBalance + 1) * 5));
-  }
-
-  // Community contributions (max 20)
-  if (signals.donationCount >= 5) score += 20;
-  else if (signals.donationCount >= 1) score += 10;
-
-  // Platform engagement (max 15)
-  score += Math.min(15, signals.platformsUsed * 5);
-
-  // Long-term alignment (max 15)
-  if (signals.accountAgeMonths >= 12) score += 15;
-  else if (signals.accountAgeMonths >= 6) score += 10;
-  else if (signals.accountAgeMonths >= 3) score += 5;
-
-  // Governance & bounty (max 10)
-  if (signals.participatesGovernance) score += 5;
-  if (signals.hasBountyContributions) score += 5;
-
-  // PPLP Charter (max 5)
-  if (signals.pplpAccepted) score += 5;
-
-  return Math.min(100, score);
+interface UnitySignals {
+  shareCount: number;
+  collaborations: number;
+  platformsUsed: number;
+  participatesGovernance: boolean;
+  communityEndorsements: number;
+  sequenceBonus: number;
 }
 
-// ===== COMBINED SCORING =====
+// ===== INDIVIDUAL PILLAR CALCULATORS (0-10 scale) =====
+
+export function calculateServingScore(signals: ServingSignals): number {
+  let score = 0;
+
+  // Profile completeness (max 3)
+  if (signals.hasDisplayName) score += 0.5;
+  if (signals.hasAvatar) score += 0.5;
+  if (signals.hasBio) score += 0.5;
+  if (signals.hasVerifiedEmail) score += 0.5;
+  if (signals.hasWallet) score += 1;
+
+  // Account maturity (max 2)
+  if (signals.accountAgeDays >= 365) score += 2;
+  else if (signals.accountAgeDays >= 180) score += 1.5;
+  else if (signals.accountAgeDays >= 90) score += 1;
+  else if (signals.accountAgeDays >= 30) score += 0.5;
+
+  // Service actions (max 3)
+  const serviceScore = Math.min(3, Math.sqrt(signals.helpCount + signals.donationCount) * 0.8);
+  score += serviceScore;
+
+  // Consistency (max 2)
+  if (signals.consistencyDays >= 90) score += 2;
+  else if (signals.consistencyDays >= 30) score += 1.5;
+  else if (signals.consistencyDays >= 7) score += 0.8;
+
+  return Math.min(10, Math.round(score * 10) / 10);
+}
+
+export function calculateTruthScore(signals: TruthSignals): number {
+  if (signals.isBlacklisted) return 0; // Zero-kill: fraud = 0
+
+  let score = 8; // Start high, deduct for issues
+
+  // Anti-farm risk penalty (up to -4)
+  score -= Math.min(4, signals.antiFarmRisk * 5);
+
+  // Content creation bonus (max +2)
+  const contentVolume = signals.postCount + signals.commentCount;
+  score += Math.min(2, Math.sqrt(contentVolume) * 0.3);
+
+  // Reports penalty (up to -3)
+  score -= Math.min(3, signals.reportCount * 0.5);
+
+  // Natural pattern bonus
+  if (signals.normalPattern) score += 0.5;
+
+  return Math.max(0, Math.min(10, Math.round(score * 10) / 10));
+}
+
+export function calculateLoveScore(signals: LoveSignals): number {
+  let score = 0;
+
+  // Check-in commitment (max 3)
+  if (signals.checkinCount >= 20) score += 3;
+  else if (signals.checkinCount >= 10) score += 2;
+  else if (signals.checkinCount >= 3) score += 1;
+
+  // Streak (max 3)
+  if (signals.streakDays >= 30) score += 3;
+  else if (signals.streakDays >= 14) score += 2;
+  else if (signals.streakDays >= 7) score += 1.5;
+  else if (signals.streakDays >= 3) score += 0.5;
+
+  // Positive interactions (max 2)
+  score += Math.min(2, Math.sqrt(signals.likesGiven + signals.positiveInteractions) * 0.3);
+
+  // Endorsements (max 2)
+  score += Math.min(2, signals.endorsements * 0.5);
+
+  return Math.min(10, Math.round(score * 10) / 10);
+}
+
+export function calculateValueScore(signals: ValueSignals): number {
+  let score = 0;
+
+  // Long-term presence (max 3)
+  if (signals.accountAgeMonths >= 12) score += 3;
+  else if (signals.accountAgeMonths >= 6) score += 2;
+  else if (signals.accountAgeMonths >= 3) score += 1;
+
+  // Content contributions (max 2)
+  score += Math.min(2, Math.sqrt(signals.videoCount + signals.bountyContributions) * 0.5);
+
+  // On-chain activity (max 2)
+  if (signals.totalMinted > 0) score += 1;
+  if (signals.hasClaimed) score += 1;
+
+  // Ecosystem commitment (max 2)
+  if (signals.pplpAccepted) score += 1;
+  if (signals.funBalance > 0) score += Math.min(1, Math.log10(signals.funBalance + 1) * 0.3);
+
+  // Bounty (max 1)
+  score += Math.min(1, signals.bountyContributions * 0.3);
+
+  return Math.min(10, Math.round(score * 10) / 10);
+}
+
+export function calculateUnityScore(signals: UnitySignals): number {
+  let score = 0;
+
+  // Sharing (max 2)
+  score += Math.min(2, Math.sqrt(signals.shareCount) * 0.5);
+
+  // Collaboration (max 3)
+  score += Math.min(3, signals.collaborations * 0.5);
+
+  // Platform diversity (max 2)
+  score += Math.min(2, signals.platformsUsed * 0.5);
+
+  // Governance (max 1.5)
+  if (signals.participatesGovernance) score += 1.5;
+
+  // Community endorsements (max 1.5)
+  score += Math.min(1.5, signals.communityEndorsements * 0.3);
+
+  return Math.min(10, Math.round(score * 10) / 10);
+}
+
+// ===== COMBINED SCORING (MULTIPLICATIVE) =====
 
 export function calculatePillarScores(
-  identity: IdentitySignals,
-  activity: ActivitySignals,
-  onchain: OnChainSignals,
-  transparency: TransparencySignals,
-  alignment: AlignmentSignals,
+  serving: ServingSignals,
+  truth: TruthSignals,
+  love: LoveSignals,
+  value: ValueSignals,
+  unity: UnitySignals,
   riskScore: number = 0,
 ): PillarScoreResult {
   const pillarScores: PillarScores = {
-    identity: calculateIdentityScore(identity),
-    activity: calculateActivityScore(activity),
-    onchain: calculateOnChainScore(onchain),
-    transparency: calculateTransparencyScore(transparency),
-    alignment: calculateAlignmentScore(alignment),
+    serving: calculateServingScore(serving),
+    truth: calculateTruthScore(truth),
+    love: calculateLoveScore(love),
+    value: calculateValueScore(value),
+    unity: calculateUnityScore(unity),
   };
 
-  // Weighted total (0-100)
-  const weights = PILLAR_WEIGHTS_V1;
-  let weightedTotal = 0;
-  for (const pillar of PILLAR_LIST) {
-    weightedTotal += pillarScores[pillar] * weights[pillar];
-  }
-  weightedTotal = Math.round(weightedTotal);
+  // ZERO-KILL RULE: Any pillar = 0 → Score = 0
+  const hasZeroPillar = PILLAR_LIST.some(p => pillarScores[p] === 0);
+
+  // MULTIPLICATIVE FORMULA: (S × T × L × V × U) / 10⁴
+  const rawProduct = pillarScores.serving * pillarScores.truth * pillarScores.love * pillarScores.value * pillarScores.unity;
+  const baseScore = hasZeroPillar ? 0 : Math.round((rawProduct / 10000) * 100) / 100;
 
   // Risk penalty
   const riskPenalty = Math.min(80, Math.floor(riskScore * 100));
 
   // Streak bonus
-  const streak = activity.streakDays;
+  const streak = love.streakDays;
   let streakBonus = 0;
   if (streak >= 90) streakBonus = STREAK_BONUS[90];
   else if (streak >= 30) streakBonus = STREAK_BONUS[30];
   else if (streak >= 7) streakBonus = STREAK_BONUS[7];
 
-  // Final score
-  const baseAfterPenalty = Math.max(0, weightedTotal - riskPenalty);
-  const finalScore = Math.round(baseAfterPenalty * (1 + streakBonus));
+  // Final score (scale up for level thresholds)
+  // Max raw: (10×10×10×10×10)/10⁴ = 10 → scale ×100 for levels
+  const scaledScore = Math.round(baseScore * 100);
+  const afterPenalty = Math.max(0, scaledScore - riskPenalty);
+  const finalScore = Math.round(afterPenalty * (1 + streakBonus));
 
   return {
     pillarScores,
-    weightedTotal,
+    rawProduct,
+    finalScore,
     riskPenalty,
     streakBonus,
-    finalScore,
     level: getLightLevel(finalScore),
+    hasZeroPillar,
   };
 }
 
@@ -335,7 +267,7 @@ export async function fetchPillarSignals(userId: string) {
     supabase.from('features_user_day')
       .select('*')
       .eq('user_id', userId)
-      .gte('date', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0])
+      .gte('date', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
       .order('date', { ascending: false }),
     supabase.from('mint_requests')
       .select('status, calculated_amount_atomic')
@@ -364,7 +296,7 @@ export async function fetchPillarSignals(userId: string) {
     (Date.now() - new Date(profile.created_at).getTime()) / (1000 * 60 * 60 * 24)
   );
 
-  // Aggregate features for epoch
+  // Aggregate features
   const totalPosts = features.reduce((s, f) => s + (f.count_posts || 0), 0);
   const totalComments = features.reduce((s, f) => s + (f.count_comments || 0), 0);
   const totalVideos = features.reduce((s, f) => s + (f.count_videos || 0), 0);
@@ -378,62 +310,57 @@ export async function fetchPillarSignals(userId: string) {
     ? features.reduce((s, f) => s + (f.anti_farm_risk || 0), 0) / features.length
     : 0;
 
-  const identity: IdentitySignals = {
+  const serving: ServingSignals = {
     hasDisplayName: !!profile.display_name,
     hasAvatar: !!profile.avatar_url,
-    hasVerifiedEmail: !!profile.display_name, // Email verified via auth (proxy: has display name)
+    hasBio: !!(profile as any).bio,
+    hasVerifiedEmail: !!profile.display_name,
     hasWallet: !!profile.wallet_address,
-    hasWeb3Profile: !!profile.wallet_address,
     accountAgeDays,
     consistencyDays: profile.consistency_days || maxStreak,
-    hasBio: !!(profile as any).bio,
+    helpCount: totalHelp,
+    donationCount: donationRes.data?.length || 0,
   };
 
-  const activity: ActivitySignals = {
-    lsMathRawScore: profile.light_score || 0,
+  const truth: TruthSignals = {
+    antiFarmRisk: avgRisk,
+    isBlacklisted: profile.banned || false,
+    normalPattern: avgRisk < 0.2,
     postCount: totalPosts,
     commentCount: totalComments,
-    videoCount: totalVideos,
-    likesGiven: totalLikes,
-    shareCount: totalShares,
-    helpCount: totalHelp,
+    contentQuality: 1 - avgRisk,
+    reportCount: 0,
+  };
+
+  const love: LoveSignals = {
     checkinCount: checkins,
     streakDays: maxStreak,
-    sequenceBonus: totalSequences,
+    positiveInteractions: totalComments + totalHelp,
+    likesGiven: totalLikes,
+    endorsements: 0,
   };
 
   const mintedCount = mintRes.data?.length || 0;
   const claimedCount = claimRes.data?.length || 0;
 
-  const onchain: OnChainSignals = {
-    walletAgeDays: profile.wallet_address ? accountAgeDays : 0,
-    transactionCount: mintedCount + claimedCount + (donationRes.data?.length || 0),
-    hasContractInteraction: mintedCount > 0,
+  const value: ValueSignals = {
+    accountAgeMonths: Math.floor(accountAgeDays / 30),
+    videoCount: totalVideos,
+    bountyContributions: bountyRes.data?.length || 0,
     totalMinted: mintedCount,
     hasClaimed: claimedCount > 0,
-    distinctContracts: mintedCount > 0 ? 1 : 0, // FUN contract
-  };
-
-  const transparency: TransparencySignals = {
-    antiFarmRisk: avgRisk,
-    isBlacklisted: profile.banned || false,
-    walletChanges30d: (profile as any).wallet_change_count_30d || 0,
-    isInCluster: false, // Would need IP cluster check
-    normalPattern: avgRisk < 0.2,
-    walletRiskStatus: (profile as any).wallet_risk_status || 'NORMAL',
-  };
-
-  const alignment: AlignmentSignals = {
-    holdsCamly: false, // Would need on-chain check
-    camlyBalance: 0,
-    donationCount: donationRes.data?.length || 0,
-    participatesGovernance: false,
-    platformsUsed: 1, // FUN.PLAY
-    accountAgeMonths: Math.floor(accountAgeDays / 30),
-    hasBountyContributions: (bountyRes.data?.length || 0) > 0,
     pplpAccepted: !!(profile as any).pplp_accepted_at,
-    funBalance: 0, // Would need on-chain check
+    funBalance: 0,
   };
 
-  return { identity, activity, onchain, transparency, alignment, riskScore: avgRisk };
+  const unity: UnitySignals = {
+    shareCount: totalShares,
+    collaborations: 0,
+    platformsUsed: 1,
+    participatesGovernance: false,
+    communityEndorsements: 0,
+    sequenceBonus: totalSequences,
+  };
+
+  return { serving, truth, love, value, unity, riskScore: avgRisk };
 }

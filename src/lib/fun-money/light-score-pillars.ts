@@ -1,105 +1,95 @@
 /**
- * Light Score 5-Pillar Extension Config
+ * Light Score 5-Pillar Config — CTO Diagram v13Apr2026
  * 
- * Extends LS-Math v1.0 with 5 sub-scores from the Whitepaper:
- * 1. Identity Score — Xác thực con người thật
- * 2. Activity Score — Đóng góp nội dung & hoạt động (maps to existing Action Base + Content)
- * 3. On-chain History Score — Lịch sử blockchain
- * 4. Wallet Transparency Score — Minh bạch ví
- * 5. Ecosystem Alignment Score — Đồng hành hệ sinh thái
+ * 5 PILLARS (IMMUTABLE):
+ * 1. Serving Life — Phụng sự sự sống
+ * 2. Transparent Truth — Chân thật minh bạch
+ * 3. Healing & Love — Chữa lành & Yêu thương
+ * 4. Long-term Value — Giá trị dài hạn
+ * 5. Unity over Separation — Đoàn kết vượt chia rẽ
  * 
- * Each pillar is scored 0-100, then weighted to produce the final Light Score.
- * This EXTENDS (not replaces) LS-Math v1.0 — the core scoring formula remains.
+ * FORMULA: FinalScore = (S × T × L × V × U) / 10⁴
+ * Scale: 0–10 each pillar
+ * Zero-kill rule: Any pillar = 0 → Score = 0
  */
 
-// ===== PILLAR WEIGHTS =====
+// ===== PILLAR NAMES (CTO Diagram fixed) =====
 
-export const PILLAR_WEIGHTS_V1 = {
-  identity: 0.20,
-  activity: 0.20,
-  onchain: 0.20,
-  transparency: 0.20,
-  alignment: 0.20,
-} as const;
+export type PillarName = 'serving' | 'truth' | 'love' | 'value' | 'unity';
 
-/** Phase 2 weights (more emphasis on transparency) */
-export const PILLAR_WEIGHTS_V2 = {
-  identity: 0.15,
-  activity: 0.20,
-  onchain: 0.20,
-  transparency: 0.25,
-  alignment: 0.20,
-} as const;
-
-export type PillarName = keyof typeof PILLAR_WEIGHTS_V1;
+export const PILLAR_LIST: PillarName[] = ['serving', 'truth', 'love', 'value', 'unity'];
 
 // ===== PILLAR DEFINITIONS =====
 
 export interface PillarConfig {
   id: PillarName;
   label: string;
+  labelVi: string;
   emoji: string;
   description: string;
   maxScore: number;
-  color: string; // HSL for radar chart
+  color: string;
 }
 
 export const PILLAR_CONFIGS: Record<PillarName, PillarConfig> = {
-  identity: {
-    id: 'identity',
-    label: 'Identity',
-    emoji: '🆔',
-    description: 'Xác thực con người thật — hồ sơ, email, Web3 Profile, tài khoản lâu dài',
-    maxScore: 100,
+  serving: {
+    id: 'serving',
+    label: 'Serving Life',
+    labelVi: 'Phụng sự',
+    emoji: '🙏',
+    description: 'Phụng sự sự sống — hành động vì lợi ích cộng đồng, giúp đỡ người khác',
+    maxScore: 10,
     color: 'hsl(210, 80%, 60%)',
   },
-  activity: {
-    id: 'activity',
-    label: 'Activity',
-    emoji: '⚡',
-    description: 'Đóng góp nội dung & hoạt động — bài viết, tương tác, tham gia cộng đồng',
-    maxScore: 100,
+  truth: {
+    id: 'truth',
+    label: 'Transparent Truth',
+    labelVi: 'Chân thật',
+    emoji: '💎',
+    description: 'Chân thật minh bạch — nội dung thật, không spam, không gian lận',
+    maxScore: 10,
     color: 'hsl(150, 70%, 50%)',
   },
-  onchain: {
-    id: 'onchain',
-    label: 'On-chain',
-    emoji: '⛓️',
-    description: 'Lịch sử blockchain — giao dịch, tuổi ví, tương tác smart contract',
-    maxScore: 100,
-    color: 'hsl(280, 70%, 60%)',
+  love: {
+    id: 'love',
+    label: 'Healing & Love',
+    labelVi: 'Chữa lành',
+    emoji: '💗',
+    description: 'Chữa lành & Yêu thương — lan tỏa năng lượng tích cực, hỗ trợ chữa lành',
+    maxScore: 10,
+    color: 'hsl(340, 70%, 60%)',
   },
-  transparency: {
-    id: 'transparency',
-    label: 'Transparency',
-    emoji: '🔍',
-    description: 'Minh bạch ví — pattern giao dịch tự nhiên, không spam/bot/clone',
-    maxScore: 100,
+  value: {
+    id: 'value',
+    label: 'Long-term Value',
+    labelVi: 'Giá trị',
+    emoji: '🌟',
+    description: 'Giá trị dài hạn — đóng góp bền vững, xây dựng hệ sinh thái',
+    maxScore: 10,
     color: 'hsl(40, 90%, 55%)',
   },
-  alignment: {
-    id: 'alignment',
-    label: 'Alignment',
+  unity: {
+    id: 'unity',
+    label: 'Unity',
+    labelVi: 'Đoàn kết',
     emoji: '🤝',
-    description: 'Đồng hành hệ sinh thái — giữ Camly, tham gia platform, đóng góp cộng đồng',
-    maxScore: 100,
-    color: 'hsl(0, 70%, 60%)',
+    description: 'Đoàn kết vượt chia rẽ — hợp tác, cầu nối, giải quyết xung đột',
+    maxScore: 10,
+    color: 'hsl(280, 70%, 60%)',
   },
 };
 
-export const PILLAR_LIST: PillarName[] = ['identity', 'activity', 'onchain', 'transparency', 'alignment'];
-
-// ===== LEVEL DEFINITIONS (Whitepaper v1) =====
+// ===== LEVEL DEFINITIONS =====
 
 export interface LightLevel {
   id: string;
   label: string;
   emoji: string;
   minScore: number;
-  maxScore: number | null; // null = no upper bound
+  maxScore: number | null;
   description: string;
-  color: string; // gradient class
-  nftTier: number; // 1-5 for NFT
+  color: string;
+  nftTier: number;
 }
 
 export const LIGHT_LEVELS: LightLevel[] = [
@@ -172,22 +162,80 @@ export const RISK_PENALTY_TIERS = {
   heavy: { min: 35, max: 80, label: 'Mạnh' },
 } as const;
 
-// ===== TIME DECAY CONFIG =====
-
-export const TIME_DECAY_CONFIG = {
-  inactivity_30d: { type: 'activity', reduction: 0.10, label: 'Giảm nhẹ Activity Score' },
-  inactivity_60d: { type: 'alignment', reduction: 0.20, label: 'Giảm thêm Alignment Score' },
-  inactivity_90d: { type: 'priority', reduction: 0.30, label: 'Giảm cấp độ ưu tiên thưởng' },
-  inactivity_180d: { type: 'dormant', reduction: 0.50, label: 'Chuyển sang trạng thái ngủ' },
-} as const;
-
 // ===== STREAK BONUS CONFIG =====
 
 export const STREAK_BONUS = {
-  7: 0.02,   // +2%
-  30: 0.05,  // +5%
-  90: 0.10,  // +10%
+  7: 0.02,
+  30: 0.05,
+  90: 0.10,
 } as const;
+
+// ===== ACTION GROUPS (CTO Diagram — 5 Fixed) =====
+
+export type ActionGroup = 'inner_work' | 'channeling' | 'giving' | 'social_impact' | 'service';
+
+export interface ActionGroupConfig {
+  id: ActionGroup;
+  label: string;
+  labelVi: string;
+  emoji: string;
+  description: string;
+  /** Maps old action types to this group */
+  actionTypes: string[];
+}
+
+export const ACTION_GROUPS: Record<ActionGroup, ActionGroupConfig> = {
+  inner_work: {
+    id: 'inner_work',
+    label: 'Inner Work',
+    labelVi: 'Tu tập nội tâm',
+    emoji: '🧘',
+    description: 'Thiền định, chiêm nghiệm, phát triển bản thân',
+    actionTypes: ['WATCH_VIDEO', 'LEARN_COMPLETE'],
+  },
+  channeling: {
+    id: 'channeling',
+    label: 'Channeling',
+    labelVi: 'Truyền tải',
+    emoji: '📡',
+    description: 'Sáng tạo nội dung, học tập, chia sẻ kiến thức',
+    actionTypes: ['CONTENT_CREATE', 'UPLOAD_VIDEO', 'CREATE_POST', 'PROJECT_SUBMIT', 'MODEL_IMPROVEMENT'],
+  },
+  giving: {
+    id: 'giving',
+    label: 'Giving',
+    labelVi: 'Cho đi',
+    emoji: '🎁',
+    description: 'Quyên góp, trao thưởng, chia sẻ tài nguyên',
+    actionTypes: ['DONATE', 'VOLUNTEER', 'CAMPAIGN_DELIVERY_PROOF'],
+  },
+  social_impact: {
+    id: 'social_impact',
+    label: 'Social Impact',
+    labelVi: 'Tác động xã hội',
+    emoji: '🌍',
+    description: 'Giúp đỡ cộng đồng, cố vấn, hướng dẫn',
+    actionTypes: ['MENTOR_HELP', 'COMMUNITY_BUILD', 'COMMUNITY_ACTION', 'SOCIAL_IMPACT', 'TREE_PLANT', 'CLEANUP_EVENT'],
+  },
+  service: {
+    id: 'service',
+    label: 'Service',
+    labelVi: 'Phụng sự nền tảng',
+    emoji: '⚙️',
+    description: 'Đóng góp nền tảng, quản trị, kiểm duyệt',
+    actionTypes: ['CONTENT_REVIEW', 'PEER_REVIEW', 'FRAUD_REPORT_VALID', 'MODERATION_HELP', 'AI_REVIEW_HELPFUL', 'IMPACT_REPORT', 'SUSTAINABILITY_REPORT'],
+  },
+};
+
+/** Map an action type to its ActionGroup */
+export function getActionGroup(actionType: string): ActionGroup {
+  for (const [groupId, group] of Object.entries(ACTION_GROUPS)) {
+    if (group.actionTypes.includes(actionType)) {
+      return groupId as ActionGroup;
+    }
+  }
+  return 'service'; // Default fallback
+}
 
 // ===== BADGE DEFINITIONS (Phase 2) =====
 
@@ -200,9 +248,9 @@ export interface BadgeDefinition {
 }
 
 export const REPUTATION_BADGES: BadgeDefinition[] = [
-  { id: 'community_builder', label: 'Community Builder', emoji: '🏗️', description: 'Đóng góp xây dựng cộng đồng', condition: 'Activity Score >= 70 & streak >= 30' },
-  { id: 'transparent_wallet', label: 'Transparent Wallet', emoji: '💎', description: 'Ví minh bạch, không gian lận', condition: 'Transparency Score >= 80' },
-  { id: 'long_term_holder', label: 'Long-term Holder', emoji: '⏳', description: 'Giữ token dài hạn', condition: 'Alignment Score >= 70 & wallet age >= 6 months' },
-  { id: 'pure_contributor', label: 'Pure Contributor', emoji: '🌟', description: 'Đóng góp thuần túy, không spam', condition: 'All pillars >= 60 & risk < 0.1' },
-  { id: 'early_supporter', label: 'Early Supporter', emoji: '🚀', description: 'Gia nhập sớm và đồng hành', condition: 'Account age >= 1 year & Alignment >= 60' },
+  { id: 'community_builder', label: 'Community Builder', emoji: '🏗️', description: 'Đóng góp xây dựng cộng đồng', condition: 'Serving >= 7 & streak >= 30' },
+  { id: 'transparent_wallet', label: 'Transparent Truth', emoji: '💎', description: 'Luôn chân thật, minh bạch', condition: 'Truth >= 8' },
+  { id: 'long_term_holder', label: 'Long-term Holder', emoji: '⏳', description: 'Giữ token dài hạn', condition: 'Value >= 7 & wallet age >= 6 months' },
+  { id: 'pure_contributor', label: 'Pure Contributor', emoji: '🌟', description: 'Đóng góp thuần túy, không spam', condition: 'All pillars >= 6 & risk < 0.1' },
+  { id: 'early_supporter', label: 'Early Supporter', emoji: '🚀', description: 'Gia nhập sớm và đồng hành', condition: 'Account age >= 1 year & Unity >= 6' },
 ];
