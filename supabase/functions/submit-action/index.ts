@@ -68,7 +68,7 @@ serve(async (req) => {
         source_platform: source_platform || null,
         source_url: source_url || null,
         raw_metadata: metadata || {},
-        status: "submitted",
+        status: "proof_pending",
       })
       .select("id, status, submitted_at")
       .single();

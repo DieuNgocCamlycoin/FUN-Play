@@ -2739,6 +2739,8 @@ export type Database = {
           tiktok_url: string | null
           total_camly_rewards: number
           total_fun_minted: number | null
+          total_light_score: number
+          trust_level: number
           twitter_url: string | null
           updated_at: string
           username: string
@@ -2795,6 +2797,8 @@ export type Database = {
           tiktok_url?: string | null
           total_camly_rewards?: number
           total_fun_minted?: number | null
+          total_light_score?: number
+          trust_level?: number
           twitter_url?: string | null
           updated_at?: string
           username: string
@@ -2851,6 +2855,8 @@ export type Database = {
           tiktok_url?: string | null
           total_camly_rewards?: number
           total_fun_minted?: number | null
+          total_light_score?: number
+          trust_level?: number
           twitter_url?: string | null
           updated_at?: string
           username?: string
