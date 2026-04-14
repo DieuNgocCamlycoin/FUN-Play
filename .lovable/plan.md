@@ -1,105 +1,66 @@
 
 
-# FUN Ecosystem — Full Architecture Build Plan (CTO Dev-Ready Spec)
+# PRD Alignment — Zoom / Love House Attendance System (PRD Section 9)
 
-## Current State
+## Analysis
 
-The previous implementation round already updated:
-- **Pillar names** → Serving, Truth, Love, Value, Unity (0-10 scale) in `light-score-pillars.ts`
-- **Multiplicative formula** → `(S×T×L×V×U)/10⁴` with zero-kill rule in `pplp-engine.ts`
-- **Proof enforcement** → Required in `MintRequestForm.tsx`
-- **Action Groups** → 5 fixed groups mapped in `light-score-pillars.ts`
+I reviewed the uploaded PRD (v1.0) against the current codebase. The core PPLP pipeline (action → proof → validation → score → mint) is **already implemented** from the previous build rounds, including:
+- 9 core tables (action_types, user_actions, proofs, pplp_validations, etc.)
+- 4 edge functions (submit-action, attach-proof, validate-action, mint-from-action)
+- Multiplicative formula with zero-kill rule
+- 99/1 mint split
+- Anti-fake rules (velocity limits, duplicate proof detection)
 
-**What's missing** (from the CTO spec):
-1. **Database schema** — 9 new tables (`action_types`, `user_actions`, `proofs`, `pplp_validations`, `community_reviews`, `mint_records`, `balance_ledger`, `immutable_rules`) do not exist
-2. **Dead code** — `PILLAR_WEIGHTS` (additive) still in `pplp-engine.ts`, tests still use 0-100 scale
-3. **Validation Engine** — No AI + Community + System Trust 3-layer validation
-4. **Mint Engine** — No `BaseMintRate × FinalLightScore` with `ImpactWeight × TrustMultiplier × ConsistencyMultiplier`
-5. **API endpoints** — No edge functions for submit action, attach proof, validate, mint
-6. **Community review system** — No endorse/flag UI or scoring
+**The one major gap** is **PRD Section 9: Zoom / Love House Attendance** — the Event → Group → Attendance model that handles group meditation verification. The PRD explicitly states: "A livestream link proves that the event happened. It does not prove that each individual truly participated."
 
-## Implementation Plan
+## What needs to be built
 
-### Step 1: Create Database Schema (9 tables + seed data)
+### Step 1: Database — 3 new tables
 
-One migration creating all tables with proper RLS:
-- `action_types` — 6 seeded rows (INNER_WORK, CHANNELING, GIVING, SOCIAL_IMPACT, SERVICE, LEARNING)
-- `user_actions` — status flow: submitted → proof_pending → under_review → validated → minted/rejected/flagged
-- `proofs` — linked to user_actions, proof_type enum
-- `pplp_validations` — 5 pillar scores + ai/community/trust scores + final_light_score
-- `community_reviews` — endorse/flag per reviewer per action
-- `mint_records` — 99/1 split tracked, release mode, lock amounts
-- `balance_ledger` — full audit trail of all FUN movements
-- `immutable_rules` — seeded with PPLP_DEFINITION, MINT_SPLIT, NO_PROOF_NO_SCORE, NO_SCORE_NO_MINT
+Create `events`, `groups`, and `attendance` tables as defined in PRD Section 9.4:
 
-RLS policies: users own their actions/proofs/reviews; admins manage all; public can view validated actions.
+- **`events`**: event_id, host_user_id, title, platform_links (JSONB), start_at, end_at, recording_hash, status
+- **`groups`**: group_id, event_id, leader_user_id, love_house_id, location, expected_count, status
+- **`attendance`**: attendance_id, group_id, user_id, check_in_at, check_out_at, duration_minutes, confirmation_status, participation_factor
 
-### Step 2: Clean Up Engine Code
+RLS: users see own attendance, group leaders manage their groups, admins see all.
 
-- Remove dead `PILLAR_WEIGHTS` from `pplp-engine.ts`
-- Add `ImpactWeight`, `TrustMultiplier`, `ConsistencyMultiplier` soft multipliers to the Light Score formula:
-  ```
-  FinalLightScore = RawLightScore × ImpactWeight × TrustMultiplier × ConsistencyMultiplier
-  ```
-- Add safety rules: `if T < 3 → manual review`, `if S = 0 → reject`, `if L = 0 → reject`
-- Update `MintAmount = BaseMintRate × FinalLightScore` with 99/1 split
-- Fix tests to use 0-10 scale and multiplicative formula
+### Step 2: Edge Functions — 3 new endpoints
 
-### Step 3: Create Edge Functions (Action Pipeline API)
+1. **`create-event`** — POST: Host creates a Zoom/Love House session with platform links, timing
+2. **`create-group`** — POST: Register a Love House subgroup within an event
+3. **`submit-attendance`** — POST: User checks in/out, calculates participation_factor based on PRD Section 9.5 signals (duration threshold, leader confirmation, reflection submission)
 
-Four edge functions matching the API spec:
+### Step 3: Participation Factor Logic
 
-1. **`submit-action`** — `POST /api/actions`: Create user_action + auto-set status
-2. **`attach-proof`** — `POST /api/actions/{id}/proofs`: Attach proof, update status to `under_review`
-3. **`validate-action`** — `POST /api/actions/{id}/validate`: Run AI scoring on 5 pillars, store `pplp_validations`, apply safety rules
-4. **`mint-from-action`** — `POST /api/actions/{id}/mint`: Calculate mint amount, create mint_records with 99/1 split, update balance_ledger
+Implement the scoring signals from PRD Section 9.5:
+- Check-in + check-out = strong positive
+- Stayed for threshold duration = strong positive
+- Group leader confirmed = positive
+- Post-session reflection = positive
+- Missing proof or conflict = negative / manual review
 
-### Step 4: Build Validation Engine (3-Layer)
+The participation_factor (0.0–1.0) feeds into the Light Score as a modifier for attendance-based actions.
 
-In `validate-action` edge function:
-- **AI Analysis** (60% weight): Use Lovable AI to classify action, detect spam, score 5 pillars
-- **Community Feedback** (20% weight): Aggregate from `community_reviews` table
-- **System Trust** (20% weight): Account age, consistency, report ratio, anti-farm risk
+### Step 4: Link attendance to PPLP pipeline
 
-Combined formula:
-```
-pillar_final = 0.6 × ai_score + 0.2 × community_score + 0.2 × system_trust
-```
+When an attendance record is confirmed, auto-create a `user_action` (type: INNER_WORK or CHANNELING) with the attendance as proof, then route through the existing validation → score → mint pipeline.
 
-### Step 5: Update UI — Action Submission Flow
+## Files affected
 
-Replace current `MintRequestForm` with a 4-step flow matching the CTO UX spec:
-1. **Choose action** — Select from 5 action groups with Vietnamese labels
-2. **Upload proof** — Required link/video/image
-3. **System validates** — Show PPLP 5-pillar scoring in real-time
-4. **Receive results** — Light Score + FUN Money amount with 99/1 breakdown
+**New:**
+- 1 migration (3 tables + RLS + indexes)
+- `supabase/functions/create-event/index.ts`
+- `supabase/functions/create-group/index.ts`
+- `supabase/functions/submit-attendance/index.ts`
 
-### Step 6: Anti-Fake Rules
+**Modified:**
+- `src/lib/fun-money/pplp-engine.ts` — add participation_factor to scoring input
+- `supabase/functions/validate-action/index.ts` — check for attendance proof type
 
-- Duplicate proof detection (same URL check in `proofs` table)
-- Velocity limit (max 10 scored actions/day, max 3 high-impact/day)
-- Trust decay for spam users
-- Community conflict flag → manual review
-
-## Files Affected
-
-**New files:**
-- 1 migration (9 tables + seed data)
-- `supabase/functions/submit-action/index.ts`
-- `supabase/functions/attach-proof/index.ts`
-- `supabase/functions/validate-action/index.ts`
-- `supabase/functions/mint-from-action/index.ts`
-
-**Modified files:**
-- `src/lib/fun-money/pplp-engine.ts` — remove PILLAR_WEIGHTS, add soft multipliers
-- `src/lib/fun-money/__tests__/pplp-engine.test.ts` — fix to 0-10 scale
-- `src/components/FunMoney/MintRequestForm.tsx` — 4-step action submission flow
-- `src/components/FunMoney/LightScoreDashboard.tsx` — show pillar breakdown from validations
-
-## What Stays the Same
-- LS-Math v1.0 database functions (authoritative source)
+## What stays the same
+- All existing tables and edge functions
+- Multiplicative formula and zero-kill rule
+- 99/1 mint split
 - Multisig 3/3 signing flow
-- Auto-route-multisig trigger
-- Existing `mint_requests` table (legacy, still used for current flow)
-- Constitution v2.0
 
