@@ -50,7 +50,7 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { group_id, action, reflection_text, leader_confirm_user_id } = body;
+    const { group_id, action, reflection_text, leader_confirm_user_id, attendance_mode, optional_signals } = body;
 
     if (!group_id || !action) {
       return new Response(JSON.stringify({ error: "group_id and action (check_in|check_out|confirm|reflect) required" }), {

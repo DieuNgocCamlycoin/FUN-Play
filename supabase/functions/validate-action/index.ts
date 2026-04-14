@@ -278,6 +278,23 @@ serve(async (req) => {
         .eq("id", action.user_id);
     }
 
+    // Get trust/consistency multipliers for response
+    const { data: respProfile } = await supabaseAdmin
+      .from("profiles")
+      .select("trust_level, consistency_days")
+      .eq("id", action.user_id)
+      .single();
+
+    const trustMultiplier = respProfile?.trust_level ?? 1.0;
+    const consistencyDays = respProfile?.consistency_days || 0;
+    const consistencyMultiplier = Math.round((1 + 0.6 * (1 - Math.exp(-consistencyDays / 30))) * 100) / 100;
+
+    const IMPACT_WEIGHTS: Record<string, number> = {
+      inner_work: 0.80, channeling: 1.00, giving: 1.10,
+      social_impact: 1.10, service: 1.30, learning: 0.90,
+    };
+    const impactWeight = IMPACT_WEIGHTS[pillarGroup || "channeling"] ?? 1.0;
+
     return new Response(JSON.stringify({
       action_id,
       validation_id: validation.id,
@@ -292,6 +309,13 @@ serve(async (req) => {
       raw_light_score: rawScore,
       final_light_score: finalScore,
       participation_factor: participationFactor,
+      impact_weight: impactWeight,
+      trust_multiplier: trustMultiplier,
+      consistency_multiplier: consistencyMultiplier,
+      ai_score: round2(aiScores.confidence),
+      community_score: round2(communityScores.avgScore),
+      trust_signal_score: round2(systemScores.trustLevel),
+      explanation: { flags, aiScores, communityScores: communityScores.summary, systemTrust: systemScores.summary, participationFactor },
       flags,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
