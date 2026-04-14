@@ -170,8 +170,9 @@ serve(async (req) => {
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
 
-    // === LEADER CONFIRM ===
+
     if (action === "confirm") {
       if (user.id !== group.leader_user_id) {
         return new Response(JSON.stringify({ error: "Only group leader can confirm attendance" }), {
