@@ -3,6 +3,8 @@
  * AI (60%) + Community (20%) + System Trust (20%)
  * 
  * CTO Diagram v13Apr2026: Truth Validation Engine
+ * + Anti-fake checks: isDuplicateProof, exceedsVelocityLimits
+ * + Trust decay/increase after validation
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.84.0";
@@ -16,6 +18,11 @@ const corsHeaders = {
 const AI_WEIGHT = 0.6;
 const COMMUNITY_WEIGHT = 0.2;
 const SYSTEM_TRUST_WEIGHT = 0.2;
+
+// Velocity limits
+const DAILY_ACTION_LIMIT = 10;
+const DAILY_HIGH_IMPACT_LIMIT = 3;
+const HIGH_IMPACT_PILLARS = ["service", "giving", "social_impact"];
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -64,6 +71,114 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "🚫 No Proof → No Score → No Mint" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // === ANTI-FAKE CHECK 1: isDuplicateProof (cross-action) ===
+    const flags: string[] = [];
+    for (const proof of proofs) {
+      if (proof.proof_url) {
+        const { count } = await supabaseAdmin
+          .from("proofs")
+          .select("id", { count: "exact", head: true })
+          .eq("proof_url", proof.proof_url)
+          .neq("action_id", action_id);
+        if ((count ?? 0) > 0) {
+          flags.push("DUPLICATE_PROOF_URL");
+          break;
+        }
+      }
+      if (proof.file_hash) {
+        const { count } = await supabaseAdmin
+          .from("proofs")
+          .select("id", { count: "exact", head: true })
+          .eq("file_hash", proof.file_hash)
+          .neq("action_id", action_id);
+        if ((count ?? 0) > 0) {
+          flags.push("DUPLICATE_PROOF_HASH");
+          break;
+        }
+      }
+    }
+
+    // === ANTI-FAKE CHECK 2: exceedsVelocityLimits ===
+    const today = new Date().toISOString().split("T")[0];
+    const { count: dailyCount } = await supabaseAdmin
+      .from("pplp_validations")
+      .select("id", { count: "exact", head: true })
+      .eq("action_id", action_id); // placeholder join — we check via user_actions
+
+    // Count validated actions today for this user
+    const { count: userDailyValidated } = await supabaseAdmin
+      .from("user_actions")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", action.user_id)
+      .in("status", ["validated", "minted"])
+      .gte("submitted_at", `${today}T00:00:00Z`);
+
+    if ((userDailyValidated ?? 0) >= DAILY_ACTION_LIMIT) {
+      flags.push("VELOCITY_DAILY_LIMIT");
+    }
+
+    // High-impact action limit (3/day)
+    const pillarGroup = action.action_types?.pillar_group;
+    if (HIGH_IMPACT_PILLARS.includes(pillarGroup)) {
+      const { count: highImpactCount } = await supabaseAdmin
+        .from("user_actions")
+        .select("id, action_types!inner(pillar_group)", { count: "exact", head: true })
+        .eq("user_id", action.user_id)
+        .in("status", ["validated", "minted"])
+        .in("action_types.pillar_group", HIGH_IMPACT_PILLARS)
+        .gte("submitted_at", `${today}T00:00:00Z`);
+
+      if ((highImpactCount ?? 0) >= DAILY_HIGH_IMPACT_LIMIT) {
+        flags.push("VELOCITY_HIGH_IMPACT_LIMIT");
+      }
+    }
+
+    // If velocity or duplicate flags → manual review with trust decay
+    const hasAntifraudFlag = flags.some(f => 
+      f === "DUPLICATE_PROOF_URL" || f === "DUPLICATE_PROOF_HASH" || 
+      f === "VELOCITY_DAILY_LIMIT" || f === "VELOCITY_HIGH_IMPACT_LIMIT"
+    );
+
+    if (hasAntifraudFlag) {
+      // Trust decay: -0.05, min 1.0
+      await supabaseAdmin.rpc("decrement_trust_level", { p_user_id: action.user_id, p_amount: 0.05 }).catch(() => {
+        // Fallback: direct update
+        supabaseAdmin
+          .from("profiles")
+          .update({ trust_level: Math.max(1.0, 1.0) }) // Will be handled by trigger
+          .eq("id", action.user_id);
+      });
+
+      // Store validation as flagged
+      const { data: validation } = await supabaseAdmin
+        .from("pplp_validations")
+        .insert({
+          action_id,
+          serving_life: 0, transparent_truth: 0, healing_love: 0, long_term_value: 0, unity_over_separation: 0,
+          ai_score: 0, community_score: 0, trust_signal_score: 0,
+          final_light_score: 0,
+          validation_status: "manual_review",
+          explanation: { flags, reason: "Anti-fraud check flagged this action for manual review" },
+        })
+        .select("id")
+        .single();
+
+      await supabaseAdmin
+        .from("user_actions")
+        .update({ status: "under_review" })
+        .eq("id", action_id);
+
+      return new Response(JSON.stringify({
+        action_id,
+        validation_id: validation?.id,
+        validation_status: "manual_review",
+        flags,
+        message: "Action flagged for manual review due to anti-fraud checks",
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Check for attendance proof — apply participation_factor
     let participationFactor = 1.0;
     const attendanceProof = proofs.find((p: any) => p.proof_type === "system_log" && p.raw_metadata?.type === "attendance_verification");
@@ -95,11 +210,10 @@ serve(async (req) => {
     // === ZERO-KILL RULE ===
     const hasZero = serving_life === 0 || transparent_truth === 0 || healing_love === 0 || long_term_value === 0 || unity_over_separation === 0;
     const rawScore = hasZero ? 0 : (serving_life * transparent_truth * healing_love * long_term_value * unity_over_separation) / 10000;
-    const finalScore = Math.round(rawScore * 100) / 100;
+    const finalScore = Math.round(rawScore * participationFactor * 100) / 100;
 
     // === SAFETY RULES ===
     let validationStatus = "validated";
-    const flags: string[] = [];
 
     if (transparent_truth < 3) {
       validationStatus = "manual_review";
@@ -129,7 +243,7 @@ serve(async (req) => {
         trust_signal_score: round2(systemScores.trustLevel),
         final_light_score: finalScore,
         validation_status: validationStatus,
-        explanation: { flags, aiScores, communityScores: communityScores.summary, systemTrust: systemScores.summary },
+        explanation: { flags, aiScores, communityScores: communityScores.summary, systemTrust: systemScores.summary, participationFactor },
         validated_at: validationStatus !== "manual_review" ? new Date().toISOString() : null,
       })
       .select("id")
@@ -147,6 +261,23 @@ serve(async (req) => {
       .update({ status: actionStatus })
       .eq("id", action_id);
 
+    // === TRUST INCREASE for verified consistency ===
+    if (validationStatus === "validated") {
+      // trust += 0.01, max 1.25
+      const { data: profile } = await supabaseAdmin
+        .from("profiles")
+        .select("trust_level")
+        .eq("id", action.user_id)
+        .single();
+
+      const currentTrust = profile?.trust_level ?? 1.0;
+      const newTrust = Math.min(1.25, currentTrust + 0.01);
+      await supabaseAdmin
+        .from("profiles")
+        .update({ trust_level: Math.round(newTrust * 100) / 100 })
+        .eq("id", action.user_id);
+    }
+
     return new Response(JSON.stringify({
       action_id,
       validation_id: validation.id,
@@ -160,6 +291,7 @@ serve(async (req) => {
       },
       raw_light_score: rawScore,
       final_light_score: finalScore,
+      participation_factor: participationFactor,
       flags,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -178,7 +310,6 @@ async function runAIValidation(action: any, proofs: any[]): Promise<{ serving: n
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   
   if (!LOVABLE_API_KEY) {
-    // Fallback: heuristic scoring
     return heuristicScoring(action, proofs);
   }
 
@@ -301,7 +432,7 @@ function calculateCommunityScores(reviews: { endorse_score: number; flag_score: 
 async function calculateSystemTrust(supabase: any, userId: string) {
   const { data: profile } = await supabase
     .from("profiles")
-    .select("created_at, banned, consistency_days")
+    .select("created_at, banned, consistency_days, trust_level")
     .eq("id", userId)
     .single();
 
@@ -316,7 +447,8 @@ async function calculateSystemTrust(supabase: any, userId: string) {
   const ageDays = Math.floor((Date.now() - new Date(profile.created_at).getTime()) / 86400000);
   const ageScore = Math.min(10, 3 + ageDays / 30);
   const consistencyScore = Math.min(10, 3 + (profile.consistency_days || 0) / 10);
-  const trustLevel = Math.min(1.25, 1 + ageDays / 365 * 0.25);
+  // Use stored trust_level from profiles
+  const trustLevel = profile.trust_level ?? Math.min(1.25, 1 + ageDays / 365 * 0.25);
 
   const base = (ageScore + consistencyScore) / 2;
 
@@ -327,7 +459,7 @@ async function calculateSystemTrust(supabase: any, userId: string) {
     value: base,
     unity: base,
     trustLevel,
-    summary: `Age: ${ageDays}d, consistency: ${profile.consistency_days || 0}d`,
+    summary: `Age: ${ageDays}d, consistency: ${profile.consistency_days || 0}d, trust: ${trustLevel}`,
   };
 }
 

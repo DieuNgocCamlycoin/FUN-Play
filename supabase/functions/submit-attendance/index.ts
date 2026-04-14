@@ -2,7 +2,9 @@
  * submit-attendance — User check-in/out + participation_factor calculation
  * PRD Section 9.5
  * 
- * Auto-creates a user_action when confirmed, linking to PPLP pipeline.
+ * Pseudocode-aligned weights:
+ *   Check-in: 0.25, Check-out: 0.20, Host confirmed: 0.25,
+ *   Reflection: 0.15, Duration bonus: 0.10, Optional bonus: 0.05
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.84.0";
@@ -12,9 +14,17 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Minimum duration (minutes) to count as meaningful participation
+// Participation factor weights (from pseudocode spec)
+const PF_CHECKIN = 0.25;
+const PF_CHECKOUT = 0.20;
+const PF_HOST_CONFIRMED = 0.25;
+const PF_REFLECTION = 0.15;
+const PF_DURATION_BONUS = 0.10;  // >= 30 min
+const PF_OPTIONAL_BONUS = 0.05;  // >= 60 min or extra engagement
+
 const MIN_DURATION_THRESHOLD = 15;
 const GOOD_DURATION_THRESHOLD = 30;
+const EXCELLENT_DURATION_THRESHOLD = 60;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -83,16 +93,15 @@ serve(async (req) => {
           user_id: user.id,
           check_in_at: new Date().toISOString(),
           confirmation_status: "checked_in",
-          participation_factor: 0.0,
+          participation_factor: PF_CHECKIN, // 0.25 just for checking in
         })
-        .select("id, check_in_at, confirmation_status")
+        .select("id, check_in_at, confirmation_status, participation_factor")
         .single();
 
       if (error) throw error;
 
       // Update group actual_count
       await supabaseAdmin.rpc("increment_field", { table_name: "love_house_groups", row_id: group_id, field_name: "actual_count" }).catch(() => {
-        // Fallback: manual update
         supabaseAdmin.from("love_house_groups").update({ actual_count: (group as any).actual_count + 1 }).eq("id", group_id);
       });
 
@@ -120,8 +129,13 @@ serve(async (req) => {
       const checkInAt = new Date(attendance.check_in_at);
       const durationMinutes = Math.round((checkOutAt.getTime() - checkInAt.getTime()) / 60000);
 
-      // Calculate participation_factor based on PRD Section 9.5
-      const pf = calculateParticipationFactor(durationMinutes, attendance.leader_confirmed, attendance.reflection_submitted);
+      const pf = calculateParticipationFactor({
+        checkedIn: true,
+        checkedOut: true,
+        leaderConfirmed: attendance.leader_confirmed ?? false,
+        reflectionSubmitted: attendance.reflection_submitted ?? false,
+        durationMinutes,
+      });
 
       const { data: updated, error } = await supabaseAdmin
         .from("attendance")
@@ -175,7 +189,13 @@ serve(async (req) => {
         });
       }
 
-      const pf = calculateParticipationFactor(attendance.duration_minutes || 0, true, attendance.reflection_submitted);
+      const pf = calculateParticipationFactor({
+        checkedIn: true,
+        checkedOut: !!attendance.check_out_at,
+        leaderConfirmed: true,
+        reflectionSubmitted: attendance.reflection_submitted ?? false,
+        durationMinutes: attendance.duration_minutes || 0,
+      });
 
       const { data: updated, error } = await supabaseAdmin
         .from("attendance")
@@ -216,7 +236,13 @@ serve(async (req) => {
         });
       }
 
-      const pf = calculateParticipationFactor(attendance.duration_minutes || 0, attendance.leader_confirmed, true);
+      const pf = calculateParticipationFactor({
+        checkedIn: true,
+        checkedOut: !!attendance.check_out_at,
+        leaderConfirmed: attendance.leader_confirmed ?? false,
+        reflectionSubmitted: true,
+        durationMinutes: attendance.duration_minutes || 0,
+      });
 
       const { data: updated, error } = await supabaseAdmin
         .from("attendance")
@@ -249,20 +275,32 @@ serve(async (req) => {
 });
 
 /**
- * PRD Section 9.5 — Participation Factor (0.0–1.0)
- * Signals:
- * - duration >= MIN_DURATION_THRESHOLD: +0.3
- * - duration >= GOOD_DURATION_THRESHOLD: +0.2 (total 0.5 for duration)
- * - leader_confirmed: +0.3
- * - reflection_submitted: +0.2
+ * Pseudocode-aligned participation factor weights:
+ *   Check-in:       0.25
+ *   Check-out:      0.20
+ *   Host confirmed: 0.25
+ *   Reflection:     0.15
+ *   Duration bonus: 0.10  (>= 30 min)
+ *   Optional bonus: 0.05  (>= 60 min)
+ *   Total max:      1.00
  */
-function calculateParticipationFactor(durationMinutes: number, leaderConfirmed: boolean, reflectionSubmitted: boolean): number {
+interface PFInput {
+  checkedIn: boolean;
+  checkedOut: boolean;
+  leaderConfirmed: boolean;
+  reflectionSubmitted: boolean;
+  durationMinutes: number;
+}
+
+function calculateParticipationFactor(input: PFInput): number {
   let pf = 0;
 
-  if (durationMinutes >= MIN_DURATION_THRESHOLD) pf += 0.3;
-  if (durationMinutes >= GOOD_DURATION_THRESHOLD) pf += 0.2;
-  if (leaderConfirmed) pf += 0.3;
-  if (reflectionSubmitted) pf += 0.2;
+  if (input.checkedIn) pf += PF_CHECKIN;           // 0.25
+  if (input.checkedOut) pf += PF_CHECKOUT;          // 0.20
+  if (input.leaderConfirmed) pf += PF_HOST_CONFIRMED; // 0.25
+  if (input.reflectionSubmitted) pf += PF_REFLECTION; // 0.15
+  if (input.durationMinutes >= GOOD_DURATION_THRESHOLD) pf += PF_DURATION_BONUS; // 0.10
+  if (input.durationMinutes >= EXCELLENT_DURATION_THRESHOLD) pf += PF_OPTIONAL_BONUS; // 0.05
 
   return Math.min(1.0, Math.round(pf * 100) / 100);
 }
@@ -272,14 +310,12 @@ function calculateParticipationFactor(durationMinutes: number, leaderConfirmed: 
  */
 async function createLinkedAction(supabase: any, userId: string, group: any, attendanceId: string, durationMinutes: number, participationFactor: number) {
   try {
-    // Get event details
     const { data: event } = await supabase
       .from("events")
       .select("title, platform_links")
       .eq("id", group.event_id)
       .single();
 
-    // Find INNER_WORK or CHANNELING action type
     const { data: actionType } = await supabase
       .from("action_types")
       .select("id")
@@ -296,7 +332,7 @@ async function createLinkedAction(supabase: any, userId: string, group: any, att
         action_type_id: actionType.id,
         title: `Attended: ${event?.title || "Love House Session"}`,
         description: `Participated for ${durationMinutes} minutes. Participation factor: ${participationFactor}`,
-        status: "submitted",
+        status: "proof_pending",
         source_platform: "love_house",
         raw_metadata: {
           attendance_id: attendanceId,
@@ -320,7 +356,7 @@ async function createLinkedAction(supabase: any, userId: string, group: any, att
       .update({ linked_action_id: action.id })
       .eq("id", attendanceId);
 
-    // Auto-attach proof
+    // Auto-attach proof (system_log = qualifying for hasMinimumProof)
     await supabase
       .from("proofs")
       .insert({

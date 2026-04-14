@@ -55,7 +55,7 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Action not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Duplicate proof detection
+    // Duplicate proof detection (cross-action)
     if (proof_url) {
       const { count } = await supabase
         .from("proofs")
@@ -64,6 +64,18 @@ serve(async (req) => {
 
       if ((count ?? 0) > 0) {
         return new Response(JSON.stringify({ error: "⚠️ This proof URL has already been used" }), { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
+
+    // Duplicate file_hash detection
+    if (file_hash) {
+      const { count } = await supabase
+        .from("proofs")
+        .select("id", { count: "exact", head: true })
+        .eq("file_hash", file_hash);
+
+      if ((count ?? 0) > 0) {
+        return new Response(JSON.stringify({ error: "⚠️ This proof file has already been submitted (duplicate hash)" }), { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
     }
 
@@ -86,13 +98,37 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Failed to attach proof" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Update action status to under_review
-    await supabase
-      .from("user_actions")
-      .update({ status: "under_review" })
-      .eq("id", action_id);
+    // hasMinimumProof gate: count qualifying proofs for this action
+    const { count: proofCount } = await supabase
+      .from("proofs")
+      .select("id", { count: "exact", head: true })
+      .eq("action_id", action_id);
 
-    return new Response(JSON.stringify({ proof_id: proof.id, action_status: "under_review" }), {
+    const qualifyingProofTypes = ["link", "video", "image", "document", "onchain_tx"];
+    const { count: qualifyingCount } = await supabase
+      .from("proofs")
+      .select("id", { count: "exact", head: true })
+      .eq("action_id", action_id)
+      .in("proof_type", qualifyingProofTypes);
+
+    // Only move to under_review if at least 1 qualifying proof exists
+    const hasMinimumProof = (qualifyingCount ?? 0) >= 1;
+    const newStatus = hasMinimumProof ? "under_review" : "proof_pending";
+
+    // Only update if status should change
+    if (action.status === "proof_pending" || (action.status !== "under_review" && hasMinimumProof)) {
+      await supabase
+        .from("user_actions")
+        .update({ status: newStatus })
+        .eq("id", action_id);
+    }
+
+    return new Response(JSON.stringify({ 
+      proof_id: proof.id, 
+      action_status: newStatus,
+      total_proofs: proofCount ?? 0,
+      has_minimum_proof: hasMinimumProof,
+    }), {
       status: 201,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

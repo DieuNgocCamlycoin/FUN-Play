@@ -8,6 +8,8 @@
  * IMMUTABLE RULES:
  * - No Score → No Mint
  * - Mint split = 99/1
+ * 
+ * NEW: validationDigest + lifetime Light Score tracking
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.84.0";
@@ -27,6 +29,8 @@ const IMPACT_WEIGHTS: Record<string, number> = {
   service: 1.30,
   learning: 0.90,
 };
+
+const PPLP_DEFINITION = "PPLP-v1:S×T×L×V×U/10^4:zero-kill:99/1";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -100,15 +104,14 @@ serve(async (req) => {
     const pillarGroup = action.action_types?.pillar_group || "channeling";
     const impactWeight = IMPACT_WEIGHTS[pillarGroup] ?? 1.0;
 
-    // Get user trust level
+    // Get user trust level from profiles
     const { data: profile } = await supabaseAdmin
       .from("profiles")
-      .select("created_at, consistency_days")
+      .select("created_at, consistency_days, trust_level")
       .eq("id", user.id)
       .single();
 
-    const ageDays = profile ? Math.floor((Date.now() - new Date(profile.created_at).getTime()) / 86400000) : 0;
-    const trustMultiplier = Math.max(1.0, Math.min(1.25, 1 + ageDays / 365 * 0.25));
+    const trustMultiplier = profile?.trust_level ?? 1.0;
 
     // Consistency multiplier
     const consistencyDays = profile?.consistency_days || 0;
@@ -118,7 +121,29 @@ serve(async (req) => {
     const mintUser = Math.round(mintTotal * 0.99 * 100) / 100;
     const mintPlatform = Math.round(mintTotal * 0.01 * 100) / 100;
 
-    // Create mint record
+    // === Compute validationDigest for audit trail ===
+    const pplpScores = {
+      serving_life: validation.serving_life,
+      transparent_truth: validation.transparent_truth,
+      healing_love: validation.healing_love,
+      long_term_value: validation.long_term_value,
+      unity_over_separation: validation.unity_over_separation,
+    };
+    const digestPayload = JSON.stringify({
+      actionId: action_id,
+      userId: user.id,
+      finalLightScore: lightScore,
+      totalMint: mintTotal,
+      pplpScores,
+      definition: PPLP_DEFINITION,
+    });
+    // Use SubtleCrypto for SHA-256 hash
+    const encoder = new TextEncoder();
+    const hashBuffer = await crypto.subtle.digest("SHA-256", encoder.encode(digestPayload));
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const validationDigest = "0x" + hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+
+    // Create mint record with validationDigest
     const { data: mintRecord, error: mintErr } = await supabaseAdmin
       .from("mint_records")
       .insert({
@@ -149,7 +174,7 @@ serve(async (req) => {
         amount: mintUser,
         reference_table: "mint_records",
         reference_id: mintRecord.id,
-        note: `PPLP mint: ${lightScore} LS × ${impactWeight} impact → ${mintUser} FUN (99%)`,
+        note: `PPLP mint: ${lightScore} LS × ${impactWeight} impact → ${mintUser} FUN (99%) | digest: ${validationDigest.slice(0, 18)}...`,
       },
       {
         user_id: user.id,
@@ -167,6 +192,25 @@ serve(async (req) => {
       .update({ status: "minted" })
       .eq("id", action_id);
 
+    // === Lifetime Light Score tracking ===
+    await supabaseAdmin.rpc("increment_total_light_score", { p_user_id: user.id, p_score: lightScore }).catch(async () => {
+      // Fallback: direct update with COALESCE
+      const { data: currentProfile } = await supabaseAdmin
+        .from("profiles")
+        .select("total_light_score")
+        .eq("id", user.id)
+        .single();
+      const currentTotal = currentProfile?.total_light_score ?? 0;
+      await supabaseAdmin
+        .from("profiles")
+        .update({ total_light_score: currentTotal + lightScore })
+        .eq("id", user.id);
+    });
+
+    // TODO: On-chain mint via FUNMoneyMinter contract
+    // When backend wallet is configured, call:
+    // contract.mintValidatedAction(actionIdHash, userWallet, mintTotalWei, validationDigest)
+
     return new Response(JSON.stringify({
       action_id,
       mint_record_id: mintRecord.id,
@@ -174,6 +218,7 @@ serve(async (req) => {
       mint_amount_total: mintTotal,
       mint_amount_user: mintUser,
       mint_amount_platform: mintPlatform,
+      validation_digest: validationDigest,
       status: "minted",
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
