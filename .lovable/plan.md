@@ -1,66 +1,87 @@
 
 
-# PRD Alignment — Zoom / Love House Attendance System (PRD Section 9)
+# Thay thế FUNMoney v1.2.1 bằng FUNMoneyMinter Contract
 
-## Analysis
+## Tổng quan thay đổi
 
-I reviewed the uploaded PRD (v1.0) against the current codebase. The core PPLP pipeline (action → proof → validation → score → mint) is **already implemented** from the previous build rounds, including:
-- 9 core tables (action_types, user_actions, proofs, pplp_validations, etc.)
-- 4 edge functions (submit-action, attach-proof, validate-action, mint-from-action)
-- Multiplicative formula with zero-kill rule
-- 99/1 mint split
-- Anti-fake rules (velocity limits, duplicate proof detection)
+Contract mới **FUNMoneyMinter** đơn giản hóa đáng kể quy trình mint:
 
-**The one major gap** is **PRD Section 9: Zoom / Love House Attendance** — the Event → Group → Attendance model that handles group meditation verification. The PRD explicitly states: "A livestream link proves that the event happened. It does not prove that each individual truly participated."
+```text
+CŨ (v1.2.1):  lockWithPPLP (3 chữ ký EIP-712) → activate (user trả gas) → claim (user trả gas)
+MỚI (Minter):  mintValidatedAction (1 bước, authorizedMinter gọi) → token về thẳng user
+```
 
-## What needs to be built
+Không còn 3 bước, không còn EIP-712 multisig, không còn user trả gas. Backend gọi `mintValidatedAction` → 99% user / 1% platform tự động on-chain.
 
-### Step 1: Database — 3 new tables
+## Kế hoạch triển khai
 
-Create `events`, `groups`, and `attendance` tables as defined in PRD Section 9.4:
+### Step 1: Lưu contract mới & cập nhật ABI + config
 
-- **`events`**: event_id, host_user_id, title, platform_links (JSONB), start_at, end_at, recording_hash, status
-- **`groups`**: group_id, event_id, leader_user_id, love_house_id, location, expected_count, status
-- **`attendance`**: attendance_id, group_id, user_id, check_in_at, check_out_at, duration_minutes, confirmation_status, participation_factor
+- Copy `FUNMoneyMinter.sol` vào `src/lib/fun-money/contracts/`
+- Cập nhật `web3-config.ts`:
+  - Thay `FUN_MONEY_ABI` bằng ABI mới (`mintValidatedAction`, `mintValidatedActionLocked`, `releaseLockedGrant`, `previewSplit`, `getLockedGrants`)
+  - Xóa các hàm cũ: `lockWithPPLP`, `activate`, `claim`, `nonces`, `isAttester`, `alloc`, governance functions
+  - Cập nhật contract address (sẽ cần deploy mới)
+  - Xóa `activateTokens()`, `claimTokens()`, `getAllocation()` — không còn dùng
 
-RLS: users see own attendance, group leaders manage their groups, admins see all.
+### Step 2: Loại bỏ EIP-712 multisig signing
 
-### Step 2: Edge Functions — 3 new endpoints
+Xóa hoặc deprecate các file không còn cần:
+- `eip712-signer.ts` — không còn cần EIP-712 signatures
+- `pplp-multisig-config.ts` — không còn 3/3 multisig
+- `pplp-multisig-helpers.ts` — helper cho multisig
+- `pplp-multisig-types.ts` — types cho multisig
+- `pplp-nonce-refresh.ts` — nonce management cho EIP-712
 
-1. **`create-event`** — POST: Host creates a Zoom/Love House session with platform links, timing
-2. **`create-group`** — POST: Register a Love House subgroup within an event
-3. **`submit-attendance`** — POST: User checks in/out, calculates participation_factor based on PRD Section 9.5 signals (duration threshold, leader confirmation, reflection submission)
+### Step 3: Đơn giản hóa mint flow
 
-### Step 3: Participation Factor Logic
+- `contract-helpers.ts`: Thay `validateBeforeMint()` — chỉ cần kiểm tra `authorizedMinters[sender]` thay vì attester + nonce + EIP-712
+- `useMintSubmit.ts`: Gọi `mintValidatedAction(actionId, user, totalMint, validationDigest)` thay vì `lockWithPPLP` + 3 signatures
+- `useAttesterSigning.ts`: Không còn cần — authorizedMinter gọi trực tiếp, không cần 3 chữ ký riêng
 
-Implement the scoring signals from PRD Section 9.5:
-- Check-in + check-out = strong positive
-- Stayed for threshold duration = strong positive
-- Group leader confirmed = positive
-- Post-session reflection = positive
-- Missing proof or conflict = negative / manual review
+### Step 4: Cập nhật UI components
 
-The participation_factor (0.0–1.0) feeds into the Light Score as a modifier for attendance-based actions.
+- **`TokenLifecyclePanel.tsx`**: Không còn 3 trạng thái LOCKED/ACTIVATED/FLOWING. Thay bằng: MINTED (instant) hoặc LOCKED (time-release) → RELEASED
+- **`ClaimGuide.tsx`**: Cập nhật FAQ — user không còn cần tBNB cho activate/claim
+- **`MintableCard`**: Xóa cảnh báo tBNB, đơn giản hóa flow
+- **Admin pages** (`/gov-sign`): Chuyển từ multisig signing sang authorized minter flow — admin chỉ cần gọi `mintValidatedAction`
 
-### Step 4: Link attendance to PPLP pipeline
+### Step 5: Cập nhật edge functions
 
-When an attendance record is confirmed, auto-create a `user_action` (type: INNER_WORK or CHANNELING) with the attendance as proof, then route through the existing validation → score → mint pipeline.
+- `mint-from-action`: Tích hợp gọi contract `mintValidatedAction` thay vì tạo multisig queue
+- Xóa logic auto-route-multisig trigger (không còn multisig)
+
+### Step 6: Hỗ trợ Locked Grants (optional vesting)
+
+- Thêm UI cho `getLockedGrants(user)` — hiển thị locked grants và nút `releaseLockedGrant(index)` khi đã đến `releaseAt`
+- Đây là tính năng mới thay thế cơ chế activate/claim cũ
 
 ## Files affected
 
-**New:**
-- 1 migration (3 tables + RLS + indexes)
-- `supabase/functions/create-event/index.ts`
-- `supabase/functions/create-group/index.ts`
-- `supabase/functions/submit-attendance/index.ts`
+**Xóa/Deprecate:**
+- `src/lib/fun-money/eip712-signer.ts`
+- `src/lib/fun-money/pplp-multisig-config.ts`
+- `src/lib/fun-money/pplp-multisig-helpers.ts`
+- `src/lib/fun-money/pplp-multisig-types.ts`
+- `src/lib/fun-money/pplp-nonce-refresh.ts`
 
-**Modified:**
-- `src/lib/fun-money/pplp-engine.ts` — add participation_factor to scoring input
-- `supabase/functions/validate-action/index.ts` — check for attendance proof type
+**Thay đổi lớn:**
+- `src/lib/fun-money/web3-config.ts` — ABI + helpers mới
+- `src/lib/fun-money/contract-helpers.ts` — mint flow mới
+- `src/hooks/useMintSubmit.ts` — gọi `mintValidatedAction`
+- `src/hooks/useAttesterSigning.ts` — đơn giản hóa hoặc xóa
+- `src/components/FunMoney/TokenLifecyclePanel.tsx` — UI mới
+- `src/components/FunMoney/ClaimGuide.tsx` — cập nhật docs
+- `src/components/Multisig/AdminMintPanel.tsx` — authorized minter flow
+- `supabase/functions/mint-from-action/index.ts` — tích hợp contract mới
 
-## What stays the same
-- All existing tables and edge functions
-- Multiplicative formula and zero-kill rule
-- 99/1 mint split
-- Multisig 3/3 signing flow
+**Thêm mới:**
+- `src/lib/fun-money/contracts/FUNMoneyMinter.sol`
+
+## Giữ nguyên
+- PPLP scoring engine (multiplicative formula, zero-kill rule)
+- 99/1 split (giờ được enforce cả on-chain lẫn off-chain)
+- Action pipeline (submit → proof → validate → mint)
+- Attendance system
+- Database tables
 
