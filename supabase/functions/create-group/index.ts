@@ -59,6 +59,9 @@ serve(async (req) => {
       });
     }
 
+    const group_name = body.group_name || location || null;
+    const estimated_participants = body.estimated_participants ?? expected_count;
+
     const { data: group, error } = await supabaseAdmin
       .from("love_house_groups")
       .insert({
@@ -67,9 +70,11 @@ serve(async (req) => {
         love_house_id,
         location: location ? String(location).slice(0, 500) : null,
         expected_count: Math.max(0, Math.min(1000, Number(expected_count) || 0)),
+        group_name: group_name ? String(group_name).slice(0, 500) : null,
+        estimated_participants: Math.max(0, Math.min(1000, Number(estimated_participants) || 0)),
         status: "registered",
       })
-      .select("id, event_id, love_house_id, status, location, expected_count")
+      .select("id, event_id, love_house_id, status, location, expected_count, group_name, estimated_participants")
       .single();
 
     if (error) {

@@ -91,11 +91,14 @@ serve(async (req) => {
         .insert({
           group_id,
           user_id: user.id,
+          event_id: group.event_id,
           check_in_at: new Date().toISOString(),
           confirmation_status: "checked_in",
-          participation_factor: PF_CHECKIN, // 0.25 just for checking in
+          participation_factor: PF_CHECKIN,
+          attendance_mode: attendance_mode || "manual",
+          attendance_confidence: PF_CHECKIN,
         })
-        .select("id, check_in_at, confirmation_status, participation_factor")
+        .select("id, check_in_at, confirmation_status, participation_factor, event_id, attendance_mode, attendance_confidence")
         .single();
 
       if (error) throw error;
@@ -149,9 +152,10 @@ serve(async (req) => {
           duration_minutes: durationMinutes,
           confirmation_status: pf >= 0.5 ? "confirmed" : "partial",
           participation_factor: pf,
+          attendance_confidence: pf,
         })
         .eq("id", attendance.id)
-        .select("id, duration_minutes, participation_factor, confirmation_status")
+        .select("id, duration_minutes, participation_factor, confirmation_status, attendance_confidence")
         .single();
 
       if (error) throw error;
