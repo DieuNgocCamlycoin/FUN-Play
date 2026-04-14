@@ -1,3 +1,7 @@
+/**
+ * attach-proof — POST /v1/actions/{actionId}/proofs
+ * OpenAPI v1 aligned: returns created_at in response
+ */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.84.0";
 
@@ -33,7 +37,6 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "action_id and proof_type required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Validate proof_type
     const validTypes = ["link", "video", "image", "document", "onchain_tx", "system_log", "manual_attestation"];
     if (!validTypes.includes(proof_type)) {
       return new Response(JSON.stringify({ error: `Invalid proof_type. Must be: ${validTypes.join(", ")}` }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -55,13 +58,12 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Action not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Duplicate proof detection (cross-action)
+    // Duplicate proof URL detection
     if (proof_url) {
       const { count } = await supabase
         .from("proofs")
         .select("id", { count: "exact", head: true })
         .eq("proof_url", proof_url);
-
       if ((count ?? 0) > 0) {
         return new Response(JSON.stringify({ error: "⚠️ This proof URL has already been used" }), { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
@@ -73,7 +75,6 @@ serve(async (req) => {
         .from("proofs")
         .select("id", { count: "exact", head: true })
         .eq("file_hash", file_hash);
-
       if ((count ?? 0) > 0) {
         return new Response(JSON.stringify({ error: "⚠️ This proof file has already been submitted (duplicate hash)" }), { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
@@ -90,7 +91,7 @@ serve(async (req) => {
         external_ref: external_ref || null,
         raw_metadata: metadata || {},
       })
-      .select("id")
+      .select("id, created_at")
       .single();
 
     if (insertErr) {
@@ -98,12 +99,7 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Failed to attach proof" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // hasMinimumProof gate: count qualifying proofs for this action
-    const { count: proofCount } = await supabase
-      .from("proofs")
-      .select("id", { count: "exact", head: true })
-      .eq("action_id", action_id);
-
+    // hasMinimumProof gate
     const qualifyingProofTypes = ["link", "video", "image", "document", "onchain_tx"];
     const { count: qualifyingCount } = await supabase
       .from("proofs")
@@ -111,11 +107,14 @@ serve(async (req) => {
       .eq("action_id", action_id)
       .in("proof_type", qualifyingProofTypes);
 
-    // Only move to under_review if at least 1 qualifying proof exists
+    const { count: proofCount } = await supabase
+      .from("proofs")
+      .select("id", { count: "exact", head: true })
+      .eq("action_id", action_id);
+
     const hasMinimumProof = (qualifyingCount ?? 0) >= 1;
     const newStatus = hasMinimumProof ? "under_review" : "proof_pending";
 
-    // Only update if status should change
     if (action.status === "proof_pending" || (action.status !== "under_review" && hasMinimumProof)) {
       await supabase
         .from("user_actions")
@@ -123,11 +122,12 @@ serve(async (req) => {
         .eq("id", action_id);
     }
 
-    return new Response(JSON.stringify({ 
-      proof_id: proof.id, 
+    return new Response(JSON.stringify({
+      proof_id: proof.id,
       action_status: newStatus,
       total_proofs: proofCount ?? 0,
       has_minimum_proof: hasMinimumProof,
+      created_at: proof.created_at,
     }), {
       status: 201,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -135,8 +135,7 @@ serve(async (req) => {
   } catch (e) {
     console.error("attach-proof error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
