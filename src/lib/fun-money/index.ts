@@ -1,6 +1,6 @@
 /**
- * FUN Money SDK v1.0
- * Central export file
+ * FUN Money SDK v2.0
+ * Central export file — FUNMoneyMinter contract
  */
 
 // PPLP Scoring Engine
@@ -18,23 +18,10 @@ export * from './pool-system';
 // Constitution v2.0 — Unified Charter
 export * from './constitution';
 
-// Web3 Configuration
+// Web3 Configuration (FUNMoneyMinter)
 export * from './web3-config';
 
-// EIP-712 Signer (exclude duplicates from web3-config)
-export { 
-  getEip712Domain, 
-  PPLP_TYPES, 
-  type PPLPData, 
-  type SignatureVerification,
-  createPPLPTypedData,
-  signPPLP,
-  verifyPPLPSignature,
-  verifyPPLPSignatureWithDetails,
-  preparePPLPData
-} from './eip712-signer';
-
-// Contract Helpers
+// Contract Helpers (direct mint, no EIP-712)
 export { 
   type ValidationDetail,
   type MintValidation,
@@ -50,7 +37,5 @@ export {
 // Contract Source Reference
 export { CONSTITUTION_V2_CONTRACT_INFO } from './contracts/contract-info';
 
-// PPLP Multisig Config
-export * from './pplp-multisig-config';
-export * from './pplp-multisig-types';
-export { createMultisigRequest } from './pplp-multisig-helpers';
+// GOV Config (governance groups — used for management UI)
+export * from './gov-config';
