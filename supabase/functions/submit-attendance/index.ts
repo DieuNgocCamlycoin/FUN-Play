@@ -111,7 +111,8 @@ serve(async (req) => {
         attendance_confidence: attendance.participation_factor,
         message: "Checked in successfully",
       }), {
-    }
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
 
     // === CHECK-OUT ===
     if (action === "check_out") {
