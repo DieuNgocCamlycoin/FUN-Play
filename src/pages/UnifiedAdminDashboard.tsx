@@ -23,6 +23,7 @@ import { TransparencyDashboardTab } from "@/components/Admin/tabs/TransparencyDa
 import { SystemReportTab } from "@/components/Admin/tabs/SystemReportTab";
 import { MultisigMintTab } from "@/components/Admin/tabs/MultisigMintTab";
 import { GovAttesterManagementTab } from "@/components/Admin/tabs/GovAttesterManagementTab";
+import { FounderDashboardTab } from "@/components/Admin/tabs/FounderDashboardTab";
 import { useAdminManage } from "@/hooks/useAdminManage";
 
 export default function UnifiedAdminDashboard() {
@@ -149,6 +150,8 @@ export default function UnifiedAdminDashboard() {
         return <MultisigMintTab />;
       case "gov-attesters":
         return <GovAttesterManagementTab />;
+      case "founder":
+        return <FounderDashboardTab />;
       default:
         return <OverviewTab />;
     }
@@ -182,6 +185,7 @@ export default function UnifiedAdminDashboard() {
               {currentSection === "system-report" && "Báo Cáo Tổng Hợp FUN Money"}
               {currentSection === "multisig-mint" && "Multisig Mint 3-of-3"}
               {currentSection === "gov-attesters" && "Quản Lý GOV Attesters"}
+              {currentSection === "founder" && "Founder Dashboard"}
             </h1>
             <p className="text-muted-foreground mt-1">
               {currentSection === "overview" && "Thống kê toàn nền tảng FUN Play"}
@@ -200,6 +204,7 @@ export default function UnifiedAdminDashboard() {
               {currentSection === "system-report" && "Thống kê tổng hợp toàn bộ hệ thống mint FUN — Pipeline, Epoch, Scoring, giải thích chi tiết"}
               {currentSection === "multisig-mint" && "Ký và submit mint FUN Money với cơ chế 3-of-3 multisig (WILL + WISDOM + LOVE)"}
               {currentSection === "gov-attesters" && "Quản lý 3 nhóm GOV (WILL, WISDOM, LOVE) — xem, thêm, sửa, toggle active thành viên"}
+              {currentSection === "founder" && "Dashboard tổng quan dành riêng cho Founder — 7 panel phân tích toàn hệ thống"}
             </p>
           </div>
         </div>

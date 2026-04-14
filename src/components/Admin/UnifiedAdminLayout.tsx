@@ -42,7 +42,8 @@ export type AdminSection =
   | "transparency"
   | "system-report"
   | "multisig-mint"
-  | "gov-attesters";
+  | "gov-attesters"
+  | "founder";
 
 interface NavItem {
   id: AdminSection;
@@ -76,6 +77,7 @@ const navItems: NavItem[] = [
   { id: "system-report", label: "Báo Cáo Tổng Hợp", icon: FileBarChart },
   { id: "multisig-mint", label: "Multisig Mint", icon: Shield },
   { id: "gov-attesters", label: "GOV Attesters", icon: Users },
+  { id: "founder", label: "Founder Dashboard", icon: Crown, ownerOnly: true },
   { id: "admin-team", label: "Quản Lý Admin", icon: Crown, ownerOnly: true },
 ];
 
