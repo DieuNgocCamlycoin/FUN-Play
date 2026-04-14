@@ -1,42 +1,23 @@
 import { Badge } from '@/components/ui/badge';
-import { GOV_GROUPS, REQUIRED_GROUPS, type GovGroupName } from '@/lib/fun-money/pplp-multisig-config';
-import type { MultisigSignatures } from '@/lib/fun-money/pplp-multisig-types';
 
-interface MultisigStatusBadgeProps {
-  signatures: MultisigSignatures;
-  completedGroups: GovGroupName[];
+interface MintStatusBadgeProps {
+  status: string;
 }
 
-export function MultisigStatusBadge({ signatures, completedGroups }: MultisigStatusBadgeProps) {
-  return (
-    <div className="flex items-center gap-1.5 flex-wrap">
-      {REQUIRED_GROUPS.map((group) => {
-        const isSigned = completedGroups.includes(group);
-        const groupInfo = GOV_GROUPS[group];
-        const sig = signatures[group];
+const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
+  pending_sig: { label: 'Chờ duyệt', className: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
+  signing: { label: 'Đang xử lý', className: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
+  signed: { label: 'Sẵn sàng mint', className: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
+  submitted: { label: 'Đã submit', className: 'bg-purple-500/20 text-purple-400 border-purple-500/30' },
+  confirmed: { label: 'Thành công', className: 'bg-green-500/20 text-green-300 border-green-500/30' },
+  failed: { label: 'Thất bại', className: 'bg-destructive/20 text-destructive border-destructive/30' },
+};
 
-        return (
-          <Badge
-            key={group}
-            variant={isSigned ? 'default' : 'outline'}
-            className={
-              isSigned
-                ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/30'
-                : 'text-muted-foreground border-border/50'
-            }
-          >
-            <span className="mr-1">{groupInfo.emoji}</span>
-            {groupInfo.label}
-            {isSigned ? ' ✓' : ' ⏳'}
-            {sig?.signer_name && (
-              <span className="ml-1 opacity-70 text-[10px]">({sig.signer_name})</span>
-            )}
-          </Badge>
-        );
-      })}
-      <span className="text-xs text-muted-foreground ml-1">
-        {completedGroups.length}/{REQUIRED_GROUPS.length}
-      </span>
-    </div>
+export function MultisigStatusBadge({ status }: MintStatusBadgeProps) {
+  const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.pending_sig;
+  return (
+    <Badge variant="outline" className={`text-[10px] ${cfg.className}`}>
+      {cfg.label}
+    </Badge>
   );
 }

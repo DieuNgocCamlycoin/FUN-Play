@@ -1,36 +1,49 @@
 /**
- * useMintSubmit - Hook for Admin to submit multisig mint on-chain
+ * useMintSubmit — Hook for Admin to submit direct mint on-chain
+ * SDK v2.0 — FUNMoneyMinter (1-step mintValidatedAction)
  */
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWalletContext } from '@/contexts/WalletContext';
 import { useWalletClient } from 'wagmi';
-import { BrowserProvider, Contract } from 'ethers';
+import { BrowserProvider, Contract, keccak256, toUtf8Bytes } from 'ethers';
 import { FUN_MONEY_ABI, getContractAddress } from '@/lib/fun-money/web3-config';
-import { CONTRACT_ACTION } from '@/lib/fun-money/contract-helpers';
-import { REQUIRED_GROUPS } from '@/lib/fun-money/pplp-multisig-config';
-import type { PPLPMintRequest, MultisigSignatures } from '@/lib/fun-money/pplp-multisig-types';
+
+export interface MintSubmitRequest {
+  id: string;
+  user_id: string;
+  recipient_address: string;
+  action_type: string;
+  amount_wei: string;
+  status: string;
+  tx_hash: string | null;
+  block_number: number | null;
+  created_at: string;
+  updated_at: string;
+  error_message?: string | null;
+  platform_id?: string;
+}
 
 export function useMintSubmit() {
   const { isConnected } = useWalletContext();
   const { data: walletClient } = useWalletClient();
-  const [signedRequests, setSignedRequests] = useState<PPLPMintRequest[]>([]);
+  const [pendingRequests, setPendingRequests] = useState<MintSubmitRequest[]>([]);
   const [loading, setLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState<string | null>(null);
 
-  // Load signed requests
-  const loadSignedRequests = useCallback(async () => {
+  // Load requests ready to mint (status = 'approved' or 'signed')
+  const loadRequests = useCallback(async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from('pplp_mint_requests')
         .select('*')
-        .eq('status', 'signed')
+        .in('status', ['signed', 'pending_sig', 'signing'])
         .order('created_at', { ascending: true });
 
       if (!error && data) {
-        setSignedRequests(data as unknown as PPLPMintRequest[]);
+        setPendingRequests(data as unknown as MintSubmitRequest[]);
       }
     } finally {
       setLoading(false);
@@ -38,7 +51,7 @@ export function useMintSubmit() {
   }, []);
 
   useEffect(() => {
-    loadSignedRequests();
+    loadRequests();
 
     const channel = supabase
       .channel('pplp-mint-requests-admin')
@@ -47,31 +60,17 @@ export function useMintSubmit() {
         schema: 'public',
         table: 'pplp_mint_requests',
       }, () => {
-        loadSignedRequests();
+        loadRequests();
       })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [loadSignedRequests]);
+  }, [loadRequests]);
 
-  // Verify nonce on-chain matches DB
-  const verifyNonce = useCallback(async (recipientAddress: string, dbNonce: string): Promise<boolean> => {
-    if (!walletClient) return false;
-    try {
-      const provider = new BrowserProvider(walletClient as any);
-      const contract = new Contract(getContractAddress(), FUN_MONEY_ABI, provider);
-      const onChainNonce = await contract.nonces(recipientAddress);
-      return onChainNonce.toString() === dbNonce;
-    } catch (err) {
-      console.error('Nonce verification failed:', err);
-      return false;
-    }
-  }, [walletClient]);
-
-  // Submit mint on-chain
-  const submitMint = useCallback(async (request: PPLPMintRequest) => {
+  // Submit mint on-chain via mintValidatedAction
+  const submitMint = useCallback(async (request: MintSubmitRequest) => {
     if (!walletClient) throw new Error('Wallet not connected');
 
     setIsSubmitting(request.id);
@@ -80,13 +79,19 @@ export function useMintSubmit() {
       const signer = await provider.getSigner();
       const contract = new Contract(getContractAddress(), FUN_MONEY_ABI, signer);
 
-      // Extract signatures in order [WILL, WISDOM, LOVE]
-      const sigs = request.multisig_signatures as MultisigSignatures;
-      const orderedSigs = REQUIRED_GROUPS.map(group => {
-        const sig = sigs[group];
-        if (!sig) throw new Error(`Missing signature from group: ${group.toUpperCase()}`);
-        return sig.signature;
-      });
+      // Create unique actionId
+      const actionId = keccak256(toUtf8Bytes(JSON.stringify({
+        requestId: request.id,
+        recipient: request.recipient_address,
+        amount: request.amount_wei,
+      })));
+
+      // Create validation digest
+      const validationDigest = keccak256(toUtf8Bytes(JSON.stringify({
+        requestId: request.id,
+        actionType: request.action_type,
+        timestamp: Date.now(),
+      })));
 
       // Update status to submitted
       await supabase
@@ -94,16 +99,15 @@ export function useMintSubmit() {
         .update({ status: 'submitted', updated_at: new Date().toISOString() })
         .eq('id', request.id);
 
-      // Submit on-chain
-      const tx = await contract.lockWithPPLP(
+      // Submit on-chain — 99/1 split handled by contract
+      const tx = await contract.mintValidatedAction(
+        actionId,
         request.recipient_address,
-        CONTRACT_ACTION,
         BigInt(request.amount_wei),
-        request.evidence_hash || '0x' + '0'.repeat(64),
-        orderedSigs
+        validationDigest
       );
 
-      const receipt = await tx.wait(2); // Wait 2 confirmations
+      const receipt = await tx.wait(2);
 
       // Update to confirmed
       await supabase
@@ -116,10 +120,9 @@ export function useMintSubmit() {
         })
         .eq('id', request.id);
 
-      await loadSignedRequests();
+      await loadRequests();
       return { success: true, txHash: receipt.hash };
     } catch (err: any) {
-      // Update to failed
       await supabase
         .from('pplp_mint_requests')
         .update({
@@ -129,19 +132,18 @@ export function useMintSubmit() {
         })
         .eq('id', request.id);
 
-      await loadSignedRequests();
+      await loadRequests();
       throw err;
     } finally {
       setIsSubmitting(null);
     }
-  }, [walletClient, loadSignedRequests]);
+  }, [walletClient, loadRequests]);
 
   return {
-    signedRequests,
+    signedRequests: pendingRequests,
     submitMint,
-    verifyNonce,
     isSubmitting,
     loading,
-    refresh: loadSignedRequests,
+    refresh: loadRequests,
   };
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { GOV_GROUPS, GovGroupName } from "@/lib/fun-money/pplp-multisig-config";
+import { GOV_GROUPS, type GovGroupName } from "@/lib/fun-money/gov-config";
 
 export interface GovAttesterRow {
   id: string;
@@ -25,7 +25,6 @@ export function useGovAttesters() {
       .order("created_at");
 
     if (error || !data || data.length === 0) {
-      // Fallback to hardcoded config
       const fallback: GovAttesterRow[] = Object.values(GOV_GROUPS).flatMap((g) =>
         g.members.map((m, i) => ({
           id: `fallback-${g.id}-${i}`,

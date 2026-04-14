@@ -1,17 +1,21 @@
 /**
- * Hook to read user's on-chain FUN Money allocation
- * Reads locked, activated, and flowing (balance) amounts from the contract
+ * useOnChainAllocation — Read user's on-chain FUN Money balance + locked grants
+ * SDK v2.0 — FUNMoneyMinter (no more locked/activated states)
  */
 
 import { useState, useCallback, useEffect } from 'react';
 import { BrowserProvider } from 'ethers';
-import { getAllocation, getBalance, getContractAddress } from '@/lib/fun-money/web3-config';
+import { getBalance, getLockedGrants, getContractAddress, type LockedGrant } from '@/lib/fun-money/web3-config';
 
 export interface OnChainAllocation {
-  locked: bigint;
-  activated: bigint;
+  /** Direct ERC20 balance (minted tokens) */
   flowing: bigint;
+  /** Sum of unclaimed locked grants */
+  locked: bigint;
+  /** Total = flowing + locked */
   total: bigint;
+  /** Locked grants detail */
+  grants: LockedGrant[];
   contractAddress: string;
 }
 
@@ -40,16 +44,20 @@ export function useOnChainAllocation(
     setError(null);
 
     try {
-      const [alloc, balance] = await Promise.all([
-        getAllocation(provider, address),
-        getBalance(provider, address)
+      const [balance, grants] = await Promise.all([
+        getBalance(provider, address),
+        getLockedGrants(provider, address).catch(() => [] as LockedGrant[])
       ]);
 
+      const lockedAmount = grants
+        .filter(g => !g.claimed)
+        .reduce((sum, g) => sum + g.amount, 0n);
+
       setAllocation({
-        locked: alloc.locked,
-        activated: alloc.activated,
         flowing: balance,
-        total: alloc.locked + alloc.activated + balance,
+        locked: lockedAmount,
+        total: balance + lockedAmount,
+        grants,
         contractAddress: getContractAddress()
       });
     } catch (err: any) {

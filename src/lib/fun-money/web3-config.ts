@@ -1,6 +1,6 @@
 /**
  * FUN Money Web3 Configuration
- * SDK v1.0
+ * SDK v2.0 — FUNMoneyMinter contract
  */
 
 import { Contract, BrowserProvider, keccak256, toUtf8Bytes } from 'ethers';
@@ -8,19 +8,13 @@ import { Contract, BrowserProvider, keccak256, toUtf8Bytes } from 'ethers';
 // ===== CONTRACT CONFIGURATION =====
 
 /**
- * Default FUN Money contract address on BSC Testnet
- * Update this after deploying to mainnet
+ * FUNMoneyMinter contract address on BSC Testnet
+ * TODO: Update after deploying FUNMoneyMinter
  */
 export const DEFAULT_CONTRACT_ADDRESS = '0x39A1b047D5d143f8874888cfa1d30Fb2AE6F0CD6';
 
-/**
- * Storage key for custom contract address
- */
 const CONTRACT_ADDRESS_KEY = 'fun_money_contract_address';
 
-/**
- * Get current contract address (from localStorage or default)
- */
 export function getContractAddress(): string {
   if (typeof window !== 'undefined') {
     return localStorage.getItem(CONTRACT_ADDRESS_KEY) || DEFAULT_CONTRACT_ADDRESS;
@@ -28,9 +22,6 @@ export function getContractAddress(): string {
   return DEFAULT_CONTRACT_ADDRESS;
 }
 
-/**
- * Set custom contract address
- */
 export function setContractAddress(address: string): void {
   if (typeof window !== 'undefined') {
     localStorage.setItem(CONTRACT_ADDRESS_KEY, address);
@@ -69,118 +60,85 @@ export const BSC_MAINNET_CONFIG = {
   }
 };
 
-// ===== CONTRACT ABI =====
+// ===== CONTRACT ABI — FUNMoneyMinter =====
 
 /**
- * FUN Money Production v1.2.1 ABI
- * Deployed at: 0x39A1b047D5d143f8874888cfa1d30Fb2AE6F0CD6 (BSC Testnet)
+ * FUNMoneyMinter ABI
+ * Replaces the legacy v1.2.1 3-step flow (lockWithPPLP → activate → claim)
+ * with a 1-step direct mint: mintValidatedAction
  * 
- * CRITICAL NOTES:
- * - lockWithPPLP takes `string action` (NOT bytes32 hash!)
- * - Contract hashes the action string internally
- * - Nonce is read from recipient address, not signer
- * - EIP-712 domain version: "1.2.1"
+ * 99/1 split is enforced on-chain via USER_BPS/PLATFORM_BPS constants.
  */
 export const FUN_MONEY_ABI = [
-  // ===== READ FUNCTIONS - Basic ERC20 =====
+  // ===== READ — ERC20-like =====
   'function name() view returns (string)',
   'function symbol() view returns (string)',
   'function decimals() view returns (uint8)',
   'function totalSupply() view returns (uint256)',
   'function balanceOf(address account) view returns (uint256)',
-  'function nonces(address user) view returns (uint256)',
-  
-  // ===== READ FUNCTIONS - PPLP Specific =====
-  'function pauseTransitions() view returns (bool)',
-  'function isAttester(address) view returns (bool)',
-  'function attesterThreshold() view returns (uint256)',
-  'function epochMintCap() view returns (uint256)',
-  'function epochDuration() view returns (uint256)',
-  'function epochs(bytes32) view returns (uint64 start, uint256 minted)',
-  'function actions(bytes32) view returns (bool allowed, uint32 version, bool deprecated)',
-  'function guardianGov() view returns (address)',
-  'function communityPool() view returns (address)',
-  'function alloc(address) view returns (uint256 locked, uint256 activated)',
-  
-  // ===== READ FUNCTIONS - Transparency Getters =====
-  'function totalLocked(address[] users) view returns (uint256)',
-  'function totalActivated(address[] users) view returns (uint256)',
-  
-  // ===== WRITE FUNCTIONS =====
+
+  // ===== READ — FUNMoneyMinter =====
+  'function owner() view returns (address)',
+  'function funToken() view returns (address)',
+  'function platformTreasury() view returns (address)',
+  'function authorizedMinters(address) view returns (bool)',
+  'function processedActionIds(bytes32) view returns (bool)',
+  'function USER_BPS() view returns (uint16)',
+  'function PLATFORM_BPS() view returns (uint16)',
+  'function BPS_DENOMINATOR() view returns (uint16)',
+
+  // ===== READ — Locked Grants =====
+  'function getLockedGrants(address user) view returns (tuple(uint256 amount, uint64 releaseAt, bool claimed)[])',
+  'function previewSplit(uint256 totalMint) view returns (uint256 userMint, uint256 platformMint)',
+
+  // ===== WRITE — Mint =====
+  /**
+   * Direct mint for validated action (authorized minter only)
+   * 99% → user, 1% → platform treasury (on-chain enforced)
+   */
+  'function mintValidatedAction(bytes32 actionId, address user, uint256 totalMint, bytes32 validationDigest) external',
   
   /**
-   * Core minting function
-   * @param user - Recipient address (NOT signer!)
-   * @param action - Action string (e.g., "CONTENT_CREATE")
-   * @param amount - Amount in atomic units (18 decimals)
-   * @param evidenceHash - keccak256 hash of evidence
-   * @param sigs - Array of EIP-712 signatures
+   * Mint with time-locked portion
    */
-  'function lockWithPPLP(address user, string action, uint256 amount, bytes32 evidenceHash, bytes[] sigs) external',
-  
+  'function mintValidatedActionLocked(bytes32 actionId, address user, uint256 totalMint, uint256 userClaimableNow, uint64 releaseAt, bytes32 validationDigest) external',
+
   /**
-   * Activate locked tokens (User signs)
-   * Moves tokens from LOCKED to ACTIVATED state
+   * User releases locked grant after releaseAt timestamp
    */
-  'function activate(uint256 amount) external',
-  
-  /**
-   * Claim activated tokens (User signs)
-   * Moves tokens from ACTIVATED to FLOWING (ERC20 balance)
-   */
-  'function claim(uint256 amount) external',
-  
-  // ===== GOVERNANCE FUNCTIONS =====
-  'function govRegisterAction(string name, uint32 version) external',
-  'function govDeprecateAction(string name, uint32 newVersion) external',
-  'function govPauseTransitions(bool paused) external',
-  'function govSetAttester(address attester, bool allowed) external',
-  'function govSetAttesterThreshold(uint256 newThreshold) external',
-  'function govRecycleExcessToCommunity(uint256 amount) external',
-  
+  'function releaseLockedGrant(uint256 index) external',
+
+  // ===== WRITE — Owner =====
+  'function transferOwnership(address newOwner) external',
+  'function setAuthorizedMinter(address account, bool allowed) external',
+  'function setPlatformTreasury(address newTreasury) external',
+  'function setToken(address newToken) external',
+
   // ===== EVENTS =====
-  'event Transfer(address indexed from, address indexed to, uint256 value)',
-  'event Approval(address indexed owner, address indexed spender, uint256 value)',
-  'event PureLoveAccepted(address indexed user, bytes32 indexed action, uint256 amount, uint32 version)',
-  'event ActionRegistered(bytes32 indexed action, uint32 version)',
-  'event ActionDeprecated(bytes32 indexed action, uint32 oldVersion, uint32 newVersion)',
-  'event AttesterUpdated(address indexed attester, bool allowed)',
-  'event AttesterThresholdUpdated(uint256 oldThreshold, uint256 newThreshold)',
-  'event TransitionsPaused(bool paused)',
-  'event ExcessRecycled(uint256 amount)'
+  'event ActionMinted(bytes32 indexed actionId, address indexed user, uint256 totalMint, uint256 userMint, uint256 platformMint, bytes32 validationDigest)',
+  'event ActionMintedLocked(bytes32 indexed actionId, address indexed user, uint256 totalMint, uint256 userClaimable, uint256 userLocked, uint256 platformMint, uint64 releaseAt, bytes32 validationDigest)',
+  'event LockedBalanceReleased(address indexed user, uint256 amount)',
+  'event MinterSet(address indexed account, bool allowed)',
+  'event OwnerTransferred(address indexed previousOwner, address indexed newOwner)',
+  'event PlatformTreasuryUpdated(address indexed previousTreasury, address indexed newTreasury)',
+  'event TokenUpdated(address indexed previousToken, address indexed newToken)',
 ];
 
 // ===== HELPER FUNCTIONS =====
 
-/**
- * Create contract instance for read operations
- */
 export function getContract(provider: BrowserProvider): Contract {
   return new Contract(getContractAddress(), FUN_MONEY_ABI, provider);
 }
 
-/**
- * Create contract instance for write operations (with signer)
- */
 export async function getContractWithSigner(provider: BrowserProvider): Promise<Contract> {
   const signer = await provider.getSigner();
   return new Contract(getContractAddress(), FUN_MONEY_ABI, signer);
 }
 
-/**
- * Create action hash from action type string
- * @param actionType - e.g., "CONTENT_CREATE"
- * @returns bytes32 hash
- */
 export function createActionHash(actionType: string): string {
   return keccak256(toUtf8Bytes(actionType));
 }
 
-/**
- * Create evidence hash from evidence data
- * @param data - Evidence object to hash
- * @returns bytes32 hash
- */
 export function createEvidenceHash(data: {
   actionType: string;
   timestamp: number;
@@ -192,16 +150,7 @@ export function createEvidenceHash(data: {
 }
 
 /**
- * Get nonce for an address
- * CRITICAL: Always get nonce for RECIPIENT, not signer!
- */
-export async function getNonce(provider: BrowserProvider, address: string): Promise<bigint> {
-  const contract = getContract(provider);
-  return await contract.nonces(address);
-}
-
-/**
- * Get FUN token balance (FLOWING state)
+ * Get FUN token balance (direct ERC20 balance)
  */
 export async function getBalance(provider: BrowserProvider, address: string): Promise<bigint> {
   const contract = getContract(provider);
@@ -209,18 +158,49 @@ export async function getBalance(provider: BrowserProvider, address: string): Pr
 }
 
 /**
- * Get allocation (LOCKED + ACTIVATED states)
+ * Check if an address is an authorized minter
  */
-export async function getAllocation(provider: BrowserProvider, address: string): Promise<{
-  locked: bigint;
-  activated: bigint;
-}> {
+export async function isAuthorizedMinter(provider: BrowserProvider, address: string): Promise<boolean> {
   const contract = getContract(provider);
-  const result = await contract.alloc(address);
-  return {
-    locked: result.locked ?? result[0] ?? 0n,
-    activated: result.activated ?? result[1] ?? 0n
-  };
+  return await contract.authorizedMinters(address);
+}
+
+/**
+ * Get locked grants for a user
+ */
+export interface LockedGrant {
+  amount: bigint;
+  releaseAt: number;
+  claimed: boolean;
+}
+
+export async function getLockedGrants(provider: BrowserProvider, address: string): Promise<LockedGrant[]> {
+  const contract = getContract(provider);
+  const grants = await contract.getLockedGrants(address);
+  return grants.map((g: any) => ({
+    amount: BigInt(g.amount),
+    releaseAt: Number(g.releaseAt),
+    claimed: g.claimed,
+  }));
+}
+
+/**
+ * Release a locked grant (user calls this)
+ */
+export async function releaseLockedGrant(provider: BrowserProvider, index: number): Promise<string> {
+  const contract = await getContractWithSigner(provider);
+  const tx = await contract.releaseLockedGrant(index);
+  const receipt = await tx.wait();
+  return receipt.hash;
+}
+
+/**
+ * Preview the 99/1 split for a given amount
+ */
+export async function previewSplit(provider: BrowserProvider, totalMint: bigint): Promise<{ userMint: bigint; platformMint: bigint }> {
+  const contract = getContract(provider);
+  const [userMint, platformMint] = await contract.previewSplit(totalMint);
+  return { userMint, platformMint };
 }
 
 /**
@@ -231,18 +211,10 @@ export async function checkContractExists(provider: BrowserProvider, address: st
   return code !== '0x' && code !== '0x0' && code.length > 2;
 }
 
-/**
- * Validate Ethereum address format
- */
 export function isValidAddress(address: string): boolean {
   return /^0x[a-fA-F0-9]{40}$/.test(address);
 }
 
-/**
- * Format FUN amount for display
- * @param amountAtomic - Amount in atomic units (BigInt or string)
- * @returns Formatted string like "125.50 FUN"
- */
 export function formatFunDisplay(amountAtomic: bigint | string): string {
   const amount = typeof amountAtomic === 'string' ? BigInt(amountAtomic) : amountAtomic;
   const decimals = 18n;
@@ -257,61 +229,10 @@ export function formatFunDisplay(amountAtomic: bigint | string): string {
   return `${whole.toLocaleString()}.${fractionStr} FUN`;
 }
 
-// ===== TOKEN LIFECYCLE FUNCTIONS =====
-
-/**
- * Activate tokens: LOCKED → ACTIVATED
- * @param provider - BrowserProvider with connected wallet
- * @param amount - Amount to activate
- * @returns Transaction hash
- */
-export async function activateTokens(provider: BrowserProvider, amount: bigint): Promise<string> {
-  const contract = await getContractWithSigner(provider);
-  const tx = await contract.activate(amount);
-  const receipt = await tx.wait();
-  return receipt.hash;
-}
-
-/**
- * Claim tokens: ACTIVATED → FLOWING
- * @param provider - BrowserProvider with connected wallet
- * @param amount - Amount to claim
- * @returns Transaction hash
- */
-export async function claimTokens(provider: BrowserProvider, amount: bigint): Promise<string> {
-  const contract = await getContractWithSigner(provider);
-  const tx = await contract.claim(amount);
-  const receipt = await tx.wait();
-  return receipt.hash;
-}
-
-// ===== GOVERNANCE FUNCTIONS =====
-
-/**
- * Recycle excess tokens from contract to Community Pool (Governance only)
- */
-export async function recycleExcessToCommunity(provider: BrowserProvider, amount: bigint): Promise<string> {
-  const contract = await getContractWithSigner(provider);
-  const tx = await contract.govRecycleExcessToCommunity(amount);
-  const receipt = await tx.wait();
-  return receipt.hash;
-}
-
-/**
- * Get Community Pool address from contract
- */
-export async function getCommunityPoolAddress(provider: BrowserProvider): Promise<string> {
-  const contract = getContract(provider);
-  return await contract.communityPool();
-}
-
 // ===== IMPORTANT ADDRESSES =====
 
 export const KNOWN_ADDRESSES = {
-  // Governance wallet
   governance: '0x7d037462503bea2f61cDB9A482aAc72a8f4F3f0f',
-  // Community Pool (receives 99% of mints)
   communityPool: '0x57da82dD53E3254576F7e578016d6d274290d949',
-  // Angel AI Attester (default attester)
   angelAiAttester: '0x02D5578173bd0DB25462BB32A254Cd4b2E6D9a0D'
 };

@@ -1,6 +1,6 @@
 /**
- * FUN Money Mint Request Hook
- * SDK v1.0
+ * useFunMoneyMintRequest — Mint Request Hook
+ * SDK v2.0
  */
 
 import { useState, useCallback } from 'react';
@@ -16,7 +16,7 @@ import {
   formatFunAmount,
   type ScoringResult 
 } from '@/lib/fun-money/pplp-engine';
-import { createActionHash, createEvidenceHash } from '@/lib/fun-money/eip712-signer';
+import { createActionHash, createEvidenceHash } from '@/lib/fun-money/web3-config';
 
 // ===== TYPES =====
 
