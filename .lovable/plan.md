@@ -1,59 +1,79 @@
 
 
-# Align Backend with FUN_Backend_Pseudocode.md
+# Align Edge Functions with OpenAPI v1.0 Spec
 
-## Gaps Found
+## Summary
 
-Comparing the pseudocode spec against the 5 deployed edge functions:
+The OpenAPI spec defines 9 endpoints. 7 already exist as edge functions but need field/response alignment. 2 are entirely missing.
 
-| Gap | Pseudocode | Current Implementation |
-|-----|-----------|----------------------|
-| **Action initial status** | `proof_pending` | `submitted` |
-| **Proof attachment logic** | Check `hasMinimumProof()` → only move to `under_review` when enough proof | Always sets `under_review` after any single proof |
-| **Validation: anti-fake checks** | `isDuplicateProof` + `exceedsVelocityLimits` run inside validation worker | Duplicate check is in `attach-proof`, velocity check only in `submit-action` (daily 10 limit). No high-impact limit (3/day) |
-| **Validation digest** | `hash({actionId, userId, finalLightScore, totalMint, pplp, definition})` stored for audit | Not computed at all |
-| **On-chain mint call** | `contract.mintValidatedAction(actionIdHash, wallet, amount, validationDigest)` | Only DB record — no on-chain call from edge function |
-| **Lifetime Light Score** | `addToLifetimeLightScore(userId, finalLightScore)` | Not implemented |
-| **Trust decay/increase** | `decayTrustForSpam` / `increaseTrustForVerifiedConsistency` | Not implemented |
-| **Participation weights** | Check-in 0.25, Check-out 0.20, Host confirmed 0.25, Reflection 0.15, Duration 0.10, Optional 0.05 | Need to verify `submit-attendance` matches exactly |
+## Gap Analysis
 
-## Plan
+| OpenAPI Endpoint | Edge Function | Status |
+|---|---|---|
+| `POST /v1/actions` | `submit-action` | ✅ Exists — field rename needed (`action_type_code` → `action_type`) |
+| `GET /v1/actions/{actionId}` | — | ❌ **Missing** — need `get-action` |
+| `POST /v1/actions/{actionId}/proofs` | `attach-proof` | ✅ Exists — response format needs `created_at` |
+| `POST /v1/actions/{actionId}/validate` | `validate-action` | ✅ Exists — response needs `impact_weight`, `trust_multiplier`, `consistency_multiplier`, `ai_score`, `community_score`, `trust_signal_score`, `explanation` fields |
+| `POST /v1/actions/{actionId}/mint` | `mint-from-action` | ✅ Exists — needs `release_mode`/`claim_percent` input + `tx_hash` in response |
+| `GET /v1/users/{userId}/light-profile` | — | ❌ **Missing** — need `get-light-profile` |
+| `POST /v1/events` | `create-event` | ✅ Exists — needs `event_type`, `source_platform`, `zoom_meeting_id`, `livestream_links` fields |
+| `POST /v1/events/{eventId}/groups` | `create-group` | ✅ Exists — needs `group_name`, `estimated_participants` fields |
+| `POST /v1/events/{eventId}/groups/{groupId}/attendance` | `submit-attendance` | ✅ Exists — needs `attendance_mode`, `optional_signals` input + `attendance_confidence` response |
 
-### Step 1: Fix action status flow
-- `submit-action`: set initial status to `proof_pending` instead of `submitted`
-- `attach-proof`: add `hasMinimumProof` check — only move to `under_review` when action has at least 1 qualifying proof
+## Implementation Plan
 
-### Step 2: Add anti-fake checks to validate-action
-- Add `isDuplicateProof` check (verify no proof hash/URL reused across different actions)
-- Add `exceedsVelocityLimits` with both daily limit (10) and high-impact limit (3/day)
-- Flag for manual review instead of proceeding when limits exceeded
+### Step 1: Create `get-action` edge function (NEW)
+- Returns action detail with proofs array
+- Response matches `ActionDetailResponse` schema
+- Auth required — only action owner can view
 
-### Step 3: Add validationDigest to mint-from-action
-- Compute `validationDigest = hash({actionId, userId, finalLightScore, totalMint, pplpScores, PPLP_DEFINITION})` 
-- Store in `mint_records` for audit trail
-- Prepare for future on-chain `mintValidatedAction` call (add TODO with contract integration point)
+### Step 2: Create `get-light-profile` edge function (NEW)
+- Returns `UserLightProfileResponse`: `trust_level`, `total_light_score`, `total_fun_minted`, `streak_days`, `recent_actions`, `pillar_summary` (avg scores per pillar)
+- Aggregates from `profiles`, `user_actions`, `pplp_validations`, `mint_records`
+- Auth required
 
-### Step 4: Add lifetime Light Score tracking
-- After successful mint, update `profiles.total_light_score += finalLightScore`
-- Migration: add `total_light_score` column to profiles if not present
+### Step 3: Align `submit-action` request/response
+- Accept `action_type` (enum: INNER_WORK, CHANNELING, GIVING, SOCIAL_IMPACT, SERVICE, LEARNING) alongside existing `action_type_code`
+- Add `created_at` to response
 
-### Step 5: Add trust decay/increase functions
-- `validate-action`: after validation, call `increaseTrustForVerifiedConsistency` (trust += 0.01, max 1.25)
-- When spam/velocity flagged: call `decayTrustForSpam` (trust -= 0.05, min 1.0)
-- Migration: add `trust_level` column to profiles (default 1.0) if not present
+### Step 4: Align `validate-action` response
+- Add missing fields: `impact_weight`, `trust_multiplier`, `consistency_multiplier`, `ai_score`, `community_score`, `trust_signal_score`, `explanation`
+- Already computed internally — just need to include in response JSON
 
-### Step 6: Verify participation factor weights
-- Confirm `submit-attendance` uses exact pseudocode weights (0.25/0.20/0.25/0.15/0.10/0.05)
+### Step 5: Align `mint-from-action` input/response
+- Accept optional `release_mode` (instant/partial_lock) and `claim_percent` from request body
+- Add `tx_hash` field to response (null until on-chain integration)
 
-## Files affected
+### Step 6: Align `create-event` fields
+- Accept `event_type` enum, `source_platform`, `zoom_meeting_id`, `livestream_links`
+- Migration: add `event_type`, `source_platform`, `zoom_meeting_id` columns to `events` table
 
-**Modified:**
-- `supabase/functions/submit-action/index.ts` — status `proof_pending`
-- `supabase/functions/attach-proof/index.ts` — `hasMinimumProof` gate
-- `supabase/functions/validate-action/index.ts` — duplicate proof + velocity checks
-- `supabase/functions/mint-from-action/index.ts` — validationDigest + lifetime LS update
-- `supabase/functions/submit-attendance/index.ts` — verify/fix participation weights
+### Step 7: Align `create-group` fields
+- Accept `group_name`, `leader_user_id`, `estimated_participants`
+- Map `group_name` → existing schema fields
+
+### Step 8: Align `submit-attendance` input/response
+- Accept `attendance_mode` enum and `optional_signals` object
+- Return `attendance_confidence` (derived from participation_factor)
+
+### Step 9: Copy OpenAPI spec to project
+- Save as `docs/FUN_Backend_OpenAPI_v1.yaml` for reference
+
+## Files
 
 **New:**
-- 1 migration: `total_light_score` + `trust_level` columns on profiles
+- `supabase/functions/get-action/index.ts`
+- `supabase/functions/get-light-profile/index.ts`
+- `docs/FUN_Backend_OpenAPI_v1.yaml`
+
+**Modified:**
+- `supabase/functions/submit-action/index.ts` — accept `action_type` field
+- `supabase/functions/validate-action/index.ts` — expand response
+- `supabase/functions/mint-from-action/index.ts` — accept `release_mode`/`claim_percent`, return `tx_hash`
+- `supabase/functions/create-event/index.ts` — new fields
+- `supabase/functions/create-group/index.ts` — field mapping
+- `supabase/functions/submit-attendance/index.ts` — `attendance_mode` + `attendance_confidence`
+
+**Migration:**
+- Add `event_type`, `source_platform`, `zoom_meeting_id` to `events` table
 
