@@ -1225,40 +1225,49 @@ export type Database = {
           created_at: string
           description: string | null
           end_at: string | null
+          event_type: string | null
           host_user_id: string
           id: string
           platform_links: Json | null
           recording_hash: string | null
+          source_platform: string | null
           start_at: string
           status: string
           title: string
           updated_at: string
+          zoom_meeting_id: string | null
         }
         Insert: {
           created_at?: string
           description?: string | null
           end_at?: string | null
+          event_type?: string | null
           host_user_id: string
           id?: string
           platform_links?: Json | null
           recording_hash?: string | null
+          source_platform?: string | null
           start_at: string
           status?: string
           title: string
           updated_at?: string
+          zoom_meeting_id?: string | null
         }
         Update: {
           created_at?: string
           description?: string | null
           end_at?: string | null
+          event_type?: string | null
           host_user_id?: string
           id?: string
           platform_links?: Json | null
           recording_hash?: string | null
+          source_platform?: string | null
           start_at?: string
           status?: string
           title?: string
           updated_at?: string
+          zoom_meeting_id?: string | null
         }
         Relationships: []
       }
