@@ -287,6 +287,72 @@ export type Database = {
           },
         ]
       }
+      attendance: {
+        Row: {
+          check_in_at: string | null
+          check_out_at: string | null
+          confirmation_status: string
+          created_at: string
+          duration_minutes: number | null
+          group_id: string
+          id: string
+          leader_confirmed: boolean | null
+          linked_action_id: string | null
+          participation_factor: number | null
+          reflection_submitted: boolean | null
+          reflection_text: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          check_in_at?: string | null
+          check_out_at?: string | null
+          confirmation_status?: string
+          created_at?: string
+          duration_minutes?: number | null
+          group_id: string
+          id?: string
+          leader_confirmed?: boolean | null
+          linked_action_id?: string | null
+          participation_factor?: number | null
+          reflection_submitted?: boolean | null
+          reflection_text?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          check_in_at?: string | null
+          check_out_at?: string | null
+          confirmation_status?: string
+          created_at?: string
+          duration_minutes?: number | null
+          group_id?: string
+          id?: string
+          leader_confirmed?: boolean | null
+          linked_action_id?: string | null
+          participation_factor?: number | null
+          reflection_submitted?: boolean | null
+          reflection_text?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "love_house_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_linked_action_id_fkey"
+            columns: ["linked_action_id"]
+            isOneToOne: false
+            referencedRelation: "user_actions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       balance_ledger: {
         Row: {
           amount: number
@@ -1154,6 +1220,48 @@ export type Database = {
           },
         ]
       }
+      events: {
+        Row: {
+          created_at: string
+          description: string | null
+          end_at: string | null
+          host_user_id: string
+          id: string
+          platform_links: Json | null
+          recording_hash: string | null
+          start_at: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          end_at?: string | null
+          host_user_id: string
+          id?: string
+          platform_links?: Json | null
+          recording_hash?: string | null
+          start_at: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          end_at?: string | null
+          host_user_id?: string
+          id?: string
+          platform_links?: Json | null
+          recording_hash?: string | null
+          start_at?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       features_user_day: {
         Row: {
           anti_farm_risk: number | null
@@ -1603,6 +1711,53 @@ export type Database = {
             columns: ["vod_video_id"]
             isOneToOne: false
             referencedRelation: "videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      love_house_groups: {
+        Row: {
+          actual_count: number | null
+          created_at: string
+          event_id: string
+          expected_count: number | null
+          id: string
+          leader_user_id: string
+          location: string | null
+          love_house_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          actual_count?: number | null
+          created_at?: string
+          event_id: string
+          expected_count?: number | null
+          id?: string
+          leader_user_id: string
+          location?: string | null
+          love_house_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          actual_count?: number | null
+          created_at?: string
+          event_id?: string
+          expected_count?: number | null
+          id?: string
+          leader_user_id?: string
+          location?: string | null
+          love_house_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "love_house_groups_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
             referencedColumns: ["id"]
           },
         ]

@@ -64,6 +64,13 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "🚫 No Proof → No Score → No Mint" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // Check for attendance proof — apply participation_factor
+    let participationFactor = 1.0;
+    const attendanceProof = proofs.find((p: any) => p.proof_type === "system_log" && p.raw_metadata?.type === "attendance_verification");
+    if (attendanceProof) {
+      participationFactor = Math.max(0, Math.min(1, attendanceProof.raw_metadata?.participation_factor ?? 0.5));
+    }
+
     // === LAYER 1: AI Analysis (60%) ===
     const aiScores = await runAIValidation(action, proofs);
 

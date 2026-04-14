@@ -299,6 +299,8 @@ export interface ScoringInput {
   sequenceBonus?: number;
   /** LS-Math v1.0: risk score for integrity penalty (0-1) */
   riskScore?: number;
+  /** PRD Section 9.5: Participation factor from attendance (0.0–1.0) */
+  participationFactor?: number;
 }
 
 /**
@@ -350,7 +352,9 @@ export function scoreAction(input: ScoringInput): ScoringResult {
   const mCons = calculateConsistencyMultiplier(input.streakDays ?? 0);
   const mSeq = 1 + 0.5 * Math.tanh((input.sequenceBonus ?? 0) / 5);
   const integrityPenalty = 1 - Math.min(0.5, 0.8 * (input.riskScore ?? 0));
-  const lsMathFactor = Math.round(mCons * mSeq * integrityPenalty * 10000) / 10000;
+  // PRD Section 9.5: participation factor modifier for attendance-based actions
+  const pFactor = input.participationFactor !== undefined ? Math.max(0, Math.min(1, input.participationFactor)) : 1.0;
+  const lsMathFactor = Math.round(mCons * mSeq * integrityPenalty * pFactor * 10000) / 10000;
 
   // Calculate amount with LS-Math factor applied
   const baseAmountAtomic = calculateMintAmount(input.baseRewardAtomic, multipliers);
