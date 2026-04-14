@@ -113,8 +113,9 @@ serve(async (req) => {
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
 
-    // === CHECK-OUT ===
+
     if (action === "check_out") {
       const { data: attendance } = await supabaseAdmin
         .from("attendance")
