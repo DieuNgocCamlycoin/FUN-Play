@@ -6,32 +6,12 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
-import { RefreshCw, ExternalLink, BarChart3, Rocket, Loader2, CheckCircle2, XCircle, RotateCcw } from 'lucide-react';
+import { RefreshCw, ExternalLink, BarChart3, Rocket, Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatFunDisplay } from '@/lib/fun-money/web3-config';
-import { REQUIRED_GROUPS, GOV_GROUPS } from '@/lib/fun-money/pplp-multisig-config';
-import { useMintSubmit } from '@/hooks/useMintSubmit';
+import { useMintSubmit, type MintSubmitRequest } from '@/hooks/useMintSubmit';
 import { useWalletContext } from '@/contexts/WalletContext';
 import { toast } from 'sonner';
-import type { MultisigSignatures, PPLPMintRequest } from '@/lib/fun-money/pplp-multisig-types';
-import type { GovGroupName } from '@/lib/fun-money/pplp-multisig-config';
-import { resetRequestWithFreshNonce, verifyOnChainNonce } from '@/lib/fun-money/pplp-nonce-refresh';
-import { useWalletClient } from 'wagmi';
-import { BrowserProvider } from 'ethers';
-
-interface MintRequest {
-  id: string;
-  user_id: string;
-  recipient_address: string;
-  action_type: string;
-  amount_wei: string;
-  status: string;
-  multisig_signatures: MultisigSignatures;
-  multisig_completed_groups: GovGroupName[];
-  tx_hash: string | null;
-  created_at: string;
-  updated_at: string;
-}
 
 interface UserProfile {
   id: string;
@@ -40,9 +20,9 @@ interface UserProfile {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  pending_sig: { label: 'Chờ ký', className: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
-  signing: { label: 'Đang ký', className: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
-  signed: { label: 'Đã ký đủ', className: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
+  pending_sig: { label: 'Chờ duyệt', className: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
+  signing: { label: 'Đang xử lý', className: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
+  signed: { label: 'Sẵn sàng', className: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
   submitted: { label: 'Đã submit', className: 'bg-purple-500/20 text-purple-400 border-purple-500/30' },
   confirmed: { label: 'Thành công', className: 'bg-green-500/20 text-green-300 border-green-500/30' },
   failed: { label: 'Thất bại', className: 'bg-destructive/20 text-destructive border-destructive/30' },
@@ -50,21 +30,19 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
 
 const FILTER_TABS = [
   { value: 'all', label: 'Tất cả' },
-  { value: 'signing', label: 'Đang ký' },
-  { value: 'signed', label: 'Đã ký đủ' },
+  { value: 'pending', label: 'Chờ duyệt' },
+  { value: 'ready', label: 'Sẵn sàng' },
   { value: 'onchain', label: 'On-chain' },
   { value: 'failed', label: 'Lỗi' },
 ];
 
 export function MintProgressTracker() {
-  const [requests, setRequests] = useState<MintRequest[]>([]);
+  const [requests, setRequests] = useState<MintSubmitRequest[]>([]);
   const [profiles, setProfiles] = useState<Record<string, UserProfile>>({});
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const { isConnected } = useWalletContext();
-  const { data: walletClient } = useWalletClient();
   const { submitMint, isSubmitting } = useMintSubmit();
-  const [resettingId, setResettingId] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -73,10 +51,9 @@ export function MintProgressTracker() {
       .select('*')
       .order('created_at', { ascending: false });
 
-    const rows = (data || []) as unknown as MintRequest[];
+    const rows = (data || []) as unknown as MintSubmitRequest[];
     setRequests(rows);
 
-    // Fetch user profiles
     const userIds = [...new Set(rows.map(r => r.user_id))];
     if (userIds.length > 0) {
       const { data: pData } = await supabase
@@ -90,50 +67,6 @@ export function MintProgressTracker() {
     setLoading(false);
   }, []);
 
-  // Track which requests we've already attempted auto-mint for
-  const [autoMintedIds, setAutoMintedIds] = useState<Set<string>>(new Set());
-  const [autoMinting, setAutoMinting] = useState<string | null>(null);
-
-  // Auto-submit: when a request reaches 'signed' and wallet is connected, auto-mint with nonce verification
-  useEffect(() => {
-    if (!isConnected || !walletClient) return;
-    const signedReqs = requests.filter(
-      r => r.status === 'signed' && !autoMintedIds.has(r.id) && isSubmitting !== r.id && autoMinting !== r.id
-    );
-    if (signedReqs.length === 0) return;
-
-    const autoSubmitNext = async () => {
-      const req = signedReqs[0];
-      setAutoMinting(req.id);
-      setAutoMintedIds(prev => new Set(prev).add(req.id));
-
-      // Verify nonce before submitting
-      try {
-        const provider = new BrowserProvider(walletClient as any);
-        const { valid, onChainNonce } = await verifyOnChainNonce(provider, req.recipient_address, (req as any).nonce);
-        if (!valid) {
-          toast.error(`⚠️ Nonce cũ (DB: ${(req as any).nonce}, chain: ${onChainNonce}). Cần Reset & Refresh Nonce trước khi mint.`);
-          setAutoMinting(null);
-          return;
-        }
-      } catch (e) {
-        console.warn('Nonce check failed, proceeding anyway:', e);
-      }
-
-      toast.info(`⚡ Tự động mint on-chain cho ${req.recipient_address.slice(0, 10)}...`);
-      try {
-        const result = await submitMint(req as unknown as PPLPMintRequest);
-        toast.success(`✅ Auto-mint thành công! TX: ${result.txHash?.slice(0, 10)}...`);
-      } catch (err: any) {
-        toast.error(`❌ Auto-mint thất bại: ${err.message?.slice(0, 80)}`);
-      } finally {
-        setAutoMinting(null);
-      }
-    };
-
-    autoSubmitNext();
-  }, [requests, isConnected, walletClient, autoMintedIds, submitMint, isSubmitting, autoMinting]);
-
   useEffect(() => {
     fetchData();
     const channel = supabase
@@ -145,52 +78,33 @@ export function MintProgressTracker() {
 
   const filtered = requests.filter(r => {
     if (filter === 'all') return true;
-    if (filter === 'signing') return r.status === 'pending_sig' || r.status === 'signing';
-    if (filter === 'signed') return r.status === 'signed';
+    if (filter === 'pending') return r.status === 'pending_sig' || r.status === 'signing';
+    if (filter === 'ready') return r.status === 'signed';
     if (filter === 'onchain') return r.status === 'submitted' || r.status === 'confirmed';
     if (filter === 'failed') return r.status === 'failed';
     return true;
   });
 
-  // Stats
   const stats = {
     total: requests.length,
-    signing: requests.filter(r => r.status === 'pending_sig' || r.status === 'signing').length,
-    signed: requests.filter(r => r.status === 'signed').length,
+    pending: requests.filter(r => r.status === 'pending_sig' || r.status === 'signing').length,
+    ready: requests.filter(r => r.status === 'signed').length,
     confirmed: requests.filter(r => r.status === 'confirmed').length,
     failed: requests.filter(r => r.status === 'failed').length,
   };
 
-  const handleMintSubmit = useCallback(async (req: MintRequest) => {
+  const handleMintSubmit = useCallback(async (req: MintSubmitRequest) => {
     if (!isConnected) {
       toast.error('Vui lòng kết nối ví trước');
       return;
     }
     try {
-      const result = await submitMint(req as unknown as PPLPMintRequest);
+      const result = await submitMint(req);
       toast.success(`✅ Mint thành công! TX: ${result.txHash?.slice(0, 10)}...`);
     } catch (err: any) {
       toast.error(`❌ Mint thất bại: ${err.message?.slice(0, 100)}`);
     }
   }, [isConnected, submitMint]);
-
-  const handleResetWithFreshNonce = useCallback(async (req: MintRequest) => {
-    if (!walletClient) {
-      toast.error('Vui lòng kết nối ví trước');
-      return;
-    }
-    setResettingId(req.id);
-    try {
-      const provider = new BrowserProvider(walletClient as any);
-      const result = await resetRequestWithFreshNonce(req.id, provider);
-      toast.success(`✅ Reset thành công! Nonce mới: ${result.newNonce}. Cần ký lại 3/3.`);
-      fetchData();
-    } catch (err: any) {
-      toast.error(`❌ Reset thất bại: ${err.message?.slice(0, 100)}`);
-    } finally {
-      setResettingId(null);
-    }
-  }, [walletClient, fetchData]);
 
   return (
     <div className="space-y-4">
@@ -205,12 +119,11 @@ export function MintProgressTracker() {
         </Button>
       </div>
 
-      {/* Summary stats */}
       <div className="grid grid-cols-5 gap-2">
         {[
           { label: 'Tổng', value: stats.total, color: 'text-foreground' },
-          { label: 'Đang ký', value: stats.signing, color: 'text-blue-400' },
-          { label: 'Đủ 3/3', value: stats.signed, color: 'text-emerald-400' },
+          { label: 'Chờ duyệt', value: stats.pending, color: 'text-blue-400' },
+          { label: 'Sẵn sàng', value: stats.ready, color: 'text-emerald-400' },
           { label: 'Thành công', value: stats.confirmed, color: 'text-green-300' },
           { label: 'Lỗi', value: stats.failed, color: 'text-destructive' },
         ].map(s => (
@@ -221,7 +134,6 @@ export function MintProgressTracker() {
         ))}
       </div>
 
-      {/* Filter tabs */}
       <Tabs value={filter} onValueChange={setFilter}>
         <TabsList className="w-full">
           {FILTER_TABS.map(t => (
@@ -246,21 +158,14 @@ export function MintProgressTracker() {
                 <TableRow>
                   <TableHead className="text-xs">User</TableHead>
                   <TableHead className="text-xs text-right">FUN</TableHead>
-                  {REQUIRED_GROUPS.map(g => (
-                    <TableHead key={g} className="text-xs text-center w-12">
-                      {GOV_GROUPS[g].emoji}
-                    </TableHead>
-                  ))}
                   <TableHead className="text-xs">Status</TableHead>
                   <TableHead className="text-xs">TX</TableHead>
-                  <TableHead className="text-xs text-center">Mint</TableHead>
+                  <TableHead className="text-xs text-center">Action</TableHead>
                   <TableHead className="text-xs">Ngày</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.map(req => {
-                  const sigs = (req.multisig_signatures || {}) as MultisigSignatures;
-                  const completed = (req.multisig_completed_groups || []) as GovGroupName[];
                   const profile = profiles[req.user_id];
                   const statusCfg = STATUS_CONFIG[req.status] || STATUS_CONFIG.pending_sig;
 
@@ -282,15 +187,6 @@ export function MintProgressTracker() {
                       <TableCell className="py-2 text-right text-xs font-bold whitespace-nowrap">
                         {formatFunDisplay(req.amount_wei)}
                       </TableCell>
-                      {REQUIRED_GROUPS.map(g => (
-                        <TableCell key={g} className="py-2 text-center text-xs">
-                          {completed.includes(g) ? (
-                            <span className="text-emerald-400" title={sigs[g]?.signer_name}>✓</span>
-                          ) : (
-                            <span className="text-muted-foreground">✗</span>
-                          )}
-                        </TableCell>
-                      ))}
                       <TableCell className="py-2">
                         <Badge variant="outline" className={`text-[10px] ${statusCfg.className}`}>
                           {statusCfg.label}
@@ -312,7 +208,7 @@ export function MintProgressTracker() {
                         )}
                       </TableCell>
                       <TableCell className="py-2 text-center">
-                        {req.status === 'signed' ? (
+                        {(req.status === 'signed' || req.status === 'pending_sig') ? (
                           <Button
                             size="sm"
                             className="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] h-7 px-2"
@@ -320,33 +216,19 @@ export function MintProgressTracker() {
                             disabled={isSubmitting === req.id}
                           >
                             {isSubmitting === req.id ? (
-                              <><Loader2 className="w-3 h-3 mr-1 animate-spin" />Đang gửi...</>
+                              <><Loader2 className="w-3 h-3 mr-1 animate-spin" />Minting...</>
                             ) : (
-                              <><Rocket className="w-3 h-3 mr-1" />Submit TX</>
+                              <><Rocket className="w-3 h-3 mr-1" />Mint TX</>
                             )}
                           </Button>
-                        ) : req.status === 'submitted' ? (
-                          <Badge variant="outline" className="bg-purple-500/20 text-purple-400 border-purple-500/30 text-[10px]">
-                            <Loader2 className="w-3 h-3 mr-1 animate-spin" />Đang xử lý
-                          </Badge>
                         ) : req.status === 'confirmed' ? (
                           <Badge variant="outline" className="bg-green-500/20 text-green-300 border-green-500/30 text-[10px]">
-                            <CheckCircle2 className="w-3 h-3 mr-1" />Thành công
+                            <CheckCircle2 className="w-3 h-3 mr-1" />OK
                           </Badge>
                         ) : req.status === 'failed' ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="bg-destructive/10 hover:bg-destructive/20 text-destructive text-[10px] h-7 px-2"
-                            onClick={() => handleResetWithFreshNonce(req)}
-                            disabled={resettingId === req.id}
-                          >
-                            {resettingId === req.id ? (
-                              <><Loader2 className="w-3 h-3 mr-1 animate-spin" />Đang reset...</>
-                            ) : (
-                              <><RotateCcw className="w-3 h-3 mr-1" />Reset & Refresh</>
-                            )}
-                          </Button>
+                          <Badge variant="outline" className="bg-destructive/20 text-destructive border-destructive/30 text-[10px]">
+                            <XCircle className="w-3 h-3 mr-1" />Lỗi
+                          </Badge>
                         ) : (
                           <span className="text-muted-foreground text-xs">—</span>
                         )}

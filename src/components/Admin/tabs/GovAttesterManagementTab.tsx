@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useGovAttesters, GovAttesterRow } from "@/hooks/useGovAttesters";
-import { GovGroupName, GOV_GROUPS } from "@/lib/fun-money/pplp-multisig-config";
+import { type GovGroupName, GOV_GROUPS } from "@/lib/fun-money/gov-config";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
