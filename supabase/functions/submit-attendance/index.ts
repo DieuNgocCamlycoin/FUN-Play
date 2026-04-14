@@ -167,7 +167,8 @@ serve(async (req) => {
         attendance_mode: attendance_mode || "in_person",
         attendance_confidence: updated.participation_factor,
       }), {
-    }
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
 
     // === LEADER CONFIRM ===
     if (action === "confirm") {
