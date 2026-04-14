@@ -1,41 +1,88 @@
 
 
-## Fix lỗi Mint On-chain thất bại ("missing revert data")
+# FUN Ecosystem — Light Score System Alignment Plan
 
-### Nguyên nhân gốc
+## Current State vs CTO Diagram
 
-Tất cả 5 request đều thất bại với lỗi `missing revert data (action="estimateGas")`. Đây là lỗi xảy ra khi smart contract **revert** giao dịch trước khi thực thi. Hai nguyên nhân chính:
+After reviewing the codebase, there are **significant architectural gaps** between the CTO diagram and the current implementation:
 
-1. **Nonce cũ (stale nonce)**: Khi admin tạo multisig request, hệ thống đọc nonce on-chain tại thời điểm đó. Nhưng khi reset request về `pending_sig` để ký lại, **nonce KHÔNG được cập nhật** — chỉ xoá chữ ký và đổi status. Các attester ký lại với nonce cũ, contract từ chối.
+| Aspect | CTO Diagram (Target) | Current Implementation |
+|--------|----------------------|----------------------|
+| **5 Pillars** | Serving Life, Truth, Love, Value, Unity | Identity, Activity, Onchain, Transparency, Alignment |
+| **Scale** | 0–10 each | 0–100 each |
+| **Formula** | **Multiplicative**: S × T × L × V × U / 10⁴ | **Additive**: weighted sum (0.25S + 0.20T + ...) |
+| **Zero rule** | Any pillar = 0 → Score = 0 | No such rule |
+| **Proof Layer** | Required for every action | Optional (proof URL is optional in MintRequestForm) |
+| **Action Groups** | Inner Work, Channeling, Giving, Social Impact, Service | WATCH_VIDEO, LIKE, COMMENT, SHARE, etc. |
+| **Validation** | AI Analysis + Community Feedback + System Signals | Partial (Angel AI moderation exists, no community feedback scoring) |
 
-2. **Quy trình reset thiếu bước**: Hiện tại reset chỉ làm: `status → pending_sig, signatures → {}, completed_groups → []`. Thiếu bước quan trọng: **đọc lại nonce on-chain mới** và **tạo lại action_hash + evidence_hash** cho nonce mới.
+## Impact Assessment
 
-### Kế hoạch sửa
+This is a **foundational change** to the scoring engine. Changing from additive to multiplicative scoring and renaming all 5 pillars will affect:
 
-#### 1. Thêm nút "Reset & Refresh Nonce" vào MintProgressTracker
-**File: `src/components/Multisig/MintProgressTracker.tsx`**
-- Thêm nút **"🔄 Reset"** cho các request có `status === 'failed'`
-- Khi bấm: gọi hàm reset mới (bước 2 bên dưới)
+- `light-score-pillars.ts` — pillar configs, weights, names
+- `light-score-pillar-engine.ts` — all scoring functions, formula
+- `pplp-engine.ts` — pillar scores interface (S, T, H, C, U)
+- `LightScoreDashboard.tsx` — radar chart labels
+- `MintRequestForm.tsx` — pillar sliders and labels
+- `LightLevelBadge.tsx` — level display
+- Multiple hooks and edge functions
 
-#### 2. Tạo hàm `resetRequestWithFreshNonce` 
-**File: `src/lib/fun-money/pplp-multisig-helpers.ts`**
-- Nhận `requestId` + `provider` (BrowserProvider)
-- Đọc nonce on-chain mới nhất: `contract.nonces(recipient_address)`
-- Tính lại `actionHash` + `evidenceHash` với nonce mới (dùng `preparePPLPData`)
-- Update DB: `nonce`, `action_hash`, `evidence_hash`, `status → pending_sig`, xoá signatures, xoá error
+## Proposed Plan (5 Steps)
 
-#### 3. Sửa logic auto-mint để verify nonce trước khi submit
-**File: `src/components/Multisig/MintProgressTracker.tsx`**
-- Trước khi gọi `submitMint`, gọi `verifyNonce(recipient_address, request.nonce)` từ `useMintSubmit`
-- Nếu nonce không khớp → tự động reset request thay vì submit (tránh lãng phí gas)
+### Step 1: Redefine 5 Pillars & Scoring Config
+Rename pillars in `light-score-pillars.ts`:
+- `identity` → `serving` (Serving Life / Phụng sự)
+- `activity` → `truth` (Transparent Truth / Chân thật)
+- `onchain` → `love` (Healing & Love / Chữa lành)
+- `transparency` → `value` (Long-term Value / Giá trị)
+- `alignment` → `unity` (Unity over Separation / Đoàn kết)
 
-#### 4. Sửa logic ký trong AttesterPanel để kiểm tra nonce
-**File: `src/components/Multisig/AttesterPanel.tsx`**
-- Khi attester cuối cùng ký (đạt 3/3) và trigger auto-mint, thêm kiểm tra nonce trước
-- Nếu nonce lỗi thời → hiện toast cảnh báo thay vì submit rồi thất bại
+Scale each 0–10. Update `PILLAR_CONFIGS`, `PILLAR_LIST`, and `PillarName` type.
 
-### Kết quả mong đợi
-- Request lỗi có nút Reset để lấy nonce mới, ký lại đúng
-- Hệ thống tự phát hiện nonce cũ trước khi submit, tránh giao dịch thất bại
-- Quy trình: Reset → Ký lại 3/3 → Verify nonce → Auto-mint → Thành công
+### Step 2: Switch to Multiplicative Formula
+In `light-score-pillar-engine.ts`, replace:
+```
+weightedTotal = 0.20*S + 0.20*T + 0.20*L + 0.20*V + 0.20*U
+```
+With:
+```
+FinalScore = (S × T × L × V × U) / 10⁴
+```
+Add the **zero-kill rule**: if any pillar = 0, final score = 0. This is the anti-fake mechanism built into the math.
+
+### Step 3: Enforce Proof Layer
+Make proof URL **required** in `MintRequestForm.tsx`. Block submission if no proof is provided:
+- "No Proof → No Score → No Mint"
+- Accept: link, video, image URL, or system log reference
+
+### Step 4: Remap Action Groups
+Update action types in the system to align with the 5 fixed groups:
+- Inner Work (meditation, reflection)
+- Channeling (content creation, learning)
+- Giving (donations, rewards)
+- Social Impact (community help, mentoring)
+- Service (platform contributions, governance)
+
+Map existing `BASE_REWARDS` action types into these 5 groups.
+
+### Step 5: Update All UI Components
+- **RadarChart** in `LightScoreDashboard.tsx`: new labels (0–10 scale)
+- **MintRequestForm.tsx**: sliders from 0–10 with new pillar names
+- **Pillar detail rows**: new emoji and Vietnamese labels
+- **pplp-engine.ts**: sync `PillarScores` interface (S, T, H, C, U stay but meanings change)
+
+## Technical Considerations
+
+- **Database**: The `pplp_events` scoring tags and `features_user_day` data won't need schema changes — only the interpretation layer changes
+- **Existing scores**: Will need a one-time recalculation for all users after formula switch
+- **Backward compatibility**: Existing mint requests already processed won't be affected
+- **Level thresholds**: May need recalibration since multiplicative scoring produces different ranges than additive
+
+## What stays the same
+- LS-Math v1.0 database functions (authoritative source)
+- Mint distribution: 99% User / 1% Platform
+- Anti-whale cap, cooldown, pool limits
+- Multisig 3/3 signing flow
+- Edge functions for auto-routing
 
