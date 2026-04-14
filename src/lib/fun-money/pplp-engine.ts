@@ -8,11 +8,11 @@ import { validatePPLP } from './constitution';
 // ===== TYPE DEFINITIONS =====
 
 export interface PillarScores {
-  S: number; // Service (0-100)
-  T: number; // Truth (0-100)
-  H: number; // Healing (0-100)
-  C: number; // Contribution (0-100)
-  U: number; // Unity (0-100)
+  S: number; // Serving Life (0-10)
+  T: number; // Transparent Truth (0-10)
+  H: number; // Healing & Love (0-10)
+  C: number; // Long-term Value (0-10)
+  U: number; // Unity (0-10)
 }
 
 export interface UnitySignals {
@@ -95,15 +95,18 @@ const CAPS = {
 
 /**
  * Calculate Light Score from 5 Pillars
- * Formula: 0.25*S + 0.20*T + 0.20*H + 0.20*C + 0.15*U
+ * CTO Diagram: Multiplicative formula
+ * FinalScore = (S × T × L × V × U) / 10⁴
+ * Zero-kill rule: Any pillar = 0 → Score = 0
  */
 export function calculateLightScore(pillars: PillarScores): number {
-  const score =
-    PILLAR_WEIGHTS.S * pillars.S +
-    PILLAR_WEIGHTS.T * pillars.T +
-    PILLAR_WEIGHTS.H * pillars.H +
-    PILLAR_WEIGHTS.C * pillars.C +
-    PILLAR_WEIGHTS.U * pillars.U;
+  // Zero-kill rule: anti-fake built-in
+  if (pillars.S === 0 || pillars.T === 0 || pillars.H === 0 || pillars.C === 0 || pillars.U === 0) {
+    return 0;
+  }
+  
+  const product = pillars.S * pillars.T * pillars.H * pillars.C * pillars.U;
+  const score = product / 10000; // / 10⁴
   
   return Math.round(score * 100) / 100;
 }
