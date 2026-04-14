@@ -1,6 +1,6 @@
 /**
  * FUN Money Approval Tab - Admin Dashboard
- * Redesigned: Full-width table, batch actions, expandable detail
+ * v2.0: Direct mint via FUNMoneyMinter (no multisig)
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -44,10 +44,8 @@ import {
 import { useAdminMintRequest } from '@/hooks/useAdminMintRequest';
 import { useFunMoneyWallet } from '@/hooks/useFunMoneyWallet';
 import { formatFunAmount } from '@/lib/fun-money/pplp-engine';
-import { CONTRACT_ACTION } from '@/lib/fun-money/contract-helpers';
+import { CONTRACT_ACTION, mintFunMoney } from '@/lib/fun-money/contract-helpers';
 import { KNOWN_ADDRESSES } from '@/lib/fun-money/web3-config';
-import { createMultisigRequest, createConsolidatedMultisigRequests } from '@/lib/fun-money/pplp-multisig-helpers';
-import type { MintRequestForMultisig } from '@/lib/fun-money/pplp-multisig-helpers';
 import { cn } from '@/lib/utils';
 import type { MintRequest } from '@/hooks/useFunMoneyMintRequest';
 
@@ -76,7 +74,7 @@ export function FunMoneyApprovalTab() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [isMinting, setIsMinting] = useState(false);
   const [isBatchProcessing, setIsBatchProcessing] = useState(false);
-  const [routedIds, setRoutedIds] = useState<Set<string>>(new Set());
+  const [mintedIds, setMintedIds] = useState<Set<string>>(new Set());
   
   const [profileCache, setProfileCache] = useState<Record<string, { display_name: string | null; avatar_url: string | null; username: string; banned?: boolean; wallet_address?: string | null }>>({});
 
@@ -109,35 +107,18 @@ export function FunMoneyApprovalTab() {
     setExpandedId(null);
   }, [activeTab, fetchPendingRequests, fetchAllRequests]);
 
-  // Pre-populate routedIds from pplp_mint_requests to persist across reloads
+  // Pre-populate mintedIds from already minted requests
   useEffect(() => {
-    const loadRoutedIds = async () => {
-      const requestIds = requests.map(r => r.id);
-      if (requestIds.length === 0) return;
-      
-      // Check which requests have decision_reason indicating routing
-      const alreadyRouted = requests
-        .filter(r => r.decision_reason?.includes('pplp_mint_requests') || r.decision_reason?.includes('Multisig'))
-        .map(r => r.id);
-      
-      // Also check pplp_mint_requests table for source_mint_request_id matches
-      const { data: multisigRecords } = await supabase
-        .from('pplp_mint_requests')
-        .select('source_mint_request_id')
-        .in('source_mint_request_id', requestIds);
-      
-      const fromDb = (multisigRecords || []).map((m: any) => m.source_mint_request_id).filter(Boolean);
-      
-      const allRouted = new Set([...alreadyRouted, ...fromDb]);
-      if (allRouted.size > 0) {
-        setRoutedIds(prev => {
-          const next = new Set(prev);
-          allRouted.forEach(id => next.add(id));
-          return next;
-        });
-      }
-    };
-    loadRoutedIds();
+    const alreadyMinted = requests
+      .filter(r => r.status === 'minted' || r.tx_hash)
+      .map(r => r.id);
+    if (alreadyMinted.length > 0) {
+      setMintedIds(prev => {
+        const next = new Set(prev);
+        alreadyMinted.forEach(id => next.add(id));
+        return next;
+      });
+    }
   }, [requests]);
 
   // Fetch profiles for all visible requests
@@ -175,7 +156,6 @@ export function FunMoneyApprovalTab() {
   }, [requests, profileCache, activeTab]);
 
   const filteredRequests = requests.filter(r => {
-    // Hide banned users' requests from all tabs
     if (profileCache[r.user_id]?.banned) return false;
     if (!debouncedSearch) return true;
     const q = debouncedSearch.toLowerCase();
@@ -228,21 +208,20 @@ export function FunMoneyApprovalTab() {
     }
   };
 
-  const handleRouteToMultisig = async (request: MintRequest) => {
+  /** Direct mint via FUNMoneyMinter — no multisig */
+  const handleDirectMint = async (request: MintRequest) => {
     if (!isConnected || !adminAddress) {
-      toast.error('Vui lòng kết nối ví trước để đọc nonce on-chain');
+      toast.error('Vui lòng kết nối ví Authorized Minter');
       return;
     }
     setIsMinting(true);
     try {
-      // Auto-switch to BSC Testnet if needed
       if (!isCorrectChain) {
         toast.info('🔄 Đang chuyển sang BSC Testnet...');
         await switchToBscTestnet();
         await new Promise(r => setTimeout(r, 1500));
       }
       const signer = await getSigner();
-      const provider = signer.provider as import('ethers').BrowserProvider;
 
       // Wallet mismatch check
       const { data: currentProfile } = await supabase
@@ -265,47 +244,50 @@ export function FunMoneyApprovalTab() {
         }
       }
 
-      const multisigRecord = await createMultisigRequest({
-        mintRequest: {
-          id: request.id,
-          user_id: request.user_id,
-          user_wallet_address: request.user_wallet_address,
-          action_type: request.action_type,
-          calculated_amount_atomic: request.calculated_amount_atomic,
-          calculated_amount_formatted: request.calculated_amount_formatted,
-          action_evidence: request.action_evidence,
-          platform_id: request.platform_id,
-        },
-        provider,
-      });
+      const amount = BigInt(request.calculated_amount_atomic);
+      const txHash = await mintFunMoney(
+        signer,
+        request.user_wallet_address,
+        request.action_type,
+        amount,
+        request.action_evidence
+      );
+
+      await saveMintResult(request.id, txHash, adminAddress);
 
       toast.success(
         <div className="flex flex-col gap-1">
-          <span>✅ Đã chuyển sang Multisig 3/3</span>
+          <span>✅ Đã mint thành công!</span>
           <span className="text-xs text-muted-foreground">
-            Chờ 3 nhóm GOV (WILL + WISDOM + LOVE) ký. ID: {multisigRecord.id.slice(0, 8)}...
+            TX: {txHash.slice(0, 10)}... — Token đã chuyển thẳng cho user (99/1 on-chain)
           </span>
         </div>
       );
-      setRoutedIds(prev => new Set(prev).add(request.id));
+      setMintedIds(prev => new Set(prev).add(request.id));
       setExpandedId(null);
-      // Refresh list
       if (activeTab === 'pending') fetchPendingRequests();
       else fetchAllRequests();
     } catch (err: any) {
-      console.error('Route to multisig error:', err);
-      toast.error(`Lỗi chuyển Multisig: ${err.message?.slice(0, 100)}`);
+      console.error('Direct mint error:', err);
+      toast.error(`Lỗi mint: ${err.message?.slice(0, 100)}`);
+      await markAsFailed(request.id, err.message || 'Unknown error');
     } finally {
       setIsMinting(false);
     }
   };
 
-  const handleApproveAndRouteToMultisig = async (request: MintRequest) => {
+  const handleApproveAndMint = async (request: MintRequest) => {
     if (!isConnected || !adminAddress) {
-      toast.error('Vui lòng kết nối ví để đọc nonce on-chain');
+      toast.error('Vui lòng kết nối ví Authorized Minter');
       return;
     }
-    await handleRouteToMultisig(request);
+    // Approve first, then mint
+    const approved = await approveRequest(request.id, 'Approved & direct mint by admin');
+    if (!approved) {
+      toast.error('Không thể duyệt yêu cầu');
+      return;
+    }
+    await handleDirectMint(request);
   };
 
   // Batch approve
@@ -323,12 +305,11 @@ export function FunMoneyApprovalTab() {
     fetchPendingRequests();
   };
 
-  // Approve ALL pending (no selection needed)
+  // Approve ALL pending
   const handleApproveAll = async () => {
     const pendingRequests = filteredRequests.filter(r => r.status === 'pending');
     if (pendingRequests.length === 0) { toast.info('Không có yêu cầu nào chờ duyệt'); return; }
     
-    // Auto-reject 0 FUN requests
     const zeroFunRequests = pendingRequests.filter(r => !r.calculated_amount_atomic || r.calculated_amount_atomic === '0' || r.calculated_amount_atomic === '');
     const validRequests = pendingRequests.filter(r => r.calculated_amount_atomic && r.calculated_amount_atomic !== '0' && r.calculated_amount_atomic !== '');
     
@@ -336,13 +317,11 @@ export function FunMoneyApprovalTab() {
     setIsBatchProcessing(true);
     let success = 0, fail = 0, rejected = 0;
     
-    // Auto-reject 0 FUN
     for (const r of zeroFunRequests) {
       const ok = await rejectRequest(r.id, '0 FUN — Tự động từ chối');
       if (ok) rejected++; else fail++;
     }
     
-    // Approve valid requests
     for (const r of validRequests) {
       const ok = await approveRequest(r.id, 'Batch approved all by admin');
       if (ok) success++; else fail++;
@@ -353,15 +332,13 @@ export function FunMoneyApprovalTab() {
     fetchPendingRequests();
   };
 
-  // Approve ALL + route to multisig — CONSOLIDATED per user (1 multisig per user)
-  const handleApproveAllAndRoute = async () => {
+  // Approve ALL + direct mint
+  const handleApproveAllAndMint = async () => {
     const pendingRequests = filteredRequests.filter(r => r.status === 'pending' && r.calculated_amount_atomic !== '0' && r.calculated_amount_atomic !== '');
     if (pendingRequests.length === 0 || !isConnected || !adminAddress) return;
     
-    // Count unique users
-    const uniqueUsers = new Set(pendingRequests.map(r => r.user_id));
     if (!window.confirm(
-      `Gom ${pendingRequests.length} yêu cầu → ${uniqueUsers.size} lệnh Multisig 3/3 (1 per user).\nTiếp tục?`
+      `Duyệt & Mint trực tiếp ${pendingRequests.length} yêu cầu (1 TX mỗi yêu cầu).\nTiếp tục?`
     )) return;
     
     setIsBatchProcessing(true);
@@ -373,19 +350,24 @@ export function FunMoneyApprovalTab() {
     
     try {
       const signer = await getSigner();
-      const provider = signer.provider as import('ethers').BrowserProvider;
+      let success = 0, fail = 0;
       
-      const mintRequests: MintRequestForMultisig[] = pendingRequests.map(r => ({
-        id: r.id, user_id: r.user_id, user_wallet_address: r.user_wallet_address,
-        action_type: r.action_type, calculated_amount_atomic: r.calculated_amount_atomic,
-        calculated_amount_formatted: r.calculated_amount_formatted,
-        action_evidence: r.action_evidence, platform_id: r.platform_id,
-      }));
+      for (const r of pendingRequests) {
+        try {
+          await approveRequest(r.id, 'Batch approved & direct mint');
+          const amount = BigInt(r.calculated_amount_atomic);
+          const txHash = await mintFunMoney(signer, r.user_wallet_address, r.action_type, amount, r.action_evidence);
+          await saveMintResult(r.id, txHash, adminAddress);
+          setMintedIds(prev => new Set(prev).add(r.id));
+          success++;
+        } catch (err: any) {
+          console.error(`Mint failed for ${r.id}:`, err);
+          await markAsFailed(r.id, err.message || 'Batch mint failed');
+          fail++;
+        }
+      }
       
-      const result = await createConsolidatedMultisigRequests(mintRequests, provider);
-      
-      result.details.forEach(d => toast.info(d));
-      toast.success(`🎉 Hoàn tất: ${result.success} users → Multisig, ${result.fail} thất bại`);
+      toast.success(`🎉 Hoàn tất: ${success} minted, ${fail} thất bại`);
     } catch (err: any) {
       toast.error(`❌ Lỗi: ${err.message?.slice(0, 80)}`);
     }
@@ -395,8 +377,8 @@ export function FunMoneyApprovalTab() {
     fetchPendingRequests();
   };
 
-  // Batch approve + route to multisig — CONSOLIDATED per user
-  const handleBatchApproveAndRoute = async () => {
+  // Batch approve + direct mint selected
+  const handleBatchApproveAndMint = async () => {
     if (selectedIds.size === 0 || !isConnected || !adminAddress) return;
     setIsBatchProcessing(true);
     if (!isCorrectChain) {
@@ -406,19 +388,24 @@ export function FunMoneyApprovalTab() {
     }
     try {
       const signer = await getSigner();
-      const provider = signer.provider as import('ethers').BrowserProvider;
-      
       const selectedRequests = requests.filter(r => selectedIds.has(r.id) && r.calculated_amount_atomic !== '0' && r.calculated_amount_atomic !== '');
-      const mintRequests: MintRequestForMultisig[] = selectedRequests.map(r => ({
-        id: r.id, user_id: r.user_id, user_wallet_address: r.user_wallet_address,
-        action_type: r.action_type, calculated_amount_atomic: r.calculated_amount_atomic,
-        calculated_amount_formatted: r.calculated_amount_formatted,
-        action_evidence: r.action_evidence, platform_id: r.platform_id,
-      }));
+      let success = 0, fail = 0;
       
-      const result = await createConsolidatedMultisigRequests(mintRequests, provider);
-      result.details.forEach(d => toast.info(d));
-      toast.success(`🎉 Hoàn tất: ${result.success} users → Multisig, ${result.fail} thất bại`);
+      for (const r of selectedRequests) {
+        try {
+          await approveRequest(r.id, 'Batch approved & direct mint');
+          const amount = BigInt(r.calculated_amount_atomic);
+          const txHash = await mintFunMoney(signer, r.user_wallet_address, r.action_type, amount, r.action_evidence);
+          await saveMintResult(r.id, txHash, adminAddress);
+          setMintedIds(prev => new Set(prev).add(r.id));
+          success++;
+        } catch (err: any) {
+          await markAsFailed(r.id, err.message || 'Batch mint failed');
+          fail++;
+        }
+      }
+      
+      toast.success(`🎉 Hoàn tất: ${success} minted, ${fail} thất bại`);
     } catch (err: any) {
       toast.error(`❌ Lỗi: ${err.message?.slice(0, 80)}`);
     }
@@ -426,8 +413,6 @@ export function FunMoneyApprovalTab() {
     setIsBatchProcessing(false);
     fetchPendingRequests();
   };
-
-  
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -441,14 +426,12 @@ export function FunMoneyApprovalTab() {
     <div className="space-y-4">
       {/* Top Bar: Wallet + Stats */}
       <div className="flex flex-wrap items-center gap-3">
-        {/* Pending Count */}
         <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
           <Clock className="w-4 h-4 text-yellow-500" />
           <span className="text-sm font-bold">{pendingCount}</span>
           <span className="text-xs text-muted-foreground">Chờ duyệt</span>
         </div>
 
-        {/* Wallet Status */}
         <div className={cn(
           "flex items-center gap-2 px-3 py-2 rounded-lg border",
           isConnected && isAttesterWallet
@@ -464,7 +447,7 @@ export function FunMoneyApprovalTab() {
           <span className="text-xs font-medium">
             {isConnected
               ? isAttesterWallet
-                ? `✅ Attester ${adminAddress?.slice(0, 6)}...${adminAddress?.slice(-4)}`
+                ? `✅ Minter ${adminAddress?.slice(0, 6)}...${adminAddress?.slice(-4)}`
                 : `⚠️ Sai ví (cần ${KNOWN_ADDRESSES.angelAiAttester.slice(0, 6)}...)`
               : 'Chưa kết nối ví'}
           </span>
@@ -475,11 +458,10 @@ export function FunMoneyApprovalTab() {
           )}
         </div>
 
-        {/* Attester info */}
         {isConnected && isAttesterWallet && (
           <div className="flex items-center gap-1 ml-auto">
             <Shield className="w-4 h-4 text-green-500" />
-            <span className="text-xs font-mono text-muted-foreground">Attester • {CONTRACT_ACTION}</span>
+            <span className="text-xs font-mono text-muted-foreground">Authorized Minter • Direct Mint</span>
           </div>
         )}
       </div>
@@ -535,11 +517,11 @@ export function FunMoneyApprovalTab() {
               <Button
                 size="sm"
                 className="h-8 gap-1.5 text-xs bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600 text-white"
-                onClick={handleApproveAllAndRoute}
+                onClick={handleApproveAllAndMint}
                 disabled={isBatchProcessing}
               >
                 {isBatchProcessing ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />}
-                🔐 Multisig 3/3 tất cả ({selectableCount})
+                ⚡ Mint trực tiếp tất cả ({selectableCount})
               </Button>
             )}
           </div>
@@ -566,11 +548,11 @@ export function FunMoneyApprovalTab() {
               <Button
                 size="sm"
                 className="h-8 gap-1 text-xs bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600 text-white"
-                onClick={handleBatchApproveAndRoute}
+                onClick={handleBatchApproveAndMint}
                 disabled={isBatchProcessing}
               >
                 {isBatchProcessing ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />}
-                🔐 Chuyển Multisig 3/3 tất cả
+                ⚡ Mint trực tiếp đã chọn
               </Button>
             )}
             <Button
@@ -631,13 +613,13 @@ export function FunMoneyApprovalTab() {
                     isMinting={isMinting}
                     isBatchProcessing={isBatchProcessing}
                     rejectReason={rejectReason}
-                    hasMultisig={routedIds.has(request.id) || (request.status === 'approved' && !!request.decision_reason?.includes('pplp_mint_requests'))}
+                    hasMinted={mintedIds.has(request.id) || request.status === 'minted'}
                     onToggleExpand={() => setExpandedId(expandedId === request.id ? null : request.id)}
                     onToggleSelect={() => toggleSelect(request.id)}
                     onApprove={() => handleApprove(request)}
                     onReject={() => handleReject(request)}
-                    onRouteToMultisig={() => handleRouteToMultisig(request)}
-                    onApproveAndRoute={() => handleApproveAndRouteToMultisig(request)}
+                    onDirectMint={() => handleDirectMint(request)}
+                    onApproveAndMint={() => handleApproveAndMint(request)}
                     onRejectReasonChange={setRejectReason}
                     onCopy={copyToClipboard}
                     profile={profileCache[request.user_id]}
@@ -668,9 +650,9 @@ export function FunMoneyApprovalTab() {
 function RequestTableRow({
   request, isExpanded, isSelected, showCheckbox,
   isConnected, isAttesterWallet, isMinting, isBatchProcessing,
-  rejectReason, profile, hasMultisig,
+  rejectReason, profile, hasMinted,
   onToggleExpand, onToggleSelect,
-  onApprove, onReject, onRouteToMultisig, onApproveAndRoute,
+  onApprove, onReject, onDirectMint, onApproveAndMint,
   onRejectReasonChange, onCopy
 }: {
   request: MintRequest;
@@ -683,13 +665,13 @@ function RequestTableRow({
   isBatchProcessing: boolean;
   rejectReason: string;
   profile?: { display_name: string | null; avatar_url: string | null; username: string; banned?: boolean; wallet_address?: string | null };
-  hasMultisig: boolean;
+  hasMinted: boolean;
   onToggleExpand: () => void;
   onToggleSelect: () => void;
   onApprove: () => void;
   onReject: () => void;
-  onRouteToMultisig: () => void;
-  onApproveAndRoute: () => void;
+  onDirectMint: () => void;
+  onApproveAndMint: () => void;
   onRejectReasonChange: (v: string) => void;
   onCopy: (t: string) => void;
 }) {
@@ -765,7 +747,6 @@ function RequestTableRow({
         </TableCell>
         <TableCell className="text-right">
           <div className="flex items-center justify-end gap-1">
-            {/* Quick actions for pending */}
             {request.status === 'pending' && (
               (request.calculated_amount_atomic === '0' || request.calculated_amount_atomic === '' || !request.calculated_amount_atomic) ? (
                 <Badge variant="outline" className="text-[10px] gap-1 text-destructive border-destructive/30">
@@ -774,24 +755,24 @@ function RequestTableRow({
               ) : (
               <>
                 {isConnected && (
-                  hasMultisig ? (
+                  hasMinted ? (
                     <Badge className="text-[10px] gap-1 cursor-not-allowed bg-green-500/20 text-green-600 border border-green-500/30">
                       <CheckCircle className="w-3 h-3" />
-                      ✅ Đã chuyển Multisig
+                      ✅ Đã mint
                     </Badge>
                   ) : (
                     <Button
                       size="sm"
                       className="h-7 px-2 text-[10px] gap-1 bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600 text-white"
-                      onClick={(e) => { e.stopPropagation(); onApproveAndRoute(); }}
+                      onClick={(e) => { e.stopPropagation(); onApproveAndMint(); }}
                       disabled={isMinting || isBatchProcessing}
                     >
-                      <Shield className="w-3 h-3" />
-                      Multisig 3/3
+                      <Zap className="w-3 h-3" />
+                      Mint trực tiếp
                     </Button>
                   )
                 )}
-                {!hasMultisig && (
+                {!hasMinted && (
                   <Button
                     size="sm"
                     variant="outline"
@@ -807,10 +788,10 @@ function RequestTableRow({
               )
             )}
             {request.status === 'approved' && (
-              hasMultisig ? (
+              hasMinted ? (
                 <Badge className="text-[10px] gap-1 cursor-not-allowed bg-green-500/20 text-green-600 border border-green-500/30">
                   <CheckCircle className="w-3 h-3" />
-                  ✅ Đã chuyển Multisig
+                  ✅ Đã mint
                 </Badge>
               ) : isConnected && (request.calculated_amount_atomic === '0' || request.calculated_amount_atomic === '') ? (
                 <Badge variant="outline" className="text-[10px] gap-1 opacity-50 text-muted-foreground">
@@ -820,11 +801,11 @@ function RequestTableRow({
                 <Button
                   size="sm"
                   className="h-7 px-2 text-[10px] gap-1 bg-gradient-to-r from-cyan-500 to-purple-500 text-white"
-                  onClick={(e) => { e.stopPropagation(); onRouteToMultisig(); }}
+                  onClick={(e) => { e.stopPropagation(); onDirectMint(); }}
                   disabled={isMinting}
                 >
-                  <Shield className="w-3 h-3" />
-                  Multisig 3/3
+                  <Zap className="w-3 h-3" />
+                  Mint trực tiếp
                 </Button>
               ) : null
             )}
@@ -937,10 +918,10 @@ function RequestTableRow({
                       {isConnected && (
                         <Button
                           className="w-full gap-2 bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600 text-white"
-                          onClick={onApproveAndRoute}
+                          onClick={onApproveAndMint}
                           disabled={isMinting}
                         >
-                          {isMinting ? <><RefreshCw className="w-4 h-4 animate-spin" /> Đang xử lý...</> : <><Shield className="w-4 h-4" /> 🔐 Chuyển Multisig 3/3</>}
+                          {isMinting ? <><RefreshCw className="w-4 h-4 animate-spin" /> Đang mint...</> : <><Zap className="w-4 h-4" /> ⚡ Duyệt & Mint trực tiếp</>}
                         </Button>
                       )}
                       <Button variant="outline" className="w-full gap-2" onClick={onApprove}>
@@ -962,12 +943,12 @@ function RequestTableRow({
                     <>
                       <Button
                         className="w-full gap-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white"
-                        onClick={onRouteToMultisig}
+                        onClick={onDirectMint}
                         disabled={!isConnected || isMinting}
                       >
-                        {isMinting ? <><RefreshCw className="w-4 h-4 animate-spin" /> Đang xử lý...</> : <><Shield className="w-4 h-4" /> 🔐 Chuyển Multisig 3/3</>}
+                        {isMinting ? <><RefreshCw className="w-4 h-4 animate-spin" /> Đang mint...</> : <><Zap className="w-4 h-4" /> ⚡ Mint trực tiếp</>}
                       </Button>
-                      {!isConnected && <p className="text-xs text-center text-muted-foreground">Kết nối ví để đọc nonce on-chain</p>}
+                      {!isConnected && <p className="text-xs text-center text-muted-foreground">Kết nối ví Authorized Minter để mint</p>}
                     </>
                   )}
                   {request.status === 'minted' && (
