@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      action_types: {
+        Row: {
+          base_impact_score: number | null
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean | null
+          name: string
+          pillar_group: string
+        }
+        Insert: {
+          base_impact_score?: number | null
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          name: string
+          pillar_group: string
+        }
+        Update: {
+          base_impact_score?: number | null
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          pillar_group?: string
+        }
+        Relationships: []
+      }
       admin_rate_limits: {
         Row: {
           action: string
@@ -256,6 +286,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      balance_ledger: {
+        Row: {
+          amount: number
+          created_at: string
+          entry_type: string
+          id: string
+          note: string | null
+          reference_id: string | null
+          reference_table: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          entry_type: string
+          id?: string
+          note?: string | null
+          reference_id?: string | null
+          reference_table?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          entry_type?: string
+          id?: string
+          note?: string | null
+          reference_id?: string | null
+          reference_table?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       blacklisted_wallets: {
         Row: {
@@ -788,6 +851,44 @@ export type Database = {
           },
         ]
       }
+      community_reviews: {
+        Row: {
+          action_id: string
+          comment: string | null
+          created_at: string
+          endorse_score: number | null
+          flag_score: number | null
+          id: string
+          reviewer_user_id: string
+        }
+        Insert: {
+          action_id: string
+          comment?: string | null
+          created_at?: string
+          endorse_score?: number | null
+          flag_score?: number | null
+          id?: string
+          reviewer_user_id: string
+        }
+        Update: {
+          action_id?: string
+          comment?: string | null
+          created_at?: string
+          endorse_score?: number | null
+          flag_score?: number | null
+          id?: string
+          reviewer_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_reviews_action_id_fkey"
+            columns: ["action_id"]
+            isOneToOne: false
+            referencedRelation: "user_actions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       content_hashes: {
         Row: {
           content_hash: string
@@ -1143,6 +1244,30 @@ export type Database = {
           name?: string
           updated_at?: string
           wallet_address?: string
+        }
+        Relationships: []
+      }
+      immutable_rules: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          rule_code: string
+          rule_value: Json
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          rule_code: string
+          rule_value: Json
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          rule_code?: string
+          rule_value?: Json
         }
         Relationships: []
       }
@@ -1639,6 +1764,65 @@ export type Database = {
           status?: string
         }
         Relationships: []
+      }
+      mint_records: {
+        Row: {
+          action_id: string
+          claimable_now: number | null
+          created_at: string
+          id: string
+          light_score: number
+          locked_amount: number | null
+          mint_amount_platform: number
+          mint_amount_total: number
+          mint_amount_user: number
+          mint_tx_hash: string | null
+          release_mode: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          action_id: string
+          claimable_now?: number | null
+          created_at?: string
+          id?: string
+          light_score: number
+          locked_amount?: number | null
+          mint_amount_platform: number
+          mint_amount_total: number
+          mint_amount_user: number
+          mint_tx_hash?: string | null
+          release_mode?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          action_id?: string
+          claimable_now?: number | null
+          created_at?: string
+          id?: string
+          light_score?: number
+          locked_amount?: number | null
+          mint_amount_platform?: number
+          mint_amount_total?: number
+          mint_amount_user?: number
+          mint_tx_hash?: string | null
+          release_mode?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mint_records_action_id_fkey"
+            columns: ["action_id"]
+            isOneToOne: false
+            referencedRelation: "user_actions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       mint_requests: {
         Row: {
@@ -2293,6 +2477,68 @@ export type Database = {
         }
         Relationships: []
       }
+      pplp_validations: {
+        Row: {
+          action_id: string
+          ai_score: number | null
+          community_score: number | null
+          created_at: string
+          explanation: Json | null
+          final_light_score: number | null
+          healing_love: number
+          id: string
+          long_term_value: number
+          serving_life: number
+          transparent_truth: number
+          trust_signal_score: number | null
+          unity_over_separation: number
+          validated_at: string | null
+          validation_status: string
+        }
+        Insert: {
+          action_id: string
+          ai_score?: number | null
+          community_score?: number | null
+          created_at?: string
+          explanation?: Json | null
+          final_light_score?: number | null
+          healing_love?: number
+          id?: string
+          long_term_value?: number
+          serving_life?: number
+          transparent_truth?: number
+          trust_signal_score?: number | null
+          unity_over_separation?: number
+          validated_at?: string | null
+          validation_status?: string
+        }
+        Update: {
+          action_id?: string
+          ai_score?: number | null
+          community_score?: number | null
+          created_at?: string
+          explanation?: Json | null
+          final_light_score?: number | null
+          healing_love?: number
+          id?: string
+          long_term_value?: number
+          serving_life?: number
+          transparent_truth?: number
+          trust_signal_score?: number | null
+          unity_over_separation?: number
+          validated_at?: string | null
+          validation_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pplp_validations_action_id_fkey"
+            columns: ["action_id"]
+            isOneToOne: false
+            referencedRelation: "user_actions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           angelai_url: string | null
@@ -2463,6 +2709,50 @@ export type Database = {
           zalo_url?: string | null
         }
         Relationships: []
+      }
+      proofs: {
+        Row: {
+          action_id: string
+          created_at: string
+          external_ref: string | null
+          extracted_text: string | null
+          file_hash: string | null
+          id: string
+          proof_type: string
+          proof_url: string | null
+          raw_metadata: Json | null
+        }
+        Insert: {
+          action_id: string
+          created_at?: string
+          external_ref?: string | null
+          extracted_text?: string | null
+          file_hash?: string | null
+          id?: string
+          proof_type: string
+          proof_url?: string | null
+          raw_metadata?: Json | null
+        }
+        Update: {
+          action_id?: string
+          created_at?: string
+          external_ref?: string | null
+          extracted_text?: string | null
+          file_hash?: string | null
+          id?: string
+          proof_type?: string
+          proof_url?: string | null
+          raw_metadata?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proofs_action_id_fkey"
+            columns: ["action_id"]
+            isOneToOne: false
+            referencedRelation: "user_actions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       reward_actions: {
         Row: {
@@ -3003,6 +3293,59 @@ export type Database = {
           wallet_address?: string
         }
         Relationships: []
+      }
+      user_actions: {
+        Row: {
+          action_type_id: string
+          created_at: string
+          description: string | null
+          id: string
+          raw_metadata: Json | null
+          source_platform: string | null
+          source_url: string | null
+          status: string
+          submitted_at: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          action_type_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          raw_metadata?: Json | null
+          source_platform?: string | null
+          source_url?: string | null
+          status?: string
+          submitted_at?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          action_type_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          raw_metadata?: Json | null
+          source_platform?: string | null
+          source_url?: string | null
+          status?: string
+          submitted_at?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_actions_action_type_id_fkey"
+            columns: ["action_type_id"]
+            isOneToOne: false
+            referencedRelation: "action_types"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_chats: {
         Row: {
