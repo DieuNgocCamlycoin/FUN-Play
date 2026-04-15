@@ -43,6 +43,9 @@ export function MintProgressTracker() {
   const [filter, setFilter] = useState('all');
   const { isConnected } = useWalletContext();
   const { submitMint, isSubmitting } = useMintSubmit();
+  // Track locally submitted IDs to prevent double-click even after realtime re-render
+  const [submittedIds, setSubmittedIds] = useState<Set<string>>(new Set());
+  const [mintingId, setMintingId] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -53,6 +56,18 @@ export function MintProgressTracker() {
 
     const rows = (data || []) as unknown as MintSubmitRequest[];
     setRequests(rows);
+
+    // Auto-track already submitted/confirmed/failed as submitted
+    const doneIds = rows
+      .filter(r => ['submitted', 'confirmed', 'failed'].includes(r.status))
+      .map(r => r.id);
+    if (doneIds.length > 0) {
+      setSubmittedIds(prev => {
+        const next = new Set(prev);
+        doneIds.forEach(id => next.add(id));
+        return next;
+      });
+    }
 
     const userIds = [...new Set(rows.map(r => r.user_id))];
     if (userIds.length > 0) {
@@ -98,13 +113,26 @@ export function MintProgressTracker() {
       toast.error('Vui lòng kết nối ví trước');
       return;
     }
+    // Prevent double submit
+    if (submittedIds.has(req.id) || mintingId === req.id) return;
+    
+    setMintingId(req.id);
+    setSubmittedIds(prev => new Set(prev).add(req.id));
     try {
       const result = await submitMint(req);
       toast.success(`✅ Mint thành công! TX: ${result.txHash?.slice(0, 10)}...`);
     } catch (err: any) {
       toast.error(`❌ Mint thất bại: ${err.message?.slice(0, 100)}`);
+      // Remove from submittedIds on failure so admin can retry
+      setSubmittedIds(prev => {
+        const next = new Set(prev);
+        next.delete(req.id);
+        return next;
+      });
+    } finally {
+      setMintingId(null);
     }
-  }, [isConnected, submitMint]);
+  }, [isConnected, submitMint, submittedIds, mintingId]);
 
   return (
     <div className="space-y-4">
@@ -168,6 +196,8 @@ export function MintProgressTracker() {
                 {filtered.map(req => {
                   const profile = profiles[req.user_id];
                   const statusCfg = STATUS_CONFIG[req.status] || STATUS_CONFIG.pending_sig;
+                  const isBusy = mintingId === req.id || isSubmitting === req.id;
+                  const alreadySubmitted = submittedIds.has(req.id);
 
                   return (
                     <TableRow key={req.id}>
@@ -209,21 +239,35 @@ export function MintProgressTracker() {
                       </TableCell>
                       <TableCell className="py-2 text-center">
                         {(req.status === 'signed' || req.status === 'pending_sig') ? (
-                          <Button
-                            size="sm"
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] h-7 px-2"
-                            onClick={() => handleMintSubmit(req)}
-                            disabled={isSubmitting === req.id}
-                          >
-                            {isSubmitting === req.id ? (
-                              <><Loader2 className="w-3 h-3 mr-1 animate-spin" />Minting...</>
-                            ) : (
-                              <><Rocket className="w-3 h-3 mr-1" />Mint TX</>
-                            )}
-                          </Button>
+                          alreadySubmitted ? (
+                            <Badge variant="outline" className="bg-purple-500/20 text-purple-400 border-purple-500/30 text-[10px] gap-1">
+                              {isBusy ? (
+                                <><Loader2 className="w-3 h-3 animate-spin" />Đang mint...</>
+                              ) : (
+                                <><CheckCircle2 className="w-3 h-3" />Đã submit</>
+                              )}
+                            </Badge>
+                          ) : (
+                            <Button
+                              size="sm"
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] h-7 px-2"
+                              onClick={() => handleMintSubmit(req)}
+                              disabled={isBusy}
+                            >
+                              {isBusy ? (
+                                <><Loader2 className="w-3 h-3 mr-1 animate-spin" />Minting...</>
+                              ) : (
+                                <><Rocket className="w-3 h-3 mr-1" />Mint TX</>
+                              )}
+                            </Button>
+                          )
                         ) : req.status === 'confirmed' ? (
                           <Badge variant="outline" className="bg-green-500/20 text-green-300 border-green-500/30 text-[10px]">
                             <CheckCircle2 className="w-3 h-3 mr-1" />OK
+                          </Badge>
+                        ) : req.status === 'submitted' ? (
+                          <Badge variant="outline" className="bg-purple-500/20 text-purple-400 border-purple-500/30 text-[10px] gap-1">
+                            <Loader2 className="w-3 h-3 animate-spin" />Đang xử lý
                           </Badge>
                         ) : req.status === 'failed' ? (
                           <Badge variant="outline" className="bg-destructive/20 text-destructive border-destructive/30 text-[10px]">

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Rocket, CheckCircle2, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Rocket, CheckCircle2, RefreshCw, AlertTriangle, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatFunDisplay } from '@/lib/fun-money/web3-config';
 import { useState } from 'react';
@@ -13,8 +13,15 @@ export function AdminMintPanel() {
   const { signedRequests, submitMint, isSubmitting, loading, refresh } = useMintSubmit();
   const { toast } = useToast();
   const [mismatchConfirmed, setMismatchConfirmed] = useState<Set<string>>(new Set());
+  // Track submitted IDs locally to prevent double-click
+  const [submittedIds, setSubmittedIds] = useState<Set<string>>(new Set());
+  const [mintingId, setMintingId] = useState<string | null>(null);
 
   const handleSubmit = async (request: MintSubmitRequest) => {
+    if (submittedIds.has(request.id) || mintingId) return;
+    
+    setMintingId(request.id);
+    setSubmittedIds(prev => new Set(prev).add(request.id));
     try {
       const result = await submitMint(request);
       toast({
@@ -27,6 +34,14 @@ export function AdminMintPanel() {
         description: err.message?.slice(0, 200),
         variant: 'destructive',
       });
+      // Allow retry on failure
+      setSubmittedIds(prev => {
+        const next = new Set(prev);
+        next.delete(request.id);
+        return next;
+      });
+    } finally {
+      setMintingId(null);
     }
   };
 
@@ -66,9 +81,10 @@ export function AdminMintPanel() {
       ) : (
         <div className="space-y-3">
           {signedRequests.map((req) => {
-            const isBusy = isSubmitting === req.id;
+            const isBusy = mintingId === req.id || isSubmitting === req.id;
             const mismatch = hasWalletMismatch(req);
             const confirmed = mismatchConfirmed.has(req.id);
+            const alreadySubmitted = submittedIds.has(req.id);
 
             return (
               <Card key={req.id} className={`p-4 space-y-3 ${mismatch ? 'border-amber-500/50' : 'border-emerald-500/20'}`}>
@@ -115,7 +131,15 @@ export function AdminMintPanel() {
                     </p>
                   </div>
                   <div className="flex flex-col gap-1">
-                    {mismatch && !confirmed ? (
+                    {alreadySubmitted ? (
+                      <Badge variant="outline" className="bg-purple-500/20 text-purple-400 border-purple-500/30 text-xs gap-1 py-1.5 px-3">
+                        {isBusy ? (
+                          <><Loader2 className="w-3.5 h-3.5 animate-spin" />Đang mint...</>
+                        ) : (
+                          <><CheckCircle2 className="w-3.5 h-3.5" />Đã submit</>
+                        )}
+                      </Badge>
+                    ) : mismatch && !confirmed ? (
                       <Button
                         size="sm"
                         variant="outline"
@@ -132,8 +156,11 @@ export function AdminMintPanel() {
                         onClick={() => handleSubmit(req)}
                         className="bg-emerald-600 hover:bg-emerald-700"
                       >
-                        <Rocket className="w-4 h-4 mr-1" />
-                        {isBusy ? 'Submitting...' : 'Mint TX'}
+                        {isBusy ? (
+                          <><Loader2 className="w-4 h-4 mr-1 animate-spin" />Submitting...</>
+                        ) : (
+                          <><Rocket className="w-4 h-4 mr-1" />Mint TX</>
+                        )}
                       </Button>
                     )}
                   </div>
