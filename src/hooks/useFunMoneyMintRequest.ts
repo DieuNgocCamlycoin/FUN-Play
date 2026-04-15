@@ -129,6 +129,21 @@ export function useMintRequest(): UseMintRequestReturn {
         throw new Error('You must be logged in to submit a request');
       }
 
+      // 1a. Dedup check: prevent multiple requests of same action_type within 24h
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const { data: existingRequests } = await (supabase as any)
+        .from('mint_requests')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('action_type', input.actionType)
+        .gte('created_at', twentyFourHoursAgo)
+        .not('status', 'in', '("rejected","failed")')
+        .limit(1);
+
+      if (existingRequests && existingRequests.length > 0) {
+        throw new Error(`Bạn đã có yêu cầu mint ${input.actionType} trong 24h qua. Vui lòng chờ.`);
+      }
+
       // 1b. Fetch LS-Math data from profile & features if not provided
       let streakDays = input.streakDays ?? 0;
       let sequenceBonus = input.sequenceBonus ?? 0;
