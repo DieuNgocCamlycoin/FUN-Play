@@ -334,6 +334,21 @@ export function useAutoMintRequest(): UseAutoMintRequestReturn {
         throw new Error('Bạn cần đăng nhập để gửi yêu cầu mint');
       }
 
+      // 1a. Dedup check: prevent multiple LIGHT_ACTIVITY requests within 24h
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const { data: existingRequests } = await (supabase as any)
+        .from('mint_requests')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('action_type', 'LIGHT_ACTIVITY')
+        .gte('created_at', twentyFourHoursAgo)
+        .not('status', 'in', '("rejected","failed")')
+        .limit(1);
+
+      if (existingRequests && existingRequests.length > 0) {
+        throw new Error('Bạn đã có yêu cầu mint LIGHT_ACTIVITY trong 24h qua. Vui lòng chờ.');
+      }
+
       // 2. Fetch LS-Math data from features_user_day
       const { data: features } = await (supabase as any)
         .from('features_user_day')

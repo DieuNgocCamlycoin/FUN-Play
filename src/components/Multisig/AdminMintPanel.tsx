@@ -3,7 +3,8 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Rocket, CheckCircle2, RefreshCw } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Rocket, CheckCircle2, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatFunDisplay } from '@/lib/fun-money/web3-config';
 import { useState } from 'react';
@@ -11,6 +12,7 @@ import { useState } from 'react';
 export function AdminMintPanel() {
   const { signedRequests, submitMint, isSubmitting, loading, refresh } = useMintSubmit();
   const { toast } = useToast();
+  const [mismatchConfirmed, setMismatchConfirmed] = useState<Set<string>>(new Set());
 
   const handleSubmit = async (request: MintSubmitRequest) => {
     try {
@@ -26,6 +28,15 @@ export function AdminMintPanel() {
         variant: 'destructive',
       });
     }
+  };
+
+  const confirmMismatch = (id: string) => {
+    setMismatchConfirmed(prev => new Set(prev).add(id));
+  };
+
+  const hasWalletMismatch = (req: MintSubmitRequest) => {
+    return req.current_wallet &&
+      req.recipient_address.toLowerCase() !== req.current_wallet.toLowerCase();
   };
 
   return (
@@ -56,35 +67,76 @@ export function AdminMintPanel() {
         <div className="space-y-3">
           {signedRequests.map((req) => {
             const isBusy = isSubmitting === req.id;
+            const mismatch = hasWalletMismatch(req);
+            const confirmed = mismatchConfirmed.has(req.id);
 
             return (
-              <Card key={req.id} className="p-4 space-y-3 border-emerald-500/20">
+              <Card key={req.id} className={`p-4 space-y-3 ${mismatch ? 'border-amber-500/50' : 'border-emerald-500/20'}`}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <Badge variant="outline" className="text-xs">
                         {req.action_type}
                       </Badge>
                       <Badge variant="outline" className="text-xs">
                         {req.status}
                       </Badge>
+                      {mismatch && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge variant="destructive" className="text-xs gap-1">
+                                <AlertTriangle className="w-3 h-3" />
+                                ⚠️ Ví đã đổi
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p className="text-xs font-mono">
+                                <strong>Ví trong request:</strong><br/>
+                                {req.recipient_address}<br/><br/>
+                                <strong>Ví hiện tại:</strong><br/>
+                                {req.current_wallet}
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
                     </div>
                     <p className="text-sm font-mono truncate text-muted-foreground">
                       → {req.recipient_address}
                     </p>
+                    {mismatch && (
+                      <p className="text-xs font-mono text-amber-500 truncate">
+                        ✱ Ví mới: {req.current_wallet}
+                      </p>
+                    )}
                     <p className="text-lg font-bold mt-1">
                       {formatFunDisplay(req.amount_wei)}
                     </p>
                   </div>
-                  <Button
-                    size="sm"
-                    disabled={isBusy}
-                    onClick={() => handleSubmit(req)}
-                    className="bg-emerald-600 hover:bg-emerald-700"
-                  >
-                    <Rocket className="w-4 h-4 mr-1" />
-                    {isBusy ? 'Submitting...' : 'Mint TX'}
-                  </Button>
+                  <div className="flex flex-col gap-1">
+                    {mismatch && !confirmed ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => confirmMismatch(req.id)}
+                        className="border-amber-500 text-amber-600 hover:bg-amber-50 text-xs"
+                      >
+                        <AlertTriangle className="w-3 h-3 mr-1" />
+                        Xác nhận mint dù ví khác
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        disabled={isBusy}
+                        onClick={() => handleSubmit(req)}
+                        className="bg-emerald-600 hover:bg-emerald-700"
+                      >
+                        <Rocket className="w-4 h-4 mr-1" />
+                        {isBusy ? 'Submitting...' : 'Mint TX'}
+                      </Button>
+                    )}
+                  </div>
                 </div>
 
                 <p className="text-[11px] text-muted-foreground">

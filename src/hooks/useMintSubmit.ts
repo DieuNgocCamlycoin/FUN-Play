@@ -23,6 +23,8 @@ export interface MintSubmitRequest {
   updated_at: string;
   error_message?: string | null;
   platform_id?: string;
+  /** Current wallet from profile — for mismatch detection */
+  current_wallet?: string | null;
 }
 
 export function useMintSubmit() {
@@ -43,7 +45,25 @@ export function useMintSubmit() {
         .order('created_at', { ascending: true });
 
       if (!error && data) {
-        setPendingRequests(data as unknown as MintSubmitRequest[]);
+        const requests = data as unknown as MintSubmitRequest[];
+
+        // Fetch current wallet addresses from profiles for mismatch detection
+        const userIds = [...new Set(requests.map(r => r.user_id))];
+        if (userIds.length > 0) {
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id, wallet_address')
+            .in('id', userIds);
+
+          const walletMap = new Map<string, string | null>();
+          profiles?.forEach((p: any) => walletMap.set(p.id, p.wallet_address));
+
+          requests.forEach(r => {
+            r.current_wallet = walletMap.get(r.user_id) || null;
+          });
+        }
+
+        setPendingRequests(requests);
       }
     } finally {
       setLoading(false);
