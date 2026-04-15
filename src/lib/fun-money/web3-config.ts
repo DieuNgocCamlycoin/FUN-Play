@@ -221,12 +221,15 @@ export function formatFunDisplay(amountAtomic: bigint | string): string {
   const whole = amount / (10n ** decimals);
   const fraction = amount % (10n ** decimals);
   
+  // Use en-US locale to ensure comma as thousands separator and dot as decimal
+  const wholeFormatted = whole.toLocaleString('en-US');
+  
   if (fraction === 0n) {
-    return `${whole.toLocaleString()} FUN`;
+    return `${wholeFormatted} FUN`;
   }
   
   const fractionStr = fraction.toString().padStart(Number(decimals), '0').slice(0, 2);
-  return `${whole.toLocaleString()}.${fractionStr} FUN`;
+  return `${wholeFormatted}.${fractionStr} FUN`;
 }
 
 // ===== IMPORTANT ADDRESSES =====
