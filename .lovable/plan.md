@@ -1,26 +1,53 @@
 
 
-# Tích hợp MintRequestForm (4-Step PPLP) vào trang /fun-money
+# Triển khai 3 Fix: Wallet Mismatch + Dedup Check + Notification nhắc nhở
 
 ## Tổng quan
+Triển khai đồng thời 3 cải thiện cho quy trình mint FUN Money đã phát hiện ở bước rà soát.
 
-Thêm luồng 4 bước PPLP (Submit Action → Upload Proof → Validate → Mint) vào trang `/fun-money`, song song với luồng Auto-Mint hiện tại. Người dùng sẽ thấy cả 2 lựa chọn.
+---
 
-## Thay đổi
+## 1. Wallet Mismatch Warning — AdminMintPanel
 
-### 1. Sửa `src/pages/FunMoneyPage.tsx`
-- Thêm tab thứ 4 `"pplp-mint"` vào TabsList (đổi grid từ 3 → 4 cột)
-- Tab mới có label "PPLP Mint" với icon Sparkles
-- Nội dung tab: render `MintRequestForm` component kèm hướng dẫn ngắn về 4 bước
-- Import `MintRequestForm` từ `@/components/FunMoney`
-- Khi mint thành công → chuyển sang tab `history` và refresh data
+**File sửa:** `src/components/Multisig/AdminMintPanel.tsx`, `src/hooks/useMintSubmit.ts`
 
-### 2. Sửa `src/components/FunMoney/MintRequestForm.tsx`
-- Hiển thị `validation_digest` và `anti_whale_capped` trong kết quả mint (Step 4)
-- Thêm badge "Anti-Whale Capped" nếu `mintResult.anti_whale_capped === true`
-- Hiển thị digest rút gọn (16 ký tự đầu) với tooltip
+- Trong `useMintSubmit`, khi load `pplp_mint_requests`, join thêm `profiles.wallet_address` qua `user_id`
+- Nếu không join được (RLS), query riêng profiles cho các user_id trong danh sách requests
+- Trong `AdminMintPanel`, so sánh `req.recipient_address` với wallet hiện tại của user
+- Nếu khác nhau → hiển thị Badge cảnh báo `⚠️ Ví đã đổi` màu vàng/cam, kèm tooltip cho thấy ví cũ vs ví mới
+- Disable nút "Mint TX" khi có mismatch, yêu cầu admin xác nhận thủ công (thêm nút "Xác nhận mint dù ví khác")
 
-### Kết quả
-- Người dùng có 2 cách mint: Auto-Mint (từ hoạt động nền tảng) và PPLP Mint (submit hành động thiện nguyện với bằng chứng)
-- Kết quả mint hiển thị đầy đủ validation_digest và trạng thái anti-whale
+## 2. Dedup Check — useFunMoneyMintRequest
+
+**File sửa:** `src/hooks/useFunMoneyMintRequest.ts`
+
+- Trong `submitAutoRequest`, trước khi insert, query `mint_requests` để kiểm tra:
+  ```sql
+  SELECT id FROM mint_requests 
+  WHERE user_id = ? AND action_type = 'LIGHT_ACTIVITY' 
+  AND created_at >= NOW() - INTERVAL '24 hours'
+  AND status NOT IN ('rejected', 'failed')
+  ```
+- Nếu tìm thấy → throw error `"Bạn đã có yêu cầu mint LIGHT_ACTIVITY trong 24h qua. Vui lòng chờ."`
+- Áp dụng tương tự cho `submitRequest` (manual PPLP flow) với cùng action_type
+
+## 3. System Notification cho user chưa mint
+
+**File mới:** `supabase/functions/notify-idle-pplp-users/index.ts`
+
+- Edge function query profiles có `pplp_accepted_at IS NOT NULL` nhưng không có record trong `mint_requests` hoặc `pplp_mint_requests`
+- Insert notification vào bảng `notifications` cho mỗi user:
+  - type: `system`
+  - title: `🌟 Bạn đã sẵn sàng mint FUN!`  
+  - message: `Bạn đã ký Hiến chương PPLP nhưng chưa tạo yêu cầu mint. Hãy vào trang FUN Money để nhận FUN đầu tiên!`
+  - link: `/fun-money`
+- Chỉ gửi 1 lần (check nếu đã có notification cùng type + action_type = `idle_pplp_reminder` cho user đó)
+- Có thể gọi thủ công từ Admin hoặc đặt cron
+
+**File sửa thêm:** Thêm nút "Gửi nhắc nhở" trong Admin dashboard để trigger edge function
+
+## Kết quả
+- Admin được cảnh báo wallet mismatch trước khi mint sai địa chỉ
+- User không thể spam nhiều request LIGHT_ACTIVITY trong 24h
+- 27 user idle nhận notification nhắc nhở mint FUN
 
