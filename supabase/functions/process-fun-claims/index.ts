@@ -1,11 +1,9 @@
 /**
- * Process FUN Money Claims — Auto On-Chain
+ * Process FUN Money Claims — Auto On-Chain (ERC20 Transfer)
  * 
  * Picks up all `approved` claim_requests with claim_type='fun_money',
- * calls FUNMoneyMinter.mintValidatedAction on BSC Testnet,
+ * transfers FUN tokens from admin wallet to user wallets on BSC Testnet,
  * and updates claim_requests with tx_hash + status='success'.
- * 
- * Can be triggered manually or via cron.
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
@@ -18,14 +16,14 @@ const corsHeaders = {
 
 // BSC Testnet
 const BSC_TESTNET_RPC = "https://data-seed-prebsc-1-s1.binance.org:8545/";
-const FUN_MINTER_CONTRACT = "0x39A1b047D5d143f8874888cfa1d30Fb2AE6F0CD6";
+const FUN_TOKEN_CONTRACT = "0x39A1b047D5d143f8874888cfa1d30Fb2AE6F0CD6";
 
-// FUNMoneyMinter ABI (minimal)
-const MINTER_ABI = [
-  "function mintValidatedAction(bytes32 actionIdHash, address recipient, uint256 amount, bytes32 validationDigest) external",
-  "function nonces(address user) view returns (uint256)",
+// Standard ERC20 ABI for transfer + balanceOf
+const ERC20_ABI = [
+  "function transfer(address to, uint256 amount) returns (bool)",
   "function balanceOf(address account) view returns (uint256)",
-  "function totalSupply() view returns (uint256)",
+  "function decimals() view returns (uint8)",
+  "function symbol() view returns (string)",
 ];
 
 function jsonResponse(body: Record<string, unknown>, status = 200) {
@@ -86,19 +84,43 @@ Deno.serve(async (req) => {
 
     // Setup provider and wallet
     const provider = new ethers.JsonRpcProvider(BSC_TESTNET_RPC);
-    const minterWallet = new ethers.Wallet(minterPrivateKey, provider);
-    const contract = new ethers.Contract(FUN_MINTER_CONTRACT, MINTER_ABI, minterWallet);
+    const adminWallet = new ethers.Wallet(minterPrivateKey, provider);
+    const funContract = new ethers.Contract(FUN_TOKEN_CONTRACT, ERC20_ABI, adminWallet);
 
-    console.log(`Minter wallet: ${minterWallet.address}`);
-    console.log(`Processing ${claims.length} FUN Money claims...`);
+    console.log(`Admin wallet: ${adminWallet.address}`);
+    console.log(`Processing ${claims.length} FUN Money claims via ERC20 transfer...`);
 
-    // Check minter wallet BNB balance for gas
-    const bnbBalance = await provider.getBalance(minterWallet.address);
-    const minGas = ethers.parseEther("0.005"); // ~0.005 BNB minimum
+    // Check FUN token decimals
+    let decimals = 18;
+    try {
+      decimals = await funContract.decimals();
+      console.log(`FUN decimals: ${decimals}`);
+    } catch {
+      console.log("Using default 18 decimals");
+    }
+
+    // Check admin wallet FUN balance
+    const funBalance = await funContract.balanceOf(adminWallet.address);
+    const totalNeeded = claims.reduce((sum, c) => sum + c.amount, 0);
+    const totalNeededWei = ethers.parseUnits(totalNeeded.toString(), decimals);
+
+    console.log(`FUN balance: ${ethers.formatUnits(funBalance, decimals)}`);
+    console.log(`Total needed: ${totalNeeded} FUN`);
+
+    if (funBalance < totalNeededWei) {
+      return jsonResponse({
+        error: `Insufficient FUN balance. Have: ${ethers.formatUnits(funBalance, decimals)}, Need: ${totalNeeded}`,
+        wallet: adminWallet.address,
+      }, 500);
+    }
+
+    // Check BNB for gas
+    const bnbBalance = await provider.getBalance(adminWallet.address);
+    const minGas = ethers.parseEther("0.005");
     if (bnbBalance < minGas) {
       return jsonResponse({
-        error: `Minter wallet low on BNB for gas: ${ethers.formatEther(bnbBalance)} BNB`,
-        wallet: minterWallet.address,
+        error: `Low BNB for gas: ${ethers.formatEther(bnbBalance)} BNB`,
+        wallet: adminWallet.address,
       }, 500);
     }
 
@@ -106,57 +128,41 @@ Deno.serve(async (req) => {
     let success = 0;
     let failed = 0;
 
-    // Process each claim sequentially (to avoid nonce conflicts)
+    // Process each claim sequentially (avoid nonce conflicts)
     for (const claim of claims) {
       try {
         console.log(`Processing claim ${claim.id}: ${claim.amount} FUN → ${claim.wallet_address}`);
 
-        // Lock: mark as processing to prevent double-processing
+        // Lock: mark as processing
         const { error: lockErr } = await supabase
           .from("claim_requests")
           .update({ status: "processing" })
           .eq("id", claim.id)
           .eq("status", "approved");
 
-        if (lockErr) {
-          throw new Error(`Lock failed: ${lockErr.message}`);
-        }
+        if (lockErr) throw new Error(`Lock failed: ${lockErr.message}`);
 
-        // Convert amount to wei (18 decimals)
-        const amountWei = ethers.parseUnits(claim.amount.toString(), 18);
+        // Convert amount to wei
+        const amountWei = ethers.parseUnits(claim.amount.toString(), decimals);
 
-        // Generate action hash and validation digest
-        const actionIdHash = ethers.keccak256(
-          ethers.toUtf8Bytes(`CLAIM:${claim.id}:${claim.user_id}`)
-        );
-        const validationDigest = ethers.keccak256(
-          ethers.toUtf8Bytes(
-            JSON.stringify({
-              claim_id: claim.id,
-              user_id: claim.user_id,
-              amount: claim.amount,
-              wallet: claim.wallet_address,
-              timestamp: Math.floor(Date.now() / 1000),
-            })
-          )
-        );
-
-        // Call mintValidatedAction on-chain
-        const tx = await contract.mintValidatedAction(
-          actionIdHash,
-          claim.wallet_address,
-          amountWei,
-          validationDigest,
-          {
-            gasLimit: 200000n,
-          }
-        );
+        // ERC20 transfer
+        const tx = await funContract.transfer(claim.wallet_address, amountWei, {
+          gasLimit: 100000n,
+        });
 
         console.log(`TX sent: ${tx.hash}`);
 
         // Wait for confirmation
         const receipt = await tx.wait(1);
         console.log(`TX confirmed: ${receipt.hash} (block ${receipt.blockNumber})`);
+
+        // Calculate gas fee
+        let gasFee = 0;
+        try {
+          const gasUsed = receipt.gasUsed || 0n;
+          const gasPrice = receipt.gasPrice || receipt.effectiveGasPrice || 0n;
+          gasFee = Number(ethers.formatEther(gasUsed * gasPrice));
+        } catch { /* ignore */ }
 
         // Update claim_request to success
         await supabase
@@ -165,7 +171,7 @@ Deno.serve(async (req) => {
             status: "success",
             tx_hash: receipt.hash,
             processed_at: new Date().toISOString(),
-            gas_fee: Number(ethers.formatEther(receipt.gasUsed * receipt.gasPrice || 0n)),
+            gas_fee: gasFee,
           })
           .eq("id", claim.id);
 
@@ -188,11 +194,9 @@ Deno.serve(async (req) => {
         success++;
       } catch (err: any) {
         console.error(`Claim ${claim.id} failed:`, err.message);
-
         const errorMsg = mapError(err.message || String(err));
 
-        // Revert to approved so it can be retried (unless permanent error)
-        const isPermanent = err.message?.includes("reverted") || err.message?.includes("UNPREDICTABLE_GAS");
+        const isPermanent = err.message?.includes("insufficient") && err.message?.includes("FUN");
         await supabase
           .from("claim_requests")
           .update({
@@ -213,7 +217,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Summary notification to admins
+    // Admin summary notification
     if (success > 0) {
       const { data: admins } = await supabase.from("user_roles").select("user_id").eq("role", "admin");
       const totalFun = results.filter(r => r.status === "success").reduce((s, r) => s + r.amount, 0);
@@ -233,7 +237,8 @@ Deno.serve(async (req) => {
       success,
       failed,
       results,
-      minter: minterWallet.address,
+      admin_wallet: adminWallet.address,
+      fun_balance: ethers.formatUnits(funBalance, decimals),
       bnb_balance: ethers.formatEther(bnbBalance),
     });
   } catch (err: any) {
@@ -244,10 +249,10 @@ Deno.serve(async (req) => {
 
 function mapError(raw: string): string {
   const lower = raw.toLowerCase();
-  if (lower.includes("insufficient funds")) return "Ví minter hết BNB gas. Liên hệ admin.";
+  if (lower.includes("insufficient funds")) return "Ví admin hết BNB gas. Liên hệ admin.";
+  if (lower.includes("transfer amount exceeds balance")) return "Ví admin không đủ FUN tokens.";
   if (lower.includes("nonce")) return "Lỗi nonce — sẽ tự động thử lại.";
-  if (lower.includes("reverted")) return "Contract từ chối giao dịch. Kiểm tra quyền minter.";
-  if (lower.includes("unpredictable_gas")) return "Giao dịch sẽ thất bại. Kiểm tra contract.";
+  if (lower.includes("reverted")) return "Contract từ chối giao dịch.";
   if (lower.includes("timeout") || lower.includes("timed out")) return "Mạng blockchain chậm. Thử lại sau.";
   if (lower.includes("network") || lower.includes("fetch failed")) return "Lỗi kết nối RPC. Thử lại sau.";
   return `Lỗi: ${raw.slice(0, 150)}`;
