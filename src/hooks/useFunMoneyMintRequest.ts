@@ -129,18 +129,40 @@ export function useMintRequest(): UseMintRequestReturn {
         throw new Error('You must be logged in to submit a request');
       }
 
-      // 1a. Dedup check: prevent multiple requests of same action_type within 24h
-      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      const { data: existingRequests } = await (supabase as any)
-        .from('mint_requests')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('action_type', input.actionType)
-        .gte('created_at', twentyFourHoursAgo)
-        .not('status', 'in', '("rejected","failed")')
-        .limit(1);
+      // 1a. Wallet mismatch check: verify wallet matches profile
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('wallet_address')
+        .eq('id', user.id)
+        .single();
 
-      if (existingRequests && existingRequests.length > 0) {
+      if (profile?.wallet_address && input.userWalletAddress &&
+          profile.wallet_address.toLowerCase() !== input.userWalletAddress.toLowerCase()) {
+        throw new Error('Ví bạn đang kết nối không khớp với ví trong hồ sơ. Vui lòng dùng đúng ví đã đăng ký.');
+      }
+
+      // 1b. Dedup check: prevent multiple requests of same action_type within 24h (both tables)
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const [{ data: existingMint }, { data: existingPplp }] = await Promise.all([
+        (supabase as any)
+          .from('mint_requests')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('action_type', input.actionType)
+          .gte('created_at', twentyFourHoursAgo)
+          .not('status', 'in', '("rejected","failed")')
+          .limit(1),
+        (supabase as any)
+          .from('pplp_mint_requests')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('action_type', input.actionType)
+          .gte('created_at', twentyFourHoursAgo)
+          .not('status', 'in', '("rejected","failed")')
+          .limit(1),
+      ]);
+
+      if ((existingMint && existingMint.length > 0) || (existingPplp && existingPplp.length > 0)) {
         throw new Error(`Bạn đã có yêu cầu mint ${input.actionType} trong 24h qua. Vui lòng chờ.`);
       }
 
@@ -349,18 +371,40 @@ export function useAutoMintRequest(): UseAutoMintRequestReturn {
         throw new Error('Bạn cần đăng nhập để gửi yêu cầu mint');
       }
 
-      // 1a. Dedup check: prevent multiple LIGHT_ACTIVITY requests within 24h
-      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      const { data: existingRequests } = await (supabase as any)
-        .from('mint_requests')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('action_type', 'LIGHT_ACTIVITY')
-        .gte('created_at', twentyFourHoursAgo)
-        .not('status', 'in', '("rejected","failed")')
-        .limit(1);
+      // 1a. Wallet mismatch check: verify wallet matches profile
+      const { data: walletProfile } = await supabase
+        .from('profiles')
+        .select('wallet_address')
+        .eq('id', user.id)
+        .single();
 
-      if (existingRequests && existingRequests.length > 0) {
+      if (walletProfile?.wallet_address && input.userWalletAddress &&
+          walletProfile.wallet_address.toLowerCase() !== input.userWalletAddress.toLowerCase()) {
+        throw new Error('Ví bạn đang kết nối không khớp với ví trong hồ sơ. Vui lòng dùng đúng ví đã đăng ký.');
+      }
+
+      // 1b. Dedup check: prevent multiple LIGHT_ACTIVITY requests within 24h (both tables)
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const [{ data: existingMint }, { data: existingPplp }] = await Promise.all([
+        (supabase as any)
+          .from('mint_requests')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('action_type', 'LIGHT_ACTIVITY')
+          .gte('created_at', twentyFourHoursAgo)
+          .not('status', 'in', '("rejected","failed")')
+          .limit(1),
+        (supabase as any)
+          .from('pplp_mint_requests')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('action_type', 'LIGHT_ACTIVITY')
+          .gte('created_at', twentyFourHoursAgo)
+          .not('status', 'in', '("rejected","failed")')
+          .limit(1),
+      ]);
+
+      if ((existingMint && existingMint.length > 0) || (existingPplp && existingPplp.length > 0)) {
         throw new Error('Bạn đã có yêu cầu mint LIGHT_ACTIVITY trong 24h qua. Vui lòng chờ.');
       }
 
