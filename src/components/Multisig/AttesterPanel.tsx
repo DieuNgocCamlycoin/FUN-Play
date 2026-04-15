@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { MultisigStatusBadge } from './MultisigStatusBadge';
-import { ShieldAlert, ShieldCheck, RefreshCw, Rocket, Loader2 } from 'lucide-react';
+import { ShieldAlert, ShieldCheck, RefreshCw, Rocket, Loader2, CheckCircle2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatFunDisplay } from '@/lib/fun-money/web3-config';
 import { useState, useCallback } from 'react';
@@ -22,10 +22,15 @@ export function AttesterPanel() {
   } = useAttesterSigning();
   const { toast } = useToast();
   const { submitMint, isSubmitting } = useMintSubmit();
-  const [minting, setMinting] = useState<string | null>(null);
+  const [mintingId, setMintingId] = useState<string | null>(null);
+  // Track submitted IDs locally to prevent double-click across realtime re-renders
+  const [submittedIds, setSubmittedIds] = useState<Set<string>>(new Set());
 
   const handleMint = useCallback(async (request: MintSubmitRequest) => {
-    setMinting(request.id);
+    if (submittedIds.has(request.id) || mintingId) return;
+    
+    setMintingId(request.id);
+    setSubmittedIds(prev => new Set(prev).add(request.id));
     try {
       const result = await submitMint(request);
       toast({
@@ -38,10 +43,16 @@ export function AttesterPanel() {
         description: err.message?.slice(0, 100),
         variant: 'destructive',
       });
+      // Allow retry on failure
+      setSubmittedIds(prev => {
+        const next = new Set(prev);
+        next.delete(request.id);
+        return next;
+      });
     } finally {
-      setMinting(null);
+      setMintingId(null);
     }
-  }, [submitMint, toast]);
+  }, [submitMint, toast, submittedIds, mintingId]);
 
   if (!isAttester) {
     return (
@@ -88,7 +99,8 @@ export function AttesterPanel() {
       ) : (
         <div className="space-y-3">
           {pendingRequests.map((req) => {
-            const isBusy = minting === req.id || isSubmitting === req.id;
+            const isBusy = mintingId === req.id || isSubmitting === req.id;
+            const alreadySubmitted = submittedIds.has(req.id);
 
             return (
               <Card key={req.id} className="p-4 space-y-3">
@@ -107,18 +119,28 @@ export function AttesterPanel() {
                       {formatFunDisplay(req.amount_wei)}
                     </p>
                   </div>
-                  <Button
-                    size="sm"
-                    disabled={isBusy}
-                    onClick={() => handleMint(req)}
-                    className="bg-emerald-600 hover:bg-emerald-700"
-                  >
-                    {isBusy ? (
-                      <><Loader2 className="w-4 h-4 mr-1 animate-spin" />Minting...</>
-                    ) : (
-                      <><Rocket className="w-4 h-4 mr-1" />Mint TX</>
-                    )}
-                  </Button>
+                  {alreadySubmitted ? (
+                    <Badge variant="outline" className="bg-purple-500/20 text-purple-400 border-purple-500/30 text-xs gap-1 py-1.5 px-3">
+                      {isBusy ? (
+                        <><Loader2 className="w-3.5 h-3.5 animate-spin" />Đang mint...</>
+                      ) : (
+                        <><CheckCircle2 className="w-3.5 h-3.5" />Đã submit</>
+                      )}
+                    </Badge>
+                  ) : (
+                    <Button
+                      size="sm"
+                      disabled={isBusy}
+                      onClick={() => handleMint(req)}
+                      className="bg-emerald-600 hover:bg-emerald-700"
+                    >
+                      {isBusy ? (
+                        <><Loader2 className="w-4 h-4 mr-1 animate-spin" />Minting...</>
+                      ) : (
+                        <><Rocket className="w-4 h-4 mr-1" />Mint TX</>
+                      )}
+                    </Button>
+                  )}
                 </div>
 
                 <p className="text-[11px] text-muted-foreground">
