@@ -139,7 +139,7 @@ Deno.serve(async (req) => {
         multisig_completed_groups: [],
         multisig_required_groups: ['will', 'wisdom', 'love'],
         status: 'pending_sig',
-        platform_id: PLATFORM_ID,
+        platform_id: platformId,
       })
       .select()
       .single();
