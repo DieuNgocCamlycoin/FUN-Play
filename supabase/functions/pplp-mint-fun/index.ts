@@ -45,8 +45,8 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { recipient_address, action_type, amount, amount_wei, action_hash, evidence_hash, nonce, action_ids, platform_id: reqPlatform } = body;
 
-    // Resolve & validate platform
-    const platformId = reqPlatform || DEFAULT_PLATFORM;
+    // Enforce single mint point: only fun_main accepted
+    const platformId = reqPlatform || 'fun_main';
     const platformConfig = VALID_PLATFORMS[platformId];
     if (!platformConfig) {
       return new Response(JSON.stringify({ error: `Invalid platform_id. Valid: ${Object.keys(VALID_PLATFORMS).join(', ')}` }), {
