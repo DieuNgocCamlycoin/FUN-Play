@@ -113,7 +113,7 @@ export function useAutoMintFun(userId: string | undefined) {
       // PPLP v2.0: Build validation based on action type
       const pplpValidation = {
         hasRealAction: true, // Triggered by actual user action (view/like/comment)
-        hasRealValue: ['WATCH_VIDEO', 'COMMENT', 'UPLOAD_VIDEO', 'CREATE_POST'].includes(funAction),
+        hasRealValue: ['WATCH_VIDEO', 'LIKE_VIDEO', 'COMMENT', 'SHARE', 'UPLOAD_VIDEO', 'CREATE_POST'].includes(funAction),
         hasPositiveImpact: true, // Platform activity contributes to ecosystem
         noExploitation: riskScore < 0.4, // Anti-farm check
         charterCompliant: true,
