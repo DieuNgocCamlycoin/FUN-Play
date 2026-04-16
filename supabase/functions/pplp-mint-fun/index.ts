@@ -155,7 +155,8 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ 
       success: true, 
       request: mintRequest,
-      message: `Mint request created. Waiting for 3-of-3 multisig signatures.`
+      platform: platformConfig.label,
+      message: `Mint request created on ${platformConfig.label}. Waiting for 3-of-3 multisig signatures.`
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
