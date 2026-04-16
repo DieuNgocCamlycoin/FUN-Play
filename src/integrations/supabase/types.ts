@@ -2490,6 +2490,54 @@ export type Database = {
           },
         ]
       }
+      pplp_activity_submissions: {
+        Row: {
+          activity_type: string
+          ai_analysis: Json | null
+          analyzed_at: string | null
+          content: string | null
+          created_at: string
+          fraud_score: number | null
+          id: string
+          metrics: Json | null
+          platform: string
+          proof_link: string | null
+          proof_status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activity_type?: string
+          ai_analysis?: Json | null
+          analyzed_at?: string | null
+          content?: string | null
+          created_at?: string
+          fraud_score?: number | null
+          id?: string
+          metrics?: Json | null
+          platform?: string
+          proof_link?: string | null
+          proof_status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activity_type?: string
+          ai_analysis?: Json | null
+          analyzed_at?: string | null
+          content?: string | null
+          created_at?: string
+          fraud_score?: number | null
+          id?: string
+          metrics?: Json | null
+          platform?: string
+          proof_link?: string | null
+          proof_status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       pplp_events: {
         Row: {
           actor_user_id: string
@@ -2617,6 +2665,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      pplp_model_weights: {
+        Row: {
+          dimension: string
+          id: string
+          updated_at: string
+          updated_by: string | null
+          version: number
+          weight: number
+        }
+        Insert: {
+          dimension: string
+          id?: string
+          updated_at?: string
+          updated_by?: string | null
+          version?: number
+          weight?: number
+        }
+        Update: {
+          dimension?: string
+          id?: string
+          updated_at?: string
+          updated_by?: string | null
+          version?: number
+          weight?: number
+        }
+        Relationships: []
       }
       pplp_ratings: {
         Row: {
@@ -2757,6 +2832,7 @@ export type Database = {
           light_level: string | null
           light_score: number
           light_score_details: Json | null
+          light_score_v2: number | null
           linkedin_url: string | null
           mantra_ack_at: string | null
           music_enabled: boolean | null
@@ -2815,6 +2891,7 @@ export type Database = {
           light_level?: string | null
           light_score?: number
           light_score_details?: Json | null
+          light_score_v2?: number | null
           linkedin_url?: string | null
           mantra_ack_at?: string | null
           music_enabled?: boolean | null
@@ -2873,6 +2950,7 @@ export type Database = {
           light_level?: string | null
           light_score?: number
           light_score_details?: Json | null
+          light_score_v2?: number | null
           linkedin_url?: string | null
           mantra_ack_at?: string | null
           music_enabled?: boolean | null
