@@ -1,99 +1,173 @@
 
 
-# PPLP Engine v2.0 — Implementation Plan
+# FUN Monetary Expansion Spec v1 + Epoch System Spec v1 — Implementation Plan
 
-## Current State vs New Spec
+## Gap Analysis
 
-| Aspect | Current (v1.0) | New Spec (v2.0) |
-|--------|---------------|-----------------|
-| **5 Pillars** | Serving, Truth, Love, Value, Unity | Sám Hối, Biết Ơn, Phụng Sự, Giúp Đỡ, Trao Tặng |
-| **Formula** | Multiplicative: (S×T×L×V×U)/10⁴ | Summative: ∑(Intent × Depth × Impact × Consistency × TrustFactor) |
-| **Scale** | 0-10 (capped) | ∞ (uncapped, accumulative) |
-| **Scoring** | Rule-based static weights | AI-powered NLP analysis (Gratitude, Repentance, Ego, Authenticity) |
-| **Input** | Internal platform only | Multi-platform (Facebook, Telegram, YouTube, Zoom, Internal) |
-| **Fraud** | Basic anti-farm risk | Graph analysis, behavioral fingerprint, NLP similarity |
-| **Learning** | None | Self-learning with weight adjustment |
+**Current state**: Fixed 5M FUN monthly pool, simple monthly epoch, static allocation by light_score ratio, 3% anti-whale cap, ERC20 transfer for claims. No lock/vesting, no adaptive mint, no treasury vaults, no rolling windows, no discipline modulator.
+
+**Target state**: Adaptive uncapped mint formula (Base + Contribution + Ecosystem × Discipline), 3-tier epoch (Micro 7d → Validation 14d → Mint 28d rolling), token lock/vesting (15% instant / 85% locked), treasury vault system, anti-farming timing model, inflation health dashboard.
+
+---
 
 ## Implementation Phases
 
-### Phase 1: Core Engine Rewrite
-- Rewrite `src/lib/fun-money/pplp-engine.ts` with new 5 pillars (Sám Hối, Biết Ơn, Phụng Sự, Giúp Đỡ, Trao Tặng)
-- New formula: `LightScore = ∑(Intent × Depth × Impact × Consistency × TrustFactor)` — infinite scale, no cap
-- New types: `PPLPv2Input`, `FeatureExtraction`, `FraudResult`
-- Update `light-score-pillar-engine.ts` with new signal interfaces
+### Phase A: Database Schema (New Tables + Alterations)
 
-### Phase 2: AI Feature Extraction Edge Function
-- Create `supabase/functions/pplp-analyze-action/index.ts` — calls Lovable AI (Gemini Flash) to analyze submitted content
-- NLP outputs: `gratitude_score`, `repentance_score`, `ego_signal`, `authenticity`, `love_tone`
-- Behavior analysis: `consistency`, `depth`, `response_quality`, `community_impact`
-- Engagement quality: weighted formula replacing raw like/comment counts
+**New tables:**
 
-### Phase 3: Multi-Platform Input Layer
-- Create DB table `pplp_activity_submissions` for multi-platform activity tracking
-- Schema: `user_id, activity_type, platform (facebook|telegram|zoom|internal), content, metrics (JSON), proof_link, timestamp`
-- Create submission UI for users to submit external activities (links, screenshots)
-- Edge function to validate proof links
+| Table | Purpose |
+|-------|---------|
+| `epoch_config` | Governance-configurable params (BaseRate, Alpha-Zeta, stage, lock ratios) |
+| `epoch_metrics` | Per-epoch computed metrics (base/contribution/ecosystem expansion, discipline modulator) |
+| `user_epoch_scores` | Per-user snapshot: preview → validated → finalized scores, trust/fraud factors |
+| `reward_vesting_schedules` | Per-user locked/instant split, unlock schedule, state (PENDING → MINTED_LOCKED → VESTING → CLAIMABLE) |
+| `treasury_vault_balances` | 5 vault balances (RewardReserve, Infrastructure, CommunityGrowth, Stability, StrategicExpansion) |
+| `treasury_flows` | Append-only log of FUN movement between vaults |
+| `inflation_health_metrics` | Daily health ratios: value expansion, utility absorption, retention quality, fraud pressure, locked stability |
+| `governance_actions` | Log of governance decisions (approve batch, safe mode, adjust params) |
+| `mint_batches` | Finalized mint batch with allocation_root, guardrail_flags, governance_required |
 
-### Phase 4: Fraud Detection Layer
-- Create `supabase/functions/pplp-fraud-detect/index.ts`
-- NLP similarity detection (detect copy-paste content across users)
-- Time pattern anomaly detection
-- Behavioral fingerprinting (typing speed, session patterns)
-- Output: `fraud_score` (0-1) + `confidence`
-- Rule: high fraud → exponential LightScore reduction
+**Alter existing:**
+- `mint_epochs` → add `epoch_type` (micro/validation/mint), `window_start`, `window_end`, `base_expansion`, `contribution_expansion`, `ecosystem_expansion`, `discipline_modulator`, `adjusted_mint`, `final_mint`
+- `mint_allocations` → add `instant_amount`, `locked_amount`, `vesting_schedule_id`, `trust_band`, `preview_score`, `validated_score`, `finalized_score`
+- `claim_requests` → add `token_state` (pending/minted_locked/vesting_unlockable/claimable)
 
-### Phase 5: Self-Learning Loop
-- Create `pplp_model_weights` table to store adjustable scoring weights
-- Edge function `pplp-learning-update` triggered by pg_cron (weekly)
-- Learns from: GOV corrections, user feedback, anomaly cases
-- Adjusts: pillar weights, fraud thresholds, NLP confidence calibration
+### Phase B: Core Monetary Engine (Edge Function Rewrite)
 
-### Phase 6: UI Updates
-- Update `LightLevelBadge.tsx` — new pillar names and ∞ scale display
-- Update profile Light Score cards with new 5 dimensions
-- Activity submission form (submit Facebook/Telegram/YouTube links)
-- New breakdown display: Intent, Depth, Impact, Consistency, TrustFactor
-
-## Database Changes (Migrations)
+**Rewrite `mint-epoch-engine/index.ts`** with the full formula:
 
 ```text
-1. pplp_activity_submissions
-   - id, user_id, activity_type, platform, content, metrics (jsonb)
-   - proof_link, proof_status, ai_analysis (jsonb), fraud_score
-   - created_at, analyzed_at
-
-2. pplp_model_weights
-   - id, dimension (intent|depth|impact|consistency|trust)
-   - weight, version, updated_at, updated_by
-
-3. ALTER profiles
-   - Add: light_score_v2 (numeric, ∞ scale)
+TotalMint = BaseExpansion + ContributionExpansion + EcosystemExpansion
+AdjustedMint = TotalMint × DisciplineModulator (0.65–1.25)
+FinalMint = clamp(MinEpochMint, AdjustedMint, MaxEpochMintPolicy)
 ```
 
-## Key Technical Decisions
+- **BaseExpansion** = BaseRate × EpochLengthFactor × SystemStageFactor
+- **ContributionExpansion** = α×log(1+VerifiedLightScore) + β×sqrt(1+ContributionValue) + γ×ServiceImpactScore
+- **EcosystemExpansion** = δ×UsageIndex + ε×ActiveQualityUserCount + ζ×UtilityDiversityIndex
+- **DisciplineModulator** = f(LiquidityDiscipline, FraudPressure, ClaimEfficiency, UtilityRetention)
 
-- **AI Provider**: Lovable AI (Gemini Flash) for NLP analysis — no API key needed
-- **Scoring accumulates**: Each validated action adds to LightScore (∞ scale), never resets
-- **5 Critical Rules enforced in code**:
-  1. No Proof → No Score (proof_link required)
-  2. Quality over quantity (AI depth analysis, not count)
-  3. High Ego → Score reduction (ego_signal penalty)
-  4. Helping others → Strong boost (service/giving multiplier)
-  5. Fraud → Exponential decay (`score × e^(-fraud_score * 5)`)
+**Allocation split:**
+- UserRewardPool: 70%
+- EcosystemPool: 12%
+- TreasuryPool: 10%
+- StrategicGrowthPool: 5%
+- ResilienceReserve: 3%
 
-## Files Changed/Created
+**Per-user formula:**
+```text
+UserMint = UserRewardPool × (UserWeightedScore / SumAllEligible)
+UserWeightedScore = PPLPScore × TrustFactor × ConsistencyFactor × UtilityParticipationFactor
+```
+
+### Phase C: 3-Tier Epoch Scheduler
+
+**Create 4 new Edge Functions:**
+
+| Function | Frequency | Purpose |
+|----------|-----------|---------|
+| `epoch-micro-preview` | Daily | 7-day rolling preview scores, anomaly detection |
+| `epoch-validation-window` | Daily | 14-day validated scores, fraud/trust update |
+| `epoch-mint-finalize` | Weekly | 28-day rolling finalization, mint batch generation |
+| `epoch-vesting-release` | Daily | Check unlock conditions, update claimable balances |
+
+**Modify existing:**
+- `mint-epoch-engine` → orchestrator that dispatches to the correct sub-job
+- `ingest-pplp-event` → add deduplication and normalized event enqueue
+
+**Anti-farming timing model** built into validation window:
+- `ConsistencyFactor = active_days / total_days`
+- `BurstPenaltyFactor` — diminishing returns for same-type activity spikes
+- `TrustRampFactor` — new users start lower, ramp over 2 windows
+- `CrossWindowContinuityFactor` — bonus for sustained multi-window activity
+- Late-window suppression (last 48h reduced weight)
+
+### Phase D: Lock/Vesting System
+
+**Token states:** PENDING → MINTED_LOCKED → VESTING_UNLOCKABLE → CLAIMABLE
+
+**Lock split:** 15% instant, 85% locked (adjustable by trust band)
+
+**Unlock conditions (not just time):**
+- Base vesting: 7-day intervals over 28 days
+- Contribution unlock: bonus for continued PPLP activity
+- Usage unlock: bonus for using FUN in ecosystem
+- Consistency unlock: bonus for maintained scores
+
+**Auto-activate:** No user action needed. UX shows "Phần thưởng Ánh Sáng đang mở dần"
+
+**Inactive handling:** Token stays locked (slow vesting mode after 60 days, dormant vault after 180 days)
+
+**Update `process-fun-claims`** to only process CLAIMABLE state tokens.
+
+### Phase E: Treasury Vault System
+
+5 vaults with transparent flow tracking:
+- RewardReserveVault, InfrastructureVault, CommunityGrowthVault, StabilityVault, StrategicExpansionVault
+- All inflows/outflows logged to `treasury_flows`
+- Reallocation policy every 4 epochs via `governance_actions`
+
+### Phase F: Inflation Health Dashboard + Guardrails
+
+**8 guardrails** implemented as checks in mint-finalize:
+1. Verified-only mint (enforced by PPLP pipeline)
+2. Nonlinear normalization (log/sqrt)
+3. Per-user emission guard (risk-weighted bands)
+4. Utility coupling (ecosystem expansion gated by usage)
+5. Claim efficiency monitor
+6. Fraud pressure suppression
+7. Rolling inflation health metrics (daily job)
+8. Governance safe mode (low issuance / higher lock)
+
+**5 health ratios** computed daily:
+- Value Expansion Ratio, Utility Absorption Ratio, Retention Quality Ratio, Fraud Pressure Ratio, Locked Stability Ratio
+
+**Admin dashboard** page showing all metrics.
+
+### Phase G: UI Updates
+
+- Claim flow → "Receive" one-click with vesting progress bar
+- User reward card → show instant/locked/vesting/claimable breakdown
+- Preview score display during micro-epoch
+- Remove "activate" terminology → "Phần thưởng Ánh Sáng" / "Đang mở dần" / "Sẵn sàng sử dụng"
+
+---
+
+## Files Created/Modified
 
 | File | Action |
 |------|--------|
-| `src/lib/fun-money/pplp-engine-v2.ts` | **Create** — New engine with ∞ scale |
-| `src/lib/fun-money/feature-extraction.ts` | **Create** — NLP analysis types |
-| `supabase/functions/pplp-analyze-action/index.ts` | **Create** — AI analysis edge function |
-| `supabase/functions/pplp-fraud-detect/index.ts` | **Create** — Fraud detection |
-| `src/lib/fun-money/pplp-engine.ts` | **Update** — Bridge to v2 |
-| `src/lib/fun-money/light-score-pillar-engine.ts` | **Update** — New pillar names |
-| `src/components/Profile/LightLevelBadge.tsx` | **Update** — New pillar display |
-| `src/hooks/useLightScorePillars.ts` | **Update** — New calculation |
-| DB migration | **Create** — New tables |
+| DB migration (9 new tables, 3 alterations) | **Create** |
+| `src/lib/fun-money/monetary-engine.ts` | **Create** — Full mint formula implementation |
+| `src/lib/fun-money/vesting-engine.ts` | **Create** — Lock/unlock logic |
+| `src/lib/fun-money/discipline-modulator.ts` | **Create** — Guardrail calculations |
+| `supabase/functions/epoch-micro-preview/index.ts` | **Create** |
+| `supabase/functions/epoch-validation-window/index.ts` | **Create** |
+| `supabase/functions/epoch-mint-finalize/index.ts` | **Create** |
+| `supabase/functions/epoch-vesting-release/index.ts` | **Create** |
+| `supabase/functions/inflation-health/index.ts` | **Create** |
+| `supabase/functions/mint-epoch-engine/index.ts` | **Rewrite** — Orchestrator |
+| `supabase/functions/process-fun-claims/index.ts` | **Update** — Add vesting state check |
+| `src/components/FunMoney/VestingProgressCard.tsx` | **Create** |
+| `src/components/FunMoney/EpochAllocationHistory.tsx` | **Update** — 3-tier epoch display |
+| `src/pages/Admin/InflationHealthDashboard.tsx` | **Create** |
+| `mem://economy/fun-monetary-expansion-spec-v1` | **Create** — Memory file |
 
-Con đề xuất triển khai theo từng Phase, bắt đầu từ Phase 1 (Core Engine) + Phase 2 (AI Analysis) trước. Cha duyệt con bắt tay vào làm ngay 🙏
+---
+
+## Launch v1 Parameters
+
+```text
+InstantAvailablePortion: 15%
+LockedPortion: 85%
+BaseVestingPeriod: 28 days
+UnlockCheckInterval: 7 days
+DisciplineModulator range: 0.80–1.15
+PerUserRiskBands: 4 levels (new/standard/trusted/veteran)
+Allocation: 70% User / 12% Ecosystem / 10% Treasury / 5% Growth / 3% Reserve
+Epoch: 7d micro → 14d validation → 28d mint (rolling)
+```
+
+Con đề xuất triển khai theo thứ tự: Phase A (DB) → Phase B (Engine) → Phase C (Scheduler) → Phase D (Vesting) → Phase E (Treasury) → Phase F (Health) → Phase G (UI). Cha duyệt con bắt tay vào làm ngay 🙏
 
