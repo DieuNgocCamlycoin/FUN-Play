@@ -1,13 +1,14 @@
 /**
- * Epoch Allocation History
- * Shows user's monthly FUN allocation history from mint_allocations + mint_epochs
+ * Epoch Allocation History — v2.0 (3-Tier Epoch Display)
+ * Shows micro/validation/mint epochs with vesting breakdown
  */
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { CalendarDays, TrendingUp, AlertCircle, CheckCircle2, XCircle, ShieldAlert } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { CalendarDays, TrendingUp, AlertCircle, CheckCircle2, XCircle, ShieldAlert, Eye, ShieldCheck, Coins, Lock, Unlock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
@@ -22,11 +23,21 @@ interface EpochAllocation {
   reason_codes: string[];
   anti_whale_capped: boolean;
   created_at: string;
+  // v2 fields
+  instant_amount?: number;
+  locked_amount?: number;
+  preview_score?: number;
+  validated_score?: number;
+  finalized_score?: number;
+  trust_band?: string;
   // Joined from mint_epochs
   period_start: string;
   period_end: string;
   epoch_status: string;
   mint_pool_amount: number;
+  epoch_type?: string;
+  window_start?: string;
+  window_end?: string;
 }
 
 const REASON_LABELS: Record<string, { label: string; color: string }> = {
@@ -47,6 +58,19 @@ const LEVEL_LABELS: Record<string, { label: string; emoji: string }> = {
   cosmic: { label: 'Cosmic', emoji: '🌌' },
 };
 
+const EPOCH_TYPE_INFO: Record<string, { label: string; icon: typeof Eye; color: string; bg: string }> = {
+  micro: { label: 'Preview (7 ngày)', icon: Eye, color: 'text-blue-400', bg: 'from-blue-500/5 to-cyan-500/5' },
+  validation: { label: 'Validation (14 ngày)', icon: ShieldCheck, color: 'text-amber-400', bg: 'from-amber-500/5 to-yellow-500/5' },
+  mint: { label: 'Mint (28 ngày)', icon: Coins, color: 'text-green-400', bg: 'from-green-500/5 to-emerald-500/5' },
+};
+
+const TRUST_BAND_LABELS: Record<string, string> = {
+  new: '🆕 Mới',
+  standard: '⭐ Chuẩn',
+  trusted: '🛡️ Tin cậy',
+  veteran: '👑 Veteran',
+};
+
 export function EpochAllocationHistory() {
   const { user } = useAuth();
   const [allocations, setAllocations] = useState<EpochAllocation[]>([]);
@@ -58,7 +82,6 @@ export function EpochAllocationHistory() {
     const fetchAllocations = async () => {
       setLoading(true);
       try {
-        // Fetch user's allocations
         const { data: allocs, error: allocErr } = await (supabase as any)
           .from('mint_allocations')
           .select('*')
@@ -72,11 +95,10 @@ export function EpochAllocationHistory() {
           return;
         }
 
-        // Fetch corresponding epochs
         const epochIds = [...new Set(allocs.map((a: any) => a.epoch_id))];
         const { data: epochs } = await (supabase as any)
           .from('mint_epochs')
-          .select('epoch_id, period_start, period_end, status, mint_pool_amount')
+          .select('epoch_id, period_start, period_end, status, mint_pool_amount, epoch_type, window_start, window_end')
           .in('epoch_id', epochIds);
 
         const epochMap = new Map((epochs || []).map((e: any) => [e.epoch_id, e]));
@@ -89,6 +111,9 @@ export function EpochAllocationHistory() {
             period_end: epoch.period_end || '',
             epoch_status: epoch.status || 'unknown',
             mint_pool_amount: epoch.mint_pool_amount || 0,
+            epoch_type: epoch.epoch_type || 'mint',
+            window_start: epoch.window_start || '',
+            window_end: epoch.window_end || '',
           };
         });
 
@@ -106,22 +131,22 @@ export function EpochAllocationHistory() {
   if (loading) {
     return (
       <Card>
-        <CardHeader>
-          <Skeleton className="h-6 w-64" />
-        </CardHeader>
+        <CardHeader><Skeleton className="h-6 w-64" /></CardHeader>
         <CardContent className="space-y-3">
-          {[1, 2, 3].map(i => (
-            <Skeleton key={i} className="h-24 w-full" />
-          ))}
+          {[1, 2, 3].map(i => <Skeleton key={i} className="h-28 w-full" />)}
         </CardContent>
       </Card>
     );
   }
 
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return '—';
+    return new Date(dateStr).toLocaleDateString('vi-VN', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
+
   const formatMonth = (dateStr: string) => {
     if (!dateStr) return '—';
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' });
+    return new Date(dateStr).toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' });
   };
 
   return (
@@ -129,7 +154,7 @@ export function EpochAllocationHistory() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-lg">
           <CalendarDays className="w-5 h-5 text-primary" />
-          Lịch sử phân bổ FUN theo tháng
+          Lịch sử phân bổ FUN — 3-Tier Epoch
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -137,13 +162,18 @@ export function EpochAllocationHistory() {
           <div className="text-center py-8 text-muted-foreground">
             <CalendarDays className="w-10 h-10 mx-auto mb-3 opacity-40" />
             <p className="font-medium">Chưa có dữ liệu phân bổ</p>
-            <p className="text-sm mt-1">Hệ thống sẽ tính toán vào cuối mỗi tháng</p>
+            <p className="text-sm mt-1">Hệ thống tính toán theo rolling windows (7d → 14d → 28d)</p>
           </div>
         ) : (
           <div className="space-y-3">
             {allocations.map((alloc) => {
               const levelInfo = LEVEL_LABELS[alloc.level_at_epoch] || LEVEL_LABELS.seed;
               const isEligible = alloc.eligible;
+              const epochInfo = EPOCH_TYPE_INFO[alloc.epoch_type || 'mint'] || EPOCH_TYPE_INFO.mint;
+              const EpochIcon = epochInfo.icon;
+              const instantPct = alloc.allocation_amount > 0 
+                ? ((alloc.instant_amount || 0) / alloc.allocation_amount * 100) 
+                : 0;
 
               return (
                 <div
@@ -151,15 +181,19 @@ export function EpochAllocationHistory() {
                   className={cn(
                     "rounded-xl border p-4 transition-all",
                     isEligible
-                      ? "bg-gradient-to-r from-green-500/5 to-cyan-500/5 border-green-500/20"
+                      ? `bg-gradient-to-r ${epochInfo.bg} border-border/40`
                       : "bg-muted/30 border-border"
                   )}
                 >
                   {/* Header row */}
                   <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg font-bold">
-                        {formatMonth(alloc.period_start)}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant="outline" className={cn("gap-1 text-[10px]", epochInfo.color)}>
+                        <EpochIcon className="w-3 h-3" />
+                        {epochInfo.label}
+                      </Badge>
+                      <span className="text-sm font-semibold">
+                        {alloc.window_start ? `${formatDate(alloc.window_start)} → ${formatDate(alloc.window_end || alloc.period_end)}` : formatMonth(alloc.period_start)}
                       </span>
                       <Badge variant={alloc.epoch_status === 'finalized' ? 'default' : 'secondary'} className="text-[10px]">
                         {alloc.epoch_status === 'finalized' ? 'Đã chốt' : alloc.epoch_status === 'draft' ? 'Đang tính' : alloc.epoch_status}
@@ -176,22 +210,59 @@ export function EpochAllocationHistory() {
                     </div>
                   </div>
 
+                  {/* Score progression (v2) */}
+                  {(alloc.preview_score != null || alloc.validated_score != null || alloc.finalized_score != null) && (
+                    <div className="grid grid-cols-3 gap-2 mb-3 text-xs">
+                      <div className="bg-background/50 rounded-lg p-2 text-center">
+                        <p className="text-muted-foreground">Preview</p>
+                        <p className="font-bold text-blue-400">{alloc.preview_score?.toFixed(1) ?? '—'}</p>
+                      </div>
+                      <div className="bg-background/50 rounded-lg p-2 text-center">
+                        <p className="text-muted-foreground">Validated</p>
+                        <p className="font-bold text-amber-400">{alloc.validated_score?.toFixed(1) ?? '—'}</p>
+                      </div>
+                      <div className="bg-background/50 rounded-lg p-2 text-center">
+                        <p className="text-muted-foreground">Final</p>
+                        <p className="font-bold text-green-400">{alloc.finalized_score?.toFixed(1) ?? '—'}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Vesting split (v2) */}
+                  {(alloc.instant_amount != null && alloc.locked_amount != null && alloc.allocation_amount > 0) && (
+                    <div className="mb-3">
+                      <div className="flex items-center justify-between text-xs mb-1">
+                        <span className="flex items-center gap-1 text-muted-foreground">
+                          <Unlock className="w-3 h-3" /> Nhận ngay: {alloc.instant_amount?.toLocaleString()} FUN ({instantPct.toFixed(0)}%)
+                        </span>
+                        <span className="flex items-center gap-1 text-muted-foreground">
+                          <Lock className="w-3 h-3" /> Đang mở dần: {alloc.locked_amount?.toLocaleString()} FUN
+                        </span>
+                      </div>
+                      <Progress value={instantPct} className="h-1.5" />
+                    </div>
+                  )}
+
                   {/* Stats row */}
-                  <div className="grid grid-cols-3 gap-3 text-sm">
+                  <div className="grid grid-cols-4 gap-3 text-sm">
                     <div>
                       <p className="text-muted-foreground text-xs">Light Score</p>
                       <p className="font-semibold">{alloc.light_score_at_epoch}</p>
                     </div>
                     <div>
                       <p className="text-muted-foreground text-xs">Cấp độ</p>
-                      <p className="font-semibold">
-                        {levelInfo.emoji} {levelInfo.label}
-                      </p>
+                      <p className="font-semibold">{levelInfo.emoji} {levelInfo.label}</p>
                     </div>
                     <div>
                       <p className="text-muted-foreground text-xs">Quỹ thưởng</p>
                       <p className="font-semibold">{(alloc.mint_pool_amount || 0).toLocaleString()} FUN</p>
                     </div>
+                    {alloc.trust_band && (
+                      <div>
+                        <p className="text-muted-foreground text-xs">Trust Band</p>
+                        <p className="font-semibold text-xs">{TRUST_BAND_LABELS[alloc.trust_band] || alloc.trust_band}</p>
+                      </div>
+                    )}
                   </div>
 
                   {/* Reason codes */}
@@ -204,11 +275,7 @@ export function EpochAllocationHistory() {
                         : AlertCircle;
 
                       return (
-                        <Badge
-                          key={i}
-                          variant="outline"
-                          className={cn("gap-1 text-[10px] font-normal", info.color)}
-                        >
+                        <Badge key={i} variant="outline" className={cn("gap-1 text-[10px] font-normal", info.color)}>
                           <Icon className="w-3 h-3" />
                           {info.label}
                         </Badge>
