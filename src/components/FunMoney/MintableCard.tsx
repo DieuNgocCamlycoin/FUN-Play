@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { LightActivity } from '@/hooks/useLightActivity';
+import { CrossPlatformSummary } from './CrossPlatformSummary';
 import { useFunMoneyWallet } from '@/hooks/useFunMoneyWallet';
 import { useAutoMintRequest } from '@/hooks/useFunMoneyMintRequest';
 
@@ -283,7 +284,7 @@ export function MintableCard({ activity, loading, onMintSuccess, onRefresh }: Mi
             variant={activity.hasPendingRequest ? "secondary" : "outline"}
             className={activity.hasPendingRequest ? "bg-yellow-500/20 text-yellow-600" : ""}
           >
-            {activity.hasPendingRequest ? 'Có request đang chờ' : 'Sẵn sàng mint'}
+            {activity.hasPendingRequest ? 'Có request đang chờ' : 'Mint tại fun.rich'}
           </Badge>
         </div>
 
@@ -356,6 +357,14 @@ export function MintableCard({ activity, loading, onMintSuccess, onRefresh }: Mi
               )}
             </Tooltip>
           </TooltipProvider>
+        )}
+
+        {/* Cross-Platform Breakdown */}
+        {activity.platformBreakdown && (
+          <CrossPlatformSummary 
+            platformBreakdown={activity.platformBreakdown}
+            totalMintedFun={activity.alreadyMintedFun}
+          />
         )}
 
         {/* Quick Stats */}

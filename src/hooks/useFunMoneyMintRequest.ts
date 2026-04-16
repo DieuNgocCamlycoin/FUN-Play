@@ -453,7 +453,7 @@ export function useAutoMintRequest(): UseAutoMintRequestReturn {
       };
 
       const scoringResult = scoreAction({
-        platformId: 'FUN_PROFILE',
+        platformId: 'FUN_MAIN',
         actionType: 'LIGHT_ACTIVITY',
         pillarScores: adjustedPillars,
         unitySignals: input.unitySignals,
@@ -499,7 +499,7 @@ export function useAutoMintRequest(): UseAutoMintRequestReturn {
       const insertData = {
         user_id: user.id,
         user_wallet_address: input.userWalletAddress,
-        platform_id: 'FUN_PROFILE',
+        platform_id: 'FUN_MAIN',
         action_type: 'LIGHT_ACTIVITY',
         action_evidence: evidence,
         pillar_scores: input.pillars,
