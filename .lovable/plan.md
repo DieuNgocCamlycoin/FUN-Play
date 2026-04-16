@@ -1,173 +1,83 @@
 
 
-# FUN Monetary Expansion Spec v1 + Epoch System Spec v1 — Implementation Plan
+# Light Score Parameter Table v1.0 — Implementation Plan
 
-## Gap Analysis
+## Gap Analysis: Current Code vs Spec Tables
 
-**Current state**: Fixed 5M FUN monthly pool, simple monthly epoch, static allocation by light_score ratio, 3% anti-whale cap, ERC20 transfer for claims. No lock/vesting, no adaptive mint, no treasury vaults, no rolling windows, no discipline modulator.
+### What's already correct
+- VVU formula structure: `B × Q × TC × IIS × IM × AAF × ERP`
+- 3-tier Light Score (PLS/NLS/LLS → TLS)
+- Display formula: `100 × log(1 + RawLS)`
+- 6 tiers (Seed → Cosmic)
 
-**Target state**: Adaptive uncapped mint formula (Base + Contribution + Ecosystem × Discipline), 3-tier epoch (Micro 7d → Validation 14d → Mint 28d rolling), token lock/vesting (15% instant / 85% locked), treasury vault system, anti-farming timing model, inflation health dashboard.
+### What needs updating
 
----
-
-## Implementation Phases
-
-### Phase A: Database Schema (New Tables + Alterations)
-
-**New tables:**
-
-| Table | Purpose |
-|-------|---------|
-| `epoch_config` | Governance-configurable params (BaseRate, Alpha-Zeta, stage, lock ratios) |
-| `epoch_metrics` | Per-epoch computed metrics (base/contribution/ecosystem expansion, discipline modulator) |
-| `user_epoch_scores` | Per-user snapshot: preview → validated → finalized scores, trust/fraud factors |
-| `reward_vesting_schedules` | Per-user locked/instant split, unlock schedule, state (PENDING → MINTED_LOCKED → VESTING → CLAIMABLE) |
-| `treasury_vault_balances` | 5 vault balances (RewardReserve, Infrastructure, CommunityGrowth, Stability, StrategicExpansion) |
-| `treasury_flows` | Append-only log of FUN movement between vaults |
-| `inflation_health_metrics` | Daily health ratios: value expansion, utility absorption, retention quality, fraud pressure, locked stability |
-| `governance_actions` | Log of governance decisions (approve batch, safe mode, adjust params) |
-| `mint_batches` | Finalized mint batch with allocation_root, guardrail_flags, governance_required |
-
-**Alter existing:**
-- `mint_epochs` → add `epoch_type` (micro/validation/mint), `window_start`, `window_end`, `base_expansion`, `contribution_expansion`, `ecosystem_expansion`, `discipline_modulator`, `adjusted_mint`, `final_mint`
-- `mint_allocations` → add `instant_amount`, `locked_amount`, `vesting_schedule_id`, `trust_band`, `preview_score`, `validated_score`, `finalized_score`
-- `claim_requests` → add `token_state` (pending/minted_locked/vesting_unlockable/claimable)
-
-### Phase B: Core Monetary Engine (Edge Function Rewrite)
-
-**Rewrite `mint-epoch-engine/index.ts`** with the full formula:
-
-```text
-TotalMint = BaseExpansion + ContributionExpansion + EcosystemExpansion
-AdjustedMint = TotalMint × DisciplineModulator (0.65–1.25)
-FinalMint = clamp(MinEpochMint, AdjustedMint, MaxEpochMintPolicy)
-```
-
-- **BaseExpansion** = BaseRate × EpochLengthFactor × SystemStageFactor
-- **ContributionExpansion** = α×log(1+VerifiedLightScore) + β×sqrt(1+ContributionValue) + γ×ServiceImpactScore
-- **EcosystemExpansion** = δ×UsageIndex + ε×ActiveQualityUserCount + ζ×UtilityDiversityIndex
-- **DisciplineModulator** = f(LiquidityDiscipline, FraudPressure, ClaimEfficiency, UtilityRetention)
-
-**Allocation split:**
-- UserRewardPool: 70%
-- EcosystemPool: 12%
-- TreasuryPool: 10%
-- StrategicGrowthPool: 5%
-- ResilienceReserve: 3%
-
-**Per-user formula:**
-```text
-UserMint = UserRewardPool × (UserWeightedScore / SumAllEligible)
-UserWeightedScore = PPLPScore × TrustFactor × ConsistencyFactor × UtilityParticipationFactor
-```
-
-### Phase C: 3-Tier Epoch Scheduler
-
-**Create 4 new Edge Functions:**
-
-| Function | Frequency | Purpose |
-|----------|-----------|---------|
-| `epoch-micro-preview` | Daily | 7-day rolling preview scores, anomaly detection |
-| `epoch-validation-window` | Daily | 14-day validated scores, fraud/trust update |
-| `epoch-mint-finalize` | Weekly | 28-day rolling finalization, mint batch generation |
-| `epoch-vesting-release` | Daily | Check unlock conditions, update claimable balances |
-
-**Modify existing:**
-- `mint-epoch-engine` → orchestrator that dispatches to the correct sub-job
-- `ingest-pplp-event` → add deduplication and normalized event enqueue
-
-**Anti-farming timing model** built into validation window:
-- `ConsistencyFactor = active_days / total_days`
-- `BurstPenaltyFactor` — diminishing returns for same-type activity spikes
-- `TrustRampFactor` — new users start lower, ramp over 2 windows
-- `CrossWindowContinuityFactor` — bonus for sustained multi-window activity
-- Late-window suppression (last 48h reduced weight)
-
-### Phase D: Lock/Vesting System
-
-**Token states:** PENDING → MINTED_LOCKED → VESTING_UNLOCKABLE → CLAIMABLE
-
-**Lock split:** 15% instant, 85% locked (adjustable by trust band)
-
-**Unlock conditions (not just time):**
-- Base vesting: 7-day intervals over 28 days
-- Contribution unlock: bonus for continued PPLP activity
-- Usage unlock: bonus for using FUN in ecosystem
-- Consistency unlock: bonus for maintained scores
-
-**Auto-activate:** No user action needed. UX shows "Phần thưởng Ánh Sáng đang mở dần"
-
-**Inactive handling:** Token stays locked (slow vesting mode after 60 days, dormant vault after 180 days)
-
-**Update `process-fun-claims`** to only process CLAIMABLE state tokens.
-
-### Phase E: Treasury Vault System
-
-5 vaults with transparent flow tracking:
-- RewardReserveVault, InfrastructureVault, CommunityGrowthVault, StabilityVault, StrategicExpansionVault
-- All inflows/outflows logged to `treasury_flows`
-- Reallocation policy every 4 epochs via `governance_actions`
-
-### Phase F: Inflation Health Dashboard + Guardrails
-
-**8 guardrails** implemented as checks in mint-finalize:
-1. Verified-only mint (enforced by PPLP pipeline)
-2. Nonlinear normalization (log/sqrt)
-3. Per-user emission guard (risk-weighted bands)
-4. Utility coupling (ecosystem expansion gated by usage)
-5. Claim efficiency monitor
-6. Fraud pressure suppression
-7. Rolling inflation health metrics (daily job)
-8. Governance safe mode (low issuance / higher lock)
-
-**5 health ratios** computed daily:
-- Value Expansion Ratio, Utility Absorption Ratio, Retention Quality Ratio, Fraud Pressure Ratio, Locked Stability Ratio
-
-**Admin dashboard** page showing all metrics.
-
-### Phase G: UI Updates
-
-- Claim flow → "Receive" one-click with vesting progress bar
-- User reward card → show instant/locked/vesting/claimable breakdown
-- Preview score display during micro-epoch
-- Remove "activate" terminology → "Phần thưởng Ánh Sáng" / "Đang mở dần" / "Sẵn sàng sử dụng"
+| Area | Current | Spec v1.0 |
+|------|---------|-----------|
+| **Base Values** | Generic codes (post_created: 3.0, daily_checkin: 1.0) | Spec table with 15 event types and specific ranges (Daily Check-in: 0.1–0.3, DID: 5–10, Soulbound: 8–15, etc.) |
+| **Quality (Q_e)** | Calculated from length/originality/completion (0-1) | 4 levels: Low 0.3–0.6, Normal 0.8–1.0, Good 1.0–1.3, Excellent 1.3–1.8 |
+| **Trust (TC_e)** | 4 tiers (new: 0.6, standard: 0.85, trusted: 1.0, veteran: 1.15) | 5 levels: Unknown 0.5–0.8, Basic 0.8–1.0, Verified 1.0–1.2, Strong 1.2–1.4, Core 1.4–1.5 |
+| **IIS range** | 0–1.5 (OK) but patterns not matching spec | 5 patterns: Spam 0–0.3, Farming 0.5–0.8, Normal 0.9–1.0, Good 1.0–1.2, Pure 1.2–1.5 |
+| **Impact (IM_e)** | 0–3.0 (OK) but levels don't match | 5 levels: None 0.5–0.8, Light 0.8–1.0, Clear 1.0–1.5, Strong 1.5–2.5, Massive 2.5–3.0 |
+| **AAF** | Continuous calculation | 5 discrete levels: Normal 1.0, Suspicious 0.5–0.8, Flag 0.2–0.5, Near-spam 0.05–0.2, Block 0 |
+| **ERP (Ego Risk Penalty)** | Currently = Epoch Recency Premium (time decay) | Spec redefines as Ego Risk Penalty: Neutral 1.0, Reward-optimizing 0.9, Clickbait 0.7–0.85, Toxic 0.5–0.7 |
+| **Consistency (C_t)** | `1 + log(1+streak)/k`, range 0.9–1.3 | Stepped table: 1–3d→0.95, 4–7d→1.0, 8–30d→1.05, 30–90d→1.1, 90+→1.15–1.25 |
+| **Reliability (R_t)** | Base 0.8 + components, range 0.5–1.2 | 4 levels: Abandon 0.6–0.8, Normal 0.9–1.0, Good 1.0–1.1, Very reliable 1.1–1.2 |
+| **Network (QN/TN/DN)** | Passed as raw 0-1 inputs | QN: 4 levels 0.2–1.5, TN: 4 levels 0.5–1.3, DN: 4 levels 0.8–1.2 |
+| **Legacy (PV/AD/LO/PU)** | Raw 0-1 inputs | PV: 1–100, AD: 0.5–1.5, LO: log formula + table (7d→1, 1yr→3), PU: 0.5–1.5 |
+| **TLS Weights by Phase** | Fixed α=0.5, β=0.3, γ=0.2 | Phase-dependent: Early 0.7/0.2/0.1, Growth 0.5/0.3/0.2, Mature 0.4/0.3/0.3 |
+| **Activation Thresholds** | Simple (earning ≥ 10 display) | Detailed: Earn basic LS>10+TC>0.8, Advanced LS>100, Referral LS>50, Vote LS>200, Proposal LS>500, Validator LS>1000 |
 
 ---
 
-## Files Created/Modified
+## Implementation
+
+### 1. Create `src/lib/fun-money/light-score-params-v1.ts`
+Single source of truth for ALL parameter tables from the spec:
+- `EVENT_BASE_VALUES` — 15 event types with min/max ranges
+- `QUALITY_LEVELS` — 4 levels with ranges
+- `TRUST_LEVELS` — 5 levels (Unknown→Core)
+- `IIS_PATTERNS` — 5 patterns with ranges
+- `IMPACT_LEVELS` — 5 levels
+- `AAF_LEVELS` — 5 statuses
+- `EGO_RISK_PATTERNS` — 4 patterns (replaces old ERP time-decay)
+- `CONSISTENCY_TABLE` — 5 streak bands
+- `RELIABILITY_TABLE` — 4 behavior levels
+- `NETWORK_QUALITY_TABLE`, `NETWORK_TRUST_TABLE`, `NETWORK_DIVERSITY_TABLE`
+- `LEGACY_PV_TABLE`, `LEGACY_AD_TABLE`, `LEGACY_LO_TABLE`, `LEGACY_PU_TABLE`
+- `TLS_PHASE_WEIGHTS` — Early/Growth/Mature
+- `ACTIVATION_THRESHOLDS` — 6 feature gates
+- Helper functions: `getBaseValue()`, `getQualityMultiplier()`, `getTrustConfidence()`, etc.
+
+### 2. Update `src/lib/fun-money/pplp-engine-v25.ts`
+- Replace `BASE_VALUES` with spec's 15 event types
+- Replace `TRUST_WEIGHTS` with 5-level TC_e table
+- Update `quality_score` calculation to map to 4 Quality levels (0.3–1.8)
+- Replace `calculateERP()` (time decay) with `calculateEgoRiskPenalty()` (pattern-based)
+- Keep AAF continuous calculation but add level classification
+
+### 3. Update `src/lib/fun-money/light-score-v25.ts`
+- Replace `consistencyMultiplierV25()` — use stepped table (range 0.95–1.25)
+- Update `reliabilityMultiplierV25()` — map to 4 discrete levels (0.6–1.2)
+- Add `SystemPhase` type and phase-aware `LIGHT_WEIGHTS`
+- Update `getActivationStatus()` with detailed thresholds (LS>10+TC>0.8, etc.)
+- Add typed network multiplier helpers for QN/TN/DN
+- Add typed legacy parameter helpers for PV/AD/LO/PU with `LO = log(1 + days_active)`
+
+### 4. Update `supabase/functions/event-scoring-engine/index.ts`
+- Use new parameter tables for scoring
+
+### 5. Save memory `mem://economy/light-score-parameter-table-v1`
+
+---
+
+## Files
 
 | File | Action |
 |------|--------|
-| DB migration (9 new tables, 3 alterations) | **Create** |
-| `src/lib/fun-money/monetary-engine.ts` | **Create** — Full mint formula implementation |
-| `src/lib/fun-money/vesting-engine.ts` | **Create** — Lock/unlock logic |
-| `src/lib/fun-money/discipline-modulator.ts` | **Create** — Guardrail calculations |
-| `supabase/functions/epoch-micro-preview/index.ts` | **Create** |
-| `supabase/functions/epoch-validation-window/index.ts` | **Create** |
-| `supabase/functions/epoch-mint-finalize/index.ts` | **Create** |
-| `supabase/functions/epoch-vesting-release/index.ts` | **Create** |
-| `supabase/functions/inflation-health/index.ts` | **Create** |
-| `supabase/functions/mint-epoch-engine/index.ts` | **Rewrite** — Orchestrator |
-| `supabase/functions/process-fun-claims/index.ts` | **Update** — Add vesting state check |
-| `src/components/FunMoney/VestingProgressCard.tsx` | **Create** |
-| `src/components/FunMoney/EpochAllocationHistory.tsx` | **Update** — 3-tier epoch display |
-| `src/pages/Admin/InflationHealthDashboard.tsx` | **Create** |
-| `mem://economy/fun-monetary-expansion-spec-v1` | **Create** — Memory file |
-
----
-
-## Launch v1 Parameters
-
-```text
-InstantAvailablePortion: 15%
-LockedPortion: 85%
-BaseVestingPeriod: 28 days
-UnlockCheckInterval: 7 days
-DisciplineModulator range: 0.80–1.15
-PerUserRiskBands: 4 levels (new/standard/trusted/veteran)
-Allocation: 70% User / 12% Ecosystem / 10% Treasury / 5% Growth / 3% Reserve
-Epoch: 7d micro → 14d validation → 28d mint (rolling)
-```
-
-Con đề xuất triển khai theo thứ tự: Phase A (DB) → Phase B (Engine) → Phase C (Scheduler) → Phase D (Vesting) → Phase E (Treasury) → Phase F (Health) → Phase G (UI). Cha duyệt con bắt tay vào làm ngay 🙏
+| `src/lib/fun-money/light-score-params-v1.ts` | **Create** — All parameter tables |
+| `src/lib/fun-money/pplp-engine-v25.ts` | **Update** — Base values, TC, Quality, ERP→EgoRisk |
+| `src/lib/fun-money/light-score-v25.ts` | **Update** — Consistency, Reliability, Weights, Activation |
+| `supabase/functions/event-scoring-engine/index.ts` | **Update** — Use new params |
+| `mem://economy/light-score-parameter-table-v1` | **Create** — Memory |
 
