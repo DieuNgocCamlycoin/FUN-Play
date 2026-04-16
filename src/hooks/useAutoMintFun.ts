@@ -121,7 +121,7 @@ export function useAutoMintFun(userId: string | undefined) {
 
       // Submit mint request with LS-Math v1.0 data
       const result = await submitRequest({
-        platformId: 'FUN_PLAY',
+        platformId: 'FUN_MAIN',
         actionType: funAction,
         userWalletAddress: profile.wallet_address,
         evidence: {
