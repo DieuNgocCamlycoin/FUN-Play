@@ -739,6 +739,7 @@ export type Database = {
           id: string
           processed_at: string | null
           status: string
+          token_state: string | null
           tx_hash: string | null
           user_id: string
           wallet_address: string
@@ -752,6 +753,7 @@ export type Database = {
           id?: string
           processed_at?: string | null
           status?: string
+          token_state?: string | null
           tx_hash?: string | null
           user_id: string
           wallet_address: string
@@ -765,6 +767,7 @@ export type Database = {
           id?: string
           processed_at?: string | null
           status?: string
+          token_state?: string | null
           tx_hash?: string | null
           user_id?: string
           wallet_address?: string
@@ -1236,6 +1239,87 @@ export type Database = {
           },
         ]
       }
+      epoch_config: {
+        Row: {
+          config_group: string
+          config_key: string
+          config_value: number
+          created_at: string
+          description: string | null
+          id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          config_group?: string
+          config_key: string
+          config_value: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          config_group?: string
+          config_key?: string
+          config_value?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      epoch_metrics: {
+        Row: {
+          adjusted_mint: number
+          base_expansion: number
+          computed_at: string
+          contribution_expansion: number
+          created_at: string
+          discipline_modulator: number
+          ecosystem_expansion: number
+          epoch_id: string
+          final_mint: number
+          guardrail_flags: Json | null
+          health_snapshot: Json | null
+          id: string
+          total_mint: number
+        }
+        Insert: {
+          adjusted_mint?: number
+          base_expansion?: number
+          computed_at?: string
+          contribution_expansion?: number
+          created_at?: string
+          discipline_modulator?: number
+          ecosystem_expansion?: number
+          epoch_id: string
+          final_mint?: number
+          guardrail_flags?: Json | null
+          health_snapshot?: Json | null
+          id?: string
+          total_mint?: number
+        }
+        Update: {
+          adjusted_mint?: number
+          base_expansion?: number
+          computed_at?: string
+          contribution_expansion?: number
+          created_at?: string
+          discipline_modulator?: number
+          ecosystem_expansion?: number
+          epoch_id?: string
+          final_mint?: number
+          guardrail_flags?: Json | null
+          health_snapshot?: Json | null
+          id?: string
+          total_mint?: number
+        }
+        Relationships: []
+      }
       events: {
         Row: {
           created_at: string
@@ -1380,6 +1464,42 @@ export type Database = {
         }
         Relationships: []
       }
+      governance_actions: {
+        Row: {
+          action_type: string
+          created_at: string
+          epoch_id: string | null
+          executed_at: string | null
+          executed_by: string | null
+          id: string
+          notes: string | null
+          parameters: Json | null
+          status: string
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          epoch_id?: string | null
+          executed_at?: string | null
+          executed_by?: string | null
+          id?: string
+          notes?: string | null
+          parameters?: Json | null
+          status?: string
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          epoch_id?: string | null
+          executed_at?: string | null
+          executed_by?: string | null
+          id?: string
+          notes?: string | null
+          parameters?: Json | null
+          status?: string
+        }
+        Relationships: []
+      }
       immutable_rules: {
         Row: {
           created_at: string
@@ -1401,6 +1521,60 @@ export type Database = {
           is_active?: boolean
           rule_code?: string
           rule_value?: Json
+        }
+        Relationships: []
+      }
+      inflation_health_metrics: {
+        Row: {
+          active_quality_users: number | null
+          circulating_supply: number | null
+          created_at: string
+          details: Json | null
+          fraud_pressure_ratio: number | null
+          id: string
+          locked_stability_ratio: number | null
+          locked_supply: number | null
+          metric_date: string
+          retention_quality_ratio: number | null
+          safe_mode_triggered: boolean | null
+          supply_growth_rate: number | null
+          total_supply: number | null
+          utility_absorption_ratio: number | null
+          value_expansion_ratio: number | null
+        }
+        Insert: {
+          active_quality_users?: number | null
+          circulating_supply?: number | null
+          created_at?: string
+          details?: Json | null
+          fraud_pressure_ratio?: number | null
+          id?: string
+          locked_stability_ratio?: number | null
+          locked_supply?: number | null
+          metric_date: string
+          retention_quality_ratio?: number | null
+          safe_mode_triggered?: boolean | null
+          supply_growth_rate?: number | null
+          total_supply?: number | null
+          utility_absorption_ratio?: number | null
+          value_expansion_ratio?: number | null
+        }
+        Update: {
+          active_quality_users?: number | null
+          circulating_supply?: number | null
+          created_at?: string
+          details?: Json | null
+          fraud_pressure_ratio?: number | null
+          id?: string
+          locked_stability_ratio?: number | null
+          locked_supply?: number | null
+          metric_date?: string
+          retention_quality_ratio?: number | null
+          safe_mode_triggered?: boolean | null
+          supply_growth_rate?: number | null
+          total_supply?: number | null
+          utility_absorption_ratio?: number | null
+          value_expansion_ratio?: number | null
         }
         Relationships: []
       }
@@ -1872,12 +2046,19 @@ export type Database = {
           created_at: string
           eligible: boolean
           epoch_id: string
+          finalized_score: number | null
           id: string
+          instant_amount: number | null
           level_at_epoch: string | null
           light_score_at_epoch: number | null
+          locked_amount: number | null
           onchain_tx_hash: string | null
+          preview_score: number | null
           reason_codes: string[] | null
+          trust_band: string | null
           user_id: string
+          validated_score: number | null
+          vesting_schedule_id: string | null
         }
         Insert: {
           allocation_amount?: number
@@ -1885,12 +2066,19 @@ export type Database = {
           created_at?: string
           eligible?: boolean
           epoch_id: string
+          finalized_score?: number | null
           id?: string
+          instant_amount?: number | null
           level_at_epoch?: string | null
           light_score_at_epoch?: number | null
+          locked_amount?: number | null
           onchain_tx_hash?: string | null
+          preview_score?: number | null
           reason_codes?: string[] | null
+          trust_band?: string | null
           user_id: string
+          validated_score?: number | null
+          vesting_schedule_id?: string | null
         }
         Update: {
           allocation_amount?: number
@@ -1898,12 +2086,19 @@ export type Database = {
           created_at?: string
           eligible?: boolean
           epoch_id?: string
+          finalized_score?: number | null
           id?: string
+          instant_amount?: number | null
           level_at_epoch?: string | null
           light_score_at_epoch?: number | null
+          locked_amount?: number | null
           onchain_tx_hash?: string | null
+          preview_score?: number | null
           reason_codes?: string[] | null
+          trust_band?: string | null
           user_id?: string
+          validated_score?: number | null
+          vesting_schedule_id?: string | null
         }
         Relationships: [
           {
@@ -1915,10 +2110,62 @@ export type Database = {
           },
         ]
       }
-      mint_epochs: {
+      mint_batches: {
         Row: {
+          allocation_root: string | null
+          approved_at: string | null
+          approved_by: string | null
+          batch_number: number
           created_at: string
           epoch_id: string
+          governance_required: boolean | null
+          guardrail_flags: Json | null
+          id: string
+          status: string
+          total_mint: number
+          user_count: number
+        }
+        Insert: {
+          allocation_root?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          batch_number?: number
+          created_at?: string
+          epoch_id: string
+          governance_required?: boolean | null
+          guardrail_flags?: Json | null
+          id?: string
+          status?: string
+          total_mint?: number
+          user_count?: number
+        }
+        Update: {
+          allocation_root?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          batch_number?: number
+          created_at?: string
+          epoch_id?: string
+          governance_required?: boolean | null
+          guardrail_flags?: Json | null
+          id?: string
+          status?: string
+          total_mint?: number
+          user_count?: number
+        }
+        Relationships: []
+      }
+      mint_epochs: {
+        Row: {
+          adjusted_mint: number | null
+          base_expansion: number | null
+          contribution_expansion: number | null
+          created_at: string
+          discipline_modulator: number | null
+          ecosystem_expansion: number | null
+          epoch_id: string
+          epoch_type: string | null
+          final_mint: number | null
           finalized_at: string | null
           mint_pool_amount: number
           onchain_tx_hash: string | null
@@ -1926,10 +2173,19 @@ export type Database = {
           period_start: string
           rules_version: string
           status: string
+          window_end: string | null
+          window_start: string | null
         }
         Insert: {
+          adjusted_mint?: number | null
+          base_expansion?: number | null
+          contribution_expansion?: number | null
           created_at?: string
+          discipline_modulator?: number | null
+          ecosystem_expansion?: number | null
           epoch_id?: string
+          epoch_type?: string | null
+          final_mint?: number | null
           finalized_at?: string | null
           mint_pool_amount?: number
           onchain_tx_hash?: string | null
@@ -1937,10 +2193,19 @@ export type Database = {
           period_start: string
           rules_version?: string
           status?: string
+          window_end?: string | null
+          window_start?: string | null
         }
         Update: {
+          adjusted_mint?: number | null
+          base_expansion?: number | null
+          contribution_expansion?: number | null
           created_at?: string
+          discipline_modulator?: number | null
+          ecosystem_expansion?: number | null
           epoch_id?: string
+          epoch_type?: string | null
+          final_mint?: number | null
           finalized_at?: string | null
           mint_pool_amount?: number
           onchain_tx_hash?: string | null
@@ -1948,6 +2213,8 @@ export type Database = {
           period_start?: string
           rules_version?: string
           status?: string
+          window_end?: string | null
+          window_start?: string | null
         }
         Relationships: []
       }
@@ -3355,6 +3622,66 @@ export type Database = {
           },
         ]
       }
+      reward_vesting_schedules: {
+        Row: {
+          claimed_amount: number
+          consistency_unlock: number | null
+          contribution_unlock: number | null
+          created_at: string
+          dormant_at: string | null
+          epoch_id: string
+          id: string
+          instant_amount: number
+          locked_amount: number
+          next_unlock_at: string | null
+          token_state: string
+          total_amount: number
+          unlock_history: Json | null
+          unlocked_amount: number
+          updated_at: string
+          usage_unlock: number | null
+          user_id: string
+        }
+        Insert: {
+          claimed_amount?: number
+          consistency_unlock?: number | null
+          contribution_unlock?: number | null
+          created_at?: string
+          dormant_at?: string | null
+          epoch_id: string
+          id?: string
+          instant_amount?: number
+          locked_amount?: number
+          next_unlock_at?: string | null
+          token_state?: string
+          total_amount?: number
+          unlock_history?: Json | null
+          unlocked_amount?: number
+          updated_at?: string
+          usage_unlock?: number | null
+          user_id: string
+        }
+        Update: {
+          claimed_amount?: number
+          consistency_unlock?: number | null
+          contribution_unlock?: number | null
+          created_at?: string
+          dormant_at?: string | null
+          epoch_id?: string
+          id?: string
+          instant_amount?: number
+          locked_amount?: number
+          next_unlock_at?: string | null
+          token_state?: string
+          total_amount?: number
+          unlock_history?: Json | null
+          unlocked_amount?: number
+          updated_at?: string
+          usage_unlock?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       score_explanations: {
         Row: {
           created_at: string
@@ -3567,6 +3894,69 @@ export type Database = {
         }
         Relationships: []
       }
+      treasury_flows: {
+        Row: {
+          amount: number
+          authorized_by: string | null
+          created_at: string
+          epoch_id: string | null
+          from_vault: string | null
+          id: string
+          reason: string | null
+          to_vault: string | null
+        }
+        Insert: {
+          amount: number
+          authorized_by?: string | null
+          created_at?: string
+          epoch_id?: string | null
+          from_vault?: string | null
+          id?: string
+          reason?: string | null
+          to_vault?: string | null
+        }
+        Update: {
+          amount?: number
+          authorized_by?: string | null
+          created_at?: string
+          epoch_id?: string | null
+          from_vault?: string | null
+          id?: string
+          reason?: string | null
+          to_vault?: string | null
+        }
+        Relationships: []
+      }
+      treasury_vault_balances: {
+        Row: {
+          balance: number
+          created_at: string
+          id: string
+          last_inflow_at: string | null
+          last_outflow_at: string | null
+          updated_at: string
+          vault_name: string
+        }
+        Insert: {
+          balance?: number
+          created_at?: string
+          id?: string
+          last_inflow_at?: string | null
+          last_outflow_at?: string | null
+          updated_at?: string
+          vault_name: string
+        }
+        Update: {
+          balance?: number
+          created_at?: string
+          id?: string
+          last_inflow_at?: string | null
+          last_outflow_at?: string | null
+          updated_at?: string
+          vault_name?: string
+        }
+        Relationships: []
+      }
       user_actions: {
         Row: {
           action_type_id: string
@@ -3641,6 +4031,66 @@ export type Database = {
           updated_at?: string
           user1_id?: string
           user2_id?: string
+        }
+        Relationships: []
+      }
+      user_epoch_scores: {
+        Row: {
+          burst_penalty: number | null
+          consistency_factor: number | null
+          created_at: string
+          cross_window_bonus: number | null
+          epoch_id: string
+          finalized_score: number | null
+          fraud_factor: number | null
+          id: string
+          preview_score: number | null
+          trust_band: string | null
+          trust_factor: number | null
+          trust_ramp: number | null
+          updated_at: string
+          user_id: string
+          utility_factor: number | null
+          validated_score: number | null
+          weighted_score: number | null
+        }
+        Insert: {
+          burst_penalty?: number | null
+          consistency_factor?: number | null
+          created_at?: string
+          cross_window_bonus?: number | null
+          epoch_id: string
+          finalized_score?: number | null
+          fraud_factor?: number | null
+          id?: string
+          preview_score?: number | null
+          trust_band?: string | null
+          trust_factor?: number | null
+          trust_ramp?: number | null
+          updated_at?: string
+          user_id: string
+          utility_factor?: number | null
+          validated_score?: number | null
+          weighted_score?: number | null
+        }
+        Update: {
+          burst_penalty?: number | null
+          consistency_factor?: number | null
+          created_at?: string
+          cross_window_bonus?: number | null
+          epoch_id?: string
+          finalized_score?: number | null
+          fraud_factor?: number | null
+          id?: string
+          preview_score?: number | null
+          trust_band?: string | null
+          trust_factor?: number | null
+          trust_ramp?: number | null
+          updated_at?: string
+          user_id?: string
+          utility_factor?: number | null
+          validated_score?: number | null
+          weighted_score?: number | null
         }
         Relationships: []
       }
