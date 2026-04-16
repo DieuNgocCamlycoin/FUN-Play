@@ -29,14 +29,14 @@ describe('Consistency Multiplier', () => {
 });
 
 describe('Reliability Multiplier', () => {
-  it('bad reliability → low value', () => {
+  it('bad reliability → abandon range', () => {
     const r = reliabilityMultiplierV25({
-      completion_rate: 0.2, commitment_kept_rate: 0.1,
-      flag_count: 3, reward_reversals: 2, valid_reports_against: 2,
+      completion_rate: 0.3, commitment_kept_rate: 0.3,
+      flag_count: 1, reward_reversals: 0, valid_reports_against: 0,
     });
-    // Very bad signals can produce raw < 0.4, mapping to abandon range
+    // raw ≈ 0.3*0.35 + 0.3*0.35 - 0.05 = 0.16 → abandon 0.6-0.8
     expect(r).toBeGreaterThanOrEqual(0.6);
-    expect(r).toBeLessThanOrEqual(1.0);
+    expect(r).toBeLessThanOrEqual(0.8);
   });
 
   it('good reliability → 1.0-1.2', () => {
