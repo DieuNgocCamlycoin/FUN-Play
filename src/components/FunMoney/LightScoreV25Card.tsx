@@ -12,10 +12,10 @@ import { cn } from '@/lib/utils';
 import {
   LIGHT_TIERS_V25,
   getLightTierV25,
-  LIGHT_WEIGHTS,
   type TLSResult,
   type ActivationStatus,
 } from '@/lib/fun-money/light-score-v25';
+import { getPhaseWeights } from '@/lib/fun-money/light-score-params-v1';
 
 interface LightScoreV25CardProps {
   tlsResult?: TLSResult;
