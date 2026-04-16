@@ -34,6 +34,13 @@ interface CamlyEarned {
   approved: number;
 }
 
+export interface PlatformBreakdown {
+  FUN_PLAY: { count: number; totalFun: number };
+  FUN_ANGEL: { count: number; totalFun: number };
+  FUN_MAIN: { count: number; totalFun: number };
+  FUN_PROFILE: { count: number; totalFun: number };
+}
+
 export interface LightActivity {
   activityCounts: ActivityCounts;
   totalActivities: number;
@@ -67,6 +74,8 @@ export interface LightActivity {
   consistencyDays: number;
   sequenceBonus: number;
   rawScore: number;
+  // Cross-platform aggregation
+  platformBreakdown?: PlatformBreakdown;
 }
 
 export interface UseLightActivityReturn {
@@ -256,19 +265,19 @@ export function useLightActivity(userId: string | undefined): UseLightActivityRe
           .eq('status', 'pending')
           .limit(1),
 
-        // FUN_PLAY mint requests breakdown
+        // Cross-platform mint requests breakdown (ALL platforms)
         (supabase as any)
           .from('mint_requests')
-          .select('action_type, calculated_amount_formatted, status')
+          .select('action_type, calculated_amount_formatted, status, platform_id')
           .eq('user_id', userId)
-          .eq('platform_id', 'FUN_PLAY'),
+          .in('platform_id', ['FUN_PLAY', 'FUN_ANGEL', 'FUN_MAIN', 'FUN_PROFILE']),
 
-        // Total FUN already minted (FUN_PLAY only, non-rejected)
+        // Total FUN already minted (ALL platforms, non-rejected)
         (supabase as any)
           .from('mint_requests')
-          .select('calculated_amount_formatted, status')
+          .select('calculated_amount_formatted, status, platform_id')
           .eq('user_id', userId)
-          .eq('platform_id', 'FUN_PLAY')
+          .in('platform_id', ['FUN_PLAY', 'FUN_ANGEL', 'FUN_MAIN', 'FUN_PROFILE'])
           .neq('status', 'rejected')
       ]);
 
@@ -279,27 +288,42 @@ export function useLightActivity(userId: string | undefined): UseLightActivityRe
       const summary = activitySummaryResult.data as Record<string, number> | null;
       const hasPendingRequest = (pendingRequestResult.data?.length || 0) > 0;
 
-      // Build FUN minted by action breakdown
-      const funPlayRequests = (funPlayRequestsResult.data || []) as Array<{
+      // Build FUN minted by action breakdown (cross-platform)
+      const allPlatformRequests = (funPlayRequestsResult.data || []) as Array<{
         action_type: string;
         calculated_amount_formatted: string;
         status: string;
+        platform_id: string;
       }>;
       const funMintedByAction: Record<string, { count: number; totalFun: string }> = {};
-      for (const req of funPlayRequests) {
+      const platformBreakdown: PlatformBreakdown = {
+        FUN_PLAY: { count: 0, totalFun: 0 },
+        FUN_ANGEL: { count: 0, totalFun: 0 },
+        FUN_MAIN: { count: 0, totalFun: 0 },
+        FUN_PROFILE: { count: 0, totalFun: 0 },
+      };
+      for (const req of allPlatformRequests) {
         if (!funMintedByAction[req.action_type]) {
           funMintedByAction[req.action_type] = { count: 0, totalFun: '0' };
         }
         funMintedByAction[req.action_type].count++;
-        const current = parseFloat(funMintedByAction[req.action_type].totalFun);
         const add = parseFloat((req.calculated_amount_formatted || '0').replace(' FUN', ''));
+        const current = parseFloat(funMintedByAction[req.action_type].totalFun);
         funMintedByAction[req.action_type].totalFun = (current + add).toFixed(2);
+
+        // Platform breakdown
+        const pid = (req.platform_id || 'FUN_PLAY') as keyof PlatformBreakdown;
+        if (platformBreakdown[pid]) {
+          platformBreakdown[pid].count++;
+          platformBreakdown[pid].totalFun += add;
+        }
       }
 
-      // Calculate total FUN already minted (non-rejected)
+      // Calculate total FUN already minted (cross-platform, non-rejected)
       const allMintRequests = (mintedFunResult.data || []) as Array<{
         calculated_amount_formatted: string;
         status: string;
+        platform_id: string;
       }>;
       let alreadyMintedFun = 0;
       for (const req of allMintRequests) {
