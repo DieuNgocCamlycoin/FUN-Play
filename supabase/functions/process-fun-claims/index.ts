@@ -54,12 +54,13 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const specificIds: string[] | undefined = body.ids;
 
-    // Fetch approved fun_money claims
+    // Fetch approved fun_money claims — only CLAIMABLE token_state
     let query = supabase
       .from("claim_requests")
       .select("*")
       .eq("status", "approved")
       .eq("claim_type", "fun_money")
+      .in("token_state", ["claimable", null])
       .order("created_at", { ascending: true })
       .limit(20);
 
@@ -69,7 +70,8 @@ Deno.serve(async (req) => {
         .select("*")
         .in("id", specificIds)
         .eq("status", "approved")
-        .eq("claim_type", "fun_money");
+        .eq("claim_type", "fun_money")
+        .in("token_state", ["claimable", null]);
     }
 
     const { data: claims, error: fetchErr } = await query;
