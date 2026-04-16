@@ -449,7 +449,8 @@ export function useLightActivity(userId: string | undefined): UseLightActivityRe
         consistencyMultiplier: serverConsistMult,
         consistencyDays: serverConsistDays,
         sequenceBonus: serverSeqBonus,
-        rawScore: serverRawScore
+        rawScore: serverRawScore,
+        platformBreakdown
       });
 
     } catch (err: any) {
