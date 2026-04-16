@@ -12,10 +12,10 @@ import { cn } from '@/lib/utils';
 import {
   LIGHT_TIERS_V25,
   getLightTierV25,
-  LIGHT_WEIGHTS,
   type TLSResult,
   type ActivationStatus,
 } from '@/lib/fun-money/light-score-v25';
+import { getPhaseWeights } from '@/lib/fun-money/light-score-params-v1';
 
 interface LightScoreV25CardProps {
   tlsResult?: TLSResult;
@@ -23,10 +23,11 @@ interface LightScoreV25CardProps {
   className?: string;
 }
 
+const _weights = getPhaseWeights();
 const SCORE_LAYERS = [
-  { key: 'pls', label: 'Personal Light', labelVi: 'Ánh Sáng Cá Nhân', icon: User, weight: LIGHT_WEIGHTS.alpha, color: 'text-cyan-500' },
-  { key: 'nls', label: 'Network Light', labelVi: 'Ánh Sáng Mạng Lưới', icon: Network, weight: LIGHT_WEIGHTS.beta, color: 'text-green-500' },
-  { key: 'lls', label: 'Legacy Light', labelVi: 'Ánh Sáng Di Sản', icon: Crown, weight: LIGHT_WEIGHTS.gamma, color: 'text-amber-500' },
+  { key: 'pls', label: 'Personal Light', labelVi: 'Ánh Sáng Cá Nhân', icon: User, weight: _weights.alpha, color: 'text-cyan-500' },
+  { key: 'nls', label: 'Network Light', labelVi: 'Ánh Sáng Mạng Lưới', icon: Network, weight: _weights.beta, color: 'text-green-500' },
+  { key: 'lls', label: 'Legacy Light', labelVi: 'Ánh Sáng Di Sản', icon: Crown, weight: _weights.gamma, color: 'text-amber-500' },
 ] as const;
 
 const ACTIVATION_ITEMS = [

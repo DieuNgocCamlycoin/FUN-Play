@@ -13,7 +13,19 @@
  * 
  * 6 TIERS:
  * Seed Light → Pure Light → Guiding Light → Radiant Light → Legacy Light → Cosmic Light
+ * 
+ * Uses Parameter Table v1.0 for all constants
  */
+
+import {
+  getConsistencyMultiplier,
+  getPhaseWeights,
+  checkActivation,
+  rawToDisplay,
+  calculateLongevity,
+  RELIABILITY_TABLE,
+  type SystemPhase,
+} from './light-score-params-v1';
 
 // ===== TIER SYSTEM =====
 
@@ -33,14 +45,13 @@ export interface LightTierConfig {
   minDisplayScore: number;
   maxDisplayScore: number | null;
   color: string;
-  // Access control unlocks
   permissions: {
     can_create_proposal: boolean;
     can_verify_others: boolean;
     can_mentor: boolean;
     can_curate: boolean;
     can_validate_community: boolean;
-    governance_weight: number; // 0-3
+    governance_weight: number;
     mint_mode: 'basic' | 'standard' | 'enhanced' | 'premium';
   };
 }
@@ -55,13 +66,8 @@ export const LIGHT_TIERS_V25: LightTierConfig[] = [
     maxDisplayScore: 49,
     color: 'from-gray-400 to-gray-500',
     permissions: {
-      can_create_proposal: false,
-      can_verify_others: false,
-      can_mentor: false,
-      can_curate: false,
-      can_validate_community: false,
-      governance_weight: 0,
-      mint_mode: 'basic',
+      can_create_proposal: false, can_verify_others: false, can_mentor: false,
+      can_curate: false, can_validate_community: false, governance_weight: 0, mint_mode: 'basic',
     },
   },
   {
@@ -73,13 +79,8 @@ export const LIGHT_TIERS_V25: LightTierConfig[] = [
     maxDisplayScore: 149,
     color: 'from-cyan-400 to-blue-500',
     permissions: {
-      can_create_proposal: false,
-      can_verify_others: false,
-      can_mentor: false,
-      can_curate: false,
-      can_validate_community: false,
-      governance_weight: 0.5,
-      mint_mode: 'standard',
+      can_create_proposal: false, can_verify_others: false, can_mentor: false,
+      can_curate: false, can_validate_community: false, governance_weight: 0.5, mint_mode: 'standard',
     },
   },
   {
@@ -91,13 +92,8 @@ export const LIGHT_TIERS_V25: LightTierConfig[] = [
     maxDisplayScore: 349,
     color: 'from-green-400 to-emerald-500',
     permissions: {
-      can_create_proposal: true,
-      can_verify_others: false,
-      can_mentor: true,
-      can_curate: false,
-      can_validate_community: false,
-      governance_weight: 1.0,
-      mint_mode: 'standard',
+      can_create_proposal: true, can_verify_others: false, can_mentor: true,
+      can_curate: false, can_validate_community: false, governance_weight: 1.0, mint_mode: 'standard',
     },
   },
   {
@@ -109,13 +105,8 @@ export const LIGHT_TIERS_V25: LightTierConfig[] = [
     maxDisplayScore: 699,
     color: 'from-amber-400 to-orange-500',
     permissions: {
-      can_create_proposal: true,
-      can_verify_others: true,
-      can_mentor: true,
-      can_curate: true,
-      can_validate_community: false,
-      governance_weight: 1.5,
-      mint_mode: 'enhanced',
+      can_create_proposal: true, can_verify_others: true, can_mentor: true,
+      can_curate: true, can_validate_community: false, governance_weight: 1.5, mint_mode: 'enhanced',
     },
   },
   {
@@ -127,13 +118,8 @@ export const LIGHT_TIERS_V25: LightTierConfig[] = [
     maxDisplayScore: 1499,
     color: 'from-purple-400 to-indigo-500',
     permissions: {
-      can_create_proposal: true,
-      can_verify_others: true,
-      can_mentor: true,
-      can_curate: true,
-      can_validate_community: true,
-      governance_weight: 2.0,
-      mint_mode: 'premium',
+      can_create_proposal: true, can_verify_others: true, can_mentor: true,
+      can_curate: true, can_validate_community: true, governance_weight: 2.0, mint_mode: 'premium',
     },
   },
   {
@@ -145,13 +131,8 @@ export const LIGHT_TIERS_V25: LightTierConfig[] = [
     maxDisplayScore: null,
     color: 'from-purple-500 via-pink-500 to-amber-400',
     permissions: {
-      can_create_proposal: true,
-      can_verify_others: true,
-      can_mentor: true,
-      can_curate: true,
-      can_validate_community: true,
-      governance_weight: 3.0,
-      mint_mode: 'premium',
+      can_create_proposal: true, can_verify_others: true, can_mentor: true,
+      can_curate: true, can_validate_community: true, governance_weight: 3.0, mint_mode: 'premium',
     },
   },
 ];
@@ -165,78 +146,69 @@ export function getLightTierV25(displayScore: number): LightTierConfig {
   return LIGHT_TIERS_V25[0];
 }
 
-// ===== WEIGHT CONSTANTS =====
-
-/** TLS = α·PLS + β·NLS + γ·LLS */
-export const LIGHT_WEIGHTS = {
-  alpha: 0.50, // Personal Light
-  beta: 0.30,  // Network Light
-  gamma: 0.20, // Legacy Light
-} as const;
-
 // ===== 1. PERSONAL LIGHT SCORE (PLS) =====
 
 export interface PLSInput {
   previous_pls: number;
-  vvu_personal_sum: number; // sum of VVU for personal actions this period
-  consistency: ConsistencyInput;
+  vvu_personal_sum: number;
+  consistency: { active_streak_days: number };
   reliability: ReliabilityInput;
 }
 
-export interface ConsistencyInput {
-  active_streak_days: number;
-  k: number; // tuning constant, default 6
-}
-
 export interface ReliabilityInput {
-  completion_rate: number;       // 0-1 ratio of completed actions
-  commitment_kept_rate: number;  // 0-1
-  flag_count: number;            // times flagged
-  reward_reversals: number;      // times rewards reversed
-  valid_reports_against: number; // valid community reports
+  completion_rate: number;
+  commitment_kept_rate: number;
+  flag_count: number;
+  reward_reversals: number;
+  valid_reports_against: number;
 }
 
 /**
- * Consistency Multiplier (C_t)
- * C_t = 1 + log(1 + ActiveStreak) / k
- * Range: 0.9 → 1.3
+ * Consistency Multiplier (C_t) — Stepped table from spec
+ * 1-3d → 0.95, 4-7d → 1.0, 8-30d → 1.05, 30-90d → 1.1, 90+ → 1.2
  */
-export function consistencyMultiplierV25(streak: number, k: number = 6): number {
-  const raw = 1 + Math.log(1 + streak) / k;
-  return round4(Math.max(0.9, Math.min(1.3, raw)));
+export function consistencyMultiplierV25(streak: number): number {
+  return getConsistencyMultiplier(streak);
 }
 
 /**
- * Reliability Multiplier (R_t)
- * Range: 0.5 → 1.2
+ * Reliability Multiplier (R_t) — 4 discrete levels from spec
+ * Abandon 0.6-0.8, Normal 0.9-1.0, Good 1.0-1.1, Excellent 1.1-1.2
  */
 export function reliabilityMultiplierV25(r: ReliabilityInput): number {
-  let score = 0.8; // base
+  // Compute a raw reliability signal
+  let raw = 0;
+  raw += r.completion_rate * 0.35;
+  raw += r.commitment_kept_rate * 0.35;
+  raw -= Math.min(0.3, r.flag_count * 0.05);
+  raw -= Math.min(0.2, r.reward_reversals * 0.1);
+  raw -= Math.min(0.15, r.valid_reports_against * 0.05);
 
-  // Completion rate: +0.2 max
-  score += r.completion_rate * 0.2;
-
-  // Commitment kept: +0.15 max
-  score += r.commitment_kept_rate * 0.15;
-
-  // Penalties
-  score -= Math.min(0.3, r.flag_count * 0.05);
-  score -= Math.min(0.2, r.reward_reversals * 0.1);
-  score -= Math.min(0.15, r.valid_reports_against * 0.05);
-
-  return round4(Math.max(0.5, Math.min(1.2, score)));
+  // Map to spec levels
+  if (raw < 0.4) {
+    // Abandon: 0.6-0.8
+    return round4(0.6 + (raw / 0.4) * 0.2);
+  }
+  if (raw < 0.6) {
+    // Normal: 0.9-1.0
+    return round4(0.9 + ((raw - 0.4) / 0.2) * 0.1);
+  }
+  if (raw < 0.8) {
+    // Good: 1.0-1.1
+    return round4(1.0 + ((raw - 0.6) / 0.2) * 0.1);
+  }
+  // Excellent: 1.1-1.2
+  return round4(Math.min(1.2, 1.1 + ((raw - 0.8) / 0.2) * 0.1));
 }
 
 /**
  * ΔPLS_t = Σ VVU_personal × C_t × R_t
- * PLS_t = PLS_{t-1} + ΔPLS_t
  */
 export function calculatePLS(input: PLSInput): { pls: number; delta: number; c: number; r: number } {
-  const c = consistencyMultiplierV25(input.consistency.active_streak_days, input.consistency.k || 6);
+  const c = consistencyMultiplierV25(input.consistency.active_streak_days);
   const r = reliabilityMultiplierV25(input.reliability);
   const delta = round4(input.vvu_personal_sum * c * r);
   const pls = round4(input.previous_pls + delta);
-
   return { pls: Math.max(0, pls), delta, c, r };
 }
 
@@ -244,16 +216,12 @@ export function calculatePLS(input: PLSInput): { pls: number; delta: number; c: 
 
 export interface NLSInput {
   previous_nls: number;
-  vvu_others_enabled_sum: number; // VVU from enabling others
-  network_quality: number;         // QN: quality of network effect 0-1
-  trust_network: number;           // TN: trust of downstream users 0-1
-  diversity_network: number;       // DN: diversity (not just 1 person) 0-1
+  vvu_others_enabled_sum: number;
+  network_quality: number;   // QN: 0.2-1.5
+  trust_network: number;     // TN: 0.5-1.3
+  diversity_network: number; // DN: 0.8-1.2
 }
 
-/**
- * ΔNLS_t = Σ VVU_others_enabled × QN × TN × DN
- * NLS_t = NLS_{t-1} + ΔNLS_t
- */
 export function calculateNLS(input: NLSInput): { nls: number; delta: number } {
   const delta = round4(
     input.vvu_others_enabled_sum *
@@ -273,20 +241,17 @@ export interface LLSInput {
 }
 
 export interface PersistentValue {
-  pv: number;   // Persistent Value score
-  ad: number;   // Active Duration factor 0-1
-  lo: number;   // Longevity factor 0-1
-  pu: number;   // Public Utility factor 0-1
+  pv: number;           // 1-100
+  ad: number;           // 0.5-1.5
+  days_active: number;  // for LO calculation
+  pu: number;           // 0.5-1.5
 }
 
-/**
- * ΔLLS_t = Σ PV_i × AD_i × LO_i × PU_i
- * LLS_t = LLS_{t-1} + ΔLLS_t
- */
 export function calculateLLS(input: LLSInput): { lls: number; delta: number } {
   let delta = 0;
   for (const pv of input.persistent_values) {
-    delta += pv.pv * pv.ad * pv.lo * pv.pu;
+    const lo = calculateLongevity(pv.days_active);
+    delta += pv.pv * pv.ad * lo * pv.pu;
   }
   delta = round4(delta);
   const lls = round4(input.previous_lls + delta);
@@ -299,18 +264,20 @@ export interface TLSResult {
   raw_pls: number;
   raw_nls: number;
   raw_lls: number;
-  raw_tls: number;        // Raw: α·PLS + β·NLS + γ·LLS
-  display_tls: number;    // Display: 100 × log(1 + RawTLS)
+  raw_tls: number;
+  display_tls: number;
   tier: LightTierConfig;
   pls_delta: number;
   nls_delta: number;
   lls_delta: number;
+  phase: SystemPhase;
 }
 
 /**
- * Total Light Score
- * Raw TLS = α·PLS + β·NLS + γ·LLS
- * Display TLS = 100 × log(1 + Raw TLS)
+ * Total Light Score — phase-aware weights
+ * Early:  α=0.7, β=0.2, γ=0.1
+ * Growth: α=0.5, β=0.3, γ=0.2
+ * Mature: α=0.4, β=0.3, γ=0.3
  */
 export function calculateTLS(
   pls: number,
@@ -319,14 +286,16 @@ export function calculateTLS(
   plsDelta: number = 0,
   nlsDelta: number = 0,
   llsDelta: number = 0,
+  phase?: SystemPhase,
 ): TLSResult {
+  const weights = getPhaseWeights(phase);
   const raw_tls = round4(
-    LIGHT_WEIGHTS.alpha * pls +
-    LIGHT_WEIGHTS.beta * nls +
-    LIGHT_WEIGHTS.gamma * lls
+    weights.alpha * pls +
+    weights.beta * nls +
+    weights.gamma * lls
   );
 
-  const display_tls = round2(100 * Math.log(1 + Math.max(0, raw_tls)));
+  const display_tls = rawToDisplay(raw_tls);
   const tier = getLightTierV25(display_tls);
 
   return {
@@ -339,6 +308,7 @@ export function calculateTLS(
     pls_delta: plsDelta,
     nls_delta: nlsDelta,
     lls_delta: llsDelta,
+    phase: phase ?? 'early',
   };
 }
 
@@ -346,6 +316,8 @@ export function calculateTLS(
 
 export interface ActivationStatus {
   earning_enabled: boolean;
+  earning_advanced: boolean;
+  referral_rewards: boolean;
   voting_enabled: boolean;
   proposal_enabled: boolean;
   mentor_enabled: boolean;
@@ -354,53 +326,48 @@ export interface ActivationStatus {
 }
 
 /**
- * Smart Activation — auto-determines user capabilities
- * No blockchain knowledge needed from user
+ * Smart Activation — uses spec Activation Thresholds
+ * Earn basic: LS>10 + TC>0.8
+ * Referral: LS>50
+ * Advanced: LS>100
+ * Vote: LS>200
+ * Proposal: LS>500
+ * Validator: LS>1000
  */
-export function getActivationStatus(tls: TLSResult, trustTier: string): ActivationStatus {
-  const p = tls.tier.permissions;
-  const isTrusted = trustTier === 'trusted' || trustTier === 'veteran';
+export function getActivationStatus(tls: TLSResult, trustTier: string, trustConfidence?: number): ActivationStatus {
+  const ls = tls.display_tls;
+  const tc = trustConfidence;
+  const isTrusted = trustTier === 'trusted' || trustTier === 'veteran' || trustTier === 'verified' || trustTier === 'strong' || trustTier === 'core';
 
   return {
-    earning_enabled: tls.display_tls >= 10, // Minimal threshold
-    voting_enabled: p.governance_weight > 0,
-    proposal_enabled: p.can_create_proposal,
-    mentor_enabled: p.can_mentor && isTrusted,
-    curator_enabled: p.can_curate,
-    validator_enabled: p.can_validate_community && isTrusted,
+    earning_enabled: checkActivation('earn_basic', ls, tc),
+    earning_advanced: checkActivation('earn_advanced', ls, tc),
+    referral_rewards: checkActivation('referral_rewards', ls, tc),
+    voting_enabled: checkActivation('governance_vote', ls, tc),
+    proposal_enabled: checkActivation('proposal_submit', ls, tc),
+    mentor_enabled: tls.tier.permissions.can_mentor && isTrusted,
+    curator_enabled: checkActivation('validator_curator', ls, tc) || tls.tier.permissions.can_curate,
+    validator_enabled: checkActivation('validator_curator', ls, tc) && isTrusted,
   };
 }
 
 // ===== 6. GOVERNANCE & MINT WEIGHT =====
 
-/**
- * Mint weight based on TLS
- * Higher light = proportionally more mint
- */
 export function getMintWeight(rawTLS: number, trustTier: string): number {
   const tierMultiplier: Record<string, number> = {
-    new: 0.5,
-    standard: 0.8,
-    trusted: 1.0,
-    veteran: 1.2,
+    unknown: 0.3, new: 0.5, basic: 0.7, standard: 0.8,
+    verified: 1.0, trusted: 1.0, strong: 1.1, veteran: 1.2, core: 1.3,
   };
   const mult = tierMultiplier[trustTier] ?? 0.8;
   return round4(rawTLS * mult);
 }
 
-/**
- * Governance vote weight
- */
 export function getGovernanceWeight(displayTLS: number): number {
   const tier = getLightTierV25(displayTLS);
   return tier.permissions.governance_weight;
 }
 
 // ===== UTILITY =====
-
-function round2(v: number): number {
-  return Math.round(v * 100) / 100;
-}
 
 function round4(v: number): number {
   return Math.round(v * 10000) / 10000;
