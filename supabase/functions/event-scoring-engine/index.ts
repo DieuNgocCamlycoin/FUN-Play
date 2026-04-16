@@ -1,8 +1,9 @@
 /**
  * event-scoring-engine — Edge Function
  * Engine 1/4: Scores individual events into VVU
+ * Uses Parameter Table v1.0
  * 
- * POST body: { event, context, quality, intention, impact, abuse }
+ * POST body: { event, context, quality, intention_signals, impact_signals, abuse_signals, ego_risk_signals }
  * Returns: { vvu, behavior, intention, impact, aaf, erp }
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -12,6 +13,65 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// ===== PARAMETER TABLE v1.0 (inline for edge function) =====
+
+const EVENT_BASE_VALUES: Record<string, number> = {
+  daily_checkin: 0.2, profile_completed: 3, did_verification: 7, soulbound_mint: 10,
+  content_created: 3, content_saved_used: 5, learning_completed: 2.5,
+  referral_raw: 1, referral_activated: 10, transaction_real: 1.5,
+  contribution_system: 8, gov_participation: 3, proposal_successful: 25,
+  long_term_asset: 50, event_attended: 3,
+};
+
+const LEGACY_ACTION_MAP: Record<string, string> = {
+  post_created: 'content_created', video_uploaded: 'content_created',
+  livestream_hosted: 'content_created', course_published: 'content_created',
+  comment_quality: 'content_created', video_watched_full: 'learning_completed',
+  course_completed: 'learning_completed', like_given: 'daily_checkin',
+  share_given: 'daily_checkin', bookmark_given: 'daily_checkin',
+  mentor_session: 'contribution_system', help_newbie: 'contribution_system',
+  answer_question: 'contribution_system', donation_made: 'transaction_real',
+  reward_sent: 'transaction_real', pplp_accepted: 'profile_completed',
+  wallet_linked: 'profile_completed', kyc_verified: 'did_verification',
+  report_valid: 'contribution_system', mediation_joined: 'contribution_system',
+  proposal_submitted: 'gov_participation', gov_vote_cast: 'gov_participation',
+  bug_reported: 'contribution_system', pr_merged: 'contribution_system',
+  staking_active: 'transaction_real',
+};
+
+function resolveBase(code: string): number {
+  const mapped = LEGACY_ACTION_MAP[code] ?? code;
+  return EVENT_BASE_VALUES[mapped] ?? 1.0;
+}
+
+// Trust Confidence — 5 levels
+const TC_MAP: Record<string, number> = {
+  new: 0.65, unknown: 0.65, standard: 0.9, basic: 0.9,
+  trusted: 1.1, verified: 1.1, veteran: 1.3, strong: 1.3, core: 1.45,
+};
+
+// Quality: raw 0-1 → spec 0.3-1.8
+function qualityToSpec(raw: number): number {
+  if (raw < 0.3) return 0.3 + (raw / 0.3) * 0.3;
+  if (raw < 0.6) return 0.8 + ((raw - 0.3) / 0.3) * 0.2;
+  if (raw < 0.85) return 1.0 + ((raw - 0.6) / 0.25) * 0.3;
+  return 1.3 + Math.min(1, (raw - 0.85) / 0.15) * 0.5;
+}
+
+// Ego Risk Penalty (pattern-based, replaces time-decay ERP)
+function calcEgoRisk(s: { reward_claim_ratio?: number; shallow_content_ratio?: number; community_downvotes?: number; self_promotion_ratio?: number }): number {
+  let erp = 1.0;
+  const rcr = s.reward_claim_ratio ?? 0;
+  if (rcr > 0.7) erp -= 0.1;
+  if (rcr > 0.9) erp -= 0.1;
+  const scr = s.shallow_content_ratio ?? 0;
+  if (scr > 0.5) erp -= 0.15;
+  if (scr > 0.8) erp -= 0.15;
+  erp -= Math.min(0.2, (s.community_downvotes ?? 0) * 0.03);
+  if ((s.self_promotion_ratio ?? 0) > 0.6) erp -= 0.1;
+  return Math.max(0.5, Math.min(1.0, erp));
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -40,7 +100,7 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { event, context, quality, intention_signals, impact_signals, abuse_signals, event_age_days = 0 } = body;
+    const { event, context, quality, intention_signals, impact_signals, abuse_signals, ego_risk_signals } = body;
 
     if (!event || !event.action_code) {
       return new Response(JSON.stringify({ error: "Missing event data" }), {
@@ -48,42 +108,29 @@ serve(async (req) => {
       });
     }
 
-    // ===== BASE VALUES =====
-    const BASE_VALUES: Record<string, number> = {
-      post_created: 3.0, video_uploaded: 5.0, livestream_hosted: 6.0,
-      course_published: 8.0, comment_quality: 1.5, video_watched_full: 1.0,
-      course_completed: 4.0, like_given: 0.3, share_given: 0.8,
-      bookmark_given: 0.5, mentor_session: 6.0, help_newbie: 4.0,
-      answer_question: 2.5, donation_made: 5.0, reward_sent: 3.0,
-      profile_completed: 2.0, pplp_accepted: 3.0, wallet_linked: 2.0,
-      report_valid: 2.0, mediation_joined: 3.0, proposal_submitted: 4.0,
-      gov_vote_cast: 2.0, bug_reported: 3.0, pr_merged: 6.0,
-      daily_checkin: 1.0, event_attended: 3.0, staking_active: 2.0,
-    };
-
     // ===== BEHAVIOR LAYER =====
-    const base_value = BASE_VALUES[event.action_code] ?? 1.0;
-    
-    const q = quality || { content_length: 100, content_originality: 0.5, response_time_minutes: 5, completion_rate: 0.8, proof_verified: !!event.proof_link };
+    const base_value = resolveBase(event.action_code);
+
+    const q = quality || { content_length: 100, content_originality: 0.5, completion_rate: 0.8, proof_verified: !!event.proof_link };
     const lengthQ = Math.min(1, (q.content_length || 100) / 200);
     const origQ = q.content_originality ?? 0.5;
     const compQ = q.completion_rate ?? 0.8;
     const proofQ = q.proof_verified ? 1.0 : 0.3;
-    const quality_score = lengthQ * 0.25 + origQ * 0.35 + compQ * 0.2 + proofQ * 0.2;
+    const rawQuality = lengthQ * 0.25 + origQ * 0.35 + compQ * 0.2 + proofQ * 0.2;
+    const quality_score = qualityToSpec(rawQuality);
 
-    const TRUST_WEIGHTS = { new: 0.6, standard: 0.85, trusted: 1.0, veteran: 1.15 };
-    const trust_weight = TRUST_WEIGHTS[(context?.user_trust_tier as keyof typeof TRUST_WEIGHTS)] ?? 0.85;
-    
+    const trust_weight = TC_MAP[(context?.user_trust_tier as string)] ?? 0.9;
+
     let context_bonus = 1.0;
     if (context?.is_first_time) context_bonus += 0.1;
 
     // ===== INTENTION LAYER =====
     const is = intention_signals || { active_streak_days: 1, total_actions_30d: 1, useful_actions_30d: 1, farm_pattern_actions_30d: 0, manipulation_flags: 0, value_before_reward_ratio: 0.5, self_vs_network_ratio: 0.3, consistency_variance: 0.3 };
-    
+
     const streakFactor = Math.min(1, Math.log(1 + (is.active_streak_days || 1)) / Math.log(91));
     const variancePenalty = Math.max(0, 1 - (is.consistency_variance || 0.3));
     const consistency_signal = streakFactor * 0.6 + variancePenalty * 0.4;
-    
+
     const totalActions = Math.max(1, is.total_actions_30d || 1);
     const useful_ratio = Math.min(1, (is.useful_actions_30d || 0) / totalActions);
     const farmRatio = (is.farm_pattern_actions_30d || 0) / totalActions;
@@ -109,7 +156,7 @@ serve(async (req) => {
     const ecosystem_health = ((imp.proposal_improvement_score || 0) + (imp.retention_contribution || 0) + (imp.community_quality_contribution || 0) + (imp.knowledge_contribution || 0) + (imp.healthy_liquidity_contribution || 0)) * 0.2;
 
     const baseIm = activation_help * 0.25 + trust_amp * 0.2 + content_ripple * 0.2 + referral_quality * 0.15 + ecosystem_health * 0.2;
-    const im = Math.min(3.0, baseIm * 3.0);
+    const im = Math.max(0.5, Math.min(3.0, baseIm * 3.0));
 
     // ===== ANTI-ABUSE =====
     const ab = abuse_signals || { fraud_score: 0, sybil_probability: 0, velocity_violation: false, duplicate_content: false, community_reports: 0, ip_collision_score: 0 };
@@ -122,11 +169,8 @@ serve(async (req) => {
     aaf *= Math.max(0.3, 1 - (ab.ip_collision_score || 0) * 0.5);
     aaf = Math.max(0, Math.min(1, aaf));
 
-    // ===== ERP =====
-    const ageDays = event_age_days || 0;
-    let erp = 1.0;
-    if (ageDays > 7 && ageDays < 90) erp = 1.0 - (ageDays - 7) * (0.5 / 83);
-    else if (ageDays >= 90) erp = 0.5;
+    // ===== EGO RISK PENALTY (pattern-based) =====
+    const erp = calcEgoRisk(ego_risk_signals || {});
 
     // ===== VVU =====
     const vvu = Math.max(0, base_value * quality_score * trust_weight * context_bonus * iis * im * aaf * erp);
@@ -137,7 +181,6 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Log to user_actions if action_id provided
     if (event.action_id) {
       await adminSupabase.from('user_actions').update({
         vvu_score: Math.round(vvu * 10000) / 10000,
