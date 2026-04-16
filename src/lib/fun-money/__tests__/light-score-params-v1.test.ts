@@ -288,9 +288,9 @@ describe('Display Normalization', () => {
     }
   });
 
-  it('matches spec examples approximately', () => {
-    // Raw 10 → Display ~23.98
-    expect(rawToDisplay(10)).toBeCloseTo(239.8 / 10, 0);
+  it('matches spec: rawToDisplay(10) ≈ 240', () => {
+    // 100 * log(1+10) ≈ 239.79
+    expect(rawToDisplay(10)).toBeCloseTo(239.79, 0);
   });
 });
 
