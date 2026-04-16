@@ -5,8 +5,14 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-const PLATFORM_ID = 'fun_play';
-const DAILY_CAP = 2;
+// Unified multi-platform config — shared spec across all 3 platforms
+const VALID_PLATFORMS: Record<string, { daily_cap: number; label: string }> = {
+  fun_play: { daily_cap: 2, label: 'play.fun.rich' },
+  fun_angel: { daily_cap: 2, label: 'angel.fun.rich' },
+  fun_main: { daily_cap: 2, label: 'fun.rich' },
+};
+const DEFAULT_PLATFORM = 'fun_play';
+const CROSS_PLATFORM_EPOCH_CAP = 20_000_000; // 20M FUN shared across all platforms
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
