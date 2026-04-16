@@ -85,17 +85,38 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check daily cap (2 requests/day)
+    // Check per-platform daily cap
     const today = new Date().toISOString().split('T')[0];
     const { count } = await supabase
       .from('pplp_mint_requests')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', user.id)
+      .eq('platform_id', platformId)
       .gte('created_at', `${today}T00:00:00Z`)
       .lte('created_at', `${today}T23:59:59Z`);
 
-    if ((count ?? 0) >= DAILY_CAP) {
-      return new Response(JSON.stringify({ error: `Daily cap reached (${DAILY_CAP} requests/day)` }), {
+    if ((count ?? 0) >= platformConfig.daily_cap) {
+      return new Response(JSON.stringify({ error: `Daily cap reached for ${platformConfig.label} (${platformConfig.daily_cap} requests/day)` }), {
+        status: 429,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Cross-platform epoch cap check (all platforms share 20M FUN/epoch)
+    const monthStart = `${today.slice(0, 7)}-01T00:00:00Z`;
+    const { data: epochTotal } = await supabase
+      .from('pplp_mint_requests')
+      .select('amount')
+      .in('status', ['pending_sig', 'signing', 'signed', 'submitted', 'confirmed'])
+      .gte('created_at', monthStart);
+
+    const totalMintedThisEpoch = (epochTotal || []).reduce((sum: number, r: any) => sum + (r.amount || 0), 0);
+    if (totalMintedThisEpoch + amount > CROSS_PLATFORM_EPOCH_CAP) {
+      return new Response(JSON.stringify({ 
+        error: `Cross-platform epoch cap reached (${CROSS_PLATFORM_EPOCH_CAP.toLocaleString()} FUN/month)`,
+        current_total: totalMintedThisEpoch,
+        requested: amount,
+      }), {
         status: 429,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
