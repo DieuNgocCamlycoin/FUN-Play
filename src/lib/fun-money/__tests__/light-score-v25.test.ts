@@ -81,8 +81,9 @@ describe('TLS Calculation', () => {
     const low = calculateTLS(0, 0, 0);
     expect(low.tier.id).toBe('seed_light');
 
-    // Very high → should be cosmic (need enough raw to hit display 1500+)
-    const high = calculateTLS(1000000, 500000, 300000);
+    // Cosmic requires display ≥ 1500, i.e. raw ≥ e^15 - 1 ≈ 3.27M
+    // TLS = 0.7*pls + 0.2*nls + 0.1*lls needs to be > 3.27M
+    const high = calculateTLS(5000000, 2000000, 1000000);
     expect(high.tier.id).toBe('cosmic_light');
   });
 });
