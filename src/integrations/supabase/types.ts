@@ -4199,6 +4199,48 @@ export type Database = {
         }
         Relationships: []
       }
+      user_identity_proofs: {
+        Row: {
+          created_at: string
+          expires_at: string | null
+          id: string
+          metadata: Json | null
+          proof_hash: string | null
+          proof_type: string
+          provider: string
+          updated_at: string
+          user_id: string
+          verified: boolean
+          verified_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          metadata?: Json | null
+          proof_hash?: string | null
+          proof_type: string
+          provider?: string
+          updated_at?: string
+          user_id: string
+          verified?: boolean
+          verified_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          metadata?: Json | null
+          proof_hash?: string | null
+          proof_type?: string
+          provider?: string
+          updated_at?: string
+          user_id?: string
+          verified?: boolean
+          verified_at?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
