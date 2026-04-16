@@ -1,53 +1,99 @@
 
 
-# Triển khai 3 Fix: Wallet Mismatch + Dedup Check + Notification nhắc nhở
+# PPLP Engine v2.0 — Implementation Plan
 
-## Tổng quan
-Triển khai đồng thời 3 cải thiện cho quy trình mint FUN Money đã phát hiện ở bước rà soát.
+## Current State vs New Spec
 
----
+| Aspect | Current (v1.0) | New Spec (v2.0) |
+|--------|---------------|-----------------|
+| **5 Pillars** | Serving, Truth, Love, Value, Unity | Sám Hối, Biết Ơn, Phụng Sự, Giúp Đỡ, Trao Tặng |
+| **Formula** | Multiplicative: (S×T×L×V×U)/10⁴ | Summative: ∑(Intent × Depth × Impact × Consistency × TrustFactor) |
+| **Scale** | 0-10 (capped) | ∞ (uncapped, accumulative) |
+| **Scoring** | Rule-based static weights | AI-powered NLP analysis (Gratitude, Repentance, Ego, Authenticity) |
+| **Input** | Internal platform only | Multi-platform (Facebook, Telegram, YouTube, Zoom, Internal) |
+| **Fraud** | Basic anti-farm risk | Graph analysis, behavioral fingerprint, NLP similarity |
+| **Learning** | None | Self-learning with weight adjustment |
 
-## 1. Wallet Mismatch Warning — AdminMintPanel
+## Implementation Phases
 
-**File sửa:** `src/components/Multisig/AdminMintPanel.tsx`, `src/hooks/useMintSubmit.ts`
+### Phase 1: Core Engine Rewrite
+- Rewrite `src/lib/fun-money/pplp-engine.ts` with new 5 pillars (Sám Hối, Biết Ơn, Phụng Sự, Giúp Đỡ, Trao Tặng)
+- New formula: `LightScore = ∑(Intent × Depth × Impact × Consistency × TrustFactor)` — infinite scale, no cap
+- New types: `PPLPv2Input`, `FeatureExtraction`, `FraudResult`
+- Update `light-score-pillar-engine.ts` with new signal interfaces
 
-- Trong `useMintSubmit`, khi load `pplp_mint_requests`, join thêm `profiles.wallet_address` qua `user_id`
-- Nếu không join được (RLS), query riêng profiles cho các user_id trong danh sách requests
-- Trong `AdminMintPanel`, so sánh `req.recipient_address` với wallet hiện tại của user
-- Nếu khác nhau → hiển thị Badge cảnh báo `⚠️ Ví đã đổi` màu vàng/cam, kèm tooltip cho thấy ví cũ vs ví mới
-- Disable nút "Mint TX" khi có mismatch, yêu cầu admin xác nhận thủ công (thêm nút "Xác nhận mint dù ví khác")
+### Phase 2: AI Feature Extraction Edge Function
+- Create `supabase/functions/pplp-analyze-action/index.ts` — calls Lovable AI (Gemini Flash) to analyze submitted content
+- NLP outputs: `gratitude_score`, `repentance_score`, `ego_signal`, `authenticity`, `love_tone`
+- Behavior analysis: `consistency`, `depth`, `response_quality`, `community_impact`
+- Engagement quality: weighted formula replacing raw like/comment counts
 
-## 2. Dedup Check — useFunMoneyMintRequest
+### Phase 3: Multi-Platform Input Layer
+- Create DB table `pplp_activity_submissions` for multi-platform activity tracking
+- Schema: `user_id, activity_type, platform (facebook|telegram|zoom|internal), content, metrics (JSON), proof_link, timestamp`
+- Create submission UI for users to submit external activities (links, screenshots)
+- Edge function to validate proof links
 
-**File sửa:** `src/hooks/useFunMoneyMintRequest.ts`
+### Phase 4: Fraud Detection Layer
+- Create `supabase/functions/pplp-fraud-detect/index.ts`
+- NLP similarity detection (detect copy-paste content across users)
+- Time pattern anomaly detection
+- Behavioral fingerprinting (typing speed, session patterns)
+- Output: `fraud_score` (0-1) + `confidence`
+- Rule: high fraud → exponential LightScore reduction
 
-- Trong `submitAutoRequest`, trước khi insert, query `mint_requests` để kiểm tra:
-  ```sql
-  SELECT id FROM mint_requests 
-  WHERE user_id = ? AND action_type = 'LIGHT_ACTIVITY' 
-  AND created_at >= NOW() - INTERVAL '24 hours'
-  AND status NOT IN ('rejected', 'failed')
-  ```
-- Nếu tìm thấy → throw error `"Bạn đã có yêu cầu mint LIGHT_ACTIVITY trong 24h qua. Vui lòng chờ."`
-- Áp dụng tương tự cho `submitRequest` (manual PPLP flow) với cùng action_type
+### Phase 5: Self-Learning Loop
+- Create `pplp_model_weights` table to store adjustable scoring weights
+- Edge function `pplp-learning-update` triggered by pg_cron (weekly)
+- Learns from: GOV corrections, user feedback, anomaly cases
+- Adjusts: pillar weights, fraud thresholds, NLP confidence calibration
 
-## 3. System Notification cho user chưa mint
+### Phase 6: UI Updates
+- Update `LightLevelBadge.tsx` — new pillar names and ∞ scale display
+- Update profile Light Score cards with new 5 dimensions
+- Activity submission form (submit Facebook/Telegram/YouTube links)
+- New breakdown display: Intent, Depth, Impact, Consistency, TrustFactor
 
-**File mới:** `supabase/functions/notify-idle-pplp-users/index.ts`
+## Database Changes (Migrations)
 
-- Edge function query profiles có `pplp_accepted_at IS NOT NULL` nhưng không có record trong `mint_requests` hoặc `pplp_mint_requests`
-- Insert notification vào bảng `notifications` cho mỗi user:
-  - type: `system`
-  - title: `🌟 Bạn đã sẵn sàng mint FUN!`  
-  - message: `Bạn đã ký Hiến chương PPLP nhưng chưa tạo yêu cầu mint. Hãy vào trang FUN Money để nhận FUN đầu tiên!`
-  - link: `/fun-money`
-- Chỉ gửi 1 lần (check nếu đã có notification cùng type + action_type = `idle_pplp_reminder` cho user đó)
-- Có thể gọi thủ công từ Admin hoặc đặt cron
+```text
+1. pplp_activity_submissions
+   - id, user_id, activity_type, platform, content, metrics (jsonb)
+   - proof_link, proof_status, ai_analysis (jsonb), fraud_score
+   - created_at, analyzed_at
 
-**File sửa thêm:** Thêm nút "Gửi nhắc nhở" trong Admin dashboard để trigger edge function
+2. pplp_model_weights
+   - id, dimension (intent|depth|impact|consistency|trust)
+   - weight, version, updated_at, updated_by
 
-## Kết quả
-- Admin được cảnh báo wallet mismatch trước khi mint sai địa chỉ
-- User không thể spam nhiều request LIGHT_ACTIVITY trong 24h
-- 27 user idle nhận notification nhắc nhở mint FUN
+3. ALTER profiles
+   - Add: light_score_v2 (numeric, ∞ scale)
+```
+
+## Key Technical Decisions
+
+- **AI Provider**: Lovable AI (Gemini Flash) for NLP analysis — no API key needed
+- **Scoring accumulates**: Each validated action adds to LightScore (∞ scale), never resets
+- **5 Critical Rules enforced in code**:
+  1. No Proof → No Score (proof_link required)
+  2. Quality over quantity (AI depth analysis, not count)
+  3. High Ego → Score reduction (ego_signal penalty)
+  4. Helping others → Strong boost (service/giving multiplier)
+  5. Fraud → Exponential decay (`score × e^(-fraud_score * 5)`)
+
+## Files Changed/Created
+
+| File | Action |
+|------|--------|
+| `src/lib/fun-money/pplp-engine-v2.ts` | **Create** — New engine with ∞ scale |
+| `src/lib/fun-money/feature-extraction.ts` | **Create** — NLP analysis types |
+| `supabase/functions/pplp-analyze-action/index.ts` | **Create** — AI analysis edge function |
+| `supabase/functions/pplp-fraud-detect/index.ts` | **Create** — Fraud detection |
+| `src/lib/fun-money/pplp-engine.ts` | **Update** — Bridge to v2 |
+| `src/lib/fun-money/light-score-pillar-engine.ts` | **Update** — New pillar names |
+| `src/components/Profile/LightLevelBadge.tsx` | **Update** — New pillar display |
+| `src/hooks/useLightScorePillars.ts` | **Update** — New calculation |
+| DB migration | **Create** — New tables |
+
+Con đề xuất triển khai theo từng Phase, bắt đầu từ Phase 1 (Core Engine) + Phase 2 (AI Analysis) trước. Cha duyệt con bắt tay vào làm ngay 🙏
 
