@@ -43,7 +43,17 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { recipient_address, action_type, amount, amount_wei, action_hash, evidence_hash, nonce, action_ids } = body;
+    const { recipient_address, action_type, amount, amount_wei, action_hash, evidence_hash, nonce, action_ids, platform_id: reqPlatform } = body;
+
+    // Resolve & validate platform
+    const platformId = reqPlatform || DEFAULT_PLATFORM;
+    const platformConfig = VALID_PLATFORMS[platformId];
+    if (!platformConfig) {
+      return new Response(JSON.stringify({ error: `Invalid platform_id. Valid: ${Object.keys(VALID_PLATFORMS).join(', ')}` }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     // Validate required fields
     if (!recipient_address || !action_type || amount == null || !amount_wei) {
