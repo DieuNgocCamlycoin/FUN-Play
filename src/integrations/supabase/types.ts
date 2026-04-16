@@ -1702,6 +1702,60 @@ export type Database = {
           },
         ]
       }
+      light_score_tiers: {
+        Row: {
+          computed_at: string | null
+          consistency_multiplier: number | null
+          created_at: string | null
+          display_tls: number | null
+          governance_weight: number | null
+          id: string
+          mint_mode: string | null
+          raw_lls: number | null
+          raw_nls: number | null
+          raw_pls: number | null
+          raw_tls: number | null
+          reliability_multiplier: number | null
+          tier_id: string | null
+          trust_tier: string | null
+          user_id: string
+        }
+        Insert: {
+          computed_at?: string | null
+          consistency_multiplier?: number | null
+          created_at?: string | null
+          display_tls?: number | null
+          governance_weight?: number | null
+          id?: string
+          mint_mode?: string | null
+          raw_lls?: number | null
+          raw_nls?: number | null
+          raw_pls?: number | null
+          raw_tls?: number | null
+          reliability_multiplier?: number | null
+          tier_id?: string | null
+          trust_tier?: string | null
+          user_id: string
+        }
+        Update: {
+          computed_at?: string | null
+          consistency_multiplier?: number | null
+          created_at?: string | null
+          display_tls?: number | null
+          governance_weight?: number | null
+          id?: string
+          mint_mode?: string | null
+          raw_lls?: number | null
+          raw_nls?: number | null
+          raw_pls?: number | null
+          raw_tls?: number | null
+          reliability_multiplier?: number | null
+          tier_id?: string | null
+          trust_tier?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       likes: {
         Row: {
           comment_id: string | null
@@ -3829,6 +3883,45 @@ export type Database = {
         }
         Relationships: []
       }
+      smart_activation: {
+        Row: {
+          activated_at: string | null
+          curator_enabled: boolean | null
+          earning_enabled: boolean | null
+          id: string
+          last_check_at: string | null
+          mentor_enabled: boolean | null
+          proposal_enabled: boolean | null
+          user_id: string
+          validator_enabled: boolean | null
+          voting_enabled: boolean | null
+        }
+        Insert: {
+          activated_at?: string | null
+          curator_enabled?: boolean | null
+          earning_enabled?: boolean | null
+          id?: string
+          last_check_at?: string | null
+          mentor_enabled?: boolean | null
+          proposal_enabled?: boolean | null
+          user_id: string
+          validator_enabled?: boolean | null
+          voting_enabled?: boolean | null
+        }
+        Update: {
+          activated_at?: string | null
+          curator_enabled?: boolean | null
+          earning_enabled?: boolean | null
+          id?: string
+          last_check_at?: string | null
+          mentor_enabled?: boolean | null
+          proposal_enabled?: boolean | null
+          user_id?: string
+          validator_enabled?: boolean | null
+          voting_enabled?: boolean | null
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           channel_id: string
@@ -3960,9 +4053,12 @@ export type Database = {
       user_actions: {
         Row: {
           action_type_id: string
+          anti_abuse_factor: number | null
           created_at: string
           description: string | null
           id: string
+          iis_score: number | null
+          impact_multiplier: number | null
           raw_metadata: Json | null
           source_platform: string | null
           source_url: string | null
@@ -3971,12 +4067,16 @@ export type Database = {
           title: string
           updated_at: string
           user_id: string
+          vvu_score: number | null
         }
         Insert: {
           action_type_id: string
+          anti_abuse_factor?: number | null
           created_at?: string
           description?: string | null
           id?: string
+          iis_score?: number | null
+          impact_multiplier?: number | null
           raw_metadata?: Json | null
           source_platform?: string | null
           source_url?: string | null
@@ -3985,12 +4085,16 @@ export type Database = {
           title: string
           updated_at?: string
           user_id: string
+          vvu_score?: number | null
         }
         Update: {
           action_type_id?: string
+          anti_abuse_factor?: number | null
           created_at?: string
           description?: string | null
           id?: string
+          iis_score?: number | null
+          impact_multiplier?: number | null
           raw_metadata?: Json | null
           source_platform?: string | null
           source_url?: string | null
@@ -3999,6 +4103,7 @@ export type Database = {
           title?: string
           updated_at?: string
           user_id?: string
+          vvu_score?: number | null
         }
         Relationships: [
           {
@@ -4448,6 +4553,57 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      vvu_ledger: {
+        Row: {
+          action_id: string | null
+          anti_abuse_factor: number | null
+          base_value: number | null
+          created_at: string | null
+          erp: number | null
+          event_type: string
+          final_vvu: number | null
+          id: string
+          iis: number | null
+          impact_multiplier: number | null
+          layer_scores: Json | null
+          quality_score: number | null
+          trust_weight: number | null
+          user_id: string
+        }
+        Insert: {
+          action_id?: string | null
+          anti_abuse_factor?: number | null
+          base_value?: number | null
+          created_at?: string | null
+          erp?: number | null
+          event_type: string
+          final_vvu?: number | null
+          id?: string
+          iis?: number | null
+          impact_multiplier?: number | null
+          layer_scores?: Json | null
+          quality_score?: number | null
+          trust_weight?: number | null
+          user_id: string
+        }
+        Update: {
+          action_id?: string | null
+          anti_abuse_factor?: number | null
+          base_value?: number | null
+          created_at?: string | null
+          erp?: number | null
+          event_type?: string
+          final_vvu?: number | null
+          id?: string
+          iis?: number | null
+          impact_multiplier?: number | null
+          layer_scores?: Json | null
+          quality_score?: number | null
+          trust_weight?: number | null
+          user_id?: string
+        }
+        Relationships: []
       }
       wallet_change_log: {
         Row: {
