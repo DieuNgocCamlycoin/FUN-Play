@@ -5,8 +5,14 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-const PLATFORM_ID = 'fun_play';
-const DAILY_CAP = 2;
+// Unified multi-platform config — shared spec across all 3 platforms
+const VALID_PLATFORMS: Record<string, { daily_cap: number; label: string }> = {
+  fun_play: { daily_cap: 2, label: 'play.fun.rich' },
+  fun_angel: { daily_cap: 2, label: 'angel.fun.rich' },
+  fun_main: { daily_cap: 2, label: 'fun.rich' },
+};
+const DEFAULT_PLATFORM = 'fun_play';
+const CROSS_PLATFORM_EPOCH_CAP = 20_000_000; // 20M FUN shared across all platforms
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -37,7 +43,17 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { recipient_address, action_type, amount, amount_wei, action_hash, evidence_hash, nonce, action_ids } = body;
+    const { recipient_address, action_type, amount, amount_wei, action_hash, evidence_hash, nonce, action_ids, platform_id: reqPlatform } = body;
+
+    // Resolve & validate platform
+    const platformId = reqPlatform || DEFAULT_PLATFORM;
+    const platformConfig = VALID_PLATFORMS[platformId];
+    if (!platformConfig) {
+      return new Response(JSON.stringify({ error: `Invalid platform_id. Valid: ${Object.keys(VALID_PLATFORMS).join(', ')}` }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     // Validate required fields
     if (!recipient_address || !action_type || amount == null || !amount_wei) {
@@ -69,17 +85,38 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check daily cap (2 requests/day)
+    // Check per-platform daily cap
     const today = new Date().toISOString().split('T')[0];
     const { count } = await supabase
       .from('pplp_mint_requests')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', user.id)
+      .eq('platform_id', platformId)
       .gte('created_at', `${today}T00:00:00Z`)
       .lte('created_at', `${today}T23:59:59Z`);
 
-    if ((count ?? 0) >= DAILY_CAP) {
-      return new Response(JSON.stringify({ error: `Daily cap reached (${DAILY_CAP} requests/day)` }), {
+    if ((count ?? 0) >= platformConfig.daily_cap) {
+      return new Response(JSON.stringify({ error: `Daily cap reached for ${platformConfig.label} (${platformConfig.daily_cap} requests/day)` }), {
+        status: 429,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Cross-platform epoch cap check (all platforms share 20M FUN/epoch)
+    const monthStart = `${today.slice(0, 7)}-01T00:00:00Z`;
+    const { data: epochTotal } = await supabase
+      .from('pplp_mint_requests')
+      .select('amount')
+      .in('status', ['pending_sig', 'signing', 'signed', 'submitted', 'confirmed'])
+      .gte('created_at', monthStart);
+
+    const totalMintedThisEpoch = (epochTotal || []).reduce((sum: number, r: any) => sum + (r.amount || 0), 0);
+    if (totalMintedThisEpoch + amount > CROSS_PLATFORM_EPOCH_CAP) {
+      return new Response(JSON.stringify({ 
+        error: `Cross-platform epoch cap reached (${CROSS_PLATFORM_EPOCH_CAP.toLocaleString()} FUN/month)`,
+        current_total: totalMintedThisEpoch,
+        requested: amount,
+      }), {
         status: 429,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -102,7 +139,7 @@ Deno.serve(async (req) => {
         multisig_completed_groups: [],
         multisig_required_groups: ['will', 'wisdom', 'love'],
         status: 'pending_sig',
-        platform_id: PLATFORM_ID,
+        platform_id: platformId,
       })
       .select()
       .single();
@@ -118,7 +155,8 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ 
       success: true, 
       request: mintRequest,
-      message: `Mint request created. Waiting for 3-of-3 multisig signatures.`
+      platform: platformConfig.label,
+      message: `Mint request created on ${platformConfig.label}. Waiting for 3-of-3 multisig signatures.`
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
