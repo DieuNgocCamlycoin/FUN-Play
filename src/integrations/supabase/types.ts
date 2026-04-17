@@ -169,6 +169,59 @@ export type Database = {
           },
         ]
       }
+      ai_operators: {
+        Row: {
+          agent_did_id: string
+          agent_name: string
+          agent_purpose: string | null
+          attestation_weight_cap: number
+          id: string
+          is_active: boolean
+          metadata: Json | null
+          operator_user_id: string
+          registered_at: string
+          responsibility_level: string
+          revoke_reason: string | null
+          revoked_at: string | null
+        }
+        Insert: {
+          agent_did_id: string
+          agent_name: string
+          agent_purpose?: string | null
+          attestation_weight_cap?: number
+          id?: string
+          is_active?: boolean
+          metadata?: Json | null
+          operator_user_id: string
+          registered_at?: string
+          responsibility_level?: string
+          revoke_reason?: string | null
+          revoked_at?: string | null
+        }
+        Update: {
+          agent_did_id?: string
+          agent_name?: string
+          agent_purpose?: string | null
+          attestation_weight_cap?: number
+          id?: string
+          is_active?: boolean
+          metadata?: Json | null
+          operator_user_id?: string
+          registered_at?: string
+          responsibility_level?: string
+          revoke_reason?: string | null
+          revoked_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_operators_agent_did_id_fkey"
+            columns: ["agent_did_id"]
+            isOneToOne: true
+            referencedRelation: "did_registry"
+            referencedColumns: ["did_id"]
+          },
+        ]
+      }
       angel_chat_messages: {
         Row: {
           content: string
@@ -371,6 +424,8 @@ export type Database = {
       }
       attestation_log: {
         Row: {
+          agent_did_id: string | null
+          ai_origin: boolean
           attestation_type: string
           comment: string | null
           created_at: string
@@ -383,6 +438,8 @@ export type Database = {
           weight: number
         }
         Insert: {
+          agent_did_id?: string | null
+          ai_origin?: boolean
           attestation_type: string
           comment?: string | null
           created_at?: string
@@ -395,6 +452,8 @@ export type Database = {
           weight?: number
         }
         Update: {
+          agent_did_id?: string | null
+          ai_origin?: boolean
           attestation_type?: string
           comment?: string | null
           created_at?: string
@@ -407,6 +466,13 @@ export type Database = {
           weight?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "attestation_log_agent_did_id_fkey"
+            columns: ["agent_did_id"]
+            isOneToOne: false
+            referencedRelation: "did_registry"
+            referencedColumns: ["did_id"]
+          },
           {
             foreignKeyName: "attestation_log_from_did_fkey"
             columns: ["from_did"]
@@ -1191,9 +1257,13 @@ export type Database = {
           entity_type: Database["public"]["Enums"]["did_entity_type"]
           level: Database["public"]["Enums"]["did_level"]
           metadata: Json | null
+          operator_user_id: string | null
           status: Database["public"]["Enums"]["did_status"]
           updated_at: string
           user_id: string
+          verified_at: string | null
+          verified_by: string | null
+          verified_org_badge: boolean
         }
         Insert: {
           anchor_hash?: string | null
@@ -1202,9 +1272,13 @@ export type Database = {
           entity_type?: Database["public"]["Enums"]["did_entity_type"]
           level?: Database["public"]["Enums"]["did_level"]
           metadata?: Json | null
+          operator_user_id?: string | null
           status?: Database["public"]["Enums"]["did_status"]
           updated_at?: string
           user_id: string
+          verified_at?: string | null
+          verified_by?: string | null
+          verified_org_badge?: boolean
         }
         Update: {
           anchor_hash?: string | null
@@ -1213,9 +1287,13 @@ export type Database = {
           entity_type?: Database["public"]["Enums"]["did_entity_type"]
           level?: Database["public"]["Enums"]["did_level"]
           metadata?: Json | null
+          operator_user_id?: string | null
           status?: Database["public"]["Enums"]["did_status"]
           updated_at?: string
           user_id?: string
+          verified_at?: string | null
+          verified_by?: string | null
+          verified_org_badge?: boolean
         }
         Relationships: []
       }
@@ -1648,6 +1726,8 @@ export type Database = {
       }
       identity_events: {
         Row: {
+          agent_did_id: string | null
+          ai_origin: boolean
           created_at: string
           did_id: string | null
           event_ref: string | null
@@ -1659,6 +1739,8 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          agent_did_id?: string | null
+          ai_origin?: boolean
           created_at?: string
           did_id?: string | null
           event_ref?: string | null
@@ -1670,6 +1752,8 @@ export type Database = {
           user_id: string
         }
         Update: {
+          agent_did_id?: string | null
+          ai_origin?: boolean
           created_at?: string
           did_id?: string | null
           event_ref?: string | null
@@ -1681,6 +1765,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "identity_events_agent_did_id_fkey"
+            columns: ["agent_did_id"]
+            isOneToOne: false
+            referencedRelation: "did_registry"
+            referencedColumns: ["did_id"]
+          },
           {
             foreignKeyName: "identity_events_did_id_fkey"
             columns: ["did_id"]
@@ -2717,6 +2808,47 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      org_members: {
+        Row: {
+          id: string
+          invited_by: string | null
+          is_active: boolean
+          joined_at: string
+          metadata: Json | null
+          org_did_id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          invited_by?: string | null
+          is_active?: boolean
+          joined_at?: string
+          metadata?: Json | null
+          org_did_id: string
+          role?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          invited_by?: string | null
+          is_active?: boolean
+          joined_at?: string
+          metadata?: Json | null
+          org_did_id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_members_org_did_id_fkey"
+            columns: ["org_did_id"]
+            isOneToOne: false
+            referencedRelation: "did_registry"
+            referencedColumns: ["did_id"]
+          },
+        ]
       }
       platform_statistics: {
         Row: {
@@ -5357,6 +5489,108 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      zk_commitments: {
+        Row: {
+          commitment_hash: string
+          commitment_type: string
+          created_at: string
+          did_id: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          merkle_leaf_index: number | null
+          merkle_root_id: string | null
+          metadata: Json | null
+          salt_hash: string
+          user_id: string
+        }
+        Insert: {
+          commitment_hash: string
+          commitment_type: string
+          created_at?: string
+          did_id?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          merkle_leaf_index?: number | null
+          merkle_root_id?: string | null
+          metadata?: Json | null
+          salt_hash: string
+          user_id: string
+        }
+        Update: {
+          commitment_hash?: string
+          commitment_type?: string
+          created_at?: string
+          did_id?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          merkle_leaf_index?: number | null
+          merkle_root_id?: string | null
+          metadata?: Json | null
+          salt_hash?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "zk_commitments_did_id_fkey"
+            columns: ["did_id"]
+            isOneToOne: false
+            referencedRelation: "did_registry"
+            referencedColumns: ["did_id"]
+          },
+          {
+            foreignKeyName: "zk_commitments_merkle_root_fk"
+            columns: ["merkle_root_id"]
+            isOneToOne: false
+            referencedRelation: "zk_merkle_roots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      zk_merkle_roots: {
+        Row: {
+          algorithm: string
+          anchor_tx_hash: string | null
+          commitment_type: string
+          epoch_id: string | null
+          id: string
+          is_active: boolean
+          leaf_count: number
+          metadata: Json | null
+          published_at: string
+          root_hash: string
+          tree_depth: number
+        }
+        Insert: {
+          algorithm?: string
+          anchor_tx_hash?: string | null
+          commitment_type: string
+          epoch_id?: string | null
+          id?: string
+          is_active?: boolean
+          leaf_count?: number
+          metadata?: Json | null
+          published_at?: string
+          root_hash: string
+          tree_depth?: number
+        }
+        Update: {
+          algorithm?: string
+          anchor_tx_hash?: string | null
+          commitment_type?: string
+          epoch_id?: string | null
+          id?: string
+          is_active?: boolean
+          leaf_count?: number
+          metadata?: Json | null
+          published_at?: string
+          root_hash?: string
+          tree_depth?: number
+        }
+        Relationships: []
       }
     }
     Views: {
