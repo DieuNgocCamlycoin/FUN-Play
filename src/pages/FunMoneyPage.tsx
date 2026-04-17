@@ -44,6 +44,8 @@ import {
   MintNotificationBanner,
   FunMoneyClaimHistory
 } from '@/components/FunMoney';
+import { MintSandboxBanner } from '@/components/Identity/MintSandboxBanner';
+import { useTierUpgradeWatcher } from '@/hooks/useTierUpgradeWatcher';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { BackButton } from '@/components/ui/back-button';
@@ -52,6 +54,7 @@ export default function FunMoney() {
   const { user, loading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [pplpAccepted, setPplpAccepted] = useState<boolean | null>(null);
+  useTierUpgradeWatcher();
 
   const { 
     loading: requestsLoading, 
@@ -203,6 +206,9 @@ export default function FunMoney() {
 
         {/* Notification Banner - FUN mới phân bổ */}
         <MintNotificationBanner />
+
+        {/* Sandbox banner for T0/T1 trust tiers */}
+        <MintSandboxBanner />
 
         {/* Mintable FUN Card - Main CTA (only after charter accepted) */}
         {pplpAccepted !== false && (
