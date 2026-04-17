@@ -77,8 +77,8 @@ export async function logAgentEvent(params: {
     agent_did_id: params.agent_did_id,
     event_type: params.event_type,
     ai_origin: true,
-    payload: params.payload ?? {},
-  });
+    payload: (params.payload ?? {}) as never,
+  } as never);
 }
 
 export async function revokeAgent(agent_did_id: string, reason: string) {
