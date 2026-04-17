@@ -5,7 +5,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
-import { checkPermission, type PermissionAction } from '@/lib/identity/permission-matrix';
+import { checkPermission } from '@/lib/identity/permission-matrix';
 import type { DIDLevel } from '@/lib/identity/did-registry';
 import type { TrustTier } from '@/lib/identity/trust-tier';
 
@@ -19,7 +19,7 @@ export interface TrustPermissionResult {
   has_sbt: boolean;
 }
 
-export function useTrustPermission(action: PermissionAction): TrustPermissionResult {
+export function useTrustPermission(action: string): TrustPermissionResult {
   const { user } = useAuth();
   const [result, setResult] = useState<TrustPermissionResult>({
     allowed: false, loading: true, did_level: 'L0', tc: 0.3, tier: 'T0', has_sbt: false,
@@ -34,7 +34,7 @@ export function useTrustPermission(action: PermissionAction): TrustPermissionRes
     (async () => {
       const [didRes, trustRes, sbtRes] = await Promise.all([
         supabase.from('did_registry').select('level').eq('user_id', user.id).maybeSingle(),
-        supabase.from('trust_profile').select('tc, tier').eq('user_id', user.id).maybeSingle(),
+        supabase.from('trust_profile').select('tc, tier, sybil_risk').eq('user_id', user.id).maybeSingle(),
         supabase.from('sbt_registry').select('id', { count: 'exact', head: true })
           .eq('user_id', user.id).eq('status', 'active'),
       ]);
@@ -42,8 +42,9 @@ export function useTrustPermission(action: PermissionAction): TrustPermissionRes
       const did_level = (didRes.data?.level as DIDLevel) ?? 'L0';
       const tc = Number(trustRes.data?.tc) || 0.3;
       const tier = (trustRes.data?.tier as TrustTier) ?? 'T0';
+      const sybil_risk = Number(trustRes.data?.sybil_risk) || 0;
       const has_sbt = (sbtRes.count ?? 0) > 0;
-      const check = checkPermission(action, { did_level, tc, has_sbt });
+      const check = checkPermission(action, { did_level, tc, has_sbt, sybil_risk });
       setResult({
         allowed: check.allowed,
         reason: check.reason,
