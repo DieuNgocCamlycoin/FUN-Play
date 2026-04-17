@@ -77,8 +77,23 @@ export function PPLPCharterAcceptance({ userId, onAccepted }: PPLPCharterAccepta
 
       if (error) throw error;
 
+      // Bootstrap Identity+Trust Layer v1.0: create DID + auto-issue Identity SBT
+      try {
+        await supabase.functions.invoke('did-registry-engine', {
+          body: { action: 'evaluate', user_id: userId },
+        });
+        await supabase.functions.invoke('sbt-issuance-engine', {
+          body: { user_id: userId, sbt_type: 'identity_human_verified', trigger: 'charter_accepted' },
+        });
+        await supabase.functions.invoke('trust-engine-v1', {
+          body: { user_id: userId },
+        });
+      } catch (bootErr) {
+        console.warn('[PPLPCharter] Identity bootstrap soft-fail:', bootErr);
+      }
+
       toast.success('🎉 Chấp nhận Hiến chương PPLP thành công!', {
-        description: 'Bạn đã sẵn sàng mint FUN Money',
+        description: 'DID đã tạo, Identity SBT đã cấp, Trust Score đã khởi tạo.',
       });
 
       onAccepted();
