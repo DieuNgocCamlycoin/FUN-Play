@@ -14,6 +14,7 @@ import { RecoverySetup } from '@/components/Identity/RecoverySetup';
 import { ZKCommitmentPanel } from '@/components/Identity/ZKCommitmentPanel';
 import { OrgPanel } from '@/components/Identity/OrgPanel';
 import { AIAgentPanel } from '@/components/Identity/AIAgentPanel';
+import { DIBVaultPanel } from '@/components/Identity/DIBVaultPanel';
 import { getDID, type DIDRecord } from '@/lib/identity/did-registry';
 import { tcToTier, type TrustTier } from '@/lib/identity/trust-tier';
 
@@ -121,9 +122,11 @@ export default function Identity() {
         <SBTGallery userId={user.id} />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <DIBVaultPanel userId={user.id} />
           <AttestationPanel userId={user.id} />
-          <RecoverySetup userId={user.id} />
         </div>
+
+        <RecoverySetup userId={user.id} />
 
         <div className="space-y-2">
           <h2 className="text-lg font-semibold flex items-center gap-2">
