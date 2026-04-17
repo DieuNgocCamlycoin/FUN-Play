@@ -1,0 +1,1 @@
+UPDATE public.sbt_issuance_rules SET issue_mode = 'semi_auto' WHERE sbt_type = 'first_proposal';
