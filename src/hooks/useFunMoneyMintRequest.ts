@@ -516,22 +516,18 @@ export function useAutoMintRequest(): UseAutoMintRequestReturn {
 
       const { data: edgeData, error: edgeError } = await supabase.functions.invoke('pplp-mint-fun', {
         body: {
-          user_id: user.id,
-          wallet_address: input.userWalletAddress,
-          platform_id: 'FUN_MAIN',
+          recipient_address: input.userWalletAddress,
           action_type: 'LIGHT_ACTIVITY',
-          fun_amount: v25.funAmount,
-          fun_amount_atomic: v25.funAmountAtomic,
+          amount: v25.funAmount,
+          amount_wei: v25.funAmountAtomic,
+          platform_id: 'fun_main',
           vvu_score: v25.vvu,
           engine_version: 'pplp-v2.5',
-          decision: v25.decision,
-          reason_codes: v25.reasonCodes,
-          metadata: v25.metadata,
-          evidence: {
-            type: 'LIGHT_ACTIVITY',
-            description: 'Auto-generated from platform light activities',
-            data: JSON.stringify(input.activitySummary),
-            timestamp: new Date().toISOString(),
+          metadata: {
+            ...v25.metadata,
+            decision: v25.decision,
+            reason_codes: v25.reasonCodes,
+            activity_summary: input.activitySummary,
           },
         },
       });
