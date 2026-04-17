@@ -10,7 +10,6 @@ export function currentEpochId(): string {
 
 export async function getUserEpochSnapshot(userId: string, epochId?: string) {
   const epoch = epochId ?? currentEpochId();
-  // @ts-expect-error
   const { data } = await supabase.from('identity_epoch_snapshot')
     .select('*')
     .eq('user_id', userId)

@@ -33,7 +33,6 @@ export interface SBTRule {
 }
 
 export async function getUserSBTs(userId: string): Promise<SBTBadge[]> {
-  // @ts-expect-error
   const { data } = await supabase.from('sbt_registry')
     .select('*')
     .eq('user_id', userId)
@@ -43,7 +42,6 @@ export async function getUserSBTs(userId: string): Promise<SBTBadge[]> {
 }
 
 export async function getSBTRules(): Promise<SBTRule[]> {
-  // @ts-expect-error
   const { data } = await supabase.from('sbt_issuance_rules')
     .select('*')
     .eq('is_active', true)

@@ -36,13 +36,11 @@ export interface DIDRecord {
 }
 
 export async function getOrCreateDID(userId: string): Promise<DIDRecord | null> {
-  // @ts-expect-error - did_registry not yet in generated types
   const { data: existing } = await supabase.from('did_registry')
     .select('*').eq('user_id', userId).maybeSingle();
   
   if (existing) return existing as unknown as DIDRecord;
   
-  // @ts-expect-error
   const { data: created, error } = await supabase.from('did_registry')
     .insert({ user_id: userId, level: 'L0', status: 'pending', entity_type: 'human' })
     .select().single();
@@ -55,7 +53,6 @@ export async function getOrCreateDID(userId: string): Promise<DIDRecord | null> 
 }
 
 export async function getDID(userId: string): Promise<DIDRecord | null> {
-  // @ts-expect-error
   const { data } = await supabase.from('did_registry')
     .select('*').eq('user_id', userId).maybeSingle();
   return (data as unknown as DIDRecord) ?? null;
