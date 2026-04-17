@@ -81,7 +81,7 @@ export function useAutoMintFun(userId: string | undefined) {
           return;
         }
 
-        // 3) Insert mint request directly into pplp_mint_requests
+        // 3) Submit via edge function (enforces Trust+Sybil+epoch gates)
         const actionHash = createActionHash(funAction);
         const evidenceHash = createEvidenceHash({
           actionType: funAction,
@@ -90,36 +90,37 @@ export function useAutoMintFun(userId: string | undefined) {
           metadata: { camly: detail, vvu: result.vvu, ...result.metadata },
         });
 
-        const { data: mintRequest, error: insertError } = await (supabase as any)
-          .from('pplp_mint_requests')
-          .insert({
-            user_id: userId,
-            recipient_address: profile.wallet_address,
-            action_type: funAction,
-            amount: result.funAmount,
-            amount_wei: result.funAmountAtomic,
-            action_hash: actionHash,
-            evidence_hash: evidenceHash,
-            multisig_signatures: {},
-            multisig_completed_groups: [],
-            multisig_required_groups: ['will', 'wisdom', 'love'],
-            status: result.decision === 'REVIEW_HOLD' ? 'pending_review' : 'pending_sig',
-            platform_id: 'fun_main',
-            metadata: {
-              engine: 'pplp-v2.5',
-              vvu: result.vvu,
-              components: result.metadata,
-              source: 'auto-mint',
-              camly_reward: detail,
+        const { data: invokeData, error: invokeError } = await supabase.functions.invoke(
+          'pplp-mint-fun',
+          {
+            body: {
+              recipient_address: profile.wallet_address,
+              action_type: funAction,
+              amount: result.funAmount,
+              amount_wei: result.funAmountAtomic,
+              action_hash: actionHash,
+              evidence_hash: evidenceHash,
+              platform_id: 'fun_main',
+              vvu_score: result.vvu,
+              engine_version: 'pplp-v2.5',
+              metadata: {
+                engine: 'pplp-v2.5',
+                vvu: result.vvu,
+                components: result.metadata,
+                source: 'auto-mint',
+                camly_reward: detail,
+                decision: result.decision,
+              },
             },
-          })
-          .select()
-          .single();
+          },
+        );
 
-        if (insertError) {
-          console.error('[AutoMintFUN/v2.5] Insert error:', insertError);
+        if (invokeError) {
+          console.error('[AutoMintFUN/v2.5] Edge invoke error:', invokeError);
           return;
         }
+
+        const mintRequest = invokeData?.request;
 
         cooldownMap.current.set(cooldownKey, Date.now());
 
