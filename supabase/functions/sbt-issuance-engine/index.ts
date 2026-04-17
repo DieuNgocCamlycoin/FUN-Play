@@ -1,6 +1,8 @@
 /**
- * sbt-issuance-engine — auto-issue SBTs based on rules
- * POST { user_id?, sbt_type? }   — if sbt_type, evaluate that one; else evaluate all auto rules
+ * sbt-issuance-engine — auto-evaluate & issue SBTs (delegates to DB RPC for consistency)
+ *
+ * POST { user_id?: uuid }                — single user (self by default)
+ * POST { batch: true, limit?: number }   — admin only: scan top wallet-linked users
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -14,91 +16,97 @@ Deno.serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) return new Response(JSON.stringify({ error: "Missing auth" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Missing auth" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
     const { data: { user }, error: authError } = await anonClient.auth.getUser(authHeader.replace('Bearer ', ''));
-    if (authError || !user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-    const body = await req.json().catch(() => ({}));
-    const targetUserId = body.user_id || user.id;
     const admin = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const body = await req.json().catch(() => ({}));
 
-    // Get DID
-    const { data: did } = await admin.from('did_registry').select('*').eq('user_id', targetUserId).maybeSingle();
-    if (!did) {
-      return new Response(JSON.stringify({ error: "DID not found - run trust-engine-v1 first" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
-    // Get profile + trust
-    const { data: profile } = await admin.from('profiles').select('*').eq('id', targetUserId).single();
-    const { data: trust } = await admin.from('trust_profile').select('*').eq('user_id', targetUserId).maybeSingle();
-
-    // Get auto rules
-    const { data: rules } = await admin.from('sbt_issuance_rules')
-      .select('*').eq('issue_mode', 'auto').eq('is_active', true);
-
-    // Get existing SBTs
-    const { data: existing } = await admin.from('sbt_registry')
-      .select('sbt_type').eq('user_id', targetUserId).eq('status', 'active');
-    const existingTypes = new Set((existing || []).map((s: any) => s.sbt_type));
-
-    const issued: string[] = [];
-    const skipped: string[] = [];
-
-    for (const rule of (rules || [])) {
-      if (body.sbt_type && rule.sbt_type !== body.sbt_type) continue;
-      if (existingTypes.has(rule.sbt_type)) { skipped.push(rule.sbt_type); continue; }
-
-      const cond = rule.conditions || {};
-      let qualifies = true;
-
-      if (cond.min_did_level) {
-        const order: Record<string, number> = { L0:0, L1:1, L2:2, L3:3, L4:4 };
-        if ((order[did.level] ?? 0) < (order[cond.min_did_level] ?? 0)) qualifies = false;
-      }
-      if (cond.requires_wallet && !profile?.wallet_address) qualifies = false;
-      if (cond.requires_pplp_accepted && !profile?.pplp_accepted_at) qualifies = false;
-      if (cond.days_clean) {
-        const ageDays = Math.floor((Date.now() - new Date(profile?.created_at).getTime()) / 86400000);
-        if (ageDays < cond.days_clean) qualifies = false;
-        if (profile?.banned) qualifies = false;
-      }
-      if (cond.max_sybil_risk != null && trust && trust.sybil_risk > cond.max_sybil_risk) qualifies = false;
-      if (cond.min_streak && (profile?.consistency_days || 0) < cond.min_streak) qualifies = false;
-
-      if (qualifies) {
-        const { error: insErr } = await admin.from('sbt_registry').insert({
-          did_id: did.did_id,
-          user_id: targetUserId,
-          category: rule.category,
-          sbt_type: rule.sbt_type,
-          issuer: 'system',
-          status: 'active',
-          trust_weight: rule.trust_weight,
-          privacy_level: 'public',
-          metadata: { rule_id: rule.id, auto_issued: true },
+    // === Batch mode (admin only) ===
+    if (body.batch === true) {
+      const { data: roles } = await admin.from('user_roles').select('role').eq('user_id', user.id);
+      const isAdmin = (roles || []).some((r: any) => r.role === 'admin');
+      if (!isAdmin) {
+        return new Response(JSON.stringify({ error: "Forbidden — batch mode requires admin" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
-        if (!insErr) {
-          issued.push(rule.sbt_type);
-          await admin.from('identity_events').insert({
-            user_id: targetUserId,
-            did_id: did.did_id,
-            event_type: 'sbt_issued',
-            event_ref: rule.sbt_type,
-            tc_delta: Number(rule.trust_weight),
-            payload: { sbt_type: rule.sbt_type, category: rule.category },
-          });
+      }
+
+      const limit = Math.min(2000, Math.max(1, Number(body.limit) || 500));
+      const { data: candidates } = await admin
+        .from('profiles')
+        .select('id')
+        .not('wallet_address', 'is', null)
+        .neq('wallet_address', '')
+        .limit(limit);
+
+      let totalIssued = 0;
+      let processed = 0;
+      const errors: Array<{ user_id: string; error: string }> = [];
+
+      for (const p of (candidates || [])) {
+        const { data, error } = await admin.rpc('auto_issue_all_sbts', { _user_id: p.id });
+        if (error) {
+          errors.push({ user_id: p.id, error: error.message });
+        } else {
+          totalIssued += (data ?? 0);
+          processed++;
         }
-      } else {
-        skipped.push(rule.sbt_type);
+      }
+
+      return new Response(JSON.stringify({
+        mode: 'batch',
+        processed,
+        total_issued: totalIssued,
+        errors_count: errors.length,
+        sample_errors: errors.slice(0, 5),
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // === Single user mode ===
+    const targetUserId = body.user_id || user.id;
+    if (targetUserId !== user.id) {
+      const { data: roles } = await admin.from('user_roles').select('role').eq('user_id', user.id);
+      const isAdmin = (roles || []).some((r: any) => r.role === 'admin');
+      if (!isAdmin) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
     }
 
-    return new Response(JSON.stringify({ issued, skipped, total_evaluated: rules?.length || 0 }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    const { data, error } = await admin.rpc('auto_issue_all_sbts', { _user_id: targetUserId });
+    if (error) throw error;
+
+    // Return current SBTs after issuance
+    const { data: sbts } = await admin.from('sbt_registry')
+      .select('sbt_type, category, trust_weight, issued_at')
+      .eq('user_id', targetUserId).eq('status', 'active')
+      .order('issued_at', { ascending: false });
+
+    const { data: trust } = await admin.from('trust_profile')
+      .select('tc, tier, sybil_risk, permission_flags')
+      .eq('user_id', targetUserId).maybeSingle();
+
+    return new Response(JSON.stringify({
+      user_id: targetUserId,
+      newly_issued: data ?? 0,
+      total_active_sbts: (sbts || []).length,
+      sbts: sbts || [],
+      trust,
+    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   } catch (error) {
     console.error("sbt-issuance-engine error:", error);

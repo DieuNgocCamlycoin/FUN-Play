@@ -5622,6 +5622,7 @@ export type Database = {
         Args: { p_amount: number; p_auto_approve: boolean; p_user_id: string }
         Returns: Json
       }
+      auto_issue_all_sbts: { Args: { _user_id: string }; Returns: number }
       backfill_features_user_day: {
         Args: { p_days_back?: number }
         Returns: number
@@ -5647,6 +5648,10 @@ export type Database = {
       check_admin_rate_limit: {
         Args: { p_action: string; p_admin_id: string; p_max_requests?: number }
         Returns: Json
+      }
+      evaluate_sbt_rule: {
+        Args: { _rule_id: string; _user_id: string }
+        Returns: boolean
       }
       finalize_livestream_vod: {
         Args: { p_livestream_id: string; p_title?: string; p_video_url: string }
@@ -5778,6 +5783,25 @@ export type Database = {
         Returns: boolean
       }
       is_owner: { Args: { _user_id: string }; Returns: boolean }
+      issue_sbt_if_eligible: {
+        Args: { _rule_id: string; _user_id: string }
+        Returns: string
+      }
+      log_identity_event: {
+        Args: {
+          _event_ref?: string
+          _event_type: string
+          _payload?: Json
+          _risk_delta?: number
+          _tc_delta?: number
+          _user_id: string
+        }
+        Returns: string
+      }
+      recompute_trust_profile: {
+        Args: { _user_id: string }
+        Returns: undefined
+      }
       refresh_mv_top_ranking: { Args: never; Returns: undefined }
       reject_user_reward: {
         Args: { p_admin_id: string; p_note?: string; p_user_id: string }
@@ -5821,6 +5845,10 @@ export type Database = {
           old_total: number
           user_id: string
         }[]
+      }
+      tier_from_tc: {
+        Args: { _tc: number }
+        Returns: Database["public"]["Enums"]["trust_tier"]
       }
       toggle_user_avatar_verified: {
         Args: { p_admin_id: string; p_user_id: string }
