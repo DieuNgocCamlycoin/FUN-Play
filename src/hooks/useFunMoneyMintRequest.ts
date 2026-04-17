@@ -483,143 +483,82 @@ export function useAutoMintRequest(): UseAutoMintRequestReturn {
         throw new Error('Bạn đã có yêu cầu mint LIGHT_ACTIVITY trong 24h qua. Vui lòng chờ.');
       }
 
-      // 2. Fetch LS-Math data from features_user_day
-      const { data: features } = await (supabase as any)
-        .from('features_user_day')
-        .select('consistency_streak, sequence_count, anti_farm_risk')
-        .eq('user_id', user.id)
-        .order('date', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      const streakDays = features?.consistency_streak || 0;
-      const sequenceBonus = features?.sequence_count || 0;
-      const riskScore = features?.anti_farm_risk || 0;
-
-      // 2b. Fetch actual light_score from profile (DB truth)
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('light_score')
-        .eq('id', user.id)
-        .single();
-      const dbLightScore = profile?.light_score || input.lightScore || 0;
-
-      // 3. PPLP v2.0 validation
-      const pplpValidation = {
-        hasRealAction: true,
-        hasRealValue: (input.activitySummary.views || 0) > 0 || (input.activitySummary.uploads || 0) > 0 || (input.activitySummary.comments || 0) > 0 || (input.activitySummary.likes || 0) > 0 || (input.activitySummary.shares || 0) > 0 || (input.activitySummary.posts || 0) > 0,
-        hasPositiveImpact: true,
-        noExploitation: riskScore < 0.4,
-        charterCompliant: true,
-      };
-
-      // 4. Route through scoreAction() — use DB light score to override pillar-based calculation
-      const baseRewardAtomic = input.mintableFunAtomic;
-      
-      // Normalize pillar scores to match DB light score so scoreAction doesn't reject
-      // The DB light_score is the authoritative value from LS-Math v1.0
-      const pillarSum = Object.values(input.pillars).reduce((a, b) => a + b, 0);
-      const adjustedPillars = pillarSum > 0 ? input.pillars : {
-        S: dbLightScore * 0.25,
-        T: dbLightScore * 0.20,
-        H: dbLightScore * 0.20,
-        C: dbLightScore * 0.20,
-        U: dbLightScore * 0.15,
-      };
-
-      const scoringResult = scoreAction({
-        platformId: 'FUN_MAIN',
+      // 2. Run PPLP v2.5 VVU pipeline (live trust + SBT bonus + sybil)
+      console.log('[MintRequest:auto] Running PPLP v2.5 adapter for LIGHT_ACTIVITY...');
+      const v25 = await runV25MintAdapter({
+        userId: user.id,
         actionType: 'LIGHT_ACTIVITY',
-        pillarScores: adjustedPillars,
-        unitySignals: input.unitySignals,
-        antiSybilScore: 0.9,
-        baseRewardAtomic,
-        qualityMultiplier: 1.0,
-        impactMultiplier: 1.0,
-        streakDays,
-        sequenceBonus,
-        riskScore,
-        pplpValidation,
+        walletAddress: input.userWalletAddress,
+        evidence: {
+          description: 'Auto-generated from platform light activities',
+          contentLength: 50,
+          isFirstTime: false,
+        },
       });
 
-      // If rejected by scoring engine, abort
-      if (scoringResult.decision === 'REJECT') {
-        console.error('[MintRequest] Scoring REJECT:', scoringResult.reasonCodes, { dbLightScore, pillarSum, adjustedPillars });
-        throw new Error(`Yêu cầu bị từ chối: ${scoringResult.reasonCodes.join(', ')}`);
+      // 3. Hard reject from adapter
+      if (v25.decision === 'REJECT') {
+        const reason = v25.reasonCodes.join(', ') || 'Adapter rejected';
+        console.error('[MintRequest:auto] v2.5 REJECT:', reason);
+        throw new Error(`Yêu cầu bị từ chối: ${reason}`);
       }
 
-      // Reject 0 FUN requests — no point minting nothing
-      if (!scoringResult.calculatedAmountAtomic || scoringResult.calculatedAmountAtomic === '0' || BigInt(scoringResult.calculatedAmountAtomic) <= 0n) {
+      if (v25.funAmount <= 0) {
         throw new Error('💝 Bạn chưa có FUN để mint! Hãy tham gia thêm hoạt động trên nền tảng nhé 🌟');
       }
 
-      // 5. Create evidence from activity summary
-      const evidence = {
-        type: 'LIGHT_ACTIVITY',
-        description: 'Auto-generated from platform light activities',
-        data: JSON.stringify(input.activitySummary),
-        timestamp: new Date().toISOString()
-      };
-
-      // 6. Create hashes
-      const actionHash = createActionHash('LIGHT_ACTIVITY');
-      const evidenceHash = createEvidenceHash({
-        actionType: 'LIGHT_ACTIVITY',
-        timestamp: Math.floor(Date.now() / 1000),
-        pillars: pillarScoresToRecord(input.pillars),
-        metadata: evidence
+      // 4. Submit through pplp-mint-fun edge function (enforces trust gate + 20M cap + sybil block)
+      console.log('[MintRequest:auto] Invoking pplp-mint-fun edge function...', {
+        vvu: v25.vvu,
+        funAmount: v25.funAmount,
+        decision: v25.decision,
       });
 
-      // 7. Insert into database using scored results
-      const insertData = {
-        user_id: user.id,
-        user_wallet_address: input.userWalletAddress,
-        platform_id: 'FUN_MAIN',
-        action_type: 'LIGHT_ACTIVITY',
-        action_evidence: evidence,
-        pillar_scores: input.pillars,
-        light_score: dbLightScore, // Use DB authoritative value
-        unity_score: scoringResult.unityScore,
-        unity_signals: input.unitySignals,
-        multiplier_q: scoringResult.multipliers.Q,
-        multiplier_i: scoringResult.multipliers.I,
-        multiplier_k: scoringResult.multipliers.K,
-        multiplier_ux: scoringResult.multipliers.Ux,
-        base_reward_atomic: baseRewardAtomic,
-        calculated_amount_atomic: scoringResult.calculatedAmountAtomic,
-        calculated_amount_formatted: scoringResult.calculatedAmountFormatted,
-        action_hash: actionHash,
-        evidence_hash: evidenceHash,
-        status: scoringResult.decision === 'REVIEW_HOLD' ? 'pending' : 'pending',
-        decision_reason: scoringResult.reasonCodes.join(', ') || null
-      };
+      const { data: edgeData, error: edgeError } = await supabase.functions.invoke('pplp-mint-fun', {
+        body: {
+          recipient_address: input.userWalletAddress,
+          action_type: 'LIGHT_ACTIVITY',
+          amount: v25.funAmount,
+          amount_wei: v25.funAmountAtomic,
+          platform_id: 'fun_main',
+          vvu_score: v25.vvu,
+          engine_version: 'pplp-v2.5',
+          metadata: {
+            ...v25.metadata,
+            decision: v25.decision,
+            reason_codes: v25.reasonCodes,
+            activity_summary: input.activitySummary,
+          },
+        },
+      });
 
-      console.log('[MintRequest] Inserting mint request...', { userId: user.id, wallet: input.userWalletAddress, amount: scoringResult.calculatedAmountFormatted });
-
-      const { data, error: insertError } = await (supabase as any)
-        .from('mint_requests')
-        .insert(insertData)
-        .select('id')
-        .single();
-
-      if (insertError) {
-        console.error('[MintRequest] Insert error:', insertError);
-        throw new Error(insertError.message);
+      if (edgeError) {
+        console.error('[MintRequest:auto] Edge function error:', edgeError);
+        throw new Error(edgeError.message || 'Mint edge function failed');
       }
 
-      console.log('[MintRequest] Success! Request ID:', data.id);
+      if (edgeData?.error) {
+        throw new Error(edgeData.error);
+      }
 
-      // 8. Update last mint timestamp on profile
+      const requestId = edgeData?.request?.id || edgeData?.id;
+      if (!requestId) {
+        throw new Error('Edge function did not return request id');
+      }
+
+      console.log('[MintRequest:auto] Success! Request ID:', requestId, 'status:', edgeData?.request?.status);
+
+      // 5. Update last mint timestamp on profile
       await supabase
         .from('profiles')
         .update({ last_fun_mint_at: new Date().toISOString() })
         .eq('id', user.id);
 
-      return { id: data.id };
+      return { id: requestId };
 
     } catch (err: any) {
       const errorMsg = err.message || 'Gửi yêu cầu tự động thất bại';
-      console.error('[MintRequest] Error:', errorMsg);
+      console.error('[MintRequest:auto] Error:', errorMsg);
       setError(errorMsg);
       return null;
     } finally {
