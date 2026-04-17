@@ -23,6 +23,8 @@ import {
   type AbuseSignals,
 } from './pplp-engine-v25';
 import { LEGACY_ACTION_MAP } from './light-score-params-v1';
+import { getStabilityIndex } from './stability-index';
+import { getCurrentPhase } from './system-phase';
 
 // ===== CALIBRATION =====
 /** 1 VVU = N FUN. Tuned so that average daily user (VVU≈4) earns ~2 FUN/action. */
@@ -101,6 +103,9 @@ export interface AdapterOutput {
     live_tier?: string;
     sbt_bonus?: number;
     sybil_risk?: number;
+    stability_index?: number;
+    system_phase?: string;
+    raw_vvu?: number;
   };
 }
 
@@ -224,12 +229,23 @@ export async function runV25MintAdapter(input: AdapterInput): Promise<AdapterOut
   // 4) Run with live trust (resolves TC + SBT bonus + sybil)
   const pipeline = await runPPLPv25PipelineWithLiveTrust(pipelineInput, userId);
 
-  // 5) VVU → FUN
-  const rawFun = pipeline.vvu * VVU_TO_FUN_RATE;
+  // 5) Stability + Phase modulation
+  const [stabilityIndex, systemPhase] = await Promise.all([
+    getStabilityIndex(userId).catch(() => 1.0),
+    getCurrentPhase().catch(() => 'early' as const),
+  ]);
+
+  // Phase scaling: early phase boosts emission to bootstrap, mature phase tightens
+  const phaseMultiplier = systemPhase === 'early' ? 1.0 : systemPhase === 'growth' ? 0.85 : 0.7;
+
+  // 6) VVU → FUN with stability + phase
+  const rawVvu = pipeline.vvu;
+  const adjustedVvu = rawVvu * stabilityIndex * phaseMultiplier;
+  const rawFun = adjustedVvu * VVU_TO_FUN_RATE;
   const funAmount = Math.max(0, Math.min(MAX_FUN_PER_REQUEST, Number(rawFun.toFixed(4))));
   const funAmountAtomic = BigInt(Math.round(funAmount * 1e18)).toString();
 
-  // 6) Decision
+  // 7) Decision
   let decision: AdapterOutput['decision'] = 'APPROVE';
   const reasonCodes: string[] = [];
   if (funAmount < MIN_FUN_AMOUNT) {
@@ -247,9 +263,12 @@ export async function runV25MintAdapter(input: AdapterInput): Promise<AdapterOut
     decision = decision === 'REJECT' ? decision : 'REVIEW_HOLD';
     reasonCodes.push('AAF_LOW');
   }
+  if (stabilityIndex < 0.7) {
+    reasonCodes.push('STABILITY_LOW');
+  }
 
   return {
-    vvu: pipeline.vvu,
+    vvu: adjustedVvu,
     funAmount,
     funAmountAtomic,
     decision,
@@ -268,6 +287,9 @@ export async function runV25MintAdapter(input: AdapterInput): Promise<AdapterOut
       live_tier: pipeline.live_tier,
       sbt_bonus: pipeline.sbt_bonus,
       sybil_risk: pipeline.sybil_risk,
+      stability_index: stabilityIndex,
+      system_phase: systemPhase,
+      raw_vvu: rawVvu,
     },
   };
 }

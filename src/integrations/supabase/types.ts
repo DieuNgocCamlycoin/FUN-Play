@@ -2850,6 +2850,98 @@ export type Database = {
           },
         ]
       }
+      parameter_change_log: {
+        Row: {
+          action: string
+          changed_at: string
+          changed_by: string
+          id: string
+          new_value: Json | null
+          old_value: Json | null
+          override_id: string | null
+          param_key: string
+          param_type: string
+          reason: string | null
+        }
+        Insert: {
+          action: string
+          changed_at?: string
+          changed_by: string
+          id?: string
+          new_value?: Json | null
+          old_value?: Json | null
+          override_id?: string | null
+          param_key: string
+          param_type: string
+          reason?: string | null
+        }
+        Update: {
+          action?: string
+          changed_at?: string
+          changed_by?: string
+          id?: string
+          new_value?: Json | null
+          old_value?: Json | null
+          override_id?: string | null
+          param_key?: string
+          param_type?: string
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "parameter_change_log_override_id_fkey"
+            columns: ["override_id"]
+            isOneToOne: false
+            referencedRelation: "parameter_overrides"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      parameter_overrides: {
+        Row: {
+          created_at: string
+          created_by: string
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          override_default: number | null
+          override_max: number | null
+          override_min: number | null
+          param_key: string
+          param_type: string
+          reason: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          override_default?: number | null
+          override_max?: number | null
+          override_min?: number | null
+          param_key: string
+          param_type: string
+          reason?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          override_default?: number | null
+          override_max?: number | null
+          override_min?: number | null
+          param_key?: string
+          param_type?: string
+          reason?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       platform_statistics: {
         Row: {
           active_users: number
@@ -4451,6 +4543,42 @@ export type Database = {
         }
         Relationships: []
       }
+      stability_snapshots: {
+        Row: {
+          computed_at: string
+          data_points: number
+          id: string
+          mean_ls_30d: number
+          snapshot_date: string
+          stability_index: number
+          std_dev: number
+          user_id: string
+          variance: number
+        }
+        Insert: {
+          computed_at?: string
+          data_points?: number
+          id?: string
+          mean_ls_30d?: number
+          snapshot_date?: string
+          stability_index?: number
+          std_dev?: number
+          user_id: string
+          variance?: number
+        }
+        Update: {
+          computed_at?: string
+          data_points?: number
+          id?: string
+          mean_ls_30d?: number
+          snapshot_date?: string
+          stability_index?: number
+          std_dev?: number
+          user_id?: string
+          variance?: number
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           channel_id: string
@@ -4513,6 +4641,45 @@ export type Database = {
           token_contract?: string
           total_synced?: number | null
           wallet_address?: string
+        }
+        Relationships: []
+      }
+      system_phase_state: {
+        Row: {
+          auto_switch_enabled: boolean
+          created_at: string
+          current_phase: string
+          id: string
+          is_current: boolean
+          kpi_snapshot: Json
+          previous_phase: string | null
+          switch_reason: string | null
+          switched_at: string
+          switched_by: string | null
+        }
+        Insert: {
+          auto_switch_enabled?: boolean
+          created_at?: string
+          current_phase?: string
+          id?: string
+          is_current?: boolean
+          kpi_snapshot?: Json
+          previous_phase?: string | null
+          switch_reason?: string | null
+          switched_at?: string
+          switched_by?: string | null
+        }
+        Update: {
+          auto_switch_enabled?: boolean
+          created_at?: string
+          current_phase?: string
+          id?: string
+          is_current?: boolean
+          kpi_snapshot?: Json
+          previous_phase?: string | null
+          switch_reason?: string | null
+          switched_at?: string
+          switched_by?: string | null
         }
         Relationships: []
       }
@@ -5658,6 +5825,8 @@ export type Database = {
         Args: { p_action: string; p_admin_id: string; p_max_requests?: number }
         Returns: Json
       }
+      compute_stability_index: { Args: { _user_id: string }; Returns: number }
+      evaluate_phase_switch: { Args: never; Returns: Json }
       evaluate_sbt_rule: {
         Args: { _rule_id: string; _user_id: string }
         Returns: boolean
