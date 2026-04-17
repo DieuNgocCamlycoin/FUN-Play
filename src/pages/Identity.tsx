@@ -11,6 +11,9 @@ import { TrustScoreCard } from '@/components/Identity/TrustScoreCard';
 import { SBTGallery } from '@/components/Identity/SBTGallery';
 import { AttestationPanel } from '@/components/Identity/AttestationPanel';
 import { RecoverySetup } from '@/components/Identity/RecoverySetup';
+import { ZKCommitmentPanel } from '@/components/Identity/ZKCommitmentPanel';
+import { OrgPanel } from '@/components/Identity/OrgPanel';
+import { AIAgentPanel } from '@/components/Identity/AIAgentPanel';
 import { getDID, type DIDRecord } from '@/lib/identity/did-registry';
 import { tcToTier, type TrustTier } from '@/lib/identity/trust-tier';
 
@@ -120,6 +123,21 @@ export default function Identity() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <AttestationPanel userId={user.id} />
           <RecoverySetup userId={user.id} />
+        </div>
+
+        <div className="space-y-2">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" /> Phase 4 — ZK · Org · AI Agent
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Zero-knowledge commitments, định danh tổ chức, và AI agent có operator chịu trách nhiệm.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <ZKCommitmentPanel />
+          <OrgPanel />
+          <AIAgentPanel />
         </div>
 
         <Card>
