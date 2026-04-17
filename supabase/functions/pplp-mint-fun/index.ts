@@ -85,6 +85,44 @@ Deno.serve(async (req) => {
       });
     }
 
+    // === Identity + Trust Layer v1.0 gate ===
+    // Require trust_tier ≥ T2 (verified) for full mint, T0/T1 sandbox-only
+    const { data: trustProfile } = await supabase
+      .from('trust_profile')
+      .select('tc, tier, sybil_risk')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    const userTier = trustProfile?.tier || 'T0';
+    const sybilRisk = Number(trustProfile?.sybil_risk) || 0;
+    const tcValue = Number(trustProfile?.tc) || 0.3;
+
+    // Block critical sybil risk
+    if (sybilRisk >= 60) {
+      return new Response(JSON.stringify({
+        error: 'Sybil risk quá cao — mint bị tạm khóa. Vui lòng liên hệ hỗ trợ.',
+        sybil_risk: sybilRisk,
+      }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // T0/T1 → sandbox cap (max 100 FUN per request)
+    const SANDBOX_MAX = 100;
+    if ((userTier === 'T0' || userTier === 'T1') && amount > SANDBOX_MAX) {
+      return new Response(JSON.stringify({
+        error: `Trust tier ${userTier} chỉ được mint tối đa ${SANDBOX_MAX} FUN/request (sandbox). Hãy nâng DID lên L2+ để mở full mint.`,
+        current_tier: userTier,
+        current_tc: tcValue,
+        required_tier: 'T2',
+        sandbox_max: SANDBOX_MAX,
+      }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Check per-platform daily cap
     const today = new Date().toISOString().split('T')[0];
     const { count } = await supabase
