@@ -5798,6 +5798,7 @@ export type Database = {
         }
         Returns: string
       }
+      recompute_sybil_risk: { Args: { _user_id: string }; Returns: number }
       recompute_trust_profile: {
         Args: { _user_id: string }
         Returns: undefined
