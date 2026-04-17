@@ -391,18 +391,26 @@ export function runPPLPv25Pipeline(input: PPLPv25PipelineInput): PPLPv25Pipeline
 export async function runPPLPv25PipelineWithLiveTrust(
   input: PPLPv25PipelineInput,
   userId?: string,
-): Promise<PPLPv25PipelineOutput & { live_tc?: number; live_tier?: string; sybil_risk?: number }> {
+): Promise<PPLPv25PipelineOutput & { live_tc?: number; live_tier?: string; sybil_risk?: number; sbt_bonus?: number }> {
   let liveTc: number | undefined;
   let liveTier: string | undefined;
   let sybilRisk: number | undefined;
+  let sbtBonus = 0;
 
   if (userId) {
     try {
-      const { resolveLiveTrust } = await import('@/lib/identity/trust-resolver');
-      const trust = await resolveLiveTrust(userId);
+      const [{ resolveLiveTrust }, { getSbtTrustBonus }] = await Promise.all([
+        import('@/lib/identity/trust-resolver'),
+        import('@/lib/identity/sbt-trust-bonus'),
+      ]);
+      const [trust, bonus] = await Promise.all([
+        resolveLiveTrust(userId),
+        getSbtTrustBonus(userId),
+      ]);
       liveTc = trust.tc;
       liveTier = trust.tier;
       sybilRisk = trust.sybil_risk;
+      sbtBonus = bonus;
       // Override context tier so getTrustConfidence picks the live value
       input = { ...input, context: { ...input.context, user_trust_tier: trust.tier } };
     } catch (err) {
@@ -412,14 +420,23 @@ export async function runPPLPv25PipelineWithLiveTrust(
 
   const out = runPPLPv25Pipeline(input);
 
+  // SBT bonus boosts VVU by up to +15% (cap enforced in getSbtTrustBonus)
+  let vvuAdjusted = out.vvu * (1 + sbtBonus);
+
   // Apply sybil penalty: high sybil risk reduces VVU
-  let vvuAdjusted = out.vvu;
   if (sybilRisk !== undefined && sybilRisk >= 60) {
     const penalty = sybilRisk >= 80 ? 0.3 : 0.6;
-    vvuAdjusted = out.vvu * penalty;
+    vvuAdjusted = vvuAdjusted * penalty;
   }
 
-  return { ...out, vvu: vvuAdjusted, live_tc: liveTc, live_tier: liveTier, sybil_risk: sybilRisk };
+  return {
+    ...out,
+    vvu: vvuAdjusted,
+    live_tc: liveTc,
+    live_tier: liveTier,
+    sybil_risk: sybilRisk,
+    sbt_bonus: sbtBonus,
+  };
 }
 
 // ===== UTILITY =====

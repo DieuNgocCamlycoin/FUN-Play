@@ -22,7 +22,20 @@ Deno.serve(async (req) => {
     );
 
     const sinceQuiet = new Date(Date.now() - QUIET_DAYS * 24 * 60 * 60 * 1000).toISOString();
-    const stats = { profiles_decayed: 0, freezes_lifted: 0, recomputed: 0, errors: [] as string[] };
+    const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const stats = { sybil_rescored: 0, profiles_decayed: 0, freezes_lifted: 0, recomputed: 0, errors: [] as string[] };
+
+    // 0) Re-score sybil risk for users active in last 24h (catches new IP/device collisions)
+    const { data: activeUsers } = await supabase
+      .from('identity_events')
+      .select('user_id')
+      .gte('created_at', since24h)
+      .limit(2000);
+    const uniqActive = Array.from(new Set((activeUsers || []).map((r: any) => r.user_id))).slice(0, 500);
+    for (const uid of uniqActive) {
+      const { error: sErr } = await supabase.rpc('recompute_sybil_risk', { _user_id: uid });
+      if (!sErr) stats.sybil_rescored++;
+    }
 
     // 1) Pick users with sybil_risk > 0 and no risky identity_events in last 7d
     const { data: candidates } = await supabase
