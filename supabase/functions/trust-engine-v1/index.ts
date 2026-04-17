@@ -233,7 +233,7 @@ async function runCompute(admin: any, targetUserId: string, profile: any) {
       last_computed_at: new Date().toISOString(),
     }, { onConflict: 'user_id' });
 
-    return new Response(JSON.stringify({
+    return {
       user_id: targetUserId,
       did_id: did?.did_id,
       did_level: newLevel,
@@ -242,12 +242,9 @@ async function runCompute(admin: any, targetUserId: string, profile: any) {
       fraud_risk: fraudRisk,
       permission_flags,
       computed_at: new Date().toISOString(),
-    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-
+    };
   } catch (error) {
-    console.error("trust-engine-v1 error:", error);
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unknown" }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    console.error("runCompute error:", error);
+    return { error: error instanceof Error ? error.message : "Unknown", user_id: targetUserId };
   }
-});
+}
