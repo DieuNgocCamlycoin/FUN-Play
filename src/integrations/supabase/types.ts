@@ -3279,9 +3279,11 @@ export type Database = {
           amount_wei: string
           block_number: number | null
           created_at: string
+          engine_version: string | null
           error_message: string | null
           evidence_hash: string | null
           id: string
+          metadata: Json | null
           multisig_completed_groups: string[] | null
           multisig_required_groups: string[] | null
           multisig_signatures: Json | null
@@ -3293,6 +3295,7 @@ export type Database = {
           tx_hash: string | null
           updated_at: string
           user_id: string
+          vvu_score: number | null
         }
         Insert: {
           action_hash?: string | null
@@ -3302,9 +3305,11 @@ export type Database = {
           amount_wei: string
           block_number?: number | null
           created_at?: string
+          engine_version?: string | null
           error_message?: string | null
           evidence_hash?: string | null
           id?: string
+          metadata?: Json | null
           multisig_completed_groups?: string[] | null
           multisig_required_groups?: string[] | null
           multisig_signatures?: Json | null
@@ -3316,6 +3321,7 @@ export type Database = {
           tx_hash?: string | null
           updated_at?: string
           user_id: string
+          vvu_score?: number | null
         }
         Update: {
           action_hash?: string | null
@@ -3325,9 +3331,11 @@ export type Database = {
           amount_wei?: string
           block_number?: number | null
           created_at?: string
+          engine_version?: string | null
           error_message?: string | null
           evidence_hash?: string | null
           id?: string
+          metadata?: Json | null
           multisig_completed_groups?: string[] | null
           multisig_required_groups?: string[] | null
           multisig_signatures?: Json | null
@@ -3339,6 +3347,7 @@ export type Database = {
           tx_hash?: string | null
           updated_at?: string
           user_id?: string
+          vvu_score?: number | null
         }
         Relationships: [
           {
