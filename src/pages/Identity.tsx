@@ -11,6 +11,9 @@ import { TrustScoreCard } from '@/components/Identity/TrustScoreCard';
 import { SBTGallery } from '@/components/Identity/SBTGallery';
 import { AttestationPanel } from '@/components/Identity/AttestationPanel';
 import { RecoverySetup } from '@/components/Identity/RecoverySetup';
+import { ZKCommitmentPanel } from '@/components/Identity/ZKCommitmentPanel';
+import { OrgPanel } from '@/components/Identity/OrgPanel';
+import { AIAgentPanel } from '@/components/Identity/AIAgentPanel';
 import { getDID, type DIDRecord } from '@/lib/identity/did-registry';
 import { tcToTier, type TrustTier } from '@/lib/identity/trust-tier';
 
