@@ -25,18 +25,52 @@ function tcToTier(tc: number): string {
   return 'T0';
 }
 
+async function computeForUser(admin: any, targetUserId: string) {
+  const { data: profile } = await admin.from('profiles')
+    .select('id, display_name, avatar_url, wallet_address, created_at, banned, pplp_accepted_at, consistency_days')
+    .eq('id', targetUserId).single();
+  if (!profile) return { error: 'User not found', user_id: targetUserId };
+  return await runCompute(admin, targetUserId, profile);
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
   try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const admin = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const body = await req.json().catch(() => ({}));
+
+    // === BATCH MODE (cron-only) ===
+    // Triggered by pg_cron with anon key — recompute top N most-active users.
+    if (body.cron === true && body.mode === 'batch_top_active') {
+      const limit = Math.min(2000, Number(body.limit) || 1000);
+      // Heuristic: most recently active in features_user_day (proxy for active users)
+      const { data: activeRows } = await admin.from('features_user_day')
+        .select('user_id')
+        .gte('date', new Date(Date.now() - 7 * 86_400_000).toISOString().slice(0, 10))
+        .limit(limit * 3);
+      const uniqueIds = Array.from(new Set((activeRows || []).map((r: any) => r.user_id))).slice(0, limit);
+      let okCount = 0;
+      let errCount = 0;
+      for (const uid of uniqueIds) {
+        try {
+          const r = await computeForUser(admin, uid);
+          if ((r as any).error) errCount++; else okCount++;
+        } catch { errCount++; }
+      }
+      return new Response(JSON.stringify({ batch: true, processed: uniqueIds.length, ok: okCount, errors: errCount }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // === SINGLE-USER MODE (authenticated) ===
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Missing auth" }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
     const { data: { user }, error: authError } = await anonClient.auth.getUser(authHeader.replace('Bearer ', ''));
     if (authError || !user) {
@@ -45,11 +79,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const body = await req.json().catch(() => ({}));
     const targetUserId = body.user_id || user.id;
-    const admin = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-
-    // Fetch profile
     const { data: profile } = await admin.from('profiles')
       .select('id, display_name, avatar_url, wallet_address, created_at, banned, pplp_accepted_at, consistency_days')
       .eq('id', targetUserId).single();
@@ -58,6 +88,18 @@ Deno.serve(async (req) => {
         status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    const result = await runCompute(admin, targetUserId, profile);
+    return new Response(JSON.stringify(result), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  } catch (error) {
+    console.error("trust-engine-v1 error:", error);
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unknown" }), {
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});
+
+async function runCompute(admin: any, targetUserId: string, profile: any) {
+  try {
 
     // Fetch or create DID
     let { data: did } = await admin.from('did_registry')
