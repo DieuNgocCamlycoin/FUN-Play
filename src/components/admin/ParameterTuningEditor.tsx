@@ -190,7 +190,7 @@ export const ParameterTuningEditor = () => {
                   {l.reason && <p className="text-[10px] text-muted-foreground italic mt-0.5">{l.reason}</p>}
                   <div className="text-[10px] font-mono text-muted-foreground mt-0.5">
                     {l.old_value && <span className="text-destructive">– {JSON.stringify(l.old_value)}</span>}
-                    {l.new_value && <span className="text-emerald-600 ml-2">+ {JSON.stringify(l.new_value)}</span>}
+                    {l.new_value && <span className="text-primary ml-2">+ {JSON.stringify(l.new_value)}</span>}
                   </div>
                 </div>
               ))}
