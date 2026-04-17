@@ -45,7 +45,8 @@ export type AdminSection =
   | "gov-attesters"
   | "founder"
   | "inflation-health"
-  | "identity-monitor";
+  | "identity-monitor"
+  | "trust-dashboard";
 
 interface NavItem {
   id: AdminSection;
@@ -81,6 +82,7 @@ const navItems: NavItem[] = [
   { id: "gov-attesters", label: "GOV Attesters", icon: Users },
   { id: "inflation-health", label: "Inflation Health", icon: BarChart3 },
   { id: "identity-monitor", label: "Identity Monitor", icon: Fingerprint },
+  { id: "trust-dashboard", label: "Trust Dashboard", icon: Shield },
   { id: "founder", label: "Founder Dashboard", icon: Crown, ownerOnly: true },
   { id: "admin-team", label: "Quản Lý Admin", icon: Crown, ownerOnly: true },
 ];

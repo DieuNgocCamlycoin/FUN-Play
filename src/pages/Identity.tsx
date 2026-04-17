@@ -123,7 +123,7 @@ export default function Identity() {
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <DIDLevelCard did={did} loading={loading} />
+          <DIDLevelCard did={did} loading={loading} onUpgraded={load} />
           <TrustScoreCard profile={trust} loading={loading} />
         </div>
 
