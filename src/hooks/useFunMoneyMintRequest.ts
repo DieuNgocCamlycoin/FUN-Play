@@ -169,8 +169,79 @@ export function useMintRequest(): UseMintRequestReturn {
         throw new Error(`Bạn đã có yêu cầu mint ${input.actionType} trong 24h qua. Vui lòng chờ.`);
       }
 
+      // ===== PPLP v2.5 ROUTE (default) =====
+      if (input.useV25 !== false) {
+        const v25 = await runV25MintAdapter({
+          userId: user.id,
+          actionType: input.actionType,
+          walletAddress: input.userWalletAddress,
+          evidence: { description: input.evidence.description },
+        });
+
+        if (v25.decision === 'REJECT') {
+          throw new Error(`Yêu cầu bị từ chối (v2.5): ${v25.reasonCodes.join(', ')}`);
+        }
+
+        const actionHash = createActionHash(input.actionType);
+        const evidenceHash = createEvidenceHash({
+          actionType: input.actionType,
+          timestamp: Math.floor(Date.now() / 1000),
+          pillars: pillarScoresToRecord(input.pillarScores),
+          metadata: { ...input.evidence, vvu: v25.vvu, v25_components: v25.metadata },
+        });
+
+        const insertData = {
+          user_id: user.id,
+          user_wallet_address: input.userWalletAddress,
+          platform_id: input.platformId,
+          action_type: input.actionType,
+          action_evidence: { ...input.evidence, engine: 'pplp-v2.5', v25: v25.metadata },
+          pillar_scores: input.pillarScores,
+          light_score: v25.vvu, // store VVU as light_score for backward UI compat
+          unity_score: v25.metadata.im,
+          unity_signals: input.unitySignals,
+          multiplier_q: v25.metadata.quality,
+          multiplier_i: v25.metadata.iis,
+          multiplier_k: v25.metadata.trust,
+          multiplier_ux: v25.metadata.aaf * v25.metadata.erp,
+          base_reward_atomic: '0',
+          calculated_amount_atomic: v25.funAmountAtomic,
+          calculated_amount_formatted: `${v25.funAmount} FUN`,
+          action_hash: actionHash,
+          evidence_hash: evidenceHash,
+          status: v25.decision === 'REVIEW_HOLD' ? 'pending' : 'pending',
+          decision_reason: v25.reasonCodes.join(', ') || `v2.5 VVU=${v25.vvu.toFixed(3)}`,
+        };
+
+        const { data, error: insertError } = await (supabase as any)
+          .from('mint_requests')
+          .insert(insertData)
+          .select('id')
+          .single();
+
+        if (insertError) throw new Error(insertError.message);
+
+        const v25ScoringResult: ScoringResult = {
+          decision: v25.decision === 'REVIEW_HOLD' ? 'REVIEW_HOLD' : 'APPROVE',
+          calculatedAmountAtomic: v25.funAmountAtomic,
+          calculatedAmountFormatted: `${v25.funAmount} FUN`,
+          baseRewardAtomic: '0',
+          lightScore: v25.vvu,
+          unityScore: v25.metadata.im,
+          multipliers: {
+            Q: v25.metadata.quality,
+            I: v25.metadata.iis,
+            K: v25.metadata.trust,
+            Ux: v25.metadata.aaf * v25.metadata.erp,
+          },
+          reasonCodes: v25.reasonCodes,
+        } as unknown as ScoringResult;
+
+        return { id: data.id, scoringResult: v25ScoringResult };
+      }
+
+      // ===== LEGACY v2.0 ROUTE =====
       // 1b. Fetch LS-Math data from profile & features if not provided
-      let streakDays = input.streakDays ?? 0;
       let sequenceBonus = input.sequenceBonus ?? 0;
       let riskScore = input.riskScore ?? 0;
 
