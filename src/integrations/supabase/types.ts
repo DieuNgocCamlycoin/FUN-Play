@@ -369,6 +369,60 @@ export type Database = {
           },
         ]
       }
+      attestation_log: {
+        Row: {
+          attestation_type: string
+          comment: string | null
+          created_at: string
+          from_did: string
+          from_user_id: string
+          id: string
+          status: string
+          to_did: string
+          to_user_id: string
+          weight: number
+        }
+        Insert: {
+          attestation_type: string
+          comment?: string | null
+          created_at?: string
+          from_did: string
+          from_user_id: string
+          id?: string
+          status?: string
+          to_did: string
+          to_user_id: string
+          weight?: number
+        }
+        Update: {
+          attestation_type?: string
+          comment?: string | null
+          created_at?: string
+          from_did?: string
+          from_user_id?: string
+          id?: string
+          status?: string
+          to_did?: string
+          to_user_id?: string
+          weight?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attestation_log_from_did_fkey"
+            columns: ["from_did"]
+            isOneToOne: false
+            referencedRelation: "did_registry"
+            referencedColumns: ["did_id"]
+          },
+          {
+            foreignKeyName: "attestation_log_to_did_fkey"
+            columns: ["to_did"]
+            isOneToOne: false
+            referencedRelation: "did_registry"
+            referencedColumns: ["did_id"]
+          },
+        ]
+      }
       balance_ledger: {
         Row: {
           amount: number
@@ -1129,6 +1183,42 @@ export type Database = {
         }
         Relationships: []
       }
+      did_registry: {
+        Row: {
+          anchor_hash: string | null
+          created_at: string
+          did_id: string
+          entity_type: Database["public"]["Enums"]["did_entity_type"]
+          level: Database["public"]["Enums"]["did_level"]
+          metadata: Json | null
+          status: Database["public"]["Enums"]["did_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          anchor_hash?: string | null
+          created_at?: string
+          did_id?: string
+          entity_type?: Database["public"]["Enums"]["did_entity_type"]
+          level?: Database["public"]["Enums"]["did_level"]
+          metadata?: Json | null
+          status?: Database["public"]["Enums"]["did_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          anchor_hash?: string | null
+          created_at?: string
+          did_id?: string
+          entity_type?: Database["public"]["Enums"]["did_entity_type"]
+          level?: Database["public"]["Enums"]["did_level"]
+          metadata?: Json | null
+          status?: Database["public"]["Enums"]["did_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       donate_tokens: {
         Row: {
           chain: string
@@ -1499,6 +1589,147 @@ export type Database = {
           status?: string
         }
         Relationships: []
+      }
+      identity_epoch_snapshot: {
+        Row: {
+          active_sbts: Json | null
+          did_id: string | null
+          did_level: Database["public"]["Enums"]["did_level"]
+          epoch_id: string
+          governance_eligible: boolean | null
+          id: string
+          mint_eligible: boolean | null
+          snapshotted_at: string
+          state_root_hash: string | null
+          sybil_risk: number
+          tc: number
+          tier: Database["public"]["Enums"]["trust_tier"]
+          user_id: string
+        }
+        Insert: {
+          active_sbts?: Json | null
+          did_id?: string | null
+          did_level: Database["public"]["Enums"]["did_level"]
+          epoch_id: string
+          governance_eligible?: boolean | null
+          id?: string
+          mint_eligible?: boolean | null
+          snapshotted_at?: string
+          state_root_hash?: string | null
+          sybil_risk?: number
+          tc: number
+          tier: Database["public"]["Enums"]["trust_tier"]
+          user_id: string
+        }
+        Update: {
+          active_sbts?: Json | null
+          did_id?: string | null
+          did_level?: Database["public"]["Enums"]["did_level"]
+          epoch_id?: string
+          governance_eligible?: boolean | null
+          id?: string
+          mint_eligible?: boolean | null
+          snapshotted_at?: string
+          state_root_hash?: string | null
+          sybil_risk?: number
+          tc?: number
+          tier?: Database["public"]["Enums"]["trust_tier"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "identity_epoch_snapshot_did_id_fkey"
+            columns: ["did_id"]
+            isOneToOne: false
+            referencedRelation: "did_registry"
+            referencedColumns: ["did_id"]
+          },
+        ]
+      }
+      identity_events: {
+        Row: {
+          created_at: string
+          did_id: string | null
+          event_ref: string | null
+          event_type: string
+          id: string
+          payload: Json | null
+          risk_delta: number | null
+          tc_delta: number | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          did_id?: string | null
+          event_ref?: string | null
+          event_type: string
+          id?: string
+          payload?: Json | null
+          risk_delta?: number | null
+          tc_delta?: number | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          did_id?: string | null
+          event_ref?: string | null
+          event_type?: string
+          id?: string
+          payload?: Json | null
+          risk_delta?: number | null
+          tc_delta?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "identity_events_did_id_fkey"
+            columns: ["did_id"]
+            isOneToOne: false
+            referencedRelation: "did_registry"
+            referencedColumns: ["did_id"]
+          },
+        ]
+      }
+      identity_links: {
+        Row: {
+          created_at: string
+          did_id: string
+          id: string
+          link_type: Database["public"]["Enums"]["identity_link_type"]
+          link_value: string
+          metadata: Json | null
+          verification_state: string
+          verified_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          did_id: string
+          id?: string
+          link_type: Database["public"]["Enums"]["identity_link_type"]
+          link_value: string
+          metadata?: Json | null
+          verification_state?: string
+          verified_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          did_id?: string
+          id?: string
+          link_type?: Database["public"]["Enums"]["identity_link_type"]
+          link_value?: string
+          metadata?: Json | null
+          verification_state?: string
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "identity_links_did_id_fkey"
+            columns: ["did_id"]
+            isOneToOne: false
+            referencedRelation: "did_registry"
+            referencedColumns: ["did_id"]
+          },
+        ]
       }
       immutable_rules: {
         Row: {
@@ -3348,6 +3579,56 @@ export type Database = {
           },
         ]
       }
+      recovery_log: {
+        Row: {
+          completed_at: string | null
+          cooldown_until: string | null
+          created_at: string
+          did_id: string | null
+          guardians: string[] | null
+          id: string
+          initiated_by: string | null
+          payload: Json | null
+          recovery_layer: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          cooldown_until?: string | null
+          created_at?: string
+          did_id?: string | null
+          guardians?: string[] | null
+          id?: string
+          initiated_by?: string | null
+          payload?: Json | null
+          recovery_layer: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          cooldown_until?: string | null
+          created_at?: string
+          did_id?: string | null
+          guardians?: string[] | null
+          id?: string
+          initiated_by?: string | null
+          payload?: Json | null
+          recovery_layer?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recovery_log_did_id_fkey"
+            columns: ["did_id"]
+            isOneToOne: false
+            referencedRelation: "did_registry"
+            referencedColumns: ["did_id"]
+          },
+        ]
+      }
       reward_actions: {
         Row: {
           action_type: string
@@ -3736,6 +4017,113 @@ export type Database = {
         }
         Relationships: []
       }
+      sbt_issuance_rules: {
+        Row: {
+          category: Database["public"]["Enums"]["sbt_category"]
+          conditions: Json
+          created_at: string
+          description: string | null
+          display_name: string
+          id: string
+          is_active: boolean
+          issue_mode: Database["public"]["Enums"]["sbt_issue_mode"]
+          sbt_type: string
+          trust_weight: number
+        }
+        Insert: {
+          category: Database["public"]["Enums"]["sbt_category"]
+          conditions?: Json
+          created_at?: string
+          description?: string | null
+          display_name: string
+          id?: string
+          is_active?: boolean
+          issue_mode?: Database["public"]["Enums"]["sbt_issue_mode"]
+          sbt_type: string
+          trust_weight?: number
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["sbt_category"]
+          conditions?: Json
+          created_at?: string
+          description?: string | null
+          display_name?: string
+          id?: string
+          is_active?: boolean
+          issue_mode?: Database["public"]["Enums"]["sbt_issue_mode"]
+          sbt_type?: string
+          trust_weight?: number
+        }
+        Relationships: []
+      }
+      sbt_registry: {
+        Row: {
+          category: Database["public"]["Enums"]["sbt_category"]
+          did_id: string
+          evidence_hash: string | null
+          expires_at: string | null
+          issued_at: string
+          issuer: string
+          metadata: Json | null
+          on_chain_token_id: string | null
+          on_chain_tx_hash: string | null
+          privacy_level: string
+          revocation_reason: string | null
+          sbt_type: string
+          status: Database["public"]["Enums"]["sbt_status"]
+          token_id: string
+          trust_weight: number
+          upgrade_path: string | null
+          user_id: string
+        }
+        Insert: {
+          category: Database["public"]["Enums"]["sbt_category"]
+          did_id: string
+          evidence_hash?: string | null
+          expires_at?: string | null
+          issued_at?: string
+          issuer?: string
+          metadata?: Json | null
+          on_chain_token_id?: string | null
+          on_chain_tx_hash?: string | null
+          privacy_level?: string
+          revocation_reason?: string | null
+          sbt_type: string
+          status?: Database["public"]["Enums"]["sbt_status"]
+          token_id?: string
+          trust_weight?: number
+          upgrade_path?: string | null
+          user_id: string
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["sbt_category"]
+          did_id?: string
+          evidence_hash?: string | null
+          expires_at?: string | null
+          issued_at?: string
+          issuer?: string
+          metadata?: Json | null
+          on_chain_token_id?: string | null
+          on_chain_tx_hash?: string | null
+          privacy_level?: string
+          revocation_reason?: string | null
+          sbt_type?: string
+          status?: Database["public"]["Enums"]["sbt_status"]
+          token_id?: string
+          trust_weight?: number
+          upgrade_path?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sbt_registry_did_id_fkey"
+            columns: ["did_id"]
+            isOneToOne: false
+            referencedRelation: "did_registry"
+            referencedColumns: ["did_id"]
+          },
+        ]
+      }
       score_explanations: {
         Row: {
           created_at: string
@@ -4049,6 +4437,71 @@ export type Database = {
           vault_name?: string
         }
         Relationships: []
+      }
+      trust_profile: {
+        Row: {
+          bs: number | null
+          cleanliness: number | null
+          did_id: string | null
+          fraud_risk: number
+          hs: number | null
+          last_computed_at: string
+          os: number | null
+          permission_flags: Json | null
+          rf: number | null
+          ss: number | null
+          sybil_risk: number
+          tc: number
+          tier: Database["public"]["Enums"]["trust_tier"]
+          updated_at: string
+          user_id: string
+          vs: number | null
+        }
+        Insert: {
+          bs?: number | null
+          cleanliness?: number | null
+          did_id?: string | null
+          fraud_risk?: number
+          hs?: number | null
+          last_computed_at?: string
+          os?: number | null
+          permission_flags?: Json | null
+          rf?: number | null
+          ss?: number | null
+          sybil_risk?: number
+          tc?: number
+          tier?: Database["public"]["Enums"]["trust_tier"]
+          updated_at?: string
+          user_id: string
+          vs?: number | null
+        }
+        Update: {
+          bs?: number | null
+          cleanliness?: number | null
+          did_id?: string | null
+          fraud_risk?: number
+          hs?: number | null
+          last_computed_at?: string
+          os?: number | null
+          permission_flags?: Json | null
+          rf?: number | null
+          ss?: number | null
+          sybil_risk?: number
+          tc?: number
+          tier?: Database["public"]["Enums"]["trust_tier"]
+          updated_at?: string
+          user_id?: string
+          vs?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trust_profile_did_id_fkey"
+            columns: ["did_id"]
+            isOneToOne: false
+            referencedRelation: "did_registry"
+            referencedColumns: ["did_id"]
+          },
+        ]
       }
       user_actions: {
         Row: {
@@ -5173,6 +5626,27 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "moderator" | "user" | "owner"
+      did_entity_type:
+        | "human"
+        | "organization"
+        | "ai_agent"
+        | "validator"
+        | "merchant"
+      did_level: "L0" | "L1" | "L2" | "L3" | "L4"
+      did_status:
+        | "pending"
+        | "basic"
+        | "verified"
+        | "trusted"
+        | "restricted"
+        | "suspended"
+      identity_link_type:
+        | "wallet"
+        | "social"
+        | "device"
+        | "organization"
+        | "referrer"
+        | "mentor"
       pplp_event_type:
         | "LOGIN"
         | "LIGHT_CHECKIN"
@@ -5200,6 +5674,16 @@ export type Database = {
         | "PROPOSAL_SUBMITTED"
         | "ONCHAIN_TX_VERIFIED"
         | "PPLP_RATING_SUBMITTED"
+      sbt_category:
+        | "identity"
+        | "trust"
+        | "contribution"
+        | "credential"
+        | "milestone"
+        | "legacy"
+      sbt_issue_mode: "auto" | "semi_auto" | "governance"
+      sbt_status: "active" | "frozen" | "revoked" | "archived"
+      trust_tier: "T0" | "T1" | "T2" | "T3" | "T4"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -5328,6 +5812,30 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "moderator", "user", "owner"],
+      did_entity_type: [
+        "human",
+        "organization",
+        "ai_agent",
+        "validator",
+        "merchant",
+      ],
+      did_level: ["L0", "L1", "L2", "L3", "L4"],
+      did_status: [
+        "pending",
+        "basic",
+        "verified",
+        "trusted",
+        "restricted",
+        "suspended",
+      ],
+      identity_link_type: [
+        "wallet",
+        "social",
+        "device",
+        "organization",
+        "referrer",
+        "mentor",
+      ],
       pplp_event_type: [
         "LOGIN",
         "LIGHT_CHECKIN",
@@ -5356,6 +5864,17 @@ export const Constants = {
         "ONCHAIN_TX_VERIFIED",
         "PPLP_RATING_SUBMITTED",
       ],
+      sbt_category: [
+        "identity",
+        "trust",
+        "contribution",
+        "credential",
+        "milestone",
+        "legacy",
+      ],
+      sbt_issue_mode: ["auto", "semi_auto", "governance"],
+      sbt_status: ["active", "frozen", "revoked", "archived"],
+      trust_tier: ["T0", "T1", "T2", "T3", "T4"],
     },
   },
 } as const
