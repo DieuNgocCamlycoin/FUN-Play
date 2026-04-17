@@ -17,6 +17,7 @@ import {
   type ScoringResult 
 } from '@/lib/fun-money/pplp-engine';
 import { createActionHash, createEvidenceHash } from '@/lib/fun-money/web3-config';
+import { runV25MintAdapter } from '@/lib/fun-money/pplp-v25-adapter';
 
 // ===== TYPES =====
 
