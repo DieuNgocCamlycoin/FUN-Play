@@ -125,6 +125,21 @@ export default function Identity() {
           <RecoverySetup userId={user.id} />
         </div>
 
+        <div className="space-y-2">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" /> Phase 4 — ZK · Org · AI Agent
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Zero-knowledge commitments, định danh tổ chức, và AI agent có operator chịu trách nhiệm.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <ZKCommitmentPanel />
+          <OrgPanel />
+          <AIAgentPanel />
+        </div>
+
         <Card>
           <CardContent className="p-4 text-xs text-muted-foreground">
             <p><strong className="text-foreground">Spec v1.0:</strong> 3 layer (DID, SBT, DIB) + Trust Engine. Trust Confidence quyết định Light Score được tin và quyền mint/governance.</p>
