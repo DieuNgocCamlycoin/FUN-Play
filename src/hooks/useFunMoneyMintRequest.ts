@@ -44,6 +44,8 @@ export interface MintRequestInput {
   riskScore?: number;
   /** PPLP v2.0: validation flags */
   pplpValidation?: import('@/lib/fun-money/constitution').PPLPValidation;
+  /** When true (default), routes through PPLP v2.5 VVU pipeline (live trust + SBT). */
+  useV25?: boolean;
 }
 
 // Auto mint input (1-click from light activity)
