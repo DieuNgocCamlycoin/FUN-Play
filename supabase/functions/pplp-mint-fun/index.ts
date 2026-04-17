@@ -43,7 +43,21 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { recipient_address, action_type, amount, amount_wei, action_hash, evidence_hash, nonce, action_ids, platform_id: reqPlatform } = body;
+    const {
+      recipient_address,
+      action_type,
+      amount,
+      amount_wei,
+      action_hash,
+      evidence_hash,
+      nonce,
+      action_ids,
+      platform_id: reqPlatform,
+      // PPLP v2.5 fields (optional)
+      vvu_score,
+      engine_version,
+      metadata,
+    } = body;
 
     // Enforce single mint point: only fun_main accepted
     const platformId = reqPlatform || 'fun_main';
@@ -161,6 +175,10 @@ Deno.serve(async (req) => {
     }
 
     // Insert mint request
+    const initialStatus = engine_version === 'pplp-v2.5' && metadata?.decision === 'REVIEW_HOLD'
+      ? 'pending_review'
+      : 'pending_sig';
+
     const { data: mintRequest, error: insertError } = await supabase
       .from('pplp_mint_requests')
       .insert({
@@ -176,8 +194,11 @@ Deno.serve(async (req) => {
         multisig_signatures: {},
         multisig_completed_groups: [],
         multisig_required_groups: ['will', 'wisdom', 'love'],
-        status: 'pending_sig',
+        status: initialStatus,
         platform_id: platformId,
+        vvu_score: vvu_score ?? null,
+        engine_version: engine_version || 'pplp-v2.0',
+        metadata: metadata || {},
       })
       .select()
       .single();
