@@ -25,6 +25,7 @@ import { MultisigMintTab } from "@/components/Admin/tabs/MultisigMintTab";
 import { GovAttesterManagementTab } from "@/components/Admin/tabs/GovAttesterManagementTab";
 import { FounderDashboardTab } from "@/components/Admin/tabs/FounderDashboardTab";
 import InflationHealthDashboard from "@/pages/Admin/InflationHealthDashboard";
+import { IdentityMonitorTab } from "@/components/Admin/tabs/IdentityMonitorTab";
 import { useAdminManage } from "@/hooks/useAdminManage";
 
 export default function UnifiedAdminDashboard() {
@@ -155,6 +156,8 @@ export default function UnifiedAdminDashboard() {
         return <FounderDashboardTab />;
       case "inflation-health":
         return <InflationHealthDashboard />;
+      case "identity-monitor":
+        return <IdentityMonitorTab />;
       default:
         return <OverviewTab />;
     }
@@ -190,6 +193,7 @@ export default function UnifiedAdminDashboard() {
               {currentSection === "gov-attesters" && "Quản Lý GOV Attesters"}
               {currentSection === "founder" && "Founder Dashboard"}
               {currentSection === "inflation-health" && "Inflation Health Monitor"}
+              {currentSection === "identity-monitor" && "Identity & Trust Monitor"}
             </h1>
             <p className="text-muted-foreground mt-1">
               {currentSection === "overview" && "Thống kê toàn nền tảng FUN Play"}
@@ -210,6 +214,7 @@ export default function UnifiedAdminDashboard() {
               {currentSection === "gov-attesters" && "Quản lý 3 nhóm GOV (WILL, WISDOM, LOVE) — xem, thêm, sửa, toggle active thành viên"}
               {currentSection === "founder" && "Dashboard tổng quan dành riêng cho Founder — 7 panel phân tích toàn hệ thống"}
               {currentSection === "inflation-health" && "5 health ratios, treasury vaults, epoch metrics — giám sát sức khỏe tiền tệ FUN"}
+              {currentSection === "identity-monitor" && "ZK commitments, organizations, AI agents — Phase 4A telemetry"}
             </p>
           </div>
         </div>
