@@ -83,11 +83,16 @@ export default function Identity() {
 
   return (
     <>
-      <Helmet>
-        <title>Identity & Trust — FUN Play</title>
-        <meta name="description" content="Quản lý DID, Trust Confidence, SBT và Recovery của bạn trong hệ FUN." />
-        <link rel="canonical" href={`${window.location.origin}/identity`} />
-      </Helmet>
+      {(() => {
+        if (typeof document !== 'undefined') {
+          document.title = 'Identity & Trust — FUN Play';
+          let meta = document.querySelector('meta[name="description"]');
+          if (!meta) { meta = document.createElement('meta'); meta.setAttribute('name', 'description'); document.head.appendChild(meta); }
+          meta.setAttribute('content', 'Quản lý DID, Trust Confidence, SBT và Recovery của bạn trong hệ FUN.');
+        }
+        return null;
+      })()}
+
 
       <main className="container max-w-6xl mx-auto px-4 py-6 space-y-6">
         <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
