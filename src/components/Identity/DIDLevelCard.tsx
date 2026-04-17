@@ -1,17 +1,22 @@
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Shield, Sparkles } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Shield, Sparkles, Phone } from 'lucide-react';
 import { DID_LEVEL_LABELS, DID_LEVEL_DESCRIPTIONS, type DIDRecord, type DIDLevel } from '@/lib/identity/did-registry';
+import { PhoneVerificationModal } from './PhoneVerificationModal';
 
 const LEVEL_ORDER: DIDLevel[] = ['L0', 'L1', 'L2', 'L3', 'L4'];
 
 interface Props {
   did: DIDRecord | null;
   loading?: boolean;
+  onUpgraded?: () => void;
 }
 
-export function DIDLevelCard({ did, loading }: Props) {
+export function DIDLevelCard({ did, loading, onUpgraded }: Props) {
+  const [phoneOpen, setPhoneOpen] = useState(false);
   if (loading) {
     return (
       <Card><CardContent className="p-6"><div className="h-32 animate-pulse bg-muted rounded" /></CardContent></Card>
@@ -54,7 +59,14 @@ export function DIDLevelCard({ did, loading }: Props) {
             <Sparkles className="h-3 w-3" /> Status: <span className="font-medium text-foreground">{did.status}</span>
           </div>
         )}
+        {(currentLevel === 'L0' || currentLevel === 'L1') && (
+          <Button size="sm" variant="default" className="w-full gap-2" onClick={() => setPhoneOpen(true)}>
+            <Phone className="h-3.5 w-3.5" />
+            Nâng cấp lên L2 bằng OTP điện thoại
+          </Button>
+        )}
       </CardContent>
+      <PhoneVerificationModal open={phoneOpen} onOpenChange={setPhoneOpen} onVerified={onUpgraded} />
     </Card>
   );
 }

@@ -14,6 +14,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { PublicTrustBadges } from "./PublicTrustBadges";
 
 interface ProfileInfoProps {
   profile: {
@@ -116,6 +117,11 @@ export const ProfileInfo = ({
             <span className="text-[hsl(var(--cosmic-gold))] font-semibold">
               {profile.total_camly_rewards.toLocaleString()} CAMLY
             </span>
+          </div>
+
+          {/* Trust badges */}
+          <div className="flex justify-center md:justify-start mb-2">
+            <PublicTrustBadges userId={profile.id} />
           </div>
 
           {/* Bio */}

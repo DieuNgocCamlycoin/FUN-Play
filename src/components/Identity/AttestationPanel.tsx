@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Users, ArrowRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { AttestationModal } from './AttestationModal';
 
 interface Attestation {
   id: string;
@@ -25,7 +25,7 @@ export function AttestationPanel({ userId }: Props) {
   const [received, setReceived] = useState<Attestation[]>([]);
   const [given, setGiven] = useState<Attestation[]>([]);
   const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
+  const [modalOpen, setModalOpen] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -87,10 +87,11 @@ export function AttestationPanel({ userId }: Props) {
           )}
         </div>
 
-        <Button variant="outline" size="sm" className="w-full" onClick={() => toast({ title: 'Sắp ra mắt', description: 'Trao attestation cho người khác sẽ có trong bản sau.' })}>
+        <Button variant="outline" size="sm" className="w-full" onClick={() => setModalOpen(true)}>
           Trao attestation
         </Button>
       </CardContent>
+      <AttestationModal open={modalOpen} onOpenChange={setModalOpen} onIssued={load} />
     </Card>
   );
 }

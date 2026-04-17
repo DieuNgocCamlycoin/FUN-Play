@@ -26,6 +26,7 @@ import { GovAttesterManagementTab } from "@/components/Admin/tabs/GovAttesterMan
 import { FounderDashboardTab } from "@/components/Admin/tabs/FounderDashboardTab";
 import InflationHealthDashboard from "@/pages/Admin/InflationHealthDashboard";
 import { IdentityMonitorTab } from "@/components/Admin/tabs/IdentityMonitorTab";
+import { TrustDashboardTab } from "@/components/Admin/tabs/TrustDashboardTab";
 import { useAdminManage } from "@/hooks/useAdminManage";
 
 export default function UnifiedAdminDashboard() {
@@ -158,6 +159,8 @@ export default function UnifiedAdminDashboard() {
         return <InflationHealthDashboard />;
       case "identity-monitor":
         return <IdentityMonitorTab />;
+      case "trust-dashboard":
+        return <TrustDashboardTab />;
       default:
         return <OverviewTab />;
     }
@@ -194,6 +197,7 @@ export default function UnifiedAdminDashboard() {
               {currentSection === "founder" && "Founder Dashboard"}
               {currentSection === "inflation-health" && "Inflation Health Monitor"}
               {currentSection === "identity-monitor" && "Identity & Trust Monitor"}
+              {currentSection === "trust-dashboard" && "Trust Engine Dashboard"}
             </h1>
             <p className="text-muted-foreground mt-1">
               {currentSection === "overview" && "Thống kê toàn nền tảng FUN Play"}
@@ -215,6 +219,7 @@ export default function UnifiedAdminDashboard() {
               {currentSection === "founder" && "Dashboard tổng quan dành riêng cho Founder — 7 panel phân tích toàn hệ thống"}
               {currentSection === "inflation-health" && "5 health ratios, treasury vaults, epoch metrics — giám sát sức khỏe tiền tệ FUN"}
               {currentSection === "identity-monitor" && "ZK commitments, organizations, AI agents — Phase 4A telemetry"}
+              {currentSection === "trust-dashboard" && "Phân bố DID/Trust tier, sybil heatmap, top SBT minted — Phase 4E"}
             </p>
           </div>
         </div>
