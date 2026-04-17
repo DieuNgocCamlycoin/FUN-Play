@@ -242,6 +242,7 @@ export function useMintRequest(): UseMintRequestReturn {
 
       // ===== LEGACY v2.0 ROUTE =====
       // 1b. Fetch LS-Math data from profile & features if not provided
+      let streakDays = input.streakDays ?? 0;
       let sequenceBonus = input.sequenceBonus ?? 0;
       let riskScore = input.riskScore ?? 0;
 
