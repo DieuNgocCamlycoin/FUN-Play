@@ -91,8 +91,8 @@ export function ZKCommitmentPanel() {
         </div>
 
         {lastSalt && (
-          <div className="p-3 rounded-lg border border-amber-500/40 bg-amber-500/5">
-            <p className="text-xs font-semibold text-amber-600 dark:text-amber-400 mb-1">
+          <div className="p-3 rounded-lg border border-warning/40 bg-warning/5">
+            <p className="text-xs font-semibold text-warning mb-1">
               ⚠️ Lưu salt này — không thể khôi phục:
             </p>
             <code className="text-[10px] break-all">{lastSalt}</code>

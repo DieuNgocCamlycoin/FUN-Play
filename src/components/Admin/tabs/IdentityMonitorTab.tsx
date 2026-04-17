@@ -157,7 +157,7 @@ function StatCard({
 }: { icon: any; label: string; value: number; accent?: 'primary' | 'warning' }) {
   const accentClass =
     accent === 'primary' ? 'text-primary' :
-    accent === 'warning' ? 'text-amber-600 dark:text-amber-400' :
+    accent === 'warning' ? 'text-warning' :
     'text-foreground';
   return (
     <Card>

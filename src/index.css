@@ -33,6 +33,9 @@ All colors MUST be HSL.
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
     --border: 200 100% 90%;
     --input: 200 100% 98%;
     --ring: 186 100% 50%;
@@ -105,6 +108,9 @@ All colors MUST be HSL.
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
+
+    --warning: 45 93% 55%;
+    --warning-foreground: 0 0% 100%;
 
     --border: 291 100% 50%;
     --input: 253 60% 30%;
