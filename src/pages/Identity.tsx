@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Helmet } from 'react-helmet-async';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -44,9 +43,10 @@ export default function Identity() {
 
     const { data: tp } = await supabase.from('trust_profile').select('*').eq('user_id', user.id).maybeSingle();
     if (tp) {
+      const tcVal = Number(tp.tc) || 0.3;
       setTrust({
-        tc: Number(tp.tc) || 0.3,
-        trust_tier: (tp.trust_tier as TrustTier) || tcToTier(Number(tp.tc) || 0.3),
+        tc: tcVal,
+        trust_tier: (tp.tier as TrustTier) || tcToTier(tcVal),
         vs: Number(tp.vs) || 0, bs: Number(tp.bs) || 0, ss: Number(tp.ss) || 0,
         os: Number(tp.os) || 0, hs: Number(tp.hs) || 0, rf: Number(tp.rf) || 1,
         sybil_risk: Number(tp.sybil_risk) || 0,
