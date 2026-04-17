@@ -1,12 +1,13 @@
 /**
- * Auto Mint FUN Hook
- * Listens for camly-reward events and automatically creates FUN_PLAY mint requests
+ * Auto Mint FUN Hook — PPLP v2.5
+ * Listens for camly-reward events and creates FUN_PLAY mint requests
+ * using the v2.5 VVU pipeline (live trust + SBT bonus + sybil penalty).
  */
 
 import { useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useMintRequest } from '@/hooks/useFunMoneyMintRequest';
-import type { PillarScores, UnitySignals } from '@/lib/fun-money/pplp-engine';
+import { runV25MintAdapter } from '@/lib/fun-money/pplp-v25-adapter';
+import { createActionHash, createEvidenceHash } from '@/lib/fun-money/web3-config';
 
 // ===== TYPES =====
 
@@ -19,17 +20,17 @@ interface CamlyRewardDetail {
 
 // Mapping from CAMLY reward type to FUN_PLAY action type
 const CAMLY_TO_FUN_ACTION: Record<string, string> = {
-  'VIEW': 'WATCH_VIDEO',
-  'LIKE': 'LIKE_VIDEO',
-  'COMMENT': 'COMMENT',
-  'SHARE': 'SHARE',
-  'UPLOAD': 'UPLOAD_VIDEO',
-  'SHORT_VIDEO_UPLOAD': 'UPLOAD_VIDEO',
-  'LONG_VIDEO_UPLOAD': 'UPLOAD_VIDEO',
-  'FIRST_UPLOAD': 'UPLOAD_VIDEO',
-  'SIGNUP': 'SIGNUP',
-  'WALLET_CONNECT': 'WALLET_CONNECT',
-  'CREATE_POST': 'CREATE_POST',
+  VIEW: 'WATCH_VIDEO',
+  LIKE: 'LIKE_VIDEO',
+  COMMENT: 'COMMENT',
+  SHARE: 'SHARE',
+  UPLOAD: 'UPLOAD_VIDEO',
+  SHORT_VIDEO_UPLOAD: 'UPLOAD_VIDEO',
+  LONG_VIDEO_UPLOAD: 'UPLOAD_VIDEO',
+  FIRST_UPLOAD: 'UPLOAD_VIDEO',
+  SIGNUP: 'SIGNUP',
+  WALLET_CONNECT: 'WALLET_CONNECT',
+  CREATE_POST: 'CREATE_POST',
 };
 
 const MIN_LIGHT_SCORE = 60;
@@ -38,136 +39,117 @@ const COOLDOWN_MS = 60_000; // 1 minute per action type
 // ===== HOOK =====
 
 export function useAutoMintFun(userId: string | undefined) {
-  const { submitRequest } = useMintRequest();
   const cooldownMap = useRef<Map<string, number>>(new Map());
   const processingRef = useRef(false);
 
-  const handleCamlyReward = useCallback(async (event: Event) => {
-    if (!userId || processingRef.current) return;
+  const handleCamlyReward = useCallback(
+    async (event: Event) => {
+      if (!userId || processingRef.current) return;
 
-    const detail = (event as CustomEvent<CamlyRewardDetail>).detail;
-    const funAction = CAMLY_TO_FUN_ACTION[detail.type];
-    if (!funAction) return; // Not a mappable action (e.g. SIGNUP, WALLET_CONNECT)
+      const detail = (event as CustomEvent<CamlyRewardDetail>).detail;
+      const funAction = CAMLY_TO_FUN_ACTION[detail.type];
+      if (!funAction) return;
 
-    // Cooldown check
-    const cooldownKey = `${funAction}-${detail.videoId || 'none'}`;
-    const lastMint = cooldownMap.current.get(cooldownKey) || 0;
-    if (Date.now() - lastMint < COOLDOWN_MS) return;
+      const cooldownKey = `${funAction}-${detail.videoId || 'none'}`;
+      const lastMint = cooldownMap.current.get(cooldownKey) || 0;
+      if (Date.now() - lastMint < COOLDOWN_MS) return;
 
-    processingRef.current = true;
+      processingRef.current = true;
 
-    try {
-      // Fetch profile data for scoring
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('light_score, wallet_address, auto_mint_fun_enabled, suspicious_score, avatar_verified, created_at')
-        .eq('id', userId)
-        .single();
+      try {
+        // 1) Profile gates
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('light_score, wallet_address, auto_mint_fun_enabled')
+          .eq('id', userId)
+          .single();
+        if (!profile) return;
+        if (profile.auto_mint_fun_enabled === false) return;
+        if (!profile.wallet_address) return;
+        if ((profile.light_score || 0) < MIN_LIGHT_SCORE) return;
 
-      if (profileError || !profile) return;
+        // 2) Run v2.5 pipeline (live TC + SBT + sybil)
+        const result = await runV25MintAdapter({
+          userId,
+          actionType: funAction,
+          walletAddress: profile.wallet_address,
+          evidence: { videoId: detail.videoId, isFirstTime: detail.type === 'FIRST_UPLOAD' },
+        });
 
-      // Check if auto-mint is enabled
-      if (profile.auto_mint_fun_enabled === false) return;
+        if (result.decision === 'REJECT') {
+          console.log('[AutoMintFUN/v2.5] Rejected:', result.reasonCodes);
+          return;
+        }
 
-      // Check wallet
-      if (!profile.wallet_address) return;
+        // 3) Insert mint request directly into pplp_mint_requests
+        const actionHash = createActionHash(funAction);
+        const evidenceHash = createEvidenceHash({
+          actionType: funAction,
+          timestamp: Math.floor(Date.now() / 1000),
+          pillars: {},
+          metadata: { camly: detail, vvu: result.vvu, ...result.metadata },
+        });
 
-      // Check light score
-      if ((profile.light_score || 0) < MIN_LIGHT_SCORE) return;
+        const { data: mintRequest, error: insertError } = await (supabase as any)
+          .from('pplp_mint_requests')
+          .insert({
+            user_id: userId,
+            recipient_address: profile.wallet_address,
+            action_type: funAction,
+            amount: result.funAmount,
+            amount_wei: result.funAmountAtomic,
+            action_hash: actionHash,
+            evidence_hash: evidenceHash,
+            multisig_signatures: {},
+            multisig_completed_groups: [],
+            multisig_required_groups: ['will', 'wisdom', 'love'],
+            status: result.decision === 'REVIEW_HOLD' ? 'pending_review' : 'pending_sig',
+            platform_id: 'fun_main',
+            metadata: {
+              engine: 'pplp-v2.5',
+              vvu: result.vvu,
+              components: result.metadata,
+              source: 'auto-mint',
+              camly_reward: detail,
+            },
+          })
+          .select()
+          .single();
 
-      // Fetch real LS-Math data from features_user_day
-      const { data: features } = await (supabase as any)
-        .from('features_user_day')
-        .select('consistency_streak, sequence_count, anti_farm_risk, content_pillar_score, avg_rating_weighted')
-        .eq('user_id', userId)
-        .order('date', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        if (insertError) {
+          console.error('[AutoMintFUN/v2.5] Insert error:', insertError);
+          return;
+        }
 
-      const streakDays = features?.consistency_streak || 0;
-      const sequenceBonus = features?.sequence_count || 0;
-      const riskScore = features?.anti_farm_risk || 0;
-      const contentPillarScore = features?.content_pillar_score || 0;
-
-      // Build pillar scores from real data instead of hardcoded values
-      const accountAgeDays = Math.floor((Date.now() - new Date(profile.created_at).getTime()) / (1000 * 60 * 60 * 24));
-      const isVerified = profile.avatar_verified || false;
-      const lightScore = profile.light_score || 0;
-
-      // Derive pillar scores from real profile data
-      const pillars: PillarScores = {
-        S: Math.min(100, Math.round(lightScore * 0.8)), // Service: derived from light score
-        T: Math.min(100, (isVerified ? 30 : 0) + Math.min(accountAgeDays, 365) / 365 * 40 + 30),
-        H: Math.min(100, Math.round(contentPillarScore * 10)), // Healing: from content quality
-        C: Math.min(100, Math.round(lightScore * 0.6)), // Contribution: from overall light
-        U: Math.min(100, Math.round(streakDays * 2)), // Unity: from consistency
-      };
-
-      const unitySignals: Partial<UnitySignals> = {
-        collaboration: false,
-        beneficiaryConfirmed: false,
-        communityEndorsement: false,
-        bridgeValue: false,
-      };
-
-      // PPLP v2.0: Build validation based on action type
-      const pplpValidation = {
-        hasRealAction: true, // Triggered by actual user action (view/like/comment)
-        hasRealValue: ['WATCH_VIDEO', 'LIKE_VIDEO', 'COMMENT', 'SHARE', 'UPLOAD_VIDEO', 'CREATE_POST'].includes(funAction),
-        hasPositiveImpact: true, // Platform activity contributes to ecosystem
-        noExploitation: riskScore < 0.4, // Anti-farm check
-        charterCompliant: true,
-      };
-
-      // Submit mint request with LS-Math v1.0 data
-      const result = await submitRequest({
-        platformId: 'FUN_MAIN',
-        actionType: funAction,
-        userWalletAddress: profile.wallet_address,
-        evidence: {
-          type: funAction,
-          description: `Auto-mint from ${detail.type} action`,
-          data: JSON.stringify({
-            camlyAmount: detail.amount,
-            videoId: detail.videoId,
-            timestamp: new Date().toISOString(),
-          }),
-        },
-        pillarScores: pillars,
-        unitySignals,
-        antiSybilScore: 1 - (profile.suspicious_score || 0) / 10,
-        qualityMultiplier: 1.0,
-        impactMultiplier: 1.0,
-        streakDays,
-        sequenceBonus,
-        riskScore,
-        pplpValidation,
-      });
-
-      if (result) {
         cooldownMap.current.set(cooldownKey, Date.now());
-        
-        // Dispatch event for UI updates
-        window.dispatchEvent(new CustomEvent('fun-mint-requested', {
-          detail: {
-            actionType: funAction,
-            requestId: result.id,
-            amount: result.scoringResult.calculatedAmountFormatted,
-          },
-        }));
 
-        console.log(`[AutoMintFUN] Created mint request for ${funAction}: ${result.scoringResult.calculatedAmountFormatted}`);
+        window.dispatchEvent(
+          new CustomEvent('fun-mint-requested', {
+            detail: {
+              actionType: funAction,
+              requestId: mintRequest?.id,
+              amount: result.funAmount,
+              vvu: result.vvu,
+              engine: 'v2.5',
+            },
+          }),
+        );
+
+        console.log(
+          `[AutoMintFUN/v2.5] ${funAction} → VVU ${result.vvu.toFixed(3)} → ${result.funAmount} FUN ` +
+            `(TC ${result.metadata.live_tc?.toFixed(2) ?? 'n/a'}, SBT +${(result.metadata.sbt_bonus ?? 0).toFixed(2)})`,
+        );
+      } catch (err) {
+        console.error('[AutoMintFUN/v2.5] Error:', err);
+      } finally {
+        processingRef.current = false;
       }
-    } catch (err) {
-      console.error('[AutoMintFUN] Error:', err);
-    } finally {
-      processingRef.current = false;
-    }
-  }, [userId, submitRequest]);
+    },
+    [userId],
+  );
 
   useEffect(() => {
     if (!userId) return;
-
     window.addEventListener('camly-reward', handleCamlyReward);
     return () => window.removeEventListener('camly-reward', handleCamlyReward);
   }, [userId, handleCamlyReward]);
