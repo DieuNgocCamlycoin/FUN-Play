@@ -1,15 +1,23 @@
 /**
  * ZK Merkle — proof-of-membership without revealing value.
- * Off-chain commitment + Merkle tree (sha-256, depth 20).
+ * Off-chain commitment + Merkle tree (sha-256, depth ≤20).
  *
  * Use cases:
  *  - "Tôi thuộc tier ≥ T2" mà không lộ TC chính xác
  *  - "Tôi sở hữu SBT loại X" mà không lộ token_id
  *  - "Tôi đã verify KYC" mà không lộ docs
+ *
+ * Tree convention:
+ *  - Leaves are sorted ascending once at build time.
+ *  - Pair-hash uses positional concat (left||right) — NO canonical sort,
+ *    so the proof's `position` field is meaningful at verify time.
+ *  - Odd nodes are duplicated (last leaf paired with itself).
  */
 import { supabase } from '@/integrations/supabase/client';
 
 export type CommitmentType = 'tier' | 'did_level' | 'sbt_ownership' | 'tc_range' | 'custom';
+
+export type ProofStep = { hash: string; position: 'left' | 'right' };
 
 async function sha256Hex(input: string): Promise<string> {
   const buf = new TextEncoder().encode(input);
@@ -37,69 +45,73 @@ export async function verifyCommitment(
   return expected === commitment_hash;
 }
 
-/** Build Merkle root from sorted leaves (sha-256, pair-hash). */
+/** Hash a parent node from its left and right children (positional). */
+async function hashPair(left: string, right: string): Promise<string> {
+  return sha256Hex(left + right);
+}
+
+/** Build full layered Merkle tree (sorted leaves, positional pair-hash). */
+async function buildLayers(leaves: string[]): Promise<string[][]> {
+  if (leaves.length === 0) return [[await sha256Hex('empty')]];
+  const layers: string[][] = [[...leaves].sort()];
+  while (layers[layers.length - 1].length > 1) {
+    const cur = layers[layers.length - 1];
+    const next: string[] = [];
+    for (let i = 0; i < cur.length; i += 2) {
+      const left = cur[i];
+      const right = cur[i + 1] ?? cur[i]; // duplicate odd
+      next.push(await hashPair(left, right));
+    }
+    layers.push(next);
+  }
+  return layers;
+}
+
+/** Build Merkle root from leaves. */
 export async function buildMerkleRoot(leaves: string[]): Promise<{
   root: string;
   depth: number;
   leaf_count: number;
 }> {
-  if (leaves.length === 0) return { root: await sha256Hex('empty'), depth: 0, leaf_count: 0 };
-  let layer = [...leaves].sort();
-  let depth = 0;
-  while (layer.length > 1) {
-    const next: string[] = [];
-    for (let i = 0; i < layer.length; i += 2) {
-      const a = layer[i];
-      const b = layer[i + 1] ?? a;
-      const [lo, hi] = a < b ? [a, b] : [b, a];
-      next.push(await sha256Hex(lo + hi));
-    }
-    layer = next;
-    depth++;
-  }
-  return { root: layer[0], depth, leaf_count: leaves.length };
+  const layers = await buildLayers(leaves);
+  return {
+    root: layers[layers.length - 1][0],
+    depth: Math.max(0, layers.length - 1),
+    leaf_count: leaves.length,
+  };
 }
 
 /** Generate Merkle proof path for a leaf. */
 export async function buildMerkleProof(leaves: string[], target: string): Promise<{
-  proof: { hash: string; position: 'left' | 'right' }[];
+  proof: ProofStep[];
   root: string;
 } | null> {
   if (!leaves.includes(target)) return null;
-  let layer = [...leaves].sort();
-  const proof: { hash: string; position: 'left' | 'right' }[] = [];
-  let current = target;
-  while (layer.length > 1) {
-    const idx = layer.indexOf(current);
+  const layers = await buildLayers(leaves);
+  const proof: ProofStep[] = [];
+  let idx = layers[0].indexOf(target);
+  for (let l = 0; l < layers.length - 1; l++) {
+    const layer = layers[l];
     const isLeft = idx % 2 === 0;
     const sibIdx = isLeft ? idx + 1 : idx - 1;
-    const sibling = layer[sibIdx] ?? current;
+    const sibling = layer[sibIdx] ?? layer[idx]; // duplicate when odd
+    // sibling is on the OPPOSITE side of current node
     proof.push({ hash: sibling, position: isLeft ? 'right' : 'left' });
-    const next: string[] = [];
-    for (let i = 0; i < layer.length; i += 2) {
-      const a = layer[i];
-      const b = layer[i + 1] ?? a;
-      const [lo, hi] = a < b ? [a, b] : [b, a];
-      next.push(await sha256Hex(lo + hi));
-    }
-    const pairIdx = Math.floor(idx / 2);
-    layer = next;
-    current = layer[pairIdx];
+    idx = Math.floor(idx / 2);
   }
-  return { proof, root: layer[0] };
+  return { proof, root: layers[layers.length - 1][0] };
 }
 
 export async function verifyMerkleProof(
   leaf: string,
-  proof: { hash: string; position: 'left' | 'right' }[],
+  proof: ProofStep[],
   root: string
 ): Promise<boolean> {
   let current = leaf;
   for (const step of proof) {
-    const [lo, hi] = step.position === 'right'
-      ? (current < step.hash ? [current, step.hash] : [step.hash, current])
-      : (step.hash < current ? [step.hash, current] : [current, step.hash]);
-    current = await sha256Hex(lo + hi);
+    current = step.position === 'right'
+      ? await hashPair(current, step.hash)  // sibling on right
+      : await hashPair(step.hash, current); // sibling on left
   }
   return current === root;
 }

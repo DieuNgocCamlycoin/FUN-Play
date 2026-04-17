@@ -12,6 +12,7 @@ async function sha256Hex(input: string): Promise<string> {
   return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+// Positional pair-hash (NOT canonical) so proofs verify correctly.
 async function buildRoot(leaves: string[]): Promise<{ root: string; depth: number }> {
   if (leaves.length === 0) return { root: await sha256Hex('empty'), depth: 0 };
   let layer = [...leaves].sort();
@@ -19,10 +20,9 @@ async function buildRoot(leaves: string[]): Promise<{ root: string; depth: numbe
   while (layer.length > 1) {
     const next: string[] = [];
     for (let i = 0; i < layer.length; i += 2) {
-      const a = layer[i];
-      const b = layer[i + 1] ?? a;
-      const [lo, hi] = a < b ? [a, b] : [b, a];
-      next.push(await sha256Hex(lo + hi));
+      const left = layer[i];
+      const right = layer[i + 1] ?? layer[i];
+      next.push(await sha256Hex(left + right));
     }
     layer = next;
     depth++;
