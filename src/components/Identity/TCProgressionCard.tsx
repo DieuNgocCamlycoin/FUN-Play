@@ -41,7 +41,7 @@ export function TCProgressionCard({ tier, tc, didLevel, onActionClick }: Props) 
       const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
       const [profileRes, attestRes, sbtRes, eventsRes] = await Promise.all([
-        supabase.from('profiles').select('phone_verified_at, wallet_address, pplp_accepted_at').eq('id', user.id).maybeSingle(),
+        supabase.from('profiles').select('wallet_address, pplp_accepted_at').eq('id', user.id).maybeSingle(),
         supabase.from('attestation_log').select('id', { count: 'exact', head: true })
           .eq('to_user_id', user.id).eq('status', 'active'),
         supabase.from('sbt_registry').select('id', { count: 'exact', head: true })
@@ -51,7 +51,7 @@ export function TCProgressionCard({ tier, tc, didLevel, onActionClick }: Props) 
 
       if (cancelled) return;
 
-      const profile = profileRes.data as { phone_verified_at?: string | null; wallet_address?: string | null; pplp_accepted_at?: string | null } | null;
+      const profile = profileRes.data as { wallet_address?: string | null; pplp_accepted_at?: string | null } | null;
       const attestCount = attestRes.count ?? 0;
       const sbtCount = sbtRes.count ?? 0;
       const totalDelta = (eventsRes.data || []).reduce((sum, e: { tc_delta: number | null }) => sum + (Number(e.tc_delta) || 0), 0);
@@ -63,7 +63,7 @@ export function TCProgressionCard({ tier, tc, didLevel, onActionClick }: Props) 
           label: 'Xác minh điện thoại (OTP)',
           hint: 'Nâng DID L1 → L2, +0.15 TC',
           icon: Phone,
-          done: !!profile?.phone_verified_at || (didLevel === 'L2' || didLevel === 'L3' || didLevel === 'L4'),
+          done: didLevel === 'L2' || didLevel === 'L3' || didLevel === 'L4',
           cta: 'verify_phone',
         },
         {

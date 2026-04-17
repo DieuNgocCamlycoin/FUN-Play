@@ -60,19 +60,19 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 2) Lift expired payout freezes
+    // 2) Lift expired recovery cooldowns
     const nowIso = new Date().toISOString();
     const { data: expired } = await supabase
       .from('recovery_log')
       .select('id, user_id')
-      .lt('payout_frozen_until', nowIso)
-      .eq('status', 'pending')
+      .lt('cooldown_until', nowIso)
+      .in('status', ['initiated', 'pending'])
       .limit(200);
 
     for (const r of expired || []) {
       const { error } = await supabase
         .from('recovery_log')
-        .update({ status: 'completed', payout_frozen_until: null })
+        .update({ status: 'completed', completed_at: nowIso })
         .eq('id', r.id);
       if (!error) stats.freezes_lifted++;
     }
