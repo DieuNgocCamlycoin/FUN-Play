@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { loadOverrides, clearOverrideCache, type ParameterOverride } from '@/lib/fun-money/parameter-overrides';
 import { EVENT_BASE_VALUES, QUALITY_LEVELS, TRUST_LEVELS } from '@/lib/fun-money/light-score-params-v1';

@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { getStabilityHistory, getStabilityIndex, recomputeStabilityIndex, STABILITY_BOUNDS, type StabilitySnapshot } from '@/lib/fun-money/stability-index';
 import { Button } from '@/components/ui/button';
 import { Activity, RefreshCw } from 'lucide-react';

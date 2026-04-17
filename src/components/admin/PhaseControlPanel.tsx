@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { getCurrentPhase, getPhaseHistory, clearPhaseCache, type PhaseStateRow } from '@/lib/fun-money/system-phase';
 import { TLS_PHASE_WEIGHTS, type SystemPhase } from '@/lib/fun-money/light-score-params-v1';
