@@ -66,14 +66,22 @@ export default function Identity() {
     if (!user) return;
     setRecomputing(true);
     try {
-      const [didRes, trustRes] = await Promise.all([
+      const [didRes, trustRes, sbtRes] = await Promise.all([
         supabase.functions.invoke('did-registry-engine', { body: { action: 'evaluate' } }),
         supabase.functions.invoke('trust-engine-v1', { body: { user_id: user.id } }),
+        supabase.functions.invoke('sbt-issuance-engine', { body: { user_id: user.id } }),
       ]);
       if (didRes.error) throw didRes.error;
       if (trustRes.error) throw trustRes.error;
+      if (sbtRes.error) throw sbtRes.error;
+      const newSbts = (sbtRes.data as any)?.newly_issued ?? 0;
       await load();
-      toast({ title: 'Đã cập nhật', description: 'DID + Trust Score được tính lại.' });
+      toast({
+        title: 'Đã cập nhật',
+        description: newSbts > 0
+          ? `DID + Trust Score tính lại. 🎖 Cấp ${newSbts} SBT mới!`
+          : 'DID + Trust Score được tính lại.',
+      });
     } catch (err: any) {
       toast({ title: 'Lỗi', description: err?.message || 'Không thể tính lại', variant: 'destructive' });
     } finally {
