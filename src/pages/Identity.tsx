@@ -8,6 +8,7 @@ import { RefreshCw, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { DIDLevelCard } from '@/components/Identity/DIDLevelCard';
 import { TrustScoreCard } from '@/components/Identity/TrustScoreCard';
+import { TCProgressionCard } from '@/components/Identity/TCProgressionCard';
 import { SBTGallery } from '@/components/Identity/SBTGallery';
 import { AttestationPanel } from '@/components/Identity/AttestationPanel';
 import { RecoverySetup } from '@/components/Identity/RecoverySetup';
@@ -17,6 +18,7 @@ import { AIAgentPanel } from '@/components/Identity/AIAgentPanel';
 import { DIBVaultPanel } from '@/components/Identity/DIBVaultPanel';
 import { getDID, type DIDRecord } from '@/lib/identity/did-registry';
 import { tcToTier, type TrustTier } from '@/lib/identity/trust-tier';
+import { useTierUpgradeWatcher } from '@/hooks/useTierUpgradeWatcher';
 
 interface TrustProfileRow {
   tc: number;
@@ -30,6 +32,7 @@ export default function Identity() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  useTierUpgradeWatcher();
   const [did, setDid] = useState<DIDRecord | null>(null);
   const [trust, setTrust] = useState<TrustProfileRow | null>(null);
   const [loading, setLoading] = useState(true);
@@ -126,6 +129,10 @@ export default function Identity() {
           <DIDLevelCard did={did} loading={loading} onUpgraded={load} />
           <TrustScoreCard profile={trust} loading={loading} />
         </div>
+
+        {trust && did && (
+          <TCProgressionCard tier={trust.trust_tier} tc={trust.tc} didLevel={did.level} />
+        )}
 
         <SBTGallery userId={user.id} />
 
