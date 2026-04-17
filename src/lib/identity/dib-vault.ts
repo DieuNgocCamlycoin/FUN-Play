@@ -55,14 +55,15 @@ function logNorm(value: number, target: number): number {
 }
 
 export async function computeDIB(userId: string): Promise<DIBSnapshot> {
-  // Sequentially-resolved queries to avoid TS deep instantiation in Promise.all generics
-  const didRes: any = await supabase.from('did_registry').select('level, status, verified_org_badge, created_at').eq('user_id', userId).maybeSingle();
-  const trustRes: any = await supabase.from('trust_profile').select('vs, bs, ss, os, hs, rf, sybil_risk').eq('user_id', userId).maybeSingle();
-  const sbtCountRes: any = await supabase.from('sbt_registry').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'active');
-  const attestRes: any = await supabase.from('attestation_log').select('weight, ai_origin', { count: 'exact' }).eq('from_user_id', userId).eq('status', 'active');
-  const profileRes: any = await supabase.from('profiles').select('created_at, consistency_days, total_camly_rewards').eq('id', userId).maybeSingle();
-  const eventsRes: any = await supabase.from('identity_events').select('id', { count: 'exact', head: true }).eq('user_id', userId);
-  const orgRes: any = await supabase.from('org_members').select('role', { count: 'exact' }).eq('member_user_id', userId).eq('status', 'active');
+  // Cast to any to avoid TS deep instantiation explosion on long supabase chains.
+  const sb: any = supabase;
+  const didRes: any = await sb.from('did_registry').select('level, status, verified_org_badge, created_at').eq('user_id', userId).maybeSingle();
+  const trustRes: any = await sb.from('trust_profile').select('vs, bs, ss, os, hs, rf, sybil_risk').eq('user_id', userId).maybeSingle();
+  const sbtCountRes: any = await sb.from('sbt_registry').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'active');
+  const attestRes: any = await sb.from('attestation_log').select('weight, ai_origin', { count: 'exact' }).eq('from_user_id', userId).eq('status', 'active');
+  const profileRes: any = await sb.from('profiles').select('created_at, consistency_days, total_camly_rewards').eq('id', userId).maybeSingle();
+  const eventsRes: any = await sb.from('identity_events').select('id', { count: 'exact', head: true }).eq('user_id', userId);
+  const orgRes: any = await sb.from('org_members').select('role', { count: 'exact' }).eq('member_user_id', userId).eq('status', 'active');
 
   const didLevel = didRes.data?.level ?? 'L0';
   const verifiedOrg = !!didRes.data?.verified_org_badge;
