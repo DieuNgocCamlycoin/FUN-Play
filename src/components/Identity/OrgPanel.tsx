@@ -5,10 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { Building2, Plus, ShieldCheck } from 'lucide-react';
+import { Building2, Plus, ShieldCheck, Lock } from 'lucide-react';
 import { toast } from 'sonner';
+import type { DIDLevel } from '@/lib/identity/did-registry';
 
 interface OrgRow {
   id: string;
@@ -17,7 +19,7 @@ interface OrgRow {
   joined_at: string;
 }
 
-export function OrgPanel() {
+export function OrgPanel({ didLevel }: { didLevel?: DIDLevel | null } = {}) {
   const { user } = useAuth();
   const [orgs, setOrgs] = useState<OrgRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -25,6 +27,8 @@ export function OrgPanel() {
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+
+  const canCreate = didLevel === 'L2' || didLevel === 'L3' || didLevel === 'L4';
 
   const reload = async () => {
     if (!user?.id) return;
@@ -39,6 +43,10 @@ export function OrgPanel() {
   useEffect(() => { reload(); }, [user?.id]);
 
   const handleCreate = async () => {
+    if (!canCreate) {
+      toast.error('Cần DID L2+ để tạo organization');
+      return;
+    }
     if (!name.trim()) {
       toast.error('Tên tổ chức bắt buộc');
       return;
@@ -60,16 +68,36 @@ export function OrgPanel() {
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0">
-        <CardTitle className="flex items-center gap-2">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 gap-2">
+        <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
           <Building2 className="w-5 h-5" /> Tổ chức của tôi
         </CardTitle>
-        <Button size="sm" variant="outline" onClick={() => setShowForm(v => !v)}>
-          <Plus className="w-4 h-4 mr-1" /> Tạo Org
-        </Button>
+        <TooltipProvider delayDuration={150}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => canCreate && setShowForm(v => !v)}
+                  disabled={!canCreate}
+                  aria-disabled={!canCreate}
+                >
+                  {canCreate ? <Plus className="w-4 h-4 mr-1" /> : <Lock className="w-4 h-4 mr-1" />}
+                  Tạo Org
+                </Button>
+              </span>
+            </TooltipTrigger>
+            {!canCreate && (
+              <TooltipContent>
+                Cần DID L2+ để tạo organization (hiện tại: {didLevel ?? 'L0'}).
+              </TooltipContent>
+            )}
+          </Tooltip>
+        </TooltipProvider>
       </CardHeader>
       <CardContent className="space-y-3">
-        {showForm && (
+        {showForm && canCreate && (
           <div className="space-y-2 p-3 border border-border rounded-lg bg-muted/30">
             <div>
               <Label htmlFor="org-name">Tên tổ chức</Label>
@@ -94,11 +122,11 @@ export function OrgPanel() {
         )}
         {orgs.map(o => (
           <div key={o.id} className="flex items-center justify-between p-3 rounded-lg border border-border">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-primary" />
-              <code className="text-xs">{o.org_did_id.slice(0, 8)}...</code>
+            <div className="flex items-center gap-2 min-w-0">
+              <ShieldCheck className="w-4 h-4 text-primary shrink-0" />
+              <code className="text-xs truncate">{o.org_did_id.slice(0, 8)}...</code>
             </div>
-            <Badge variant="outline">{o.role}</Badge>
+            <Badge variant="outline" className="shrink-0">{o.role}</Badge>
           </div>
         ))}
       </CardContent>

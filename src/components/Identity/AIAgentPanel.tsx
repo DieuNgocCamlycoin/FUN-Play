@@ -6,10 +6,12 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { Bot, Plus, X } from 'lucide-react';
+import { Bot, Plus, X, Lock } from 'lucide-react';
 import { toast } from 'sonner';
+import type { DIDLevel } from '@/lib/identity/did-registry';
 
 interface AgentRow {
   id: string;
@@ -20,7 +22,7 @@ interface AgentRow {
   is_active: boolean;
 }
 
-export function AIAgentPanel() {
+export function AIAgentPanel({ didLevel }: { didLevel?: DIDLevel | null } = {}) {
   const { user } = useAuth();
   const [agents, setAgents] = useState<AgentRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,6 +31,9 @@ export function AIAgentPanel() {
   const [name, setName] = useState('');
   const [purpose, setPurpose] = useState('');
   const [respLevel, setRespLevel] = useState<'standard'|'elevated'|'critical'>('standard');
+
+  const canRegister = didLevel === 'L1' || didLevel === 'L2' || didLevel === 'L3' || didLevel === 'L4';
+  const canCritical = didLevel === 'L3' || didLevel === 'L4';
 
   const reload = async () => {
     if (!user?.id) return;
@@ -43,6 +48,14 @@ export function AIAgentPanel() {
   useEffect(() => { reload(); }, [user?.id]);
 
   const handleRegister = async () => {
+    if (!canRegister) {
+      toast.error('Cần DID L1+ để đăng ký AI agent');
+      return;
+    }
+    if (respLevel === 'critical' && !canCritical) {
+      toast.error('Mức Critical cần DID L3+');
+      return;
+    }
     if (!name.trim()) {
       toast.error('Tên agent bắt buộc');
       return;
@@ -77,16 +90,36 @@ export function AIAgentPanel() {
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0">
-        <CardTitle className="flex items-center gap-2">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 gap-2">
+        <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
           <Bot className="w-5 h-5" /> AI Agents (operator)
         </CardTitle>
-        <Button size="sm" variant="outline" onClick={() => setShowForm(v => !v)}>
-          <Plus className="w-4 h-4 mr-1" /> Đăng ký
-        </Button>
+        <TooltipProvider delayDuration={150}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => canRegister && setShowForm(v => !v)}
+                  disabled={!canRegister}
+                  aria-disabled={!canRegister}
+                >
+                  {canRegister ? <Plus className="w-4 h-4 mr-1" /> : <Lock className="w-4 h-4 mr-1" />}
+                  Đăng ký
+                </Button>
+              </span>
+            </TooltipTrigger>
+            {!canRegister && (
+              <TooltipContent>
+                Cần DID L1+ để đăng ký AI agent (hiện tại: {didLevel ?? 'L0'}).
+              </TooltipContent>
+            )}
+          </Tooltip>
+        </TooltipProvider>
       </CardHeader>
       <CardContent className="space-y-3">
-        {showForm && (
+        {showForm && canRegister && (
           <div className="space-y-2 p-3 border border-border rounded-lg bg-muted/30">
             <div>
               <Label htmlFor="agent-name">Tên agent</Label>
@@ -105,7 +138,9 @@ export function AIAgentPanel() {
                 <SelectContent>
                   <SelectItem value="standard">Standard</SelectItem>
                   <SelectItem value="elevated">Elevated</SelectItem>
-                  <SelectItem value="critical">Critical (cần DID L3+)</SelectItem>
+                  <SelectItem value="critical" disabled={!canCritical}>
+                    Critical {canCritical ? '' : '(cần DID L3+)'}
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -123,17 +158,17 @@ export function AIAgentPanel() {
           <p className="text-sm text-muted-foreground">Chưa có agent nào.</p>
         )}
         {agents.map(a => (
-          <div key={a.id} className="flex items-center justify-between p-3 rounded-lg border border-border">
-            <div className="flex items-center gap-2">
-              <Bot className="w-4 h-4 text-primary" />
-              <div>
-                <p className="text-sm font-medium">{a.agent_name}</p>
+          <div key={a.id} className="flex items-center justify-between p-3 rounded-lg border border-border gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <Bot className="w-4 h-4 text-primary shrink-0" />
+              <div className="min-w-0">
+                <p className="text-sm font-medium truncate">{a.agent_name}</p>
                 <p className="text-xs text-muted-foreground">
                   weight cap: {a.attestation_weight_cap}
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               <Badge variant={a.is_active ? 'default' : 'secondary'}>
                 {a.is_active ? a.responsibility_level : 'revoked'}
               </Badge>
