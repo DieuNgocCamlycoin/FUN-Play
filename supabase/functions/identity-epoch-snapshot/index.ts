@@ -14,6 +14,54 @@ function currentEpoch(): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
+// Inline DIB vault aggregator (mirrors src/lib/identity/dib-vault.ts).
+// Edge functions can't import src/, so logic is duplicated server-side.
+const DIB_WEIGHTS = { identity: 0.20, contribution: 0.20, validation: 0.15, stake: 0.10, org: 0.10, history: 0.10, reputation: 0.15 };
+const DID_LEVEL_SCORE: Record<string, number> = { L0: 0.10, L1: 0.30, L2: 0.55, L3: 0.80, L4: 1.00 };
+const clamp01 = (n: number) => Math.max(0, Math.min(1, Number.isFinite(n) ? n : 0));
+const logNorm = (v: number, t: number) => v <= 0 ? 0 : clamp01(Math.log1p(v) / Math.log1p(t));
+
+async function computeDIBServer(admin: any, userId: string, did: any, trust: any, sbtCount: number) {
+  const [attestRes, profileRes, eventsRes, orgRes] = await Promise.all([
+    admin.from('attestation_log').select('id', { count: 'exact', head: true }).eq('from_user_id', userId).eq('status', 'active'),
+    admin.from('profiles').select('created_at, consistency_days, total_camly_rewards').eq('id', userId).maybeSingle(),
+    admin.from('identity_events').select('id', { count: 'exact', head: true }).eq('user_id', userId),
+    admin.from('org_members').select('role', { count: 'exact' }).eq('member_user_id', userId).eq('status', 'active'),
+  ]);
+  const attestGiven = attestRes.count ?? 0;
+  const eventsCount = eventsRes.count ?? 0;
+  const orgCount = orgRes.count ?? 0;
+  const orgRoles = orgRes.data ?? [];
+  const sybilRisk = Number(trust.sybil_risk) || 0;
+  const accountAgeDays = profileRes.data?.created_at ? (Date.now() - new Date(profileRes.data.created_at).getTime()) / 86_400_000 : 0;
+  const streak = Number(profileRes.data?.consistency_days) || 0;
+  const totalRewards = Number(profileRes.data?.total_camly_rewards) || 0;
+
+  const identity = clamp01((DID_LEVEL_SCORE[did.level] ?? 0.10) + (did.verified_org_badge ? 0.10 : 0));
+  const contribution = logNorm(eventsCount, 100);
+  const validation = clamp01(0.6 * logNorm(attestGiven, 20) + 0.4 * logNorm(sbtCount, 5));
+  const stake = logNorm(totalRewards, 10_000);
+  const hasLead = orgRoles.some((r: any) => r.role === 'owner' || r.role === 'admin');
+  const org = clamp01(logNorm(orgCount, 3) + (hasLead ? 0.20 : 0));
+  const history = clamp01(0.5 * logNorm(accountAgeDays, 365) + 0.5 * logNorm(streak, 90));
+  const pillarAvg = (Number(trust.vs) + Number(trust.bs) + Number(trust.ss) + Number(trust.os) + Number(trust.hs)) / 5;
+  const reputation = clamp01(pillarAvg * (1 - Math.min(0.5, sybilRisk / 200)));
+
+  const total = clamp01(
+    identity * DIB_WEIGHTS.identity + contribution * DIB_WEIGHTS.contribution + validation * DIB_WEIGHTS.validation +
+    stake * DIB_WEIGHTS.stake + org * DIB_WEIGHTS.org + history * DIB_WEIGHTS.history + reputation * DIB_WEIGHTS.reputation
+  );
+
+  return {
+    total: Number(total.toFixed(4)),
+    vaults: {
+      identity: Number(identity.toFixed(4)), contribution: Number(contribution.toFixed(4)),
+      validation: Number(validation.toFixed(4)), stake: Number(stake.toFixed(4)),
+      org: Number(org.toFixed(4)), history: Number(history.toFixed(4)), reputation: Number(reputation.toFixed(4)),
+    },
+  };
+}
+
 async function snapshotUser(admin: any, userId: string, epochId: string) {
   const { data: did } = await admin.from('did_registry').select('*').eq('user_id', userId).maybeSingle();
   const { data: trust } = await admin.from('trust_profile').select('*').eq('user_id', userId).maybeSingle();
@@ -23,7 +71,9 @@ async function snapshotUser(admin: any, userId: string, epochId: string) {
   if (!did || !trust) return { skipped: true };
 
   const flags = trust.permission_flags || {};
-  const stateRoot = `${did.level}:${trust.tc}:${(sbts || []).length}:${epochId}`;
+  const sbtCount = (sbts || []).length;
+  const dib = await computeDIBServer(admin, userId, did, trust, sbtCount);
+  const stateRoot = `${did.level}:${trust.tc}:${sbtCount}:${dib.total}:${epochId}`;
 
   await admin.from('identity_epoch_snapshot').upsert({
     user_id: userId,
@@ -39,7 +89,7 @@ async function snapshotUser(admin: any, userId: string, epochId: string) {
     state_root_hash: stateRoot,
   }, { onConflict: 'user_id,epoch_id' });
 
-  return { snapshotted: true };
+  return { snapshotted: true, dib };
 }
 
 Deno.serve(async (req) => {
