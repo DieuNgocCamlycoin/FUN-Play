@@ -382,6 +382,46 @@ export function runPPLPv25Pipeline(input: PPLPv25PipelineInput): PPLPv25Pipeline
   };
 }
 
+// ===== ASYNC PIPELINE WITH LIVE TRUST =====
+
+/**
+ * Run PPLP v2.5 pipeline with live Trust Confidence resolved from trust_profile.
+ * Falls back to context.user_trust_tier if userId is not provided.
+ */
+export async function runPPLPv25PipelineWithLiveTrust(
+  input: PPLPv25PipelineInput,
+  userId?: string,
+): Promise<PPLPv25PipelineOutput & { live_tc?: number; live_tier?: string; sybil_risk?: number }> {
+  let liveTc: number | undefined;
+  let liveTier: string | undefined;
+  let sybilRisk: number | undefined;
+
+  if (userId) {
+    try {
+      const { resolveLiveTrust } = await import('@/lib/identity/trust-resolver');
+      const trust = await resolveLiveTrust(userId);
+      liveTc = trust.tc;
+      liveTier = trust.tier;
+      sybilRisk = trust.sybil_risk;
+      // Override context tier so getTrustConfidence picks the live value
+      input = { ...input, context: { ...input.context, user_trust_tier: trust.tier } };
+    } catch (err) {
+      console.warn('[pplp-engine-v25] live trust resolve failed, using static tier:', err);
+    }
+  }
+
+  const out = runPPLPv25Pipeline(input);
+
+  // Apply sybil penalty: high sybil risk reduces VVU
+  let vvuAdjusted = out.vvu;
+  if (sybilRisk !== undefined && sybilRisk >= 60) {
+    const penalty = sybilRisk >= 80 ? 0.3 : 0.6;
+    vvuAdjusted = out.vvu * penalty;
+  }
+
+  return { ...out, vvu: vvuAdjusted, live_tc: liveTc, live_tier: liveTier, sybil_risk: sybilRisk };
+}
+
 // ===== UTILITY =====
 
 function round4(v: number): number {
