@@ -537,11 +537,16 @@ export function useAutoMintRequest(): UseAutoMintRequestReturn {
         throw new Error(edgeError.message || 'Mint edge function failed');
       }
 
-      if (!edgeData?.id) {
-        throw new Error(edgeData?.error || 'Edge function did not return request id');
+      if (edgeData?.error) {
+        throw new Error(edgeData.error);
       }
 
-      console.log('[MintRequest:auto] Success! Request ID:', edgeData.id, 'status:', edgeData.status);
+      const requestId = edgeData?.request?.id || edgeData?.id;
+      if (!requestId) {
+        throw new Error('Edge function did not return request id');
+      }
+
+      console.log('[MintRequest:auto] Success! Request ID:', requestId, 'status:', edgeData?.request?.status);
 
       // 5. Update last mint timestamp on profile
       await supabase
@@ -549,7 +554,7 @@ export function useAutoMintRequest(): UseAutoMintRequestReturn {
         .update({ last_fun_mint_at: new Date().toISOString() })
         .eq('id', user.id);
 
-      return { id: edgeData.id };
+      return { id: requestId };
 
     } catch (err: any) {
       const errorMsg = err.message || 'Gửi yêu cầu tự động thất bại';
