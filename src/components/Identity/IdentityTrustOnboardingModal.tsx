@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { useTrustCompletion } from '@/hooks/useTrustCompletion';
 
-const STORAGE_KEY = 'identity_trust_onboarding_dismissed_v1';
+const STORAGE_KEY = 'identity_trust_onboarding_dismissed_v2';
 
 export function IdentityTrustOnboardingModal() {
   const { user } = useAuth();
@@ -20,8 +20,8 @@ export function IdentityTrustOnboardingModal() {
   useEffect(() => {
     if (!user || loading || isComplete) return;
     const dismissed = localStorage.getItem(`${STORAGE_KEY}_${user.id}`);
+    console.log('[IdentityTrust] modal check', { userId: user.id, isComplete, dismissed });
     if (!dismissed) {
-      // delay 1.5s để user thấy trang chủ trước
       const t = setTimeout(() => setOpen(true), 1500);
       return () => clearTimeout(t);
     }

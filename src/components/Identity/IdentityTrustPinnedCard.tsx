@@ -14,7 +14,11 @@ export function IdentityTrustPinnedCard({ compact = false }: Props) {
   const { user } = useAuth();
   const { loading, isComplete, guardianCount, hasPrimary, hasWallet } = useTrustCompletion();
 
-  if (!user || loading || isComplete) return null;
+  if (loading) return null;
+  if (!user || isComplete) {
+    console.log('[IdentityTrust] pinned card hidden', { hasUser: !!user, isComplete, guardianCount });
+    return null;
+  }
 
   const completed = [hasPrimary, hasWallet, guardianCount >= 2].filter(Boolean).length;
 
