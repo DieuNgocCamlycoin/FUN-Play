@@ -3,6 +3,7 @@ import { ProfileHonorBoard } from "./ProfileHonorBoard";
 import { SocialMediaOrbit } from "./SocialMediaOrbit";
 import { DiamondBadge } from "./DiamondBadge";
 import { LightLevelBadge } from "./LightLevelBadge";
+import { TrustCompletionPill } from "@/components/Identity/TrustCompletionPill";
 
 interface ProfileHeaderProps {
   profile: {
@@ -69,6 +70,13 @@ export const ProfileHeader = ({ profile, channel, lightScore = 0, lightLevel, su
             {/* Light Level Badge - public label, no numeric score */}
             {lightLevel && !banned && (
               <LightLevelBadge level={lightLevel} />
+            )}
+
+            {/* Trust Completion Pill — own profile only, auto-hides at ≥2 guardian */}
+            {isOwnProfile && !banned && (
+              <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 z-30">
+                <TrustCompletionPill userId={profile.id} />
+              </div>
             )}
 
             {/* Glow Ring */}
