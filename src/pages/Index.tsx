@@ -15,6 +15,7 @@ import { ContinueWatching } from "@/components/Video/ContinueWatching";
 import { PullToRefreshIndicator } from "@/components/Layout/PullToRefreshIndicator";
 import { HonobarDetailModal } from "@/components/Layout/HonobarDetailModal";
 import { ProfileNudgeBanner } from "@/components/Profile/ProfileNudgeBanner";
+import { IdentityTrustOnboardingModal } from "@/components/Identity/IdentityTrustOnboardingModal";
 
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
