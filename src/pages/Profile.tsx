@@ -13,6 +13,7 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { MobileBottomNav } from "@/components/Layout/MobileBottomNav";
 import { CreatePlaylistModal } from "@/components/Playlist/CreatePlaylistModal";
+import { IdentityTrustPinnedCard } from "@/components/Identity/IdentityTrustPinnedCard";
 import { formatViewsShort } from "@/lib/formatters";
 
 interface ChannelInfo {
@@ -172,6 +173,10 @@ const Profile = () => {
             Xem kênh <ChevronRight className="h-4 w-4 ml-1" />
           </Button>
         </div>
+      </div>
+
+      <div className="px-4 mb-6">
+        <IdentityTrustPinnedCard mobileInline />
       </div>
 
       {/* Watch History Section */}

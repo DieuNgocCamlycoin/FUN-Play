@@ -8,17 +8,17 @@ import { useTrustCompletion } from '@/hooks/useTrustCompletion';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 
-interface Props { compact?: boolean; }
+interface Props {
+  compact?: boolean;
+  mobileInline?: boolean;
+}
 
-export function IdentityTrustPinnedCard({ compact = false }: Props) {
+export function IdentityTrustPinnedCard({ compact = false, mobileInline = false }: Props) {
   const { user } = useAuth();
   const { loading, isComplete, guardianCount, hasPrimary, hasWallet } = useTrustCompletion();
 
   if (loading) return null;
-  if (!user || isComplete) {
-    console.log('[IdentityTrust] pinned card hidden', { hasUser: !!user, isComplete, guardianCount });
-    return null;
-  }
+  if (!user || isComplete) return null;
 
   const completed = [hasPrimary, hasWallet, guardianCount >= 2].filter(Boolean).length;
 
@@ -39,10 +39,11 @@ export function IdentityTrustPinnedCard({ compact = false }: Props) {
     <Link
       to="/identity"
       className={cn(
-        'group relative block mx-2 mb-2 rounded-lg overflow-hidden',
+        'group relative block rounded-lg overflow-hidden',
         'bg-gradient-to-br from-amber-500/15 via-orange-500/10 to-primary/10',
         'border border-amber-500/40 hover:border-amber-500/70',
-        'transition-all hover:shadow-lg hover:shadow-amber-500/20'
+        'transition-all hover:shadow-lg hover:shadow-amber-500/20',
+        mobileInline ? 'mx-0 mb-0' : 'mx-2 mb-2'
       )}
     >
       {/* Pulse ring */}

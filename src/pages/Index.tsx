@@ -16,6 +16,7 @@ import { PullToRefreshIndicator } from "@/components/Layout/PullToRefreshIndicat
 import { HonobarDetailModal } from "@/components/Layout/HonobarDetailModal";
 import { ProfileNudgeBanner } from "@/components/Profile/ProfileNudgeBanner";
 import { IdentityTrustOnboardingModal } from "@/components/Identity/IdentityTrustOnboardingModal";
+import { IdentityTrustPinnedCard } from "@/components/Identity/IdentityTrustPinnedCard";
 
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -410,6 +411,10 @@ const Index = () => {
           {/* Mobile Compact Honor Strip - collapsible */}
           <div className="lg:hidden px-4 mb-3">
             <MobileHonoboardCard onClick={() => setShowHonobarDetail(true)} />
+          </div>
+
+          <div className="lg:hidden px-4 mb-3">
+            <IdentityTrustPinnedCard mobileInline />
           </div>
 
           {/* Profile Nudge Banner */}
