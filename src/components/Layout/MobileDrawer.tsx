@@ -9,6 +9,7 @@ import { useProfile } from "@/hooks/useProfile";
 import { motion, AnimatePresence } from "framer-motion";
 import { HonobarSidebarButton } from "./HonobarSidebarButton";
 import { HonobarDetailModal } from "./HonobarDetailModal";
+import { IdentityTrustNavItem } from "@/components/Identity/IdentityTrustNavItem";
 
 interface MobileDrawerProps {
   isOpen: boolean;
@@ -260,6 +261,8 @@ export const MobileDrawer = ({ isOpen, onClose }: MobileDrawerProps) => {
                   {mainNavItems.map((item) => (
                     <NavButton key={item.label} item={item} />
                   ))}
+                  {/* Identity & Trust — auto-hides when ≥2 guardian */}
+                  <IdentityTrustNavItem variant="drawer" onNavigate={onClose} />
                 </div>
 
                 <div className="h-px bg-border my-3 mx-4" />
