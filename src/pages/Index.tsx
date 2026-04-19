@@ -15,6 +15,7 @@ import { ContinueWatching } from "@/components/Video/ContinueWatching";
 import { PullToRefreshIndicator } from "@/components/Layout/PullToRefreshIndicator";
 import { HonobarDetailModal } from "@/components/Layout/HonobarDetailModal";
 import { ProfileNudgeBanner } from "@/components/Profile/ProfileNudgeBanner";
+import { IdentityTrustOnboardingModal } from "@/components/Identity/IdentityTrustOnboardingModal";
 
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -381,6 +382,9 @@ const Index = () => {
           pullDistance={pullDistance}
         />
       )}
+
+      {/* Identity & Trust onboarding modal — auto shows once for users without 2 guardians */}
+      <IdentityTrustOnboardingModal />
 
       {/* Desktop Header & Collapsible Sidebar */}
       <div className="hidden lg:block">
