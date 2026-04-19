@@ -200,6 +200,15 @@ export const CollapsibleSidebar = ({ isExpanded }: CollapsibleSidebarProps) => {
       >
         <ScrollArea className="h-full">
           <div className="py-2">
+            {/* PINNED: Identity & Trust — auto-hides at ≥2 guardian */}
+            {isExpanded ? (
+              <IdentityTrustPinnedCard />
+            ) : (
+              <div className="px-2 mb-2">
+                <IdentityTrustPinnedCard compact />
+              </div>
+            )}
+
             {/* FUN ECOSYSTEM */}
             <div className="px-2 py-2 border-b border-border mb-2">
               {isExpanded ? (
