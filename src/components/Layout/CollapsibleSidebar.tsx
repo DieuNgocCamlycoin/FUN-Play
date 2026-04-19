@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { IdentityTrustNavItem } from "@/components/Identity/IdentityTrustNavItem";
 
 interface CollapsibleSidebarProps {
   isExpanded: boolean;
@@ -243,6 +244,8 @@ export const CollapsibleSidebar = ({ isExpanded }: CollapsibleSidebarProps) => {
                       {mainNavItems.map((item) => (
                         <NavButton key={item.label} item={item} />
                       ))}
+                      {/* Identity & Trust — auto-hides when ≥2 guardian */}
+                      <IdentityTrustNavItem variant="sidebar" />
                     </div>
                   </CollapsibleContent>
                 </Collapsible>
