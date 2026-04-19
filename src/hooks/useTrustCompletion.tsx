@@ -18,7 +18,7 @@ export interface TrustCompletion {
 }
 
 export function useTrustCompletion(userId?: string): TrustCompletion {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const targetId = userId || user?.id;
   const [state, setState] = useState<Omit<TrustCompletion, 'refresh'>>({
     loading: true, guardianCount: 0, isComplete: false, hasPrimary: false, hasWallet: false,
@@ -26,7 +26,11 @@ export function useTrustCompletion(userId?: string): TrustCompletion {
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
-    if (!targetId) { setState(s => ({ ...s, loading: false })); return; }
+    if (!targetId) {
+      if (!userId && authLoading) return;
+      setState(s => ({ ...s, loading: false }));
+      return;
+    }
     let cancelled = false;
     (async () => {
       const [{ data: profile }, { data: guardians }] = await Promise.all([
@@ -47,7 +51,7 @@ export function useTrustCompletion(userId?: string): TrustCompletion {
       });
     })();
     return () => { cancelled = true; };
-  }, [targetId, tick, user?.email_confirmed_at, user?.phone_confirmed_at]);
+  }, [targetId, tick, userId, authLoading, user?.email_confirmed_at, user?.phone_confirmed_at]);
 
   return { ...state, refresh: () => setTick(t => t + 1) };
 }
