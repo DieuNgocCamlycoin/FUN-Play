@@ -176,6 +176,8 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                   </span>
                 </Button>
               ))}
+              {/* Identity & Trust — auto-hides when ≥2 guardian */}
+              <IdentityTrustNavItem variant="sidebar" onNavigate={onClose} />
             </div>
 
             <div className="h-px bg-border my-2" />
