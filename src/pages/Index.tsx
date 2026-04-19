@@ -383,6 +383,9 @@ const Index = () => {
         />
       )}
 
+      {/* Identity & Trust onboarding modal — auto shows once for users without 2 guardians */}
+      <IdentityTrustOnboardingModal />
+
       {/* Desktop Header & Collapsible Sidebar */}
       <div className="hidden lg:block">
         <Header onMenuClick={handleMenuClick} />
