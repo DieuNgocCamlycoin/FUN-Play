@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { useNavigate, useLocation } from "react-router-dom";
 import { HonobarSidebarButton } from "./HonobarSidebarButton";
 import { HonobarDetailModal } from "./HonobarDetailModal";
+import { IdentityTrustNavItem } from "@/components/Identity/IdentityTrustNavItem";
 
 interface SidebarProps {
   isOpen: boolean;
