@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { MainLayout } from "@/components/Layout/MainLayout";
 import { ProfileHeader } from "@/components/Profile/ProfileHeader";
+import { TrustCompletionBanner } from "@/components/Identity/TrustCompletionBanner";
 import { ProfileInfo } from "@/components/Profile/ProfileInfo";
 import { ProfileTabs } from "@/components/Profile/ProfileTabs";
 import { SuspendedBanner } from "@/components/Profile/SuspendedBanner";
@@ -419,6 +420,11 @@ export default function Channel() {
           isOwnProfile={isOwnProfile}
           onProfileUpdate={fetchChannelAndProfile}
         />
+
+        {/* Trust Completion Banner — own profile only, auto-hides at ≥2 guardian */}
+        {isOwnProfile && !profile.banned && (
+          <TrustCompletionBanner userId={profile.id} />
+        )}
 
         {/* Suspended Banner */}
         <SuspendedBanner banned={profile.banned} />

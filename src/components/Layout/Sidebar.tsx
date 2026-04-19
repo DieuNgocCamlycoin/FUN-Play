@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { useNavigate, useLocation } from "react-router-dom";
 import { HonobarSidebarButton } from "./HonobarSidebarButton";
 import { HonobarDetailModal } from "./HonobarDetailModal";
+import { IdentityTrustNavItem } from "@/components/Identity/IdentityTrustNavItem";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -176,6 +177,8 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                   </span>
                 </Button>
               ))}
+              {/* Identity & Trust — auto-hides when ≥2 guardian */}
+              <IdentityTrustNavItem variant="sidebar" onNavigate={onClose} />
             </div>
 
             <div className="h-px bg-border my-2" />
