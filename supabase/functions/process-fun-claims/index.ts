@@ -1,261 +1,234 @@
-/**
- * Process FUN Money Claims — Auto On-Chain (ERC20 Transfer)
- * 
- * Picks up all `approved` claim_requests with claim_type='fun_money',
- * transfers FUN tokens from admin wallet to user wallets on BSC Testnet,
- * and updates claim_requests with tx_hash + status='success'.
- */
-
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+// process-fun-claims — auto-mint FUN Money via FUNMoneyMinter on BSC Testnet
+// Combo C+D+B: hot wallet auto for ≤200k FUN, daily cap per Trust tier, multisig fallback for whales
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
+import { JsonRpcProvider, Wallet, Contract, parseUnits, keccak256, toUtf8Bytes } from 'https://esm.sh/ethers@6.13.4';
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// BSC Testnet
-const BSC_TESTNET_RPC = "https://data-seed-prebsc-1-s1.binance.org:8545/";
-const FUN_TOKEN_CONTRACT = "0x39A1b047D5d143f8874888cfa1d30Fb2AE6F0CD6";
+// ===== CONFIG =====
+const AUTO_MINT_THRESHOLD = 200_000;            // FUN — claims > này phải multisig
+const MAX_ATTEMPTS = 5;                         // dừng retry sau 5 lần
+const LOCK_TIMEOUT_MS = 5 * 60 * 1000;          // 5 phút — coi là stale
+const BATCH_SIZE = 5;                           // mỗi run xử lý tối đa 5 claim
+const MIN_AMOUNT = 0.0001;                      // skip dust
 
-// Standard ERC20 ABI for transfer + balanceOf
-const ERC20_ABI = [
-  "function transfer(address to, uint256 amount) returns (bool)",
-  "function balanceOf(address account) view returns (uint256)",
-  "function decimals() view returns (uint8)",
-  "function symbol() view returns (string)",
+const RPC_URL = 'https://data-seed-prebsc-1-s1.binance.org:8545/';
+const CONTRACT_ADDRESS = '0x39A1b047D5d143f8874888cfa1d30Fb2AE6F0CD6';
+
+const MINTER_ABI = [
+  'function mintValidatedAction(bytes32 actionId, address user, uint256 totalMint, bytes32 validationDigest)',
+  'function authorizedMinters(address) view returns (bool)',
+  'function processedActionIds(bytes32) view returns (bool)',
 ];
 
-function jsonResponse(body: Record<string, unknown>, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
+function normalizeTier(tier: string | null, sybilRisk: number): string {
+  const t = (tier || 'new').toLowerCase();
+  if (sybilRisk >= 60) return 't0';
+  if (['veteran', 't4'].includes(t)) return 'veteran';
+  if (['trusted', 't3'].includes(t)) return 'trusted';
+  if (['standard', 't2'].includes(t)) return 'standard';
+  return 'new';
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
+
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+  );
+
+  const treasuryKey = Deno.env.get('FUN_TREASURY_PRIVATE_KEY');
+  if (!treasuryKey) return json({ error: 'FUN_TREASURY_PRIVATE_KEY not configured' }, 500);
+
+  let body: any = {};
+  try { body = await req.json(); } catch { /* cron invocation — no body */ }
+  const dryRun = body?.dry_run === true;
+  const claimIdFilter: string | null = body?.claim_id ?? null;
+
+  const cutoff = new Date(Date.now() - LOCK_TIMEOUT_MS).toISOString();
+  let claimsQ = supabase
+    .from('claim_requests')
+    .select('id, user_id, wallet_address, amount, status, processing_attempts, locked_at')
+    .eq('claim_type', 'fun_money')
+    .in('status', ['pending', 'approved'])
+    .is('tx_hash', null)
+    .lt('processing_attempts', MAX_ATTEMPTS)
+    .or(`locked_at.is.null,locked_at.lt.${cutoff}`)
+    .order('created_at', { ascending: true })
+    .limit(BATCH_SIZE);
+
+  if (claimIdFilter) {
+    claimsQ = supabase
+      .from('claim_requests')
+      .select('id, user_id, wallet_address, amount, status, processing_attempts, locked_at')
+      .eq('id', claimIdFilter)
+      .limit(1);
   }
+
+  const { data: claims, error: claimsErr } = await claimsQ;
+  if (claimsErr) return json({ error: 'Failed to fetch claims', details: claimsErr.message }, 500);
+  if (!claims?.length) return json({ ok: true, processed: 0, message: 'No claims to process' });
+
+  // Setup signer
+  const provider = new JsonRpcProvider(RPC_URL);
+  const wallet = new Wallet(treasuryKey, provider);
+  const minter = new Contract(CONTRACT_ADDRESS, MINTER_ABI, wallet);
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const minterPrivateKey = Deno.env.get("FUN_MINTER_PRIVATE_KEY");
-
-    if (!minterPrivateKey) {
-      return jsonResponse({ error: "FUN_MINTER_PRIVATE_KEY not configured" }, 500);
-    }
-
-    const supabase = createClient(supabaseUrl, serviceKey);
-    const { ethers } = await import("https://esm.sh/ethers@6.13.4");
-
-    // Parse optional body for specific IDs
-    const body = await req.json().catch(() => ({}));
-    const specificIds: string[] | undefined = body.ids;
-
-    // Fetch approved fun_money claims — only CLAIMABLE token_state
-    let query = supabase
-      .from("claim_requests")
-      .select("*")
-      .eq("status", "approved")
-      .eq("claim_type", "fun_money")
-      .in("token_state", ["claimable", null])
-      .order("created_at", { ascending: true })
-      .limit(20);
-
-    if (specificIds?.length) {
-      query = supabase
-        .from("claim_requests")
-        .select("*")
-        .in("id", specificIds)
-        .eq("status", "approved")
-        .eq("claim_type", "fun_money")
-        .in("token_state", ["claimable", null]);
-    }
-
-    const { data: claims, error: fetchErr } = await query;
-
-    if (fetchErr) {
-      return jsonResponse({ error: `Fetch error: ${fetchErr.message}` }, 500);
-    }
-
-    if (!claims || claims.length === 0) {
-      return jsonResponse({ message: "No approved FUN Money claims to process", processed: 0 });
-    }
-
-    // Setup provider and wallet
-    const provider = new ethers.JsonRpcProvider(BSC_TESTNET_RPC);
-    const adminWallet = new ethers.Wallet(minterPrivateKey, provider);
-    const funContract = new ethers.Contract(FUN_TOKEN_CONTRACT, ERC20_ABI, adminWallet);
-
-    console.log(`Admin wallet: ${adminWallet.address}`);
-    console.log(`Processing ${claims.length} FUN Money claims via ERC20 transfer...`);
-
-    // Check FUN token decimals
-    let decimals = 18;
-    try {
-      decimals = await funContract.decimals();
-      console.log(`FUN decimals: ${decimals}`);
-    } catch {
-      console.log("Using default 18 decimals");
-    }
-
-    // Check admin wallet FUN balance
-    const funBalance = await funContract.balanceOf(adminWallet.address);
-    const totalNeeded = claims.reduce((sum, c) => sum + c.amount, 0);
-    const totalNeededWei = ethers.parseUnits(totalNeeded.toString(), decimals);
-
-    console.log(`FUN balance: ${ethers.formatUnits(funBalance, decimals)}`);
-    console.log(`Total needed: ${totalNeeded} FUN`);
-
-    if (funBalance < totalNeededWei) {
-      return jsonResponse({
-        error: `Insufficient FUN balance. Have: ${ethers.formatUnits(funBalance, decimals)}, Need: ${totalNeeded}`,
-        wallet: adminWallet.address,
+    const isAuthorized = await minter.authorizedMinters(wallet.address);
+    if (!isAuthorized) {
+      return json({
+        error: 'Treasury wallet is not authorizedMinter on contract',
+        wallet: wallet.address,
+        contract: CONTRACT_ADDRESS,
+        hint: 'Call setAuthorizedMinter(treasuryAddress, true) from owner',
       }, 500);
     }
-
-    // Check BNB for gas
-    const bnbBalance = await provider.getBalance(adminWallet.address);
-    const minGas = ethers.parseEther("0.005");
-    if (bnbBalance < minGas) {
-      return jsonResponse({
-        error: `Low BNB for gas: ${ethers.formatEther(bnbBalance)} BNB`,
-        wallet: adminWallet.address,
-      }, 500);
-    }
-
-    const results: Array<{ id: string; user: string; amount: number; status: string; tx_hash?: string; error?: string }> = [];
-    let success = 0;
-    let failed = 0;
-
-    // Process each claim sequentially (avoid nonce conflicts)
-    for (const claim of claims) {
-      try {
-        console.log(`Processing claim ${claim.id}: ${claim.amount} FUN → ${claim.wallet_address}`);
-
-        // Lock: mark as processing
-        const { error: lockErr } = await supabase
-          .from("claim_requests")
-          .update({ status: "processing" })
-          .eq("id", claim.id)
-          .eq("status", "approved");
-
-        if (lockErr) throw new Error(`Lock failed: ${lockErr.message}`);
-
-        // Convert amount to wei
-        const amountWei = ethers.parseUnits(claim.amount.toString(), decimals);
-
-        // ERC20 transfer
-        const tx = await funContract.transfer(claim.wallet_address, amountWei, {
-          gasLimit: 100000n,
-        });
-
-        console.log(`TX sent: ${tx.hash}`);
-
-        // Wait for confirmation
-        const receipt = await tx.wait(1);
-        console.log(`TX confirmed: ${receipt.hash} (block ${receipt.blockNumber})`);
-
-        // Calculate gas fee
-        let gasFee = 0;
-        try {
-          const gasUsed = receipt.gasUsed || 0n;
-          const gasPrice = receipt.gasPrice || receipt.effectiveGasPrice || 0n;
-          gasFee = Number(ethers.formatEther(gasUsed * gasPrice));
-        } catch { /* ignore */ }
-
-        // Update claim_request to success
-        await supabase
-          .from("claim_requests")
-          .update({
-            status: "success",
-            tx_hash: receipt.hash,
-            processed_at: new Date().toISOString(),
-            gas_fee: gasFee,
-          })
-          .eq("id", claim.id);
-
-        // Notify user
-        await supabase.from("notifications").insert({
-          user_id: claim.user_id,
-          type: "system",
-          title: "✅ FUN Money đã chuyển thành công!",
-          message: `${claim.amount.toLocaleString()} FUN đã được gửi đến ví ${claim.wallet_address.slice(0, 6)}...${claim.wallet_address.slice(-4)}. TX: ${receipt.hash.slice(0, 10)}...`,
-          link: `https://testnet.bscscan.com/tx/${receipt.hash}`,
-        });
-
-        results.push({
-          id: claim.id,
-          user: claim.user_id.slice(0, 8),
-          amount: claim.amount,
-          status: "success",
-          tx_hash: receipt.hash,
-        });
-        success++;
-      } catch (err: any) {
-        console.error(`Claim ${claim.id} failed:`, err.message);
-        const errorMsg = mapError(err.message || String(err));
-
-        const isPermanent = err.message?.includes("insufficient") && err.message?.includes("FUN");
-        await supabase
-          .from("claim_requests")
-          .update({
-            status: isPermanent ? "failed" : "approved",
-            error_message: errorMsg,
-            processed_at: isPermanent ? new Date().toISOString() : null,
-          })
-          .eq("id", claim.id);
-
-        results.push({
-          id: claim.id,
-          user: claim.user_id.slice(0, 8),
-          amount: claim.amount,
-          status: isPermanent ? "failed" : "retry",
-          error: errorMsg,
-        });
-        failed++;
-      }
-    }
-
-    // Admin summary notification
-    if (success > 0) {
-      const { data: admins } = await supabase.from("user_roles").select("user_id").eq("role", "admin");
-      const totalFun = results.filter(r => r.status === "success").reduce((s, r) => s + r.amount, 0);
-      if (admins?.length) {
-        const notifications = admins.map((a: any) => ({
-          user_id: a.user_id,
-          type: "system",
-          title: "📊 FUN Claims Processed",
-          message: `${success}/${claims.length} claims thành công. Tổng: ${totalFun.toLocaleString()} FUN. ${failed > 0 ? `❌ ${failed} thất bại.` : ""}`,
-        }));
-        await supabase.from("notifications").insert(notifications);
-      }
-    }
-
-    return jsonResponse({
-      processed: claims.length,
-      success,
-      failed,
-      results,
-      admin_wallet: adminWallet.address,
-      fun_balance: ethers.formatUnits(funBalance, decimals),
-      bnb_balance: ethers.formatEther(bnbBalance),
-    });
-  } catch (err: any) {
-    console.error("process-fun-claims error:", err);
-    return jsonResponse({ error: err.message }, 500);
+  } catch (e: any) {
+    return json({ error: 'Cannot reach contract', details: e.message, wallet: wallet.address }, 500);
   }
+
+  const results: any[] = [];
+
+  for (const claim of claims) {
+    const result: any = { id: claim.id, user_id: claim.user_id, amount: Number(claim.amount) };
+    const amount = Number(claim.amount);
+
+    try {
+      if (amount < MIN_AMOUNT) { result.status = 'skip_dust'; results.push(result); continue; }
+
+      // Lock row
+      const { error: lockErr } = await supabase
+        .from('claim_requests')
+        .update({
+          locked_at: new Date().toISOString(),
+          processing_attempts: claim.processing_attempts + 1,
+          last_attempt_at: new Date().toISOString(),
+        })
+        .eq('id', claim.id)
+        .or(`locked_at.is.null,locked_at.lt.${cutoff}`);
+      if (lockErr) { result.status = 'lock_failed'; result.error = lockErr.message; results.push(result); continue; }
+
+      // Threshold — > 200k FUN routed to multisig flow
+      if (amount > AUTO_MINT_THRESHOLD) {
+        await supabase.from('claim_requests').update({
+          last_error: `Amount ${amount} > auto threshold ${AUTO_MINT_THRESHOLD} — needs multisig`,
+          auto_eligible: false,
+          locked_at: null,
+        }).eq('id', claim.id);
+        result.status = 'requires_multisig';
+        results.push(result); continue;
+      }
+
+      // Trust tier → daily cap
+      const { data: trust } = await supabase
+        .from('trust_profile')
+        .select('tier, sybil_risk')
+        .eq('user_id', claim.user_id)
+        .maybeSingle();
+      const sybilRisk = Number(trust?.sybil_risk) || 0;
+      const tier = normalizeTier(trust?.tier ?? null, sybilRisk);
+
+      if (tier === 't0') {
+        await supabase.from('claim_requests').update({
+          last_error: `Sybil risk ${sybilRisk} too high`,
+          auto_eligible: false, status: 'failed',
+          error_message: 'Sybil risk quá cao, vui lòng liên hệ hỗ trợ.',
+          locked_at: null,
+        }).eq('id', claim.id);
+        result.status = 'sybil_blocked';
+        results.push(result); continue;
+      }
+
+      // Atomically reserve daily cap
+      const { data: reserved, error: reserveErr } = await supabase.rpc('fun_auto_mint_reserve', {
+        p_user_id: claim.user_id, p_amount: amount, p_tier: tier,
+      });
+      if (reserveErr) throw new Error(`Reserve failed: ${reserveErr.message}`);
+      if (!reserved) {
+        await supabase.from('claim_requests').update({
+          last_error: `Daily cap reached for tier ${tier}`,
+          auto_eligible: false, locked_at: null,
+        }).eq('id', claim.id);
+        result.status = 'daily_cap_reached';
+        result.tier = tier;
+        results.push(result); continue;
+      }
+
+      if (dryRun) {
+        await supabase.rpc('fun_auto_mint_refund', { p_user_id: claim.user_id, p_amount: amount });
+        await supabase.from('claim_requests').update({ locked_at: null }).eq('id', claim.id);
+        result.status = 'dry_run_ok';
+        result.tier = tier;
+        results.push(result); continue;
+      }
+
+      // Build mint
+      const totalWei = parseUnits(amount.toString(), 18);
+      const actionId = keccak256(toUtf8Bytes(JSON.stringify({
+        claim_id: claim.id, user: claim.wallet_address, amount: amount.toString(),
+      })));
+      const validationDigest = keccak256(toUtf8Bytes(JSON.stringify({
+        source: 'auto-processor', tier, claim_id: claim.id, ts: Date.now(),
+      })));
+
+      // Idempotency — already processed on-chain?
+      const alreadyDone = await minter.processedActionIds(actionId);
+      if (alreadyDone) {
+        await supabase.from('claim_requests').update({
+          status: 'success', last_error: 'Already processed on-chain',
+          auto_processed: true, locked_at: null,
+        }).eq('id', claim.id);
+        await supabase.rpc('fun_auto_mint_refund', { p_user_id: claim.user_id, p_amount: amount });
+        result.status = 'already_onchain';
+        results.push(result); continue;
+      }
+
+      const tx = await minter.mintValidatedAction(actionId, claim.wallet_address, totalWei, validationDigest);
+      const receipt = await tx.wait();
+
+      await supabase.from('claim_requests').update({
+        status: 'success',
+        tx_hash: receipt.hash,
+        processed_at: new Date().toISOString(),
+        auto_processed: true,
+        auto_eligible: true,
+        last_error: null,
+        locked_at: null,
+      }).eq('id', claim.id);
+
+      result.status = 'minted';
+      result.tx_hash = receipt.hash;
+      result.tier = tier;
+      results.push(result);
+    } catch (err: any) {
+      const msg = err?.message || String(err);
+      console.error('Mint failed for', claim.id, msg);
+      try { await supabase.rpc('fun_auto_mint_refund', { p_user_id: claim.user_id, p_amount: amount }); } catch {}
+
+      const willRetry = (claim.processing_attempts + 1) < MAX_ATTEMPTS;
+      await supabase.from('claim_requests').update({
+        last_error: msg.slice(0, 500),
+        status: willRetry ? claim.status : 'failed',
+        error_message: willRetry ? null : msg.slice(0, 500),
+        locked_at: null,
+      }).eq('id', claim.id);
+
+      result.status = 'error';
+      result.error = msg;
+      results.push(result);
+    }
+  }
+
+  return json({ ok: true, processed: results.length, results });
 });
 
-function mapError(raw: string): string {
-  const lower = raw.toLowerCase();
-  if (lower.includes("insufficient funds")) return "Ví admin hết BNB gas. Liên hệ admin.";
-  if (lower.includes("transfer amount exceeds balance")) return "Ví admin không đủ FUN tokens.";
-  if (lower.includes("nonce")) return "Lỗi nonce — sẽ tự động thử lại.";
-  if (lower.includes("reverted")) return "Contract từ chối giao dịch.";
-  if (lower.includes("timeout") || lower.includes("timed out")) return "Mạng blockchain chậm. Thử lại sau.";
-  if (lower.includes("network") || lower.includes("fetch failed")) return "Lỗi kết nối RPC. Thử lại sau.";
-  return `Lỗi: ${raw.slice(0, 150)}`;
+function json(data: unknown, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
 }
