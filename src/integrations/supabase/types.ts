@@ -884,13 +884,19 @@ export type Database = {
       }
       claim_requests: {
         Row: {
+          activated_at: string | null
           amount: number
           auto_eligible: boolean | null
           auto_processed: boolean
           claim_type: string | null
           created_at: string
+          epoch_id: string | null
           error_message: string | null
           gas_fee: number | null
+          gov_completed_groups: string[]
+          gov_required: boolean
+          gov_signatures: Json
+          gov_signatures_count: number
           id: string
           last_attempt_at: string | null
           last_error: string | null
@@ -904,13 +910,19 @@ export type Database = {
           wallet_address: string
         }
         Insert: {
+          activated_at?: string | null
           amount: number
           auto_eligible?: boolean | null
           auto_processed?: boolean
           claim_type?: string | null
           created_at?: string
+          epoch_id?: string | null
           error_message?: string | null
           gas_fee?: number | null
+          gov_completed_groups?: string[]
+          gov_required?: boolean
+          gov_signatures?: Json
+          gov_signatures_count?: number
           id?: string
           last_attempt_at?: string | null
           last_error?: string | null
@@ -924,13 +936,19 @@ export type Database = {
           wallet_address: string
         }
         Update: {
+          activated_at?: string | null
           amount?: number
           auto_eligible?: boolean | null
           auto_processed?: boolean
           claim_type?: string | null
           created_at?: string
+          epoch_id?: string | null
           error_message?: string | null
           gas_fee?: number | null
+          gov_completed_groups?: string[]
+          gov_required?: boolean
+          gov_signatures?: Json
+          gov_signatures_count?: number
           id?: string
           last_attempt_at?: string | null
           last_error?: string | null
@@ -1536,6 +1554,42 @@ export type Database = {
           health_snapshot?: Json | null
           id?: string
           total_mint?: number
+        }
+        Relationships: []
+      }
+      epoch_pools: {
+        Row: {
+          auto_process_enabled: boolean
+          closed_at: string | null
+          created_at: string
+          epoch_id: string
+          gov_required: boolean
+          notes: string | null
+          pool_total: number
+          started_at: string
+          updated_at: string
+        }
+        Insert: {
+          auto_process_enabled?: boolean
+          closed_at?: string | null
+          created_at?: string
+          epoch_id: string
+          gov_required?: boolean
+          notes?: string | null
+          pool_total?: number
+          started_at?: string
+          updated_at?: string
+        }
+        Update: {
+          auto_process_enabled?: boolean
+          closed_at?: string | null
+          created_at?: string
+          epoch_id?: string
+          gov_required?: boolean
+          notes?: string | null
+          pool_total?: number
+          started_at?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -5939,6 +5993,7 @@ export type Database = {
         Args: { p_action: string; p_admin_id: string; p_max_requests?: number }
         Returns: Json
       }
+      claim_is_chain_ready: { Args: { p_claim_id: string }; Returns: boolean }
       compute_stability_index: { Args: { _user_id: string }; Returns: number }
       evaluate_phase_switch: { Args: never; Returns: Json }
       evaluate_sbt_rule: {

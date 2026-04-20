@@ -1,7 +1,8 @@
-// process-fun-claims — auto-mint FUN Money via FUNMoneyMinter on BSC Testnet
-// Combo C+D+B: hot wallet auto for ≤200k FUN, daily cap per Trust tier, multisig fallback for whales
+// process-fun-claims — Auto-transfer FUN from treasury after GOV 3/3 signed
+// Quy trình 6 bước (Bước 5): Cron 30 phút, dùng transfer() từ treasury 0x02D5
+// Picks claims where (gov_required=false OR gov_signatures_count>=3) AND tx_hash IS NULL
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
-import { JsonRpcProvider, Wallet, Contract, parseUnits, keccak256, toUtf8Bytes } from 'https://esm.sh/ethers@6.13.4';
+import { JsonRpcProvider, Wallet, Contract, parseUnits, formatUnits } from 'https://esm.sh/ethers@6.13.4';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -9,29 +10,20 @@ const corsHeaders = {
 };
 
 // ===== CONFIG =====
-const AUTO_MINT_THRESHOLD = 200_000;            // FUN — claims > này phải multisig
-const MAX_ATTEMPTS = 5;                         // dừng retry sau 5 lần
-const LOCK_TIMEOUT_MS = 5 * 60 * 1000;          // 5 phút — coi là stale
-const BATCH_SIZE = 5;                           // mỗi run xử lý tối đa 5 claim
-const MIN_AMOUNT = 0.0001;                      // skip dust
+const MAX_ATTEMPTS = 5;
+const LOCK_TIMEOUT_MS = 5 * 60 * 1000;
+const BATCH_SIZE = 5;
+const MIN_AMOUNT = 0.0001;
 
-const RPC_URL = 'https://data-seed-prebsc-1-s1.binance.org:8545/';
-const CONTRACT_ADDRESS = '0x39A1b047D5d143f8874888cfa1d30Fb2AE6F0CD6';
+// BSC Mainnet RPC + FUN ERC20 contract
+const RPC_URL = 'https://bsc-dataseed.binance.org/';
+const FUN_TOKEN_ADDRESS = '0x39A1b047D5d143f8874888cfa1d30Fb2AE6F0CD6';
 
-const MINTER_ABI = [
-  'function mintValidatedAction(bytes32 actionId, address user, uint256 totalMint, bytes32 validationDigest)',
-  'function authorizedMinters(address) view returns (bool)',
-  'function processedActionIds(bytes32) view returns (bool)',
+const ERC20_ABI = [
+  'function transfer(address to, uint256 amount) returns (bool)',
+  'function balanceOf(address) view returns (uint256)',
+  'function decimals() view returns (uint8)',
 ];
-
-function normalizeTier(tier: string | null, sybilRisk: number): string {
-  const t = (tier || 'new').toLowerCase();
-  if (sybilRisk >= 60) return 't0';
-  if (['veteran', 't4'].includes(t)) return 'veteran';
-  if (['trusted', 't3'].includes(t)) return 'trusted';
-  if (['standard', 't2'].includes(t)) return 'standard';
-  return 'new';
-}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
@@ -45,16 +37,17 @@ Deno.serve(async (req) => {
   if (!treasuryKey) return json({ error: 'FUN_TREASURY_PRIVATE_KEY not configured' }, 500);
 
   let body: any = {};
-  try { body = await req.json(); } catch { /* cron invocation — no body */ }
+  try { body = await req.json(); } catch { /* cron — no body */ }
   const dryRun = body?.dry_run === true;
   const claimIdFilter: string | null = body?.claim_id ?? null;
 
+  // ─── Pick claims ready for chain ───
   const cutoff = new Date(Date.now() - LOCK_TIMEOUT_MS).toISOString();
-  let claimsQ = supabase
+  let baseQ = supabase
     .from('claim_requests')
-    .select('id, user_id, wallet_address, amount, status, processing_attempts, locked_at')
+    .select('id, user_id, wallet_address, amount, status, processing_attempts, locked_at, gov_required, gov_signatures_count, epoch_id')
     .eq('claim_type', 'fun_money')
-    .in('status', ['pending', 'approved'])
+    .in('status', ['pending', 'approved', 'approved_for_chain'])
     .is('tx_hash', null)
     .lt('processing_attempts', MAX_ATTEMPTS)
     .or(`locked_at.is.null,locked_at.lt.${cutoff}`)
@@ -62,135 +55,134 @@ Deno.serve(async (req) => {
     .limit(BATCH_SIZE);
 
   if (claimIdFilter) {
-    claimsQ = supabase
+    baseQ = supabase
       .from('claim_requests')
-      .select('id, user_id, wallet_address, amount, status, processing_attempts, locked_at')
+      .select('id, user_id, wallet_address, amount, status, processing_attempts, locked_at, gov_required, gov_signatures_count, epoch_id')
       .eq('id', claimIdFilter)
       .limit(1);
   }
 
-  const { data: claims, error: claimsErr } = await claimsQ;
+  const { data: rawClaims, error: claimsErr } = await baseQ;
   if (claimsErr) return json({ error: 'Failed to fetch claims', details: claimsErr.message }, 500);
-  if (!claims?.length) return json({ ok: true, processed: 0, message: 'No claims to process' });
 
-  // Setup signer
+  // Filter: GOV ready (legacy bypass OR 3/3 signed)
+  const claims = (rawClaims || []).filter(c =>
+    c.gov_required === false || (Number(c.gov_signatures_count) >= 3)
+  );
+
+  if (!claims.length) {
+    return json({
+      ok: true,
+      processed: 0,
+      total_pending: rawClaims?.length ?? 0,
+      message: 'No claims chain-ready (waiting GOV signatures or none pending)',
+    });
+  }
+
+  // ─── Setup signer + ERC20 contract ───
   const provider = new JsonRpcProvider(RPC_URL);
-  const wallet = new Wallet(treasuryKey, provider);
-  const minter = new Contract(CONTRACT_ADDRESS, MINTER_ABI, wallet);
+  const treasury = new Wallet(treasuryKey, provider);
+  const fun = new Contract(FUN_TOKEN_ADDRESS, ERC20_ABI, treasury);
 
+  // Pre-flight: treasury balances
+  let funBalance: bigint;
+  let bnbBalance: bigint;
   try {
-    const isAuthorized = await minter.authorizedMinters(wallet.address);
-    if (!isAuthorized) {
-      return json({
-        error: 'Treasury wallet is not authorizedMinter on contract',
-        wallet: wallet.address,
-        contract: CONTRACT_ADDRESS,
-        hint: 'Call setAuthorizedMinter(treasuryAddress, true) from owner',
-      }, 500);
-    }
+    [funBalance, bnbBalance] = await Promise.all([
+      fun.balanceOf(treasury.address),
+      provider.getBalance(treasury.address),
+    ]);
   } catch (e: any) {
-    return json({ error: 'Cannot reach contract', details: e.message, wallet: wallet.address }, 500);
+    return json({ error: 'Cannot reach BSC RPC', details: e.message }, 500);
+  }
+
+  if (bnbBalance < parseUnits('0.001', 18)) {
+    return json({
+      error: 'Treasury BNB too low for gas',
+      treasury: treasury.address,
+      bnb_balance: formatUnits(bnbBalance, 18),
+    }, 500);
   }
 
   const results: any[] = [];
 
   for (const claim of claims) {
-    const result: any = { id: claim.id, user_id: claim.user_id, amount: Number(claim.amount) };
+    const result: any = {
+      id: claim.id,
+      user_id: claim.user_id,
+      amount: Number(claim.amount),
+      gov_required: claim.gov_required,
+      epoch_id: claim.epoch_id,
+    };
     const amount = Number(claim.amount);
 
     try {
-      if (amount < MIN_AMOUNT) { result.status = 'skip_dust'; results.push(result); continue; }
+      if (amount < MIN_AMOUNT) {
+        result.status = 'skip_dust';
+        results.push(result);
+        continue;
+      }
+
+      // Check epoch_pools.auto_process_enabled (skip for legacy)
+      if (claim.epoch_id && !claim.epoch_id.startsWith('legacy-')) {
+        const { data: poolCfg } = await supabase
+          .from('epoch_pools')
+          .select('auto_process_enabled')
+          .eq('epoch_id', claim.epoch_id)
+          .maybeSingle();
+        if (poolCfg && poolCfg.auto_process_enabled === false) {
+          result.status = 'epoch_paused';
+          results.push(result);
+          continue;
+        }
+      }
 
       // Lock row
       const { error: lockErr } = await supabase
         .from('claim_requests')
         .update({
           locked_at: new Date().toISOString(),
-          processing_attempts: claim.processing_attempts + 1,
+          processing_attempts: (claim.processing_attempts ?? 0) + 1,
           last_attempt_at: new Date().toISOString(),
         })
         .eq('id', claim.id)
         .or(`locked_at.is.null,locked_at.lt.${cutoff}`);
-      if (lockErr) { result.status = 'lock_failed'; result.error = lockErr.message; results.push(result); continue; }
-
-      // Threshold — > 200k FUN routed to multisig flow
-      if (amount > AUTO_MINT_THRESHOLD) {
-        await supabase.from('claim_requests').update({
-          last_error: `Amount ${amount} > auto threshold ${AUTO_MINT_THRESHOLD} — needs multisig`,
-          auto_eligible: false,
-          locked_at: null,
-        }).eq('id', claim.id);
-        result.status = 'requires_multisig';
-        results.push(result); continue;
+      if (lockErr) {
+        result.status = 'lock_failed';
+        result.error = lockErr.message;
+        results.push(result);
+        continue;
       }
 
-      // Trust tier → daily cap
-      const { data: trust } = await supabase
-        .from('trust_profile')
-        .select('tier, sybil_risk')
-        .eq('user_id', claim.user_id)
-        .maybeSingle();
-      const sybilRisk = Number(trust?.sybil_risk) || 0;
-      const tier = normalizeTier(trust?.tier ?? null, sybilRisk);
+      const totalWei = parseUnits(amount.toString(), 18);
 
-      if (tier === 't0') {
+      // Treasury balance check
+      if (funBalance < totalWei) {
         await supabase.from('claim_requests').update({
-          last_error: `Sybil risk ${sybilRisk} too high`,
-          auto_eligible: false, status: 'failed',
-          error_message: 'Sybil risk quá cao, vui lòng liên hệ hỗ trợ.',
+          last_error: `Treasury FUN balance insufficient (${formatUnits(funBalance, 18)} < ${amount})`,
           locked_at: null,
         }).eq('id', claim.id);
-        result.status = 'sybil_blocked';
-        results.push(result); continue;
-      }
-
-      // Atomically reserve daily cap
-      const { data: reserved, error: reserveErr } = await supabase.rpc('fun_auto_mint_reserve', {
-        p_user_id: claim.user_id, p_amount: amount, p_tier: tier,
-      });
-      if (reserveErr) throw new Error(`Reserve failed: ${reserveErr.message}`);
-      if (!reserved) {
-        await supabase.from('claim_requests').update({
-          last_error: `Daily cap reached for tier ${tier}`,
-          auto_eligible: false, locked_at: null,
-        }).eq('id', claim.id);
-        result.status = 'daily_cap_reached';
-        result.tier = tier;
-        results.push(result); continue;
+        result.status = 'treasury_low';
+        result.treasury_fun = formatUnits(funBalance, 18);
+        results.push(result);
+        continue;
       }
 
       if (dryRun) {
-        await supabase.rpc('fun_auto_mint_refund', { p_user_id: claim.user_id, p_amount: amount });
         await supabase.from('claim_requests').update({ locked_at: null }).eq('id', claim.id);
         result.status = 'dry_run_ok';
-        result.tier = tier;
-        results.push(result); continue;
+        results.push(result);
+        continue;
       }
 
-      // Build mint
-      const totalWei = parseUnits(amount.toString(), 18);
-      const actionId = keccak256(toUtf8Bytes(JSON.stringify({
-        claim_id: claim.id, user: claim.wallet_address, amount: amount.toString(),
-      })));
-      const validationDigest = keccak256(toUtf8Bytes(JSON.stringify({
-        source: 'auto-processor', tier, claim_id: claim.id, ts: Date.now(),
-      })));
-
-      // Idempotency — already processed on-chain?
-      const alreadyDone = await minter.processedActionIds(actionId);
-      if (alreadyDone) {
-        await supabase.from('claim_requests').update({
-          status: 'success', last_error: 'Already processed on-chain',
-          auto_processed: true, locked_at: null,
-        }).eq('id', claim.id);
-        await supabase.rpc('fun_auto_mint_refund', { p_user_id: claim.user_id, p_amount: amount });
-        result.status = 'already_onchain';
-        results.push(result); continue;
-      }
-
-      const tx = await minter.mintValidatedAction(actionId, claim.wallet_address, totalWei, validationDigest);
+      // Execute transfer
+      const tx = await fun.transfer(claim.wallet_address, totalWei);
       const receipt = await tx.wait();
 
+      // Reduce in-memory balance for next iteration
+      funBalance = funBalance - totalWei;
+
+      // Update claim — status=success but token_state stays 'locked' (user must Activate)
       await supabase.from('claim_requests').update({
         status: 'success',
         tx_hash: receipt.hash,
@@ -201,16 +193,14 @@ Deno.serve(async (req) => {
         locked_at: null,
       }).eq('id', claim.id);
 
-      result.status = 'minted';
+      result.status = 'transferred';
       result.tx_hash = receipt.hash;
-      result.tier = tier;
       results.push(result);
     } catch (err: any) {
       const msg = err?.message || String(err);
-      console.error('Mint failed for', claim.id, msg);
-      try { await supabase.rpc('fun_auto_mint_refund', { p_user_id: claim.user_id, p_amount: amount }); } catch {}
+      console.error('Transfer failed for', claim.id, msg);
 
-      const willRetry = (claim.processing_attempts + 1) < MAX_ATTEMPTS;
+      const willRetry = ((claim.processing_attempts ?? 0) + 1) < MAX_ATTEMPTS;
       await supabase.from('claim_requests').update({
         last_error: msg.slice(0, 500),
         status: willRetry ? claim.status : 'failed',
@@ -224,11 +214,18 @@ Deno.serve(async (req) => {
     }
   }
 
-  return json({ ok: true, processed: results.length, results });
+  return json({
+    ok: true,
+    processed: results.length,
+    treasury: treasury.address,
+    treasury_fun_left: formatUnits(funBalance, 18),
+    results,
+  });
 });
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
-    status, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
 }

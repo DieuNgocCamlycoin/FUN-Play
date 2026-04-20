@@ -23,7 +23,7 @@ const DEFAULTS = {
   alpha: 1000, beta: 800, gamma: 600,
   delta: 500, epsilon: 100, zeta: 300,
   minEpochMint: 100000,
-  maxEpochMintPolicy: 20000000,
+  maxEpochMintPolicy: 30000000,
   disciplineModMin: 0.65,
   disciplineModMax: 1.25,
   userRewardPct: 0.70,
