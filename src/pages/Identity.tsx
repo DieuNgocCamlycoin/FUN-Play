@@ -16,6 +16,7 @@ import { ZKCommitmentPanel } from '@/components/Identity/ZKCommitmentPanel';
 import { OrgPanel } from '@/components/Identity/OrgPanel';
 import { AIAgentPanel } from '@/components/Identity/AIAgentPanel';
 import { DIBVaultPanel } from '@/components/Identity/DIBVaultPanel';
+import { TrustGraphPanel } from '@/components/Identity/TrustGraphPanel';
 import { getDID, type DIDRecord } from '@/lib/identity/did-registry';
 import { tcToTier, type TrustTier } from '@/lib/identity/trust-tier';
 import { useTierUpgradeWatcher } from '@/hooks/useTierUpgradeWatcher';
@@ -140,6 +141,8 @@ export default function Identity() {
           <DIBVaultPanel userId={user.id} />
           <AttestationPanel userId={user.id} />
         </div>
+
+        <TrustGraphPanel userId={user.id} />
 
         <RecoverySetup userId={user.id} />
 

@@ -107,6 +107,34 @@ serve(async (req) => {
     const endorsements = (reviews || []).filter((r: any) => (r.endorse_score || 0) > 0).length;
     const flags = (reviews || []).filter((r: any) => (r.flag_score || 0) > 0).length;
 
+    // Trust Graph signal — incoming weighted vouches
+    const { data: trustEdges } = await adminSupabase
+      .from('trust_edges')
+      .select('from_user_id, weight')
+      .eq('to_user_id', targetUserId);
+    const voucherIds = (trustEdges || []).map((e: any) => e.from_user_id);
+    let voucherTcMap = new Map<string, number>();
+    if (voucherIds.length > 0) {
+      const { data: voucherProfiles } = await adminSupabase
+        .from('trust_profile').select('user_id, tc').in('user_id', voucherIds);
+      voucherTcMap = new Map((voucherProfiles || []).map((p: any) => [p.user_id, Number(p.tc) || 0.5]));
+    }
+    const incomingTrust = (trustEdges || []).reduce((s: number, e: any) => {
+      return s + (Number(e.weight) || 0) * (voucherTcMap.get(e.from_user_id) ?? 0.5);
+    }, 0);
+    const networkTrustBonus = Math.min(0.15, incomingTrust * 0.05);
+
+    // AI Trust signal — latest evaluation (cap ±0.10)
+    const { data: aiEval } = await adminSupabase
+      .from('ai_trust_evaluations')
+      .select('tc_adjustment, fake_probability')
+      .eq('user_id', targetUserId)
+      .order('evaluated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const aiAdjustment = aiEval ? Math.max(-0.1, Math.min(0.1, Number(aiEval.tc_adjustment) || 0)) : 0;
+    const aiFakeRisk = aiEval ? Number(aiEval.fake_probability) || 0 : 0;
+
     // Calculate Trust Coefficient (TC)
     let tc = 0.5; // base
     tc += identityScore * 0.2;
@@ -115,6 +143,9 @@ serve(async (req) => {
     tc -= avgRisk * 0.2;
     tc += Math.min(0.15, endorsements * 0.03);
     tc -= Math.min(0.2, flags * 0.05);
+    tc += networkTrustBonus;
+    tc += aiAdjustment;
+    tc -= aiFakeRisk * 0.15;
     tc = Math.max(0, Math.min(1.2, tc));
 
     // Determine Trust Tier
@@ -139,6 +170,10 @@ serve(async (req) => {
       behavioral_risk: Math.round(avgRisk * 10000) / 10000,
       community_endorsements: endorsements,
       community_flags: flags,
+      incoming_trust: Math.round(incomingTrust * 10000) / 10000,
+      network_trust_bonus: Math.round(networkTrustBonus * 10000) / 10000,
+      ai_tc_adjustment: aiAdjustment,
+      ai_fake_probability: aiFakeRisk,
       is_blacklisted: isBlacklisted,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
