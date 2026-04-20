@@ -885,12 +885,18 @@ export type Database = {
       claim_requests: {
         Row: {
           amount: number
+          auto_eligible: boolean | null
+          auto_processed: boolean
           claim_type: string | null
           created_at: string
           error_message: string | null
           gas_fee: number | null
           id: string
+          last_attempt_at: string | null
+          last_error: string | null
+          locked_at: string | null
           processed_at: string | null
+          processing_attempts: number
           status: string
           token_state: string | null
           tx_hash: string | null
@@ -899,12 +905,18 @@ export type Database = {
         }
         Insert: {
           amount: number
+          auto_eligible?: boolean | null
+          auto_processed?: boolean
           claim_type?: string | null
           created_at?: string
           error_message?: string | null
           gas_fee?: number | null
           id?: string
+          last_attempt_at?: string | null
+          last_error?: string | null
+          locked_at?: string | null
           processed_at?: string | null
+          processing_attempts?: number
           status?: string
           token_state?: string | null
           tx_hash?: string | null
@@ -913,12 +925,18 @@ export type Database = {
         }
         Update: {
           amount?: number
+          auto_eligible?: boolean | null
+          auto_processed?: boolean
           claim_type?: string | null
           created_at?: string
           error_message?: string | null
           gas_fee?: number | null
           id?: string
+          last_attempt_at?: string | null
+          last_error?: string | null
+          locked_at?: string | null
           processed_at?: string | null
+          processing_attempts?: number
           status?: string
           token_state?: string | null
           tx_hash?: string | null
@@ -1630,6 +1648,39 @@ export type Database = {
           date?: string
           onchain_value_score?: number | null
           sequence_count?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      fun_auto_mint_daily: {
+        Row: {
+          amount_minted: number
+          claim_count: number
+          created_at: string
+          id: string
+          mint_date: string
+          tier: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount_minted?: number
+          claim_count?: number
+          created_at?: string
+          id?: string
+          mint_date?: string
+          tier?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount_minted?: number
+          claim_count?: number
+          created_at?: string
+          id?: string
+          mint_date?: string
+          tier?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -5902,6 +5953,15 @@ export type Database = {
         Args: { p_admin_id: string; p_user_id: string }
         Returns: undefined
       }
+      fun_auto_mint_refund: {
+        Args: { p_amount: number; p_user_id: string }
+        Returns: undefined
+      }
+      fun_auto_mint_reserve: {
+        Args: { p_amount: number; p_tier: string; p_user_id: string }
+        Returns: boolean
+      }
+      fun_auto_mint_tier_cap: { Args: { p_tier: string }; Returns: number }
       get_admin_dashboard_stats: { Args: never; Returns: Json }
       get_founder_dashboard_stats: { Args: never; Returns: Json }
       get_fun_money_system_stats: { Args: never; Returns: Json }
