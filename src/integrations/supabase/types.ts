@@ -222,6 +222,39 @@ export type Database = {
           },
         ]
       }
+      ai_trust_evaluations: {
+        Row: {
+          evaluated_at: string
+          fake_probability: number
+          id: string
+          model: string
+          quality_score: number
+          signals: Json
+          tc_adjustment: number
+          user_id: string
+        }
+        Insert: {
+          evaluated_at?: string
+          fake_probability?: number
+          id?: string
+          model?: string
+          quality_score?: number
+          signals?: Json
+          tc_adjustment?: number
+          user_id: string
+        }
+        Update: {
+          evaluated_at?: string
+          fake_probability?: number
+          id?: string
+          model?: string
+          quality_score?: number
+          signals?: Json
+          tc_adjustment?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       angel_chat_messages: {
         Row: {
           content: string
@@ -4746,6 +4779,36 @@ export type Database = {
         }
         Relationships: []
       }
+      trust_edges: {
+        Row: {
+          created_at: string
+          from_user_id: string
+          id: string
+          reason: string | null
+          to_user_id: string
+          updated_at: string
+          weight: number
+        }
+        Insert: {
+          created_at?: string
+          from_user_id: string
+          id?: string
+          reason?: string | null
+          to_user_id: string
+          updated_at?: string
+          weight?: number
+        }
+        Update: {
+          created_at?: string
+          from_user_id?: string
+          id?: string
+          reason?: string | null
+          to_user_id?: string
+          updated_at?: string
+          weight?: number
+        }
+        Relationships: []
+      }
       trust_profile: {
         Row: {
           bs: number | null
@@ -5912,6 +5975,7 @@ export type Database = {
         Args: { p_wallet_address?: string }
         Returns: Json
       }
+      get_trust_graph_stats: { Args: { p_user_id: string }; Returns: Json }
       get_user_activity_summary: { Args: { p_user_id: string }; Returns: Json }
       get_users_directory_stats: {
         Args: never
