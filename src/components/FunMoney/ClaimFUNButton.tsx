@@ -71,14 +71,20 @@ export function ClaimFUNButton() {
     if (!user || !address || !summary) return;
     setClaiming(true);
     try {
-      const { error } = await supabase.from('claim_requests').insert({
+      const { data: inserted, error } = await supabase.from('claim_requests').insert({
         user_id: user.id,
         wallet_address: address,
         amount: summary.pendingClaim,
         claim_type: 'fun_money',
-      });
+      }).select('id').single();
       if (error) throw error;
-      toast.success('Yêu cầu claim đã được gửi! Admin sẽ xử lý sớm.');
+
+      // Trigger auto-processor immediately for instant feedback
+      supabase.functions.invoke('process-fun-claims', {
+        body: { claim_id: inserted?.id },
+      }).catch(() => { /* cron will pick up */ });
+
+      toast.success('Claim đã gửi — đang tự động mint, FUN sẽ về ví trong vài phút.');
       fetchSummary();
     } catch (err: any) {
       toast.error(err.message || 'Không thể gửi yêu cầu claim');
