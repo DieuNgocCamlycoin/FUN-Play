@@ -170,6 +170,10 @@ serve(async (req) => {
       behavioral_risk: Math.round(avgRisk * 10000) / 10000,
       community_endorsements: endorsements,
       community_flags: flags,
+      incoming_trust: Math.round(incomingTrust * 10000) / 10000,
+      network_trust_bonus: Math.round(networkTrustBonus * 10000) / 10000,
+      ai_tc_adjustment: aiAdjustment,
+      ai_fake_probability: aiFakeRisk,
       is_blacklisted: isBlacklisted,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
