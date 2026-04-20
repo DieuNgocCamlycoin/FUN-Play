@@ -12,7 +12,7 @@ const VALID_PLATFORMS: Record<string, { daily_cap: number; label: string }> = {
   fun_main: { daily_cap: 2, label: 'fun.rich' },
 };
 const DEFAULT_PLATFORM = 'fun_play';
-const CROSS_PLATFORM_EPOCH_CAP = 20_000_000; // 20M FUN shared across all platforms
+const CROSS_PLATFORM_EPOCH_CAP = 30_000_000; // 30M FUN shared across all platforms (epoch pool)
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
