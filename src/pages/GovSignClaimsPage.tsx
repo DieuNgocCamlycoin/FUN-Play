@@ -105,7 +105,7 @@ export default function GovSignClaimsPage() {
     setSigningId(claim.id);
     try {
       const message = buildSignMessage(claim);
-      const signature = await signMessageAsync({ message });
+      const signature = await signMessageAsync({ account: address, message });
 
       const { data, error } = await supabase.functions.invoke('gov-sign-claim', {
         body: {
