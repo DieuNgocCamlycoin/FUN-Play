@@ -14,6 +14,7 @@ import { Progress } from "@/components/ui/progress";
 import { MobileBottomNav } from "@/components/Layout/MobileBottomNav";
 import { CreatePlaylistModal } from "@/components/Playlist/CreatePlaylistModal";
 import { IdentityTrustPinnedCard } from "@/components/Identity/IdentityTrustPinnedCard";
+import { TrustGraphPanel } from "@/components/Identity/TrustGraphPanel";
 import { formatViewsShort } from "@/lib/formatters";
 
 interface ChannelInfo {
@@ -178,6 +179,12 @@ const Profile = () => {
       <div className="px-4 mb-6">
         <IdentityTrustPinnedCard mobileInline />
       </div>
+
+      {user && (
+        <div className="px-4 mb-6">
+          <TrustGraphPanel userId={user.id} />
+        </div>
+      )}
 
       {/* Watch History Section */}
       <div className="px-4 mb-6">
