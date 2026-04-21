@@ -1,129 +1,141 @@
 
 
-# 🎯 Plan: Áp dụng Quy trình 6 Bước Mint FUN (chuẩn mới)
+# 🎯 Kế hoạch: Đăng ký 6 actions PPLP v2 + Mở cap lên 50M FUN/tháng
 
 ## Mục tiêu
-Thực hiện đúng 6 bước theo ảnh cha gửi, với 2 cập nhật mới:
-- **Bước 1**: 6 hành động được chấm điểm — Xem video, Upload video, Đăng bài, Comment, React, Share
-- **Bước 2**: Quỹ **30 triệu FUN/chu kỳ** (thay cho 5M)
+Gỡ nghẽn hệ thống mint FUN bằng cách đăng ký thêm **5 action mới** lên contract `0x39A1b047...` (hiện chỉ có `FUN_REWARD`), nâng trần on-chain từ 1M → 6M FUN/ngày, và mở cap off-chain từ 5M → **50M FUN/tháng**.
 
-## Quy trình tổng quan
+## Quy trình tổng thể
 
 ```text
-[1] Light Activities          → ANGEL AI chấm điểm (6 hành động)
-[2] Chốt Chu Kỳ Hàng Tháng   → Auto, quỹ 30M FUN/chu kỳ
-[3] Nhận 1 Phân Bổ Duy Nhất  → User bấm "Claim" (1 lần/chu kỳ)
-[4] GOV 3/3 Ký Duyệt          → Will + Wisdom + Love (off-chain EIP-712)
-[5] Tự Động Submit On-chain  → Cron 30 phút, dùng transfer() từ treasury 0x02D5
-[6] Activate & Claim          → Locked → Activate → về ví user
+[1] Bé Trí (gov wallet) → mở /admin/pplp/register-actions
+[2] Bấm "Register" cho 6 actions      → gọi govRegisterAction(name, 1)
+[3] Edge function map action_type     → chọn on-chain action đúng
+[4] Cap off-chain nâng 5M → 50M       → migration + audit log
+[5] Re-mint 52 giao dịch stale (~1.95M FUN)
+[6] Sau 30 ngày → deprecate FUN_REWARD
 ```
 
-## 📦 Phần 1 — Database (Migration)
+## 📦 Phase A — UI đăng ký 6 actions on-chain
 
-**1.1. Cập nhật `claim_requests`** — thêm cột phục vụ GOV ký + state machine:
-- `epoch_id text` (vd `2026-04`)
-- `gov_signatures jsonb` (lưu 3 chữ ký theo group)
-- `gov_completed_groups text[]`
-- `gov_signatures_count int default 0`
-- `gov_required boolean default true` (false = backlog cũ bypass)
-- `token_state text default 'locked'` (locked → active → claimed)
-- `activated_at timestamptz`
-- Unique constraint: `(user_id, epoch_id, claim_type)` → ép **1 claim/user/epoch**
+**Tạo `src/config/pplp-action-registry.ts`** — danh sách chuẩn:
 
-**1.2. Tạo bảng `epoch_config`** — cấu hình quỹ epoch:
-- `epoch_id text PK`, `pool_total numeric default 30000000`, `auto_process_enabled bool default true`, `started_at`, `closed_at`
+| # | On-chain name | Pillar | Mapping từ `light_actions.action_type` |
+|---|---|---|---|
+| 1 | `INNER_WORK` | Sám Hối | `journal_write`, `gratitude_practice`, inner reflection |
+| 2 | `CHANNELING` | Biết Ơn | `vision_create`, `post_create`, `content_create` |
+| 3 | `GIVING` | Trao Tặng | `donate_support`, gift FUN/CAMLY/BTC |
+| 4 | `HELPING` | Giúp Đỡ | `comment_create`, mentor, support |
+| 5 | `GRATITUDE` | Biết Ơn | `reaction`, `gratitude` |
+| 6 | `SERVICE` | Phụng Sự | `share`, `livestream`, event hosting |
 
-**1.3. Backlog cũ (20 claims)**: set `gov_required=false`, `epoch_id='2026-04-legacy'` để cron xử lý ngay không cần ký.
+**Tạo `src/hooks/usePplpGovActions.ts`** — đọc/đăng ký action on-chain:
+- `useReadContract` gọi `actions(hash)` cho từng action → trả về `{ allowed, deprecated, version }`
+- `useWriteContract` gọi `govRegisterAction(name, version=1)` từ ví bé Trí
+- Verify lại sau ký bằng cách re-fetch
 
-## 📦 Phần 2 — Cập nhật Hằng số Quỹ (5M → 30M)
+**Tạo `src/pages/admin/PplpActionRegistration.tsx`**:
+- Bảng 6 dòng: Name · Hash (keccak256) · Status badge · Gas ước tính · Nút Register
+- Status: `chưa đăng ký` (đỏ) / `đã đăng ký` (xanh) / `deprecated` (xám)
+- Hiển thị hash đầy đủ trước khi ký (chống ký nhầm)
+- Toast confirm + auto re-verify sau tx success
 
-| File | Thay đổi |
-|---|---|
-| `supabase/functions/pplp-mint-fun/index.ts` | `CROSS_PLATFORM_EPOCH_CAP = 30_000_000` |
-| `supabase/functions/epoch-mint-finalize/index.ts` | `EPOCH_POOL = 30_000_000` |
-| `mem://economy/pplp-monthly-epoch-pool` | Cập nhật memory: 5M → 30M |
-| Test files (`light-score-math.test.ts`, `attack-simulation.test.ts`) | `mintPool: 30_000_000` |
+**Route**: thêm vào `src/pages/Admin.tsx` tab mới hoặc route `/admin/pplp/register-actions`
 
-## 📦 Phần 3 — Edge Functions
+**Doc `docs/pplp-action-registration-guide.md`**: hướng dẫn bé Trí step-by-step (kết nối ví, gas ~0.0005 BNB/action, faucet tBNB).
 
-**3.1. `epoch-mint-finalize` (đã có)** — chỉ cần:
-- Đổi pool 30M
-- Khi finalize, tạo **1 record duy nhất** trong `claim_requests` cho mỗi user (không tạo nhiều)
-- Set `epoch_id`, `gov_required=true`, `token_state='locked'`
+## 📦 Phase B — Edge function map action động
 
-**3.2. `gov-sign-claim` (NEW)** — endpoint nhận chữ ký GOV:
-- Input: `{ claim_id, signature, gov_group: 'will'|'wisdom'|'love' }`
-- Verify signature bằng `ethers.verifyMessage` → so với `gov_attesters.wallet_address`
-- Update `gov_signatures`, `gov_completed_groups`, tăng `gov_signatures_count`
-- Khi đủ 3 → set `status='approved_for_chain'`
+**Tạo `supabase/functions/pplp-authorize-mint/action-mapper.ts`**:
+- Hàm `mapActionType(lightActionType: string): OnChainAction`
+- Trả về `{ name, hash }` theo bảng mapping ở Phase A
+- Default fallback: `FUN_REWARD` (cho 14 ngày đầu)
 
-**3.3. `process-fun-claims` (REFACTOR)** — auto-processor 30 phút:
-- Chỉ pick claim có: `(gov_required=false OR gov_signatures_count>=3)` AND `tx_hash IS NULL`
-- Check `epoch_config.auto_process_enabled=true`
-- Pre-flight: balance treasury đủ không (FUN + tBNB)
-- Gọi `transfer()` từ ví `0x02D5...` (private key đã set trong secrets)
-- Update `tx_hash`, `status='success'`, **giữ `token_state='locked'`** (chờ user Activate)
-- Nếu fail → ghi `last_error`, `processing_attempts++`, retry sau
+**Sửa `supabase/functions/pplp-authorize-mint/index.ts`**:
+- Bỏ hardcode `action_name = "FUN_REWARD"`
+- Khi mint request gộp nhiều `light_actions` → **chia thành nhiều mint request con** (1 request 1 action on-chain)
+- Lưu đúng `action_name` + `action_hash` vào `pplp_mint_requests`
+- Log mỗi lần map vào `pplp_v2_event_log` (event `action.mapped`)
 
-**3.4. `activate-fun-claim` (NEW)** — user bấm Activate:
-- Verify caller = `claim_requests.user_id`
-- Set `token_state='active'`, `activated_at=now()`
-- Trả về OK → frontend hiển thị nút "Claim về ví"
+**Backward compat**: trong 30 ngày, nếu mapping fail thì fallback về `FUN_REWARD`.
 
-**3.5. Cron pg_cron**: chạy `process-fun-claims` mỗi 30 phút.
+## 📦 Phase C — Nâng cap off-chain 5M → 50M
 
-## 📦 Phần 4 — Frontend
+**Migration SQL** (chạy bằng insert tool, không phải migration tool vì là data update):
 
-**4.1. `/gov/sign-claims` (NEW)** — Trang cho 3 nhóm GOV:
-- Detect ví GOV đang connect → hiện claims chưa ký bởi group đó
-- Bảng: User · Epoch · Amount · Signatures progress (1/3, 2/3, 3/3)
-- Nút "Sign with [Will/Wisdom/Love]" → ký EIP-712 → POST `gov-sign-claim`
-- Component `GovAttesterBanner` đã có → mở rộng link sang trang này
+```sql
+INSERT INTO pplp_v2_event_log (event_type, payload, created_by)
+VALUES ('epoch.cap.updated', jsonb_build_object(
+  'before', 5000000, 'after', 50000000,
+  'reason', '6 actions registered on-chain → expand cap to 28% theoretical ceiling',
+  'phase', 'C-direct-50M'
+), 'system');
 
-**4.2. `ClaimFUNButton` (UPDATE)**:
-- Nếu chưa có allocation: hiện "Chờ chốt chu kỳ"
-- Nếu allocation tạo rồi, GOV chưa đủ ký: hiện "Đang chờ GOV duyệt (X/3 chữ ký)"
-- Nếu `tx_hash` có + `token_state='locked'`: hiện nút **"⚡ Activate"**
-- Nếu `token_state='active'`: hiện **"💰 Claim về ví"** (link BSC Scan)
+UPDATE epoch_config 
+SET soft_ceiling = 50000000, updated_at = now()
+WHERE config_key = 'default' AND is_active = true;
+```
 
-**4.3. `useAutoMintFun` (UPDATE)**:
-- Bỏ logic mint từng action lẻ (vì giờ đã chuyển sang epoch-based)
-- Chỉ ghi `pplp_events` cho 6 hành động: VIEW, UPLOAD, POST, COMMENT, LIKE, SHARE
-- Việc tính score + phân bổ FUN do `epoch-mint-finalize` xử lý cuối tháng
+Sau update → trigger `pplp-epoch-snapshot` để re-snapshot epoch tháng 4.
 
-## 📦 Phần 5 — Memory Updates
+## 📦 Phase D — Recovery 52 giao dịch hỏng
 
-- `mem://economy/pplp-monthly-epoch-pool`: 5M → **30M FUN/chu kỳ**
-- `mem://economy/unified-single-mint-point`: thêm flow GOV 3/3
-- Index core rule: cập nhật quỹ 30M
+Sau khi 6 actions đã `allowed=true`:
+- Chạy edge function `pplp-remint-stale` → re-mint 28 expired + 24 failed (~1.95M FUN)
+- Mapping mới sẽ chia đều qua 6 actions → không nghẽn cap 1M/day
 
-## 🔀 Quyết định kỹ thuật (con áp dụng theo các xác nhận trước)
+## 📦 Phase E — Memory updates
 
-- **Contract**: dùng `0x39A1b047...` (ERC20), bước 5 dùng `transfer()` từ treasury `0x02D5...`
-- **GOV ký**: off-chain EIP-712 (đã có `gov_attesters` table với wallet_address)
-- **Backlog 20 claims**: bypass GOV (set `gov_required=false`), cron xử lý ngay
-- **PPLP v2.5**: tạm pause logic VVU phức tạp trong `useAutoMintFun`, chỉ giữ event tracking
+- Sửa `mem://constraints/contract-owner-access`: bé Trí có quyền gov + owner, gỡ blocker cũ
+- Tạo `mem://smart-contracts/v1-2-1-action-registry`: 6 actions chính thức + hash
+- Update `mem://economy/pplp-monthly-epoch-pool`: 5M → **50M FUN/tháng**
+- Update Core rule: cap 50M
+
+## 🔧 Files
+
+**Tạo mới (5)**:
+1. `src/config/pplp-action-registry.ts`
+2. `src/hooks/usePplpGovActions.ts`
+3. `src/pages/admin/PplpActionRegistration.tsx`
+4. `supabase/functions/pplp-authorize-mint/action-mapper.ts`
+5. `docs/pplp-action-registration-guide.md`
+
+**Sửa (3)**:
+1. `supabase/functions/pplp-authorize-mint/index.ts` — chia mint theo action
+2. `src/components/admin/PplpMintTab.tsx` — thêm tab "Register Actions"
+3. `src/pages/Admin.tsx` — route mới
 
 ## ✅ Acceptance criteria
 
-1. User chỉ tạo được **1 claim/epoch** (DB constraint)
-2. Quỹ tháng = **30M FUN** (config + code + tests)
-3. 3 GOV (Will/Wisdom/Love) ký được qua trang `/gov/sign-claims`, mỗi ví chỉ ký được cho group của mình
-4. Cron 30 phút auto chuyển FUN khi đủ 3/3 ký
-5. Backlog 20 claims xử lý xong trong 30 phút đầu (không cần ký)
-6. User bấm Activate → bấm Claim → thấy FUN trong ví Web3
-7. Treasury thiếu FUN → claim giữ `pending`, không fail vĩnh viễn
+1. 6 actions trên contract `0x39A1b047...` có `allowed=true, deprecated=false`
+2. Edge function map đúng action cho từng `action_type`
+3. Test mint 1 request mỗi action → lên block thành công
+4. `epoch_config.soft_ceiling = 50000000`, snapshot tháng 4 đã refresh
+5. 52 request stale re-mint xong, không revert vì cap
+6. Memory `pplp-monthly-epoch-pool` ghi 50M
+7. FUN_REWARD vẫn chạy song song trong 30 ngày (deprecate sau)
 
-## 📋 Thứ tự triển khai (sau khi cha duyệt)
+## ⚠️ Rủi ro & Mitigation
 
-1. Migration DB (claim_requests cột mới + epoch_config)
-2. Update hằng số 30M trong code + tests
-3. Refactor `process-fun-claims` (check GOV + transfer)
-4. Tạo `gov-sign-claim` + `activate-fun-claim` edge functions
-5. Update `epoch-mint-finalize` (1 claim/user/epoch)
-6. Cron pg_cron 30 phút
-7. Build trang `/gov/sign-claims`
-8. Update `ClaimFUNButton` UI 4 trạng thái
-9. Migrate 20 backlog (set bypass GOV)
-10. Update memories
+| Rủi ro | Mitigation |
+|---|---|
+| Bé Trí ký nhầm action name | UI hiển thị hash đầy đủ + auto verify sau ký |
+| Edge map sai action | Fallback FUN_REWARD + log mọi lần map |
+| Request `pending_sig` lúc đổi mapping | Chỉ áp dụng mapping mới cho request tạo sau timestamp X |
+| Ví gov hết tBNB | Doc kèm link faucet |
+| Cap 50M quá rộng → lạm phát đột biến | `pplp_v2_event_log` ghi nhận, có thể UPDATE giảm về 20M nhanh |
+
+## 📋 Thứ tự triển khai
+
+1. Update memory (gỡ blocker contract-owner-access)
+2. Tạo `pplp-action-registry.ts` + `usePplpGovActions.ts`
+3. Build trang `/admin/pplp/register-actions` + route
+4. Bé Trí đăng ký 6 actions on-chain (~30 phút, ~0.003 BNB)
+5. Verify on-chain qua hook
+6. Refactor `pplp-authorize-mint` + `action-mapper.ts`
+7. Migration SQL nâng cap 50M + audit log
+8. Trigger re-snapshot epoch
+9. Chạy `pplp-remint-stale` cho 52 giao dịch
+10. Doc bé Trí + memory updates
+11. Sau 30 ngày: gỡ FUN_REWARD khỏi mapping fallback
 
