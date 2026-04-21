@@ -148,6 +148,9 @@ verify_jwt = false
 [functions.pplp-mint-fun]
 verify_jwt = false
 
+[functions.pplp-mint-broadcast]
+verify_jwt = false
+
 [functions.livestream-cleanup]
 verify_jwt = false
 
