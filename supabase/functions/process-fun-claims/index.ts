@@ -181,7 +181,7 @@ Deno.serve(async (req) => {
       results.push(result);
     } catch (err: any) {
       const msg = err?.message || String(err);
-      console.error('Transfer failed for', claim.id, msg);
+      console.error('Mint failed for', claim.id, msg);
 
       const willRetry = ((claim.processing_attempts ?? 0) + 1) < MAX_ATTEMPTS;
       await supabase.from('claim_requests').update({
