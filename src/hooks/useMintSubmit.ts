@@ -42,6 +42,7 @@ export function useMintSubmit() {
         .from('pplp_mint_requests')
         .select('*')
         .in('status', ['signed', 'pending_sig', 'signing'])
+        .gt('amount', 0)
         .order('created_at', { ascending: true });
 
       if (!error && data) {
