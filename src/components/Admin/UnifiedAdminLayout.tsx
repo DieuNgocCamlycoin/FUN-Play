@@ -22,7 +22,8 @@ import {
   Fingerprint,
   Flag,
   Sparkles,
-  FileBarChart
+  FileBarChart,
+  TrendingUp
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -46,7 +47,8 @@ export type AdminSection =
   | "founder"
   | "inflation-health"
   | "identity-monitor"
-  | "trust-dashboard";
+  | "trust-dashboard"
+  | "epoch-cap-monitor";
 
 interface NavItem {
   id: AdminSection;
@@ -81,6 +83,7 @@ const navItems: NavItem[] = [
   { id: "multisig-mint", label: "Multisig Mint", icon: Shield },
   { id: "gov-attesters", label: "GOV Attesters", icon: Users },
   { id: "inflation-health", label: "Inflation Health", icon: BarChart3 },
+  { id: "epoch-cap-monitor", label: "Epoch Cap Monitor", icon: TrendingUp },
   { id: "identity-monitor", label: "Identity Monitor", icon: Fingerprint },
   { id: "trust-dashboard", label: "Trust Dashboard", icon: Shield },
   { id: "founder", label: "Founder Dashboard", icon: Crown, ownerOnly: true },
