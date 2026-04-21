@@ -231,9 +231,10 @@ serve(async (req) => {
         .eq("id", user.id);
     });
 
-    // TODO: On-chain mint via FUNMoneyMinter contract
-    // When backend wallet is configured, call:
-    // contract.mintValidatedAction(actionIdHash, userWallet, mintTotalWei, validationDigest)
+    // NOTE: Pre-14/4 flow restored.
+    // Contract 0x39A1b047... on BSC Testnet is a fixed-supply ERC20 (no mint() / no MINTER_ROLE).
+    // On-chain delivery happens in `process-fun-claims` via FUN.transfer() from treasury 0x02D5.
+    // This function only records mint accounting (mint_records + balance_ledger).
 
     return new Response(JSON.stringify({
       action_id,
