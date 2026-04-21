@@ -86,6 +86,7 @@ export function useAttesterSigning() {
         .from('pplp_mint_requests')
         .select('*')
         .in('status', ['pending_sig', 'signing', 'signed'])
+        .gt('amount', 0)
         .order('created_at', { ascending: true });
 
       if (!error && data) {
