@@ -19,8 +19,10 @@ const MIN_AMOUNT = 0.0001;
 const RPC_URL = 'https://data-seed-prebsc-1-s1.binance.org:8545/';
 const FUN_TOKEN_ADDRESS = '0x39A1b047D5d143f8874888cfa1d30Fb2AE6F0CD6';
 
-const ERC20_ABI = [
-  'function transfer(address to, uint256 amount) returns (bool)',
+// FUN token has mint() — treasury wallet 0x02D5 holds MINTER_ROLE
+// We MINT new tokens (per PPLP: mint từ action), NOT transfer from pre-funded balance
+const FUN_ABI = [
+  'function mint(address to, uint256 amount)',
   'function balanceOf(address) view returns (uint256)',
   'function decimals() view returns (uint8)',
 ];
@@ -82,16 +84,12 @@ Deno.serve(async (req) => {
   // ─── Setup signer + ERC20 contract ───
   const provider = new JsonRpcProvider(RPC_URL);
   const treasury = new Wallet(treasuryKey, provider);
-  const fun = new Contract(FUN_TOKEN_ADDRESS, ERC20_ABI, treasury);
+  const fun = new Contract(FUN_TOKEN_ADDRESS, FUN_ABI, treasury);
 
-  // Pre-flight: treasury balances
-  let funBalance: bigint;
+  // Pre-flight: only check BNB for gas (no balance cap on mint — đúc mới from contract)
   let bnbBalance: bigint;
   try {
-    [funBalance, bnbBalance] = await Promise.all([
-      fun.balanceOf(treasury.address),
-      provider.getBalance(treasury.address),
-    ]);
+    bnbBalance = await provider.getBalance(treasury.address);
   } catch (e: any) {
     return json({ error: 'Cannot reach BSC RPC', details: e.message }, 500);
   }
@@ -156,18 +154,6 @@ Deno.serve(async (req) => {
 
       const totalWei = parseUnits(amount.toString(), 18);
 
-      // Treasury balance check
-      if (funBalance < totalWei) {
-        await supabase.from('claim_requests').update({
-          last_error: `Treasury FUN balance insufficient (${formatUnits(funBalance, 18)} < ${amount})`,
-          locked_at: null,
-        }).eq('id', claim.id);
-        result.status = 'treasury_low';
-        result.treasury_fun = formatUnits(funBalance, 18);
-        results.push(result);
-        continue;
-      }
-
       if (dryRun) {
         await supabase.from('claim_requests').update({ locked_at: null }).eq('id', claim.id);
         result.status = 'dry_run_ok';
@@ -175,14 +161,11 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Execute transfer
-      const tx = await fun.transfer(claim.wallet_address, totalWei);
+      // === MINT new FUN to user wallet (đúc mới từ contract, không phải transfer) ===
+      const tx = await fun.mint(claim.wallet_address, totalWei);
       const receipt = await tx.wait();
 
-      // Reduce in-memory balance for next iteration
-      funBalance = funBalance - totalWei;
-
-      // Update claim — status=success but token_state stays 'locked' (user must Activate)
+      // Update claim — status=success, token_state stays 'locked' (user must Activate)
       await supabase.from('claim_requests').update({
         status: 'success',
         tx_hash: receipt.hash,
@@ -193,12 +176,12 @@ Deno.serve(async (req) => {
         locked_at: null,
       }).eq('id', claim.id);
 
-      result.status = 'transferred';
+      result.status = 'minted';
       result.tx_hash = receipt.hash;
       results.push(result);
     } catch (err: any) {
       const msg = err?.message || String(err);
-      console.error('Transfer failed for', claim.id, msg);
+      console.error('Mint failed for', claim.id, msg);
 
       const willRetry = ((claim.processing_attempts ?? 0) + 1) < MAX_ATTEMPTS;
       await supabase.from('claim_requests').update({
@@ -218,7 +201,7 @@ Deno.serve(async (req) => {
     ok: true,
     processed: results.length,
     treasury: treasury.address,
-    treasury_fun_left: formatUnits(funBalance, 18),
+    mode: 'mint',
     results,
   });
 });
