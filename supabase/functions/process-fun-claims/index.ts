@@ -154,18 +154,6 @@ Deno.serve(async (req) => {
 
       const totalWei = parseUnits(amount.toString(), 18);
 
-      // Treasury balance check
-      if (funBalance < totalWei) {
-        await supabase.from('claim_requests').update({
-          last_error: `Treasury FUN balance insufficient (${formatUnits(funBalance, 18)} < ${amount})`,
-          locked_at: null,
-        }).eq('id', claim.id);
-        result.status = 'treasury_low';
-        result.treasury_fun = formatUnits(funBalance, 18);
-        results.push(result);
-        continue;
-      }
-
       if (dryRun) {
         await supabase.from('claim_requests').update({ locked_at: null }).eq('id', claim.id);
         result.status = 'dry_run_ok';
@@ -173,14 +161,11 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Execute transfer
-      const tx = await fun.transfer(claim.wallet_address, totalWei);
+      // === MINT new FUN to user wallet (đúc mới từ contract, không phải transfer) ===
+      const tx = await fun.mint(claim.wallet_address, totalWei);
       const receipt = await tx.wait();
 
-      // Reduce in-memory balance for next iteration
-      funBalance = funBalance - totalWei;
-
-      // Update claim — status=success but token_state stays 'locked' (user must Activate)
+      // Update claim — status=success, token_state stays 'locked' (user must Activate)
       await supabase.from('claim_requests').update({
         status: 'success',
         tx_hash: receipt.hash,
@@ -191,7 +176,7 @@ Deno.serve(async (req) => {
         locked_at: null,
       }).eq('id', claim.id);
 
-      result.status = 'transferred';
+      result.status = 'minted';
       result.tx_hash = receipt.hash;
       results.push(result);
     } catch (err: any) {
