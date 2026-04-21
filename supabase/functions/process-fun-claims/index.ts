@@ -19,8 +19,10 @@ const MIN_AMOUNT = 0.0001;
 const RPC_URL = 'https://data-seed-prebsc-1-s1.binance.org:8545/';
 const FUN_TOKEN_ADDRESS = '0x39A1b047D5d143f8874888cfa1d30Fb2AE6F0CD6';
 
-const ERC20_ABI = [
-  'function transfer(address to, uint256 amount) returns (bool)',
+// FUN token has mint() — treasury wallet 0x02D5 holds MINTER_ROLE
+// We MINT new tokens (per PPLP: mint từ action), NOT transfer from pre-funded balance
+const FUN_ABI = [
+  'function mint(address to, uint256 amount)',
   'function balanceOf(address) view returns (uint256)',
   'function decimals() view returns (uint8)',
 ];
