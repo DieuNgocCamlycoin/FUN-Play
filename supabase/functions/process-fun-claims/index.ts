@@ -15,8 +15,8 @@ const LOCK_TIMEOUT_MS = 5 * 60 * 1000;
 const BATCH_SIZE = 5;
 const MIN_AMOUNT = 0.0001;
 
-// BSC Mainnet RPC + FUN ERC20 contract
-const RPC_URL = 'https://bsc-dataseed.binance.org/';
+// BSC Testnet RPC + FUN ERC20 contract (FUN token deployed on testnet, chain 97)
+const RPC_URL = 'https://data-seed-prebsc-1-s1.binance.org:8545/';
 const FUN_TOKEN_ADDRESS = '0x39A1b047D5d143f8874888cfa1d30Fb2AE6F0CD6';
 
 const ERC20_ABI = [
