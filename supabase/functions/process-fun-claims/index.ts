@@ -84,16 +84,12 @@ Deno.serve(async (req) => {
   // ─── Setup signer + ERC20 contract ───
   const provider = new JsonRpcProvider(RPC_URL);
   const treasury = new Wallet(treasuryKey, provider);
-  const fun = new Contract(FUN_TOKEN_ADDRESS, ERC20_ABI, treasury);
+  const fun = new Contract(FUN_TOKEN_ADDRESS, FUN_ABI, treasury);
 
-  // Pre-flight: treasury balances
-  let funBalance: bigint;
+  // Pre-flight: only check BNB for gas (no balance cap on mint — đúc mới from contract)
   let bnbBalance: bigint;
   try {
-    [funBalance, bnbBalance] = await Promise.all([
-      fun.balanceOf(treasury.address),
-      provider.getBalance(treasury.address),
-    ]);
+    bnbBalance = await provider.getBalance(treasury.address);
   } catch (e: any) {
     return json({ error: 'Cannot reach BSC RPC', details: e.message }, 500);
   }
