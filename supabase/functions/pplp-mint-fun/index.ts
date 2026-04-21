@@ -156,7 +156,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Cross-platform epoch cap check (all platforms share 20M FUN/epoch)
+    // Cross-platform epoch cap check (all platforms share 50M FUN/epoch)
     const monthStart = `${today.slice(0, 7)}-01T00:00:00Z`;
     const { data: epochTotal } = await supabase
       .from('pplp_mint_requests')
