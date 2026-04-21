@@ -3589,6 +3589,93 @@ export type Database = {
           },
         ]
       }
+      pplp_mint_requests_v2: {
+        Row: {
+          action_hash: string
+          action_name: string
+          amount_display: number
+          amount_wei: number
+          block_number: number | null
+          created_at: string
+          deadline: number
+          digest: string
+          error_message: string | null
+          evidence_hash: string
+          evidence_payload: Json | null
+          id: string
+          locked_at: string | null
+          metadata: Json | null
+          minted_at: string | null
+          nonce: number
+          policy_version: number
+          processing_attempts: number
+          recipient_address: string
+          signatures: Json
+          signatures_count: number
+          source: string
+          status: string
+          tx_hash: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          action_hash: string
+          action_name?: string
+          amount_display: number
+          amount_wei: number
+          block_number?: number | null
+          created_at?: string
+          deadline: number
+          digest: string
+          error_message?: string | null
+          evidence_hash: string
+          evidence_payload?: Json | null
+          id?: string
+          locked_at?: string | null
+          metadata?: Json | null
+          minted_at?: string | null
+          nonce: number
+          policy_version?: number
+          processing_attempts?: number
+          recipient_address: string
+          signatures?: Json
+          signatures_count?: number
+          source?: string
+          status?: string
+          tx_hash?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          action_hash?: string
+          action_name?: string
+          amount_display?: number
+          amount_wei?: number
+          block_number?: number | null
+          created_at?: string
+          deadline?: number
+          digest?: string
+          error_message?: string | null
+          evidence_hash?: string
+          evidence_payload?: Json | null
+          id?: string
+          locked_at?: string | null
+          metadata?: Json | null
+          minted_at?: string | null
+          nonce?: number
+          policy_version?: number
+          processing_attempts?: number
+          recipient_address?: string
+          signatures?: Json
+          signatures_count?: number
+          source?: string
+          status?: string
+          tx_hash?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       pplp_model_weights: {
         Row: {
           dimension: string
