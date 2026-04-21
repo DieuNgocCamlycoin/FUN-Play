@@ -1,5 +1,6 @@
 import { AttesterPanel } from '@/components/Multisig/AttesterPanel';
 import { AdminMintPanel } from '@/components/Multisig/AdminMintPanel';
+import { MultisigQuickActions } from '@/components/Multisig/MultisigQuickActions';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -80,6 +81,11 @@ export function MultisigMintTab() {
           </Button>
         </div>
       </Card>
+
+      {/* Admin Quick Actions — Approve/Reject với audit log */}
+      <section>
+        <MultisigQuickActions />
+      </section>
 
       {/* Attester Signing Section */}
       <section>
