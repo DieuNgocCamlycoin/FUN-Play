@@ -6,13 +6,15 @@ const corsHeaders = {
 };
 
 // Unified multi-platform config — shared spec across all 3 platforms
+// 2026-04-21: Daily cap raised 2 → 12 requests/user/day (covers 6 PPLP actions × 2 mints/day each)
+// 2026-04-21: Epoch cap raised 30M → 50M FUN/month (~28% of theoretical 180M ceiling)
 const VALID_PLATFORMS: Record<string, { daily_cap: number; label: string }> = {
-  fun_play: { daily_cap: 2, label: 'play.fun.rich' },
-  fun_angel: { daily_cap: 2, label: 'angel.fun.rich' },
-  fun_main: { daily_cap: 2, label: 'fun.rich' },
+  fun_play: { daily_cap: 12, label: 'play.fun.rich' },
+  fun_angel: { daily_cap: 12, label: 'angel.fun.rich' },
+  fun_main: { daily_cap: 12, label: 'fun.rich' },
 };
 const DEFAULT_PLATFORM = 'fun_play';
-const CROSS_PLATFORM_EPOCH_CAP = 30_000_000; // 30M FUN shared across all platforms (epoch pool)
+const CROSS_PLATFORM_EPOCH_CAP = 50_000_000; // 50M FUN shared across all platforms (epoch pool)
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -154,7 +156,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Cross-platform epoch cap check (all platforms share 20M FUN/epoch)
+    // Cross-platform epoch cap check (all platforms share 50M FUN/epoch)
     const monthStart = `${today.slice(0, 7)}-01T00:00:00Z`;
     const { data: epochTotal } = await supabase
       .from('pplp_mint_requests')
