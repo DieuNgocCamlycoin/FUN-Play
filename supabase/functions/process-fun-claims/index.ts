@@ -201,7 +201,7 @@ Deno.serve(async (req) => {
     ok: true,
     processed: results.length,
     treasury: treasury.address,
-    treasury_fun_left: formatUnits(funBalance, 18),
+    mode: 'mint',
     results,
   });
 });
